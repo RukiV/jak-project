@@ -11,6 +11,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   c->daddiu(sp, sp, -336);                          // daddiu sp, sp, -336
@@ -623,6 +624,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   c->daddiu(sp, sp, -112);                          // daddiu sp, sp, -112

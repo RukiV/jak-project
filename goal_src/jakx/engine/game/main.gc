@@ -3122,6 +3122,14 @@
   (display-frame-finish arg0)
   (display-sync arg0)
   ;; ---- new frame begins here (display-sync called display-frame-start) ----
+  ;; og:preserve-this matching jak3 display-loop-main (jak3 main.gc:1586-1589): reset the
+  ;; per-frame profiler state. Without this, profile-segment-array depth/count never reset
+  ;; and drift across frames, so the end-segment writes in display-frame-finish read
+  ;; segment[depth-1] out of bounds (run37 crash at drawable.gc:3769).
+  (when *debug-segment*
+    (start-frame! (-> arg0 frames (-> arg0 on-screen) profile-array data 0))
+    (start-profiling! (-> *perf-stats* data 0))
+    )
   ;; og:preserve-this bring-up gate (#53 slice 2): the whole particle frame step sits
   ;; behind *jakx-particles-ready*. Before the landing this block was inert because
   ;; process-particles' innards were stubs and the local-space engine linked 0; the

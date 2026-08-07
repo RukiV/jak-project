@@ -12,6 +12,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   c->vmove(DEST::xyzw, vf23, vf0);                  // vmove.xyzw vf23, vf0
@@ -375,6 +376,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   c->daddiu(sp, sp, -64);                           // daddiu sp, sp, -64
@@ -2178,6 +2180,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   c->daddiu(sp, sp, -64);                           // daddiu sp, sp, -64
@@ -3627,6 +3630,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   c->load_symbol2(v1, cache.font_work);             // lw v1, *font-work*(s7)

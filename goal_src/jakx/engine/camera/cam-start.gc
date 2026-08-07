@@ -61,6 +61,55 @@
 (define *jakx-cam-warp-rot* (new 'static 'matrix))
 (define *jakx-cam-warp-rot-valid* #f)
 
+(defun jakx-look-at-matrix! ((out matrix) (from vector) (to vector))
+  "og:preserve-this bring-up: build an inv-camera-rot that looks from 'from'
+toward 'to' (the camera faces +fvec; convention verified against the retail
+jungle-a-1 / garage-fma-1 continue camera-rots, whose fvec points from the
+start-line camera-trans toward the level geometry). Returns #t on success, #f
+for a degenerate (zero-length) look direction."
+  (let ((f (new 'stack-no-clear 'vector))
+        (up (new 'stack-no-clear 'vector))
+        (r (new 'stack-no-clear 'vector))
+        (u (new 'stack-no-clear 'vector))
+        (d2 0.0)
+        )
+    (set! (-> f x) (- (-> to x) (-> from x)))
+    (set! (-> f y) (- (-> to y) (-> from y)))
+    (set! (-> f z) (- (-> to z) (-> from z)))
+    (set! d2 (+ (* (-> f x) (-> f x)) (* (-> f y) (-> f y)) (* (-> f z) (-> f z))))
+    (if (< d2 0.000001)
+        #f
+        (begin
+          (vector-normalize! f 1.0)
+          (set! (-> up x) 0.0)
+          (set! (-> up y) 1.0)
+          (set! (-> up z) 0.0)
+          (if (> (fabs (-> f y)) 0.99)
+              (begin
+                (set! (-> up y) 0.0)
+                (set! (-> up z) 1.0)
+                )
+              )
+          (vector-cross! r up f)
+          (vector-normalize! r 1.0)
+          (vector-cross! u f r)
+          (vector-normalize! u 1.0)
+          (matrix-identity! out)
+          (set! (-> out rvec x) (-> r x))
+          (set! (-> out rvec y) (-> r y))
+          (set! (-> out rvec z) (-> r z))
+          (set! (-> out uvec x) (-> u x))
+          (set! (-> out uvec y) (-> u y))
+          (set! (-> out uvec z) (-> u z))
+          (set! (-> out fvec x) (-> f x))
+          (set! (-> out fvec y) (-> f y))
+          (set! (-> out fvec z) (-> f z))
+          #t
+          )
+        )
+      )
+  )
+
 (defun jakx-cam-warp-to-level ((lev level))
   "og:preserve-this bring-up helper: arm the per-frame camera warp for the level
 (see the comment above). Prefers the densest cluster in the level's actor table
@@ -68,8 +117,8 @@
 mid-ring air and its BVH leaves are rim scenery), then the level bsphere, then
 the extracted brdroom glb bounds center."
   (let ((bs (-> lev bsp bsphere)))
-    (format 0 "cam-warp: armed for ~A bsphere <~m ~m ~m r ~m>~%"
-            (-> lev name) (-> bs x) (-> bs y) (-> bs z) (-> bs w))
+    (format 0 "cam-warp: armed for ~A index ~D status ~S~%" (-> lev name) (-> lev index) (-> lev status))
+    (format 0 "cam-warp: bsphere <~m ~m ~m r ~m>~%" (-> bs x) (-> bs y) (-> bs z) (-> bs w))
     )
   (set! (-> *jakx-cam-warp-target* w) 0.0)
   (let ((acts (-> lev bsp actors)))
@@ -101,17 +150,31 @@ the extracted brdroom glb bounds center."
           )
         (when (>= best-i 0)
           (let ((cb (-> acts data best-i bsphere)))
-            (set! (-> *jakx-cam-warp-target* x) (-> cb x))
-            ;; 10m lift so the view is not inside a prop
-            (set! (-> *jakx-cam-warp-target* y) (+ (-> cb y) 40960.0))
-            (set! (-> *jakx-cam-warp-target* z) (-> cb z))
-            (set! (-> *jakx-cam-warp-target* w) 1.0)
-            (format 0 "cam-warp: actor-cluster target <~m ~m ~m> (~D neighbors)~%"
-                    (-> *jakx-cam-warp-target* x)
-                    (-> *jakx-cam-warp-target* y)
-                    (-> *jakx-cam-warp-target* z)
-                    best-count
-                    )
+            ;; og:preserve-this guard: interior/hub levels (garage, brdroom) ship their
+            ;; actor bspheres unpositioned (positive radii, every center at the origin),
+            ;; so "densest cluster" degenerates to <0,0,0> and would shadow the BVH
+            ;; descent onto actual geometry. Real level data lives far from world origin
+            ;; (brdroom ~1.4M out), so a cluster center within 125m of the origin is an
+            ;; unpositioned-table signature: skip the actor pick and fall through to the
+            ;; drawable-tree bounds instead.
+            (if (< (* (-> cb x) (-> cb x)) (* 512000.0 512000.0))
+                (format 0 "cam-warp: actor cluster near origin (<~m ~m ~m>), falling through~%"
+                        (-> cb x) (-> cb y) (-> cb z)
+                        )
+                (begin
+                  (set! (-> *jakx-cam-warp-target* x) (-> cb x))
+                  ;; 10m lift so the view is not inside a prop
+                  (set! (-> *jakx-cam-warp-target* y) (+ (-> cb y) 40960.0))
+                  (set! (-> *jakx-cam-warp-target* z) (-> cb z))
+                  (set! (-> *jakx-cam-warp-target* w) 1.0)
+                  (format 0 "cam-warp: actor-cluster target <~m ~m ~m> (~D neighbors)~%"
+                          (-> *jakx-cam-warp-target* x)
+                          (-> *jakx-cam-warp-target* y)
+                          (-> *jakx-cam-warp-target* z)
+                          best-count
+                          )
+                  )
+                )
             )
           )
         )
@@ -188,11 +251,18 @@ origin; release after the counter runs out."
       ;; ~1km from the geometry.
       (let ((tree-bs (the-as vector #f))
             (leaf-lift 0.0)
+            (cent (new 'stack-no-clear 'vector))
+            (cent-n 0)
             )
         (let ((trees (-> *jakx-cam-warp-level* bsp drawable-trees)))
           (when (nonzero? (the-as int trees))
             (dotimes (i (-> trees length))
               (let ((tree (-> trees trees i)))
+                ;; accumulate the level's tree-bsphere centroid for the look-at seed
+                (set! (-> cent x) (+ (-> cent x) (-> tree bsphere x)))
+                (set! (-> cent y) (+ (-> cent y) (-> tree bsphere y)))
+                (set! (-> cent z) (+ (-> cent z) (-> tree bsphere z)))
+                (+! cent-n 1)
                 (when (and (not tree-bs) (< 0.0 (-> tree bsphere w)) (> (-> tree length) 0))
                   ;; start from the MIDDLE root child, then first-child descent:
                   ;; the first leaf of a track BVH tends to be interior detail
@@ -258,12 +328,28 @@ origin; release after the counter runs out."
               (set! (-> warp z) (-> tree-bs z))
               )
             (else
-              ;; extracted brdroom glb bounds center, the original bring-up target
-              (set! (-> warp x) -1457697.0)
-              (set! (-> warp y) 435999.0)
-              (set! (-> warp z) -602753.0)
+              ;; og:preserve-this bring-up: last-resort fallback for a hub with no
+              ;; usable bspheres. Runtime world units are the retail /4096 scale (the
+              ;; decompiled level-info/GLB floats carry a 4096x artifact). brdroom's
+              ;; cluster target <-357.3491 116.1745 -146.6240> was user-verified to
+              ;; render (2026-08-03), so pin that exact release point here.
+              (set! (-> warp x) -357.3491)
+              (set! (-> warp y) 116.1745)
+              (set! (-> warp z) -146.6240)
               )
             )
+          )
+        ;; og:preserve-this bring-up: the to-level path has no retail start-line
+        ;; rotation; the boot free camera would keep a degenerate identity
+        ;; orientation and stare out of the room into the void, so seed a look-at
+        ;; that faces the level's tree-bsphere centroid from the release point.
+        (when (and (not *jakx-cam-warp-rot-valid*) (> cent-n 0))
+          (set! (-> cent x) (/ (-> cent x) (the float cent-n)))
+          (set! (-> cent y) (/ (-> cent y) (the float cent-n)))
+          (set! (-> cent z) (/ (-> cent z) (the float cent-n)))
+          (if (jakx-look-at-matrix! *jakx-cam-warp-rot* warp cent)
+              (set! *jakx-cam-warp-rot-valid* #t)
+              )
           )
         )
       (let ((cc (the-as camera-combiner (view-get-active-camera-combiner))))
@@ -315,6 +401,8 @@ origin; release after the counter runs out."
           )
         (format 0 "cam-warp: released at <~m ~m ~m>, combiner retired~%"
                 (-> warp x) (-> warp y) (-> warp z))
+        (format 0 "cam-warp: lvl0 ~A status ~S bde-len ~D~%"
+                (-> *level* level 0 name) (-> *level* level 0 status) (-> *background-draw-engine* length))
         (set! *jakx-cam-warp-level* (the level #f))
         ;; the seed itself stays in *save-camera-inv-rot*; only the pin ends here
         (set! *jakx-cam-warp-rot-valid* #f)

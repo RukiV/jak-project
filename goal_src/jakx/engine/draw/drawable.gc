@@ -4423,6 +4423,13 @@
   (if (and *jakx-particles-ready* (not (paused?)))
       (execute-part-engine)
       )
+  ;; og:preserve-this: sprite-draw (the sprite/particle DMA) runs right after the
+  ;; foreground passes and before the debug draw, jak3 parity. Retained from the
+  ;; pre-merge bring-up; semeaj's sprite family landed without a sprite-draw call
+  ;; (only a commented ref at :2926), so 2D sprites would never render.
+  (when (nonzero? *sprite-array-3d*)
+    (sprite-draw *display*)
+    )
   0
   (none)
   )

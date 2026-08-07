@@ -7,6 +7,7 @@ namespace Mips2C::jakx {
 namespace cspace_parented_transformq_joint {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   // nop                                            // sll r0, r0, 0

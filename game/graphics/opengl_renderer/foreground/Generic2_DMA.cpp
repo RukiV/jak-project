@@ -454,6 +454,34 @@ void Generic2::process_dma_jak2(DmaFollower& dma, u32 next_bucket) {
   }
 
   while (!is_jak2_end(vif_transfer)) {
+    // jakx mercneric (#57 rung 5): each merc draw leads with a per-draw GS-state upload
+    // (NOP+DIRECT, (nregs+1)*16 bytes: 48/80/112) that the jak3 fragment loop never sees
+    // (jak3 writes a single 2-reg gs-set in its own setup). Skip these and the one-off
+    // 16-byte noise transfer (frag[4] in the run46 dump: NOP + garbage PC_PORT from raw
+    // byte 0x08) instead of asserting. The failing-tag assert below stays as the backstop
+    // for anything these skips don't cover.
+    if (vif_transfer.vifcode0().kind == VifCode::Kind::NOP &&
+        vif_transfer.vifcode1().kind == VifCode::Kind::DIRECT && vif_transfer.size_bytes >= 32) {
+      fmt::print("DBG skip per-draw DIRECT gs-set: {} bytes\n", vif_transfer.size_bytes);
+      // Best-effort zmsk mirror of the setup-packet parse (zbuf value at payload+16 in the
+      // 80-byte bucket-setup shape). Never assert on unknown GS layouts; just skip.
+      u64 zbuf_val;
+      memcpy(&zbuf_val, vif_transfer.data + 16, 8);
+      m_drawing_config.zmsk = GsZbuf(zbuf_val).zmsk();
+      vif_transfer = dma.read_and_advance();
+      while (is_nop_zero(vif_transfer)) {
+        vif_transfer = dma.read_and_advance();
+      }
+      continue;
+    }
+    if (vif_transfer.size_bytes == 16 && vif_transfer.vifcode0().kind == VifCode::Kind::NOP) {
+      fmt::print("DBG skip noise transfer 16B vif1 {}\n", vif_transfer.vifcode1().print());
+      vif_transfer = dma.read_and_advance();
+      while (is_nop_zero(vif_transfer)) {
+        vif_transfer = dma.read_and_advance();
+      }
+      continue;
+    }
     if (continued_fragment) {
       ASSERT(vif_transfer.vifcode0().kind == VifCode::Kind::NOP);
       auto up = vif_transfer.vifcode1();
@@ -477,6 +505,23 @@ void Generic2::process_dma_jak2(DmaFollower& dma, u32 next_bucket) {
           vif_transfer.vifcode1().kind != VifCode::Kind::UNPACK_V4_32) {
         fmt::print("failing tag: {} {} {}\n", vif_transfer.vifcode0().print(),
                    vif_transfer.vifcode1().print(), vif_transfer.size_bytes);
+        // DBG chain dump: setup packets already consumed + remaining fragment chain
+        fmt::print("DBG setup: first={} {} dir={} {} {} const={} {} {} vu={}\n",
+                   first_data.vifcode0().print(), first_data.vifcode1().print(),
+                   direct_setup.vifcode0().print(), direct_setup.vifcode1().print(),
+                   direct_setup.size_bytes, constants.vifcode0().print(),
+                   constants.vifcode1().print(), constants.size_bytes, vu_setup.size_bytes);
+        int dbg_n = 0;
+        auto dbg_t = vif_transfer;
+        while (!is_jak2_end(dbg_t) && dbg_n < 12) {
+          fmt::print("DBG frag[{}]: {} {} {}\n", dbg_n, dbg_t.vifcode0().print(),
+                     dbg_t.vifcode1().print(), dbg_t.size_bytes);
+          dbg_t = dma.read_and_advance();
+          while (is_nop_zero(dbg_t)) {
+            dbg_t = dma.read_and_advance();
+          }
+          dbg_n++;
+        }
       }
       ASSERT(vif_transfer.vifcode0().kind == VifCode::Kind::STCYCL);
       ASSERT(v1.kind == VifCode::Kind::UNPACK_V4_32);

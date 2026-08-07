@@ -26,7 +26,7 @@ u64 execute(void* ctxt) {
   c->mov64(gp, a2);                                 // or gp, a2, r0
   c->ori(s5, r0, 65535);                            // ori s5, r0, 65535
   c->load_symbol2(t9, cache.view_get_active_math_camera);// lw t9, view-get-active-math-camera(s7)
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   c->sll(v0, ra, 0);                                // sll v0, ra, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->mov64(v1, v0);                                 // or v1, v0, r0
@@ -96,7 +96,7 @@ u64 execute(void* ctxt) {
   c->load_symbol2(t9, cache.atan);                  // lw t9, atan(s7)
   c->mov64(a0, s4);                                 // or a0, s4, r0
   c->mov64(a1, s5);                                 // or a1, s5, r0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   c->sll(v0, ra, 0);                                // sll v0, ra, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->mov64(a0, v0);                                 // or a0, v0, r0
@@ -247,7 +247,7 @@ u64 execute(void* ctxt) {
 
   c->load_symbol2(t9, cache.sp_queue_launch);       // lw t9, sp-queue-launch(s7)
   // nop                                            // sll r0, r0, 0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->lw(ra, 0, sp);                                 // lw ra, 0(sp)
@@ -300,7 +300,7 @@ block_8:
   c->addiu(a3, r0, 7);                              // addiu a3, r0, 7
   c->load_symbol2(t9, cache.sp_init_fields);        // lw t9, sp-init-fields!(s7)
   c->daddiu(t0, s7, 4);                             // daddiu t0, s7, 4
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->sw(v0, 12, sp);                                // sw v0, 12(sp)
@@ -372,7 +372,7 @@ block_12:
 block_15:
   c->load_symbol2(t9, cache.sp_get_particle);       // lw t9, sp-get-particle(s7)
   c->mov64(a0, s3);                                 // or a0, s3, r0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   bc = c->sgpr64(v0) == c->sgpr64(s7);              // beq v0, s7, L338
@@ -385,14 +385,14 @@ block_15:
   c->addiu(a3, r0, 21);                             // addiu a3, r0, 21
   c->load_symbol2(t9, cache.sp_init_fields);        // lw t9, sp-init-fields!(s7)
   c->daddiu(t0, s7, 4);                             // daddiu t0, s7, 4
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->daddiu(a0, s2, 12);                            // daddiu a0, s2, 12
   c->mov64(a1, v0);                                 // or a1, v0, r0
   c->addiu(a2, r0, 22);                             // addiu a2, r0, 22
   c->addiu(a3, r0, 51);                             // addiu a3, r0, 51
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   c->daddiu(t0, s7, 4);                             // daddiu t0, s7, 4
   c->jalr(call_addr);                               // jalr ra, t9
   c->sw(v0, 144, sp);                               // sw v0, 144(sp)
@@ -508,14 +508,14 @@ block_28:
 
   c->load_symbol2(t9, cache.cos);                   // lw t9, cos(s7)
   // nop                                            // sll r0, r0, 0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->mov64(a1, v0);                                 // or a1, v0, r0
   c->lw(a0, 192, sp);                               // lw a0, 192(sp)
   c->load_symbol2(t9, cache.sin);                   // lw t9, sin(s7)
   // nop                                            // sll r0, r0, 0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->ori(v1, r0, 32768);                            // ori v1, r0, 32768
@@ -527,7 +527,7 @@ block_28:
   c->lw(t0, 196, sp);                               // lw t0, 196(sp)
   c->load_symbol2(t9, cache.quaternion_axis_angle); // lw t9, quaternion-axis-angle!(s7)
   c->daddiu(a0, s2, 80);                            // daddiu a0, s2, 80
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->lw(v1, 16, s0);                                // lw v1, 16(s0)
@@ -616,7 +616,7 @@ block_40:
   c->daddiu(a3, sp, 80);                            // daddiu a3, sp, 80
   if (bc) {goto block_42;}                          // branch non-likely
 
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   c->mov64(t0, s6);                                 // or t0, s6, r0
   c->jalr(call_addr);                               // jalr ra, t9
   
@@ -627,7 +627,7 @@ block_42:
 
   c->load_symbol2(t9, cache.sp_euler_convert);      // lw t9, sp-euler-convert(s7)
   c->daddiu(a0, sp, 192);                           // daddiu a0, sp, 192
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   c->mov64(a1, s2);                                 // or a1, s2, r0
   c->jalr(call_addr);                               // jalr ra, t9
   
@@ -648,7 +648,7 @@ block_44:
 
   c->load_symbol2(t9, cache.sp_rotate_system);      // lw t9, sp-rotate-system(s7)
   // nop                                            // sll r0, r0, 0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   
@@ -663,7 +663,7 @@ block_48:
   // nop                                            // sll r0, r0, 0
   c->sqc2(vf4, 192, sp);                            // sqc2 vf4, 192(sp)
   // nop                                            // sll r0, r0, 0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->lw(a2, 4, s2);                                 // lw a2, 4(s2)
@@ -698,7 +698,7 @@ block_50:
   // nop                                            // sll r0, r0, 0
   c->lq(s6, 288, sp);                               // lq s6, 288(sp)
   // nop                                            // sll r0, r0, 0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   c->mov64(a3, s4);                                 // or a3, s4, r0
   c->jalr(call_addr);                               // jalr ra, t9
   c->lq(s6, 304, sp);                               // lq s6, 304(sp)
@@ -958,7 +958,7 @@ block_4:
   // nop                                            // sll r0, r0, 0
   c->sw(ra, 8, sp);                                 // sw ra, 8(sp)
   // nop                                            // sll r0, r0, 0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   c->sw(v1, 0, t1);                                 // sw v1, 0(t1)
   c->jalr(call_addr);                               // jalr ra, t9
   // nop                                            // sll r0, r0, 0
@@ -1001,7 +1001,7 @@ block_8:
   // nop                                            // sll r0, r0, 0
   c->sw(ra, 8, sp);                                 // sw ra, 8(sp)
   // nop                                            // sll r0, r0, 0
-  call_addr = c->gprs[t9].du32[0];                  // function call:
+  call_addr = c->gprs[t9].du32[0];
   // nop                                            // sll r0, r0, 0
   c->jalr(call_addr);                               // jalr ra, t9
   c->lw(t4, 4, sp);                                 // lw t4, 4(sp)

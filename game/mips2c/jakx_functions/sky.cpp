@@ -16,6 +16,7 @@ ExecutionContext sky_regs_vfs;
 namespace set_sky_vf27 {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   // sky_regs_vfs.vfs[27]
   memcpy(&sky_regs_vfs.vfs[27].f[0], g_ee_main_mem + c->gpr_addr(a0), 16);
   return 0;
@@ -29,6 +30,7 @@ void link() {
 namespace set_sky_vf23_value {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   u64 value = c->sgpr64(a0);
   // sky_regs_vfs.vfs[23]
   memcpy(&sky_regs_vfs.vfs[23].f[0], &value, 8);
@@ -44,6 +46,7 @@ void link() {
 namespace clip_polygon_against_positive_hyperplane {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   bool cop1_bc = false;
@@ -322,6 +325,7 @@ end_of_function:
 namespace clip_polygon_against_negative_hyperplane {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   bool cop1_bc = false;
@@ -610,6 +614,7 @@ end_of_function:
 namespace set_tex_offset {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   c->daddiu(sp, sp, -32);                           // daddiu sp, sp, -32
@@ -657,6 +662,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   // nop                                            // sll r0, r0, 0
@@ -790,6 +796,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;
@@ -885,6 +892,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;
@@ -961,6 +969,7 @@ void link() {
 namespace method_16_sky_work {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;
@@ -1048,6 +1057,7 @@ void link() {
 namespace method_17_sky_work {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;
@@ -1102,6 +1112,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;
@@ -1307,6 +1318,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;
@@ -1494,6 +1506,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;
@@ -1680,6 +1693,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;
@@ -1866,6 +1880,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   c->copy_vfs_from_other(&sky_regs_vfs);
   bool bc = false;
   u32 call_addr = 0;

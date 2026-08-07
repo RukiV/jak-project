@@ -32,6 +32,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   // restore the vf state saved by init-ocean-far-regs (separate mips2c invocation).
   c->copy_vfs_from_other(&ocean_regs_vfs);
   c->mov64(v1, a0);                                 // or v1, a0, r0
@@ -136,6 +137,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   [[maybe_unused]] u32 call_addr = 0;
   // nop                                            // sll r0, r0, 0
@@ -331,6 +333,7 @@ struct Cache {
 
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
+  printf("M2C: %s\n", __PRETTY_FUNCTION__);
   bool bc = false;
   u32 call_addr = 0;
   c->daddiu(sp, sp, -144);                          // daddiu sp, sp, -144
