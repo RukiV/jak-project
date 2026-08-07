@@ -213,8 +213,15 @@ void Sprite3::distort_dma(GameVersion version, DmaFollower& dma, ScopedProfilerN
       break;
     case GameVersion::Jak2:
     case GameVersion::Jak3:
-    case GameVersion::JakX:
       expect_zbp = 0x130;
+      expect_th = 9;
+      break;
+    case GameVersion::JakX:
+      // jakx's sprite-init-distorter derives zbuf from the viewport's zbuf-off
+      // (sprite-distort.gc:100), which is zbp #x12e (viewport.gc:100, confirmed
+      // by donutsdelivery's independent decomp). jak3 hardcodes #x130 in its own
+      // distorter, so the jak3 value does NOT apply here.
+      expect_zbp = 0x12e;
       expect_th = 9;
       break;
     default:

@@ -141,14 +141,23 @@ void Sprite3::handle_sprite_frame_setup(DmaFollower& dma,
                                         ScopedProfilerNode& /*prof*/) {
   // first is some direct data
   auto direct_data = dma.read_and_advance();
-  ASSERT(direct_data.size_bytes == 3 * 16);
-  memcpy(m_sprite_direct_setup, direct_data.data, 3 * 16);
-  ASSERT(m_sprite_direct_setup[0] == 0x2000000000008001);
-  ASSERT(m_sprite_direct_setup[1] == 0xEEEEEEEEEEEEEEEE);
-  ASSERT(m_sprite_direct_setup[2] == 0x000000000005126B);
-  ASSERT(m_sprite_direct_setup[3] == 0x0000000000000047);
-  ASSERT(m_sprite_direct_setup[4] == 0x0000000000000005);
-  ASSERT(m_sprite_direct_setup[5] == 0x0000000000000008);
+  if (version == GameVersion::JakX) {
+    // jakx's sprite-draw only sends a clamp-1 gs set here (gif tag + 1 register),
+    // while jak2/jak3 send test-1 + clamp-1 (gif tag + 2 registers). The values
+    // are never read anywhere, so just validate the structure.
+    ASSERT(direct_data.size_bytes == 2 * 16);
+    ASSERT(direct_data.vifcode0().kind == VifCode::Kind::NOP);
+    ASSERT(direct_data.vifcode1().kind == VifCode::Kind::DIRECT);
+  } else {
+    ASSERT(direct_data.size_bytes == 3 * 16);
+    memcpy(m_sprite_direct_setup, direct_data.data, 3 * 16);
+    ASSERT(m_sprite_direct_setup[0] == 0x2000000000008001);
+    ASSERT(m_sprite_direct_setup[1] == 0xEEEEEEEEEEEEEEEE);
+    ASSERT(m_sprite_direct_setup[2] == 0x000000000005126B);
+    ASSERT(m_sprite_direct_setup[3] == 0x0000000000000047);
+    ASSERT(m_sprite_direct_setup[4] == 0x0000000000000005);
+    ASSERT(m_sprite_direct_setup[5] == 0x0000000000000008);
+  }
 
   // next would be the program, but it's 0 size on the PC and isn't sent.
 
