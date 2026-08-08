@@ -233,6 +233,11 @@ and it will never be submitted upstream. When an issue or pull request closes wi
 fix, say why in a closing comment and use `state/wont-fix` or `state/superseded`; a
 closed item with no recorded reason is a hole in the trail.
 
+Assignment carries one meaning: the assignee is driving that item now. Unassigned open
+issues are the menu, and the contributor on-ramp milestone exists to be picked from;
+self-assign when you take one up, and assign no one but yourself without asking them
+first.
+
 Renames touch two files. Any rename or type change under `goal_src/<game>` must update
 `decompiler/config/<game>/all-types.gc` in the same commit: the type-consistency tests
 compile both with throw-on-redefines, and a member-name mismatch is a red
