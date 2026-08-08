@@ -58,10 +58,8 @@ claim and needs the construction stated. -->
 ## Declaration
 
 - [ ] I read `AGENTS.md` on this branch and this change meets its standards
-- [ ] The branch was cut from `develop`, this mirror's working branch (upstream-bound
-      branches cut from `master` instead and are not opened here)
-- [ ] Nothing here is fabricated: every path, line number, command output and measurement
-      above is real and was actually observed
+- [ ] The branch was cut from `develop`, this mirror's working branch (upstream-bound branches cut from `master` instead and are not opened here)
+- [ ] Nothing here is fabricated: every path, line number, command output and measurement above is real and was actually observed
 - [ ] `(AI-assisted)` is disclosed below if an agent was involved
 
 <!--
