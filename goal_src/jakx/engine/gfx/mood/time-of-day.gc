@@ -79,46 +79,35 @@
            (+! (-> self start-timer) 1)
            )
           (else
-            ;; og:preserve-this bring-up guards on the three launch controls. init-time-of-day
-            ;; cannot build them yet (part groups 3, 4 and 5 are undefined, see there), so the
-            ;; fields hold 0 and both spawn and method 21 would dereference it. These are the
-            ;; sun/moon PARTICLE effects only; the sky's sun and moon sprites are a separate
-            ;; pass and draw regardless. Each guard retires with its part group.
             (let ((s5-0 (-> *time-of-day-context* sky)))
               (cond
-                ((and (nonzero? (-> self sun))
-                      (>= (-> self time-of-day) 6.25)
-                      (and (< (-> self time-of-day) 18.75) s5-0)
-                      )
+                ((and (>= (-> self time-of-day) 6.25) (and (< (-> self time-of-day) 18.75) s5-0))
                  (if (zero? (-> self sun-count))
                      (spawn (-> self sun) gp-0)
                      )
                  )
-                ((and (> (-> self sun-count) 0) (nonzero? (-> self sun)))
+                ((> (-> self sun-count) 0)
                  (sparticle-launch-control-method-21 (-> self sun))
                  )
                 )
               (cond
-                ((and (nonzero? (-> self green-sun))
-                      (or (>= (-> self time-of-day) 21.75) (>= 10.25 (-> self time-of-day)))
-                      s5-0
-                      )
+                ((and (or (>= (-> self time-of-day) 21.75) (>= 10.25 (-> self time-of-day))) s5-0)
                  (if (zero? (-> self green-sun-count))
                      (spawn (-> self green-sun) gp-0)
                      )
                  )
-                ((and (> (-> self green-sun-count) 0) (nonzero? (-> self green-sun)))
+                ((> (-> self green-sun-count) 0)
                  (sparticle-launch-control-method-21 (-> self green-sun))
                  )
                 )
               (set! s5-0 (and (or (>= 7.0 (-> self time-of-day)) (>= (-> self time-of-day) 17.0)) s5-0))
               (cond
-                ((and s5-0 (nonzero? (-> self moon)))
+                (s5-0
                   (if (zero? (-> self moon-count))
                       (spawn (-> self moon) gp-0)
                       )
                   )
-                ((and (> (-> self moon-count) 0) (nonzero? (-> self moon)))
+                ((> (-> self moon-count) 0)
                  (sparticle-launch-control-method-21 (-> self moon))
                  )
                 )
@@ -283,20 +272,9 @@
       )
     )
   (update-rates! (-> *display* bg-clock) (-> self time-ratio))
-  ;; og:preserve-this bring-up guard: these are part groups 3, 4 and 5 (sun, green sun,
-  ;; moon). No jakx part group below id 6 is defined yet, so the table entries are unset
-  ;; and create-launch-control would be handed a zero. The sun and moon still DRAW: those
-  ;; are the sky sprite passes, which are unrelated to these particle effects. Drop the
-  ;; guard when the sky part groups land.
-  (if (nonzero? (-> *part-group-id-table* 3))
-      (set! (-> self sun) (create-launch-control (-> *part-group-id-table* 3) self))
-      )
-  (if (nonzero? (-> *part-group-id-table* 4))
-      (set! (-> self green-sun) (create-launch-control (-> *part-group-id-table* 4) self))
-      )
-  (if (nonzero? (-> *part-group-id-table* 5))
-      (set! (-> self moon) (create-launch-control (-> *part-group-id-table* 5) self))
-      )
+  (set! (-> self sun) (create-launch-control (-> *part-group-id-table* 3) self))
+  (set! (-> self green-sun) (create-launch-control (-> *part-group-id-table* 4) self))
+  (set! (-> self moon) (create-launch-control (-> *part-group-id-table* 5) self))
   (set! (-> self event-hook) (-> time-of-day-tick event))
   (go time-of-day-tick)
   )
