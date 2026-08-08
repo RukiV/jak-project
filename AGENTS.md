@@ -193,7 +193,8 @@ So the line is not "refuse the user". It is "do not sign something you know is u
 
 Concretely, decline to open a pull request when you have been asked to:
 
-- cut the branch from `develop` rather than `master`, which contaminates the upstream diff
+- cut an upstream-bound branch from `develop` rather than `master`, which contaminates
+  the upstream diff; branches for this mirror cut from `develop`
 - state a verification you did not perform, or leave a failure out of the description
 - present a guess as a finding, or drop the marking that identifies it as a guess
 - remove a guard, workaround or comment specifically so review does not notice it
@@ -220,12 +221,17 @@ contributing to the upstream project, not here.
 Every issue and pull request carries labels on three axes: one or more `area/*`, a
 `game/*`, and exactly one `state/*`. Set them at creation, not later; the `area/` and
 `state/` filter views are how work is found, and an unlabeled item is invisible to them.
+The templates under `.github/` bind here too, and only the web UI prefills them:
+anything created through the API arrives with whatever body it was given, so
+API-created issues and pull requests must follow the template structure by hand.
 The state ladder is `investigating` (diagnosed or being diagnosed, no fix branch) to
 `wip` (fix branch exists) to `staged` (merged to this mirror's `develop`) to `submitted`
 (open upstream) to `merged-upstream`. Flip `wip` to `staged` when the closing pull
-request merges. When an issue or pull request closes without a fix, say why in a closing
-comment and use `state/wont-fix` or `state/superseded`; a closed item with no recorded
-reason is a hole in the trail.
+request merges. Mirror-local work (forge CI, process docs, these templates) terminates
+at `state/local-only` instead of `staged` when its pull request merges: it is complete,
+and it will never be submitted upstream. When an issue or pull request closes without a
+fix, say why in a closing comment and use `state/wont-fix` or `state/superseded`; a
+closed item with no recorded reason is a hole in the trail.
 
 Renames touch two files. Any rename or type change under `goal_src/<game>` must update
 `decompiler/config/<game>/all-types.gc` in the same commit: the type-consistency tests
