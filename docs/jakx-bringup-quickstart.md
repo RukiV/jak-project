@@ -30,7 +30,10 @@ not obvious:
 
 - **`(mi)` and `gk` build different halves.** Rebuilding gk.exe does nothing to GOAL
   code; after editing any `.gc`, run `(mi)` or the boot runs the previous GOAL build
-  while looking current.
+  while looking current. The coupling cuts the other way too: after any merge that
+  lands mips2c C++ (`game/mips2c/jakx_functions/*.cpp`), a gk.exe built before it
+  dies at boot link with `mips2c function <name> is unknown`
+  (`mips2c_table.cpp`, a fatal assert). Rebuild gk after pulling such a merge.
 - **Every jakx decompiler run stubs `out/jakx/fr3/GAME.fr3`.** Re-run `task extract`
   to completion before booting, or gk dies on a `!tex->is_placeholder` assert.
 
