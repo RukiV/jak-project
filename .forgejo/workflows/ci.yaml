@@ -96,6 +96,42 @@ jobs:
           # run tests the proposed change; github.sha covers workflow_dispatch.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      # AGENTS.md requires the (AI-assisted) marker on contributor commits; nothing
+      # checked it mechanically until #88 (a violation shipped in the PR #85 follow-up
+      # and only human review caught it, days late). The rule binds contributors, not
+      # the maintainer, so maintainer-authored commits are exempt, and develop-sync
+      # merge commits are skipped. The walk uses the API instead of git log because the
+      # shallow checkout has no history, and the API lists exactly the commits the
+      # merge would bring.
+      - name: Check contributor commits for the (AI-assisted) disclosure
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        env:
+          TOKEN: ${{ github.token }}
+          COMMITS_URL: ${{ github.api_url }}/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/commits?limit=100
+          MAINTAINER_EMAIL: semeaj@pm.me
+        run: |
+          set -eu
+          commits="$(curl -sSf -H "Authorization: token $TOKEN" "$COMMITS_URL")"
+          count="$(echo "$commits" | jq 'length')"
+          if [ "$count" -ge 100 ]; then
+            echo "::error::PR has $count or more commits, beyond this check's single-page walk; split the PR or extend the pagination"
+            exit 1
+          fi
+          violations="$(echo "$commits" | jq -r --arg m "$MAINTAINER_EMAIL" '
+            .[]
+            | select((.parents | length) < 2)
+            | select(.commit.author.email != $m)
+            | select(.commit.message | contains("(AI-assisted)") | not)
+            | .sha[0:9] + " by " + .commit.author.email + ": " + (.commit.message | split("\n")[0])
+          ')"
+          if [ -n "$violations" ]; then
+            printf '%s\n' "$violations" | while IFS= read -r v; do
+              echo "::error::contributor commit lacks the (AI-assisted) disclosure required by AGENTS.md: $v"
+            done
+            exit 1
+          fi
+          echo "disclosure check: $count commits walked, no violations"
+
       # Pinned to 18 on purpose. Later clang-format releases disagree with this codebase
       # (braced-init-list bin packing, among others) and will fail a clean tree, so a
       # newer one produces false failures and, worse, reformats code that CI then rejects.
