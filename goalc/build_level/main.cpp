@@ -21,11 +21,6 @@ int main(int argc, char** argv) {
   bool gen_fr3 = true;
   fs::path project_path_override;
 
-  // path
-  if (!file_util::setup_project_path(std::nullopt)) {
-    return 1;
-  }
-
   lg::info("Build Level Tool", versions::GOAL_VERSION_MAJOR, versions::GOAL_VERSION_MINOR);
 
   CLI::App app{"OpenGOAL Compiler / REPL"};
@@ -45,16 +40,14 @@ int main(int argc, char** argv) {
 
   GameVersion game_version = game_name_to_version(game);
 
-  if (!project_path_override.empty()) {
-    if (!fs::exists(project_path_override)) {
-      lg::error("Error: project path override '{}' does not exist", project_path_override.string());
-      return 1;
-    }
-    if (!file_util::setup_project_path(project_path_override)) {
-      lg::error("Could not setup project path!");
-      return 1;
-    }
-  } else if (!file_util::setup_project_path(std::nullopt)) {
+  if (!project_path_override.empty() && !fs::exists(project_path_override)) {
+    lg::error("Error: project path override '{}' does not exist", project_path_override.string());
+    return 1;
+  }
+  if (!file_util::setup_project_path(project_path_override.empty()
+                                         ? std::nullopt
+                                         : std::make_optional(project_path_override))) {
+    lg::error("Could not setup project path!");
     return 1;
   }
 
