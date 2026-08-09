@@ -19,6 +19,8 @@ namespace {
 
 struct ObjRec {
   u32 start;
+  u32 extent;  // bytes actually claimed on the heap; can be 0 for an object that
+               // allocated nothing (a bring-up stub, see lookup() below)
   char name[32];
 };
 
@@ -26,12 +28,34 @@ struct ObjRec {
 std::vector<ObjRec> g_objs;
 std::mutex g_objs_mutex;
 
+// issue #117: two independent fixes over the old "start <= goal_addr, earliest
+// record wins" scan.
+//
+//  - bounded match: goal_addr must now fall inside [start, start + extent), not
+//    merely past start. An address past an object's real extent (the #115 capture
+//    had a heap data pointer sitting 0x2812 bytes past gstate's 2224-byte code
+//    segment) no longer matches that object. A record with extent 0 is a strict
+//    side effect of this: goal_addr < start + 0 can never hold, so such a record
+//    can never match anything.
+//  - latest-wins tie-break: changed from "r.start > best->start" to
+//    "r.start >= best->start", so on a shared start address the later-pushed
+//    record beats the earlier one instead of losing to it. This is the fix for
+//    the #115 stub collision: target-death, gun-util and menu are bring-up stubs
+//    that allocate nothing, so each logs the same heap cursor as whatever loads
+//    next; drawable loaded right after them at that same cursor, and the old
+//    earliest-wins rule let the first stub steal every drawable frame. Chosen over
+//    an explicit "skip zero-extent records" filter because it also covers the
+//    case where a stub's logged extent is a small nonzero administrative size (its
+//    own link header/table, with no code data) rather than exactly 0: either way,
+//    whatever was pushed last at a given cursor is what is actually resident
+//    there, so it should always win the tie, not just when extent happens to be 0.
 const ObjRec* lookup(u32 goal_addr) {
   // callable from the crash handler: no locking (a torn read of a vector that only
   // grows is survivable here, and taking a lock inside a fault handler is worse)
   const ObjRec* best = nullptr;
   for (const auto& r : g_objs) {
-    if (r.start <= goal_addr && (!best || r.start > best->start)) {
+    if (r.start <= goal_addr && goal_addr < r.start + r.extent &&
+        (!best || r.start >= best->start)) {
       best = &r;
     }
   }
@@ -97,6 +121,14 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   fprintf(stderr, "\n");
 
   // symbolize rip if it is in GOAL memory
+  //
+  // skew note (issue #117, from the #115 attribution): the recorded start is the
+  // heap cursor at record time, but link_and_exec places the object at the next
+  // 16-byte-aligned address, not at the raw cursor. So every "+offset" printed below
+  // is inflated by align16(cursor) - cursor relative to the object's true base: 7
+  // bytes on the #115 main.o, 0 on every other object in that capture (the cursor
+  // was already 16-aligned). This is a small, bounded skew (0-15 bytes), not a
+  // lookup bug; it is not corrected here, only documented so it is not re-derived.
   const u64 base_addr = (u64)(uintptr_t)base;
   if (base && rip >= base_addr && rip < base_addr + mem_size) {
     u32 goal_ip = (u32)(rip - base_addr);
@@ -162,10 +194,11 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
 
 }  // namespace
 
-void goal_crash_map_record(u32 goal_addr, const char* name) {
+void goal_crash_map_record(u32 goal_addr, const char* name, u32 extent) {
   std::lock_guard<std::mutex> lock(g_objs_mutex);
   ObjRec r;
   r.start = goal_addr;
+  r.extent = extent;
   std::snprintf(r.name, sizeof(r.name), "%s", name ? name : "?");
   g_objs.push_back(r);
 }

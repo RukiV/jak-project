@@ -200,7 +200,7 @@ void load_and_link_dgo_from_c(const char* name,
     lg::debug("[link and exec] {:18s} {} {:6d} heap-use {:8d} {:8d}: 0x{:x}", objName,
               lastObjectLoaded, objSize, kheapused(kglobalheap),
               kdebugheap.offset ? kheapused(kdebugheap) : 0, kglobalheap->current.offset);
-    goal_crash_map_record(kglobalheap->current.offset, objName);
+    goal_crash_map_record(kglobalheap->current.offset, objName, objSize);
     {
       auto p = scoped_prof(fmt::format("link-{}", objName).c_str());
       link_and_exec(obj, objName, objSize, heap, linkFlag, jump_from_c_to_goal);  // link now!
