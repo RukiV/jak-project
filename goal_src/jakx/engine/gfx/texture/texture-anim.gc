@@ -53,6 +53,11 @@
 (define-extern *sky-texture-anim-array* texture-anim-array) ;; activated, texture-anim leg (defined in texture-anim-tables.o, links later)
 (define-extern *ocean-texture-anim-array* texture-anim-array) ;; ocean leg (defined in texture-anim-tables.o, links later)
 (define-extern *this-way-water-texture-anim-array* texture-anim-array) ;; #110, texture-anim leg (defined in texture-anim-tables.o, links later)
+(define-extern *junglea-water-texture-anim-array* texture-anim-array) ;; #120, texture-anim leg (defined in jungle-effects.o, links later)
+(define-extern *jungleb-water-texture-anim-array* texture-anim-array) ;; #120, texture-anim leg (defined in jungle-effects.o, links later)
+(define-extern *jungley-water-texture-anim-array* texture-anim-array) ;; #120, texture-anim leg (defined in jungle-effects.o, links later)
+(define-extern *junglee-water-texture-anim-array* texture-anim-array) ;; #120, texture-anim leg (defined in havjung-effects.o, links later)
+(define-extern *junglef-alpha-texture-anim-array* texture-anim-array) ;; #120, texture-anim leg (defined in havjung-effects.o, links later)
 
 ;; og:preserve-this
 ;; The vocabulary the GOAL side uses to talk to the C++ texture animator. None of this is
@@ -71,7 +76,9 @@
 ;;
 ;; clut-index-texture, ocean-sky and ocean are new for JakX and sit in the free gap
 ;; between jak3's 23 and 27. That gap is full now: this-way-arrow-02 (#110) is JakX-only
-;; too, but jak3 owns 27-78 solid, so it sits at 79, right past jak3's own top code.
+;; too, but jak3 owns 27-78 solid, so it sits at 79, right past jak3's own top code. 80-86
+;; (#120) continue past it for the jungle water/lava dests and the this-way array's other
+;; two dests.
 (defenum texture-anim-pc
   (start-anim-array 12)
   (finish-anim-array 13)
@@ -84,6 +91,13 @@
   (ocean-sky 25) ;; jakx-only: fixed anim for *sky-texture-anim-array* slot 3 ("ocean-sky-dest")
   (ocean 26) ;; jakx-only: fixed anim for *ocean-texture-anim-array* slot 0 ("ocean-dest")
   (this-way-arrow-02 79) ;; jakx-only: fixed anim for *this-way-water-texture-anim-array* slot 0 ("this-way-arrow-02-dest"), #110
+  (jungle-water-drivable-flowing-01 80) ;; jakx-only: fixed anim for *junglea-water-texture-anim-array* slot 0 ("jungle-water-drivable-flowing-01-dest"), #120
+  (jungle-waterfall-01 81) ;; jakx-only: fixed anim for *junglea-water-texture-anim-array* slot 1 and *jungleb-water-texture-anim-array* slot 0 ("jungle-waterfall-01-dest"), #120
+  (jungle-water-tunnel-canal-flowing-01 82) ;; jakx-only: fixed anim for *jungley-water-texture-anim-array* slot 0 and *junglee-water-texture-anim-array* slot 0 ("jungle-water-tunnel-canal-flowing-01-dest"), #120
+  (jungle-lava-01 83) ;; jakx-only: fixed anim for *junglef-alpha-texture-anim-array* slot 0 ("jungle-lava-01-dest"), #120
+  (jungle-lava-spill-scroll-01 84) ;; jakx-only: fixed anim for *junglef-alpha-texture-anim-array* slot 1 ("jungle-lava-spill-scroll-01-dest"), #120
+  (jumppad-arrow 85) ;; jakx-only: fixed anim for *this-way-water-texture-anim-array* slot 1 ("jumppad-arrow-dest"), #120
+  (train-hanger-arrow 86) ;; jakx-only: fixed anim for *this-way-water-texture-anim-array* slot 2 ("train-hanger-arrow-dest"), #120
   )
 
 ;; og:preserve-this
@@ -1808,13 +1822,14 @@ so emitting it a bucket early changes nothing observable."
           )
         )
       )
-    ;; og:preserve-this #110: the level texture-anim leg for the this-way water/arrow group.
-    ;; Only the guardrail-arrow dest (array-data 0, "this-way-arrow-02-dest") gets a PC fixed
-    ;; anim here; the two other dests in this array (jumppad-arrow-dest, train-hanger-arrow-dest)
-    ;; and the already-landed jungle water/alpha level arrays (waterfalls, lava) hit the same
-    ;; break and are rank 2, deliberately not yet dispatched. Unlike the sky array, this one is
-    ;; not routed through a single fixed bucket (add-level-tpage-dma calls update-texture-anim
-    ;; with whatever bucket-id the caller is uploading for), so there is no bucket gate here.
+    ;; og:preserve-this #110/#120: the level texture-anim leg for the this-way water/arrow
+    ;; group. All three dests in this array get a PC fixed anim: this-way-arrow-02-dest at
+    ;; array-data 0 (#110), jumppad-arrow-dest and train-hanger-arrow-dest at array-data 1 and
+    ;; 2 (#120; their func already ticked since #110, they only needed the FixedAnimDef and the
+    ;; dispatch call below). The jungle water/alpha level arrays (waterfalls, drivable water,
+    ;; lava) get their own sibling branches below, #120. Unlike the sky array, this one is not
+    ;; routed through a single fixed bucket (add-level-tpage-dma calls update-texture-anim with
+    ;; whatever bucket-id the caller is uploading for), so there is no bucket gate here.
     (when (= arg1 *this-way-water-texture-anim-array*)
       (let ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf)))
         (dotimes (i (-> arg1 length))
@@ -1844,6 +1859,205 @@ so emitting it a bucket early changes nothing observable."
       (let ((arrow-anim (-> arg1 array-data 0)))
         (if (-> arrow-anim tex)
             (pc-update-fixed-anim arg0 (texture-anim-pc this-way-arrow-02) arrow-anim)
+            )
+        )
+      (let ((jumppad-anim (-> arg1 array-data 1)))
+        (if (-> jumppad-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc jumppad-arrow) jumppad-anim)
+            )
+        )
+      (let ((train-hanger-anim (-> arg1 array-data 2)))
+        (if (-> train-hanger-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc train-hanger-arrow) train-hanger-anim)
+            )
+        )
+      )
+    ;; og:preserve-this #120: the jungle water level texture-anim leg, junglea (jungle-effects.gc,
+    ;; registered by junglex, junglea and jungley). Slot 0 is the drivable canal water, slot 1
+    ;; the waterfall; the waterfall dest is shared with jungleb below (same dest name, same tex
+    ;; pool slot, so co-active registration double-ticks the composite, retail parity per #110).
+    ;; Shape mirrors the this-way branch above: per-array func dispatch (a no-op here, every
+    ;; entry carries :func #f), the same clock-tick idiom ticking this array's own frame-time
+    ;; state, then one pc-update-fixed-anim per dest.
+    (when (= arg1 *junglea-water-texture-anim-array*)
+      (let ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf)))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (-> anim func)
+              ((-> anim func) dma-buf anim)
+              )
+            )
+          )
+        )
+      (when (not (paused?))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (!= (-> anim frame-mod) 0.0)
+              (let ((next (+ (-> anim frame-time) (* (-> anim frame-delta) (seconds-per-frame))))
+                    (m (-> anim frame-mod))
+                    )
+                (set! (-> anim frame-time) (- next (* (the float (the int (/ next m))) m)))
+                )
+              (if (< (-> anim frame-time) 0.0)
+                  (+! (-> anim frame-time) (-> anim frame-mod))
+                  )
+              )
+            )
+          )
+        )
+      (let ((drivable-anim (-> arg1 array-data 0)))
+        (if (-> drivable-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-water-drivable-flowing-01) drivable-anim)
+            )
+        )
+      (let ((waterfall-anim (-> arg1 array-data 1)))
+        (if (-> waterfall-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-waterfall-01) waterfall-anim)
+            )
+        )
+      )
+    ;; og:preserve-this #120: jungleb (jungle-effects.gc), the same waterfall dest as junglea
+    ;; slot 1 above.
+    (when (= arg1 *jungleb-water-texture-anim-array*)
+      (let ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf)))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (-> anim func)
+              ((-> anim func) dma-buf anim)
+              )
+            )
+          )
+        )
+      (when (not (paused?))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (!= (-> anim frame-mod) 0.0)
+              (let ((next (+ (-> anim frame-time) (* (-> anim frame-delta) (seconds-per-frame))))
+                    (m (-> anim frame-mod))
+                    )
+                (set! (-> anim frame-time) (- next (* (the float (the int (/ next m))) m)))
+                )
+              (if (< (-> anim frame-time) 0.0)
+                  (+! (-> anim frame-time) (-> anim frame-mod))
+                  )
+              )
+            )
+          )
+        )
+      (let ((waterfall-anim (-> arg1 array-data 0)))
+        (if (-> waterfall-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-waterfall-01) waterfall-anim)
+            )
+        )
+      )
+    ;; og:preserve-this #120: jungley (jungle-effects.gc), the tunnel/canal flowing water dest
+    ;; shared with junglee below (same double-tick property as junglea/jungleb).
+    (when (= arg1 *jungley-water-texture-anim-array*)
+      (let ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf)))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (-> anim func)
+              ((-> anim func) dma-buf anim)
+              )
+            )
+          )
+        )
+      (when (not (paused?))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (!= (-> anim frame-mod) 0.0)
+              (let ((next (+ (-> anim frame-time) (* (-> anim frame-delta) (seconds-per-frame))))
+                    (m (-> anim frame-mod))
+                    )
+                (set! (-> anim frame-time) (- next (* (the float (the int (/ next m))) m)))
+                )
+              (if (< (-> anim frame-time) 0.0)
+                  (+! (-> anim frame-time) (-> anim frame-mod))
+                  )
+              )
+            )
+          )
+        )
+      (let ((tunnel-canal-anim (-> arg1 array-data 0)))
+        (if (-> tunnel-canal-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-water-tunnel-canal-flowing-01) tunnel-canal-anim)
+            )
+        )
+      )
+    ;; og:preserve-this #120: junglee (havjung-effects.gc), the same tunnel/canal dest as
+    ;; jungley above.
+    (when (= arg1 *junglee-water-texture-anim-array*)
+      (let ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf)))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (-> anim func)
+              ((-> anim func) dma-buf anim)
+              )
+            )
+          )
+        )
+      (when (not (paused?))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (!= (-> anim frame-mod) 0.0)
+              (let ((next (+ (-> anim frame-time) (* (-> anim frame-delta) (seconds-per-frame))))
+                    (m (-> anim frame-mod))
+                    )
+                (set! (-> anim frame-time) (- next (* (the float (the int (/ next m))) m)))
+                )
+              (if (< (-> anim frame-time) 0.0)
+                  (+! (-> anim frame-time) (-> anim frame-mod))
+                  )
+              )
+            )
+          )
+        )
+      (let ((tunnel-canal-anim (-> arg1 array-data 0)))
+        (if (-> tunnel-canal-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-water-tunnel-canal-flowing-01) tunnel-canal-anim)
+            )
+        )
+      )
+    ;; og:preserve-this #120: junglef (havjung-effects.gc), the lava level texture-anim leg.
+    ;; Slot 0 is the lava base composite: 3 texture layers plus a fourth layer with func-id
+    ;; set-alpha-texture-anim-layer-func and tex-name #f (no source texture, an alpha-only
+    ;; pass). The C++ side represents that fourth layer as FixedAnimDef::set_alpha rather than
+    ;; a fourth FixedLayerDef, the same translation jak3's volcano and wasstada lava dests
+    ;; already use for the identical retail shape. Slot 1 is the lava spill scroll, one layer.
+    (when (= arg1 *junglef-alpha-texture-anim-array*)
+      (let ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf)))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (-> anim func)
+              ((-> anim func) dma-buf anim)
+              )
+            )
+          )
+        )
+      (when (not (paused?))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (!= (-> anim frame-mod) 0.0)
+              (let ((next (+ (-> anim frame-time) (* (-> anim frame-delta) (seconds-per-frame))))
+                    (m (-> anim frame-mod))
+                    )
+                (set! (-> anim frame-time) (- next (* (the float (the int (/ next m))) m)))
+                )
+              (if (< (-> anim frame-time) 0.0)
+                  (+! (-> anim frame-time) (-> anim frame-mod))
+                  )
+              )
+            )
+          )
+        )
+      (let ((lava-anim (-> arg1 array-data 0)))
+        (if (-> lava-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-lava-01) lava-anim)
+            )
+        )
+      (let ((lava-spill-anim (-> arg1 array-data 1)))
+        (if (-> lava-spill-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-lava-spill-scroll-01) lava-spill-anim)
             )
         )
       )
