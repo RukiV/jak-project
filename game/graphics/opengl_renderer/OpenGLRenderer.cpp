@@ -592,6 +592,25 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     init_bucket_renderer<Sprite3>("particles-v0", BucketCategory::SPRITE, 769);
     init_bucket_renderer<Sprite3>("particles-v1", BucketCategory::SPRITE, 772);
 
+    // Per-level texture buckets (#110): upload-textures walks *texture-page-translate*
+    // and emits each draw level's tpage uploads plus its fixed-anim payloads (pc codes
+    // 79+) into that row's tex bucket, so without a TextureUploadHandler the composite
+    // animators' DMA dies silently in SkipRenderer. Jak 3 registers a handler on every
+    // per-level tex bucket the same way. Raw ids per forge #44, resolved from the
+    // *texture-page-translate* rows (texture-h.gc): one tex bucket per draw level 0..5
+    // for each category, except warp, which shares one id across all six.
+    static constexpr int kLevelTexBuckets[25] = {
+        7,   30,  53,  76,  99,  122,  // tfrag
+        259, 280, 301, 322, 343, 364,  // alpha
+        513, 522, 531, 540, 549, 558,  // pris
+        633, 652, 671, 690, 709, 728,  // water
+        780,                           // warp, all levels
+    };
+    for (int id : kLevelTexBuckets) {
+      init_bucket_renderer<TextureUploadHandler>(fmt::format("tex-{}", id), BucketCategory::TEX, id,
+                                                 m_texture_animator);
+    }
+
     // Generic (#57 rung 4): the mercneric (mode 2 -> Generic2 NORMAL) and mercneric2
     // (mode 4 -> Generic2 PRIM) destinations, read mechanically out of the landed
     // *bucket-map* by the same extraction as kMercBuckets above; its mode-0 output
