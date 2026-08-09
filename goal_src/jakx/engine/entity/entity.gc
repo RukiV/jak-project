@@ -340,6 +340,12 @@
 ;; entity-info-lookup (entity-table.o) degrades to the default #x4000 heap.
 ;; The birth-viewer guard retired at rung 6b half 2: viewer.o is landed, and
 ;; actor birth runs from actors-update, long after GAME.CGO links.
+;; Forward declaration: entity.o compiles before net-process-mgr-h.o carries the
+;; deftype and before net-process-mgr.o defines the symbol, so declare the type and
+;; extern the global here (the declare-type idiom; the guard below only tests
+;; truthiness, and later consumers get the full deftype).
+(declare-type net-process-mgr process)
+(define-extern *net-process-mgr* net-process-mgr)
 (defmethod birth! ((this entity-actor))
   (when (not (logtest? (-> this extra kill-mask) (task-mask never)))
     (let ((s5-0 (-> this etype)))
@@ -348,7 +354,18 @@
       ;; into garbage (lldb: read fault in gcommon's walk, symbol addresses in the
       ;; registers). Verify the value is a real type object before walking. Retires
       ;; with proper etype resolution (entity-table.o leg).
-      (when (and (type? s5-0 type) (type-type? s5-0 process-nettable) (nonzero? (-> s5-0 method-table 40)))
+      ;;
+      ;; og:preserve-this bring-up guard (#100): the *net-process-mgr* condition below
+      ;; is a port addition. Retail's prevention is unconditional because the manager
+      ;; always exists there and owns nettable spawning through its own walk
+      ;; (net-process-mgr.o, unlanded, ~250 ops); with the manager absent, prevented
+      ;; entities would die permanently on their first distance-kill (the stamp blocks
+      ;; the respawn), so single-player falls through to the normal distance-driven
+      ;; birth path instead, which is retail's single-player behavior by outcome.
+      ;; Retires when the net-process-mgr leg lands and the manager exists in all
+      ;; modes. The synthetic spawn-walk alternative was rejected for the lifecycle
+      ;; flaw above (spawn at birth, killed next frame beyond 220 m, never again).
+      (when (and *net-process-mgr* (type? s5-0 type) (type-type? s5-0 process-nettable) (nonzero? (-> s5-0 method-table 40)))
         (format 0 "WARNING: preventing ~A from auto-spawning~%" this)
         (logior! (-> this extra kill-mask) (task-mask network never))
         (set! this (the-as entity-actor #f))
