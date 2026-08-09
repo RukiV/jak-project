@@ -11,9 +11,11 @@
 (define-extern *default-hud-texture-anim-array* texture-anim-array)
 (define-extern *default-water-texture-anim-array* texture-anim-array)
 
-;; function externs for functions still commented out below (decomp failures)
+;; forward references: both are defined further down this file, below the callers that need them
 (define-extern level-update-after-load (function level login-state level))
 (define-extern update-sound-banks (function load-state (inline-array sound-bank-state) none))
+
+;; functions whose own files are not decompiled yet
 (define-extern target-get-any-pos (function vector)) ;; jakx-new; returns a target position
 (define-extern view-get-active-index (function int))
 
@@ -1572,16 +1574,28 @@
             (cond
               ((type? s2-0 drawable-tree-tfrag)
                (set! (-> *level* tfrag-login-level) arg0)
+               ;; og:preserve-this jakx-only: a shared tfrag tree is rebound to whichever wide
+               ;; level owns it. Retail compares the wide level's name against the tree's second
+               ;; word, the unnamed slot sitting between length and time-of-day-pal, so only a
+               ;; pointer cast reaches it; time-of-day-pal is one field further on and never
+               ;; matches. The paired write is a halfword into the first word, which is the
+               ;; drawable id, and background.gc reads it back the same way. Retail asm for both
+               ;; halves: level_ir2.asm ops 44-46 and 51 for wide-level 0, 63-65 and 70 for
+               ;; wide-level 1. Retires when both slots are named on drawable-tree-tfrag-shared.
                (when (type? s2-0 drawable-tree-tfrag-shared)
                  (cond
                    ((and (-> *level* wide-level 0)
-                         (= (-> *level* wide-level 0 name) (-> (the-as drawable-tree-tfrag s2-0) time-of-day-pal))
+                         (= (-> *level* wide-level 0 name)
+                            (the-as symbol (-> (the-as (pointer uint32) s2-0) 1))
+                            )
                          )
                     (set! (-> (the-as drawable-tree-tfrag s2-0) id) (-> *level* wide-level 0 index))
                     (set! (-> *level* tfrag-login-level) (-> *level* wide-level 0))
                     )
                    ((and (-> *level* wide-level 1)
-                         (= (-> *level* wide-level 1 name) (-> (the-as drawable-tree-tfrag s2-0) time-of-day-pal))
+                         (= (-> *level* wide-level 1 name)
+                            (the-as symbol (-> (the-as (pointer uint32) s2-0) 1))
+                            )
                          )
                     (set! (-> (the-as drawable-tree-tfrag s2-0) id) (-> *level* wide-level 1 index))
                     (set! (-> *level* tfrag-login-level) (-> *level* wide-level 1))

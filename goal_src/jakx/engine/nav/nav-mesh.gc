@@ -7,3 +7,39 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this bring-up stub (#108): retail's body is the jak2/jak3 shape,
+;;   (let ((v1-0 (-> this nav-mesh))) (if (nonzero? v1-0) (init-from-entity v1-0 this)))
+;; and neither half exists here yet: nav-mesh-h.gc carries only nav-mesh-flag, so the
+;; nav-mesh type is still just the (declare-type nav-mesh basic) in res.gc and it has no
+;; init-from-entity to call. The declaration in entity-h.gc alone does not fill the slot,
+;; so without this defmethod method 27 of entity-nav-mesh stays 0, and the nav-mesh step
+;; of level-update-after-load (level.gc:1800, the (= state elts) login state) calls
+;; straight through it into GOAL address 0. That killed every boot that logged in a level
+;; carrying a non-empty (-> bsp nav-meshes); jungles is the first one on the acceptance
+;; path, which is why the crash landed immediately after "login jungles".
+;; A no-op is the honest shape for now: the caller only needs the method to return so it
+;; can advance (-> arg1 pos) and walk the rest of the array. Nav meshes stay uninitialized,
+;; which costs nothing until AI navigation lands.
+;; Retire together with the real nav-mesh-h.gc and nav-mesh.gc.
+(defmethod initialize-nav-mesh! ((this entity-nav-mesh))
+  "Initialize the nav-mesh in this entity. Bring-up stub, see the note above."
+  0
+  (none)
+  )
+
+;; og:preserve-this bring-up stub (#108): retail's body is again the jak2/jak3 shape,
+;;   (let ((a0-1 (-> this nav-mesh))) (if (nonzero? a0-1) (handle-birth a0-1)))
+;; and handle-birth is a nav-mesh method, so it is out of reach for the same reason
+;; init-from-entity is above. birth! is method 22, declared on entity and defined in this
+;; tree only for entity-actor and entity-camera (entity.gc:317, :343), so entity-nav-mesh
+;; inherits a 0 slot. (method birth level) walks (-> this bsp nav-meshes) calling it bare
+;; at level.gc:1943, which is retail's own shape, so the guard belongs here rather than at
+;; that call site; entity.gc:601 guards the matching kill! walk instead because kill! has
+;; no landed base defmethod to hang a stub on. Returning this is retail's return value and
+;; the caller discards it.
+;; Retire together with the real nav-mesh-h.gc and nav-mesh.gc.
+(defmethod birth! ((this entity-nav-mesh))
+  "Birth this entity's nav-mesh. Bring-up stub, see the note above."
+  this
+  )
+
