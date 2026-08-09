@@ -539,7 +539,14 @@ class TextureAnimator {
   // switch skips the codes in that case rather than failing the boot)
   int m_jakx_ocean_sky_anim_array_idx = -1;
   int m_jakx_ocean_anim_array_idx = -1;
-  int m_jakx_this_way_arrow_anim_array_idx = -1;  // #110
+  int m_jakx_this_way_arrow_anim_array_idx = -1;                 // #110
+  int m_jakx_jumppad_arrow_anim_array_idx = -1;                  // #120
+  int m_jakx_train_hanger_arrow_anim_array_idx = -1;             // #120
+  int m_jakx_jungle_water_drivable_flowing_anim_array_idx = -1;  // #120
+  int m_jakx_jungle_waterfall_anim_array_idx = -1;               // #120
+  int m_jakx_jungle_water_tunnel_canal_anim_array_idx = -1;      // #120
+  int m_jakx_jungle_lava_anim_array_idx = -1;                    // #120
+  int m_jakx_jungle_lava_spill_scroll_anim_array_idx = -1;       // #120
 
   std::vector<FixedAnimArray> m_fixed_anim_arrays;
 

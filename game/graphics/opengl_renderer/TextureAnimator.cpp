@@ -980,6 +980,15 @@ enum class PcTextureAnimCodesJak3 : u16 {
   // Jak X again (#110): Jak 3's own codes fill 27-78 solid, so this one can't reuse the
   // 24-26 gap and sits right past the end of Jak 3's range instead.
   JAKX_THIS_WAY_ARROW_02 = 79,
+  // Jak X rank 2 (#120): the jungle water/lava level arrays and the this-way array's other
+  // two dests, continuing past 79.
+  JAKX_JUNGLE_WATER_DRIVABLE_FLOWING_01 = 80,
+  JAKX_JUNGLE_WATERFALL_01 = 81,
+  JAKX_JUNGLE_WATER_TUNNEL_CANAL_FLOWING_01 = 82,
+  JAKX_JUNGLE_LAVA_01 = 83,
+  JAKX_JUNGLE_LAVA_SPILL_SCROLL_01 = 84,
+  JAKX_JUMPPAD_ARROW = 85,
+  JAKX_TRAIN_HANGER_ARROW = 86,
 };
 
 struct FixedAnimInfoJak3 {
@@ -1204,6 +1213,34 @@ FixedAnimInfoJak3 anim_code_to_info(PcTextureAnimCodesJak3 code, const TextureAn
     case PcTextureAnimCodesJak3::JAKX_THIS_WAY_ARROW_02: {
       anim.name = "jakx-this-way-arrow-02";
       anim.anim_array_idx = animator.m_jakx_this_way_arrow_anim_array_idx;
+    } break;
+    case PcTextureAnimCodesJak3::JAKX_JUMPPAD_ARROW: {
+      anim.name = "jakx-jumppad-arrow";
+      anim.anim_array_idx = animator.m_jakx_jumppad_arrow_anim_array_idx;
+    } break;
+    case PcTextureAnimCodesJak3::JAKX_TRAIN_HANGER_ARROW: {
+      anim.name = "jakx-train-hanger-arrow";
+      anim.anim_array_idx = animator.m_jakx_train_hanger_arrow_anim_array_idx;
+    } break;
+    case PcTextureAnimCodesJak3::JAKX_JUNGLE_WATER_DRIVABLE_FLOWING_01: {
+      anim.name = "jakx-jungle-water-drivable-flowing-01";
+      anim.anim_array_idx = animator.m_jakx_jungle_water_drivable_flowing_anim_array_idx;
+    } break;
+    case PcTextureAnimCodesJak3::JAKX_JUNGLE_WATERFALL_01: {
+      anim.name = "jakx-jungle-waterfall-01";
+      anim.anim_array_idx = animator.m_jakx_jungle_waterfall_anim_array_idx;
+    } break;
+    case PcTextureAnimCodesJak3::JAKX_JUNGLE_WATER_TUNNEL_CANAL_FLOWING_01: {
+      anim.name = "jakx-jungle-water-tunnel-canal-flowing-01";
+      anim.anim_array_idx = animator.m_jakx_jungle_water_tunnel_canal_anim_array_idx;
+    } break;
+    case PcTextureAnimCodesJak3::JAKX_JUNGLE_LAVA_01: {
+      anim.name = "jakx-jungle-lava-01";
+      anim.anim_array_idx = animator.m_jakx_jungle_lava_anim_array_idx;
+    } break;
+    case PcTextureAnimCodesJak3::JAKX_JUNGLE_LAVA_SPILL_SCROLL_01: {
+      anim.name = "jakx-jungle-lava-spill-scroll-01";
+      anim.anim_array_idx = animator.m_jakx_jungle_lava_spill_scroll_anim_array_idx;
     } break;
     default:
       anim.name = "unknown";
@@ -1445,13 +1482,21 @@ void TextureAnimator::handle_texture_anim_data(DmaFollower& dma,
             }
             case PcTextureAnimCodesJak3::JAKX_OCEAN_SKY:
             case PcTextureAnimCodesJak3::JAKX_OCEAN:
-            case PcTextureAnimCodesJak3::JAKX_THIS_WAY_ARROW_02: {
+            case PcTextureAnimCodesJak3::JAKX_THIS_WAY_ARROW_02:
+            case PcTextureAnimCodesJak3::JAKX_JUMPPAD_ARROW:
+            case PcTextureAnimCodesJak3::JAKX_TRAIN_HANGER_ARROW:
+            case PcTextureAnimCodesJak3::JAKX_JUNGLE_WATER_DRIVABLE_FLOWING_01:
+            case PcTextureAnimCodesJak3::JAKX_JUNGLE_WATERFALL_01:
+            case PcTextureAnimCodesJak3::JAKX_JUNGLE_WATER_TUNNEL_CANAL_FLOWING_01:
+            case PcTextureAnimCodesJak3::JAKX_JUNGLE_LAVA_01:
+            case PcTextureAnimCodesJak3::JAKX_JUNGLE_LAVA_SPILL_SCROLL_01: {
               auto anim =
                   anim_code_to_info(static_cast<PcTextureAnimCodesJak3>(vif0.immediate), *this);
               // Unlike the jak3 codes above, these stay tolerant of a missing registration:
               // setup_texture_anims_jakx skips these fixed anims (with a warning) when their
               // source textures are not in the common level, and a missed extraction should
-              // cost a black ocean or a dark guardrail arrow rather than a failed boot.
+              // cost a black ocean, a dark guardrail arrow, or flat undispatched water/lava
+              // rather than a failed boot.
               if (anim.anim_array_idx >= 0) {
                 auto p = scoped_prof(anim.name.c_str());
                 run_fixed_animation_array(anim.anim_array_idx, tf, texture_pool);

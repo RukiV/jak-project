@@ -114,7 +114,7 @@ void TextureAnimator::setup_texture_anims_jakx() {
   // direction panel. Three layers composited in draw order (scan, noise-alpha, the arrow
   // chevron itself) into a 256x256 dest, one 210-tick cycle (frame-delta 300 / frame-mod
   // 210 on the GOAL side). The other two dests in that array (jumppad-arrow-dest,
-  // train-hanger-arrow-dest) are not wired here; landing them is rank 2.
+  // train-hanger-arrow-dest) are the same shape, wired below (#120).
   if (tex_present("this-way-arrow-02-dest") && tex_present("this-way-scan") &&
       tex_present("this-way-noise-alpha") && tex_present("this-way-arrow-02")) {
     FixedAnimDef this_way_arrow;
@@ -142,6 +142,178 @@ void TextureAnimator::setup_texture_anims_jakx() {
     arrow.set_no_z_write_no_z_test();
 
     m_jakx_this_way_arrow_anim_array_idx = create_fixed_anim_array({this_way_arrow});
+  }
+
+  // jumppad-arrow (#120): *this-way-water-texture-anim-array* slot 1, same shape as
+  // this-way-arrow-02 above (scan, noise-alpha, arrow chevron into a 256x256 dest, one
+  // 210-tick cycle).
+  if (tex_present("jumppad-arrow-dest") && tex_present("jumppad-scan") &&
+      tex_present("jumppad-noise-alphs") && tex_present("jumppad-arrow")) {
+    FixedAnimDef jumppad_arrow;
+    jumppad_arrow.tex_name = "jumppad-arrow-dest";
+    jumppad_arrow.color = math::Vector4<u8>{0, 0, 0, 0x80};
+    jumppad_arrow.override_size = math::Vector2<int>(256, 256);
+    jumppad_arrow.move_to_pool = true;
+
+    auto& scan = jumppad_arrow.layers.emplace_back();
+    scan.tex_name = "jumppad-scan";
+    scan.end_time = 210.f;
+    scan.set_blend_b2_d1();
+    scan.set_no_z_write_no_z_test();
+
+    auto& noise_alpha = jumppad_arrow.layers.emplace_back();
+    noise_alpha.tex_name = "jumppad-noise-alphs";
+    noise_alpha.end_time = 210.f;
+    noise_alpha.set_blend_b2_d1();
+    noise_alpha.set_no_z_write_no_z_test();
+
+    auto& arrow = jumppad_arrow.layers.emplace_back();
+    arrow.tex_name = "jumppad-arrow";
+    arrow.end_time = 210.f;
+    arrow.set_blend_b2_d1();
+    arrow.set_no_z_write_no_z_test();
+
+    m_jakx_jumppad_arrow_anim_array_idx = create_fixed_anim_array({jumppad_arrow});
+  }
+
+  // train-hanger-arrow (#120): *this-way-water-texture-anim-array* slot 2, same shape again.
+  if (tex_present("train-hanger-arrow-dest") && tex_present("train-hanger-scan") &&
+      tex_present("train-hanger-noise-alphs") && tex_present("train-hanger-arrow")) {
+    FixedAnimDef train_hanger_arrow;
+    train_hanger_arrow.tex_name = "train-hanger-arrow-dest";
+    train_hanger_arrow.color = math::Vector4<u8>{0, 0, 0, 0x80};
+    train_hanger_arrow.override_size = math::Vector2<int>(256, 256);
+    train_hanger_arrow.move_to_pool = true;
+
+    auto& scan = train_hanger_arrow.layers.emplace_back();
+    scan.tex_name = "train-hanger-scan";
+    scan.end_time = 210.f;
+    scan.set_blend_b2_d1();
+    scan.set_no_z_write_no_z_test();
+
+    auto& noise_alpha = train_hanger_arrow.layers.emplace_back();
+    noise_alpha.tex_name = "train-hanger-noise-alphs";
+    noise_alpha.end_time = 210.f;
+    noise_alpha.set_blend_b2_d1();
+    noise_alpha.set_no_z_write_no_z_test();
+
+    auto& arrow = train_hanger_arrow.layers.emplace_back();
+    arrow.tex_name = "train-hanger-arrow";
+    arrow.end_time = 210.f;
+    arrow.set_blend_b2_d1();
+    arrow.set_no_z_write_no_z_test();
+
+    m_jakx_train_hanger_arrow_anim_array_idx = create_fixed_anim_array({train_hanger_arrow});
+  }
+
+  // jungle-water-drivable-flowing-01 (#120): *junglea-water-texture-anim-array* slot 0, the
+  // drivable canal water. Three layers of the same source texture (different scroll offsets
+  // baked into the GOAL-side start/end vectors) into a 128x128 dest, one 900-tick cycle
+  // (frame-delta 300 / frame-mod 900 on the GOAL side).
+  if (tex_present("jungle-water-drivable-flowing-01-dest") &&
+      tex_present("jungle-water-drivable-flowing-01")) {
+    FixedAnimDef drivable;
+    drivable.tex_name = "jungle-water-drivable-flowing-01-dest";
+    drivable.color = math::Vector4<u8>{0, 0, 0, 0x80};
+    drivable.override_size = math::Vector2<int>(128, 128);
+    drivable.move_to_pool = true;
+
+    for (int i = 0; i < 3; i++) {
+      auto& layer = drivable.layers.emplace_back();
+      layer.tex_name = "jungle-water-drivable-flowing-01";
+      layer.end_time = 900.f;
+      layer.set_blend_b2_d1();
+      layer.set_no_z_write_no_z_test();
+    }
+
+    m_jakx_jungle_water_drivable_flowing_anim_array_idx = create_fixed_anim_array({drivable});
+  }
+
+  // jungle-waterfall-01 (#120): *junglea-water-texture-anim-array* slot 1 and
+  // *jungleb-water-texture-anim-array* slot 0, the same dest from two GOAL arrays (co-active
+  // registration double-ticks the composite; retail parity, see #110). Three layers of the
+  // same source texture into a 128x128 dest, one 450-tick cycle.
+  if (tex_present("jungle-waterfall-01-dest") && tex_present("jungle-waterfall-01")) {
+    FixedAnimDef waterfall;
+    waterfall.tex_name = "jungle-waterfall-01-dest";
+    waterfall.color = math::Vector4<u8>{0, 0, 0, 0x80};
+    waterfall.override_size = math::Vector2<int>(128, 128);
+    waterfall.move_to_pool = true;
+
+    for (int i = 0; i < 3; i++) {
+      auto& layer = waterfall.layers.emplace_back();
+      layer.tex_name = "jungle-waterfall-01";
+      layer.end_time = 450.f;
+      layer.set_blend_b2_d1();
+      layer.set_no_z_write_no_z_test();
+    }
+
+    m_jakx_jungle_waterfall_anim_array_idx = create_fixed_anim_array({waterfall});
+  }
+
+  // jungle-water-tunnel-canal-flowing-01 (#120): *jungley-water-texture-anim-array* slot 0
+  // and *junglee-water-texture-anim-array* slot 0, same double-ticked dest as above. Three
+  // layers of the same source texture into a 128x128 dest, one 900-tick cycle.
+  if (tex_present("jungle-water-tunnel-canal-flowing-01-dest") &&
+      tex_present("jungle-water-tunnel-canal-flowing-01")) {
+    FixedAnimDef tunnel_canal;
+    tunnel_canal.tex_name = "jungle-water-tunnel-canal-flowing-01-dest";
+    tunnel_canal.color = math::Vector4<u8>{0, 0, 0, 0x80};
+    tunnel_canal.override_size = math::Vector2<int>(128, 128);
+    tunnel_canal.move_to_pool = true;
+
+    for (int i = 0; i < 3; i++) {
+      auto& layer = tunnel_canal.layers.emplace_back();
+      layer.tex_name = "jungle-water-tunnel-canal-flowing-01";
+      layer.end_time = 900.f;
+      layer.set_blend_b2_d1();
+      layer.set_no_z_write_no_z_test();
+    }
+
+    m_jakx_jungle_water_tunnel_canal_anim_array_idx = create_fixed_anim_array({tunnel_canal});
+  }
+
+  // jungle-lava-01 (#120): *junglef-alpha-texture-anim-array* slot 0. Retail carries 3 texture
+  // layers plus a fourth layer with func-id set-alpha-texture-anim-layer-func and tex-name #f
+  // (no source texture, an alpha-only pass); represented here as FixedAnimDef::set_alpha
+  // instead of a fourth FixedLayerDef, the same translation jak3's volcano and wasstada lava
+  // dests already use for the identical retail shape. 128x128 dest, one 3000-tick cycle.
+  if (tex_present("jungle-lava-01-dest") && tex_present("jungle-lava-01")) {
+    FixedAnimDef lava;
+    lava.tex_name = "jungle-lava-01-dest";
+    lava.color = math::Vector4<u8>{0, 0, 0, 0x80};
+    lava.override_size = math::Vector2<int>(128, 128);
+    lava.move_to_pool = true;
+    lava.set_alpha = true;
+
+    for (int i = 0; i < 3; i++) {
+      auto& layer = lava.layers.emplace_back();
+      layer.tex_name = "jungle-lava-01";
+      layer.end_time = 3000.f;
+      layer.set_blend_b2_d1();
+      layer.set_no_z_write_no_z_test();
+    }
+
+    m_jakx_jungle_lava_anim_array_idx = create_fixed_anim_array({lava});
+  }
+
+  // jungle-lava-spill-scroll-01 (#120): *junglef-alpha-texture-anim-array* slot 1, one layer
+  // into a 64x64 dest, one 900-tick cycle.
+  if (tex_present("jungle-lava-spill-scroll-01-dest") &&
+      tex_present("jungle-lava-spill-scroll-01")) {
+    FixedAnimDef lava_spill;
+    lava_spill.tex_name = "jungle-lava-spill-scroll-01-dest";
+    lava_spill.color = math::Vector4<u8>{0, 0, 0, 0x80};
+    lava_spill.override_size = math::Vector2<int>(64, 64);
+    lava_spill.move_to_pool = true;
+
+    auto& layer = lava_spill.layers.emplace_back();
+    layer.tex_name = "jungle-lava-spill-scroll-01";
+    layer.end_time = 900.f;
+    layer.set_blend_b2_d1();
+    layer.set_no_z_write_no_z_test();
+
+    m_jakx_jungle_lava_spill_scroll_anim_array_idx = create_fixed_anim_array({lava_spill});
   }
 }
 

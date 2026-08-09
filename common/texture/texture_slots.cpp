@@ -200,6 +200,16 @@ std::vector<std::string> jakx_slots = {
     "ocean-dest",
     // this-way guardrail arrow composite (#110)
     "this-way-arrow-02-dest",
+    // this-way's other two dests, same array (#120)
+    "jumppad-arrow-dest",
+    "train-hanger-arrow-dest",
+    // jungle water composites: junglea/jungleb/junglee/jungley (#120)
+    "jungle-water-drivable-flowing-01-dest",
+    "jungle-waterfall-01-dest",
+    "jungle-water-tunnel-canal-flowing-01-dest",
+    // jungle lava composites: junglef (#120)
+    "jungle-lava-01-dest",
+    "jungle-lava-spill-scroll-01-dest",
 };
 
 }  // namespace
