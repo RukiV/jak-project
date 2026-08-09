@@ -109,6 +109,40 @@ void TextureAnimator::setup_texture_anims_jakx() {
 
     m_jakx_ocean_anim_array_idx = create_fixed_anim_array({ocean});
   }
+
+  // this-way-arrow-02 (#110): *this-way-water-texture-anim-array* slot 0, the guardrail
+  // direction panel. Three layers composited in draw order (scan, noise-alpha, the arrow
+  // chevron itself) into a 256x256 dest, one 210-tick cycle (frame-delta 300 / frame-mod
+  // 210 on the GOAL side). The other two dests in that array (jumppad-arrow-dest,
+  // train-hanger-arrow-dest) are not wired here; landing them is rank 2.
+  if (tex_present("this-way-arrow-02-dest") && tex_present("this-way-scan") &&
+      tex_present("this-way-noise-alpha") && tex_present("this-way-arrow-02")) {
+    FixedAnimDef this_way_arrow;
+    this_way_arrow.tex_name = "this-way-arrow-02-dest";
+    this_way_arrow.color = math::Vector4<u8>{0, 0, 0, 0x80};
+    this_way_arrow.override_size = math::Vector2<int>(256, 256);
+    this_way_arrow.move_to_pool = true;
+
+    auto& scan = this_way_arrow.layers.emplace_back();
+    scan.tex_name = "this-way-scan";
+    scan.end_time = 210.f;
+    scan.set_blend_b2_d1();
+    scan.set_no_z_write_no_z_test();
+
+    auto& noise_alpha = this_way_arrow.layers.emplace_back();
+    noise_alpha.tex_name = "this-way-noise-alpha";
+    noise_alpha.end_time = 210.f;
+    noise_alpha.set_blend_b2_d1();
+    noise_alpha.set_no_z_write_no_z_test();
+
+    auto& arrow = this_way_arrow.layers.emplace_back();
+    arrow.tex_name = "this-way-arrow-02";
+    arrow.end_time = 210.f;
+    arrow.set_blend_b2_d1();
+    arrow.set_no_z_write_no_z_test();
+
+    m_jakx_this_way_arrow_anim_array_idx = create_fixed_anim_array({this_way_arrow});
+  }
 }
 
 void TextureAnimator::setup_texture_anims_jak3() {

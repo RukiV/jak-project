@@ -198,6 +198,8 @@ std::vector<std::string> jakx_slots = {
     // ocean (sky/far/mid envmap source and near surface)
     "ocean-sky-dest",
     "ocean-dest",
+    // this-way guardrail arrow composite (#110)
+    "this-way-arrow-02-dest",
 };
 
 }  // namespace

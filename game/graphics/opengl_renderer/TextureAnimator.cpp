@@ -977,6 +977,9 @@ enum class PcTextureAnimCodesJak3 : u16 {
   DESHOVER = 76,
   CLOUDS_AND_FOG = 77,
   CLOUDS_HIRES = 78,
+  // Jak X again (#110): Jak 3's own codes fill 27-78 solid, so this one can't reuse the
+  // 24-26 gap and sits right past the end of Jak 3's range instead.
+  JAKX_THIS_WAY_ARROW_02 = 79,
 };
 
 struct FixedAnimInfoJak3 {
@@ -1197,6 +1200,10 @@ FixedAnimInfoJak3 anim_code_to_info(PcTextureAnimCodesJak3 code, const TextureAn
     case PcTextureAnimCodesJak3::JAKX_OCEAN: {
       anim.name = "jakx-ocean";
       anim.anim_array_idx = animator.m_jakx_ocean_anim_array_idx;
+    } break;
+    case PcTextureAnimCodesJak3::JAKX_THIS_WAY_ARROW_02: {
+      anim.name = "jakx-this-way-arrow-02";
+      anim.anim_array_idx = animator.m_jakx_this_way_arrow_anim_array_idx;
     } break;
     default:
       anim.name = "unknown";
@@ -1437,13 +1444,14 @@ void TextureAnimator::handle_texture_anim_data(DmaFollower& dma,
               break;
             }
             case PcTextureAnimCodesJak3::JAKX_OCEAN_SKY:
-            case PcTextureAnimCodesJak3::JAKX_OCEAN: {
+            case PcTextureAnimCodesJak3::JAKX_OCEAN:
+            case PcTextureAnimCodesJak3::JAKX_THIS_WAY_ARROW_02: {
               auto anim =
                   anim_code_to_info(static_cast<PcTextureAnimCodesJak3>(vif0.immediate), *this);
               // Unlike the jak3 codes above, these stay tolerant of a missing registration:
-              // setup_texture_anims_jakx skips the ocean arrays (with a warning) when the
-              // ocean textures are not in the common level, and a missed extraction should
-              // cost a black ocean rather than a failed boot.
+              // setup_texture_anims_jakx skips these fixed anims (with a warning) when their
+              // source textures are not in the common level, and a missed extraction should
+              // cost a black ocean or a dark guardrail arrow rather than a failed boot.
               if (anim.anim_array_idx >= 0) {
                 auto p = scoped_prof(anim.name.c_str());
                 run_fixed_animation_array(anim.anim_array_idx, tf, texture_pool);
