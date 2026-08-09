@@ -1456,16 +1456,14 @@ void vcallms_438(ExecutionContext* c, u16* vis) {
   // nop                        |  maddax.xyzw ACC, vf10, vf04    168
   c->acc.vf.madda_xyzw(c->vfs[vf10].vf, c->vfs[vf04].vf.x());
   // nop                        |  maddy.xyzw vf04, vf11, vf04    169
-  c->acc.vf.madd_flag(Mask::xyzw, c->vfs[vf04].vf, c->vf_src(vf11).vf, c->vf_src(vf04).vf.y());
+  u16 f4 = c->acc.vf.madd_flag(Mask::xyzw, c->vfs[vf04].vf, c->vf_src(vf11).vf, c->vf_src(vf04).vf.y());
   // fmand vi03, vi09           |  nop                            170
-  // ASSERT(false);
   vis[3] = vis[9] & f3;
   // nop                        |  nop                            171
 
   // nop                        |  nop :e                         172
 
   // fmand vi04, vi09           |  nop                            173
-  // ASSERT(false);
   vis[4] = vis[9] & f4;
 
 }
@@ -1490,7 +1488,7 @@ void vcallms_454(ExecutionContext* c, u16* vis) {
   // nop                        |  maddy.xyzw vf07, vf11, vf07    182
   u16 f3 = c->acc.vf.madd_flag(Mask::xyzw, c->vfs[vf07].vf, c->vf_src(vf11).vf, c->vf_src(vf07).vf.y());
   // fmand vi06, vi09           |  mulaz.xyzw ACC, vf09, vf08     183
-  c->acc.vf.mula_xyzw(c->vf_src(vf09).vf, c->vf_src(vf08).vf.z());   vis[5] = vis[9] & f2;
+  c->acc.vf.mula_xyzw(c->vf_src(vf09).vf, c->vf_src(vf08).vf.z());   vis[6] = vis[9] & f2;
   // nop                        |  maddax.xyzw ACC, vf10, vf08    184
   c->acc.vf.madda_xyzw(c->vfs[vf10].vf, c->vfs[vf08].vf.x());
   // nop                        |  maddy.xyzw vf08, vf11, vf08    185
