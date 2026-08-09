@@ -52,6 +52,7 @@
 (define-extern *texture-anim-mip-array* (pointer uint16)) ;; activated, texture-anim leg
 (define-extern *sky-texture-anim-array* texture-anim-array) ;; activated, texture-anim leg (defined in texture-anim-tables.o, links later)
 (define-extern *ocean-texture-anim-array* texture-anim-array) ;; ocean leg (defined in texture-anim-tables.o, links later)
+(define-extern *this-way-water-texture-anim-array* texture-anim-array) ;; #110, texture-anim leg (defined in texture-anim-tables.o, links later)
 
 ;; og:preserve-this
 ;; The vocabulary the GOAL side uses to talk to the C++ texture animator. None of this is
@@ -69,7 +70,8 @@
 ;; codes at 22+, which are jak3 content JakX does not have.
 ;;
 ;; clut-index-texture, ocean-sky and ocean are new for JakX and sit in the free gap
-;; between jak3's 23 and 27.
+;; between jak3's 23 and 27. That gap is full now: this-way-arrow-02 (#110) is JakX-only
+;; too, but jak3 owns 27-78 solid, so it sits at 79, right past jak3's own top code.
 (defenum texture-anim-pc
   (start-anim-array 12)
   (finish-anim-array 13)
@@ -81,6 +83,7 @@
   (clut-index-texture 24) ;; jakx-only: re-clut an extracted index texture, for the sky clouds
   (ocean-sky 25) ;; jakx-only: fixed anim for *sky-texture-anim-array* slot 3 ("ocean-sky-dest")
   (ocean 26) ;; jakx-only: fixed anim for *ocean-texture-anim-array* slot 0 ("ocean-dest")
+  (this-way-arrow-02 79) ;; jakx-only: fixed anim for *this-way-water-texture-anim-array* slot 0 ("this-way-arrow-02-dest"), #110
   )
 
 ;; og:preserve-this
@@ -1722,21 +1725,98 @@ test: rather than opening a renderer on that bucket, its fixed anim is emitted f
 sky-pre block below, right after the ocean-sky one. That guarantees the composite lands
 before draw bucket 6 samples it, and the array's clock is slaved to sky slot 3 anyway,
 so emitting it a bucket early changes nothing observable."
-  (when (and (nonzero? arg1) arg1 (= arg1 *sky-texture-anim-array*))
-    (when (= arg0 (bucket-id tex-lcom-sky-pre))
-      (with-dma-buffer-add-bucket ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf))
-                                   arg0
-                                   )
-        (pc-texture-anim-flag start-anim-array dma-buf)
-        ;; Retail's per-anim generator dispatch. Entry 0 is the clouds clut, entries 1 and 2 are
-        ;; the two per-viewport fog ramps, and entry 3 (ocean-sky) carries func #f so it falls
-        ;; out here on its own: its layer compositing runs as a fixed anim in C++ instead,
-        ;; emitted below.
-        ;;
-        ;; Retail also dispatches mip-func for ct32 textures with mips. Not ported: jakx's only
-        ;; mip funcs are PS2 GS paths (texture-anim-draw-mips / -draw-ocean-mips) with nothing
-        ;; for the animator to consume (PC parity with jak3, which skips its GS ocean-envmap
-        ;; pass the same way and samples the base level).
+  (when (and (nonzero? arg1) arg1)
+    (when (= arg1 *sky-texture-anim-array*)
+      (when (= arg0 (bucket-id tex-lcom-sky-pre))
+        (with-dma-buffer-add-bucket ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf))
+                                     arg0
+                                     )
+          (pc-texture-anim-flag start-anim-array dma-buf)
+          ;; Retail's per-anim generator dispatch. Entry 0 is the clouds clut, entries 1 and 2 are
+          ;; the two per-viewport fog ramps, and entry 3 (ocean-sky) carries func #f so it falls
+          ;; out here on its own: its layer compositing runs as a fixed anim in C++ instead,
+          ;; emitted below.
+          ;;
+          ;; Retail also dispatches mip-func for ct32 textures with mips. Not ported: jakx's only
+          ;; mip funcs are PS2 GS paths (texture-anim-draw-mips / -draw-ocean-mips) with nothing
+          ;; for the animator to consume (PC parity with jak3, which skips its GS ocean-envmap
+          ;; pass the same way and samples the base level).
+          (dotimes (i (-> arg1 length))
+            (let ((anim (-> arg1 array-data i)))
+              (when (-> anim func)
+                ((-> anim func) dma-buf anim)
+                )
+              )
+            )
+          (pc-texture-anim-flag finish-anim-array dma-buf)
+          )
+        ;; The ocean fixed anims. Length 4 means the ocean window is active (ocean's draw!
+        ;; grows the sky array around slot 3 exactly when *ocean-map* is set); the tex tests
+        ;; keep a partially-resolved anim from emitting a short payload (the C++ side asserts
+        ;; the exact size). Both dests publish to the texture pool at their runtime-allocated
+        ;; TBPs, where draw-ocean-far's gs-set and the mid/near drw adgifs name them.
+        (when (= (-> arg1 length) 4)
+          (let ((ocean-sky-anim (-> arg1 array-data 3)))
+            (if (-> ocean-sky-anim tex)
+                (pc-update-fixed-anim arg0 (texture-anim-pc ocean-sky) ocean-sky-anim)
+                )
+            )
+          (let ((ocean-arr *ocean-texture-anim-array*))
+            (when (and (nonzero? ocean-arr) ocean-arr)
+              (let ((ocean-anim (-> ocean-arr array-data 0)))
+                (if (-> ocean-anim tex)
+                    (pc-update-fixed-anim arg0 (texture-anim-pc ocean) ocean-anim)
+                    )
+                )
+              )
+            )
+          )
+        )
+      ;; Retail's clock, from the disassembly: frame-delta is per SECOND, not per frame, and
+      ;; the modulo is a truncation so a large delta cannot outrun a single subtract. The
+      ;; frame-mod test is ours and must stay: retail divides by frame-mod unguarded, and
+      ;; three of the four jakx sky entries carry frame-mod 0.0 (only ocean-sky animates),
+      ;; which would put a NaN in frame-time on the first frame.
+      ;; All four sky entries have time-func #f, so retail's time-func dispatch is not
+      ;; ported here; the ocean array's entry does carry one, dispatched below.
+      (when (not (paused?))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (!= (-> anim frame-mod) 0.0)
+              (let ((next (+ (-> anim frame-time) (* (-> anim frame-delta) (seconds-per-frame))))
+                    (m (-> anim frame-mod))
+                    )
+                (set! (-> anim frame-time) (- next (* (the float (the int (/ next m))) m)))
+                )
+              (if (< (-> anim frame-time) 0.0)
+                  (+! (-> anim frame-time) (-> anim frame-mod))
+                  )
+              )
+            )
+          )
+        ;; The ocean array's clock, through its time-func like retail's dispatch (it slaves
+        ;; the ocean's frame-time to sky slot 3, which was just ticked above, so the two
+        ;; composites stay in lockstep). init! resolved the symbol to the function at boot.
+        (let ((ocean-arr *ocean-texture-anim-array*))
+          (when (and (nonzero? ocean-arr) ocean-arr)
+            (let ((ocean-anim (-> ocean-arr array-data 0)))
+              (if (-> ocean-anim time-func)
+                  ((-> ocean-anim time-func) ocean-anim ocean-anim)
+                  )
+              )
+            )
+          )
+        )
+      )
+    ;; og:preserve-this #110: the level texture-anim leg for the this-way water/arrow group.
+    ;; Only the guardrail-arrow dest (array-data 0, "this-way-arrow-02-dest") gets a PC fixed
+    ;; anim here; the two other dests in this array (jumppad-arrow-dest, train-hanger-arrow-dest)
+    ;; and the already-landed jungle water/alpha level arrays (waterfalls, lava) hit the same
+    ;; break and are rank 2, deliberately not yet dispatched. Unlike the sky array, this one is
+    ;; not routed through a single fixed bucket (add-level-tpage-dma calls update-texture-anim
+    ;; with whatever bucket-id the caller is uploading for), so there is no bucket gate here.
+    (when (= arg1 *this-way-water-texture-anim-array*)
+      (let ((dma-buf (-> *display* frames (-> *display* on-screen) global-buf)))
         (dotimes (i (-> arg1 length))
           (let ((anim (-> arg1 array-data i)))
             (when (-> anim func)
@@ -1744,63 +1824,27 @@ so emitting it a bucket early changes nothing observable."
               )
             )
           )
-        (pc-texture-anim-flag finish-anim-array dma-buf)
         )
-      ;; The ocean fixed anims. Length 4 means the ocean window is active (ocean's draw!
-      ;; grows the sky array around slot 3 exactly when *ocean-map* is set); the tex tests
-      ;; keep a partially-resolved anim from emitting a short payload (the C++ side asserts
-      ;; the exact size). Both dests publish to the texture pool at their runtime-allocated
-      ;; TBPs, where draw-ocean-far's gs-set and the mid/near drw adgifs name them.
-      (when (= (-> arg1 length) 4)
-        (let ((ocean-sky-anim (-> arg1 array-data 3)))
-          (if (-> ocean-sky-anim tex)
-              (pc-update-fixed-anim arg0 (texture-anim-pc ocean-sky) ocean-sky-anim)
-              )
-          )
-        (let ((ocean-arr *ocean-texture-anim-array*))
-          (when (and (nonzero? ocean-arr) ocean-arr)
-            (let ((ocean-anim (-> ocean-arr array-data 0)))
-              (if (-> ocean-anim tex)
-                  (pc-update-fixed-anim arg0 (texture-anim-pc ocean) ocean-anim)
+      (when (not (paused?))
+        (dotimes (i (-> arg1 length))
+          (let ((anim (-> arg1 array-data i)))
+            (when (!= (-> anim frame-mod) 0.0)
+              (let ((next (+ (-> anim frame-time) (* (-> anim frame-delta) (seconds-per-frame))))
+                    (m (-> anim frame-mod))
+                    )
+                (set! (-> anim frame-time) (- next (* (the float (the int (/ next m))) m)))
+                )
+              (if (< (-> anim frame-time) 0.0)
+                  (+! (-> anim frame-time) (-> anim frame-mod))
                   )
               )
             )
           )
         )
-      )
-    ;; Retail's clock, from the disassembly: frame-delta is per SECOND, not per frame, and
-    ;; the modulo is a truncation so a large delta cannot outrun a single subtract. The
-    ;; frame-mod test is ours and must stay: retail divides by frame-mod unguarded, and
-    ;; three of the four jakx sky entries carry frame-mod 0.0 (only ocean-sky animates),
-    ;; which would put a NaN in frame-time on the first frame.
-    ;; All four sky entries have time-func #f, so retail's time-func dispatch is not
-    ;; ported here; the ocean array's entry does carry one, dispatched below.
-    (when (not (paused?))
-      (dotimes (i (-> arg1 length))
-        (let ((anim (-> arg1 array-data i)))
-          (when (!= (-> anim frame-mod) 0.0)
-            (let ((next (+ (-> anim frame-time) (* (-> anim frame-delta) (seconds-per-frame))))
-                  (m (-> anim frame-mod))
-                  )
-              (set! (-> anim frame-time) (- next (* (the float (the int (/ next m))) m)))
-              )
-            (if (< (-> anim frame-time) 0.0)
-                (+! (-> anim frame-time) (-> anim frame-mod))
-                )
+      (let ((arrow-anim (-> arg1 array-data 0)))
+        (if (-> arrow-anim tex)
+            (pc-update-fixed-anim arg0 (texture-anim-pc this-way-arrow-02) arrow-anim)
             )
-          )
-        )
-      ;; The ocean array's clock, through its time-func like retail's dispatch (it slaves
-      ;; the ocean's frame-time to sky slot 3, which was just ticked above, so the two
-      ;; composites stay in lockstep). init! resolved the symbol to the function at boot.
-      (let ((ocean-arr *ocean-texture-anim-array*))
-        (when (and (nonzero? ocean-arr) ocean-arr)
-          (let ((ocean-anim (-> ocean-arr array-data 0)))
-            (if (-> ocean-anim time-func)
-                ((-> ocean-anim time-func) ocean-anim ocean-anim)
-                )
-            )
-          )
         )
       )
     )
