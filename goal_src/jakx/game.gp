@@ -225,7 +225,7 @@
 ;; (cgo-file "torvl3.gd" common-dep)
 ;; (cgo-file "icetourw.gd" common-dep)
 ;; (cgo-file "sbwlctf.gd" common-dep)
-;; (cgo-file "jungles.gd" common-dep)
+(cgo-file "jungles.gd" common-dep) ;; shared jungle track level; owns the track's sprite tpage (#101)
 ;; (cgo-file "pka.gd" common-dep)
 ;; (cgo-file "dsr.gd" common-dep)
 ;; (cgo-file "tpe.gd" common-dep)
