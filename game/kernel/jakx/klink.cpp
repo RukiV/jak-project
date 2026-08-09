@@ -218,9 +218,6 @@ void link_control::jakx_begin(Ptr<uint8_t> object_file,
           // so patch up the offset for this new layout before copying
           m_link_hdr->length_to_get_to_link = sizeof(LinkHeaderV5);
 
-          // move header!
-          memmove(new_link_block_mem.c(), object_file.c(), sizeof(LinkHeaderV5));
-
           // dst: pvVar6
           link_block_move_dst = new_link_block_mem.c() + sizeof(LinkHeaderV5);
 
@@ -228,12 +225,23 @@ void link_control::jakx_begin(Ptr<uint8_t> object_file,
           old_link_block = object_file.c() + offset_to_link_data;
 
           link_block_move_size = m_link_hdr->link_length;
+
+          // The top-allocated destination can overlap the tail of the object itself when
+          // the heap has little headroom above it (a ~3.7 MB bsp under a 5040K level heap
+          // leaves less than link_length + 0x50 free, observed on iceb-vis, #112). The
+          // link data must therefore be copied before the header: the header write lands
+          // at the low end of the destination, inside not-yet-copied link bytes when the
+          // regions overlap, and silently corrupts the relocation stream. memmove handles
+          // the overlapping data copy itself; the header source at the object's base is
+          // below the destination and cannot be clobbered by it.
+          memmove(link_block_move_dst, old_link_block, link_block_move_size);
+
+          // move header!
+          memmove(new_link_block_mem.c(), object_file.c(), sizeof(LinkHeaderV5));
         } else {
           // hm, maybe only possible with version 2 or 3??
           ASSERT_NOT_REACHED();
         }
-
-        memmove(link_block_move_dst, old_link_block, link_block_move_size);
 
         // update our pointer to the link header core.
         m_link_hdr = &((LinkHeaderV5*)new_link_block_mem.c())->core;
