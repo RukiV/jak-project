@@ -237,6 +237,7 @@ set(RUNTIME_SOURCE
         mips2c/jak3_functions/ocean.cpp
         mips2c/jak3_functions/ocean_vu0.cpp
         mips2c/jak3_functions/generic_merc.cpp
+        mips2c/jakx_functions/collide_func.cpp
         mips2c/jakx_functions/font.cpp
   mips2c/jakx_functions/foreground.cpp
   mips2c/jakx_functions/generic_effect.cpp

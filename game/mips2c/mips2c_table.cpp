@@ -465,6 +465,8 @@ namespace mercneric_bittable_asm { extern void link(); }
 namespace mercneric_shader_asm { extern void link(); }
 namespace mercneric_matrix_asm { extern void link(); }
 namespace generic_merc_init_asm { extern void link(); }
+namespace moving_sphere_triangle_intersect { extern void link(); }
+namespace collide_do_primitives { extern void link(); }
 }
 // clang-format on
 
@@ -748,6 +750,8 @@ PerGameVersion<std::unordered_map<std::string, std::vector<void (*)()>>> gMips2C
        jakx::method_32_sky_work::link, jakx::method_33_sky_work::link,
        jakx::method_28_sky_work::link, jakx::method_29_sky_work::link,
        jakx::method_30_sky_work::link, jakx::set_sky_vf27::link, jakx::set_sky_vf23_value::link}},
+     {"collide-func",
+      {jakx::moving_sphere_triangle_intersect::link, jakx::collide_do_primitives::link}},
      {"joint", {jakx::cspace_parented_transformq_joint::link}},
      {"foreground",
       {jakx::foreground_check_longest_edge_asm::link, jakx::foreground_generic_merc::link}},
