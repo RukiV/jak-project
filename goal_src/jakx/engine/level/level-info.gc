@@ -251,7 +251,12 @@
     :callback-list '((6 . *junglea-water-texture-anim-array*))
     :borrow (new 'static 'level-borrow-info
       :borrow-size (new 'static 'array uint16 3 #x10cc #x3b6 #x352)
-      :borrow-info (new 'static 'array object 3 #f #f #f)
+      ;; og:preserve-this bring-up (#108/#101): retail ships every borrow-info slot as #f
+      ;; and anon-function 43 of task-control fills them at runtime from the game-task
+      ;; node table; game-task and update-task-masks are both stubs here, so the retail
+      ;; pair for this host (game-task node 1, city-start-start) is pre-baked into slot 1.
+      ;; Retire when game-task and update-task-masks land.
+      :borrow-info (new 'static 'array object 3 #f '(jungles display) #f)
       )
     :bottom-height (meters -15)
     :mood-range '*default-mood-range*
@@ -724,7 +729,9 @@
     :callback-list '((34 . jungle-activate))
     :borrow (new 'static 'level-borrow-info
       :borrow-size (new 'static 'array uint16 3 #x15e #x3b6 #x0)
-      :borrow-info (new 'static 'array object 3 #f #f #f)
+      ;; og:preserve-this bring-up (#108/#101): same pre-baked retail pair as junglex
+      ;; above; see the note there. Retire when game-task and update-task-masks land.
+      :borrow-info (new 'static 'array object 3 #f '(jungles display) #f)
       )
     :bottom-height (meters -15)
     :mood-range '*default-mood-range*
