@@ -9626,7 +9626,13 @@
     :callback-list '()
     :borrow (new 'static 'level-borrow-info
       :borrow-size (new 'static 'array uint16 3 #x15e #x3b6 #x0)
-      :borrow-info (new 'static 'array object 3 #f #f #f)
+      ;; og:preserve-this bring-up (#112): pre-baked retail borrow pair for the icelands
+      ;; shared level, from the retail task table (task node 1): icew slot 1 carries
+      ;; (ices display). Retail fills these at runtime via update-task-masks, which is
+      ;; stubbed with the game-task table, and borrow-info is the only load channel for
+      ;; a small-center shared level (add-borrow-levels deletes its want entries).
+      ;; Retire when game-task and update-task-masks land.
+      :borrow-info (new 'static 'array object 3 #f '(ices display) #f)
       )
     :mood-range '*mood-range-1*
     )
@@ -9671,7 +9677,11 @@
     :callback-list '()
     :borrow (new 'static 'level-borrow-info
       :borrow-size (new 'static 'array uint16 3 #x1770 #x226 #xfa)
-      :borrow-info (new 'static 'array object 3 #f #f #f)
+      ;; og:preserve-this bring-up (#112): same pre-baked retail pair as icew above; see
+      ;; the note there. Retail also ships (icex 0 icey special) in slot 0; it is
+      ;; deliberately omitted, matching the jungle precedent (junglex slot 0 skipped),
+      ;; until a special-mode consumer lands. Retire with the icew note.
+      :borrow-info (new 'static 'array object 3 #f '(ices display) #f)
       )
     :mood-range '*mood-range-1*
     )
