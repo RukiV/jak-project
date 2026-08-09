@@ -882,6 +882,23 @@
   this
   )
 
+;; og:preserve-this hand-landed for #116 rung 5: (method 22 level) is flagged
+;; asm_functions_by_name ("BAD PROLOGUE") but the reachable retail path is three
+;; instructions: the none-guard, then ori v1, v1, 57344 (#xE000 = primary0|ctywide|
+;; never) OR'd with *net-task-mask* into level field 652 (task-mask, asm 648);
+;; everything after the unconditional branch is unreachable. update-task-masks calls
+;; this on every active level; before this landed the slot was zero and the call
+;; would have been the kscheme goal-0 crash class. The forward extern mirrors the
+;; settings.gc pattern: level.o compiles before the net home defines the symbol.
+(define-extern *net-task-mask* task-mask)
+(defmethod set-proto-vis! ((this level) (arg1 symbol))
+  (if (= arg1 'none)
+      (return 0)
+      )
+  (set! (-> this task-mask) (logior *net-task-mask* (task-mask primary0 ctywide never)))
+  0
+  )
+
 ;; definition for function level-find-borrow-slot
 ;; WARN: Return type mismatch int vs none.
 ;; og:preserve-this landed for #108/#101: the stale jak3-copied type_casts entry

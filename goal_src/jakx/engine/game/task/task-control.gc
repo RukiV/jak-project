@@ -7,13 +7,13 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this bring-up (#116 rung 4): update-task-masks below is the REDUCED
-;; retail body: the borrow half is complete (it is the runtime writer that retires the
-;; jungle and icelands borrow-info pre-bakes), while the mask arithmetic, the minimap
-;; fade sweep, the open-node walk, the faction commands and the set-proto-vis! loop
-;; are deferred to rung 5/6 and stubbed inline below with their own notes. The old
-;; stub comment's "blocked on *minimap*" diagnosis was stale: the decomp blocker was
-;; the empty game-task-node enum, retired at rung 0.
+;; og:preserve-this bring-up (#116 rungs 4-5): update-task-masks below is the retail
+;; body with two subsystem calls og-stubbed inline where they belong (the *minimap*
+;; fade sweep and the city faction commands; each stub names its retirement). The
+;; borrow half is complete and is the runtime writer that retired the jungle and
+;; icelands borrow-info pre-bakes. The old stub comment's "blocked on *minimap*"
+;; diagnosis was stale: the decomp blocker was the empty game-task-node enum,
+;; retired at rung 0.
 
 ;; The borrow-eval lambda is hand-landed from (anon-function 43 task-control)'s
 ;; machine code (ops 0-34 of the ir2; jak2's landed task-control.gc lambda is the
@@ -22,15 +22,46 @@
 ;; op 30 stores it; jak2 instead writes two separate fields), and the slot arithmetic
 ;; is (sra raw 3) then (sll 2), i.e. slot = raw/8 with a 4-byte stride (ops 26-27).
 ;; Retail also loads the tuple's 3rd and 4th elements and discards them (ops 6-12,
-;; dead loads); they are not transcribed.
+;; dead loads); they are not transcribed. Note the table's null tuples (for example
+;; (junglew 0 #f #f)) are applied like any other, leaving a real (#f #f) pair in the
+;; slot exactly as retail does; every consumer guards on the car, so a #f car reads
+;; as an empty slot (level.gc borrow scans, add-want-level's leading when).
+
+(defmethod game-task-node-info-method-12 ((this game-task-node-info))
+  (-> *game-info* sub-task-list)
+  (let ((v1-2 this))
+    (not (logtest? (-> v1-2 flags) (game-task-node-flag closed)))
+    )
+  )
+
+(defmethod eval-game-task-cmd! ((this game-task-node-info))
+  0
+  (none)
+  )
 
 (defun update-task-masks ((arg0 symbol))
   (if (= arg0 'none)
       (return 0)
       )
   (do-nothing *level*)
-  ;; og:preserve-this rung-5 stub (#116): the retail mask recompute (features/items/
-  ;; vehicles zeroing plus the secrets check) and the *minimap* fade sweep go here.
+  (cond
+    ((or (= arg0 'debug) (= arg0 'level))
+     )
+    ((logtest? (-> *game-info* secrets) 1)
+     (set! (-> *game-info* features) (the-as uint 0))
+     (set! (-> *game-info* items) (the-as uint 0))
+     (set! (-> *game-info* vehicles) (the-as uint 47))
+     )
+    (else
+      (set! (-> *game-info* features) (the-as uint 0))
+      (set! (-> *game-info* items) (the-as uint 0))
+      (set! (-> *game-info* vehicles) (the-as uint 0))
+      0
+      )
+    )
+  ;; og:preserve-this minimap stub (#116): retail sweeps *minimap*'s alive-list here,
+  ;; fading out task-graph icons whose node is closed. Retires with the minimap leg;
+  ;; the sweep is guarded on *minimap* being defined, which nothing does yet.
   (let ((borrow-eval (lambda ((arg0 pair))
                        (let ((tuple (car arg0)))
                          (while (not (null? arg0))
@@ -58,20 +89,67 @@
                      )
         )
     (borrow-eval (-> *game-info* sub-task-list (game-task-node city-start-start) borrow))
-    ;; og:preserve-this rung-5/6 stub (#116): the retail walk over every OPEN node's
-    ;; borrow list goes here (plus eval-game-task-cmd! on closed nodes and the
-    ;; when-open minimap countdown). With the task state machine unlanded no node is
-    ;; ever open, so node 1's unconditional list above is the whole live set, which
-    ;; is exactly where the jungle and icelands pairs ship.
+    (let ((s3-0 (-> *game-info* sub-task-list)))
+      (dotimes (s2-0 (-> s3-0 length))
+        (when (nonzero? s2-0)
+          (let ((s1-0 (-> s3-0 s2-0)))
+            (case arg0
+              (('debug 'level)
+               )
+              (else
+                (if (logtest? (-> s1-0 flags) (game-task-node-flag closed))
+                    (eval-game-task-cmd! s1-0)
+                    )
+                )
+              )
+            (when (game-task-node-info-method-12 s1-0)
+              (when (-> s1-0 when-open)
+                (countdown (v1-58 (-> s1-0 when-open length))
+                  (case (-> s1-0 when-open v1-58 actor)
+                    (((game-task-actor minimap))
+                     )
+                    )
+                  )
+                )
+              (borrow-eval (-> s1-0 borrow))
+              )
+            )
+          )
+        )
+      )
+    ;; og:preserve-this faction stub (#116): retail calls city-task-faction-commands
+    ;; here and then evaluates user-current faction-command entries. Both bodies
+    ;; short-circuit to no-ops without *cty-faction-manager*, which has no home until
+    ;; a city leg lands; the calls are stubbed rather than landed so this file does
+    ;; not carry dead externs for an absent subsystem. Retires with the faction leg.
+    (logior! (-> *game-info* features) (-> *game-info* debug-features))
+    (logior! (-> *game-info* items) (-> *game-info* debug-items))
+    (logior! (-> *game-info* vehicles) (-> *game-info* debug-vehicles))
     (dotimes (s4-3 (the-as int (-> *setting-control* user-current borrow-count)))
       (borrow-eval (-> *setting-control* user-current borrow s4-3))
       )
     )
-  ;; og:preserve-this rung-5 stub (#116): the faction-command evaluation and the
-  ;; debug-mask ORs go here.
+  (case arg0
+    (('load)
+     )
+    (else
+      ;; retail dead loop, transcribed verbatim: loads each node and discards it
+      (let ((v1-91 (-> *game-info* sub-task-list)))
+        (dotimes (a0-34 (-> v1-91 length))
+          (if (nonzero? a0-34)
+              (-> v1-91 a0-34)
+              )
+          )
+        )
+      )
+    )
   (add-borrow-levels *load-state*)
-  ;; og:preserve-this rung-5 stub (#116): the set-proto-vis! loop over active levels
-  ;; goes here; set-proto-vis! (level method 22) is a zero slot until its 3-line body
-  ;; lands, and calling through it would be the kscheme goal-0 crash class.
+  (dotimes (s5-2 (-> *level* length))
+    (let ((a0-37 (-> *level* level s5-2)))
+      (if (= (-> a0-37 status) 'active)
+          (set-proto-vis! a0-37 arg0)
+          )
+      )
+    )
   0
   )
