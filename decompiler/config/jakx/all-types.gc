@@ -21321,13 +21321,38 @@
     (game-info-method-14 () none) ;; 14 ;; (task-perm-by-index (_type_ int) entity-perm)
     (game-info-method-15 () none) ;; 15 ;; (copy-perms-from-level! (_type_ level) int)
     (game-info-method-16 () none) ;; 16 ;; (copy-perms-to-level! (_type_ level) int)
-    (game-info-method-17 () none) ;; 17 ;; (debug-inspect (_type_ symbol) _type_)
-    (game-info-method-18 () none) ;; 18 ;; (get-current-continue-forced (_type_) continue-point)
+    ;; og:preserve-this signature fix, R3a (#122): game-info_ir2.asm (method 9 game-info)
+    ;; op 830 and op 904, and (anon-function 14 game-info) op 37, all dispatch this slot
+    ;; (vtable offset 84 = 16 + 4*17) with one int argument (the view index from
+    ;; view-get-active-index). Its return value is stored through loosely and, at the
+    ;; play-mode spawn site, flows into the same slot continue-name would otherwise
+    ;; occupy (game-info_ir2.asm op 899-907), so the return is typed as the broader
+    ;; object rather than int. The old zero-arg "debug-inspect (symbol)" guess does not
+    ;; match either the arg count or the arg type; fixed the same way R2 fixed method 27.
+    (game-info-method-17 (_type_ int) object) ;; 17
+    ;; og:preserve-this signature fix, R3a (#122): game-info_ir2.asm (method 9 game-info)
+    ;; op 65-69 dispatches this slot (vtable offset 88 = 16 + 4*18) with one string
+    ;; argument (the caller's continue-name), and the call site casts the return back to
+    ;; string and uses it as the validated continue name. The old zero-arg
+    ;; "get-current-continue-forced ()" guess does not match the arg count; fixed the
+    ;; same way R2 fixed method 27.
+    (game-info-method-18 (_type_ string) string) ;; 18
     (game-info-method-19 () none) ;; 19 ;; (get-continue-by-name (_type_ string) continue-point)
     (set-continue! (_type_ basic int) continue-point) ;; 20 ;; jakx: third arg is player index, jak3 had symbol
     (game-info-method-21 () none) ;; 21 ;; (game-info-method-21 (_type_) none)
     (game-info-method-22 () none) ;; 22 ;; (save-game (_type_ game-save string) game-save)
-    (game-info-method-23 () none) ;; 23 ;; (load-game (_type_ game-save) game-save)
+    ;; og:preserve-this signature fix, R3a (#122): game-info_ir2.asm (method 9
+    ;; game-info) op 825, and (anon-function 14 game-info) op 31, both dispatch this
+    ;; slot (vtable offset 108 = 16 + 4*23) with one game-save argument, matching the
+    ;; existing "load-game" guess comment's arg count exactly; only the declared arg
+    ;; count (previously 0) needed the fix. Note: the leg brief's R3 addendum named
+    ;; "method 22" as the continue-validation slot and "methods 24 and 27" as
+    ;; anon-function-14's vtable calls; direct machine-code slot arithmetic (validated
+    ;; twice against set-continue!'s already-correct slot 20 and this method's own slot
+    ;; 23) shows the actual slots exercised are 17, 18, 20 and 23, not 22/24. See the
+    ;; R3a landing report for the full derivation; 22 and 24 are not dispatched anywhere
+    ;; in this decode and are left untouched.
+    (game-info-method-23 (_type_ game-save) game-save) ;; 23
     (game-info-method-24 () none) ;; 24 ;; (you-suck-stage (_type_ symbol int) int)
     (game-info-method-25 () none) ;; 25 ;; (you-suck-scale (_type_ symbol int) float)
     (game-info-method-26 () none) ;; 26 ;; (get-next-attack-id! (_type_) uint)
@@ -21357,7 +21382,11 @@
 ;; (define-extern *lobby-adv-selected-level* object)
 ;; (define-extern *lobby-adv-previous-score* object)
 ;; (define-extern *lobby-adv-cup* object)
-;; (define-extern *lobby-adv-selected-task* object)
+;; og:preserve-this type fix, R3a (#122): game-info_ir2.asm op 292 stores a raw literal
+;; 0 (sw of r0, not of s7/#f) into this global, which is how int fields get cleared in
+;; this object; the guessed "object" type left it unresolvable to the decompiler.
+;; Retires when the MENU2/lobby-adv object that owns it lands.
+(define-extern *lobby-adv-selected-task* int)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; gui-h                          ;;
@@ -41081,7 +41110,11 @@
 ;; (define-extern can-display-query? function) ;; (function process string float symbol)
 ;; (define-extern talker-surpress! function) ;; (function int)
 ;; (define-extern talker-displayed? function) ;; (function symbol)
-;; (define-extern kill-current-talker function) ;; (function pair pair symbol none)
+;; og:preserve-this type visibility fix, R3a (#122): uncommented so the decompiler can
+;; see past game-info_ir2.asm op 81's call (guarded at the call site in game-info.gc,
+;; since ambient.o's body is still unlanded); matches goal_src's own already-live
+;; declaration at ambient-h.gc:24. Retires when ambient.gc lands.
+(define-extern kill-current-talker (function pair pair symbol none))
 ;; (define-extern string->talker-speech function) ;; (function string talker-speech-class)
 ;; (define-extern talker-spawn-func function) ;; (function talker-speech-class process-tree vector region sound-id)
 ;; (define-extern talker-init function) ;; (function talker-speech-class vector region none :behavior talker)
@@ -41826,7 +41859,12 @@
 ;; (define-extern start-2 function)
 ;; (define-extern start-1 function)
 (define-extern stop (function symbol int))
-;; (define-extern start function) ;; (function symbol continue-point target)
+;; og:preserve-this arity fix, R3a (#122): game-info_ir2.asm's anon-function-14 (op
+;; 80-84) calls start with three live argument registers (a0=mode symbol, a1=a
+;; continue-point-ish basic, a2=literal 0), not the two this comment recorded. Grade
+;; per R0 RESULTS ADDENDUM item 3. Retires when R5a lands logic-target.gc for real and
+;; can confirm the callee side too.
+(define-extern start (function symbol basic int target))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; debug-part                     ;;
@@ -48751,7 +48789,11 @@
   )
 
 ;; (define-extern lobby-vehicle-flag->string function)
-;; (define-extern *lobby-reset-mode* object)
+;; og:preserve-this type fix, R3a (#122): game-info_ir2.asm op 14 only ever compares
+;; this global against #f (a truthy/falsy flag read), matching the house convention for
+;; a symbol-typed flag global; the guessed "object" type left it unresolvable to the
+;; decompiler. Retires when the MENU2/lobby object that owns it lands.
+(define-extern *lobby-reset-mode* symbol)
 ;; (define-extern *net-mgr-finish-mode* object)
 (define-extern *lobby-menu-manager* basic)
 ;; (define-extern get-selected-local-player-count function)
@@ -49683,7 +49725,12 @@
 ;; (define-extern artist-continue function)
 ;; (define-extern listener-continue function)
 ;; (define-extern listener-task function)
-;; (define-extern select-continue-point function)
+;; og:preserve-this type fix, R3a (#122): game-info_ir2.asm (anon-function 14
+;; game-info) op 70-78 calls this with the view index (int) and feeds the result into
+;; the same slot start's continue-point argument occupies; guarded the same way start
+;; is, since neither this global nor its home object are landed. Retirement: whichever
+;; leg lands the object that defines select-continue-point for real.
+(define-extern select-continue-point (function int basic))
 ;; (define-extern set-local-vehicle function)
 ;; (define-extern qo function)
 

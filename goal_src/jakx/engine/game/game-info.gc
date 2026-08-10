@@ -12,3 +12,432 @@
 (defun hflip? ()
   (logtest? (-> *game-info* secrets) #x4000)
   )
+
+;; og:preserve-this guard set, R3a (#122): (method 9 game-info) / initialize! reaches
+;; into three families of unlanded code. all-types.gc carries the type-level
+;; declarations the decompiler needs; these mirror them for the compiler.
+;;   - start (logic-target.gc, build order 307 vs this object's 251): forward reference
+;;     by construction. Retires with R5a.
+;;   - kill-current-talker: extern already lives at ambient-h.gc:24; ambient.o itself is
+;;     unlanded, so the CALL below carries the guard, not this declaration. Retires when
+;;     ambient.gc lands.
+;;   - *lobby-menu-manager* (main.gc:209) needs no guard, it is a real landed global.
+;;     menu2-start needs no guard either: game-info_ir2.asm op 138/146 loads it as a
+;;     lui/ori rodata string address, not a symbol reference, so raw_obj link-table greps
+;;     for "menu2-start" (section 1.5 of the leg brief) were matching a string constant,
+;;     not a symbol; corrected here as a methodology note for future link-table claims.
+;;   - select-continue-point: home object unknown, guarded the same way as start.
+(define-extern start (function symbol basic int target))
+
+;; og:preserve-this stop is already declared for real at level.gc:23 (function symbol
+;; int); level.o (build order 267) compiles after game-info.o (251), so it needs a
+;; local forward ref here too, mirroring level.gc's own declaration.
+(define-extern stop (function symbol int))
+
+;; og:preserve-this *lobby-reset-mode*/*lobby-adv-selected-task* forward-declared for
+;; the compiler (all-types.gc carries the matching decompiler-side declaration).
+(define-extern *lobby-reset-mode* symbol)
+(define-extern *lobby-adv-selected-task* int)
+
+;; og:preserve-this *lobby-menu-manager* is a real landed global (main.gc:209), but
+;; main.o (build order 324) compiles after game-info.o (251), so it needs the same
+;; "auto-added forward ref" main.gc itself uses for symbols from objects later in the
+;; build order.
+(define-extern *lobby-menu-manager* basic)
+
+;; og:preserve-this scf-get-time is not forward-declared anywhere in this tree yet; the
+;; kernel's scf-get-language/scf-get-timeout siblings are (kernel-defs.gc), this one
+;; needed for the jukebox-track boot-time seed below.
+(define-extern scf-get-time (function scf-time none))
+(define-extern select-continue-point (function int basic))
+
+;; og:preserve-this task-node-reset/reset-actors/reset-actors-by-game-type are not
+;; forward-declared anywhere in this tree yet; signatures taken from all-types.gc
+;; (task-node-reset, reset-actors) and the leg brief's own citation (all-types.gc:42743,
+;; reset-actors-by-game-type, "signature authored from usage, no jak3 counterpart").
+(define-extern task-node-reset (function symbol int))
+(define-extern reset-actors (function symbol none))
+(define-extern reset-actors-by-game-type (function symbol none))
+
+;; og:preserve-this update-task-masks is defined for real in task-control.gc (build
+;; order later than game-info.o); level.gc and settings.gc both carry their own
+;; forward-ref copy of this same declaration for the same reason.
+(define-extern update-task-masks (function symbol int))
+
+;; og:preserve-this *spawn-actors* is defined for real in entity.gc (build order later
+;; than game-info.o).
+(define-extern *spawn-actors* symbol)
+
+;; og:preserve-this anon-function-14 (game-info_ir2.asm line 7611): the process
+;; run-function spawned by initialize!'s (play) branch below. Landed ahead of
+;; initialize! so the compiler sees it defined before the spawn site references it (the
+;; original retail object has no such ordering constraint; this is a GOAL-source-only
+;; concession). Carries the leg's payoff verbatim: stop (already-live extern,
+;; game-info_ir2.asm op 5-8, called with just the mode arg; the second register set
+;; before the call is dead per the declared 1-arg signature), reset-actors-by-game-type
+;; x2 (already-declared extern), the open!/'event send on sub-task-list slot 1,
+;; (set-continue! this ...) (method 20, already landed; the raw also sets a third
+;; register before this call that the declared 2-arg signature does not read, left
+;; unpassed here to match), game-info-method-23/17 (both resolved above), a (suspend),
+;; and finally select-continue-point/start: select-continue-point is guarded
+;; (all-types.gc:49713, unlanded), start is guarded per the leg's guard set.
+(defun anon-function-14-game-info ((mode-field symbol) (mode symbol) (continue-arg basic) (save game-save))
+  (stop mode-field)
+  (reset-actors-by-game-type mode)
+  (open! (-> *game-info* sub-task-list 1) 'event)
+  (set-continue! *game-info* continue-arg 0)
+  (when save
+    (game-info-method-23 *game-info* save)
+    (game-info-method-17 *game-info* 0)
+    )
+  (reset-actors-by-game-type 'life)
+  (send-event (handle->process (-> *game-info* auto-save-proc)) 'done)
+  (suspend)
+  (let ((target-continue continue-arg))
+    (when (and (= mode-field 'game) (nonzero? select-continue-point))
+      (set! target-continue (select-continue-point (view-get-active-index)))
+      )
+    (if (nonzero? start)
+        (start mode-field target-continue 0)
+        )
+    )
+  (none)
+  )
+
+(defmethod initialize! ((this game-info) (mode symbol) (save game-save) (continue-name string) (resetter resetter-spec))
+  (format 0 "(game-info::reset) ~S~%" mode)
+
+  ;; reset dispatch: og:preserve-this control-flow reading of game-info_ir2.asm ops
+  ;; 10-25. GOAL's short-circuit "or" compiler reuses op 11's leftover comparison
+  ;; register instead of emitting an explicit move once the first term already decided
+  ;; the result, which reads at the byte level like "skip the *lobby-reset-mode* check
+  ;; whenever mode isn't 'game" until traced against where the branches actually
+  ;; reconverge (L68/op16, L70/op25); once traced it resolves to a plain three-term or.
+  (when (or (!= mode 'game) (not *lobby-reset-mode*) (demo?))
+    ;; menu-kill: og:preserve-this both event sends use the send-event macro's compiled
+    ;; shape (event-block on the stack, ppointer of the caller as :from, dispatch through
+    ;; send-event-function); *lobby-menu-manager* is real (main.gc:209), *net-mgr* is
+    ;; landed elsewhere already.
+    (when (demo?)
+      (jukebox-onoff #f)
+      (send-event (the-as process-tree *lobby-menu-manager*) 'die-fast)
+      )
+    (send-event *net-mgr* 'leave-game)
+    )
+
+  (let ((view-idx (view-get-active-index)))
+    ;; continue validation via (method 18 game-info): og:preserve-this the retail
+    ;; instruction stream also re-checks (-> continue-name type) == string before this
+    ;; call (game-info_ir2.asm ops 61-64); continue-name is already statically typed
+    ;; string on this method, so that runtime check is dead weight and is dropped, per
+    ;; house transcription practice for provably-redundant checks against a static type.
+    (when continue-name
+      (let ((validated (game-info-method-18 this continue-name)))
+        (when (not validated)
+          (format 0 "ERROR: attempting to reset to continue ~A when it doesn't exist~%" continue-name)
+          (break!)
+          )
+        (set! continue-name validated)
+        )
+      )
+
+    ;; og:preserve-this runtime-link guard, R3a (#122): kill-current-talker's extern
+    ;; exists (ambient-h.gc:24) but ambient.o is unlanded. Retires when ambient.gc lands.
+    (if (nonzero? kill-current-talker)
+        (kill-current-talker '() '() 'die)
+        )
+
+    ;; counters, clock captures, perm-list reset, byte-array/sub-array reset loops,
+    ;; task-level-info bit ORs, m2v-info loop, best-times reset: og:preserve-this gated
+    ;; by game-info_ir2.asm ops 86-97 (mode in game/boot/new-game), matching the retail
+    ;; three-way chained-equality branch verbatim (no leftover-register trick here).
+    (when (or (= mode 'game) (= mode 'boot) (= mode 'new-game))
+      ;; counters
+      (+! (-> this task-counter) 1)
+      (reset! (-> *display* total-game-clock))
+      (set! (-> this features) (the-as uint 32))
+      (set! (-> this debug-features) (the-as uint 0))
+      (set! (-> this old-features) (the-as uint 0))
+      (set! (-> this items) (the-as uint 0))
+      (set! (-> this debug-items) (the-as uint 0))
+      (set! (-> this old-items) (the-as uint 0))
+      (set! (-> this vehicles) (the-as uint 0))
+      (set! (-> this debug-vehicles) (the-as uint 0))
+      (set! (-> this old-vehicles) (the-as uint 0))
+      (set! (-> this secrets) (the-as uint 0))
+      (set! (-> this purchase-secrets) (the-as uint 0))
+      (set! (-> this current-vehicle) 0)
+
+      ;; set-continue! dispatch: og:preserve-this matches game-info_ir2.asm ops 126-153
+      ;; verbatim; menu2-start/fmv-intro are plain string literals (section 1.5), not
+      ;; symbols, so they need no runtime-link guard.
+      (set-continue! this
+                      (cond
+                        ((demo?) "fmv-intro")
+                        ((kiosk?) "fmv-intro")
+                        ((= mode 'game) "menu2-start")
+                        (else (if (and *debug-segment* (= mode 'boot)) "menu2-start" "fmv-intro"))
+                        )
+                      view-idx
+                      )
+      (set! (-> this auto-save-count) 0)
+      (set! (-> *setting-control* user-default auto-save) #f)
+
+      ;; perm-list reset (not a lazy-init here; the lazy-allocation nonzero-guarded idiom
+      ;; R2 documented lives in top-level-login, not in this method)
+      (set! (-> this perm-list length) 0)
+
+      ;; byte-array reset loop #1: og:preserve-this game-info-pad2 (offset-assert 1172)
+      ;; is a placeholder int32; game-info_ir2.asm op 168's "Could not figure out load"
+      ;; on this exact field is the accepted, pre-existing 1168-class residue (R2
+      ;; COMPLETION ADDENDUM), so the field is deliberately left untyped and this walk
+      ;; uses raw pointer casts rather than a field name, to keep the residue visible
+      ;; rather than silently typing it away. R2's note also documents the SAME
+      ;; nonzero-guarded lazy-init idiom touching this field from top-level-login, under
+      ;; the name "task-node-info" there.
+      (let* ((holder (the-as (pointer int16) (-> this game-info-pad2)))
+             (count (-> (the-as (pointer int32) (&+ holder 4)) 0))
+             )
+        (dotimes (i count)
+          (set! (-> holder (+ i 6)) 0) ;; +12 bytes = index 6 of a (pointer int16); (-> ptr idx) already strides by 2
+          )
+        )
+
+      (set! (-> this death-movie-tick) (rand-vu-int-count 10))
+      (set! (-> this goal) 0.0)
+      (set! (-> this miss) 0.0)
+      (set! (-> this miss-max) 0.0)
+      (set! (-> this attack-id) 2)
+      (set! (-> this task-deaths) 0)
+      (set! (-> this total-deaths) 0)
+      (set! (-> this continue-deaths) 0)
+      (set! (-> this total-trys) 0)
+
+      ;; four clock captures: og:preserve-this the raw instructions read
+      ;; *display*->game-clock->frame-counter five times (game-start-time,
+      ;; task-pickup-time, continue-time, death-time, hit-time); the leg brief's own R0
+      ;; addendum called this "the four clock captures" but the instruction count is
+      ;; five, corrected here from direct evidence.
+      (let ((now (the-as uint (-> *display* game-clock frame-counter))))
+        (set! (-> this game-start-time) now)
+        (set! (-> this task-pickup-time) now)
+        (set! (-> this continue-time) now)
+        (set! (-> this death-time) now)
+        (set! (-> this hit-time) now)
+        )
+
+      ;; byte-array reset loop #2: level-opened, 32 bytes
+      (dotimes (i 32)
+        (set! (-> this level-opened i) 0)
+        )
+
+      ;; sub-array reset loop: og:preserve-this walks *game-info*'s own sub-task-list
+      ;; (not "this", matching game-info_ir2.asm op 218's explicit *game-info* global
+      ;; read), skipping index 0. Byte offsets 84/86 (declared 88/90, medals[0] and
+      ;; unlocked) and the 8-byte default-advanced-options -> user-advanced-options copy
+      ;; (declared 120 -> 128, game-task-advanced-options' own :size-assert #x8, hence
+      ;; the whole-struct lword copy) and high-scores-default -> high-scores (declared
+      ;; 164 -> 168, both typed generically as "basic" so the 5-float row copy uses raw
+      ;; pointer casts on the landed field names) all resolve against landed
+      ;; game-task-node-info fields.
+      (dotimes (idx (-> *game-info* sub-task-list length))
+        (when (nonzero? idx)
+          (let ((entry (-> *game-info* sub-task-list idx)))
+            (set! (-> entry close-time) 0)
+            (set! (-> entry play-count) 0)
+            (set! (-> (the-as (pointer int8) (&+ entry 88)) 0) 0) ;; medals[0]
+            (set! (-> entry unlocked) 0)
+            (set! (-> entry user-advanced-options lword) (-> entry default-advanced-options lword))
+            (when (nonzero? (-> entry high-scores-default))
+              (dotimes (i 5)
+                (set! (-> (the-as (pointer float) (&+ (-> entry high-scores) 12)) i)
+                      (-> (the-as (pointer float) (&+ (-> entry high-scores-default) 12)) i)
+                      )
+                )
+              )
+            )
+          )
+        )
+
+      (set! *lobby-adv-selected-task* 0)
+
+      ;; og:preserve-this game-info_ir2.asm ops 293-299: resetter (the method's fifth
+      ;; argument) gates the rest of this block two ways. When resetter is truthy, only
+      ;; the secrets bit-1 OR below runs. When resetter is #f (the common case), the
+      ;; secrets OR is skipped and the whole remainder runs instead (car-color/log2/
+      ;; car-part-info stubs, the m2v-info loop, the jukebox-track seed, the
+      ;; task-level-info bit ORs, the best-times reset, and this block's own
+      ;; turbo-disabled write).
+      (when resetter
+        (set! (-> this secrets) (logior (-> this secrets) (the-as uint 1)))
+        )
+      (when (not resetter)
+        ;; og-stub, R3a (#122): retail paints each of the 15 car-info slots' base and
+        ;; stripe colors from *car-default-base-color*/*car-default-stripe-color* (two
+        ;; 16-byte quad copies per slot) and derives a per-slot upgrade-flags byte via
+        ;; log2 of a handful of fixed bitmasks (2048, #x8000, 128) sourced from
+        ;; *car-upgrade-info*. Stubbed because all four globals belong to the unlanded
+        ;; vehicle stack (car-info-h.gc's own arrays have no landed data source yet; see
+        ;; risk register item 5, the 59-empty-file vehicle stack). Retirement: the
+        ;; vehicle campaign, when it lands *car-default-base-color*,
+        ;; *car-default-stripe-color* and *car-upgrade-info*.
+        ;; (dotimes (slot 15) ... 15-iteration car-info paint/upgrade-flags init, skipped)
+
+        ;; og-stub, R3a (#122): retail walks *car-part-info-arrays* (a 2D array of
+        ;; pointers, per-part flags byte at offset 10 of each innermost element) and
+        ;; derives bit 1/2 ("or 6") from bit 0 of the same byte. Stubbed rather than
+        ;; landed under the addendum's own exception clause: the exception only covers a
+        ;; single forward-declared array global, but this access is doubly-indirected
+        ;; (array of arrays of pointers) with no landed element type at either level, so
+        ;; a bare forward decl would not resolve it cleanly. Retirement: the vehicle
+        ;; campaign.
+        ;; (dotimes (part-i ...) (dotimes (part-j ...) ... *car-part-info-arrays* walk, skipped))
+
+        ;; m2v-info loop: og:preserve-this *m2v-info* is already landed
+        ;; ((array m2v-info), all-types.gc:36136); clears idx on every entry then marks
+        ;; entry 0 selected.
+        (dotimes (i (-> *m2v-info* length))
+          (set! (-> *m2v-info* i idx) 0)
+          )
+        (set! (-> *m2v-info* 0 idx) 1)
+
+        ;; og:preserve-this reads the boot-time real-clock minute into game-info's
+        ;; jukebox-track byte (music-data[0]'s low byte), a time-of-day seed for
+        ;; update-jukebox-music's mod-21 track cursor. scf-time/scf-get-time are the
+        ;; kernel's system-clock-flash accessors; scf-get-time is not yet
+        ;; forward-declared anywhere in this tree, so it is declared here.
+        (let ((buf (new 'stack-no-clear 'scf-time)))
+          (scf-get-time buf)
+          (set! (-> *game-info* jukebox-track) (-> buf minute))
+          )
+
+        ;; task-level-info bit ORs: og:preserve-this *task-level-info* is already
+        ;; landed ((array task-level-info), all-types.gc:15524); a bit-0 clear pass over
+        ;; every entry's flags, followed by a bit-0 set on nine specific entries. The
+        ;; driver-unlock/driver-award OR-accumulate immediately precedes it in the same
+        ;; instruction range.
+        (set! (-> *game-info* driver-unlock) 0)
+        (set! (-> *game-info* driver-unlock) (logior (-> *game-info* driver-unlock) 1))
+        (set! (-> *game-info* driver-unlock) (logior (-> *game-info* driver-unlock) 2))
+        (set! (-> *game-info* driver-unlock) (logior (-> *game-info* driver-unlock) 512))
+        (set! (-> *game-info* driver-unlock) (logior (-> *game-info* driver-unlock) 32))
+        (set! (-> *game-info* driver-unlock) (logior (-> *game-info* driver-unlock) 64))
+        (set! (-> *game-info* driver-unlock) (logior (-> *game-info* driver-unlock) 128))
+        (set! (-> *game-info* driver-award) (-> *game-info* driver-unlock))
+
+        (dotimes (i (-> *task-level-info* length))
+          (set! (-> *task-level-info* i flags) (logand (-> *task-level-info* i flags) -2))
+          )
+        (set! (-> *task-level-info* 2 flags) (logior (-> *task-level-info* 2 flags) 1))
+        (set! (-> *task-level-info* 19 flags) (logior (-> *task-level-info* 19 flags) 1))
+        (set! (-> *task-level-info* 4 flags) (logior (-> *task-level-info* 4 flags) 1))
+        (set! (-> *task-level-info* 3 flags) (logior (-> *task-level-info* 3 flags) 1))
+        (set! (-> *task-level-info* 13 flags) (logior (-> *task-level-info* 13 flags) 1))
+        (set! (-> *task-level-info* 14 flags) (logior (-> *task-level-info* 14 flags) 1))
+        (set! (-> *task-level-info* 18 flags) (logior (-> *task-level-info* 18 flags) 1))
+        (set! (-> *task-level-info* 16 flags) (logior (-> *task-level-info* 16 flags) 1))
+        (set! (-> *task-level-info* 17 flags) (logior (-> *task-level-info* 17 flags) 1))
+
+        ;; best-times reset: og:preserve-this R2's characterized layout, (array float),
+        ;; offset 1420.
+        (dotimes (i (-> this best-times length))
+          (set! (-> this best-times i) 0.0)
+          )
+
+        (set! (-> this turbo-disabled) -1)
+        )
+      )
+
+    ;; second turbo-disabled gate: og:preserve-this a wider, separate mode check
+    ;; (game/boot/try/life/new-game) than the block above; transcribed as its own
+    ;; when, matching game-info_ir2.asm ops 652-673 verbatim rather than merged with
+    ;; the block above.
+    (when (or (= mode 'game) (= mode 'boot) (= mode 'try) (= mode 'life) (= mode 'new-game))
+      (set! (-> this turbo-disabled) -1)
+      )
+
+    ;; mode-field dispatch: og:preserve-this (-> this mode) is read fresh here (raw
+    ;; offset 0, declared offset 4 via the basic-type -4 addressing convention;
+    ;; game-info_ir2.asm op 674), separately from the "mode" argument above, which may
+    ;; itself get promoted from 'boot to 'game further down.
+    (cond
+      ((= (-> this mode) 'movie)
+       (task-node-reset (if (= mode 'boot) 'game mode))
+       (open! (-> *game-info* sub-task-list 1) 'event)
+       (if (= mode 'boot) (set! mode 'game))
+       (update-task-masks mode)
+       )
+      ((= (-> this mode) 'debug)
+       (reset-actors (if (= mode 'boot) 'game mode))
+       (open! (-> *game-info* sub-task-list 1) 'event)
+       (when save
+         (game-info-method-23 this save)
+         )
+       )
+      ((= (-> this mode) 'new-game)
+       ;; no-op: og:preserve-this game-info_ir2.asm op 726 sets the method's return
+       ;; value to #f and takes no other action on this branch
+       )
+      ((= (-> this mode) 'play)
+       (cond
+         ((view-get-active-target)
+          ;; og:preserve-this three (setting-control-method-15 ...) queries
+          ;; (get-setting, already landed with a matching 5-arg signature) followed by a
+          ;; zero-arg setting-control-method-23 call; matches game-info_ir2.asm ops
+          ;; 730-776 verbatim.
+          (setting-control-method-15 *setting-control* (view-get-active-target) 'allow-pause #f 0 0)
+          (setting-control-method-15 *setting-control* (view-get-active-target) 'allow-progress #f 0 0)
+          (setting-control-method-15 *setting-control* (view-get-active-target) 'allow-continue #f 0 0)
+          (setting-control-method-23 *setting-control*)
+          (send-event (handle->process (-> this auto-save-proc)) 'die)
+          (send-event (view-get-active-target) 'reset)
+          (when save
+            (game-info-method-23 this save)
+            (game-info-method-17 this view-idx)
+            (set! *spawn-actors* #t)
+            (send-event (handle->process (-> this auto-save-proc)) 'done)
+            )
+          )
+         ((or (= mode 'boot) (= mode 'game))
+          ;; og:preserve-this the leg's payoff: allocate a mini-process from
+          ;; *4k-dead-pool*, run anon-function-14 on it (below), which carries stop,
+          ;; reset-actors-by-game-type x2, and the guarded 3-arg start call. Resolved
+          ;; vtable slots: dead-pool.get-process (method 15, already landed),
+          ;; process-tree.activate (method 9, already landed). The instance-relative
+          ;; offset used for activate's fourth (pointer) argument (game-info_ir2.asm's
+          ;; "[s1-7+52]") does not resolve to a named process field from this evidence
+          ;; alone, so it is a raw cast rather than a guessed field name. The
+          ;; continue-point argument passed through to the spawn (game-info_ir2.asm op
+          ;; 899-907) is continue-name post-validation if one was given, falling back to
+          ;; (method 17 game-info) with the view index otherwise; this is NOT gated by
+          ;; resetter, which is a separate, already-consumed argument (see the secrets
+          ;; bit-1 OR above).
+          (let ((proc (get-process *4k-dead-pool* process #x4000 1)))
+            (let ((continue-or-view (the-as basic (if continue-name
+                                                        continue-name
+                                                        (game-info-method-17 this view-idx)
+                                                        )
+                                             )
+                                     )
+                  (spawned-ppointer (the-as (pointer process) #f))
+                  )
+              (when proc
+                (activate proc *default-pool* (with-pp (symbol->string (the-as symbol (-> pp type))))
+                          (the-as pointer (-> (the-as (pointer uint32) (&+ proc 52)) 0))
+                          )
+                (set-to-run (-> proc main-thread) anon-function-14-game-info (-> this mode) mode continue-or-view save 0 0)
+                (set! spawned-ppointer (-> proc ppointer))
+                )
+              (when spawned-ppointer
+                (set! (-> (the-as (pointer int32) (&+ spawned-ppointer 4)) 0) 0)
+                )
+              )
+            )
+          )
+         )
+       (set-master-mode 'game)
+       )
+      )
+    )
+  this
+  )
