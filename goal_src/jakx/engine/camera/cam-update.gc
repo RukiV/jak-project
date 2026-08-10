@@ -222,11 +222,13 @@
                    )
                (-> s3-1 bsp current-leaf-idx-view arg1)
                (-> s3-1 bsp unknown-bsp-332 arg1)
-               (if (zero? (-> s3-1 bsp cam-outside-bsp-view arg1))
+               ;; #41: these two names were swapped before the bsp-camera-asm twin
+               ;; diff caught it (bsp-h.gc:121-124); fixed to match true semantics
+               (if (zero? (-> s3-1 bsp cam-using-back-view arg1))
                    "front"
                    "back"
                    )
-               (if (nonzero? (-> s3-1 bsp cam-using-back-view arg1))
+               (if (nonzero? (-> s3-1 bsp cam-outside-bsp-view arg1))
                    "outside"
                    ""
                    )
@@ -265,8 +267,11 @@
                 (set! (-> a2-16 quad) (-> s3-1 bsp bsp-offset quad))
                 (let ((a3-6 (new 'stack-no-clear 'vector)))
                   (set! (-> a3-6 quad) (-> s3-1 bsp bsp-offset quad))
+                  ;; #41: cam-using-back-view is the front(0)/back(1) selector (see
+                  ;; the bsp-h.gc:121-124 note); this cond picks front-box vs
+                  ;; back-box extents by it
                   (cond
-                    ((zero? (-> s3-1 bsp cam-outside-bsp-view arg1))
+                    ((zero? (-> s3-1 bsp cam-using-back-view arg1))
                      (+! (-> a2-16 x)
                          (the float (* (-> (the-as bsp-node v1-119) front-box-min x) (the int (-> s3-1 bsp bsp-scale x))))
                          )

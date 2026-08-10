@@ -120,8 +120,16 @@
    (hfrag-drawable drawable :offset 320)
    (current-leaf-idx-view uint16 4 :offset 324) ;; per-view (jakx); the scalar at 128 is the jak3-parity slot
    (unknown-bsp-332       uint16 4 :offset 332) ;; per-view, read next to current-leaf-idx-view by update-visible
-   (cam-using-back-view   uint8  4 :offset 340) ;; per-view; nonzero prints the "back" warning in update-visible
-   (cam-outside-bsp-view  uint8  4 :offset 344) ;; per-view; nonzero prints the "front" warning in update-visible
+   ;; og:preserve-this the two names below were swapped in the original per-view
+   ;; declaration; fixed per #41's bsp-camera-asm twin diff against jak3
+   ;; (goal_src/jak3/engine/level/bsp.gc): offset 340 writes at the control-flow
+   ;; position jak3 uses for its scalar cam-outside-bsp (the neither-front-nor-
+   ;; back-box-matched bail), offset 344 writes at jak3's cam-using-back position
+   ;; (front/back child selection). Offsets and sizes are unchanged; cam-update.gc's
+   ;; debug-print block and box-extent debug-draw read these by name and were
+   ;; updated to match.
+   (cam-outside-bsp-view  uint8  4 :offset 340) ;; per-view; nonzero when update-visible's "outside" case fires (jak3: cam-outside-bsp)
+   (cam-using-back-view   uint8  4 :offset 344) ;; per-view; nonzero when the back child box was selected over front (jak3: cam-using-back)
 
 
    (end uint8 :offset #x18f)
