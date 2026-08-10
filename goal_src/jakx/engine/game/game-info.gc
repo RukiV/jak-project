@@ -507,8 +507,15 @@
           ;; vtable slots: dead-pool.get-process (method 15, already landed),
           ;; process-tree.activate (method 9, already landed). The instance-relative
           ;; offset used for activate's fourth (pointer) argument (game-info_ir2.asm's
-          ;; "[s1-7+52]") does not resolve to a named process field from this evidence
-          ;; alone, so it is a raw cast rather than a guessed field name. The
+          ;; "[s1-7+52]") resolves to proc's main-thread field (declared at offset
+          ;; 56; basic pointers sit 4 past the object start, so a raw offset-52
+          ;; read lands on it), which is still #f this early in activate's
+          ;; lifecycle. #f is s7, symbol_table + 0x8001, an odd address, so the
+          ;; spawned process's stack landed at an odd address inside the symbol
+          ;; table, and _stack_call_win32's movaps [rsp] faulted (#122's 0x187cc1
+          ;; crash). jak3's equivalent call passes (the-as pointer #x70004000)
+          ;; instead; activate's PC_PORT guard remaps that sentinel to
+          ;; (scratchpad-end), which this landing now mirrors. The
           ;; continue-point argument passed through to the spawn (game-info_ir2.asm op
           ;; 899-907) is continue-name post-validation if one was given, falling back to
           ;; (method 17 game-info) with the view index otherwise; this is NOT gated by
@@ -525,7 +532,7 @@
                   )
               (when proc
                 (activate proc *default-pool* (with-pp (symbol->string (the-as symbol (-> pp type))))
-                          (the-as pointer (-> (the-as (pointer uint32) (&+ proc 52)) 0))
+                          (the-as pointer #x70004000)
                           )
                 (set-to-run (-> proc main-thread) anon-function-14-game-info (-> this mode) mode continue-or-view save 0 0)
                 (set! spawned-ppointer (-> proc ppointer))
