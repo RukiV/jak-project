@@ -23,3 +23,10 @@ void goal_crash_map_record(u32 goal_addr, const char* name, u32 extent);
 
 // install the fault handler; call once after GOAL main memory is mapped
 void goal_crash_map_install();
+
+// test seam (issue #117): runs the same bounded, latest-wins lookup the crash handler
+// uses internally against the recorded objects, so test_goal_crash_map.cpp can exercise
+// it directly without a live fault. Returns the matching record's name, or nullptr if
+// goal_addr lands in a gap, past every extent, or only reaches a zero-extent record. No
+// behavior change from the crash-handler path; see lookup() in goal_crash_map.cpp.
+const char* goal_crash_map_lookup_for_test(u32 goal_addr);

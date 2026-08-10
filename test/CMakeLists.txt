@@ -34,6 +34,7 @@ add_executable(goalc-test
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_DisasmVifDecompile.cpp
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_VuDisasm.cpp
         ${CMAKE_CURRENT_LIST_DIR}/common/formatter/test_formatter.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/game/kernel/common/test_goal_crash_map.cpp
         ${GOALC_TEST_FRAMEWORK_SOURCES}
         ${GOALC_TEST_CASES}
         )

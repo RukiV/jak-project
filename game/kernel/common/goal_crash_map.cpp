@@ -203,6 +203,12 @@ void goal_crash_map_record(u32 goal_addr, const char* name, u32 extent) {
   g_objs.push_back(r);
 }
 
+const char* goal_crash_map_lookup_for_test(u32 goal_addr) {
+  std::lock_guard<std::mutex> lock(g_objs_mutex);
+  const ObjRec* o = lookup(goal_addr);
+  return o ? o->name : nullptr;
+}
+
 void goal_crash_map_install() {
 #ifdef _WIN32
   // vectored, not SetUnhandledExceptionFilter: VEH fires ahead of all frame-based
