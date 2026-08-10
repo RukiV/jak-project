@@ -1651,25 +1651,35 @@ void OpenGLRenderer::dispatch_buckets_jak3(DmaFollower dma,
   m_render_state.buckets_base = dma.current_tag_offset();  // starts at 0 in jak 2
   m_render_state.next_bucket = m_render_state.buckets_base + 16;
   if (m_version == GameVersion::JakX) {
-    // jakx bring-up: jakx's own vis-copy constants, not jak3's borrowed ones. jakx's
-    // *level* level-group is statically built with :length 18 (goal_src/jakx/engine/
-    // level/level-h.gc:1018, and the matching (defconstant LEVEL_MAX 18) at :9), bigger
-    // than jak3's :length 10 (jak3/engine/level/level-h.gc:510, LEVEL_MAX 10 at :9), so
-    // add-pc-port-background-data (goal_src/jakx/engine/gfx/background/background.gc,
-    // ported alongside finish-background) walks 18 draw-level slots and emits exactly 18
-    // per-level pc-port transfers into bucket 2, not 10. num_vis_to_copy has to match that
-    // 18 exactly: VisDataHandler::render (VisDataHandler.cpp:55) reads exactly
+    // jakx bring-up: jakx's own vis-copy constants, not jak3's borrowed ones, capped to
+    // the PC vis protocol's real ceiling rather than jakx's own GOAL-side level count.
+    // jakx's *level* level-group is statically built with :length 18 (goal_src/jakx/
+    // engine/level/level-h.gc:1018, matching (defconstant LEVEL_MAX 18) at :9), bigger
+    // than jak3's :length 10 (jak3/engine/level/level-h.gc:510, LEVEL_MAX 10 at :9). The
+    // PC vis protocol cannot carry 18 though: VisDataHandler::m_stats is a fixed
+    // LevelStats[kMaxLevels] with kMaxLevels = 10 (VisDataHandler.h:20-21), written at
+    // m_stats[i] for every i < num_vis_to_copy with no bounds check
+    // (VisDataHandler.cpp:55-65), so num_vis_to_copy = 18 wrote m_stats[10..17]
+    // out of bounds every frame the bucket carried data. SharedRenderState::occlusion_vis
+    // is sized 32 (BucketRenderer.h:52) and is not the binding constraint here;
+    // VisDataHandler's kMaxLevels of 10 is. add-pc-port-background-data
+    // (goal_src/jakx/engine/gfx/background/background.gc) now walks only
+    // PC_VIS_LEVEL_MAX (10) draw-level slots for the same reason, so num_vis_to_copy must
+    // match that 10 exactly: VisDataHandler::render (VisDataHandler.cpp:55) reads exactly
     // num_vis_to_copy entries off the DMA chain before falling through to the fixed-size
-    // TfragPcPortData read, whose size ASSERT (VisDataHandler.cpp:84) is what actually
-    // fires if the two drift apart (a leftover per-level entry gets misread as the camera
-    // packet). Deliberately not common::jakx::LEVEL_MAX (10 in common/goal_constants.h) -
-    // that constant is a stale copy of jak3's block and was never updated to match jakx's
-    // own GOAL-side LEVEL_MAX of 18; using it here would reproduce the exact mismatch this
-    // comment is warning about. bucket_for_vis_copy uses jakx's own BucketId (buckets.h),
-    // which happens to share jak3's numeric value (BUCKET_2 = 2 on both sides) but is
-    // jakx's own enum, not a borrow.
+    // TfragPcPortData read, whose size ASSERT (VisDataHandler.cpp:84) is what fires if the
+    // two drift apart (a leftover per-level entry gets misread as the camera packet).
+    // Deliberately not common::jakx::LEVEL_MAX (10 in common/goal_constants.h:78) - that
+    // constant happens to already equal this bound, but it is a stale copy of jak3's block
+    // nothing here reads, never updated to jakx's real GOAL-side LEVEL_MAX of 18; treat
+    // the match as coincidence, not a dependency, and do not wire this to it. Levels
+    // living in jakx's draw-level slots 10-17 do not get vis-bits transferred to the PC
+    // renderer under this bring-up; that is this protocol's accepted bound, not a bug.
+    // bucket_for_vis_copy uses jakx's own BucketId (buckets.h), which happens to share
+    // jak3's numeric value (BUCKET_2 = 2 on both sides) but is jakx's own enum, not a
+    // borrow.
     m_render_state.bucket_for_vis_copy = (int)jakx::BucketId::BUCKET_2;
-    m_render_state.num_vis_to_copy = 18;
+    m_render_state.num_vis_to_copy = 10;
   } else {
     m_render_state.bucket_for_vis_copy = (int)jak3::BucketId::BUCKET_2;
     m_render_state.num_vis_to_copy = jak3::LEVEL_MAX;

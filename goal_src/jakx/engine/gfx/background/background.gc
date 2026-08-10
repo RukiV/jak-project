@@ -951,31 +951,51 @@
   (&+! (-> dma-buf base) (* 16 25))
   )
 
+;; og:preserve-this the pc vis protocol's real ceiling, not jakx's own GOAL-side
+;; LEVEL_MAX (18, level-h.gc:9). VisDataHandler::m_stats is a fixed
+;; LevelStats[kMaxLevels] with kMaxLevels = 10 (game/graphics/opengl_renderer/
+;; VisDataHandler.h:20-21), written unconditionally for every entry
+;; OpenGLRenderer.cpp's dispatch_buckets_jak3 tells it to expect (num_vis_to_copy);
+;; walking 18 draw-level slots wrote 8 entries past that array every frame the bucket
+;; carried data. common/goal_constants.h's jakx::LEVEL_MAX (10, common/
+;; goal_constants.h:78) happens to already equal this value, but that is a stale jak3
+;; copy nothing here reads (per the prior rung's finding), not this constant's source
+;; of truth - it is derived from VisDataHandler's kMaxLevels, not from that header.
+(defconstant PC_VIS_LEVEL_MAX 10)
+
 ;; og:preserve-this ported from jak3's add-pc-port-background-data (goal_src/jak3/engine/
 ;; gfx/background/background.gc:306-371), called from finish-background the same way jak3
 ;; calls it from its own finish-background (goal_src/jak3/engine/gfx/background/
-;; background.gc:377-378). Two deltas from jak3's shape, both forced by jakx's own
-;; level-h.gc/level.gc:
-;;  - the draw-level walk bound is (-> *level* length), same field/pattern as jak3, but it
-;;    evaluates to 18 here (jakx's *level* level-group is constructed with :length 18 at
-;;    level-h.gc:1018, vs jak3's :length 10 at jak3/engine/level/level-h.gc:510) because
-;;    jakx's draw-level array itself is bigger (level x 19, level-h.gc:875, vs jak3's
-;;    level x 11, jak3/engine/level/level-h.gc:462). The C++ vis-copy constants at
-;;    OpenGLRenderer.cpp must track this 18, not jak3's 10 (see the comment there).
+;; background.gc:377-378). Three deltas from jak3's shape, all forced by jakx's own
+;; structure:
+;;  - the draw-level walk bound is PC_VIS_LEVEL_MAX (10), not (-> *level* length) like
+;;    jak3 uses. jak3 can walk its own *level* length directly because it evaluates to
+;;    10 there (jak3's *level* level-group :length 10, jak3/engine/level/level-h.gc:510)
+;;    which already matches VisDataHandler::kMaxLevels (VisDataHandler.h:20, 10). jakx's
+;;    *level* length is 18 (jakx's level-group :length 18, level-h.gc:1018, matching
+;;    LEVEL_MAX 18 at level-h.gc:9, because jakx's draw-level array itself is bigger:
+;;    level x 19, level-h.gc:875, vs jak3's level x 11, jak3/engine/level/level-h.gc:462),
+;;    which overflows what the PC vis protocol can carry (see PC_VIS_LEVEL_MAX's own
+;;    comment above). OpenGLRenderer.cpp's num_vis_to_copy must track the same 10 (see
+;;    the comment there). Levels living in draw-level slots 10-17 do not get vis-bits
+;;    transferred to the PC renderer under this bring-up; that is the accepted bound,
+;;    not a bug, until the PC vis protocol itself grows past kMaxLevels.
 ;;  - jakx's level carries two vis-bits buffers, one per viewport ((vis-bits pointer 2),
 ;;    level-h.gc:636, allocated level.gc:4001-4002), where jak3's level has a single
 ;;    vis-bits pointer (jak3/engine/level/level-h.gc, no viewport index). This bring-up
 ;;    only drives viewport 0's buffer; retire the hardcoded 0 index once split-screen
 ;;    rendering lands and both viewports need feeding.
+;;  - jakx gates the real vis-bits copy on the level actually having loaded vis data;
+;;    see the og:preserve-this note at the cond below (issue #41).
 (defun add-pc-port-background-data ((dma-buf dma-buffer))
   "PC Port added"
   ;; loop over levels
-  (dotimes (lev-idx (-> *level* length))
+  (dotimes (lev-idx PC_VIS_LEVEL_MAX)
     (let ((lev (-> *level* draw-level lev-idx))
           (dma-start (-> dma-buf base)))
       (cond
-        ((and lev (= (-> lev status) 'active))
-         ;; the level is active.
+        ((and lev (= (-> lev status) 'active) (not *artist-all-visible*) (-> lev vis-info 0))
+         ;; the level is active and has real vis data loaded.
          (let ((packet (the-as dma-packet (-> dma-buf base))))
            (set! (-> packet dma) (new 'static 'dma-tag :id (dma-tag-id cnt) :qwc 128))
            (set! (-> packet vif0) (the-as vif-tag *fog-color*))
@@ -987,6 +1007,29 @@
          (&+! (-> dma-buf base) (* 16 128))
          )
         (else
+          ;; og:preserve-this (issue #41) this else now also catches active levels gated
+          ;; out by the clause above, not just genuinely inactive ones. jakx never loads
+          ;; .VIS files, so a level's vis-bits buffer only holds real per-leaf occlusion
+          ;; once update-visible takes the real vis-string path (cam-update.gc:158-185);
+          ;; until then it takes the forced-visible fallback at cam-update.gc:152, gated
+          ;; on (or *artist-all-visible* (not (-> lev vis-info 0))) - the exact condition
+          ;; negated in the clause above. That fallback also is not guaranteed to have run
+          ;; for a level at all yet: vis-bits is malloc'd, not zero-initialized
+          ;; (level.gc:3989-4013), so an untouched buffer is raw heap content, and levels
+          ;; in slots 6-17 share a single vis-bits allocation across whichever of them is
+          ;; active (level.gc:4007-4012). Sending any of that to the PC renderer as if it
+          ;; were real occlusion would mark it valid (VisDataHandler.cpp:64) with content
+          ;; jakx cannot vouch for; the zero packet below keeps
+          ;; occlusion_vis[lev-idx].valid false instead, which Hfrag.cpp:90,
+          ;; TFragment.cpp:159 and Tie3.cpp:359 all already check before trusting
+          ;; occlusion_vis, so rendering falls back to its current unoccluded state
+          ;; instead of the black-frame failure #41 documents for the GOAL side:
+          ;; valid-and-all-zero culls every drawable. The camera packet below this loop
+          ;; (add-pc-camera-data) is unaffected and still runs every frame for fog color.
+          ;; Retire the "or" against *artist-all-visible* / vis-info in the clause above
+          ;; once #41 lands real .VIS loading and *artist-all-visible* reverts to its
+          ;; retail default; this else then goes back to covering only genuinely inactive
+          ;; levels, matching jak3.
           (let ((packet (the-as dma-packet (-> dma-buf base))))
             (set! (-> packet dma) (new 'static 'dma-tag :id (dma-tag-id cnt) :qwc 1))
             (set! (-> packet vif0) (the-as vif-tag *fog-color*))
