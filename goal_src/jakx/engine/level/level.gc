@@ -2999,7 +2999,25 @@ and apply its want set when it changes; update! then streams the section window.
 ;; real race/target/vehicle chain (#152 names the tiers).
 (define *jakx-racer* #f)
 (define *jakx-racer-speed* (meters 15))
-(define *jakx-racer-handle* (the-as handle #f))
+;; og:preserve-this racer handle container (#152): *jakx-racer-handle* was a bare
+;; handle-typed symbol. GOAL symbol value slots are 32 bits (IR_SetSymbolValue
+;; emits store32 unconditionally, no size guard in goalc's IR.cpp), so the 64-bit
+;; handle's pid half truncated silently on every store and handle->process could
+;; never match the spawned process again. This was the only bare handle-typed
+;; symbol in any game's tree; jak3's own retail equivalent
+;; (goal_src/jak3/engine/target/gun/gun-yellow-shot.gc:1268,
+;; *last-hit-deflect-target-handle*) sidesteps the same 32-bit truncation with a
+;; (pointer process) cast instead. This container mirrors *additional-spawners*
+;; (entity.gc) instead: a one-element 'static 'array of handle is a real 64-bit
+;; field, not a symbol value slot, so it stores the full handle intact. The
+;; explicit set! below is not optional: a zero-initialized static handle has
+;; process=0, which is TRUTHY (0 is not the #f address), so handle->process on an
+;; unarmed slot would dereference GOAL address 0 and return garbage instead of #f.
+;; Arming with a real #f handle makes every pre-spawn read safely #f. Retires with
+;; the real race/target/vehicle chain, same as the rest of this block (#152 names
+;; the tiers).
+(define *jakx-racer-handle* (new 'static 'array handle 1 (new 'static 'handle)))
+(set! (-> *jakx-racer-handle* 0) (the-as handle #f))
 (define *jakx-racer-target-index* 0)
 (define *jakx-racer-cam-back* (meters 8))
 (define *jakx-racer-cam-height* (meters 4))
@@ -3074,8 +3092,12 @@ teleporting each dwell, so it needs its own target index rather than sharing
 *jakx-cam-fly-index*. Snapping when the remaining distance is no more than one
 frame's step (rather than a separate arrive-radius constant) guarantees no
 overshoot and no separate tunable to keep in sync with speed."
-  (let ((proc (the-as process-drawable (handle->process *jakx-racer-handle*))))
-    (when (and *jakx-racer* proc *jakx-want-driver-cp* (nonzero? *level-load-list*))
+  (let ((proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0)))))
+    ;; og:preserve-this dropped (nonzero? *level-load-list*) guard (#152):
+    ;; *level-load-list* is a pair, and a pair's address is never zero, so the
+    ;; check read like a liveness test but could never fail; removed rather than
+    ;; kept as dead weight.
+    (when (and *jakx-racer* proc *jakx-want-driver-cp*)
       (let ((home (-> *jakx-want-driver-cp* level))
             (want *jakx-racer-target-index*)
             (seen 0)
