@@ -29,10 +29,11 @@
 ;;   - select-continue-point: home object unknown, guarded the same way as start.
 (define-extern start (function symbol basic int target))
 
-;; og:preserve-this stop is already declared for real at level.gc:23 (function symbol
-;; int); level.o (build order 267) compiles after game-info.o (251), so it needs a
-;; local forward ref here too, mirroring level.gc's own declaration.
-(define-extern stop (function symbol int))
+;; og:preserve-this stop is already declared for real at level.gc:26 (function symbol
+;; int int); level.o (build order 267) compiles after game-info.o (251), so it needs a
+;; local forward ref here too, mirroring level.gc's own declaration. Arity fixed R4
+;; (#122): stop takes a second int arg (view-push-context's context index).
+(define-extern stop (function symbol int int))
 
 ;; og:preserve-this *lobby-reset-mode*/*lobby-adv-selected-task* forward-declared for
 ;; the compiler (all-types.gc carries the matching decompiler-side declaration).
@@ -72,9 +73,9 @@
 ;; run-function spawned by initialize!'s (play) branch below. Landed ahead of
 ;; initialize! so the compiler sees it defined before the spawn site references it (the
 ;; original retail object has no such ordering constraint; this is a GOAL-source-only
-;; concession). Carries the leg's payoff verbatim: stop (already-live extern,
-;; game-info_ir2.asm op 5-8, called with just the mode arg; the second register set
-;; before the call is dead per the declared 1-arg signature), reset-actors-by-game-type
+;; concession). Carries the leg's payoff verbatim: stop (game-info_ir2.asm op 5-8;
+;; called with the mode arg plus the literal int 0, R4 (#122) fixed stop's arity to
+;; account for the second register this op always set), reset-actors-by-game-type
 ;; x2 (already-declared extern), the open!/'event send on sub-task-list slot 1,
 ;; (set-continue! this ...) (method 20, already landed; the raw also sets a third
 ;; register before this call that the declared 2-arg signature does not read, left
@@ -82,7 +83,7 @@
 ;; and finally select-continue-point/start: select-continue-point is guarded
 ;; (all-types.gc:49713, unlanded), start is guarded per the leg's guard set.
 (defun anon-function-14-game-info ((mode-field symbol) (mode symbol) (continue-arg basic) (save game-save))
-  (stop mode-field)
+  (stop mode-field 0)
   (reset-actors-by-game-type mode)
   (open! (-> *game-info* sub-task-list 1) 'event)
   (set-continue! *game-info* continue-arg 0)

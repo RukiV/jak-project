@@ -20,7 +20,10 @@
 (define-extern view-get-active-index (function int))
 
 ;; display-side function defined later in the build (logic-target.gc)
-(define-extern stop (function symbol int))
+;; og:preserve-this arity fix, R4 (#122): stop's real signature takes a second int arg
+;; (the view-push-context context index); see logic-target.gc and all-types.gc for the
+;; full derivation. Mirrored here since this forward-decl predates the fix.
+(define-extern stop (function symbol int int))
 
 ;; jakx: globals and functions referenced by the load chain, homes not yet decompiled
 (define-extern *level-type-list* type)
@@ -2995,7 +2998,15 @@ and apply its want set when it changes; update! then streams the section window.
           (a0-7 'play)
           )
       0
-      (t9-7 a0-7)
+      ;; og:preserve-this arity fix, R4 (#122): stop's second (int) argument added to
+      ;; keep this pre-existing call site (6b46b40811, predates the leg) compiling
+      ;; against the corrected signature. level.o has no decode artifact of its own
+      ;; (out of R0's scoped object list), so the literal 0 is carried over from the
+      ;; two other decoded call sites in the tree, both showing the same shape:
+      ;; game-info.gc's anon-function-14 (game-info_ir2.asm op 7) and main.gc's off
+      ;; (main_ir2.asm op 2, raw machine code, unaffected by decompiler-config
+      ;; staleness). Re-verify against level.o's own decode when that leg lands.
+      (t9-7 a0-7 0)
       )
     (set! (-> *level* vis?) arg0)
     (set! (-> *level* want-level) #f)

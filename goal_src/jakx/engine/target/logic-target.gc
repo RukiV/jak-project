@@ -7,9 +7,28 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this bring-up stub: the real stop also kills the target process; no target
-;; exists yet on the bring-up, so just record the mode like the original does.
-(defun stop ((arg0 symbol))
+;; og:preserve-this stop, landed for real, R4 (#122): transcribed verbatim from the
+;; R0-corrected decode (logic-target_ir2.asm). arg1 is the view-push-context int the
+;; original 1-arg signature dropped (R0 RESULTS ADDENDUM item 4; the fix lives on
+;; stop's extern in all-types.gc and mirrors in level.gc's and game-info.gc's forward
+;; declares). stop is already live at boot (play calls it at level.gc:3013 with no
+;; target present), so the null path here, view-get-active-target returning #f and
+;; skipping the whole (when ...), is the one that must be right first time.
+(defun stop ((arg0 symbol) (arg1 int))
+  (view-push-context arg1)
+  (format 0 "stop: ~D ~A~%" arg1 (view-get-active-target))
+  (when (view-get-active-target)
+    (deactivate (view-get-active-target))
+    ;; og:preserve-this runtime-link guard, R4 (#122): view-set-active-target's extern
+    ;; is uncommented in all-types.gc for decompiler visibility only (kill-current-
+    ;; talker precedent, R3a); view.o's body is still unlanded (only its siblings
+    ;; view-set-active-camera and view-set-active-camera-combiner are). Retires when
+    ;; view-set-active-target lands for real in view.gc.
+    (if (nonzero? view-set-active-target)
+        (view-set-active-target (the-as basic #f))
+        )
+    )
   (set! (-> *game-info* mode) arg0)
+  (view-pop-context)
   0
   )

@@ -16498,7 +16498,14 @@
 (define-extern view-pop-context (function none))
 (define-extern view-get-active-target (function process)) ;; really process-focusable, but that type parses later; cast at use sites
 (define-extern view-get-target (function int process)) ;; jakx-new, returns process for send-event
-;; (define-extern view-set-active-target function)
+;; og:preserve-this type visibility fix, R4 (#122): uncommented so the decompiler can
+;; see past logic-target_ir2.asm's stop, op 26 (guarded at the call site in
+;; logic-target.gc, since view.o's view-set-active-target body is still unlanded, only
+;; its sibling view-set-active-camera-combiner/view-set-active-camera are landed);
+;; signature mirrors the landed view-set-active-camera-combiner just below (basic in,
+;; basic out: the view type's target field, like camera and camera-combiner, is basic).
+;; Retires when view-set-active-target lands for real in view.gc.
+(define-extern view-set-active-target (function basic basic))
 (declare-type camera-combiner process)
 (declare-type camera-master process)
 (declare-type camera-slave process)
@@ -41858,7 +41865,13 @@
 ;; (define-extern target-init function) ;; (function continue-point none :behavior target)
 ;; (define-extern start-2 function)
 ;; (define-extern start-1 function)
-(define-extern stop (function symbol int))
+;; og:preserve-this arity fix, R4 (#122): the recorded 1-arg signature undercounted.
+;; logic-target_ir2.asm's stop (op 1) captures a1 into s3 and passes it on (op 3) as
+;; the sole int argument to view-push-context (function int none); R0 RESULTS ADDENDUM
+;; item 4 first flagged the unaccounted a1 read. game-info_ir2.asm's anon-function-14
+;; (op 7) confirms the caller side: a1 is set to the literal int 0 immediately before
+;; the call. Return type (int) unchanged; stop always returns 0.
+(define-extern stop (function symbol int int))
 ;; og:preserve-this arity fix, R3a (#122): game-info_ir2.asm's anon-function-14 (op
 ;; 80-84) calls start with three live argument registers (a0=mode symbol, a1=a
 ;; continue-point-ish basic, a2=literal 0), not the two this comment recorded. Grade

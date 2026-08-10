@@ -48,6 +48,15 @@
 
 ;; definition for function view-set-active-target
 ;; ERROR: function has no type analysis. Cannot decompile.
+;; og:preserve-this forward-decl, R4 (#122): logic-target.gc's stop guards a call to
+;; this function (unlanded, like the decompile error above records) behind
+;; (nonzero? view-set-active-target); the compiler needs the symbol's type to check
+;; that guarded call, and view.o (build order 65) compiles before logic-target.o
+;; (307), so it belongs here rather than as a caller-side forward ref. Signature
+;; mirrors the landed sibling view-set-active-camera-combiner just below (basic in,
+;; basic out: the view type's target field, like camera and camera-combiner, is
+;; basic). Retires when view-set-active-target lands for real.
+(define-extern view-set-active-target (function basic basic))
 
 ;; definition for function view-get-active-camera
 ;; ERROR: function has no type analysis. Cannot decompile.
