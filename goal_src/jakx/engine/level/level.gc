@@ -2298,47 +2298,32 @@
 ;;   (ret-value v0-0)
 ;;   )
 
-;; definition for method 15 of type level
-;; ERROR: failed type prop at 13: Could not figure out load: (set! a1 (l.bu (+ a1 336)))
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod inside-bsp? ((a0-0 level))
-;;   (local-vars
-;;     (v0-0 symbol)
-;;     (v1-0 bsp-header)
-;;     (v1-1 symbol)
-;;     (v1-2 int)
-;;     (a1-0 bsp-header)
-;;     (a1-1 (pointer int16))
-;;     (a1-2 none)
-;;     (a1-5 viewport-array)
-;;     (a1-6 uint)
-;;     )
-;;   (cond
-;;     ((begin (set! v1-0 (-> a0-0 bsp)) (not v1-0))
-;;      (set! v0-0 #f)
-;;      )
-;;     ((begin (set! v1-1 (-> a0-0 force-inside?)) v1-1)
-;;      (set! v0-0 #t)
-;;      )
-;;     (else
-;;       (set! v0-0 #f)
-;;       (set! v1-2 0)
-;;       (while (begin (set! a1-5 *viewport-array*) (set! a1-6 (-> a1-5 num-viewports)) (<.si v1-2 a1-6))
-;;         (when (begin
-;;                 (set! a1-0 (-> a0-0 bsp))
-;;                 (set! a1-1 (+ v1-2 a1-0))
-;;                 (set! a1-2 (the-as none (l.bu (+ a1-1 336))))
-;;                 (zero? a1-2)
-;;                 )
-;;           (set! v0-0 (the-as symbol #t))
-;;           (set! a1-4 (the-as none v0-0))
-;;           )
-;;         (set! v1-2 (the-as int (+ v1-2 1)))
-;;         )
-;;       )
-;;     )
-;;   (ret-value v0-0)
-;;   )
+;; og:preserve-this the prior decode attempt (kept above in the log as a comment
+;; until now) failed on exactly the field #41's bsp-camera-asm/STEP-1 landings
+;; fixed: raw offset 336 on bsp-header is cam-using-back-view, mis-declared and
+;; mis-named at the time this was first tried. Re-decoded clean from a scoped
+;; decode of the level object once those fixes existed; lands verbatim (#41).
+;; No current caller: nothing in the landed bring-up invokes inside-bsp? yet.
+(defmethod inside-bsp? ((this level))
+  (cond
+    ((not (-> this bsp))
+     #f
+     )
+    ((-> this force-inside?)
+     #t
+     )
+    (else
+      (let ((result #f))
+        (dotimes (i (the-as int (-> *viewport-array* num-viewports)))
+          (if (zero? (-> this bsp cam-using-back-view i))
+              (set! result #t)
+              )
+          )
+        result
+        )
+      )
+    )
+  )
 
 ;; definition for method 20 of type level
 ;; WARN: Return type mismatch int vs none.
@@ -4068,6 +4053,82 @@ and apply its want set when it changes; update! then streams the section window.
   (kmemclose)
   )
 
+;; og:preserve-this vis-valid setter, extracted from retail jakx's level-update
+;; (method 19 level-group) via a scoped decode of the level object (#41). jak3
+;; carries the identical mechanism inline in its own level-update (goal_src/jak3/
+;; engine/level/level.gc:3690-3742): the same "is anyone inside-boxes?" outer gate
+;; over every level slot (18 here, matching jakx's declared level array; jak3's is
+;; 10), then per active level, per vis-info slot, clear vis-valid and refresh
+;; from-bsp, then set vis-valid on the level's own slot if display? is
+;; 'display-self or the level is inside-boxes?. jakx's own guard is unchanged from
+;; jak3's, not weakened or substituted, matching what the retail binary actually
+;; checks (confirmed instruction by instruction against the decode, including the
+;; folded array-base-plus-field-offset constant (544 + 480 = 1024) the decompiler
+;; could not resolve back into a named field on its own).
+;;
+;; Landed as a real, decode-verified, standalone function rather than spliced into
+;; level-update's own body below: computing inside-boxes? for real (via
+;; inside-bsp?, landed alongside this) changes cam-update.gc:152's outer branch
+;; selection in update-visible whenever force-all-visible? is #t for a level whose
+;; all-visible? is still 'loading (arm A's extra side effect there, forcing
+;; all-visible? to #t, does not fire on the plain quad-copy! else branch). force-vis?
+;; is live-set machinery (engine/load/load-state.gc), not a dead flag, so this path
+;; is not provably unreachable today; wiring this call into level-update is left
+;; for the wiring decision alongside V4's lever flip and the target-inside leg
+;; below. *artist-all-visible* and *vis-actors* are untouched either way.
+(defun update-level-vis-valid ((this level-group))
+  (when (let ((any-inside #f))
+          (dotimes (i 18)
+            (when (-> this level i inside-boxes?)
+              (set! any-inside #t)
+              )
+            )
+          any-inside
+          )
+    (dotimes (i (-> this length))
+      (let ((lev (-> this level i)))
+        (when (= (-> lev status) 'active)
+          (dotimes (j 8)
+            (let ((vi (-> lev vis-info j)))
+              (when vi
+                (set! (-> vi flags) (the-as vis-info-flag (logclear (-> vi flags) (vis-info-flag vis-valid))))
+                (set! (-> vi from-bsp)
+                      (if (= j (-> lev vis-self-index))
+                          (-> lev bsp)
+                          (let ((other (level-get this (-> vi from-level))))
+                            (if other
+                                (-> other bsp)
+                                )
+                            )
+                          )
+                      )
+                )
+              )
+            )
+          (cond
+            ((= (-> lev display?) 'display-self)
+             (let ((vi (-> lev vis-info (-> lev vis-self-index))))
+               (if vi
+                   (set! (-> vi flags) (the-as vis-info-flag (logior (vis-info-flag vis-valid) (-> vi flags))))
+                   )
+               )
+             )
+            ((-> lev inside-boxes?)
+             (let ((vi (-> lev vis-info (-> lev vis-self-index))))
+               (if vi
+                   (set! (-> vi flags) (the-as vis-info-flag (logior (vis-info-flag vis-valid) (-> vi flags))))
+                   )
+               )
+             )
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
 ;; og:preserve-this bring-up no-op: level-update (method 19) drives level transitions
 ;; per frame; the jakx body fails expression conversion. The boot level is already
 ;; 'loaded when the loop starts, so a no-op holds until the real port (hand-port from
@@ -4077,7 +4138,9 @@ and apply its want set when it changes; update! then streams the section window.
   ;; og:preserve-this bring-up: the retail jakx level-update also pumps every slot's
   ;; load-continue and runs the load-state update! mid-body (jak3 level.gc:3569 is the
   ;; landed reference; the jakx retail body additionally does the inside-boxes walk and
-  ;; the music/continue propagation, which land with the target-inside leg). Until then
+  ;; the music/continue propagation, which land with the target-inside leg; the
+  ;; inside-boxes walk and the vis-valid setter it feeds are landed as
+  ;; update-level-vis-valid above, not yet called from here, #41). Until then
   ;; this PC-shaped method carries the three pieces streaming needs: the per-frame load
   ;; pump, the bring-up want driver, and update!.
   (dotimes (i (-> this length))

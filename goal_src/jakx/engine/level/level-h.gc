@@ -617,13 +617,25 @@
    (loaded-texture-page-count  int32)
    (entity                     entity-links-array)
    (closest-object             meters                  10)
-   (tie-min-dist               float                   :offset 376)
+   ;; og:preserve-this tie-min-dist/fg-warp-min-dist/fg-prim2-min-dist were each
+   ;; declared 4 bytes past retail's real offset (the usual basic-offset +4 trap,
+   ;; docs/jakx-bringup-quickstart.md), blocking a clean decode of level-update's
+   ;; debug-stats print block, which reads all six of these fields by raw offset.
+   ;; Corrected from a scoped decode of the level object (#41). fg-tfrag/fg-prim/
+   ;; fg-shrub stay auto-sequential and land on the retail-matching declared
+   ;; offsets (376/380/384) once tie-min-dist moves, confirmed against the same
+   ;; decode.
+   (tie-min-dist               float                   :offset 372)
    (fg-tfrag-min-dist          float)
    (fg-prim-min-dist           float)
    (fg-shrub-min-dist          float)
-   (fg-warp-min-dist           float                   :offset 396)
-   (fg-prim2-min-dist          float                   :offset 404)
-   (upload-size                int32                   19)
+   (fg-warp-min-dist           float                   :offset 392)
+   (fg-prim2-min-dist          float                   :offset 400)
+   ;; og:preserve-this a genuine 4-byte gap sits between fg-prim2-min-dist and
+   ;; upload-size in retail (upload-size's raw reads land on 404/408/412/...,
+   ;; not the auto-sequential 400); explicit offset added rather than assumed,
+   ;; confirmed against the level object decode (#41)
+   (upload-size                int32                   19 :offset 408)
    (inside-boxes?              symbol)
    (display?                   symbol)
    (render?                    symbol)
