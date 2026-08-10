@@ -2268,38 +2268,39 @@
   this
   )
 
-;; definition for method 11 of type level
-;; ERROR: failed type prop at 5: Could not figure out load: (set! v1 (l.b v1))
-;; WARN: Return type mismatch none vs symbol.
-;; ERROR: Function may read a register that is not set: a2
-;; ERROR: Unsupported inline assembly instruction kind - [addiu a0, a0, 56]
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod is-object-visible? ((a0-0 level) (a1-0 int))
-;;   (local-vars
-;;     (v0-0 none)
-;;     (v1-0 int)
-;;     (v1-1 int)
-;;     (v1-2 uint)
-;;     (v1-3 int)
-;;     (v1-4 none)
-;;     (v1-5 none)
-;;     (a0-1 int)
-;;     (a0-2 none)
-;;     (a0-3 none)
-;;     (a2-0 none)
-;;     )
-;;   (set! v1-0 (sll a2-0 2))
-;;   (set! v1-1 (+ v1-0 a0-0))
-;;   (set! v1-2 (l.wu (+ v1-1 516)))
-;;   (shift-arith-right-32 a0-1 a1-0 3)
-;;   (set! v1-3 (+ a0-1 v1-2))
-;;   (set! v1-4 (the-as none (l.b v1-3)))
-;;   (set! a0-2 (the-as none (logand a1-0 7)))
-;;   (.addiu a0-3 a0-2 56)
-;;   (set! v1-5 (the-as none (sll v1-4 a0-3)))
-;;   (set! v0-0 (the-as none (<0.si v1-5)))
-;;   (ret-value v0-0)
-;;   )
+;; og:preserve-this method 11 lands transcribed from jak3's hand-written
+;; version (jak3/engine/level/level.gc:2428-2451), swapping jakx's per-view
+;; vis-bits array ((vis-bits pointer 2), level-h.gc:648) in for jak3's flat
+;; vis-bits pointer. The commented decode this replaced computed a raw
+;; immediate of 516 for the per-view load, one slot short of vis-bits'
+;; declared offset of 520; that immediate is not trustworthy evidence, since
+;; the decompiler failed type prop on the very instruction it came from
+;; ("failed type prop at 5: Could not figure out load"), the same failure
+;; class inside-bsp? hit before the fix documented below. The real layout is
+;; pinned instead by walking the deftype backward from the two fixed anchors
+;; vis-info (540) and vis-self-index (572, since 572 = 540 + 8*4 with no
+;; gap): linking lands at 536, force-all-visible? at 532, all-visible? at
+;; 528, vis-bits at 520-527 and mood-init at 516, and jak3's own field
+;; sequence (mood-context, mood-func, mood-init, vis-bits, all-visible?)
+;; carries mood-init immediately before vis-bits too, confirming the order.
+;; jak3's landed method 11 itself carries a stale raw-asm comment ("lwu v1,
+;; 388(a0)") matching none of jak3's own field offsets (its vis-bits sits at
+;; 2472), so asm-comment immediates are decoration, not ground truth; this
+;; body reads vis-bits by field name only, so it stays correct under the
+;; type system regardless of the above. Retire this note if vis-bits ever
+;; moves and the layout reasoning needs re-verification.
+(defmethod is-object-visible? ((this level) (arg0 int) (arg1 int))
+  "Is drawable arg0 visible? Note that this will return #f if the visibility data is not loaded."
+  (let* ((vis-data (-> this vis-bits arg1))
+         (byte-idx (sar arg0 3))
+         (vis-byte (-> (the (pointer int8) vis-data) byte-idx))
+         (bit-idx (logand arg0 #b111))
+         (shift-amount (+ bit-idx 56))
+         (check-sign-word (the int (shl vis-byte shift-amount)))
+         )
+    (< check-sign-word 0)
+    )
+  )
 
 ;; og:preserve-this the prior decode attempt (kept above in the log as a comment
 ;; until now) failed on exactly the field #41's bsp-camera-asm/STEP-1 landings
