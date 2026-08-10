@@ -531,14 +531,32 @@
                   (spawned-ppointer (the-as (pointer process) #f))
                   )
               (when proc
-                (activate proc *default-pool* (with-pp (symbol->string (the-as symbol (-> pp type))))
+                ;; og:preserve-this today's process-layout audit (#156): retail's activate call
+                ;; (game-info_ir2.asm ops 883-884: lw v1, process(s7); lwu a0, 0(v1)) passes
+                ;; (symbol->string (-> process symbol)), the TYPE process's own symbol field (the
+                ;; constant string "process"), not anything derived from pp. jak3's parity call is
+                ;; game-info.gc:642, the same (symbol->string (-> process symbol)) form. As landed
+                ;; this called (symbol->string (the-as symbol (-> pp type))), running symbol->string
+                ;; on a type object and indexing outside the string table; that garbage name pointer
+                ;; is why crash reports print pp "?" for this spawn. pp is otherwise unused in this
+                ;; method, so the with-pp wrapper drops with it.
+                (activate proc *default-pool* (symbol->string (-> process symbol))
                           (the-as pointer #x70004000)
                           )
                 (set-to-run (-> proc main-thread) anon-function-14-game-info (-> this mode) mode continue-or-view save 0 0)
                 (set! spawned-ppointer (-> proc ppointer))
                 )
               (when spawned-ppointer
-                (set! (-> (the-as (pointer int32) (&+ spawned-ppointer 4)) 0) 0)
+                ;; og:preserve-this today's process-layout audit (#156): retail (game-info_ir2.asm
+                ;; ops 915-918: v1 = 28(s1) raw = ppointer declared 32; v1 = 0(v1); sw r0, 4(v1))
+                ;; double-dereferences spawned-ppointer, first loading the process pointer it holds,
+                ;; then zeroing that process's mask field (raw offset 4 = declared offset 8). jak3's
+                ;; parity line is game-info.gc:688, (set! (-> v1-149 0 mask) (process-mask)). As
+                ;; landed this stored 0 through (&+ spawned-ppointer 4) directly, one dereference
+                ;; short: the write landed on the spawned process's profile-ticks slot instead of
+                ;; clearing its mask, leaving the freshly spawned process unmasked and its
+                ;; profile-ticks zeroed.
+                (set! (-> spawned-ppointer 0 mask) (process-mask))
                 )
               )
             )
