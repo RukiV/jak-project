@@ -1936,5 +1936,18 @@
   ],
   // step-collision! (jakx slot 65 = jak3 66); jakx's prim-walk increment sits at op 58,
   // one past jak3's range end
-  "(method 65 collide-shape-moving)": [[[29, 59], "s0", "collide-cache-prim"]]
+  "(method 65 collide-shape-moving)": [[[29, 59], "s0", "collide-cache-prim"]],
+  // bsp-camera-asm (#41): jakx's extra viewport-index arg (a2) is added directly to
+  // the bsp-header pointer (a0) twice, forming the per-view uint8 base (op 0, v1 =
+  // a0 + raw index) and the per-view uint16 base (op 4, a2 = a0 + index*2); both
+  // casts a0 to int so the adds type-prop. op 28 is the tree-walk node lookup (a3 =
+  // nodes + byte offset, same shape as jak2/jak3's own v1/t1 casts at their own op
+  // numbers), casting a3 to pointer for the add and the result (t2 here, jak2/jak3's
+  // t1) to bsp-node for its reads at ops 28-46; iterated against the jakx asm
+  "bsp-camera-asm": [
+    [0, "a0", "int"],
+    [4, "a0", "int"],
+    [28, "a3", "pointer"],
+    [[28, 46], "t2", "bsp-node"]
+  ]
 }
