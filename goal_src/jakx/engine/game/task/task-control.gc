@@ -39,6 +39,30 @@
   (none)
   )
 
+;; og:preserve-this open! bring-up stub, R16 (#122): the boot crashes at
+;; game-info.gc:150, (open! (-> *game-info* sub-task-list 1) 'event), dispatching
+;; method 10 on game-task-node-info; task-control-h.gc:1250 declares the slot
+;; ((open! (_type_ symbol) int)) but no jakx decode carries a body for it
+;; (decompiler_out/jakx has raw_obj/task-control.go only, no task-control_ir2.asm),
+;; so dispatch lands on a zero vtable slot and jumps to goal 0. A guard is impossible
+;; here: this is vtable dispatch on a method slot, not a symbol reference, so there is
+;; no symbol to gate. jak3's twin (goal_src/jak3/engine/game/task/task-control.gc:957)
+;; is not portable either: it walks parent-node, on-close, on-open, manager, open?,
+;; and gem-count/skill-count, none of which exist on jakx's game-task-node-info, a
+;; racing node carrying gold/silver/bronze, ai-difficulty, and high-scores instead. A
+;; no-op stub is faithful, not just convenient: jak3's own open! is itself a complete
+;; no-op when the target node is already flagged closed (its entire body sits inside
+;; one (when (not (logtest? (-> this flags) (game-task-node-flag closed))) ...), the
+;; when falling straight through to a bare 0 return when the node is closed), sub-
+;; task-list element 1 (city-start-start, game-task.gc:2202) is statically flagged
+;; closed in its own static data, and every :when-open across jakx's entire static
+;; task list is #f, so no jakx node reaches this method expecting the real body to
+;; run. Retirement condition: decode task-control.o for real and land open!'s actual
+;; body.
+(defmethod open! ((this game-task-node-info) (arg0 symbol))
+  0
+  )
+
 (defun update-task-masks ((arg0 symbol))
   (if (= arg0 'none)
       (return 0)
