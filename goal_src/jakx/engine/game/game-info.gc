@@ -26,8 +26,21 @@
 ;; (section 1.10 of the leg brief: continue-point methods 9/10/11 are also declared but
 ;; unimplemented). Stubbed rather than guarded, since the callers use the return value;
 ;; a guard would still need a fallback value at the call site, which is what these are.
-;; Retirement condition: *default-continue* and the by-name continue lookup
-;; (get-continue-by-name, method 19, R5a's own start-1 blocker) land for real.
+;; R8 (#122) research, per the coordinator's ask: *default-continue* is NOT an
+;; out-of-object blocker. jak3 parity (goal_src/jak3/.../game-info.gc:148) and the
+;; retail raw_obj link table (grep -la across decompiler_out/jakx/raw_obj/*.go) both
+;; show it referenced only from game-info.go, so it belongs here. It is not the
+;; minimal fix, though: game-info_ir2.asm's own top-level-login (ops 208-260+, not
+;; landed anywhere in this tree, game-info.gc has no top-level code) carries a
+;; per-player loop that dispatches set-continue! itself with *default-continue* as the
+;; fallback value, which is the only place in this leg's evidence that would actually
+;; exercise a real set-continue! body; landing that loop, plus jakx's own
+;; *default-continue* static data (unconfirmed in this leg's decode scratch, jak3's
+;; own definition is parity reference only), plus method 20's own residual "may read a
+;; register that is not set: a3" error, is a real landing, not a minimal one. Stays
+;; stubbed. Retirement condition: *default-continue*'s jakx static data, the
+;; top-level-login per-player lazy-init loop, and the by-name continue lookup
+;; (get-continue-by-name, method 19, R5a's own start-1 blocker) all land for real.
 (defmethod game-info-method-17 ((this game-info) (arg0 int))
   (the-as object #f)
   )
@@ -235,18 +248,31 @@
       (set! (-> this auto-save-count) 0)
       (set! (-> *setting-control* user-default auto-save) #f)
 
-      ;; perm-list reset (not a lazy-init here; the lazy-allocation nonzero-guarded idiom
-      ;; R2 documented lives in top-level-login, not in this method)
+      ;; og:preserve-this lazy-init landed for real, R8 (#122): retail's top-level-login
+      ;; allocates this array once (game-info_ir2.asm ops 170-180: (new 'global
+      ;; entity-perm-array 64) when perm-list is still zero) before initialize! ever
+      ;; runs. That top-level-login was never landed in this tree (game-info.gc has no
+      ;; top-level code at all), so perm-list stayed null and the reset below wrote
+      ;; through it: a store to GOAL address 0 with offset 0, the R8 boot crash
+      ;; (game-info+0x830, attributed via x86 disassembly of this exact line, (mi)
+      ;; (asm-file "game-info.gc" :color :disassemble), matching the "move [igpr-209 +
+      ;; 0], igpr-208" store where igpr-209 loads a never-allocated perm-list). Landed
+      ;; inline at the point of use rather than as a separate top-level-login block:
+      ;; same effect, self-healing on every call rather than only at first object load.
+      (if (zero? (-> this perm-list))
+          (set! (-> this perm-list) (new 'global 'entity-perm-array 64))
+          )
       (set! (-> this perm-list length) 0)
 
-      ;; byte-array reset loop #1: og:preserve-this game-info-pad2 (offset-assert 1172)
-      ;; is a placeholder int32; game-info_ir2.asm op 168's "Could not figure out load"
-      ;; on this exact field is the accepted, pre-existing 1168-class residue (R2
-      ;; COMPLETION ADDENDUM), so the field is deliberately left untyped and this walk
-      ;; uses raw pointer casts rather than a field name, to keep the residue visible
-      ;; rather than silently typing it away. R2's note also documents the SAME
-      ;; nonzero-guarded lazy-init idiom touching this field from top-level-login, under
-      ;; the name "task-node-info" there.
+      ;; og:preserve-this lazy-init landed for real, R8 (#122): the same class of bug
+      ;; as perm-list above, one field over. Retail's top-level-login also allocates
+      ;; game-info-pad2 (declared "task-node-info" per R2's note) once (game-info_ir2.asm
+      ;; ops 182-192: (new 'global array uint16 936) when zero) before this method
+      ;; reads it; unguarded, this walk would have been the next landmine the moment
+      ;; count read off address 4 instead of a real array header. Guarded the same way.
+      (if (zero? (-> this game-info-pad2 0))
+          (set! (-> this game-info-pad2 0) (the-as int32 (new 'global 'array 'uint16 936)))
+          )
       (let* ((holder (the-as (pointer int16) (-> this game-info-pad2)))
              (count (-> (the-as (pointer int32) (&+ holder 4)) 0))
              )
