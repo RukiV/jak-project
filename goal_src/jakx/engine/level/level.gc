@@ -2725,6 +2725,11 @@
 ;; camera ring types this file cannot see. Retire with the warp helpers.
 (define-extern jakx-cam-warp-to-level (function level none))
 (define-extern jakx-cam-warp-to-continue (function continue-point none))
+;; og:preserve-this bring-up extern (#152): jakx-cam-pin-view! is the write-set
+;; helper cam-start.gc's jakx-cam-warp-tick now shares with jakx-racer-tick below
+;; (this file, position 267 in game.gd, compiles before cam-start.gc at 290).
+;; Retires alongside the warp helpers above, same real camera start chain.
+(define-extern jakx-cam-pin-view! (function vector matrix none))
 
 ;; og:preserve-this bring-up helper: look up a continue point by name across every
 ;; level-load-info's continues list, jak3 get-continue-by-name's walk without the
@@ -2975,6 +2980,176 @@ and apply its want set when it changes; update! then streams the section window.
       )
     )
   0
+  (none)
+  )
+
+;; og:preserve-this bring-up racer levers (#152): off by default, no C-side boot arg.
+;; *kernel-boot-cam-fly* is set by kmachine.cpp before this file's top-level even
+;; runs (CamFlyBoot's -cam-fly arg parse, kmachine.cpp:140); extending that the same
+;; way for the racer would need a kmachine.cpp change and a gk.exe rebuild, out of
+;; scope for a GOAL-only landing. Arm from the REPL after boot instead:
+;; (set! *jakx-racer* #t), then (jakx-racer-spawn) (entity.gc, needs
+;; *jakx-want-driver-cp* already set by play's boot-cp branch above).
+;;
+;; Speed is meters/second, scaled by (seconds-per-frame) each tick (view-get-active
+;; already proves with-pp/pp is safe from a bare defun like this one, not just
+;; process methods) rather than assuming a fixed 60fps; 15 is a plausible bring-up
+;; pace (54 km/h), not tuned against retail. cam-back/cam-height are the chase
+;; camera's settable offset behind and above the racer's trans. Retires with the
+;; real race/target/vehicle chain (#152 names the tiers).
+(define *jakx-racer* #f)
+(define *jakx-racer-speed* (meters 15))
+(define *jakx-racer-handle* (the-as handle #f))
+(define *jakx-racer-target-index* 0)
+(define *jakx-racer-cam-back* (meters 8))
+(define *jakx-racer-cam-height* (meters 4))
+;; last frame's horizontal movement direction, unit length; seeds the chase offset
+;; and survives the racer being momentarily stationary (arrival snap frame)
+(define *jakx-racer-heading* (new 'static 'vector :z 1.0 :w 1.0))
+
+(defun jakx-racer-cam-tick! ((racer-trans vector))
+  "og:preserve-this bring-up chase camera (#152): place the camera
+*jakx-racer-cam-back* behind and *jakx-racer-cam-height* above the racer along its
+last horizontal heading, looking at the racer's trans, then pin view-0 there via
+jakx-cam-pin-view! (cam-start.gc, shared with jakx-cam-warp-tick, forward-declared
+above near play). The look-at basis (right = world-up x forward, up = forward x
+right) is assigned straight into rvec/uvec/fvec, the same direct-assignment shape
+jakx-cam-warp-to-continue uses for a decoded continue-point camera-rot, so this
+inv-camera-rot is built consistently with the only other producer of one."
+  (let ((hx (-> *jakx-racer-heading* x))
+        (hz (-> *jakx-racer-heading* z))
+        )
+    (let ((hlen (sqrtf (+ (* hx hx) (* hz hz)))))
+      (when (> hlen 0.001)
+        (set! hx (/ hx hlen))
+        (set! hz (/ hz hlen))
+        )
+      )
+    (let ((cam-pos (new 'stack-no-clear 'vector)))
+      (set! (-> cam-pos x) (- (-> racer-trans x) (* hx *jakx-racer-cam-back*)))
+      (set! (-> cam-pos y) (+ (-> racer-trans y) *jakx-racer-cam-height*))
+      (set! (-> cam-pos z) (- (-> racer-trans z) (* hz *jakx-racer-cam-back*)))
+      (set! (-> cam-pos w) 1.0)
+      (let ((fwd (new 'stack-no-clear 'vector))
+            (right (new 'stack-no-clear 'vector))
+            (up (new 'stack-no-clear 'vector))
+            (world-up (new 'stack-no-clear 'vector))
+            )
+        (set-vector! world-up 0.0 1.0 0.0 1.0)
+        (set! (-> fwd x) (- (-> racer-trans x) (-> cam-pos x)))
+        (set! (-> fwd y) (- (-> racer-trans y) (-> cam-pos y)))
+        (set! (-> fwd z) (- (-> racer-trans z) (-> cam-pos z)))
+        (set! (-> fwd w) 1.0)
+        (vector-normalize! fwd 1.0)
+        (vector-cross! right world-up fwd)
+        (vector-normalize! right 1.0)
+        (vector-cross! up fwd right)
+        (let ((rot (new 'stack-no-clear 'matrix)))
+          (matrix-identity! rot)
+          (set! (-> rot rvec x) (-> right x))
+          (set! (-> rot rvec y) (-> right y))
+          (set! (-> rot rvec z) (-> right z))
+          (set! (-> rot uvec x) (-> up x))
+          (set! (-> rot uvec y) (-> up y))
+          (set! (-> rot uvec z) (-> up z))
+          (set! (-> rot fvec x) (-> fwd x))
+          (set! (-> rot fvec y) (-> fwd y))
+          (set! (-> rot fvec z) (-> fwd z))
+          (jakx-cam-pin-view! cam-pos rot)
+          )
+        )
+      )
+    )
+  (none)
+  )
+
+(defun jakx-racer-tick ()
+  "og:preserve-this bring-up racer driver (#152): move the spawned racer manipy
+toward the next boot-continue-family point at *jakx-racer-speed*, advancing to the
+following point on arrival and wrapping for laps, then pin the chase camera behind
+it. Candidate selection mirrors jakx-cam-fly-tick's filter above verbatim (same
+:level home, lightjak grid-starts excluded, so only continues whose want sets are
+built are ever visited); unlike that flight driver this MOVES instead of
+teleporting each dwell, so it needs its own target index rather than sharing
+*jakx-cam-fly-index*. Snapping when the remaining distance is no more than one
+frame's step (rather than a separate arrive-radius constant) guarantees no
+overshoot and no separate tunable to keep in sync with speed."
+  (let ((proc (the-as process-drawable (handle->process *jakx-racer-handle*))))
+    (when (and *jakx-racer* proc *jakx-want-driver-cp* (nonzero? *level-load-list*))
+      (let ((home (-> *jakx-want-driver-cp* level))
+            (want *jakx-racer-target-index*)
+            (seen 0)
+            (pick (the continue-point #f))
+            )
+        (let ((lst *level-load-list*))
+          (while (not (null? lst))
+            (let* ((info (the-as level-load-info (-> (the-as symbol (car lst)) value)))
+                   (conts (-> info continues))
+                   )
+              (while (not (null? conts))
+                (let ((cp (the-as continue-point (car conts))))
+                  (when (and (= (-> cp level) home)
+                             (not (logtest? (-> cp flags) (continue-flags lightjak)))
+                             )
+                    (when (and (not pick) (= seen want))
+                      (set! pick cp)
+                      )
+                    (set! seen (+ seen 1))
+                    )
+                  )
+                (set! conts (cdr conts))
+                )
+              )
+            (set! lst (cdr lst))
+            )
+          )
+        (cond
+          (pick
+            (let* ((cur (-> proc root trans))
+                   (dx (- (-> pick trans x) (-> cur x)))
+                   (dy (- (-> pick trans y) (-> cur y)))
+                   (dz (- (-> pick trans z) (-> cur z)))
+                   (dist (sqrtf (+ (* dx dx) (* dy dy) (* dz dz))))
+                   (step (* *jakx-racer-speed* (seconds-per-frame)))
+                   )
+              (cond
+                ((<= dist step)
+                 (set! (-> cur x) (-> pick trans x))
+                 (set! (-> cur y) (-> pick trans y))
+                 (set! (-> cur z) (-> pick trans z))
+                 (set! *jakx-racer-target-index* (+ *jakx-racer-target-index* 1))
+                 )
+                (else
+                  (let ((scale (/ step dist)))
+                    (set! (-> cur x) (+ (-> cur x) (* dx scale)))
+                    (set! (-> cur y) (+ (-> cur y) (* dy scale)))
+                    (set! (-> cur z) (+ (-> cur z) (* dz scale)))
+                    )
+                  ;; only update heading while actually moving: on the snap-to-
+                  ;; target frame above, dx/dy/dz points at the point just left
+                  ;; behind, not where the racer is headed next
+                  (when (> dist (meters 0.001))
+                    (set! (-> *jakx-racer-heading* x) (/ dx dist))
+                    (set! (-> *jakx-racer-heading* y) (/ dy dist))
+                    (set! (-> *jakx-racer-heading* z) (/ dz dist))
+                    )
+                  )
+                )
+              (jakx-racer-cam-tick! cur)
+              )
+            )
+          (else
+            ;; walked past the end of the family: wrap for the next lap, same
+            ;; empty-family guard as jakx-cam-fly-tick above
+            (if (zero? seen)
+                (format 0 "racer: no race continues for ~A, racer idle~%" home)
+                )
+            (set! *jakx-racer-target-index* 0)
+            )
+          )
+        )
+      )
+    )
   (none)
   )
 
@@ -4243,6 +4418,11 @@ and apply its want set when it changes; update! then streams the section window.
   ;; and the window slide it causes land in the same tick rather than a frame apart.
   (jakx-cam-fly-tick)
   (jakx-want-driver-tick)
+  ;; og:preserve-this bring-up (#152): after the want driver, so both drivers can be
+  ;; armed together without fighting over view-0 in the same frame (cam-fly warps the
+  ;; ring to a fixed continue target; the racer pins it to a moving chase position).
+  ;; Gated on *jakx-racer* inside the tick itself, like its neighbors above.
+  (jakx-racer-tick)
   (update-level-inside-boxes this)
   (update! *load-state*)
   ;; og:preserve-this vis-self-index reset, hand-ported from jak3's level-update

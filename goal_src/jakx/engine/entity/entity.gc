@@ -86,6 +86,63 @@
   (none)
   )
 
+;; og:preserve-this bring-up racer spawn extern (#152): skel-jungle-clay-jar-a is
+;; jgx-resident (jungle-obs.gc, dgos HAVJUNGW/HAVTOURW/HJX/JGX/JUNGLEW), which
+;; compiles well after this file (game.gd's own file list finishes before game.gp
+;; even reaches jgx.gd, an independent level DGO). Same forward-decl shape as the
+;; view.gc/logic-target.gc R4 precedent (#122). manipy and manipy-init need no such
+;; extern: generic-obs.gc compiles earlier in game.gd (build order 299) than this
+;; file (329). Retires with the real vehicle chain (#152 names the tiers), same as
+;; the racer levers in level.gc.
+(define-extern skel-jungle-clay-jar-a skeleton-group)
+
+(defun jakx-racer-spawn ()
+  "og:preserve-this bring-up racer spawn (#152): manual REPL lever, since there is
+no C-side boot arg to arm it automatically (see the *jakx-racer* note in level.gc).
+Call from the REPL after boot: (jakx-racer-spawn), then (set! *jakx-racer* #t) to
+start it moving. Spawns a jgx-resident manipy at the boot continue's trans
+(*jakx-want-driver-cp*, set by play's boot-cp branch) and registers it as an
+additional actor-birth spawner. Independent of *jakx-racer* on purpose: spawning
+and inspecting the process is useful even before movement is armed. No-op if
+already spawned, if the spawner slot is taken, or if no boot continue is armed
+yet. Retires with the real vehicle chain."
+  (when (and *jakx-want-driver-cp*
+             (zero? *additional-spawner-count*)
+             (not (handle->process *jakx-racer-handle*))
+             )
+    (let ((proc (the-as process-drawable
+                         (ppointer->process
+                           (process-spawn manipy
+                                          :init manipy-init
+                                          (-> *jakx-want-driver-cp* trans)
+                                          #f
+                                          skel-jungle-clay-jar-a
+                                          #f
+                                          0
+                                          :name "jakx-racer"
+                                          :from *default-dead-pool*
+                                          :to *entity-pool*
+                                          )
+                           )
+                         )
+                )
+          )
+      (when proc
+        (set! *jakx-racer-handle* (process->handle proc))
+        (set! *jakx-racer-target-index* 0)
+        (register-additional-spawner proc)
+        (format 0 "racer: spawned at ~S <~m ~m ~m>~%"
+                (-> *jakx-want-driver-cp* name)
+                (-> proc root trans x)
+                (-> proc root trans y)
+                (-> proc root trans z)
+                )
+        )
+      )
+    )
+  (none)
+  )
+
 ;; og:preserve-this jakx viewport delta vs jak3: actors-update captures the active
 ;; math camera position per viewport into these, and the vis distance checks below
 ;; test both when *view-count* is 2. jak3 keeps a single camera-pos local instead.

@@ -170,6 +170,55 @@ camera start chain alongside the level warp."
   (none)
   )
 
+;; og:preserve-this bring-up helper (#152): the camera-combiner/slave/math-camera
+;; write set below used to live inline in jakx-cam-warp-tick (this file). The racer
+;; chase camera (level.gc) needs to pin the same four destinations every frame to a
+;; computed chase position instead of a fixed warp target, so this is factored out
+;; rather than duplicated. Both callers pass #f for rot when they have no valid
+;; orientation yet (jakx-cam-warp-tick before the continue-point rot decodes;
+;; nothing else currently does), in which case only position is pinned. Retires
+;; with the real camera start chain, same as jakx-cam-warp-tick.
+(defun jakx-cam-pin-view! ((pos vector) (rot matrix))
+  "Write pos into the camera-combiner, camera-master's slave, and view-0 math-
+camera trans; write rot (if non-#f) into the math-camera's inv-camera-rot and
+*save-camera-inv-rot* so the pad fallback keeps the orientation after release."
+  (let ((cc (the-as camera-combiner (view-get-active-camera-combiner))))
+    (when (and (nonzero? cc) cc)
+      (set! (-> cc trans x) (-> pos x))
+      (set! (-> cc trans y) (-> pos y))
+      (set! (-> cc trans z) (-> pos z))
+      )
+    )
+  (let ((cam (the-as camera-master (view-get-active-camera))))
+    (when (and (nonzero? cam) cam (nonzero? (-> cam slave)))
+      (let ((slave (-> cam slave 0)))
+        (when (nonzero? (the-as int slave))
+          (set! (-> slave trans x) (-> pos x))
+          (set! (-> slave trans y) (-> pos y))
+          (set! (-> slave trans z) (-> pos z))
+          )
+        )
+      )
+    )
+  (let ((mc (view-get-math-camera 0)))
+    (when (nonzero? (the-as int mc))
+      (set! (-> mc trans x) (-> pos x))
+      (set! (-> mc trans y) (-> pos y))
+      (set! (-> mc trans z) (-> pos z))
+      (if rot
+          (matrix-copy! (-> mc inv-camera-rot) rot)
+          )
+      )
+    )
+  ;; the pad fallback rebuilds the view from *save-camera-inv-rot* each frame, so
+  ;; seeding it here is what makes an orientation survive a combiner release
+  (if rot
+      (matrix-copy! *save-camera-inv-rot* rot)
+      )
+  0
+  (none)
+  )
+
 (defun jakx-cam-warp-tick ()
   "og:preserve-this bring-up helper: while armed, pin the camera ring onto the
 warp target each frame so the ring's boot settle cannot drag it back to the
@@ -266,39 +315,11 @@ origin; release after the counter runs out."
             )
           )
         )
-      (let ((cc (the-as camera-combiner (view-get-active-camera-combiner))))
-        (when (and (nonzero? cc) cc)
-          (set! (-> cc trans x) (-> warp x))
-          (set! (-> cc trans y) (-> warp y))
-          (set! (-> cc trans z) (-> warp z))
-          )
-        )
-      (let ((cam (the-as camera-master (view-get-active-camera))))
-        (when (and (nonzero? cam) cam (nonzero? (-> cam slave)))
-          (let ((slave (-> cam slave 0)))
-            (when (nonzero? (the-as int slave))
-              (set! (-> slave trans x) (-> warp x))
-              (set! (-> slave trans y) (-> warp y))
-              (set! (-> slave trans z) (-> warp z))
-              )
-            )
-          )
-        )
-      (let ((mc (view-get-math-camera 0)))
-        (when (nonzero? (the-as int mc))
-          (set! (-> mc trans x) (-> warp x))
-          (set! (-> mc trans y) (-> warp y))
-          (set! (-> mc trans z) (-> warp z))
-          (if *jakx-cam-warp-rot-valid*
-              (matrix-copy! (-> mc inv-camera-rot) *jakx-cam-warp-rot*)
-              )
-          )
-        )
-      ;; the pad fallback rebuilds the view from *save-camera-inv-rot* each frame, so
-      ;; seeding it here is what makes the continue orientation survive the release
-      (if *jakx-cam-warp-rot-valid*
-          (matrix-copy! *save-camera-inv-rot* *jakx-cam-warp-rot*)
-          )
+      (jakx-cam-pin-view! warp (if *jakx-cam-warp-rot-valid*
+                                   *jakx-cam-warp-rot*
+                                   (the-as matrix #f)
+                                   )
+                          )
       ;; at the end of the pin window the ring has settled ('set-slave storms are
       ;; boot-time only), so retire the combiner: killing it and clearing the view
       ;; slots drops update-camera into its no-combiner pad fallback
