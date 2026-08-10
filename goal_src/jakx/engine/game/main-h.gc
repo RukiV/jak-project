@@ -5788,11 +5788,18 @@
 
 (define *stats-sound* #f)
 
-;; og:preserve-this bring-up: #t (retail #f). Vis-string levels (the -vis bsps,
-;; e.g. junglea) read their PVS strings from disc .VIS files the fakeiso does
-;; not provide, so the string path leaves vis-bits zeroed and every drawable
-;; culls. The artist lever forces the all-visible list. Retire with .VIS load.
-(define *artist-all-visible* #t)
+;; og:preserve-this V4 (#41): flipped to retail's own #f. The premise above was
+;; false: there are no .VIS files on this or any Jak game from Jak II onward; the
+;; precomputed PVS lives in level-vis-info's string-block inside each level's own
+;; bsp object, already resident once the bsp itself is loaded (#41's investigation,
+;; git.snalpha.com/alex/jak-project issue 41 comment 17143). The real blockers were
+;; three missing pieces of GOAL code, now landed: bsp-camera-asm keeps
+;; current-leaf-idx-view current every frame (688767f78), update-vis! decompresses
+;; the real per-view vis string on demand (280fd0d16), and update-level-vis-valid
+;; marks vis-info usable for levels the camera is inside or displaying alone
+;; (dbd7b9ccf). With the lever back at retail's value, update-visible's arm A
+;; stops shadowing arm B for any level whose vis-info is valid.
+(define *artist-all-visible* #f)
 
 (define *artist-flip-visible* #f)
 

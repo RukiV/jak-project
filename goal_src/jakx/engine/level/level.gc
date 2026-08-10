@@ -4053,6 +4053,42 @@ and apply its want set when it changes; update! then streams the section window.
   (kmemclose)
   )
 
+;; og:preserve-this per-level inside-boxes? setter, extracted from retail jakx's
+;; level-update (method 19 level-group) via the same scoped decode as
+;; update-level-vis-valid below (#41). Retail runs this as an 18-slot unconditional
+;; loop (raw ops 30-41, a separate vtable dispatch this rung does not decode or
+;; land, out of scope) followed by a length-bounded, status='active-gated loop
+;; (raw ops 42-65) that calls inside-bsp? per level and stores the result, setting
+;; render? unconditionally and meta-inside? only when inside-boxes? is true. Both
+;; the address computation and the virtual dispatch return degrade to raw offset
+;; stores ("the-as none", s.w!) in the decompiler's own output even though the
+;; addressing shape matches update-level-vis-valid's own (clean) per-level loop
+;; below; hand-reconstructed from the raw offsets (480/488/492, all confirmed
+;; against level-h.gc's declared inside-boxes?/render?/meta-inside? fields) rather
+;; than transcribed line-for-line, and simplified from retail's two-armed cond
+;; (each arm sets render? separately) to one unconditional set, a provably
+;; equivalent rewrite of a decompiler artifact, not a behavior change.
+;;
+;; This is the prerequisite update-level-vis-valid's own guard depends on:
+;; inside-boxes? is never set anywhere else in the landed bring-up (grepped the
+;; whole level object decode; the only other write is the #f reset in level
+;; deactivation). Without this, wiring update-level-vis-valid alone is a no-op.
+(defun update-level-inside-boxes ((this level-group))
+  (dotimes (i (-> this length))
+    (let ((lev (-> this level i)))
+      (when (= (-> lev status) 'active)
+        (set! (-> lev inside-boxes?) (inside-bsp? lev))
+        (set! (-> lev render?) #t)
+        (if (-> lev inside-boxes?)
+            (set! (-> lev meta-inside?) #t)
+            )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
 ;; og:preserve-this vis-valid setter, extracted from retail jakx's level-update
 ;; (method 19 level-group) via a scoped decode of the level object (#41). jak3
 ;; carries the identical mechanism inline in its own level-update (goal_src/jak3/
@@ -4066,16 +4102,14 @@ and apply its want set when it changes; update! then streams the section window.
 ;; folded array-base-plus-field-offset constant (544 + 480 = 1024) the decompiler
 ;; could not resolve back into a named field on its own).
 ;;
-;; Landed as a real, decode-verified, standalone function rather than spliced into
-;; level-update's own body below: computing inside-boxes? for real (via
-;; inside-bsp?, landed alongside this) changes cam-update.gc:152's outer branch
-;; selection in update-visible whenever force-all-visible? is #t for a level whose
-;; all-visible? is still 'loading (arm A's extra side effect there, forcing
-;; all-visible? to #t, does not fire on the plain quad-copy! else branch). force-vis?
-;; is live-set machinery (engine/load/load-state.gc), not a dead flag, so this path
-;; is not provably unreachable today; wiring this call into level-update is left
-;; for the wiring decision alongside V4's lever flip and the target-inside leg
-;; below. *artist-all-visible* and *vis-actors* are untouched either way.
+;; V4 (#41): wired into level-update below, alongside update-level-inside-boxes
+;; above (its own prerequisite) and the *artist-all-visible* flip at
+;; main-h.gc:5795. The force-all-visible?/all-visible?='loading interaction noted
+;; in this leg's V3 report is accepted, not resolved: it is live-set machinery
+;; (engine/load/load-state.gc), and the coordinator's call is that the wiring
+;; belongs in the same change as the lever flip, where behavior change is expected
+;; and observed under an eyes-on boot rather than assumed byte-for-byte. *vis-actors*
+;; is untouched.
 (defun update-level-vis-valid ((this level-group))
   (when (let ((any-inside #f))
           (dotimes (i 18)
@@ -4137,12 +4171,12 @@ and apply its want set when it changes; update! then streams the section window.
 (defmethod level-update ((this level-group))
   ;; og:preserve-this bring-up: the retail jakx level-update also pumps every slot's
   ;; load-continue and runs the load-state update! mid-body (jak3 level.gc:3569 is the
-  ;; landed reference; the jakx retail body additionally does the inside-boxes walk and
-  ;; the music/continue propagation, which land with the target-inside leg; the
-  ;; inside-boxes walk and the vis-valid setter it feeds are landed as
-  ;; update-level-vis-valid above, not yet called from here, #41). Until then
-  ;; this PC-shaped method carries the three pieces streaming needs: the per-frame load
-  ;; pump, the bring-up want driver, and update!.
+  ;; landed reference; the jakx retail body additionally does the music/continue
+  ;; propagation, which lands with the target-inside leg). Until then this PC-shaped
+  ;; method carries the pieces streaming and vis need: the per-frame load pump, the
+  ;; bring-up want driver, update!, and (V4, #41) the inside-boxes and vis-valid
+  ;; setters at retail's own relative position, inside-boxes before update! and
+  ;; vis-valid after, matching the scoped decode.
   (dotimes (i (-> this length))
     (load-continue (-> this level i))
     )
@@ -4150,7 +4184,9 @@ and apply its want set when it changes; update! then streams the section window.
   ;; and the window slide it causes land in the same tick rather than a frame apart.
   (jakx-cam-fly-tick)
   (jakx-want-driver-tick)
+  (update-level-inside-boxes this)
   (update! *load-state*)
+  (update-level-vis-valid this)
   (let ((lev-names (new 'stack-no-clear 'array 'string 10))
         (active-lev-names (new 'stack-no-clear 'array 'string 10)))
     (dotimes (i 10)
