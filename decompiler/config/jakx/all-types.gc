@@ -32098,7 +32098,9 @@
   :flag-assert         #x3c02c00350
   ;; field mode-param2 uses ~A with a 64-bit load. field mode-param3 uses ~A with a 64-bit load.
   (:methods
-    (target-method-59 () none) ;; 59
+    ;; og:preserve-this arity fix, R5a (#122): matches goal_src's own correction;
+    ;; target-init's dispatch passes two more live registers beyond self.
+    (target-method-59 (_type_ basic symbol) none) ;; 59
     )
   (:states
     target-continue ;; associated process guessed by decompiler, old: (state continue-point target)
@@ -41820,7 +41822,9 @@
 ;; target-util                    ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
+;; og:preserve-this type visibility fix, R5a (#122): uncommented, verified byte-for-byte
+;; against (method 3 target-bank)'s inspect format strings (attack-timeout through
+;; fall-height, in this exact order, at these exact byte offsets).
 (deftype target-bank (basic)
   ((attack-timeout                   uint64         :offset-assert 8) ;; time-frame
    (ground-timeout                   uint64         :offset-assert 16) ;; time-frame
@@ -41842,9 +41846,8 @@
   :size-assert         #x84
   :flag-assert         #x900000084
   )
-|#
 
-;; (define-extern *TARGET-bank* target-bank) ;; target-bank
+(define-extern *TARGET-bank* target-bank)
 ;; (define-extern debounce-speed function) ;; (function float float vector vector float :behavior target)
 (define-extern target-pos (function int vector)) ;; jak3-parity sig
 ;; (define-extern target-rot function) ;; (function quaternion)
@@ -41858,12 +41861,47 @@
 ;; (define-extern target-print-stats function) ;; (function target symbol symbol)
 ;; (define-extern target-move-dist function) ;; (function time-frame float :behavior target)
 ;; (define-extern level-setup function) ;; (function none :behavior target)
-;; (define-extern target-real-post function) ;; (function none :behavior target)
-;; (define-extern target-post function) ;; (function none :behavior target)
-;; (define-extern target-no-move-post function) ;; (function none :behavior target)
-;; (define-extern reset-target-state function) ;; (function symbol target :behavior target)
-;; (define-extern target-init function) ;; (function continue-point none :behavior target)
-;; (define-extern start-2 function)
+;; og:preserve-this type visibility fix, R5a (#122): captured signature uncommented
+;; as-is; the body decodes clean once live (calls quaternion-copy! on (-> self root)'s
+;; offset-28/108 fields, no unlanded references).
+(define-extern target-real-post (function none :behavior target))
+;; og:preserve-this type visibility fix, R5a (#122): captured signature uncommented
+;; as-is; the body is a one-line tail call to target-real-post.
+(define-extern target-post (function none :behavior target))
+;; og:preserve-this type visibility fix, R5a (#122): captured signature uncommented
+;; as-is; same quaternion-copy! shape as target-real-post, decodes clean.
+(define-extern target-no-move-post (function none :behavior target))
+;; og:preserve-this type visibility fix, R5a (#122): captured signature uncommented
+;; as-is (arg0 gates the vector/quaternion reset block, matching a truthy check on a
+;; symbol; returns self). Calls target-exit, unlanded (grep goal_src turns up nothing;
+;; raw_obj shows it referenced from four objects including target-death.go, none of
+;; which is R5a's), guarded per the view-set-active-target/kill-current-talker
+;; precedent.
+(define-extern reset-target-state (function symbol target :behavior target))
+;; og:preserve-this arity/type fix, R5a (#122): the captured (function continue-point
+;; none :behavior target) guess is unnecessarily specific. target-init's own body
+;; (logic-target_ir2.asm) never dereferences its argument, only passes it opaquely to
+;; (method 59 target); the caller, start, passes its own arg1 through unchanged
+;; (basic, R3a's landed type, itself matching game-info.gc's continue-arg parameter).
+;; Kept as basic rather than narrowed to continue-point to avoid a cross-object retype
+;; of game-info.gc's anon-function-14, which is out of R5a's three-object scope.
+(define-extern target-init (function basic none :behavior target))
+;; og:preserve-this type fix, R5a (#122): no captured guess existed. Derived from the
+;; body: sets *view-count* 2, calls start twice (view index 0 then 1) with a continue
+;; point read off *level*'s own data (raw offset chain, no method dispatch), then
+;; configures a two-way viewport split. Zero explicit args, no s6/self reference (not
+;; :behavior target); two-player boot entry point, mirroring start-1's single-player
+;; role. Return value is whatever the trailing viewport call produces, unused by any
+;; caller found in this tree; none is a safe declaration.
+(define-extern start-2 (function none))
+;; og:preserve-this NOT landed, R5a (#122): start-1 calls (get-continue-by-name
+;; *game-info* "snake-0") through game-info's own vtable (offset 92, method 19), but
+;; method 19's currently-declared slot signature is (game-info-method-19 () none)
+;; (game-info-h.gc:304, a reduced placeholder; the real signature is annotated in the
+;; same line's comment as (_type_ string) continue-point but not landed). Transcribing
+;; start-1 verbatim needs that signature fixed first, which is game-info-h.o, outside
+;; R5a's three-object scope (logic-target/target/target-util). Left unlanded and
+;; reported rather than chased across the object boundary; the extern stays commented.
 ;; (define-extern start-1 function)
 ;; og:preserve-this arity fix, R4 (#122): the recorded 1-arg signature undercounted.
 ;; logic-target_ir2.asm's stop (op 1) captures a1 into s3 and passes it on (op 3) as
@@ -42272,10 +42310,18 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern attack-mode-is-invinc function) ;; (function symbol symbol symbol)
-;; (define-extern target-generic-event-handler function) ;; (function process int symbol event-message-block object :behavior target)
+;; og:preserve-this type visibility fix, R5a (#122): uncommented so the decompiler can
+;; see past target.o's top-level-login (which forward-references this for the state
+;; table); target-handler.o itself is R5b, out of scope. Guarded at the call site the
+;; same way, per the brief's own R5a instruction. Retires when target-handler.gc lands.
+(define-extern target-generic-event-handler (function process int symbol event-message-block object :behavior target))
 ;; (define-extern target-standard-event-handler function) ;; (function process int symbol event-message-block object :behavior target)
 ;; (define-extern target-jump-event-handler function) ;; (function process int symbol event-message-block object :behavior target)
-;; (define-extern target-exit function) ;; (function none :behavior target)
+;; og:preserve-this type visibility fix, R5a (#122): uncommented so the decompiler can
+;; see past reset-target-state's call (logic-target.o); target-handler.o (its likely
+;; owning object, per raw_obj link-table grep across all four referencing objects) is
+;; R5b, out of scope. Guarded at the call site per the kill-current-talker precedent.
+(define-extern target-exit (function none :behavior target))
 ;; (define-extern target-state-hook-exit function) ;; (function none :behavior target)
 ;; (define-extern target-effect-exit function) ;; (function none :behavior target)
 

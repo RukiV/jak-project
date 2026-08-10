@@ -7,11 +7,38 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this bring-up stub: real body scans *view-count* views for the first live
-;; target's trans, else falls back to (camera-pos) which lives in the still-blocked
-;; cam-interface object. Callers feed the result straight into vector-vector-distance,
-;; so it must be a valid vector, never #f; level picking degrades to distance-from-origin.
+;; og:preserve-this landed for real, R5a (#122): transcribed from target_ir2.asm with
+;; one hand-resolved cast. The decompiler leaves the offset-184/+12 load unresolved
+;; (view-get-target's return is typed process, generic like view-get-active-target);
+;; (method 51 target)/get-trans in the same leg's target-util.o already decodes this
+;; exact shape cleanly once the base is typed target ((-> this root trans), root at raw
+;; 184 = declared 188, trans at root's own +12), so the same cast settles it here. The
+;; double call to view-get-target per iteration (once to test, once to store) is the
+;; raw decode's own redundant-reevaluation shape, kept verbatim rather than cleaned up
+;; to a single call; the last live view wins, not the first, matching the retail loop
+;; having no early exit.
 (defun target-get-any-pos ()
-  (new 'static 'vector :x 0.0 :y 0.0 :z 0.0 :w 1.0)
+  (let ((found (the-as process #f)))
+    (let ((i 0))
+      (while (< i *view-count*)
+        (when (view-get-target i)
+          (set! found (view-get-target i))
+          )
+        (set! i (+ i 1))
+        )
+      )
+    (if found
+        (-> (the-as target found) root trans)
+        (let ((pos (begin
+                     (view-push-context 0)
+                     (camera-pos)
+                     )
+                    )
+              )
+          (view-pop-context)
+          pos
+          )
+        )
+    )
   )
 

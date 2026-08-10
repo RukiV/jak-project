@@ -7,6 +7,14 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this forward-decl, R5a (#122): reset-target-state below guards a call to
+;; this function (unlanded; raw_obj link-table grep shows it referenced from four
+;; objects, including target-death.go, none of which is landed yet); the compiler
+;; needs the symbol's type to check the guarded call. The decompiler-side extern
+;; (all-types.gc) is visibility-only and does not reach the compiler, mirroring the
+;; lesson from view-set-active-target in R4. Retires when the real owning object lands.
+(define-extern target-exit (function none :behavior target))
+
 ;; og:preserve-this stop, landed for real, R4 (#122): transcribed verbatim from the
 ;; R0-corrected decode (logic-target_ir2.asm). arg1 is the view-push-context int the
 ;; original 1-arg signature dropped (R0 RESULTS ADDENDUM item 4; the fix lives on
@@ -31,4 +39,135 @@
   (set! (-> *game-info* mode) arg0)
   (view-pop-context)
   0
+  )
+
+;; og:preserve-this bring-up stub, R5a (#122): target-init dispatches here
+;; unconditionally on every target spawn (the widened arity below matches target-h.gc's
+;; own note; the old zero-arg signature undercounted, the same class of bug stop had
+;; before R4), so an unset vtable slot would crash immediately the first time a target
+;; is born, the entity-race-mesh zero-slot class of bug named in the leg's risk
+;; register (item 2). The real body (logic-target_ir2.asm) resolves past the arity fix
+;; but still fails type prop at op 167 ("add failed: object <integer 12>"), deep past
+;; allow-pause/allow-progress setting-control calls and a game-info continue-point
+;; lookup. Retirement condition: a future rung resolves that load.
+(defmethod target-method-59 ((this target) (arg0 basic) (arg1 symbol))
+  (none)
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim from the decode.
+;; The vtable dispatch into target-method-59 (logic-target_ir2.asm op 3-6, method
+;; offset 252 = slot 59) only resolved to this clean high-level form once that
+;; method's own arity was widened (target-h.gc); it stays a bring-up stub for the
+;; reasons noted there, but target-init's own call is real.
+(defbehavior target-init target ((arg0 basic))
+  (target-method-59 self arg0 #f)
+  (set! (-> self event-hook) (-> target-continue event))
+  (logior! (-> self focus-status) (focus-status teleporting))
+  (go target-continue)
+  (none)
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim. Two
+;; view-set-active-target calls, both guarded per the kill-current-talker/stop
+;; precedent (view.o's body is still unlanded). (stop arg0 arg2) reuses the same
+;; view-push-context arg as the context index, matching the raw op sequence.
+(defun start ((arg0 symbol) (arg1 basic) (arg2 int))
+  (let ((v1-0 arg0))
+    (set! (-> *level* play?) (if (= v1-0 'play)
+                                 #t
+                                 (-> *setting-control* user-default border-mode)
+                                 )
+          )
+    )
+  (set! (-> *setting-control* user-default border-mode) #f)
+  (set! (-> *setting-control* user-default unknown-usd-15) #f)
+  (setting-control-method-23 *setting-control*)
+  (if (not arg1)
+      (set! arg1 (the-as basic (game-info-method-17 *game-info* arg2)))
+      )
+  (let ((s3-0 (the-as process #f)))
+    (view-push-context arg2)
+    (stop arg0 arg2)
+    (let ((v1-11 (process-spawn
+                   target
+                   :init target-init
+                   (the-as object arg1)
+                   :name "target"
+                   :from *target-dead-pool*
+                   :to *target-pool*
+                   :stack *kernel-dram-stack*
+                   )
+                 )
+          )
+      (cond
+        (v1-11
+          (if (nonzero? view-set-active-target)
+              (view-set-active-target (-> v1-11 0 self))
+              )
+          (set! s3-0 (view-get-active-target))
+          )
+        (else
+          (if (nonzero? view-set-active-target)
+              (view-set-active-target (the-as basic #f))
+              )
+          )
+        )
+      )
+    (view-pop-context)
+    (the-as target s3-0)
+    )
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim. Two-player boot
+;; entry point (sets *view-count* 2, spawns both targets via start, configures a
+;; two-way viewport split); no captured signature existed, derived from the body (see
+;; all-types.gc's note on the extern).
+(defun start-2 ()
+  (set! *view-count* 2)
+  (start 'play (the-as basic (-> *level* level2 info continues car)) 0)
+  (start 'play (the-as basic (-> *level* level2 info continues car)) 1)
+  (viewport-array-method-9 *viewport-array* (the-as viewport 2))
+  (none)
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim from the decode.
+;; target-exit is guarded per the kill-current-talker/view-set-active-target precedent:
+;; the extern is uncommented in all-types.gc for decompiler visibility only; raw_obj
+;; link-table grep shows it referenced from four objects including target-death.go,
+;; none of which is R5a's, so its owning object is unknown but definitely not landed
+;; here. Retires when whichever object defines it lands.
+(defbehavior reset-target-state target ((arg0 symbol))
+  (when arg0
+    (vector-identity! (-> self root scale))
+    (quaternion-identity! (the-as quaternion (-> self root rot)))
+    (set! (-> self root transv quad) (the-as uint128 0))
+    )
+  (if (nonzero? target-exit)
+      (target-exit)
+      )
+  (set! (-> self cam-user-mode) 'normal)
+  (buzz-stop! 0)
+  self
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim, decodes clean.
+(defbehavior target-real-post target ()
+  (quaternion-copy! (the-as quaternion (-> self root rot)) (-> self root dir-targ))
+  (none)
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim; one-line tail
+;; call to target-real-post.
+(defbehavior target-post target ()
+  (target-real-post)
+  0
+  (none)
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim, same
+;; quaternion-copy! shape as target-real-post.
+(defbehavior target-no-move-post target ()
+  (quaternion-copy! (the-as quaternion (-> self root rot)) (-> self root dir-targ))
+  0
+  (none)
   )

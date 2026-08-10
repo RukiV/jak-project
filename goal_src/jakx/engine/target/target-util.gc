@@ -7,3 +7,80 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this landed for real, R5a (#122), first sub-item per the R1b addendum:
+;; uncommented from the fully-captured all-types.gc block, verified byte-for-byte
+;; against (method 3 target-bank)'s own inspect format strings (attack-timeout through
+;; fall-height, in this exact order and at these exact byte offsets).
+(deftype target-bank (basic)
+  ((attack-timeout                   uint64         :offset-assert 8) ;; time-frame
+   (ground-timeout                   uint64         :offset-assert 16) ;; time-frame
+   (slide-down-timeout               uint64         :offset-assert 24) ;; time-frame
+   (fall-timeout                     uint64         :offset-assert 32) ;; time-frame
+   (fall-stumble-threshold           meters         :offset-assert 40)
+   (hit-invulnerable-timeout         uint64         :offset-assert 48) ;; time-frame
+   (same-attack-invulnerable-timeout uint64         :offset-assert 56) ;; time-frame
+   (min-dive-depth                   meters         :offset-assert 64)
+   (root-radius                      meters         :offset-assert 68)
+   (root-offset                      vector :inline :offset-assert 80)
+   (body-radius                      meters         :offset-assert 96)
+   (head-radius                      meters         :offset-assert 100)
+   (head-height                      meters         :offset-assert 104)
+   (head-offset                      vector :inline :offset-assert 112)
+   (fall-height                      meters         :offset-assert 128)
+   )
+  :method-count-assert 9
+  :size-assert         #x84
+  :flag-assert         #x900000084
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim, decodes clean
+;; once the deftype above is live.
+(defmethod inspect ((this target-bank))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~1Tattack-timeout: ~D~%" (-> this attack-timeout))
+  (format #t "~1Tground-timeout: ~D~%" (-> this ground-timeout))
+  (format #t "~1Tslide-down-timeout: ~D~%" (-> this slide-down-timeout))
+  (format #t "~1Tfall-timeout: ~D~%" (-> this fall-timeout))
+  (format #t "~1Tfall-stumble-threshold: (meters ~m)~%" (-> this fall-stumble-threshold))
+  (format #t "~1Thit-invulnerable-timeout: ~D~%" (-> this hit-invulnerable-timeout))
+  (format #t "~1Tsame-attack-invulnerable-timeout: ~D~%" (-> this same-attack-invulnerable-timeout))
+  (format #t "~1Tmin-dive-depth: (meters ~m)~%" (-> this min-dive-depth))
+  (format #t "~1Troot-radius: (meters ~m)~%" (-> this root-radius))
+  (format #t "~1Troot-offset: ~`vector`P~%" (-> this root-offset))
+  (format #t "~1Tbody-radius: (meters ~m)~%" (-> this body-radius))
+  (format #t "~1Thead-radius: (meters ~m)~%" (-> this head-radius))
+  (format #t "~1Thead-height: (meters ~m)~%" (-> this head-height))
+  (format #t "~1Thead-offset: ~`vector`P~%" (-> this head-offset))
+  (format #t "~1Tfall-height: (meters ~m)~%" (-> this fall-height))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim including the
+;; raw vector literals; the decompiler renders scalar meters-typed fields through the
+;; (meters N) macro but has no equivalent for vector-typed fields, so root-offset and
+;; head-offset show pre-scaled internal floats (4915.2 = 4096 x 1.2) rather than a
+;; (meters ...) form. Kept as decoded, not hand-converted.
+(define *TARGET-bank* (new 'static 'target-bank
+                        :attack-timeout #x5a
+                        :ground-timeout #x3c
+                        :slide-down-timeout #x3c
+                        :fall-timeout #x12c
+                        :fall-stumble-threshold (meters 39.9)
+                        :hit-invulnerable-timeout #x12c
+                        :same-attack-invulnerable-timeout #x258
+                        :min-dive-depth (meters 2)
+                        :root-radius (meters 2.2)
+                        :root-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 4915.2 0.0 1.0))
+                        :body-radius (meters 0.7)
+                        :head-radius (meters 0.7)
+                        :head-height (meters 1.4)
+                        :head-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 4915.2 0.0 1.0))
+                        :fall-height (meters 1)
+                        )
+        )
+

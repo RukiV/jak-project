@@ -128,7 +128,14 @@
   :flag-assert         #x3c02c00350
   ;; field mode-param2 uses ~A with a 64-bit load. field mode-param3 uses ~A with a 64-bit load.
   (:methods
-    (target-method-59 () none) ;; 59
+    ;; og:preserve-this arity fix, R5a (#122): the captured zero-arg signature
+    ;; undercounted. target-init's dispatch (logic-target_ir2.asm) passes two more
+    ;; live registers beyond self (a1=target-init's own basic-typed arg, a2=literal
+    ;; #f), matching this method's own body reading "may read a register that is not
+    ;; set: a0/a1" under the old signature (the same class of bug stop had before R4).
+    ;; Types are the caller's evidence, not this method's own internal use (still
+    ;; unresolved past its own offset-52 load, stubbed below pending a future rung).
+    (target-method-59 (_type_ basic symbol) none) ;; 59
     )
   (:states
     target-continue ;; associated process guessed by decompiler, old: (state continue-point target)
