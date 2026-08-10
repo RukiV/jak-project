@@ -283,9 +283,23 @@
 ;; shared decompression scratch space) stay unindexed, matching jak3, since
 ;; both are shared across viewports.
 ;;
-;; Lands inert: arm B of update-visible (cam-update.gc) that calls this is
-;; unreachable until vis-valid is ever set, which nothing in jakx does yet
-;; (V3). No lever here changes that.
+;; Landed inert (V2/V3); wired live by V4's lever flip, which is what actually
+;; exercises this body for the first time.
+;;
+;; V4b (#41): the V4 eyes-on boot crashed inside this method writing through a
+;; garbage destination pointer (~0x6FA00000 relative to the GOAL base, far
+;; outside GOAL memory). Root cause: the decompression scratch buffers below
+;; were transcribed from the decode as the raw literal #x70000000 -- the real
+;; PS2 EE scratchpad RAM's physical base address, which retail's own compiled
+;; binary hardcodes since that address is valid on real PS2 hardware. Every
+;; other jakx PC-port site touching this same region already substitutes
+;; *fake-scratchpad-data* (kernel/gkernel.gc:145, a real malloc'd stand-in,
+;; landed independently of this leg) for that literal -- wind-work.gc,
+;; sky-tng.gc, the scratchpad-start/-end macros in kernel/gkernel-h.gc -- and
+;; jak3's own landed update-vis! (goal_src/jak3/engine/load/decomp.gc:320-321)
+;; does the same. This landing missed that substitution; fixed to match. Not a
+;; missing allocation: *fake-scratchpad-data* was already real and already ran
+;; (unconditional top-level kernel init, confirmed ahead of any level load).
 (defmethod update-vis! ((this level) (arg0 level-vis-info) (arg1 uint) (arg2 (pointer uint8)) (arg3 int))
   (local-vars (t0-4 uint128))
   (let* ((a0-2 (-> arg0 from-bsp current-leaf-idx-view arg3))
@@ -293,8 +307,8 @@
          (s2-0 (-> arg0 vis-string a0-2))
          )
     0
-    (+ #x70000000 0)
-    (+ 2048 #x70000000)
+    (&+ *fake-scratchpad-data* 0)
+    (&+ *fake-scratchpad-data* 2048)
     (b! (!= v1-4 s2-0) cfg-8 :delay (empty-form))
     (b! (not (logtest? (vis-info-flag loading) (-> arg0 flags))) cfg-6 :delay (empty-form))
     (if (check-busy *ramdisk-rpc*)
@@ -356,8 +370,8 @@
                                         )
                             )
                     )
-              (s0-0 (+ #x70000000 0))
-              (sv-16 (+ 2048 #x70000000))
+              (s0-0 (the-as int (&+ *fake-scratchpad-data* 0)))
+              (sv-16 (the-as int (&+ *fake-scratchpad-data* 2048)))
               (s3-1 (-> this bsp visible-list-length))
               )
           (when (zero? (the-as vis-info-flag s1-0))
