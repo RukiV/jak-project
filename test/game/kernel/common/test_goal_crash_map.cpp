@@ -92,3 +92,25 @@ TEST(GoalCrashMap, RecordOrderIndependenceForBounds) {
     EXPECT_EQ(goal_crash_map_lookup_for_test(base + 0x500), nullptr);  // past obj-c
   }
 }
+
+// issue #122: format_native_rip() is the pure half of the "rip is not GOAL code"
+// reporting path (goal_crash_map.cpp), split out from the Windows-only module
+// resolution (GetModuleHandleExW et al) specifically so this arithmetic-and-snprintf
+// part stays unit-testable without a live fault or a live module.
+TEST(GoalCrashMap, FormatNativeRipComputesOffsetFromModuleBase) {
+  char buf[128] = {};
+  goal_crash_map_format_native_rip_for_test("gk.exe", 0x140000000ULL, 0x140001234ULL, buf,
+                                            sizeof(buf));
+  EXPECT_STREQ(buf, "native: gk.exe+0x1234");
+}
+
+// note: %#llx's alternate form omits the "0x" prefix specifically at value 0 (C99
+// 7.19.6.1p6), so a rip landing exactly on the module base prints "+0", not "+0x0".
+// Same convention already in use for the GOAL-code "+offset" fields elsewhere in this
+// file (e.g. "GOAL code: %s+%#x"), so this is not a special case to work around.
+TEST(GoalCrashMap, FormatNativeRipZeroOffsetAtModuleBase) {
+  char buf[128] = {};
+  goal_crash_map_format_native_rip_for_test("ntdll.dll", 0x7ffc00000000ULL, 0x7ffc00000000ULL, buf,
+                                            sizeof(buf));
+  EXPECT_STREQ(buf, "native: ntdll.dll+0");
+}

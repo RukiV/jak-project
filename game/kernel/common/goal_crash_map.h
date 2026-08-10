@@ -30,3 +30,15 @@ void goal_crash_map_install();
 // goal_addr lands in a gap, past every extent, or only reaches a zero-extent record. No
 // behavior change from the crash-handler path; see lookup() in goal_crash_map.cpp.
 const char* goal_crash_map_lookup_for_test(u32 goal_addr);
+
+// test seam (issue #122): forwards to the crash handler's pure module-relative-address
+// formatter (format_native_rip() in goal_crash_map.cpp, produces "native: <basename>+
+// offset"), so test_goal_crash_map.cpp can exercise the formatting without going
+// through the Windows-only module resolution (GetModuleHandleExW et al) that feeds it
+// in the real handler, and without a live fault. No behavior change from the
+// crash-handler path.
+void goal_crash_map_format_native_rip_for_test(const char* module_basename,
+                                               u64 module_base,
+                                               u64 rip,
+                                               char* out,
+                                               size_t out_size);

@@ -13,6 +13,11 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
+
+// psapi.h needs windows.h's typedefs (BOOL, DWORD, LPVOID, ...) already in scope, so it
+// stays in its own include block: a blank line keeps clang-format from alphabetizing it
+// ahead of windows.h.
+#include <psapi.h>
 #endif
 
 namespace {
@@ -62,6 +67,21 @@ const ObjRec* lookup(u32 goal_addr) {
   return best;
 }
 
+// pure formatting for the "rip is not GOAL code" case: given a module's basename and
+// base address plus the faulting rip, write "native: <basename>+0xOFFSET". No OS calls
+// here (that part, module resolution via GetModuleHandleExW et al, is Windows-only and
+// lives below in goal_crash_filter's else-branch); this half is plain arithmetic and
+// snprintf, so unlike the fault handler around it, it is trivially unit-testable
+// without a live fault or even a live module (issue #122).
+void format_native_rip(const char* module_basename,
+                       u64 module_base,
+                       u64 rip,
+                       char* out,
+                       size_t out_size) {
+  std::snprintf(out, out_size, "native: %s+%#llx", module_basename,
+                (unsigned long long)(rip - module_base));
+}
+
 #ifdef _WIN32
 
 // SEH-guarded reads so a corrupt pointer chain cannot re-fault inside the handler.
@@ -90,6 +110,53 @@ bool safe_read_str(const u8* base, u64 off, char* out, size_t out_size) {
   }
 }
 
+// resolve rip to its containing module and print "native: <basename>+0xOFFSET" when it
+// is not GOAL code (issue #122: previously every native fault, e.g. one landing inside
+// gk.exe itself or a system DLL, printed nothing past the raw rip). Static, fixed-size
+// buffers only, matching the rest of this handler; no dynamic allocation.
+// GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT so a fault handler never perturbs the
+// module refcount. No SEH guard here (unlike the raw GOAL-heap reads above): these
+// calls walk loader/PEB bookkeeping, not memory a wild GOAL pointer could have
+// corrupted, so they are not expected to re-fault the way a corrupt GOAL pointer chain
+// could.
+void print_native_rip(u64 rip) {
+  HMODULE mod = nullptr;
+  if (!GetModuleHandleExW(
+          GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+          (LPCWSTR)(uintptr_t)rip, &mod) ||
+      !mod) {
+    fprintf(stderr, "native: unresolved\n");
+    return;
+  }
+
+  MODULEINFO mod_info;
+  wchar_t path[MAX_PATH];
+  if (!K32GetModuleInformation(GetCurrentProcess(), mod, &mod_info, sizeof(mod_info)) ||
+      !GetModuleFileNameW(mod, path, MAX_PATH)) {
+    fprintf(stderr, "native: unresolved\n");
+    return;
+  }
+
+  // basename only: walk to the last path separator
+  const wchar_t* base_name = path;
+  for (const wchar_t* p = path; *p; p++) {
+    if (*p == L'\\' || *p == L'/') {
+      base_name = p + 1;
+    }
+  }
+
+  char narrow_name[64];
+  size_t i = 0;
+  for (; i + 1 < sizeof(narrow_name) && base_name[i]; i++) {
+    narrow_name[i] = (char)base_name[i];
+  }
+  narrow_name[i] = 0;
+
+  char line[128];
+  format_native_rip(narrow_name, (u64)(uintptr_t)mod_info.lpBaseOfDll, rip, line, sizeof(line));
+  fprintf(stderr, "%s\n", line);
+}
+
 thread_local bool g_in_handler = false;
 // (no saved previous filter: the vectored handler coexists with any SEH chain)
 
@@ -115,10 +182,28 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   fprintf(stderr, "\n-------- GOAL CRASH REPORT --------\n");
   fprintf(stderr, "exception %#lx at rip=%#llx", er->ExceptionCode, (unsigned long long)rip);
   if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && er->NumberParameters >= 2) {
-    fprintf(stderr, " (%s %#llx)", er->ExceptionInformation[0] ? "writing" : "reading",
-            (unsigned long long)er->ExceptionInformation[1]);
+    // issue #122: Windows reports a #GP-class fault (a misaligned SSE access, e.g. a
+    // movaps against an 8-byte-aligned pointer, is the common cause) as an access
+    // violation with ExceptionInformation[1] == -1, i.e. no real faulting address at
+    // all. The old unconditional "reading 0xffffffffffffffff" label sent a real
+    // investigation chasing a null-pointer theory for two rounds before a standalone
+    // probe proved this is what Windows prints for misaligned movaps (info0=0,
+    // info1=-1), not an actual read of that address. Raw info0/info1 stay printed
+    // either way so nothing is hidden.
+    if (er->ExceptionInformation[1] == (ULONG_PTR)-1) {
+      fprintf(stderr,
+              " (no faulting address: #GP-class fault, commonly a misaligned SSE access; "
+              "info0=%#llx info1=%#llx)",
+              (unsigned long long)er->ExceptionInformation[0],
+              (unsigned long long)er->ExceptionInformation[1]);
+    } else {
+      fprintf(stderr, " (%s %#llx)", er->ExceptionInformation[0] ? "writing" : "reading",
+              (unsigned long long)er->ExceptionInformation[1]);
+    }
   }
   fprintf(stderr, "\n");
+  fprintf(stderr, "rsp: %#llx (rsp mod 16 = %llu)\n", (unsigned long long)ctx->Rsp,
+          (unsigned long long)(ctx->Rsp % 16));
 
   // symbolize rip if it is in GOAL memory
   //
@@ -138,6 +223,8 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
     } else {
       fprintf(stderr, "GOAL code: unmapped object (goal %#x)\n", goal_ip);
     }
+  } else {
+    print_native_rip(rip);
   }
 
   // the current GOAL process from r13 (jakx raw offsets: name ptr at +0, state at
@@ -207,6 +294,14 @@ const char* goal_crash_map_lookup_for_test(u32 goal_addr) {
   std::lock_guard<std::mutex> lock(g_objs_mutex);
   const ObjRec* o = lookup(goal_addr);
   return o ? o->name : nullptr;
+}
+
+void goal_crash_map_format_native_rip_for_test(const char* module_basename,
+                                               u64 module_base,
+                                               u64 rip,
+                                               char* out,
+                                               size_t out_size) {
+  format_native_rip(module_basename, module_base, rip, out, out_size);
 }
 
 void goal_crash_map_install() {
