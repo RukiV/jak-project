@@ -477,6 +477,7 @@ namespace method_14_collide_mesh { extern void link(); }
 namespace method_9_collide_cache_prim { extern void link(); }
 namespace method_10_collide_cache_prim { extern void link(); }
 namespace method_17_collide_cache { extern void link(); }
+namespace adgif_shader_texture_with_update { extern void link(); }
 }
 // clang-format on
 
@@ -791,7 +792,8 @@ PerGameVersion<std::unordered_map<std::string, std::vector<void (*)()>>> gMips2C
        jakx::generic_translucent::link, jakx::high_speed_reject::link,
        jakx::mercneric_convert::link, jakx::mercneric_bittable_asm::link,
        jakx::mercneric_shader_asm::link, jakx::mercneric_matrix_asm::link,
-       jakx::generic_merc_init_asm::link}}}};
+       jakx::generic_merc_init_asm::link}},
+     {"texture", {jakx::adgif_shader_texture_with_update::link}}}};
 
 void LinkedFunctionTable::reg(const std::string& name, u64 (*exec)(void*), u32 stack_size) {
   const auto& it = m_executes.insert({name, {exec, Ptr<u8>()}});
