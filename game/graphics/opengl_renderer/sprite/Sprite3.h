@@ -37,6 +37,17 @@ bool sprite3_clamp_value_is_valid(u64 val);
 // m_current_mode to before decoding each sprite's adgif.
 DrawMode sprite3_default_mode();
 
+// #145 amendment: a live jungle boot hit an all-zero adgif slot 4 (register address 0, data 0)
+// right after eco-blue/eco-yellow bring-up art-group load failures, and the fatal else below
+// caught it. Zero/zero means the shader was never written -- an unpopulated adgif cache entry
+// from a spawner whose art group failed to load -- and is a distinct, recoverable case from a
+// genuinely unknown nonzero address. do_block_common's slot-4 dispatch needs a live Sprite3 (see
+// the seam note above), so the address/data classification itself is pulled out into this pure
+// function for the same reason sprite3_decode_test1 and sprite3_clamp_value_is_valid are: so
+// test_Sprite3.cpp can exercise the SKIP_ZERO routing without a GL context.
+enum class Sprite3AdgifSlot4Kind { ZBUF, TEST, CLAMP, SKIP_ZERO, FATAL };
+Sprite3AdgifSlot4Kind sprite3_classify_adgif_slot4(u64 addr, u64 data);
+
 class Sprite3 : public BucketRenderer {
  public:
   Sprite3(const std::string& name, int my_id);
@@ -207,6 +218,10 @@ class Sprite3 : public BucketRenderer {
     int count_2d_grp0 = 0;
     int blocks_2d_grp1 = 0;
     int count_2d_grp1 = 0;
+    // per-frame count of sprites skipped for an all-zero adgif slot 4 (#145 amendment): an
+    // unpopulated shader from a bring-up missing-art spawner, see sprite3_classify_adgif_slot4's
+    // SKIP_ZERO case above for the full rationale
+    int zero_adgif_skips = 0;
   } m_debug_stats;
 
   bool m_enable_distort_instancing = true;

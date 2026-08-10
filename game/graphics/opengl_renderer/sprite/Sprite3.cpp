@@ -675,6 +675,7 @@ void Sprite3::draw_debug_window() {
   ImGui::Text("2D flag classes 0x00: %d  0x10: %d  0x20: %d  0x30: %d",
               m_debug_stats.flag_counts[0], m_debug_stats.flag_counts[1],
               m_debug_stats.flag_counts[2], m_debug_stats.flag_counts[3]);
+  ImGui::Text("Zero adgif slot 4 skips (#145): %d", m_debug_stats.zero_adgif_skips);
   ImGui::Checkbox("Hide flagged 2d (#65 triage)", &m_hide_flagged_2d);
   if (ImGui::TreeNode("2D buckets (#65 triage)")) {
     // tbp, sprite count, and the first sprite's color per bucket this frame:
@@ -954,6 +955,29 @@ void Sprite3::handle_alpha(u64 val,
   update_mode_from_alpha1(val, m_current_mode);
 }
 
+Sprite3AdgifSlot4Kind sprite3_classify_adgif_slot4(u64 addr, u64 data) {
+  switch (GsRegisterAddress(addr)) {
+    case GsRegisterAddress::ZBUF_1:
+      return Sprite3AdgifSlot4Kind::ZBUF;
+    case GsRegisterAddress::TEST_1:
+      return Sprite3AdgifSlot4Kind::TEST;
+    case GsRegisterAddress::CLAMP_1:
+      return Sprite3AdgifSlot4Kind::CLAMP;
+    default:
+      // All-zero (register address 0, data 0) means the shader was never written: an unpopulated
+      // adgif cache entry from a bring-up spawner whose art group failed to load (observed at the
+      // crash -- eco-blue/eco-yellow art-group load failures immediately preceded it, on a jungle
+      // boot). Skip is the faithful response here: draw nothing for this sprite, rather than
+      // asserting (which turns a recoverable bring-up gap into a hard crash) or silently decoding
+      // the zero payload as CLAMP_1 state (the pre-#145 behavior this branch already replaced).
+      // Any other, genuinely unknown nonzero address stays fatal below.
+      if (addr == 0 && data == 0) {
+        return Sprite3AdgifSlot4Kind::SKIP_ZERO;
+      }
+      return Sprite3AdgifSlot4Kind::FATAL;
+  }
+}
+
 void Sprite3::do_block_common(SpriteMode mode,
                               u32 count,
                               SharedRenderState* render_state,
@@ -997,17 +1021,24 @@ void Sprite3::do_block_common(SpriteMode mode,
     handle_tex0(adgif.tex0_data, render_state, prof);
     handle_tex1(adgif.tex1_data, render_state, prof);
     // JakX puts TEST_1 in this slot where jak1/2/3 put ZBUF_1 (#145); route by register
-    // address rather than assuming ZBUF_1-or-CLAMP_1.
-    switch (GsRegisterAddress(adgif.clamp_addr)) {
-      case GsRegisterAddress::ZBUF_1:
+    // address rather than assuming ZBUF_1-or-CLAMP_1. sprite3_classify_adgif_slot4 (above) also
+    // catches the all-zero case (#145 amendment): an unpopulated shader, not a real register.
+    switch (sprite3_classify_adgif_slot4(adgif.clamp_addr, adgif.clamp_data)) {
+      case Sprite3AdgifSlot4Kind::ZBUF:
         handle_zbuf(adgif.clamp_data, render_state, prof);
         break;
-      case GsRegisterAddress::TEST_1:
+      case Sprite3AdgifSlot4Kind::TEST:
         handle_test(adgif.clamp_data, render_state, prof);
         break;
-      case GsRegisterAddress::CLAMP_1:
+      case Sprite3AdgifSlot4Kind::CLAMP:
         handle_clamp(adgif.clamp_data, render_state, prof);
         break;
+      case Sprite3AdgifSlot4Kind::SKIP_ZERO:
+        // Unpopulated shader (#145 amendment, see sprite3_classify_adgif_slot4): don't touch
+        // m_current_mode and don't submit this sprite, just tally it and move on to the next one.
+        m_debug_stats.zero_adgif_skips++;
+        continue;
+      case Sprite3AdgifSlot4Kind::FATAL:
       default:
         ASSERT_MSG(false, fmt::format("sprite adgif slot4 addr {:#x} data {:#x}",
                                       (u32)adgif.clamp_addr, (u64)adgif.clamp_data));

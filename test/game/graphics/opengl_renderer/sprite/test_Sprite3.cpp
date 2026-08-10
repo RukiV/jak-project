@@ -83,3 +83,39 @@ TEST(Sprite3ClampWhitelist, AcceptsTheFourValidCombinations) {
   EXPECT_TRUE(sprite3_clamp_value_is_valid(0b100));
   EXPECT_TRUE(sprite3_clamp_value_is_valid(0b101));
 }
+
+// #145 amendment: a live jungle boot hit an all-zero adgif slot 4 (register address 0, data 0)
+// right after eco-blue/eco-yellow bring-up art-group load failures, and do_block_common's fatal
+// else (the ASSERT_MSG(false, ...) this whole file's earlier tests guard the boundaries of) fired
+// on it. Zero/zero means an unpopulated shader -- a spawner whose art group failed to load -- and
+// must be classified as its own SKIP_ZERO case, not misdecoded as CLAMP_1 state and not left to
+// the fatal else with every other unrecognized address.
+TEST(Sprite3ClassifyAdgifSlot4, AllZeroIsSkipZero) {
+  EXPECT_EQ(sprite3_classify_adgif_slot4(0, 0), Sprite3AdgifSlot4Kind::SKIP_ZERO);
+}
+
+// The three known slot-4 register addresses must still dispatch the way do_block_common relied on
+// before the classification was pulled out into a free function: this locks that extraction
+// against drift.
+TEST(Sprite3ClassifyAdgifSlot4, KnownAddressesRouteUnchanged) {
+  EXPECT_EQ(sprite3_classify_adgif_slot4((u64)GsRegisterAddress::ZBUF_1, 0),
+            Sprite3AdgifSlot4Kind::ZBUF);
+  EXPECT_EQ(sprite3_classify_adgif_slot4((u64)GsRegisterAddress::TEST_1, 0x5126b),
+            Sprite3AdgifSlot4Kind::TEST);
+  EXPECT_EQ(sprite3_classify_adgif_slot4((u64)GsRegisterAddress::CLAMP_1, 0b101),
+            Sprite3AdgifSlot4Kind::CLAMP);
+}
+
+// Only the conjunction of a zero address AND zero data is the unpopulated-shader signature; a
+// zero address with real data, or a real address with zero data, is not the observed crash
+// pattern and must stay fatal rather than silently skip.
+TEST(Sprite3ClassifyAdgifSlot4, PartialZeroStaysFatal) {
+  EXPECT_EQ(sprite3_classify_adgif_slot4(0, 0x1234), Sprite3AdgifSlot4Kind::FATAL);
+  EXPECT_EQ(sprite3_classify_adgif_slot4(0x99, 0), Sprite3AdgifSlot4Kind::FATAL);
+}
+
+// Any other unrecognized nonzero address (not one of the three known registers, not the all-zero
+// pattern) is genuinely unknown and stays fatal, same as before the SKIP_ZERO case was added.
+TEST(Sprite3ClassifyAdgifSlot4, UnknownNonzeroAddressIsFatal) {
+  EXPECT_EQ(sprite3_classify_adgif_slot4(0x99, 0x1234), Sprite3AdgifSlot4Kind::FATAL);
+}
