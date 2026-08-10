@@ -5,5 +5,234 @@
 ;; name in dgo: decomp
 ;; dgos: ENGINE, GAME
 
+;; og:preserve-this ported from jak3 verbatim (goal_src/jak3/engine/load/
+;; decomp.gc:47): a 2-field structure passed opaquely into unpack-comp-huf,
+;; update-vis! never reads its fields directly (#41)
+(deftype huf-dictionary-node (structure)
+  ((zero  uint16)
+   (one   uint16)
+   )
+  )
+
+;; og:preserve-this decomp.o's other three functions (unpack-comp-rle,
+;; unpack-comp-huf, unpack-comp-lzo) are pending their own landing; update-vis!
+;; calls them, so they're declared extern here per the usual pattern until then
+;; (#41). Their signatures are jak3's exact ones (goal_src/jak3/engine/load/
+;; decomp.gc), confirmed against this leg's decode of the same three calls.
+(define-extern unpack-comp-rle (function (pointer int8) (pointer int8) (pointer int8)))
+(define-extern unpack-comp-huf (function (pointer uint8) (pointer uint8) uint huf-dictionary-node none))
+(define-extern unpack-comp-lzo (function (pointer uint8) (pointer uint8) none))
+
 ;; DECOMP BEGINS
 
+;; og:preserve-this update-vis! landed from a scoped decode with
+;; blocks_ending_in_asm_branch and type_casts hints (#41). Real jakx signature
+;; adds a viewport index as the fourth explicit arg (arriving in the ABI's 5th
+;; integer register, t0), confirmed by the clean decode and matching
+;; bsp-camera-asm's own added arg; level-h.gc:687 and
+;; decompiler/config/jakx/all-types.gc's method 16 declaration are both
+;; updated to match. The declared third arg's type, (pointer uint8), is
+;; confirmed correct against jak3 by this decode (an earlier read of the
+;; unresolved raw asm, before these hints existed, misread a length-shaped use
+;; that turned out to belong to a different local entirely once the CFG
+;; actually resolved).
+;;
+;; The real port, matching jakx's per-view level-vis-info (level-h.gc:274-289,
+;; vis-bits and current-vis-string both uint32 x4) instead of jak3's scalar
+;; fields: current-leaf-idx-view, current-vis-string and vis-bits are all
+;; indexed by the new viewport arg where jak3 reads/writes the bare field.
+;; vis-string (the per-leaf compressed dictionary) and vis-buffer (the level's
+;; shared decompression scratch space) stay unindexed, matching jak3, since
+;; both are shared across viewports.
+;;
+;; Lands inert: arm B of update-visible (cam-update.gc) that calls this is
+;; unreachable until vis-valid is ever set, which nothing in jakx does yet
+;; (V3). No lever here changes that.
+(defmethod update-vis! ((this level) (arg0 level-vis-info) (arg1 uint) (arg2 (pointer uint8)) (arg3 int))
+  (local-vars (t0-4 uint128))
+  (let* ((a0-2 (-> arg0 from-bsp current-leaf-idx-view arg3))
+         (v1-4 (-> arg0 current-vis-string arg3))
+         (s2-0 (-> arg0 vis-string a0-2))
+         )
+    0
+    (+ #x70000000 0)
+    (+ 2048 #x70000000)
+    (b! (!= v1-4 s2-0) cfg-8 :delay (empty-form))
+    (b! (not (logtest? (vis-info-flag loading) (-> arg0 flags))) cfg-6 :delay (empty-form))
+    (if (check-busy *ramdisk-rpc*)
+        (return #f)
+        )
+    (logclear! (-> arg0 flags) (vis-info-flag loading))
+    (let ((s2-1 (the-as object (-> this vis-buffer))))
+      (b! #t cfg-16 :delay (nop!))
+      (label cfg-6)
+      (return #t)
+      (label cfg-8)
+      (when (logtest? (vis-info-flag loading) (-> arg0 flags))
+        (if (check-busy *ramdisk-rpc*)
+            (return #f)
+            )
+        (logclear! (-> arg0 flags) (vis-info-flag loading))
+        )
+      (set! (-> arg0 current-vis-string arg3) s2-0)
+      (b! (logtest? (vis-info-flag in-iop) (-> arg0 flags)) cfg-15 :delay (empty-form))
+      (set! s2-1 (&+ arg2 s2-0))
+      (b! #t cfg-16 :delay (nop!))
+      (label cfg-15)
+      (format 0 "ERROR: ramdisk vis for level ~A, this is not supported~%" (-> this name))
+      (let ((v0-1 #f))
+        (b! #t cfg-49 :delay (nop!))
+        (label cfg-16)
+        (let ((s1-0 (the-as int (logand (vis-info-flag
+                                          dummy0
+                                          dummy1
+                                          dummy2
+                                          dummy3
+                                          dummy4
+                                          dummy5
+                                          dummy6
+                                          dummy7
+                                          dummy8
+                                          dummy9
+                                          dummy10
+                                          dummy11
+                                          dummy12
+                                          dummy13
+                                          dummy14
+                                          dummy15
+                                          dummy16
+                                          dummy17
+                                          dummy18
+                                          dummy19
+                                          dummy20
+                                          dummy21
+                                          dummy22
+                                          dummy23
+                                          dummy24
+                                          dummy25
+                                          dummy26
+                                          dummy27
+                                          dummy28
+                                          )
+                                        (-> arg0 flags)
+                                        )
+                            )
+                    )
+              (s0-0 (+ #x70000000 0))
+              (sv-16 (+ 2048 #x70000000))
+              (s3-1 (-> this bsp visible-list-length))
+              )
+          (when (zero? (the-as vis-info-flag s1-0))
+            (let ((v1-36 (/ (+ s3-1 15) 16)))
+              (dotimes (a0-20 v1-36)
+                (let ((a1-4 (+ s0-0 (* a0-20 16))))
+                  ;; s.q!/s.b! below are the decompiler's raw store notation for
+                  ;; ops whose base is int, not a declared pointer type; the same
+                  ;; (pointer uintN) cast used in bsp-camera-asm's landing stands in
+                  (set! (-> (the-as (pointer uint128) a1-4) 0) (the-as uint128 0))
+                  )
+                )
+              )
+            (mem-copy! (the-as pointer s0-0) (the-as pointer s2-1) s3-1)
+            )
+          (while (nonzero? s1-0)
+            (let ((v1-39 (logand s1-0 7)))
+              (cond
+                ((= v1-39 1)
+                 (let ((v1-41 (/ (+ s3-1 15) 16)))
+                   (dotimes (a0-24 v1-41)
+                     (let ((a1-7 (+ s0-0 (* a0-24 16))))
+                       (set! (-> (the-as (pointer uint128) a1-7) 0) (the-as uint128 0))
+                       )
+                     )
+                   )
+                 (let* ((sv-32 (-> this bsp extra-vis-list-length))
+                        (sv-48 (+ s0-0 (- s3-1 sv-32)))
+                        (v1-51 (unpack-vis (-> this bsp drawable-trees) (the-as (pointer int8) s0-0) (the-as (pointer int8) s2-1)))
+                        )
+                   (dotimes (a0-26 sv-32)
+                     (let ((a1-9 (-> v1-51 0)))
+                       (set! v1-51 (&-> v1-51 1))
+                       (let ((a2-4 sv-48))
+                         (set! (-> (the-as (pointer uint8) a2-4) 0) a1-9)
+                         )
+                       )
+                     (+! sv-48 1)
+                     )
+                   )
+                 #f
+                 )
+                ((= v1-39 2)
+                 (unpack-comp-rle (the-as (pointer int8) s0-0) (the-as (pointer int8) s2-1))
+                 )
+                ((= v1-39 3)
+                 (unpack-comp-huf
+                   (the-as (pointer uint8) s0-0)
+                   (the-as (pointer uint8) s2-1)
+                   (-> arg0 dictionary)
+                   (the-as huf-dictionary-node (+ (-> arg0 dictionary) (-> arg0 dictionary-length) -4))
+                   )
+                 )
+                ((= v1-39 4)
+                 (unpack-comp-lzo (the-as (pointer uint8) s0-0) (the-as (pointer uint8) s2-1))
+                 )
+                )
+              )
+            (set! s2-1 s0-0)
+            (set! s0-0 sv-16)
+            (set! sv-16 (the-as int s2-1))
+            (shift-arith-right-32 s1-0 s1-0 3)
+            )
+          (let ((s1-1 (the-as (pointer uint8) s2-1))
+                (s0-1 (-> this bsp all-visible-list))
+                (v1-57 #f)
+                )
+            (let ((sv-64 0))
+              (while (< sv-64 s3-1)
+                (when (!= (logand (-> s1-1 0) (-> s0-1 0)) (-> s1-1 0))
+                  (format #t "ERROR: illegal vis bits set [byte ~X] ~X -> ~X~%" sv-64 (-> s1-1 0) (-> s0-1 0))
+                  (set! v1-57 #t)
+                  )
+                (set! s1-1 (&-> s1-1 1))
+                (set! s0-1 (&-> s0-1 1))
+                (+! sv-64 1)
+                )
+              )
+            (when v1-57
+              (format
+                #t
+                "src = #x~x dest = #x~x  ~s  ~s~%"
+                s2-1
+                (-> arg0 vis-bits arg3)
+                (-> arg0 level)
+                (-> arg0 from-level)
+                )
+              (format #t "leaf-index = ~d~%" (-> arg0 from-bsp current-leaf-idx-view))
+              0
+              )
+            )
+          (let ((v1-63 s2-1)
+                (a0-49 (the-as object (-> arg0 vis-bits arg3)))
+                (a1-22 (the-as (pointer uinteger) (-> this bsp all-visible-list)))
+                (a2-11 (/ (+ s3-1 15) 16))
+                )
+            (dotimes (a3-6 a2-11)
+              (let ((t0-3 (-> (the-as (pointer uint128) v1-63) 0))
+                    (t1-1 (-> (the-as (pointer uint128) a1-22) 0))
+                    )
+                (.pand t0-4 t0-3 t1-1)
+                )
+              (set! (-> (the-as (pointer uint128) a0-49) 0) t0-4)
+              (set! a0-49 (&-> (the-as (pointer uint128) a0-49) 1))
+              (set! v1-63 (&-> (the-as (pointer uint128) v1-63) 1))
+              (set! a1-22 (&-> (the-as (pointer uint128) a1-22) 1))
+              )
+            )
+          )
+        (set! v0-1 #t)
+        (label cfg-49)
+        v0-1
+        )
+      )
+    )
+  )
