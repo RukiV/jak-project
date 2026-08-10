@@ -69,16 +69,16 @@ Register make_vf(int idx) {
 
 /*!
  * Convert a GOAL symbol name to a valid C++ variable name.
- * dashes become underscores, and !/?/ * are dropped.
+ * dashes and + become underscores, and !/?/ * / < are dropped.
  */
 std::string goal_to_c_name(const std::string& name) {
   std::string result;
   for (auto c : name) {
-    if (c == '!' || c == '?' || c == '*') {
+    if (c == '!' || c == '?' || c == '*' || c == '<') {
       continue;
     }
 
-    if (c == '-') {
+    if (c == '-' || c == '+') {
       c = '_';
     }
 
