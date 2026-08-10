@@ -3021,8 +3021,10 @@ and apply its want set when it changes; update! then streams the section window.
 (define *jakx-racer-target-index* 0)
 (define *jakx-racer-cam-back* (meters 8))
 (define *jakx-racer-cam-height* (meters 4))
-;; last frame's horizontal movement direction, unit length; seeds the chase offset
-;; and survives the racer being momentarily stationary (arrival snap frame)
+;; last frame's movement direction, 3D-normalized; only x/z are ever consumed, and
+;; jakx-racer-cam-tick! re-normalizes them in the horizontal plane before use. Seeds
+;; the chase offset and survives the racer being momentarily stationary (arrival
+;; snap frame)
 (define *jakx-racer-heading* (new 'static 'vector :z 1.0 :w 1.0))
 
 ;; og:preserve-this racer centerline table (#161): the bring-up racer originally
@@ -3271,7 +3273,6 @@ overshoot and no separate tunable to keep in sync with speed."
                   ;; behind, not where the racer is headed next
                   (when (> dist (meters 0.001))
                     (set! (-> *jakx-racer-heading* x) (/ dx dist))
-                    (set! (-> *jakx-racer-heading* y) (/ dy dist))
                     (set! (-> *jakx-racer-heading* z) (/ dz dist))
                     )
                   )
@@ -3339,7 +3340,6 @@ overshoot and no separate tunable to keep in sync with speed."
                       ;; behind, not where the racer is headed next
                       (when (> dist (meters 0.001))
                         (set! (-> *jakx-racer-heading* x) (/ dx dist))
-                        (set! (-> *jakx-racer-heading* y) (/ dy dist))
                         (set! (-> *jakx-racer-heading* z) (/ dz dist))
                         )
                       )
