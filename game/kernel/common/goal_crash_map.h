@@ -13,6 +13,8 @@
  * this information by hand through lldb cost hours per crash (issue #34).
  */
 
+#include <cstddef>
+
 #include "common/common_types.h"
 
 // record one linked object's GOAL-space start and size in bytes (call at link time,
