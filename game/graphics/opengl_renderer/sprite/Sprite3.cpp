@@ -145,17 +145,22 @@ void Sprite3::opengl_setup_normal() {
   m_vertices_3d.resize(verts);
   m_index_buffer_data.resize(idx_buffer_len);
 
-  m_default_mode.disable_depth_write();
-  m_default_mode.set_depth_test(GsTest::ZTest::GEQUAL);
-  m_default_mode.set_alpha_blend(DrawMode::AlphaBlend::SRC_DST_SRC_DST);
-  m_default_mode.set_aref(38);
-  m_default_mode.set_alpha_test(DrawMode::AlphaTest::GEQUAL);
-  m_default_mode.set_alpha_fail(GsTest::AlphaFail::FB_ONLY);
-  m_default_mode.set_at(true);
-  m_default_mode.set_zt(true);
-  m_default_mode.set_ab(true);
-
+  m_default_mode = sprite3_default_mode();
   m_current_mode = m_default_mode;
+}
+
+DrawMode sprite3_default_mode() {
+  DrawMode mode;
+  mode.disable_depth_write();
+  mode.set_depth_test(GsTest::ZTest::GEQUAL);
+  mode.set_alpha_blend(DrawMode::AlphaBlend::SRC_DST_SRC_DST);
+  mode.set_aref(38);
+  mode.set_alpha_test(DrawMode::AlphaTest::GEQUAL);
+  mode.set_alpha_fail(GsTest::AlphaFail::FB_ONLY);
+  mode.set_at(true);
+  mode.set_zt(true);
+  mode.set_ab(true);
+  return mode;
 }
 
 /*!
@@ -839,21 +844,59 @@ void Sprite3::handle_zbuf(u64 val,
   m_current_mode.set_depth_write_enable(!x.zmsk());
 }
 
+void sprite3_decode_test1(u64 val, DrawMode& mode) {
+  GsTest reg(val);
+  mode.set_at(reg.alpha_test_enable());
+  if (reg.alpha_test_enable()) {
+    switch (reg.alpha_test()) {
+      case GsTest::AlphaTest::NEVER:
+        mode.set_alpha_test(DrawMode::AlphaTest::NEVER);
+        break;
+      case GsTest::AlphaTest::ALWAYS:
+        mode.set_alpha_test(DrawMode::AlphaTest::ALWAYS);
+        break;
+      case GsTest::AlphaTest::GEQUAL:
+        mode.set_alpha_test(DrawMode::AlphaTest::GEQUAL);
+        break;
+      default:
+        ASSERT_MSG(false, fmt::format("sprite TEST_1 alpha test {}", (int)reg.alpha_test()));
+    }
+  }
+  mode.set_aref(reg.aref());
+  mode.set_alpha_fail(reg.afail());
+  mode.set_zt(reg.zte());
+  mode.set_depth_test(reg.ztest());
+  // TEST_1 carries no explicit z-write-mask bit the way ZBUF_1's zmsk does (handle_zbuf,
+  // above), so depth write follows the alpha test kind instead (#145, the jak3 zmsk
+  // equivalence): an alpha test of NEVER is jakx's no-z-write idiom (payload 0x51001),
+  // matching AFAIL_NO_DEPTH_WRITE's existing NEVER+FB_ONLY special case
+  // (background_common.cpp, compute_alpha_test_draw_settings).
+  mode.set_depth_write_enable(reg.alpha_test() != GsTest::AlphaTest::NEVER);
+}
+
+void Sprite3::handle_test(u64 val,
+                          SharedRenderState* /*render_state*/,
+                          ScopedProfilerNode& /*prof*/) {
+  sprite3_decode_test1(val, m_current_mode);
+}
+
+bool sprite3_clamp_value_is_valid(u64 val) {
+  return val == 0 || val == 1 || val == 0b100 || val == 0b101;
+}
+
 void Sprite3::handle_clamp(u64 val,
                            SharedRenderState* /*render_state*/,
                            ScopedProfilerNode& /*prof*/) {
-  // Decode wms/wmt rather than whitelisting whole values: JakX particle adgifs mix
-  // CLAMP and REPEAT per axis and carry stale region bits the GS ignores in these
-  // modes (first seen: 0x51001, wms CLAMP wmt REPEAT). REGION_* modes stay fatal,
-  // since the renderer cannot express them (#53 slice 4).
-  u64 wms = val & 0b11;
-  u64 wmt = (val >> 2) & 0b11;
-  if (wms >= 2 || wmt >= 2) {
+  // Strict whitelist (#145 revert of 8ae7ce942's wms/wmt range-decode relaxation, which
+  // was widened based on a TEST_1 payload misrouted here before slot 4 was routed by
+  // register address in do_block_common). REGION_* modes stay fatal, since the renderer
+  // cannot express them (#53 slice 4).
+  if (!sprite3_clamp_value_is_valid(val)) {
     ASSERT_MSG(false, fmt::format("clamp: 0x{:x}", val));
   }
 
-  m_current_mode.set_clamp_s_enable(wms == 1);
-  m_current_mode.set_clamp_t_enable(wmt == 1);
+  m_current_mode.set_clamp_s_enable(val & 0b001);
+  m_current_mode.set_clamp_t_enable(val & 0b100);
 }
 
 void Sprite3::update_mode_from_alpha1(u64 val, DrawMode& mode) {
@@ -953,10 +996,21 @@ void Sprite3::do_block_common(SpriteMode mode,
     auto& adgif = m_adgif[sprite_idx];
     handle_tex0(adgif.tex0_data, render_state, prof);
     handle_tex1(adgif.tex1_data, render_state, prof);
-    if (GsRegisterAddress(adgif.clamp_addr) == GsRegisterAddress::ZBUF_1) {
-      handle_zbuf(adgif.clamp_data, render_state, prof);
-    } else {
-      handle_clamp(adgif.clamp_data, render_state, prof);
+    // JakX puts TEST_1 in this slot where jak1/2/3 put ZBUF_1 (#145); route by register
+    // address rather than assuming ZBUF_1-or-CLAMP_1.
+    switch (GsRegisterAddress(adgif.clamp_addr)) {
+      case GsRegisterAddress::ZBUF_1:
+        handle_zbuf(adgif.clamp_data, render_state, prof);
+        break;
+      case GsRegisterAddress::TEST_1:
+        handle_test(adgif.clamp_data, render_state, prof);
+        break;
+      case GsRegisterAddress::CLAMP_1:
+        handle_clamp(adgif.clamp_data, render_state, prof);
+        break;
+      default:
+        ASSERT_MSG(false, fmt::format("sprite adgif slot4 addr {:#x} data {:#x}",
+                                      (u32)adgif.clamp_addr, (u64)adgif.clamp_data));
     }
     handle_alpha(adgif.alpha_data, render_state, prof);
 

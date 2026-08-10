@@ -13,6 +13,30 @@
 #include "game/graphics/opengl_renderer/sprite/GlowRenderer.h"
 #include "game/graphics/opengl_renderer/sprite/sprite_common.h"
 
+// #145 test seam: JakX's particle adgifs put the GS TEST_1 register in adgif slot 4 (where
+// jak1/2/3 put ZBUF_1); do_block_common routes it to Sprite3::handle_test, which decodes it via
+// sprite3_decode_test1 below. That decode, the narrowed CLAMP_1 whitelist predicate, and the
+// pure builder for m_default_mode are free functions (not Sprite3 members) so test_Sprite3.cpp
+// can exercise them without constructing a Sprite3: its constructor calls opengl_setup(), which
+// issues real GL calls that segfault in the test binary (goalc-test never creates a GL context,
+// so glad's function pointers are null until gladLoadGL runs).
+
+// Pure decode of adgif slot 4's TEST_1 register into a DrawMode. Mirrors GlowRenderer's TEST_1
+// handling (GlowRenderer.cpp:511-534) plus one addition: TEST_1 carries no z-write-mask bit the
+// way ZBUF_1's zmsk does (Sprite3::handle_zbuf), so depth_write_enable follows the alpha test
+// kind instead (an alpha test of NEVER is jakx's no-z-write idiom, payload 0x51001).
+void sprite3_decode_test1(u64 val, DrawMode& mode);
+
+// Acceptance predicate for adgif slot 4's CLAMP_1 payload: the strict whitelist from before
+// 8ae7ce942's wms/wmt range-decode relaxation, which was widened based on a TEST_1 payload
+// misrouted here before slot 4 was routed by register address (#145). REGION_* modes (wms/wmt >=
+// 2) stay fatal, since the renderer cannot express them (#53 slice 4).
+bool sprite3_clamp_value_is_valid(u64 val);
+
+// Pure builder for m_default_mode (Sprite3.cpp:148-156), the baseline do_block_common resets
+// m_current_mode to before decoding each sprite's adgif.
+DrawMode sprite3_default_mode();
+
 class Sprite3 : public BucketRenderer {
  public:
   Sprite3(const std::string& name, int my_id);
@@ -69,6 +93,7 @@ class Sprite3 : public BucketRenderer {
   void handle_tex1(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
   // void handle_mip(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
   void handle_zbuf(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
+  void handle_test(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
   void handle_clamp(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
   void handle_alpha(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
 

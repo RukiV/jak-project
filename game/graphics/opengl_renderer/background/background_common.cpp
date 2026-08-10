@@ -106,6 +106,22 @@ DoubleDraw setup_opengl_from_draw_mode(DrawMode mode, u32 tex_unit, bool mipmap)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   }
 
+  auto alpha_settings = compute_alpha_test_draw_settings(mode);
+  double_draw.kind = alpha_settings.double_draw.kind;
+  double_draw.aref_first = alpha_settings.double_draw.aref_first;
+  double_draw.aref_second = alpha_settings.double_draw.aref_second;
+
+  if (alpha_settings.write_depth) {
+    glDepthMask(GL_TRUE);
+  } else {
+    glDepthMask(GL_FALSE);
+  }
+  return double_draw;
+}
+
+AlphaTestDrawSettings compute_alpha_test_draw_settings(DrawMode mode) {
+  AlphaTestDrawSettings result;
+
   // for some reason, they set atest NEVER + FB_ONLY to disable depth writes
   bool alpha_hack_to_disable_z_write = false;
 
@@ -123,8 +139,8 @@ DoubleDraw setup_opengl_from_draw_mode(DrawMode mode, u32 tex_unit, bool mipmap)
           case GsTest::AlphaFail::FB_ONLY:
             if (mode.get_depth_write_enable()) {
               // darn, we need to draw twice
-              double_draw.kind = DoubleDrawKind::AFAIL_NO_DEPTH_WRITE;
-              double_draw.aref_second = alpha_min;
+              result.double_draw.kind = DoubleDrawKind::AFAIL_NO_DEPTH_WRITE;
+              result.double_draw.aref_second = alpha_min;
             } else {
               alpha_min = 0.f;
             }
@@ -145,13 +161,9 @@ DoubleDraw setup_opengl_from_draw_mode(DrawMode mode, u32 tex_unit, bool mipmap)
     }
   }
 
-  if (mode.get_depth_write_enable() && !alpha_hack_to_disable_z_write) {
-    glDepthMask(GL_TRUE);
-  } else {
-    glDepthMask(GL_FALSE);
-  }
-  double_draw.aref_first = alpha_min;
-  return double_draw;
+  result.double_draw.aref_first = alpha_min;
+  result.write_depth = mode.get_depth_write_enable() && !alpha_hack_to_disable_z_write;
+  return result;
 }
 
 DoubleDraw setup_tfrag_shader(SharedRenderState* render_state, DrawMode mode, ShaderId shader) {

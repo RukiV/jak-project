@@ -40,6 +40,18 @@ struct DoubleDraw {
   float color_mult = 1.;
 };
 
+// #145 test seam: the alpha-test-derived double-draw split and depth-write-mask decision that
+// setup_opengl_from_draw_mode needs (the GEQUAL+FB_ONLY+depth-write double draw, and the
+// NEVER+FB_ONLY z-write-off idiom), split into a pure function so it can be unit tested without
+// a live GL context. goalc-test never creates one, so the glad function pointers
+// setup_opengl_from_draw_mode calls (glActiveTexture etc.) are null until gladLoadGL runs, and
+// calling it directly from a test segfaults the whole binary.
+struct AlphaTestDrawSettings {
+  DoubleDraw double_draw;
+  bool write_depth = false;
+};
+AlphaTestDrawSettings compute_alpha_test_draw_settings(DrawMode mode);
+
 DoubleDraw setup_tfrag_shader(SharedRenderState* render_state, DrawMode mode, ShaderId shader);
 DoubleDraw setup_opengl_from_draw_mode(DrawMode mode, u32 tex_unit, bool mipmap);
 
