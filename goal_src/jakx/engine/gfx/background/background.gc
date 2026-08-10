@@ -994,7 +994,8 @@
     (let ((lev (-> *level* draw-level lev-idx))
           (dma-start (-> dma-buf base)))
       (cond
-        ((and lev (= (-> lev status) 'active) (not *artist-all-visible*) (-> lev vis-info 0))
+        ((and lev (= (-> lev status) 'active) (not *artist-all-visible*) (-> lev vis-info 0)
+              (!= (-> lev all-visible?) 'loading))
          ;; the level is active and has real vis data loaded.
          (let ((packet (the-as dma-packet (-> dma-buf base))))
            (set! (-> packet dma) (new 'static 'dma-tag :id (dma-tag-id cnt) :qwc 128))
@@ -1031,6 +1032,35 @@
           ;; once #41 lands real .VIS loading and *artist-all-visible* reverts to its
           ;; retail default; this else then goes back to covering only genuinely inactive
           ;; levels, matching jak3.
+          ;;
+          ;; Since #153, the clause above also gates on all-visible? != 'loading, closing
+          ;; a second sticky-loading trap distinct from the one above: a level that
+          ;; activates and displays while the camera has never resolved inside its own
+          ;; bsp boxes keeps all-visible? pinned at vis-clear's 'loading forever
+          ;; (level.gc:390, 399), because update-visible's own two exits both require
+          ;; conditions this level never reaches - the forced-visible arm at
+          ;; cam-update.gc:154 is blocked since (-> lev vis-info 0) is true, and the
+          ;; vis-valid arm at cam-update.gc:160-191 is gated on inside-boxes? at
+          ;; cam-update.gc:152, which a level the camera has never entered never
+          ;; satisfies; the (and (= all-visible? 'loading) play?) arm at
+          ;; cam-update.gc:192 is an empty body, so 'loading just persists. Before #153,
+          ;; that stuck level still satisfied the clause above (active, not
+          ;; artist-all-visible, vis-info present) and got the real 128-quadword packet
+          ;; built from vis-bits still at vis-clear's zeros, which VisDataHandler.cpp:64
+          ;; marks valid on presence alone regardless of content: background gone, actors
+          ;; still drawn, since the birth pass at entity.gc:788 treats truthy
+          ;; all-visible? (which 'loading is) as all-visible. Retail never reaches this
+          ;; state because its continue system only displays a level through an authored
+          ;; want-display trigger volume the player has physically walked into, so
+          ;; all-visible? has already resolved off 'loading by the time anything draws;
+          ;; the bring-up want driver displays by continue proximity alone and can
+          ;; activate a level the camera has never set foot in. (Falsified along the way:
+          ;; a cross-level vis-data hypothesis, since jak1's .VIS files blended
+          ;; visibility across regions - but that mechanism was deleted since Jak II, and
+          ;; jakx's vis-info is entirely self-only per level, so no other level's state
+          ;; could be involved.) Retire this conjunct once the want driver gains
+          ;; trigger-volume fidelity or the retail continue system lands, either of which
+          ;; keeps a never-entered level from displaying in the first place.
           (let ((packet (the-as dma-packet (-> dma-buf base))))
             (set! (-> packet dma) (new 'static 'dma-tag :id (dma-tag-id cnt) :qwc 1))
             (set! (-> packet vif0) (the-as vif-tag *fog-color*))
