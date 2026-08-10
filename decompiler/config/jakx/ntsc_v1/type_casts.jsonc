@@ -1,4 +1,28 @@
 {
+  // game-info's attack-id (:offset-assert 1144) field is declared uint32 and stays
+  // declared uint32 (#122 R2: correctly-declared field, not a field edit) -- it is
+  // genuinely used as a plain-array pointer at the three call sites below, proven from
+  // game-info_ir2.asm: top-level-login lazily allocates (new 'global 'entity-perm-array
+  // 64) into its slot, then methods 13/14/16 walk that pointer as a plain
+  // (array entity-perm) (length at +0, elements at +12 stride 16, matching entity-perm's
+  // own :size-assert and its aid field at +12 landing on +24 per element). This is the
+  // decompiler's own pointer-type tracking gap, not a missing field, so the fix is
+  // scoped to these ops, not the deftype. a0/gp is the register actually holding the
+  // "this" pointer at each call's own load op (method 13's this arrives in a0 and is
+  // never copied; methods 14/16 copy it to gp at op 0 first).
+  "(method 13 game-info)": [[0, "a0", "game-info"]],
+  "(method 14 game-info)": [[1, "gp", "game-info"]],
+  "(method 16 game-info)": [[13, "gp", "game-info"]],
+  // og:preserve-this task-counter's own offset-1168 load in (top-level-login game-info)
+  // (op 182, "(set! v1 (l.wu (+ gp 1168)))") resists every cast tried here: gp is already
+  // resolved to game-info by that op (op 167 reads *game-info* directly, and every
+  // intervening store through it decodes fine), yet register-type-cast entries at op 182
+  // for gp, v1, or an intentionally-wrong sanity cast at op 0 for t9 (which should have
+  // broken the very next op's jalr if casts were being read at all) all produced a
+  // byte-for-byte identical error and log. That rules out "wrong register" or "wrong
+  // type" and points at env.casts() not being consulted for this specific
+  // FunctionKind::TOP_LEVEL_INIT function at all, a decompiler-internal gap rather than
+  // a missing config idiom. Left unfixed; see the #122 R2 report for the full trail.
   // additional-spawner vis helpers (entity.o): the spawner handle resolves to a
   // process-drawable whose root trans feeds the distance check
   "vis-dist-additional-ok?": [[24, "v1", "process-drawable"]],
