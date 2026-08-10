@@ -433,6 +433,7 @@ namespace draw_string_init_justify { extern void link(); }
 namespace cspace_parented_transformq_joint { extern void link(); }
 namespace foreground_check_longest_edge_asm { extern void link(); }
 namespace foreground_generic_merc { extern void link(); }
+namespace foreground_draw_hud { extern void link(); }
 namespace generic_debug_light_proc { extern void link(); }
 namespace generic_warp_envmap_dest { extern void link(); }
 namespace generic_warp_dest { extern void link(); }
@@ -770,7 +771,8 @@ PerGameVersion<std::unordered_map<std::string, std::vector<void (*)()>>> gMips2C
        jakx::method_17_collide_cache::link}},
      {"joint", {jakx::cspace_parented_transformq_joint::link}},
      {"foreground",
-      {jakx::foreground_check_longest_edge_asm::link, jakx::foreground_generic_merc::link}},
+      {jakx::foreground_check_longest_edge_asm::link, jakx::foreground_generic_merc::link,
+       jakx::foreground_draw_hud::link}},
      {"generic-effect",
       {jakx::generic_debug_light_proc::link,   jakx::generic_warp_envmap_dest::link,
        jakx::generic_warp_dest::link,          jakx::generic_warp_dest_proc::link,
