@@ -1650,8 +1650,30 @@ void OpenGLRenderer::dispatch_buckets_jak3(DmaFollower dma,
 
   m_render_state.buckets_base = dma.current_tag_offset();  // starts at 0 in jak 2
   m_render_state.next_bucket = m_render_state.buckets_base + 16;
-  m_render_state.bucket_for_vis_copy = (int)jak3::BucketId::BUCKET_2;
-  m_render_state.num_vis_to_copy = jak3::LEVEL_MAX;
+  if (m_version == GameVersion::JakX) {
+    // jakx bring-up: jakx's own vis-copy constants, not jak3's borrowed ones. jakx's
+    // *level* level-group is statically built with :length 18 (goal_src/jakx/engine/
+    // level/level-h.gc:1018, and the matching (defconstant LEVEL_MAX 18) at :9), bigger
+    // than jak3's :length 10 (jak3/engine/level/level-h.gc:510, LEVEL_MAX 10 at :9), so
+    // add-pc-port-background-data (goal_src/jakx/engine/gfx/background/background.gc,
+    // ported alongside finish-background) walks 18 draw-level slots and emits exactly 18
+    // per-level pc-port transfers into bucket 2, not 10. num_vis_to_copy has to match that
+    // 18 exactly: VisDataHandler::render (VisDataHandler.cpp:55) reads exactly
+    // num_vis_to_copy entries off the DMA chain before falling through to the fixed-size
+    // TfragPcPortData read, whose size ASSERT (VisDataHandler.cpp:84) is what actually
+    // fires if the two drift apart (a leftover per-level entry gets misread as the camera
+    // packet). Deliberately not common::jakx::LEVEL_MAX (10 in common/goal_constants.h) -
+    // that constant is a stale copy of jak3's block and was never updated to match jakx's
+    // own GOAL-side LEVEL_MAX of 18; using it here would reproduce the exact mismatch this
+    // comment is warning about. bucket_for_vis_copy uses jakx's own BucketId (buckets.h),
+    // which happens to share jak3's numeric value (BUCKET_2 = 2 on both sides) but is
+    // jakx's own enum, not a borrow.
+    m_render_state.bucket_for_vis_copy = (int)jakx::BucketId::BUCKET_2;
+    m_render_state.num_vis_to_copy = 18;
+  } else {
+    m_render_state.bucket_for_vis_copy = (int)jak3::BucketId::BUCKET_2;
+    m_render_state.num_vis_to_copy = jak3::LEVEL_MAX;
+  }
 
   for (size_t bucket_id = 0; bucket_id < m_bucket_renderers.size(); bucket_id++) {
     auto& renderer = m_bucket_renderers[bucket_id];
