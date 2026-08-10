@@ -1,8 +1,8 @@
 # Jak X bring-up quickstart
 
 **Status:** Living document for the bring-up era. Everything here was executed and
-verified on 2026-08-07/08; if a step stops matching reality, fix the document in the
-same change that changed the behavior.
+verified on 2026-08-07/08/09; if a step stops matching reality, fix the document in
+the same change that changed the behavior.
 
 What this covers: getting a fresh checkout or a worktree from zero to a booting,
 verifiable Jak X. It exists because every one of these steps has silently failed for
@@ -70,6 +70,25 @@ gk -v --game jakx --proj-path <worktree> -- -boot -fakeiso -debug
 gk's `--proj-path` is real even though the first `--help` screen truncates before it.
 The boot log's `Using development repo path:` line names the resolved root; read it.
 
+**`task extract` carries no such flag at all.** The Taskfile target never forwards
+`--proj-path`, so run from inside a worktree it still walks up from the decompiler
+binary and resolves the primary checkout through the `decompiler_out` junction,
+writing the *primary* checkout's `out/jakx/fr3` while reporting success (proven on
+PR #130's evidence trail). Per-checkout settings compound it: `task set-game-jakx`
+and `task set-decomp-ntscv1` are persisted per checkout, so a fresh worktree runs
+`task extract` as jak1 until both are re-run inside it. Since #126 wired the
+extraction slot map into the texture animator, a leaked run then leaves the primary
+holding fr3s slotted for the worktree's `texture_slots.cpp`, and the primary's own
+gk throws on level load; recover by re-running `task extract` in the primary. The
+only extract that actually targets a worktree is the manual decompiler invocation:
+
+```text
+<worktree>\out\build\Release\bin\decompiler.exe <worktree>\decompiler\config\jakx\jakx_config.jsonc <worktree>\iso_data <worktree>\decompiler_out --version ntsc_v1 --config-override '{"decompile_code": false, "levels_extract": true, "allowed_objects": []}' --proj-path <worktree>
+```
+
+Verify by mtime *and* size that the worktree's own `GAME.fr3` changed, not just that
+the command exited 0.
+
 Setup, from the repo root (junctions share the immutable inputs; `rmdir` on a
 junction unlinks without touching the target, and unlink them before
 `git worktree remove`):
@@ -83,6 +102,51 @@ goalc --user-auto --game jakx --proj-path <worktree>   then (mi)   # creates out
 mklink /J out\jakx\fr3       D:\jak-project\out\jakx\fr3      (cmd)
 copy the sound files into out\jakx\iso  (see the assert above)
 ```
+
+Use `mklink /J` (a Windows directory junction) for every link above, not Git Bash's
+`ln -s`: the decompiler cannot traverse an `ln -s` link through a second hop, so a
+symlinked `decompiler_out` or `iso_data\jakx` fails to resolve with no clear error
+(proven during the race-start leg, issue #122).
+
+## Scoped decodes and mips2c ports
+
+Beyond the full `task extract`, two workflows cover the case of decompiling or
+porting a handful of objects without touching a live worktree or the primary
+checkout.
+
+**Scratch-only scoped decodes.** Never edit a worktree's `decompiler/config` in
+place and never junction scratch into a live worktree mid-work. Instead, copy
+`decompiler/config` into a scratch directory, edit the copy's `allowed_objects`,
+and run the primary `decompiler.exe` with the scratch directory as output and
+`--proj-path` pointed at the scratch proj dir. A run scoped to a handful of objects
+takes about 2 seconds. The generated mips2c C++ lands between the emitted
+`<object>_ir2.asm`'s `;;-*-MIPS2C-Start-*-` markers (proven in issue #133's
+factbase and PR #134).
+
+Same junction rule as the worktree setup above applies to the rest of a scratch
+tree (decompiler_out, iso_data\jakx): `mklink /J`, not `ln -s` (race-start leg,
+issue #122); only the edited `decompiler/config` copy itself needs to be a real
+copy rather than a link, since its content changes.
+
+**The mips2c port recipe and its gates.** Issue #133 is the canonical statement.
+Generate a function's mips2c section with a scoped decode as above, paste it per
+`game/mips2c/readme.md`, then register it: a `CMakeLists.txt` row, the
+`// FWD DEC:` declaration, and a `gMips2CLinkCallbacks` row keyed by the object
+file name. Land it only once it clears five gates: provenance (the exact scoped
+decode command, reproducible), a twin diff line-justified against every available
+Jak 1/2/3 port of the same function, a hazard sweep for `Unknown instr`,
+`ASSERT(false)`, `PUT_STACK_SIZE_HERE` and any unconsumed `call_addr`, registration
+plus a clean link, and a stated behavioural ceiling wherever the path is not yet
+reachable. See #133 for the full gate definitions and PR #134 for a worked example.
+
+**The +4 offset trap.** When re-deriving a struct's field offsets from a scoped
+decode's `_ir2.asm`, the machine offsets run 4 below the struct's declared offset
+for basic-derived types, because the machine offset excludes the basic's type-tag
+word that the declared offset counts from. The tell is in the instruction
+alignment: an `ld`/`sd` at a machine offset that is 4 mod 8, or an `lq`/`sq` at one
+that is 12 mod 16, marks a basic-offset artifact rather than a genuine sub-word
+access; add 4 before writing the field into the deftype (race-start leg,
+issue #122, rung 1).
 
 ## Verifying against a running game
 
