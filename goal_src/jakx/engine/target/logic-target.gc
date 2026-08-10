@@ -54,6 +54,29 @@
   (none)
   )
 
+;; og:preserve-this bring-up state, R10 (#122): target-h.gc's :states list reserves
+;; the symbol target-continue (deftype.cpp's own :states handling creates the global),
+;; but nothing in this tree ever landed a real (defstate target-continue ...); the
+;; symbol existed with no backing state object. target-init's (go target-continue)
+;; call dispatches into the kernel's enter-state machinery (gkernel.gc), which reads
+;; the state object's handler slots to set the process up; with no real object behind
+;; the symbol those slots were whatever memory happened to hold, read as an all-ones
+;; pattern (a native crash reading GOAL address 0xffffffffffffffff, rip inside gk.exe,
+;; not GOAL code: the R10 boot crash, attributed to logic-target+0x62, the return
+;; address of stop's own (view-get-active-target) call sitting on the stack from
+;; start's earlier (stop arg0 arg2), one frame up from the real fault in the kernel's
+;; state-entry code, and to gkernel+0xf54 directly). The real target-continue state
+;; (movement/physics :code, :trans on continue triggers, camera framing) is
+;; substantial, undecoded behavior, not a guard or a stub; the honest minimal fix is
+;; the same shape as generic-obs.gc's bring-up-parked (:code sleep-code only, exactly
+;; the "state exists and is not garbage" precedent this leg has already used twice):
+;; a real, correctly-typed, all-other-slots-#f state object stands in for the racing
+;; continue-arrival behavior. Retirement condition: the real target-continue state
+;; lands (movement, physics, camera-framing logic; a separate leg's scope).
+(defstate target-continue (target)
+  :code sleep-code
+  )
+
 ;; og:preserve-this landed for real, R5a (#122): transcribed verbatim from the decode.
 ;; The vtable dispatch into target-method-59 (logic-target_ir2.asm op 3-6, method
 ;; offset 252 = slot 59) only resolved to this clean high-level form once that
