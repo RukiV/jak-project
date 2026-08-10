@@ -550,3 +550,34 @@
     )
   this
   )
+
+;; og:preserve-this R18 (#122): game-info.gc:159's (send-event (handle->process
+;; (-> *game-info* auto-save-proc)) 'done) crashes the boot. *game-info* is (new
+;; 'static 'game-info :mode 'debug) (game-info-h.gc:340), so every unspecified
+;; field, including every handle field, is zero-filled. handle->process's guard
+;; (gkernel-h.gc:427) tests (if (-> the-handle process) ...), which the macro's own
+;; comment says is false only for #f ("if we don't point to a process, the kernel
+;; sets this to #f"); a zero handle is truthy, so the guard passes and dereferences
+;; GOAL address 0. jak3 establishes this invariant in a top-level form
+;; (goal_src/jak3/engine/game/game-info.gc:2068, inside a kmemopen block that also
+;; performs allocations this form does not need); jakx's game-info.gc had no
+;; top-level form at all. All seven of jakx's handle-typed fields are initialized
+;; here together, not just the one that crashed: pause-menu is already known live
+;; (main.gc:274 dereferences it on the first master-mode transition), and the rest
+;; are the same static-zero class of field with no evidence any of them is exempt.
+;; jak3's other three handle sets in this same block (score-owner, timer-owner,
+;; dust-storm) have no matching field in jakx's game-info deftype and are not
+;; ported here. Retirement condition: landing the full top-level-login from a real
+;; decode (game-info_ir2.asm's top-level-login, ops 208-260+, referenced but
+;; unlanded per this file's own R8 note above).
+(let ((gp-0 *game-info*))
+  (set! (-> gp-0 auto-save-proc) (the-as handle #f))
+  (set! (-> gp-0 pause-menu) (the-as handle #f))
+  (set! (-> gp-0 pov-camera-handle) (the-as uint64 (the-as handle #f)))
+  (set! (-> gp-0 other-camera-handle) (the-as uint64 (the-as handle #f)))
+  (set! (-> gp-0 display-text-handle) (the-as uint64 (the-as handle #f)))
+  (set! (-> gp-0 health-bar-owner) (the-as uint64 (the-as handle #f)))
+  (dotimes (i 2)
+    (set! (-> gp-0 controller i) (the-as handle #f))
+    )
+  )
