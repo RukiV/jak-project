@@ -47,16 +47,10 @@
   )
 
 ;; definition for function view-set-active-target
-;; ERROR: function has no type analysis. Cannot decompile.
-;; og:preserve-this forward-decl, R4 (#122): logic-target.gc's stop guards a call to
-;; this function (unlanded, like the decompile error above records) behind
-;; (nonzero? view-set-active-target); the compiler needs the symbol's type to check
-;; that guarded call, and view.o (build order 65) compiles before logic-target.o
-;; (307), so it belongs here rather than as a caller-side forward ref. Signature
-;; mirrors the landed sibling view-set-active-camera-combiner just below (basic in,
-;; basic out: the view type's target field, like camera and camera-combiner, is
-;; basic). Retires when view-set-active-target lands for real.
-(define-extern view-set-active-target (function basic basic))
+;; (landed in the hand section at the end of the file; needs view-get-active.
+;; Retires the R4 forward-decl extern (#122) that used to sit here: view.gc
+;; compiles as one unit before logic-target.gc (build order 65 vs 307), so the
+;; real defun below is visible to logic-target.gc's guard without a stub.)
 
 ;; definition for function view-get-active-camera
 ;; ERROR: function has no type analysis. Cannot decompile.
@@ -252,6 +246,20 @@
 
 (defun view-set-active-camera ((arg0 basic))
   (set! (-> (view-get-active) camera) arg0)
+  arg0
+  )
+
+;; og:preserve-this decode provenance (#152): view_ir2.asm's L38 stores arg0 at
+;; +12 off the view returned by view-get-active (s.w! (+ v0-0 12) a0-0); view-h.gc's
+;; deftype and view-get-target's own decode above (-> *views* arg0 target) both
+;; resolve target to that same offset, confirming the store. Landing this for real
+;; retires the R4 forward-decl stub that used to sit at the top of this file (#122)
+;; and makes logic-target.gc:127-128's (nonzero? view-set-active-target) guard in
+;; start go live for the first time: the symbol had no bound value before, so the
+;; guard was always false and start never registered the spawned target as the
+;; active view's target.
+(defun view-set-active-target ((arg0 basic))
+  (set! (-> (view-get-active) target) arg0)
   arg0
   )
 
