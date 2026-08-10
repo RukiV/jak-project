@@ -2302,12 +2302,14 @@
     )
   )
 
-;; og:preserve-this the prior decode attempt (kept above in the log as a comment
-;; until now) failed on exactly the field #41's bsp-camera-asm/STEP-1 landings
-;; fixed: raw offset 336 on bsp-header is cam-using-back-view, mis-declared and
-;; mis-named at the time this was first tried. Re-decoded clean from a scoped
-;; decode of the level object once those fixes existed; lands verbatim (#41).
-;; No current caller: nothing in the landed bring-up invokes inside-bsp? yet.
+;; og:preserve-this machine offset 336 on bsp-header is cam-outside-bsp-view
+;; (declared 340; bsp-h.gc:131), the jakx per-view twin of jak3's scalar
+;; cam-outside-bsp (jak3 level.gc:2453-2466). This method originally landed
+;; reading cam-using-back-view, the pre-fix name carried over from before
+;; f4b0778c0's bsp-header name-swap fix even though this landing postdates
+;; that fix; fixed here to match jak3's twin (#41). update-level-inside-boxes
+;; (level.gc:4081) is its live caller and sole consumer, feeding inside-boxes?
+;; and through it vis-valid.
 (defmethod inside-bsp? ((this level))
   (cond
     ((not (-> this bsp))
@@ -2319,7 +2321,7 @@
     (else
       (let ((result #f))
         (dotimes (i (the-as int (-> *viewport-array* num-viewports)))
-          (if (zero? (-> this bsp cam-using-back-view i))
+          (if (zero? (-> this bsp cam-outside-bsp-view i))
               (set! result #t)
               )
           )
@@ -4209,6 +4211,23 @@ and apply its want set when it changes; update! then streams the section window.
   (jakx-want-driver-tick)
   (update-level-inside-boxes this)
   (update! *load-state*)
+  ;; og:preserve-this vis-self-index reset, hand-ported from jak3's level-update
+  ;; (goal_src/jak3/engine/level/level.gc:3662-3667), which zeroes it for every
+  ;; active level slot each frame at this same relative position (after update!
+  ;; *load-state*, before the vis-valid setter loop; jak3's intervening
+  ;; target-inside block is not landed here yet). jakx never writes
+  ;; vis-self-index anywhere else in the tree (only reads: cam-update.gc:161
+  ;; and update-level-vis-valid above at lines 4131/4145/4152), and
+  ;; update-level-vis-valid indexes vis-info by vis-self-index and nothing
+  ;; else initializes the field; without this reset it stays uninitialized
+  ;; memory and can select the wrong vis-info slot.
+  (dotimes (i (-> this length))
+    (let ((lev (-> this level i)))
+      (when (= (-> lev status) 'active)
+        (set! (-> lev vis-self-index) 0)
+        )
+      )
+    )
   (update-level-vis-valid this)
   (let ((lev-names (new 'stack-no-clear 'array 'string 10))
         (active-lev-names (new 'stack-no-clear 'array 'string 10)))
