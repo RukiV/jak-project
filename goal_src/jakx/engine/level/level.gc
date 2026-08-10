@@ -2870,7 +2870,9 @@ and apply its want set when it changes; update! then streams the section window.
           (let ((cam (-> mc trans))
                 (home (-> *jakx-want-driver-cp* level))
                 (best (the continue-point #f))
-                (best-d 0.0)
+                (best-d 1000000000000000000.0)
+                (best-any (the continue-point #f))
+                (best-any-d 1000000000000000000.0)
                 (cur-d 1000000000000000000.0)
                 )
             (let ((lst *level-load-list*))
@@ -2880,26 +2882,36 @@ and apply its want set when it changes; update! then streams the section window.
                        )
                   (while (not (null? conts))
                     (let ((cp (the-as continue-point (car conts))))
-                      ;; skip grid-start continues (the lightjak flag marks them, on both
-                      ;; jungle-wide-start and the havjung equivalent): they are pre-race
-                      ;; configurations whose want sets drop the arrival section, so
-                      ;; crossing the start line under one unloads the world around the
-                      ;; camera. They share a trans with the first lap checkpoint, which
-                      ;; must win the tie; lap flow belongs to the plain race continues.
-                      (when (and (= (-> cp level) home)
-                                 (not (logtest? (-> cp flags) (continue-flags lightjak)))
-                                 )
+                      (when (= (-> cp level) home)
                         (let* ((dx (- (-> cp trans x) (-> cam x)))
                                (dy (- (-> cp trans y) (-> cam y)))
                                (dz (- (-> cp trans z) (-> cam z)))
                                (d (+ (* dx dx) (* dy dy) (* dz dz)))
                                )
-                          (if (= cp *jakx-want-driver-cp*)
-                              (set! cur-d d)
+                          (when (or (not best-any) (< d best-any-d))
+                            (set! best-any cp)
+                            (set! best-any-d d)
+                            )
+                          ;; skip grid-start continues (the lightjak flag marks them, on
+                          ;; both jungle-wide-start and the havjung equivalent) as the
+                          ;; PREFERRED candidate: they are pre-race configurations whose
+                          ;; want sets drop the arrival section, so crossing the start
+                          ;; line under one unloads the world around the camera. They
+                          ;; share a trans with the first lap checkpoint, which must win
+                          ;; the tie; lap flow belongs to the plain race continues.
+                          ;; best-any above still tracks excluded continues so the
+                          ;; fallback below can reach one when nothing eligible is
+                          ;; nearer (#152: icea's only continue is excluded so icea can
+                          ;; never display after a reload; havjung-wide-start's
+                          ;; exclusion starved havenb the moment the window first slid).
+                          (when (not (logtest? (-> cp flags) (continue-flags lightjak)))
+                            (if (= cp *jakx-want-driver-cp*)
+                                (set! cur-d d)
+                                )
+                            (when (or (not best) (< d best-d))
+                              (set! best cp)
+                              (set! best-d d)
                               )
-                          (when (or (not best) (< d best-d))
-                            (set! best cp)
-                            (set! best-d d)
                             )
                           )
                         )
@@ -2909,6 +2921,22 @@ and apply its want set when it changes; update! then streams the section window.
                   )
                 (set! lst (cdr lst))
                 )
+              )
+            ;; og:preserve-this fallback (#152): the exclusion above is a preference, not
+            ;; a hard rule. When the nearest continue overall is an excluded one, use it
+            ;; anyway as long as it beats the nearest eligible continue by the same 1.4x
+            ;; hysteresis factor used below against the current position (0.5 in squared
+            ;; distance); an eligible continue that is merely close still wins, which
+            ;; preserves the jungle-wide-start regression case above by the margin
+            ;; instead of by dropping the exclusion. Measured starvation without this:
+            ;; the icelands family's only icea-displaying continue is excluded so icea
+            ;; could never display after a reload, and havjung-wide-start's exclusion
+            ;; unloaded havenb the moment the window first slid. Retires with the retail
+            ;; continue/race-position system (game-info.gc), which replaces this whole
+            ;; driver.
+            (when (and best-any (!= best-any best) (< best-any-d (* 0.5 best-d)))
+              (set! best best-any)
+              (set! best-d best-any-d)
               )
             ;; hysteresis: switch only when the candidate is decisively closer than the
             ;; current continue (1.4x in linear distance, 0.5 in squared). The margin
