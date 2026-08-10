@@ -416,8 +416,22 @@
         (set! (-> *task-level-info* 16 flags) (logior (-> *task-level-info* 16 flags) 1))
         (set! (-> *task-level-info* 17 flags) (logior (-> *task-level-info* 17 flags) 1))
 
-        ;; best-times reset: og:preserve-this R2's characterized layout, (array float),
-        ;; offset 1420.
+        ;; og:preserve-this lazy-init landed for real, R9 (#122): the same class of bug
+        ;; as R8's perm-list/game-info-pad2, a third field over. game-info_ir2.asm's
+        ;; top-level-login (ops 197-207) also allocates best-times, (new 'global 'array
+        ;; float 10) when zero, before this method reads it. R2's own note on this
+        ;; field (game-info-h.gc, best-times' :offset comment) already named this exact
+        ;; idiom secondhand ("the same nonzero-guarded lazy-init idiom used for
+        ;; perm-list/task-node-info"); it was not applied here at the time. Unguarded,
+        ;; (-> this best-times length) reads offset 0 of a never-allocated pointer: the
+        ;; R9 boot crash (game-info+0xf95, attributed via (mi) (asm-file
+        ;; "game-info.gc" :color :disassemble <out>), the exact igpr chain [igpr-6 +
+        ;; 1416] then [that + 0], matching best-times' raw offset 1416 = declared 1420
+        ;; - 4). best-times reset: og:preserve-this R2's characterized layout, (array
+        ;; float), offset 1420.
+        (if (zero? (-> this best-times))
+            (set! (-> this best-times) (the-as (array float) (new 'global 'array 'float 10)))
+            )
         (dotimes (i (-> this best-times length))
           (set! (-> this best-times i) 0.0)
           )
