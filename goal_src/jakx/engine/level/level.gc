@@ -3132,10 +3132,16 @@ and apply its want set when it changes; update! then streams the section window.
                  (lev (level-get *level* (-> w name)))
                  )
             (when lev
-              (level-status-update! lev 'active)
-              (if (= (-> w display?) 'display)
-                  (set! (-> lev display?) 'display)
-                  )
+              ;; og:preserve-this fix (#152): level-status-update! used to run for every
+              ;; want entry regardless of display?, so hidden wants went 'active at boot
+              ;; when the steady-state driver (update!, above) only ever promotes
+              ;; displayed wants past 'loaded. That asymmetry made the stuck-level
+              ;; reload bug take ~90 minutes to surface instead of reproducing at boot.
+              ;; Gating here matches steady state; retires with the boot shim above.
+              (when (= (-> w display?) 'display)
+                (level-status-update! lev 'active)
+                (set! (-> lev display?) 'display)
+                )
               )
             )
           )
