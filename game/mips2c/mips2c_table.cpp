@@ -471,6 +471,8 @@ namespace method_11_collide_hash { extern void link(); }
 namespace method_12_collide_hash { extern void link(); }
 namespace fill_bg_using_box_new { extern void link(); }
 namespace fill_bg_using_line_sphere_new { extern void link(); }
+namespace method_12_collide_mesh { extern void link(); }
+namespace method_14_collide_mesh { extern void link(); }
 namespace method_9_collide_cache_prim { extern void link(); }
 namespace method_10_collide_cache_prim { extern void link(); }
 namespace method_17_collide_cache { extern void link(); }
@@ -762,6 +764,7 @@ PerGameVersion<std::unordered_map<std::string, std::vector<void (*)()>>> gMips2C
      {"collide-hash",
       {jakx::method_11_collide_hash::link, jakx::method_12_collide_hash::link,
        jakx::fill_bg_using_box_new::link, jakx::fill_bg_using_line_sphere_new::link}},
+     {"collide-mesh", {jakx::method_12_collide_mesh::link, jakx::method_14_collide_mesh::link}},
      {"collide-cache",
       {jakx::method_9_collide_cache_prim::link, jakx::method_10_collide_cache_prim::link,
        jakx::method_17_collide_cache::link}},
