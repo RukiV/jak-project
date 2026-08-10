@@ -12,3 +12,13 @@
   0
   (none)
   )
+
+;; og:preserve-this V7 (#41): drawable-tree-region-prim has no vis geometry to unpack.
+;; Without this override the call falls through to drawable-tree's generic per-node
+;; byte-offset writer, which derives its write offset from the tree's own first node
+;; id; region-prim data is not a fragment-id tree, so that offset is wrong for this
+;; type. Found alongside the drawable-group gap while tracing #41's all-zero vis-bits.
+;; Matches jak3's landed body verbatim (goal_src/jak3/engine/level/region.gc:45).
+(defmethod unpack-vis ((this drawable-tree-region-prim) (arg0 (pointer int8)) (arg1 (pointer int8)))
+  arg1
+  )

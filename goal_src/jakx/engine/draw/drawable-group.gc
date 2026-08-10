@@ -7,3 +7,19 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this V7 (#41): drawable-group's own unpack-vis was never landed, so a
+;; call on any drawable-tree-array (bsp drawable-trees, itself a drawable-group) fell
+;; through the type hierarchy to drawable's base passthrough (arg1, writes nothing).
+;; junglea-vis.go's level-vis-info flags (0xb) decode to a two-layer compression chain
+;; [huf, unpack-vis] shared by every leaf in the object; the second layer's scratchpad
+;; dest is pre-zero-filled and this gap left it never written, so the final .pand merge
+;; against all-visible-list produced all-zero vis-bits for every leaf, matching the
+;; observed ~1Hz terrain flap (#41 V6/V7). Matches jak3's landed body verbatim
+;; (goal_src/jak3/engine/draw/drawable-group.gc:99).
+(defmethod unpack-vis ((this drawable-group) (arg0 (pointer int8)) (arg1 (pointer int8)))
+  (dotimes (s4-0 (-> this length))
+    (set! arg1 (unpack-vis (-> this data s4-0) arg0 arg1))
+    )
+  arg1
+  )
+
