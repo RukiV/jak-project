@@ -314,7 +314,7 @@
 ;; (cgo-file "colx.gd" common-dep)
 (cgo-file "jga.gd" common-dep) ;; fourth bring-up level: junglea, first exterior track section
 ;; (cgo-file "cya.gd" common-dep)
-;; (cgo-file "hvb.gd" common-dep)
+(cgo-file "hvb.gd" common-dep) ;; havenb: the haven city end of the havjung-wide-start want set (#151)
 ;; (cgo-file "sptrtt.gd" common-dep)
 ;; (cgo-file "siglev.gd" common-dep)
 ;; (cgo-file "templett.gd" common-dep)
