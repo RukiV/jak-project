@@ -912,6 +912,7 @@ u64 execute(void* ctxt) {
   c->pextlw(t7, t7, t7);                            // pextlw t7, t7, t7
   c->mfc1(r0, f31);                                 // mfc1 r0, f31
   // Unknown instr: pnor t7, r0, t7
+  c->pnor(t7, r0, t7);
   c->mfc1(r0, f31);                                 // mfc1 r0, f31
   c->pand(t2, t2, t7);                              // pand t2, t2, t7
   c->mfc1(r0, f31);                                 // mfc1 r0, f31
