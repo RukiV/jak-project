@@ -3027,12 +3027,17 @@ and apply its want set when it changes; update! then streams the section window.
 
 ;; og:preserve-this racer centerline table (#161): the bring-up racer originally
 ;; lerped between boot-continue-family points (#152), which are sparse and not the
-;; authored racing line. This table is the real jungle race-mesh centerline: 101
+;; authored racing line. This table is the real jungle race-mesh centerline: 97
 ;; midpoints of the race-mesh's left/right rail edges, in lap order, baked from
 ;; decompiler_out/jakx/raw_obj/jungles.go by
-;; scripts/jakx/extract_race_centerline.py. A re-bake (a changed jungles.go, or a
-;; new level's race-mesh) is a clean replace of the marked block below with fresh
-;; script output; the numbers inside it are decoded data, not hand-tunable.
+;; scripts/jakx/extract_race_centerline.py. The raw race-mesh has 101 edges, not
+;; 97: the jungle track has a fork whose two branches interleave in lap-fraction
+;; order, and the extractor's two-pass filter (a distance gate, then an
+;; out-and-back spike removal) drops the 4 interleaved far-branch points so the
+;; table is a single coherent line instead of a zigzag. A re-bake (a changed
+;; jungles.go, or a new level's race-mesh) is a clean replace of the marked block
+;; below with fresh script output; the numbers inside it are decoded data, not
+;; hand-tunable.
 ;; BEGIN GENERATED: extract_race_centerline.py (source jungles.go, md5 e9ef477f93626d33e1e0ad080648f4c8)
 (define *jakx-racer-track* (new 'static 'boxed-array :type vector
                              (new 'static 'vector :x 6987402.5 :y 67919.4609375 :z -13594636.5 :w 1.0)
@@ -3089,13 +3094,9 @@ and apply its want set when it changes; update! then streams the section window.
                              (new 'static 'vector :x 13798584.5 :y 297544.09375 :z -16835002.5 :w 1.0)
                              (new 'static 'vector :x 14064578.5 :y 217043.765625 :z -16169099.0 :w 1.0)
                              (new 'static 'vector :x 13937029.0 :y 193898.703125 :z -15792064.5 :w 1.0)
-                             (new 'static 'vector :x 14585303.0 :y 90819.58203125 :z -15523074.5 :w 1.0)
                              (new 'static 'vector :x 13586268.5 :y 193898.703125 :z -15330580.5 :w 1.0)
-                             (new 'static 'vector :x 14939525.0 :y 35040.255859375 :z -15237267.5 :w 1.0)
                              (new 'static 'vector :x 13591449.5 :y 193898.703125 :z -14889537.5 :w 1.0)
-                             (new 'static 'vector :x 15162368.0 :y 28423.16796875 :z -14823338.0 :w 1.0)
                              (new 'static 'vector :x 13865595.0 :y 193898.703125 :z -14479722.0 :w 1.0)
-                             (new 'static 'vector :x 14942208.0 :y 45721.39453125 :z -13959520.0 :w 1.0)
                              (new 'static 'vector :x 14298931.0 :y 108521.8828125 :z -13883205.5 :w 1.0)
                              (new 'static 'vector :x 14510592.0 :y 71370.140625 :z -13278034.0 :w 1.0)
                              (new 'static 'vector :x 14222909.5 :y 67231.5380859375 :z -12905504.5 :w 1.0)
@@ -3146,11 +3147,14 @@ and apply its want set when it changes; update! then streams the section window.
 ;; container works around (IR_SetSymbolValue's unconditional store32) does not
 ;; apply here; a bare symbol is safe.
 (define *jakx-racer-track-index* 0)
-;; arrival radius for advancing to the next centerline point: track edges are
-;; roughly 149 meters apart on average (48 to 386 across the jungle bake), so this
-;; is well under one spacing to avoid skipping a point, but far enough above the
-;; tiny per-frame lerp step (*jakx-racer-speed* / fps) that the racer actually
-;; reaches it rather than orbiting just outside the radius.
+;; arrival radius for advancing to the next centerline point: filtered track
+;; edges are roughly 137 meters apart on average (49 to 272 across the jungle
+;; bake, lap seam included), so this is well under one spacing to avoid
+;; skipping a point, but far enough above the tiny per-frame lerp step
+;; (*jakx-racer-speed* / fps) that the racer actually reaches it rather than
+;; orbiting just outside the radius. The old 48-to-386 range came from the
+;; unfiltered table and included fork-crossing garbage steps; the fork
+;; interleave is resolved as of the extractor's two-pass filter above.
 (define *jakx-racer-track-arrive-radius* (meters 50))
 
 (defun jakx-racer-cam-tick! ((racer-trans vector))

@@ -52,10 +52,135 @@ KNOWN_FILES = {
         },
         "edges_file_offset": 391808,
         "bbox_m": {"x": (537.0, 3702.0), "z": (-4458.0, -1894.0)},
+        # expected remaining consecutive-direction reversal count after both
+        # fork-interleave filter passes below; a future track's own
+        # legitimate hairpin could be nonzero, so this lives per-file rather
+        # than as a blanket constant
+        "expected_reversals": 0,
     },
 }
 
 BBOX_SLACK_M = 25.0
+
+# Fork-interleave post-filter (#161 follow-up). The jungle race-mesh contains
+# a track fork whose two branches' edges interleave in lap-fraction order.
+# Two passes: pass 1 (filter_fork_branch) is a distance gate that removes most
+# of the interleaved far-branch points without a cascade; pass 2
+# (remove_spikes) mops up the survivors a pure distance gate cannot reach,
+# since the first cross-branch hop is only ~250m -- inside any gate loose
+# enough to spare the track's own legitimate 258-272m long steps elsewhere in
+# the loop. A single 250m gate was tried first and rejected: it also caught
+# those legitimate long steps, and because the gate compares only to the last
+# KEPT point (needed so it can straddle the fork at all), dropping one of them
+# left the anchor stale and cascaded into dropping most of the rest of the
+# loop.
+DIST_GATE_M = 285.0
+DIST_GATE = DIST_GATE_M * METER_LENGTH  # 1,167,360 raw quads
+
+# Shared by pass 2 (the out-and-back collapse ceiling) and the final sanity
+# check (max step, lap seam included) below -- one number serving both jobs
+# on purpose.
+MAX_STEP_M = 350.0
+MAX_STEP = MAX_STEP_M * METER_LENGTH
+
+MAX_REMOVED = 15  # sanity ceiling on total points removed across both passes
+MIN_KEPT = 85  # sanity floor on how many points should survive both passes
+
+
+def dist3(a, b):
+    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2 + (a[2] - b[2]) ** 2) ** 0.5
+
+
+def filter_fork_branch(midpoints, out):
+    """Pass 1: greedily walk the midpoints in array order and drop any point
+    whose 3D distance from the last KEPT point is at or over DIST_GATE. Point
+    0 is always kept as the walk's anchor. Around the jungle track's fork,
+    consecutive raw points alternate between the fork's two branches with
+    far, direction-reversing steps, while each branch's own next point stays
+    close; this greedy gate keeps one coherent branch and drops most of the
+    other branch's interleaved points, without needing to know which branch
+    is "correct". Returns (kept, dropped): kept is a list of (original_index,
+    point), dropped is a list of (original_index, distance_m_from_last_kept);
+    every drop is also reported to out."""
+    kept = [(0, midpoints[0])]
+    dropped = []
+    for i in range(1, len(midpoints)):
+        d = dist3(kept[-1][1], midpoints[i])
+        if d < DIST_GATE:
+            kept.append((i, midpoints[i]))
+        else:
+            dropped.append((i, d / METER_LENGTH))
+            print(
+                "pass 1: dropped point index {}: {:.2f}m from last kept point".format(
+                    i, d / METER_LENGTH
+                ),
+                file=out,
+            )
+    return kept, dropped
+
+
+def remove_spikes(kept, out):
+    """Pass 2: out-and-back spike removal on the pass-1 survivors, treated as
+    a closed loop. For each point P with loop-neighbors A (previous) and B
+    (next), a negative horizontal (x/z) dot product of delta(A to P) and
+    delta(P to B) means the path reverses direction at P -- a spike a plain
+    distance gate cannot see, since the first cross-branch hop off the fork
+    is only ~250m. P is removed only if that reversal is real (negative dot)
+    AND removing it leaves the direct A-to-B step at or under MAX_STEP, so a
+    legitimate sharp turn that doesn't shortcut a fork is left alone. Runs
+    passes until a full pass removes nothing (removing P changes its
+    neighbors' neighbors, so more than one point can need removing in
+    sequence). Returns (kept, removed): kept is the surviving list of
+    (original_index, point), removed is a list of (original_index,
+    ap_distance_m, pb_distance_m); every removal is also reported to out."""
+    points = list(kept)
+    removed = []
+    changed = True
+    while changed:
+        changed = False
+        n = len(points)
+        if n < 3:
+            break
+        for i in range(n):
+            idx_a, a = points[(i - 1) % n]
+            idx_p, p = points[i]
+            idx_b, b = points[(i + 1) % n]
+            d1x, d1z = p[0] - a[0], p[2] - a[2]
+            d2x, d2z = b[0] - p[0], b[2] - p[2]
+            dot = d1x * d2x + d1z * d2z
+            if dot < 0 and dist3(a, b) <= MAX_STEP:
+                ap_m = dist3(a, p) / METER_LENGTH
+                pb_m = dist3(p, b) / METER_LENGTH
+                print(
+                    "pass 2: removed spike at index {}: {:.2f}m in, {:.2f}m out".format(
+                        idx_p, ap_m, pb_m
+                    ),
+                    file=out,
+                )
+                removed.append((idx_p, ap_m, pb_m))
+                del points[i]
+                changed = True
+                break
+    return points, removed
+
+
+def count_reversals(points):
+    """Count consecutive-direction reversals on a closed loop of points: a
+    negative horizontal (x/z) dot product of delta(prev to cur) and
+    delta(cur to next), wrapping at both ends. Matches the closed-loop
+    condition pass 2 eliminates, so a correctly filtered sequence counts
+    zero."""
+    n = len(points)
+    count = 0
+    for i in range(n):
+        a = points[(i - 1) % n]
+        p = points[i]
+        b = points[(i + 1) % n]
+        d1x, d1z = p[0] - a[0], p[2] - a[2]
+        d2x, d2z = b[0] - p[0], b[2] - p[2]
+        if d1x * d2x + d1z * d2z < 0:
+            count += 1
+    return count
 
 
 def find_race_mesh_header(data):
@@ -231,8 +356,47 @@ def main():
         for left, right in edges
     ]
 
-    xs_m = [m[0] / METER_LENGTH for m in midpoints]
-    zs_m = [m[2] / METER_LENGTH for m in midpoints]
+    pass1_kept, pass1_dropped = filter_fork_branch(midpoints, sys.stderr)
+    pass2_kept, pass2_removed = remove_spikes(pass1_kept, sys.stderr)
+
+    total_removed = len(pass1_dropped) + len(pass2_removed)
+    final_points = [p for _idx, p in pass2_kept]
+
+    if total_removed > MAX_REMOVED:
+        sys.exit(
+            "error: fork filter removed {} points across both passes, expected "
+            "at most {}".format(total_removed, MAX_REMOVED)
+        )
+    if len(final_points) < MIN_KEPT:
+        sys.exit(
+            "error: only {} points remain after fork filtering, expected at "
+            "least {}".format(len(final_points), MIN_KEPT)
+        )
+
+    # step distances around the final, closed loop: consecutive kept points
+    # plus the lap seam back to point 0
+    steps_m = [
+        dist3(final_points[i], final_points[(i + 1) % len(final_points)]) / METER_LENGTH
+        for i in range(len(final_points))
+    ]
+    max_step_m = max(steps_m)
+    min_step_m = min(steps_m)
+    if max_step_m > MAX_STEP_M:
+        sys.exit(
+            "error: max final step is {:.2f}m (including the lap seam), expected "
+            "at most {}m".format(max_step_m, MAX_STEP_M)
+        )
+
+    reversal_count = count_reversals(final_points)
+    expected_reversals = known["expected_reversals"]
+    if reversal_count != expected_reversals:
+        sys.exit(
+            "error: {} remaining consecutive-direction reversal(s) after both "
+            "filter passes, expected exactly {}".format(reversal_count, expected_reversals)
+        )
+
+    xs_m = [m[0] / METER_LENGTH for m in final_points]
+    zs_m = [m[2] / METER_LENGTH for m in final_points]
     bbox = known["bbox_m"]
     x_lo, x_hi = bbox["x"]
     z_lo, z_hi = bbox["z"]
@@ -248,14 +412,26 @@ def main():
         )
 
     print(
-        "extractor sanity: {} points, lap fractions strictly monotonic, "
-        "bbox (meters) X {:.2f}..{:.2f} Z {:.2f}..{:.2f}".format(
-            len(midpoints), min(xs_m), max(xs_m), min(zs_m), max(zs_m)
+        "extractor sanity: {} points after both fork-filter passes ({} pass 1, "
+        "{} pass 2, {} total removed), lap fractions strictly monotonic, bbox "
+        "(meters) X {:.2f}..{:.2f} Z {:.2f}..{:.2f}, step range (meters, incl. "
+        "lap seam) {:.2f}..{:.2f}, reversals {}".format(
+            len(final_points),
+            len(pass1_dropped),
+            len(pass2_removed),
+            total_removed,
+            min(xs_m),
+            max(xs_m),
+            min(zs_m),
+            max(zs_m),
+            min_step_m,
+            max_step_m,
+            reversal_count,
         ),
         file=sys.stderr,
     )
 
-    emit_goal_fragment(midpoints, name, actual_md5, sys.stdout)
+    emit_goal_fragment(final_points, name, actual_md5, sys.stdout)
 
 
 if __name__ == "__main__":
