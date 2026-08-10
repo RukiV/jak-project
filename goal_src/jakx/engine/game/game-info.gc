@@ -13,6 +13,43 @@
   (logtest? (-> *game-info* secrets) #x4000)
   )
 
+;; og:preserve-this bring-up stubs, R7 (#122): methods 17/18/20/23 are dispatched
+;; unconditionally from initialize! and anon-function-14-game-info below, with no
+;; nonzero? guard possible (they are vtable slots, not symbols; a symbol guard cannot
+;; protect a zero vtable slot). R3a's own landing note on set-continue! claimed method
+;; 20 was "already landed"; it was not, only its signature was, and the resulting zero
+;; slot is the R7 boot crash (game-info+0x797, rip at goal 0, exactly this class of
+;; bug). All four share one root cause: game-info_ir2.asm's own bodies for methods
+;; 17/18/20 fail on the same unresolved global, "Unknown symbol: *default-continue*"
+;; (method 23 has no captured decode at all in this leg's scratch runs); the real
+;; continue-lookup system these implement is explicitly out of this leg's scope
+;; (section 1.10 of the leg brief: continue-point methods 9/10/11 are also declared but
+;; unimplemented). Stubbed rather than guarded, since the callers use the return value;
+;; a guard would still need a fallback value at the call site, which is what these are.
+;; Retirement condition: *default-continue* and the by-name continue lookup
+;; (get-continue-by-name, method 19, R5a's own start-1 blocker) land for real.
+(defmethod game-info-method-17 ((this game-info) (arg0 int))
+  (the-as object #f)
+  )
+(defmethod game-info-method-18 ((this game-info) (arg0 string))
+  arg0
+  )
+(defmethod set-continue! ((this game-info) (arg0 basic) (arg1 int))
+  (the-as continue-point #f)
+  )
+;; og:preserve-this method 23's declared slot signature takes and returns game-save,
+;; which is declare-type only (game-info-h.gc:75, "not sure if this actually exists in
+;; jakx" per an earlier caveat on its sibling resetter-spec). defmethod requires the
+;; type to be fully defined to install into a per-slot-typed vtable entry ("Type
+;; game-save is not fully defined", TypeSystem.cpp:434's lookup_type, confirmed by
+;; direct compile attempt); a plain defun has no such requirement, so the stub is
+;; installed via method-set! (already-landed idiom throughout this leg, e.g. R1/R5a's
+;; own top-level-logins), typed loosely as object rather than game-save.
+(defun game-info-method-23-stub ((this game-info) (arg0 object))
+  arg0
+  )
+(method-set! game-info 23 game-info-method-23-stub)
+
 ;; og:preserve-this guard set, R3a (#122): (method 9 game-info) / initialize! reaches
 ;; into three families of unlanded code. all-types.gc carries the type-level
 ;; declarations the decompiler needs; these mirror them for the compiler.
@@ -56,6 +93,13 @@
 ;; forward-declared anywhere in this tree yet; signatures taken from all-types.gc
 ;; (task-node-reset, reset-actors) and the leg brief's own citation (all-types.gc:42743,
 ;; reset-actors-by-game-type, "signature authored from usage, no jak3 counterpart").
+;; og:preserve-this runtime-link guards, R7 (#122): none of the three has a landed
+;; body anywhere in goal_src (grep confirms zero defuns); all three call sites below
+;; are guarded per the kill-current-talker precedent. reset-actors was the R7 boot
+;; crash itself: initialize!'s 'debug mode-field branch calls it unconditionally and
+;; unguarded, reached on every boot since *game-info*'s own default mode is 'debug
+;; (game-info-h.gc:340) and the boot's mode argument is 'boot, which together select
+;; that branch before this rung's fix.
 (define-extern task-node-reset (function symbol int))
 (define-extern reset-actors (function symbol none))
 (define-extern reset-actors-by-game-type (function symbol none))
@@ -76,22 +120,29 @@
 ;; concession). Carries the leg's payoff verbatim: stop (game-info_ir2.asm op 5-8;
 ;; called with the mode arg plus the literal int 0, R4 (#122) fixed stop's arity to
 ;; account for the second register this op always set), reset-actors-by-game-type
-;; x2 (already-declared extern), the open!/'event send on sub-task-list slot 1,
-;; (set-continue! this ...) (method 20, already landed; the raw also sets a third
-;; register before this call that the declared 2-arg signature does not read, left
-;; unpassed here to match), game-info-method-23/17 (both resolved above), a (suspend),
-;; and finally select-continue-point/start: select-continue-point is guarded
-;; (all-types.gc:49713, unlanded), start is guarded per the leg's guard set.
+;; x2 (already-declared extern, guarded, R7 (#122): corrects this note's own prior
+;; claim that set-continue!/method 20 was "already landed"; it was not, and calling it
+;; unguarded is the R7 boot crash, see the guard-set note above), the open!/'event
+;; send on sub-task-list slot 1, (set-continue! this ...) (method 20, stubbed above,
+;; R7; the raw also sets a third register before this call that the declared 2-arg
+;; signature does not read, left unpassed here to match), game-info-method-23/17
+;; (both stubbed above, R7), a (suspend), and finally select-continue-point/start:
+;; select-continue-point is guarded (all-types.gc:49713, unlanded), start is guarded
+;; per the leg's guard set.
 (defun anon-function-14-game-info ((mode-field symbol) (mode symbol) (continue-arg basic) (save game-save))
   (stop mode-field 0)
-  (reset-actors-by-game-type mode)
+  (if (nonzero? reset-actors-by-game-type)
+      (reset-actors-by-game-type mode)
+      )
   (open! (-> *game-info* sub-task-list 1) 'event)
   (set-continue! *game-info* continue-arg 0)
   (when save
     (game-info-method-23 *game-info* save)
     (game-info-method-17 *game-info* 0)
     )
-  (reset-actors-by-game-type 'life)
+  (if (nonzero? reset-actors-by-game-type)
+      (reset-actors-by-game-type 'life)
+      )
   (send-event (handle->process (-> *game-info* auto-save-proc)) 'done)
   (suspend)
   (let ((target-continue continue-arg))
@@ -363,13 +414,23 @@
     ;; itself get promoted from 'boot to 'game further down.
     (cond
       ((= (-> this mode) 'movie)
-       (task-node-reset (if (= mode 'boot) 'game mode))
+       ;; og:preserve-this runtime-link guard, R7 (#122): task-node-reset has no
+       ;; landed body anywhere in goal_src.
+       (if (nonzero? task-node-reset)
+           (task-node-reset (if (= mode 'boot) 'game mode))
+           )
        (open! (-> *game-info* sub-task-list 1) 'event)
        (if (= mode 'boot) (set! mode 'game))
        (update-task-masks mode)
        )
       ((= (-> this mode) 'debug)
-       (reset-actors (if (= mode 'boot) 'game mode))
+       ;; og:preserve-this runtime-link guard, R7 (#122): reset-actors has no landed
+       ;; body anywhere in goal_src. Unguarded, this was the boot crash this rung
+       ;; fixes: *game-info*'s default mode is 'debug (game-info-h.gc:340) and the
+       ;; boot's mode argument is 'boot, so this branch runs on every boot.
+       (if (nonzero? reset-actors)
+           (reset-actors (if (= mode 'boot) 'game mode))
+           )
        (open! (-> *game-info* sub-task-list 1) 'event)
        (when save
          (game-info-method-23 this save)
