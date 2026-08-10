@@ -138,20 +138,30 @@ NOTE: this is a special type in three ways:
      (format *file-temp-string* "map~D/~S-mp" 1 arg1)
      )
     ((= arg0 (file-kind art-group))
-     (format
-       *file-temp-string*
-       "art-group~D/~S-ag"
-       (cond
-         ((> arg2 0)
-          (empty)
-          arg2
-          )
-         (else
-           8
-           )
-         )
-       arg1
-       )
+     ;; og:preserve-this removed art group prefix (#150): jak3's own file-io.gc carries
+     ;; this identical comment-and-flatten treatment for the same function (~line 150).
+     ;; The PC port stores every raw copy flat under out/jakx/obj/ via copy-obj
+     ;; (goal_src/jakx/lib/project-lib.gp), never under an "art-group8/" subdirectory,
+     ;; so the untouched retail path here made loado's make-file-name construct
+     ;; "art-group8/eco-blue-ag.go" for a file that only ever exists flat as
+     ;; "eco-blue-ag.go", producing the "ERROR: art-group ~A is not a valid file"
+     ;; loader.gc spam (#150). Same-shaped fix as the tpage case below, which jak3 also
+     ;; flattened but jakx has not yet (out of scope here: no known caller exercises it).
+     ; (format
+     ;   *file-temp-string*
+     ;   "art-group~D/~S-ag"
+     ;   (cond
+     ;     ((> arg2 0)
+     ;      (empty)
+     ;      arg2
+     ;      )
+     ;     (else
+     ;       8
+     ;       )
+     ;     )
+     ;   arg1
+     ;   )
+     (format *file-temp-string* "~S-ag" arg1)
      )
     )
   *file-temp-string*
