@@ -297,7 +297,7 @@
 (when *debug-segment*
 (deftype debug-line (structure)
   ((flags   int32)
-   (bucket  bucket-id)
+   (bucket  int32)
    (v1      vector  :inline)
    (v2      vector  :inline)
    (color   rgba)
@@ -309,9 +309,9 @@
 
 (deftype debug-text-3d (structure)
   ((flags   int32)
-   (bucket  bucket-id)
+   (bucket  int32)
    (pos     vector    :inline)
-   (color   font-color)
+   (color   uint8)
    (offset  vector2h  :inline)
    (str     string)
    )
@@ -376,7 +376,8 @@
   (set! (-> *debug-lines-trk* length) 0)
   (set! (-> *debug-text-3d-trk* length) 0)
   (set! *debug-draw-pauseable* #f)
-  #f
+  0
+  (none)
   )
 
 (defun-debug debug-draw-buffers ()
@@ -384,7 +385,7 @@
   (dotimes (gp-0 (-> *debug-lines-trk* length))
     (let ((v1-1 (-> *debug-lines* gp-0)))
       (internal-draw-debug-line
-        (-> v1-1 bucket)
+        (the-as bucket-id (-> v1-1 bucket))
         (-> v1-1 v1)
         (-> v1-1 v2)
         (-> v1-1 color)
@@ -395,7 +396,7 @@
     )
   (dotimes (gp-1 (-> *debug-text-3d-trk* length))
     (let ((v1-8 (-> *debug-text-3ds* gp-1)))
-      (internal-draw-debug-text-3d (-> v1-8 bucket) (-> v1-8 str) (-> v1-8 pos) (-> v1-8 color) (-> v1-8 offset))
+      (internal-draw-debug-text-3d (the-as bucket-id (-> v1-8 bucket)) (-> v1-8 str) (-> v1-8 pos) (the-as font-color (-> v1-8 color)) (-> v1-8 offset))
       )
     )
   #f
@@ -408,7 +409,7 @@
       (*debug-draw-pauseable*
         (let ((v1-4 (get-debug-line)))
           (when v1-4
-            (set! (-> v1-4 bucket) bucket)
+            (set! (-> v1-4 bucket) (the-as int32 bucket))
             (vector-copy! (-> v1-4 v1) p0)
             (vector-copy! (-> v1-4 v2) p1)
             (set! (-> v1-4 color) color)
@@ -542,7 +543,7 @@
         (let ((v1-4 (get-debug-text-3d)))
           (when v1-4
             (set! (-> v1-4 flags) 0)
-            (set! (-> v1-4 bucket) bucket)
+            (set! (-> v1-4 bucket) (the-as int32 bucket))
             (vector-copy! (-> v1-4 pos) pos)
             (cond
               (offset
@@ -555,7 +556,7 @@
                 0
                 )
               )
-            (set! (-> v1-4 color) color)
+            (set! (-> v1-4 color) (the-as uint8 color))
             (let ((a0-6 0)
                   (a1-2 (-> text data))
                   (v1-6 (-> v1-4 str data))
