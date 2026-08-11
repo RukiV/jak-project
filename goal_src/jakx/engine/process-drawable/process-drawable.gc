@@ -619,7 +619,36 @@
                   )
               )
         )
-    (let ((s1-0 (load-to-heap-by-name (-> s3-0 art-group) (-> arg1 art-group-name) 'load global (-> arg1 version))))
+    ;; og:preserve-this cross-level art-group probe/adopt/fallback (#162): a process homed
+    ;; on level-default (the racer's placeholder manipy spawns into *entity-pool*, so the
+    ;; kernel assigns it *default-level*) has no real level for s3-0 above, so a 'load
+    ;; against it either misses or lands a copy with no per-level shader remap. 'test only
+    ;; reaches the disk loader through 'load/'reload, so the probe below is a pure in-memory
+    ;; search with no I/O cost on the common hit. On a miss, search every resident level for
+    ;; the group by name; the copy found there was logged in inside its owning level's
+    ;; window, so its shaders already carry that level's remapped texture ids and that
+    ;; level's page is already resident by construction. Re-homing s3-0 (and arg0's own
+    ;; level, through the out-param) also repairs default-texture-page and level-index
+    ;; downstream, which previously took level-default's index 18 unconditionally. Retail
+    ;; Jak X is deliberately a single unconditional 'load with no second call and no
+    ;; master-level anywhere in goal_src/jakx (decompiler_out/jakx/process-drawable_ir2.asm
+    ;; L315 ops 3-19: one lb/compare against 18, one jalr, 'load at op 15); this is a
+    ;; deliberate bring-up divergence, the structural analogue of jak3's master-level re-home
+    ;; in its PC port (goal_src/jak3/engine/process-drawable/process-drawable.gc:747-769,
+    ;; which probes with 'test and re-homes onto master-level). It retires with #152's
+    ;; placeholder spawn levers, not with #162.
+    (let ((s1-0 (load-to-heap-by-name (-> s3-0 art-group) (-> arg1 art-group-name) 'test global (-> arg1 version))))
+      (when (not s1-0)
+        (let ((ag (art-group-get-by-name *level* (-> arg1 art-group-name) (&-> arg0 level))))
+          (when ag
+            (set! s3-0 (-> arg0 level))
+            (set! s1-0 ag)
+            )
+          )
+        )
+      (when (not s1-0)
+        (set! s1-0 (load-to-heap-by-name (-> s3-0 art-group) (-> arg1 art-group-name) 'load global (-> arg1 version)))
+        )
       (when (or (zero? s1-0) (or (not s1-0) (!= (-> s1-0 type) art-group)))
         (go process-drawable-art-error "art-group")
         (set! s2-0 (the-as draw-control #f))
