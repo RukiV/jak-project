@@ -1,0 +1,48 @@
+name: Notify on merge
+# Separate from ci.yaml on purpose. That workflow triggers only on pull_request_target and
+# workflow_dispatch, so a merge into develop produces no run at all and therefore no
+# notification: the branch simply goes quiet at the moment something lands on it.
+#
+# Adding `push` to ci.yaml would fix the silence by rebuilding everything, including the
+# 25 to 50 minute MSVC job, to re-test code the pull request already tested. This reports
+# the landing and nothing else, in a few seconds.
+#
+# It deliberately does not claim the merge was good. The pull request run is what
+# establishes green; this says only that something arrived.
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  notify:
+    runs-on: ubuntu-22.04
+    steps:
+      # No checkout: nothing here reads the tree, and the action is fetched by the runner.
+      - name: Take the commit subject
+        id: commit
+        env:
+          # Bound to env rather than interpolated into the script. A commit message is
+          # attacker-supplied on any push, and ${{ }} is substituted as literal text
+          # before bash parses the line, so interpolating it directly would run whatever
+          # a `$(...)` in a commit subject contained.
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          set -u
+          # Subject only. Commit bodies here run to paragraphs, and a notification wants
+          # one line. Stripping the body also keeps the value safe to write to
+          # GITHUB_OUTPUT, whose key=value form cannot carry a newline.
+          subject="${MSG%%$'\n'*}"
+          printf 'subject=%s\n' "$subject" >> "$GITHUB_OUTPUT"
+
+      - name: Notify ntfy
+        continue-on-error: true
+        uses: https://git.snalpha.com/alex/action-ntfy-notify@main
+        with:
+          token: ${{ secrets.NTFY_CI_TOKEN }}
+          url: ${{ vars.NTFY_CI_URL }}
+          # Title and body are overridden because the run-outcome wording would title this
+          # "#N success" when nothing was built, which reads as a passing CI result.
+          status: success
+          tags: twisted_rightwards_arrows
+          title: ${{ github.repository }} merged to ${{ github.ref_name }}
+          message: ${{ steps.commit.outputs.subject }} (${{ github.actor }})
