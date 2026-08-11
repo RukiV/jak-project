@@ -12,6 +12,7 @@
 #include "game/overlord/jak3/ssound.h"
 #include "game/overlord/jak3/streamlist.h"
 #include "game/overlord/jak3/vag.h"
+#include "game/runtime.h"
 #include "game/sce/iop.h"
 
 namespace jak3 {
@@ -187,7 +188,11 @@ u32 VBlankThread() {
         sceSifDmaData dma;
         dma.data = &g_SRPCSoundIOPInfo;
         dma.addr = (void*)(u64)g_nInfoEE;
-        dma.size = sizeof(g_SRPCSoundIOPInfo);
+        // jakx's EE-side *sound-iop-info* is 0x2c0 bytes (gsound-h.gc), 16 bytes smaller than
+        // this jak3 struct: the full-size DMA stomps whatever the kernel allocated after it,
+        // every vblank (#175). The dead game/overlord/jakx/vblank_handler.cpp:190 copy already
+        // carries this exact clamp; jak3 itself keeps the full struct.
+        dma.size = (g_game_version == GameVersion::JakX) ? 0x2c0 : sizeof(g_SRPCSoundIOPInfo);
         static_assert(sizeof(g_SRPCSoundIOPInfo) == 0x2d0);
         dma.mode = 0;
         /*dmaid =*/sceSifSetDma(&dma, 1);
