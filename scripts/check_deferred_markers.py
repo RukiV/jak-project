@@ -18,6 +18,10 @@ Two modes:
   report  Inventory every marker in the tree, split by whether it is tracked. Use
           this to triage the backlog, not in CI.
 
+Both modes read COMMITTED content through git, NOT the working tree, so an
+uncommitted change is invisible here. A warning is printed when the tree is
+dirty.
+
 A marker is "tracked" if it cites an issue (#123) or a forge URL. Deleting the code
 counts as fixing it too: git remembers, and a commented-out block does not.
 """
@@ -111,6 +115,26 @@ def git(*args: str) -> str:
                           encoding="utf-8", errors="replace").stdout
 
 
+def warn_if_dirty() -> None:
+    """Say so when uncommitted work exists, because it is invisible to this check.
+
+    Both of these tools read committed content through git, not the working tree.
+    Run one before committing and it reports on the previous commit while looking
+    like it reported on your change. That produced two wrong readings in one
+    sitting, so it gets said out loud rather than documented and forgotten. CI
+    checks out clean, so this never fires there.
+    """
+    dirty = [ln for ln in git("status", "--porcelain").splitlines() if ln.strip()]
+    if dirty:
+        print(
+            f"NOTE: {len(dirty)} uncommitted change(s) in the working tree.\n"
+            "      This check reads COMMITTED content (HEAD), so those are NOT\n"
+            "      included. Commit first, or this result describes the previous\n"
+            "      commit rather than your change.\n",
+            file=sys.stderr,
+        )
+
+
 def added_lines(base: str):
     """Yield (path, line) for every line added relative to base.
 
@@ -131,6 +155,7 @@ def added_lines(base: str):
 
 
 def mode_diff(base: str) -> int:
+    warn_if_dirty()
     offences, disabled = [], []
     for path, line in added_lines(base):
         kind = classify(line)

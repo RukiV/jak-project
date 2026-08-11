@@ -21,6 +21,9 @@ other generated file: stale until proven otherwise. Two consequences worth havin
   - Landing a switch also shows up, as a line leaving the ledger. Progress is
     visible without anyone maintaining a list by hand, which is what #176 is.
 
+This reads COMMITTED content through git, not the working tree, so uncommitted
+changes are invisible to it; a warning is printed when the tree is dirty.
+
 Regenerate with:  python3 scripts/gen_inert_ledger.py --write
 Check in CI with: python3 scripts/gen_inert_ledger.py --check
 """
@@ -33,7 +36,28 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from find_unarmed_levers import scan  # noqa: E402
+from find_unarmed_levers import git, scan  # noqa: E402
+
+
+def warn_if_dirty() -> None:
+    """Say so when uncommitted work exists, because it is invisible to this check.
+
+    Both of these tools read committed content through git, not the working tree.
+    Run one before committing and it reports on the previous commit while looking
+    like it reported on your change. That produced two wrong readings in one
+    sitting, so it gets said out loud rather than documented and forgotten. CI
+    checks out clean, so this never fires there.
+    """
+    dirty = [ln for ln in git("status", "--porcelain").splitlines() if ln.strip()]
+    if dirty:
+        print(
+            f"NOTE: {len(dirty)} uncommitted change(s) in the working tree.\n"
+            "      This check reads COMMITTED content (HEAD), so those are NOT\n"
+            "      included. Commit first, or this result describes the previous\n"
+            "      commit rather than your change.\n",
+            file=sys.stderr,
+        )
+
 
 GAMES = ("jakx", "jak3", "jak2", "jak1")
 LEDGER = Path("docs/inert-inventory.md")
@@ -105,6 +129,7 @@ def main() -> int:
                     help="exit non-zero if the committed ledger is out of date")
     args = ap.parse_args()
 
+    warn_if_dirty()
     root = subprocess.run(["git", "rev-parse", "--show-toplevel"],
                           capture_output=True, text=True).stdout.strip()
     path = Path(root) / LEDGER
