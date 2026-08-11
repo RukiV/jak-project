@@ -175,9 +175,18 @@ jobs:
         if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
         run: |
           set -eu
-          git fetch --no-tags --depth=200 origin "${{ github.event.pull_request.base.ref }}"
-          python3 scripts/check_deferred_markers.py --mode diff \
-            --base "origin/${{ github.event.pull_request.base.ref }}"
+          BASE="${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags --depth=200 origin "$BASE"
+          # The TOOLING comes from the base ref, the CONTENT from the head. A branch
+          # cut before these scripts landed has no copy of them, and failing it for
+          # that is punishing a pull request for its base commit rather than its
+          # diff (this is exactly what happened to #146). It is the same split
+          # pull_request_target already applies to the workflow definition itself,
+          # and it has the useful side effect that the gate cannot be evaded by
+          # deleting the script on the branch.
+          GUARDS="$(mktemp -d)"
+          git show "origin/$BASE:scripts/check_deferred_markers.py" > "$GUARDS/check_deferred_markers.py"
+          python3 "$GUARDS/check_deferred_markers.py" --mode diff --base "origin/$BASE"
 
       # docs/inert-inventory.md is generated from the tree and committed. Failing on
       # staleness rather than on comment wording is the point: it catches a mechanism
@@ -190,7 +199,21 @@ jobs:
       - name: Inert-mechanism ledger is up to date
         run: |
           set -eu
-          python3 scripts/gen_inert_ledger.py --check
+          BASE="${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags --depth=200 origin "$BASE"
+          # Unlike the deferral gate, this one cannot be salvaged with base tooling
+          # alone: a branch predating the ledger has no docs/inert-inventory.md, so
+          # regenerating would always report the whole file as drift. Skip, but say
+          # so at notice level rather than silently, because a gate that quietly
+          # does nothing is worse than one that fails honestly.
+          if [ ! -f docs/inert-inventory.md ]; then
+            echo "::notice::This branch predates docs/inert-inventory.md, so the ledger check is skipped. Rebase past f6e086056 to enable it."
+            exit 0
+          fi
+          GUARDS="$(mktemp -d)"
+          git show "origin/$BASE:scripts/gen_inert_ledger.py"   > "$GUARDS/gen_inert_ledger.py"
+          git show "origin/$BASE:scripts/find_unarmed_levers.py" > "$GUARDS/find_unarmed_levers.py"
+          python3 "$GUARDS/gen_inert_ledger.py" --check
 
       - name: Required checks
         run: |
