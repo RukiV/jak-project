@@ -27,7 +27,16 @@
         (set! i (+ i 1))
         )
       )
-    (if found
+    ;; og:preserve-this root guard, rung 2 (#164): target-init (logic-target.gc) never
+    ;; builds a root, and the kernel's activate zeroes the whole subclass field block,
+    ;; so root reads GOAL 0 here, which is truthy; the raw decode's (if found ...) alone
+    ;; lets a root-less target through and derefs (-> found root trans) into that zero.
+    ;; This sits on a per-frame path (the sky's time-of-day update calls
+    ;; level-get-target-inside twice per frame), so a root-less registered target
+    ;; crashes almost immediately. Treating a root-less target as no target at all
+    ;; keeps the function's existing no-target fallback behavior. Retires when a real
+    ;; collide-shape root lands in target-init.
+    (if (and found (nonzero? (-> (the-as target found) root)))
         (-> (the-as target found) root trans)
         (let ((pos (begin
                      (view-push-context 0)
