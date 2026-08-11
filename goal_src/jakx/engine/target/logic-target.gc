@@ -7,6 +7,16 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this bring-up lever, rung 2 (#164): #160 bound view-set-active-target,
+;; so every 'play-mode init now registers the view target silently once the nonzero?
+;; guard in start (below) passes. This flag makes that registration deliberate and
+;; flippable from a REPL for A/B instead of happening as a side effect of the symbol
+;; landing. Default #t preserves the current empirical behavior (three crash-free
+;; boots at this tip today). Mirrors the *jakx-cam-start* lever idiom (cam-start.gc).
+;; Retires when target registration is a settled, always-on default and the A/B lever
+;; is no longer needed.
+(define *jakx-view-target* #t)
+
 ;; og:preserve-this forward-decl, R5a (#122): reset-target-state below guards a call to
 ;; this function (unlanded; raw_obj link-table grep shows it referenced from four
 ;; objects, including target-death.go, none of which is landed yet); the compiler
@@ -124,7 +134,7 @@
           )
       (cond
         (v1-11
-          (if (nonzero? view-set-active-target)
+          (if (and *jakx-view-target* (nonzero? view-set-active-target))
               (view-set-active-target (-> v1-11 0 self))
               )
           (set! s3-0 (view-get-active-target))
