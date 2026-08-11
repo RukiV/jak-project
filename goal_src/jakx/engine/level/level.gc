@@ -3242,6 +3242,59 @@ puppet copy."
   (none)
   )
 
+(defun jakx-racer-surface-y ((cur vector) (fallback float))
+  "og:preserve-this bring-up y correction (#167): the baked centerline table's y
+is not the drivable surface (the racer runs underground; see #167's analysis),
+so this looks up the y of the continue point nearest cur by x/z distance
+instead, restricted to the boot continue's family (same :level home, lightjak
+grid-starts excluded, mirroring the continue filter jakx-racer-tick's
+continue-fallback path applies below verbatim). Piecewise-constant y taken
+from authored on-surface respawn markers is deliberately crude, not a real
+ground height; it retires with real ground-following once the vehicle chain
+lands collision. Falls back to fallback (the baked table's own y) when
+*jakx-want-driver-cp* is unset or the family has no eligible continue, so an
+unusual boot degrades to #161's original y instead of asserting."
+  (if *jakx-want-driver-cp*
+      (let ((home (-> *jakx-want-driver-cp* level))
+            (best (the continue-point #f))
+            (best-d 1000000000000000000.0)
+            )
+        (let ((lst *level-load-list*))
+          (while (not (null? lst))
+            (let* ((info (the-as level-load-info (-> (the-as symbol (car lst)) value)))
+                   (conts (-> info continues))
+                   )
+              (while (not (null? conts))
+                (let ((cp (the-as continue-point (car conts))))
+                  (when (and (= (-> cp level) home)
+                             (not (logtest? (-> cp flags) (continue-flags lightjak)))
+                             )
+                    (let* ((dx (- (-> cp trans x) (-> cur x)))
+                           (dz (- (-> cp trans z) (-> cur z)))
+                           (d (+ (* dx dx) (* dz dz)))
+                           )
+                      (when (or (not best) (< d best-d))
+                        (set! best cp)
+                        (set! best-d d)
+                        )
+                      )
+                    )
+                  )
+                (set! conts (cdr conts))
+                )
+              )
+            (set! lst (cdr lst))
+            )
+          )
+        (if best
+            (-> best trans y)
+            fallback
+            )
+        )
+      fallback
+      )
+  )
+
 (defun jakx-racer-tick ()
   "og:preserve-this bring-up racer driver (#152, #161): move the spawned racer
 manipy toward the next target at *jakx-racer-speed*, advancing on arrival and
@@ -3277,8 +3330,9 @@ overshoot and no separate tunable to keep in sync with speed."
                 )
               )
             (let* ((target (-> *jakx-racer-track* *jakx-racer-track-index*))
+                   (target-y (jakx-racer-surface-y cur (-> target y)))
                    (dx (- (-> target x) (-> cur x)))
-                   (dy (- (-> target y) (-> cur y)))
+                   (dy (- target-y (-> cur y)))
                    (dz (- (-> target z) (-> cur z)))
                    (dist (sqrtf (+ (* dx dx) (* dy dy) (* dz dz))))
                    (step (* *jakx-racer-speed* (seconds-per-frame)))
@@ -3286,7 +3340,7 @@ overshoot and no separate tunable to keep in sync with speed."
               (cond
                 ((<= dist step)
                  (set! (-> cur x) (-> target x))
-                 (set! (-> cur y) (-> target y))
+                 (set! (-> cur y) target-y)
                  (set! (-> cur z) (-> target z))
                  )
                 (else
