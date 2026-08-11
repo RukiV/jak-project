@@ -7,3 +7,28 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this (#173): trsq's own new was never landed, so allocating a
+;; trsq/trsqv (the process root for every engine-spawned skeleton with no
+;; entity, e.g. manipy-init's arg3=#f branch and target-init) fell back to a
+;; plain zero-filled object-new, leaving root scale at (0, 0, 0, 0). A
+;; dimensionless root scales every merc vertex to zero, so the model is
+;; submitted to the renderer, frustum-passed and textured, at exactly zero
+;; size: invisible while everything upstream (draw status, level-index,
+;; model lookup) reads healthy. Live-proven on the #152 racer: root scale
+;; read raw zero on x, y, and z on a fresh boot. jak3's manipy-init does the
+;; identical (new 'process 'trsqv) with only a trans copy and its manipys
+;; render, because jak3's own trs (the type jakx's trsq plays the role of)
+;; carries this exact override. Matches jak3's landed body verbatim
+;; (goal_src/jak3/engine/math/transform.gc:18), short of the type name
+;; (trs there, trsq here, since jakx's transformq/trsq pair already collapses
+;; what jak3 splits into transform/trs plus their quat-overlay children
+;; transformq/trsq).
+(defmethod new trsq ((allocation symbol) (type-to-make type))
+  (let ((gp-0 (object-new allocation type-to-make (the-as int (-> type-to-make size)))))
+    (set! (-> gp-0 trans w) 1.0)
+    (set! (-> gp-0 rot w) 1.0)
+    (vector-identity! (-> gp-0 scale))
+    gp-0
+    )
+  )
+
