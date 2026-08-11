@@ -427,3 +427,24 @@ jobs:
           GTEST_OUTPUT: "xml:opengoal-test-report.xml"
         run: |
           ./build/bin/goalc-test.exe --gtest_color=yes --gtest_brief=0 --gtest_filter="-*MANUAL_TEST*"
+
+  # Reports the run once, rather than a notification per job. This job's own job.status
+  # is its own success, not the run's, so the aggregate is passed in explicitly.
+  #
+  # if: always() so a failed build still reports. A notification that only ever fires on
+  # green is indistinguishable from a dead channel, which is the case worth covering.
+  #
+  # Runs on the Linux runner: it needs curl and nothing else, and pinning it to the
+  # Windows host would make notification depend on the scarcer runner.
+  notify:
+    runs-on: ubuntu-22.04
+    needs: [lint, build-and-test, windows-msvc]
+    if: always()
+    steps:
+      - name: Notify ntfy
+        continue-on-error: true
+        uses: https://git.snalpha.com/alex/action-ntfy-notify@main
+        with:
+          token: ${{ secrets.NTFY_CI_TOKEN }}
+          url: ${{ vars.NTFY_CI_URL }}
+          status: ${{ join(needs.*.result, ' ') }}
