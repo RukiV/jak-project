@@ -3319,9 +3319,19 @@ overshoot and no separate tunable to keep in sync with speed."
           (let ((cur (-> proc root trans)))
             (let* ((cand (-> *jakx-racer-track* *jakx-racer-track-index*))
                    (cdx (- (-> cand x) (-> cur x)))
-                   (cdy (- (-> cand y) (-> cur y)))
                    (cdz (- (-> cand z) (-> cur z)))
-                   (cdist (sqrtf (+ (* cdx cdx) (* cdy cdy) (* cdz cdz))))
+                   ;; og:preserve-this x/z-only arrival test (#167 follow-up): cand's y is
+                   ;; the baked centerline's own underground value, not the surface height
+                   ;; cur.y is now driven toward by jakx-racer-surface-y below. Including a
+                   ;; cdy term here mixed those two y references; once the surface-corrected
+                   ;; cur.y diverged from cand's baked y by more than the radius, cdist could
+                   ;; never fall under it again, freezing *jakx-racer-track-index* (and with
+                   ;; it cur's x/z, since the racer just keeps re-lerping toward the same
+                   ;; stuck target) for the rest of the session. Measured: the racer rode a
+                   ;; single nearest continue's y for the whole boot instead of the 22-190m
+                   ;; range the authored continues span. Retires with real ground-following
+                   ;; once the vehicle chain lands collision, same as the y-lookup below.
+                   (cdist (sqrtf (+ (* cdx cdx) (* cdz cdz))))
                    )
               (when (<= cdist *jakx-racer-track-arrive-radius*)
                 (set! *jakx-racer-track-index*
