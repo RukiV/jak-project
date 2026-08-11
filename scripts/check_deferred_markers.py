@@ -48,6 +48,7 @@ EXCLUDED_BASENAMES = (
     # their own source, which is a fine way to have the check deleted on day one.
     "check_deferred_markers.py",
     "find_unarmed_levers.py",
+    "gen_inert_ledger.py",
 )
 
 # Classic markers, whole-word so READDATA does not match re-add.
@@ -111,8 +112,15 @@ def git(*args: str) -> str:
 
 
 def added_lines(base: str):
-    """Yield (path, line) for every line added relative to base."""
-    diff = git("diff", "--unified=0", f"{base}...HEAD")
+    """Yield (path, line) for every line added relative to base.
+
+    Two-dot diff, NOT three-dot, because CI checks out with --depth=1 and a shallow
+    HEAD has no ancestry, so `base...HEAD` cannot compute a merge base. Two-dot
+    compares the two trees directly and needs no common ancestor. It is safe here:
+    anything on base but not on HEAD appears as a REMOVAL, and only added lines are
+    inspected.
+    """
+    diff = git("diff", "--unified=0", base, "HEAD")
     path = None
     for line in diff.splitlines():
         if line.startswith("+++ b/"):
