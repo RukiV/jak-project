@@ -36,6 +36,16 @@ from collections import defaultdict
 GLOBAL = re.compile(r"\*[a-zA-Z][a-zA-Z0-9!?*<>=/+-]*\*")
 
 DEFINE = re.compile(r"\(\s*(?:define|define-extern|define-perm)\s+(\*[^\s()]+\*)")
+# Capture what a define initialises to, so a switch can be told from a constant.
+DEFINE_INIT = re.compile(r"\(\s*(?:define|define-perm)\s+(\*[^\s()]+\*)\s+(.*)$")
+
+# A lever is a scalar the code flips: #f/#t, a number, or a quoted mode symbol. A
+# buffer, vector or static struct that is never written is read-only BY DESIGN and
+# not a finding. Distinguishing them is the whole precision problem: without it the
+# check reports 739 candidates against a hand sweep's 68 and gets ignored, which is
+# worse than not running it at all.
+SCALAR_INIT = re.compile(r"^(?:#f|#t|-?\d+(?:\.\d+)?|'[a-zA-Z][\w!?*<>=/-]*)\s*\)?\s*$")
+STRUCTURE_INIT = re.compile(r"^\(\s*(?:new|the-as|the)\b|^\(\s*zero-vector|^\(\s*vector")
 # A write is set! on the symbol itself, or on a field reached through it.
 SET_DIRECT = re.compile(r"\(\s*set!\s+(\*[^\s()]+\*)")
 SET_FIELD = re.compile(r"\(\s*set!\s+\(\s*->\s+(\*[^\s()]+\*)")
@@ -59,6 +69,7 @@ def scan(ref: str, prefix: str):
     # a fully landed free-cam while its only setter sits commented at main.gc:2395.
     commented_writes: dict[str, set[str]] = defaultdict(set)
     defines: dict[str, str] = {}
+    init_kind: dict[str, str] = {}
 
     for path in files:
         text = git("show", f"{ref}:{path}")
@@ -73,6 +84,16 @@ def scan(ref: str, prefix: str):
                 continue
             for m in DEFINE.finditer(line):
                 defines.setdefault(m.group(1), path)
+            for m in DEFINE_INIT.finditer(line):
+                sym, rest = m.group(1), m.group(2).strip()
+                if sym not in init_kind:
+                    if STRUCTURE_INIT.search(rest):
+                        init_kind[sym] = "structure"
+                    elif SCALAR_INIT.match(rest):
+                        init_kind[sym] = "scalar"
+                    else:
+                        init_kind[sym] = "other"
+
             written_here = set()
             for rx in (SET_DIRECT, SET_FIELD, SET_SETTING):
                 for m in rx.finditer(line):
@@ -88,7 +109,7 @@ def scan(ref: str, prefix: str):
     for sym, path in defines.items():
         reads[sym].discard(path) if len(reads[sym]) > 1 else None
 
-    return defines, reads, writes, commented_writes
+    return defines, reads, writes, commented_writes, init_kind
 
 
 def main() -> int:
@@ -103,17 +124,21 @@ def main() -> int:
                     help="symbols that must NOT be flagged, i.e. their switch has "
                          "since been landed. A detector with no negative control is "
                          "just a thing that says yes.")
+    ap.add_argument("--all-globals", action="store_true",
+                    help="do not filter to scalar-initialised switches; reports every "
+                         "read-never-written global including read-only constants")
     ap.add_argument("--limit", type=int, default=30)
     args = ap.parse_args()
 
-    defines, reads, writes, commented_writes = scan(args.ref, args.prefix)
+    defines, reads, writes, commented_writes, init_kind = scan(args.ref, args.prefix)
 
     unarmed, dead, disabled_switch = [], [], []
     for sym in set(defines) | set(reads) | set(writes) | set(commented_writes):
         r, w = len(reads.get(sym, ())), len(writes.get(sym, ()))
         cw = commented_writes.get(sym, set())
         if r >= 1 and w == 0:
-            unarmed.append((sym, r, defines.get(sym, "?")))
+            if args.all_globals or init_kind.get(sym) == "scalar":
+                unarmed.append((sym, r, defines.get(sym, "?")))
             if cw:
                 disabled_switch.append((sym, r, sorted(cw)))
         elif w >= 1 and r == 0:
@@ -124,7 +149,8 @@ def main() -> int:
 
     print(f"scanned {args.prefix} at {args.ref}: "
           f"{len(defines)} globals defined, {len(reads)} read, {len(writes)} written\n")
-    print(f"UNARMED (read but never written) : {len(unarmed)}")
+    scope = "all globals" if args.all_globals else "scalar-initialised switches only"
+    print(f"UNARMED (read but never written) : {len(unarmed)}   [{scope}]")
     print(f"DEAD    (written but never read)  : {len(dead)}\n")
 
     if disabled_switch:

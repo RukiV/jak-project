@@ -179,20 +179,18 @@ jobs:
           python3 scripts/check_deferred_markers.py --mode diff \
             --base "origin/${{ github.event.pull_request.base.ref }}"
 
-      # Advisory only: prints the unarmed-lever inventory so a reviewer can see whether
-      # a change added to it. Deliberately does not fail the build, because the
-      # detector's precision is not good enough to gate on yet (193 candidates on jakx
-      # against the 68 the manual sweep judged real).
-      - name: Unarmed-mechanism inventory (advisory)
-        continue-on-error: true
+      # docs/inert-inventory.md is generated from the tree and committed. Failing on
+      # staleness rather than on comment wording is the point: it catches a mechanism
+      # left inert even when nobody wrote a note, which is the dangerous case and the
+      # one a grep for TODO can never see. It is also the rule AGENTS.md section 2
+      # already applies to every other generated file.
+      #
+      # The failure is always actionable and never a judgement call: run --write and
+      # commit. The diff then shows review exactly what the branch armed or disarmed.
+      - name: Inert-mechanism ledger is up to date
         run: |
           set -eu
-          for game in jakx jak3 jak2 jak1; do
-            echo "::group::$game"
-            python3 scripts/find_unarmed_levers.py --ref HEAD \
-              --prefix "goal_src/$game/" --limit 15 || true
-            echo "::endgroup::"
-          done
+          python3 scripts/gen_inert_ledger.py --check
 
       - name: Required checks
         run: |
