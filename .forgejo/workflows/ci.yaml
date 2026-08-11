@@ -166,6 +166,34 @@ jobs:
             --color always \
             --clang-format-executable "$HOME/.local/bin/clang-format"
 
+      # AGENTS.md section 12. A mechanism can land fully wired and never run because
+      # nothing sets the symbol gating it; issue #176 catalogues 68 such levers and
+      # #171 cost a day of tracing. This is a RATCHET on the diff: the tree carries a
+      # large pre-existing backlog, and failing on that would make every branch
+      # unlandable, which is how a check gets deleted instead of obeyed.
+      - name: No untracked deferrals added
+        if: github.event_name == 'pull_request' || github.event_name == 'pull_request_target'
+        run: |
+          set -eu
+          git fetch --no-tags --depth=200 origin "${{ github.event.pull_request.base.ref }}"
+          python3 scripts/check_deferred_markers.py --mode diff \
+            --base "origin/${{ github.event.pull_request.base.ref }}"
+
+      # Advisory only: prints the unarmed-lever inventory so a reviewer can see whether
+      # a change added to it. Deliberately does not fail the build, because the
+      # detector's precision is not good enough to gate on yet (193 candidates on jakx
+      # against the 68 the manual sweep judged real).
+      - name: Unarmed-mechanism inventory (advisory)
+        continue-on-error: true
+        run: |
+          set -eu
+          for game in jakx jak3 jak2 jak1; do
+            echo "::group::$game"
+            python3 scripts/find_unarmed_levers.py --ref HEAD \
+              --prefix "goal_src/$game/" --limit 15 || true
+            echo "::endgroup::"
+          done
+
       - name: Required checks
         run: |
           python3 ./scripts/ci/lint-trailing-whitespace.py

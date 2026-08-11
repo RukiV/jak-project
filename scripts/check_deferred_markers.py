@@ -41,7 +41,14 @@ EXCLUDED_PREFIXES = (
 # it is decompiler-generated configuration where "uncommented" appears as a factual
 # record of what was done, not as a deferred action.
 INCLUDED_SUFFIXES = (".gc", ".gs", ".cpp", ".h", ".hpp", ".cc", ".py", ".yaml", ".yml")
-EXCLUDED_BASENAMES = ("all-types.gc",)
+EXCLUDED_BASENAMES = (
+    "all-types.gc",
+    # The checkers necessarily contain the very words they search for, in their
+    # patterns and in the explanation of why they exist. Without this they fail on
+    # their own source, which is a fine way to have the check deleted on day one.
+    "check_deferred_markers.py",
+    "find_unarmed_levers.py",
+)
 
 # Classic markers, whole-word so READDATA does not match re-add.
 MARKER_WORDS = re.compile(r"(?<![A-Za-z])(TODO|FIXME|XXX|HACK)(?![A-Za-z])")

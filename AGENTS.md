@@ -208,9 +208,41 @@ to make on their own repository. Proceed, and record in the pull request body ex
 was skipped and that it was skipped at their direction. What must never happen is a pull
 request that quietly implies standards were met when they were not.
 
-**None of this is enforcement.** A file cannot stop anyone. It states the policy so that
+**Most of this is not enforcement.** A file cannot stop anyone, and only the disclosure marker, the commit format and the checks named in section 12 are machine-checked. It states the policy so that
 skipping it is a visible choice rather than an accident, and so review knows what to look
 for. Enforcement is branch protection and human review.
+
+## 12. Inert code is invisible until it crashes
+
+A mechanism can be landed, wired, and consumed every frame, and still never run, because
+nothing anywhere sets the symbol that gates it. The compiler is happy, the linker is happy,
+every test passes, and the behaviour is simply absent. Section 5 covers the inverse hazard,
+landing a definition that activates guarded callers; this is the one where the definition
+lands and the switch never does.
+
+This is the most expensive class in this repository. Issue #176 catalogues 68 of them found
+in a single sweep. Issue #171 is the shape to remember: `*external-cam-mode*` was read by a
+fully landed free-cam, the entire mechanism present and view-aware, while its only setter
+sat commented out in `main.gc`. Free flight silently ran on a fallback branch that fought
+the racer's chase pin for the same camera every frame. That cost a day of tracing, and the
+comment explaining it was right there the whole time.
+
+So:
+
+- **Commenting code out is a deletion with extra steps.** Delete it. Git remembers, and a
+  commented block does not announce itself the way a missing function does. If it genuinely
+  must stay, it cites an issue, so it survives whoever wrote it.
+- **Land the switch with the mechanism**, or open the issue that will, in the same change.
+  "I will arm it next" is the exact thought that produced #176.
+- **A note saying to do something later is not a plan.** Untracked, it rots. `TODO(#123)`
+  is a plan; `TODO` is a wish.
+- **When tracing a crash, ask first what was recently disabled**, before reading the code
+  that appears to be failing. In the case above the failing code was innocent.
+
+`scripts/find_unarmed_levers.py` finds this class mechanically: globals that live code reads
+and nothing writes, with the highest-priority output being those whose only writer is
+commented out. `scripts/check_deferred_markers.py` blocks new untracked deferrals. Run them
+rather than relying on attention, which is the point of every other rule in this file.
 
 ## Divergence from upstream's guidance below
 
