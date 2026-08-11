@@ -3215,6 +3215,33 @@ inv-camera-rot is built consistently with the only other producer of one."
   (none)
   )
 
+;; og:preserve-this bring-up extern (#164 rung 3b): *jakx-view-target* is defined in
+;; logic-target.gc, which compiles after this file (level.o at game.gd position 267,
+;; logic-target.o at 307). Retires alongside the puppet write below, once the real
+;; vehicle chain drives the target directly.
+(define-extern *jakx-view-target* symbol)
+
+(defun jakx-racer-puppet-view-target! ((cur vector))
+  "og:preserve-this bring-up racer puppet, rung 3b (#164): copies the racer's
+final per-tick position (the same cur jakx-racer-cam-tick! receives) onto the
+registered view target's root so it visibly rides the racer instead of
+sitting wherever the boot continue left it. Both inputs are runtime-proven:
+view registration has been live since #160, and the target's root is a bare
+trsqv seeded at process init since #166, so a truthy *jakx-view-target* plus
+a live view target reliably carries a nonzero root here. Retires once the
+real vehicle chain (#152 family) drives the target directly instead of this
+puppet copy."
+  (let ((vtarget (view-get-active-target)))
+    (when (and *jakx-view-target*
+               vtarget
+               (nonzero? (-> (the-as target vtarget) root))
+               )
+      (set! (-> (the-as target vtarget) root trans quad) (-> cur quad))
+      )
+    )
+  (none)
+  )
+
 (defun jakx-racer-tick ()
   "og:preserve-this bring-up racer driver (#152, #161): move the spawned racer
 manipy toward the next target at *jakx-racer-speed*, advancing on arrival and
@@ -3279,6 +3306,7 @@ overshoot and no separate tunable to keep in sync with speed."
                 )
               )
             (jakx-racer-cam-tick! cur)
+            (jakx-racer-puppet-view-target! cur)
             )
           )
         (*jakx-want-driver-cp*
@@ -3345,6 +3373,7 @@ overshoot and no separate tunable to keep in sync with speed."
                       )
                     )
                   (jakx-racer-cam-tick! cur)
+                  (jakx-racer-puppet-view-target! cur)
                   )
                 )
               (else
