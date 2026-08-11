@@ -58,6 +58,34 @@ def git(*args: str) -> str:
                           encoding="utf-8", errors="replace").stdout
 
 
+def read_blobs(ref: str, paths: list[str]) -> dict[str, str]:
+    """Read many blobs in ONE git process.
+
+    Spawning `git show` per file cost 95s across the four game trees, almost all of
+    it process creation. `cat-file --batch` streams every blob through a single
+    process instead, which matters because this runs on every pull request.
+    """
+    if not paths:
+        return {}
+    stdin = "".join(f"{ref}:{p}\n" for p in paths).encode()
+    proc = subprocess.run(["git", "cat-file", "--batch"], input=stdin,
+                          capture_output=True)
+    out, pos, result = proc.stdout, 0, {}
+    for path in paths:
+        nl = out.find(b"\n", pos)
+        if nl == -1:
+            break
+        header = out[pos:nl].decode("utf-8", "replace")
+        pos = nl + 1
+        parts = header.split()
+        if len(parts) != 3:      # "<oid> missing" for a path not in this ref
+            continue
+        size = int(parts[2])
+        result[path] = out[pos:pos + size].decode("utf-8", "replace")
+        pos += size + 1          # blob content plus its trailing newline
+    return result
+
+
 def scan(ref: str, prefix: str):
     files = [p for p in git("ls-tree", "-r", "--name-only", ref).splitlines()
              if p.startswith(prefix) and p.endswith((".gc", ".gs"))]
@@ -71,8 +99,9 @@ def scan(ref: str, prefix: str):
     defines: dict[str, str] = {}
     init_kind: dict[str, str] = {}
 
+    blobs = read_blobs(ref, files)
     for path in files:
-        text = git("show", f"{ref}:{path}")
+        text = blobs.get(path, "")
         for raw in text.splitlines():
             live, _, commented = raw.partition(";;")
             if commented.strip():
