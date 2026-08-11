@@ -4828,13 +4828,168 @@
   (none)
   )
 
-;; og:preserve-this bring-up stubs for the functions whose decomp still degrades
-;; (bodies preserved commented above); all are debug/menu-path only for phase 1.
+;; og:preserve-this bring-up-scoped landing (#171): only the camera-cheat branch of
+;; the raw decomp (commented above at :2310-2449, *cheat-temp* index 4) is landed.
+;; It is self-contained: its (when *cheat-mode* ...) gate is already satisfied since
+;; *cheat-mode* defaults to #t (pad.gc:136), so the master cheat-mode-on sequence at
+;; index 0 (:1709-1834) does not need to land to reach it. Every other cheat
+;; (*cheat-temp* 0-3, the post-cheat-mode branches past :2454) stays commented.
+;; Note: disengaging sets *cheat-mode* back to #f, which also closes this branch's
+;; own gate, since the index-0 sequence that would set it back to non-#f is not
+;; landed; re-arming after a disengage does not work yet. Retires when main-cheats
+;; lands in full.
 (defun main-cheats ()
+  (when *cheat-mode*
+    (when (nonzero? (-> *cpad-list* cpads 1 button0-rel 0))
+      (let ((v1-192 (-> *cheat-temp* 4)))
+        (cond
+          ((zero? v1-192)
+           (cond
+             ((cpad-pressed? 1 triangle)
+              (+! (-> *cheat-temp* 4) 1)
+              )
+             (else
+               (set! (-> *cheat-temp* 4) 0)
+               0
+               )
+             )
+           )
+          ((= v1-192 1)
+           (cond
+             ((cpad-pressed? 1 x)
+              (+! (-> *cheat-temp* 4) 1)
+              )
+             (else
+               (set! (-> *cheat-temp* 4) 0)
+               0
+               )
+             )
+           )
+          ((= v1-192 2)
+           (cond
+             ((cpad-pressed? 1 circle)
+              (+! (-> *cheat-temp* 4) 1)
+              )
+             (else
+               (set! (-> *cheat-temp* 4) 0)
+               0
+               )
+             )
+           )
+          ((= v1-192 3)
+           (cond
+             ((cpad-pressed? 1 square)
+              (+! (-> *cheat-temp* 4) 1)
+              )
+             (else
+               (set! (-> *cheat-temp* 4) 0)
+               0
+               )
+             )
+           )
+          ((= v1-192 4)
+           (cond
+             ((cpad-pressed? 1 triangle)
+              (+! (-> *cheat-temp* 4) 1)
+              )
+             (else
+               (set! (-> *cheat-temp* 4) 0)
+               0
+               )
+             )
+           )
+          ((= v1-192 5)
+           (cond
+             ((cpad-pressed? 1 x)
+              (+! (-> *cheat-temp* 4) 1)
+              )
+             (else
+               (set! (-> *cheat-temp* 4) 0)
+               0
+               )
+             )
+           )
+          ((= v1-192 6)
+           (cond
+             ((cpad-pressed? 1 circle)
+              (+! (-> *cheat-temp* 4) 1)
+              )
+             (else
+               (set! (-> *cheat-temp* 4) 0)
+               0
+               )
+             )
+           )
+          ((= v1-192 7)
+           (cond
+             ((cpad-pressed? 1 square)
+              (logclear! (-> *cpad-list* cpads 0 button0-abs 0) (pad-buttons r1))
+              (logclear! (-> *cpad-list* cpads 0 button0-rel 0) (pad-buttons r1))
+              (set! *cheat-mode* (if (= *cheat-mode* 'camera)
+                                     #f
+                                     'camera
+                                     )
+                    )
+              ;; og:preserve-this re-rendered: both make-sound-instance calls below
+              ;; carry the raw decomp's literal 0 #f args, which fail typecheck
+              ;; against the real (sound-info sound-id handle) signature; every other
+              ;; landed call site in the tree already wraps them the same way (e.g.
+              ;; jungle-obs.gc:110), so mirrored here. Sound index (314) and behavior
+              ;; are unchanged.
+              (cond
+                (*cheat-mode*
+                  (if (not *external-cam-mode*)
+                      (external-cam-reset!)
+                      )
+                  (set! *external-cam-mode* 'pad-1)
+                  (let ((v1-265 (make-sound-instance (-> *sound-info* 314) (new 'static 'sound-id) (the-as handle #f))))
+                    (cond
+                      (v1-265
+                        (set! (-> v1-265 fo-power) 0.0)
+                        (logior! (-> v1-265 flags) 328)
+                        (-> v1-265 id)
+                        )
+                      (else
+                        0
+                        )
+                      )
+                    )
+                  )
+                (else
+                  (set! *external-cam-mode* #f)
+                  (let ((v1-269 (make-sound-instance (-> *sound-info* 314) (new 'static 'sound-id) (the-as handle #f))))
+                    (cond
+                      (v1-269
+                        (set! (-> v1-269 fo-power) 0.0)
+                        (logior! (-> v1-269 flags) 328)
+                        (-> v1-269 id)
+                        )
+                      (else
+                        0
+                        )
+                      )
+                    )
+                  )
+                )
+              (set! (-> *cheat-temp* 4) 0)
+              0
+              )
+             (else
+               (set! (-> *cheat-temp* 4) 0)
+               0
+               )
+             )
+           )
+          )
+        )
+      )
+    )
   0
   (none)
   )
 
+;; og:preserve-this bring-up stubs for the functions whose decomp still degrades
+;; (bodies preserved commented above); all are debug/menu-path only for phase 1.
 (defun main-timeouts ()
   0
   (none)
