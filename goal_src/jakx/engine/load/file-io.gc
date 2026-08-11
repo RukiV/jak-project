@@ -120,7 +120,9 @@ NOTE: this is a special type in three ways:
      (format *file-temp-string* "texture-page~D/dir-tpages" 8)
      )
     ((= arg0 (file-kind tpage))
-     (format *file-temp-string* "texture-page~D/tpage-~S" 8 arg1)
+     ;; og:preserve-this removed texture-page8 prefix
+     ; (format *file-temp-string* "texture-page~D/tpage-~S" 8 arg1)
+     (format *file-temp-string* "tpage-~S" arg1)
      )
     ((= arg0 (file-kind level-bt))
      (format *file-temp-string* "level~D/~S-bt" 37 arg1)
@@ -145,8 +147,11 @@ NOTE: this is a special type in three ways:
      ;; so the untouched retail path here made loado's make-file-name construct
      ;; "art-group8/eco-blue-ag.go" for a file that only ever exists flat as
      ;; "eco-blue-ag.go", producing the "ERROR: art-group ~A is not a valid file"
-     ;; loader.gc spam (#150). Same-shaped fix as the tpage case below, which jak3 also
-     ;; flattened but jakx has not yet (out of scope here: no known caller exercises it).
+     ;; loader.gc spam (#150). Same-shaped fix as the tpage case above, which jak3
+     ;; also flattened and jakx now mirrors: #162 documented the path is exercised
+     ;; by adgif-shader-login's fallback load when a texture remap is skipped, so
+     ;; the flatten makes a genuinely-absent page fail against the real layout
+     ;; instead of a bogus subdirectory there too.
      ; (format
      ;   *file-temp-string*
      ;   "art-group~D/~S-ag"
