@@ -94,6 +94,22 @@
 ;; reasons noted there, but target-init's own call is real.
 (defbehavior target-init target ((arg0 basic))
   (target-method-59 self arg0 #f)
+  ;; og:preserve-this bare trsqv root, rung 3a (#164): mirrors manipy-init's arg3=#f
+  ;; path verbatim (generic-obs.gc, the (else ...) cond branch of its root
+  ;; construction) - the same safe shape here, a bare trsqv with no collide-shape and
+  ;; still no draw-control, so the joins-nothing analysis from the rung-1 map stays
+  ;; true. Root nonzero means rung 2's guard in target-get-any-pos now passes by
+  ;; design rather than blocking, so the sky's time-of-day path reads a real trans
+  ;; instead of the camera fallback. Seeded from *jakx-want-driver-cp* (the same
+  ;; continue trans jakx-racer-spawn uses for the manipy's spawn position) when a
+  ;; boot continue is armed, so the target starts at a sane in-world point rather
+  ;; than a zero-origin out-of-world one; left at the trsqv's own defaults otherwise.
+  ;; Retires when the real vehicle chain gives the target its retail root (rung 3b,
+  ;; a separate later change, out of scope here).
+  (set! (-> self root) (the-as collide-shape (new 'process 'trsqv)))
+  (if *jakx-want-driver-cp*
+      (set! (-> self root trans quad) (-> *jakx-want-driver-cp* trans quad))
+      )
   (set! (-> self event-hook) (-> target-continue event))
   (logior! (-> self focus-status) (focus-status teleporting))
   (go target-continue)
