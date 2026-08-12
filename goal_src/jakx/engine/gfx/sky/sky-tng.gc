@@ -12,9 +12,14 @@
 ;; set-sky-vf23-value, smuggling those registers into the C++ side's shared
 ;; sky_regs_vfs state. close-sky-buffer is hand-adapted (jr-ra delay slot).
 ;; the texture-anim leg lands *sky-texture-anim-array*, so the level slot and
-;; the anim tex reads are live; draw-clouds and draw-fog stay gated (clouds:
-;; *sky-clouds-clut-ready*, fog: real-fog-texture-anim-func) until the C++
-;; animator grows their per-frame texture generation paths.
+;; the anim tex reads are live. draw-clouds and draw-fog are both armed now:
+;; draw-clouds behind *sky-clouds-clut-ready* (satisfied, see the in-place note
+;; at its call site below), draw-fog behind *sky-texture-anim-array* nonzero
+;; (also satisfied; its in-place note is the current one). This note used to
+;; say draw-fog stayed gated on real-fog-texture-anim-func until its C++ port
+;; landed; that function is landed (texture-anim-funcs.gc:109, its own
+;; bring-up guard already removed), so that claim is stale and retired here
+;; per the fog audit (Q4 item 4, docs/2026-08-12-fog-state-audit.md).
 
 ;; DECOMP BEGINS
 
