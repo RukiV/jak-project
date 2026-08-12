@@ -401,6 +401,26 @@
               )
             )
           )
+        ;; og:preserve-this fix (#192): nothing on the staging path ever started a
+        ;; level load without this. check-start-load only fills *load-state*'s want
+        ;; and net-world-method-77 only reads target; the call that actually begins a
+        ;; DGO load, level-get-for-use, lives inside update! (defmethod update!
+        ;; ((this load-state)), level.gc:4121, the branch around :4280), which has
+        ;; exactly one caller in the tree, level-update (level.gc:4811), whose only
+        ;; caller is display-loop-main (main.gc:3135) -- a loop that never runs
+        ;; during play. Retail gets this for free: wait-for-levels (a defbehavior)
+        ;; suspends every pass, so the display loop, and therefore level-update's own
+        ;; update! call, runs between passes. This synchronous stand-in has no
+        ;; display loop to suspend into, so it pumps update! itself here, at the same
+        ;; relative position as level-update's own call (after the load-continue
+        ;; sweep). update! itself never reads pp (checked: no reference in its body),
+        ;; so this is safe under the with-pp *net-world* rebinding jakx-stage-boot-
+        ;; task holds around this whole loop. Retires with jakx-wait-for-levels-boot
+        ;; itself (R4): once the net-world process is spawned and the real
+        ;; wait-for-levels suspends into the display loop, level-update's own update!
+        ;; call covers this and the inline pump here is deleted with the rest of the
+        ;; variant.
+        (update! *load-state*)
         (+! iterations 1)
         )
       (when (>= iterations 6000)

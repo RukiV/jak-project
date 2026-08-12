@@ -3607,6 +3607,24 @@ overshoot and no separate tunable to keep in sync with speed."
     (set! (-> *time-of-day-context* mode) (time-of-day-palette-id unk3))
     (set! (-> *mood-control* overide-weather-flag) #f)
     (set-blackout-frames (seconds 0.02))
+    ;; og:preserve-this fix (#192): retail's own play unconditionally resets
+    ;; *load-state* before composing either want-set (level_ir2.asm:9160-9250).
+    ;; *load-state* is kmalloc'd and therefore zero-filled, and GOAL 0 is truthy, so
+    ;; an un-reset want[6..17].name fed integer 0 into lookup-level-info via
+    ;; add-borrow-levels the first time want-levels ran against it, faulting on
+    ;; (-> arg0 value) with arg0 = 0 -- the same hazard class as the
+    ;; update-callback/vis-nick note at load-state.gc:1675, just in the one field
+    ;; that note left to reset! instead of a definition-site init. The R2 wiring
+    ;; (995919afd) put this reset! inside the *jakx-boot-continue* fallback arm's own
+    ;; (when (not *dproc*) ...) below, so the *jakx-boot-task* arm skipped it
+    ;; entirely; hoisted here it runs before either arm, matching retail. The
+    ;; (not *dproc*) guard is unchanged from develop's pre-R2 shape and reset! is
+    ;; idempotent, so this does not change the fallback arm's own behavior. Retires
+    ;; when the fallback arm is retired (ladder R5) and only one arm is left to hold
+    ;; the reset.
+    (when (not *dproc*)
+      (reset! *load-state*)
+      )
     ;; og:preserve-this task-driven staging gate, R2 of the retail-staging ladder
     ;; (#192): when *jakx-boot-task* is set, drive staging through the retail
     ;; net-world composer instead of this file's own *jakx-boot-continue* want-set
@@ -3619,7 +3637,6 @@ overshoot and no separate tunable to keep in sync with speed."
         (jakx-stage-boot-task)
         (begin
           (when (not *dproc*)
-            (reset! *load-state*)
             ;; og:preserve-this bring-up: the DGO load chain is live and load-state's update!
             ;; IS landed (level.gc, full 348-line retail port, runs every frame); an earlier
             ;; version of this note predated its landing and misled a session (#108). The
