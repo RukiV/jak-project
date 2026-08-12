@@ -7,3 +7,141 @@
 
 ;; DECOMP BEGINS
 
+(deftype green-room-stats (structure)
+  ((intro-end-time        int32     :offset 0)
+   (scheduled-finish-time int32     :offset 4)
+   (scores                uint16 6 :offset 8)
+   (laps                  uint8 6 :offset 20)
+   )
+  )
+
+(deftype net-world-game-options (structure)
+  ((advanced-options game-task-advanced-options :inline :offset 0)
+   )
+  )
+
+;; empty uint64 wrapper, identical to all-types; defined here because the game build
+;; compiles this file before any vehicle source that would otherwise carry it
+(deftype vehicle-load-parts (uint64)
+  ()
+  )
+
+(deftype net-world-staging-player (structure)
+  ((vehicle-load-parts       vehicle-load-parts  :offset 0)
+   (vehicle-tuning-info      uint32  :offset 8)
+   (vehicle-selection        int8    :offset 12)
+   (desired-driver-selection int8    :offset 13)
+   (flags                    uint8   :offset 14)
+   (team-id                  uint8   :offset 15)
+   (player-num               int8    :offset 16)
+   (base-color               uint32  :offset 20)
+   (stripe-color             uint32  :offset 24)
+   (skill-level              int32   :offset 28)
+   )
+  (:methods
+    (net-world-staging-player-method-9 () none) ;; 9
+    )
+  )
+
+(deftype net-world-state (structure)
+  ((players            net-world-staging-player                24    :inline  :offset 0)
+   (assigned-drivers   uint8                24      :offset 768)
+   (game-creator-ip    uint32                         :offset 792)
+   (game-creation-time uint32                         :offset 796)
+   (game-start-time    int32                          :offset 800)
+   (total-pause-time   int32                          :offset 804)
+   (task-node-name     uint8                32      :offset 808)
+   (player-ready-flags uint8                          :offset 840)
+   (flags              int8                           :offset 841)
+   (max-humans         int8                           :offset 842)
+   (buddy-slots        int8                           :offset 843)
+   (clan-slots         int8                           :offset 844)
+   (ai-slots           int8                           :offset 845)
+   (vehicle-class      int8                           :offset 846)
+   (options            net-world-game-options :inline :offset 848)
+   (clan-ids           uint32                2       :offset 856)
+   (green-room-stats   green-room-stats       :inline :offset 864)
+   (time-of-day        int8                           :offset 890)
+   )
+  )
+(deftype net-world (process-nettable)
+  ((net-state                  net-world-state :inline :offset 192)
+   (is-late-join               basic                   :offset 1084)
+   (need-start-load            basic                   :offset 1088)
+   (current-garage-player      int32                   :offset 1092)
+   (current-garage-spare-slot  int32                   :offset 1096)
+   (cont                       basic                   :offset 1100)
+   (task                       uint8                   :offset 1104)
+   (task-node                  uint16                  :offset 1106)
+   (task-info                  basic                   :offset 1108)
+   (task-node-info             basic                   :offset 1112)
+   (player-to-vehicle-slot-map uint8         24      :offset 1116)
+   (vehicle-slot-to-player-map uint8         6       :offset 1140)
+   )
+  :method-count-assert 87
+  :size-assert         #x47a
+  :flag-assert         #x5703f0047a
+  (:methods
+    (net-world-method-42 () none) ;; 42
+    (net-world-method-43 () none) ;; 43
+    (net-world-method-44 () none) ;; 44
+    (net-world-method-45 () none) ;; 45
+    (net-world-method-46 () none) ;; 46
+    (net-world-method-47 () none) ;; 47
+    (net-world-method-48 () none) ;; 48
+    (net-world-method-49 () none) ;; 49
+    (net-world-method-50 () none) ;; 50
+    (net-world-method-51 () none) ;; 51
+    (net-world-method-52 () none) ;; 52
+    (net-world-method-53 () none) ;; 53
+    (net-world-method-54 () none) ;; 54
+    (net-world-method-55 () none) ;; 55
+    (net-world-method-56 () none) ;; 56
+    (net-world-method-57 () none) ;; 57
+    (net-world-method-58 () none) ;; 58
+    (net-world-method-59 () none) ;; 59
+    (net-world-method-60 () none) ;; 60
+    (net-world-method-61 () none) ;; 61
+    (net-world-method-62 () none) ;; 62
+    (net-world-method-63 () none) ;; 63
+    ;; og:preserve-this signature fix, R1 of the retail-staging ladder (#192):
+    ;; net-world_ir2.asm:4038-4071 (4 ops) dispatches this slot with one int argument
+    ;; (a player-slot index) and returns the (>= vehicle-selection 0) test as a
+    ;; boolean; landed alongside set-continue-point-from-task, which calls it.
+    (net-world-method-64 (_type_ int) symbol) ;; 64
+    (net-world-method-65 () none) ;; 65
+    (net-world-method-66 () none) ;; 66
+    (net-world-method-67 () none) ;; 67
+    (net-world-method-68 () none) ;; 68
+    (net-world-method-69 () none) ;; 69
+    (net-world-method-70 () none) ;; 70
+    (net-world-method-71 () none) ;; 71
+    (net-world-method-72 () none) ;; 72
+    (net-world-method-73 () none) ;; 73
+    (net-world-method-74 () none) ;; 74
+    (net-world-method-75 () none) ;; 75
+    ;; og:preserve-this signature fix, R1 of the retail-staging ladder (#192):
+    ;; net-world_ir2.asm:11286-12683 dispatches this slot with one symbol argument
+    ;; (the display? gate the running state passes #f/#f/#t across its three-pass
+    ;; sequence) and always returns 0/none (every path ends `(set! v0 0) (ret-none)`).
+    ;; Landed for slots 0-5 only this rung; the car/driver arm (steps 7-8) is stubbed.
+    (net-world-method-76 (_type_ symbol) none) ;; 76
+    ;; og:preserve-this signature fix, R2 of the retail-staging ladder (#192):
+    ;; net-world_ir2.asm:12956-13272 dispatches this slot with zero explicit
+    ;; arguments (the decompiler's own clean OpenGOAL rendering never reads "this")
+    ;; and returns a boolean (ok?, mirroring method 78's shape).
+    (net-world-method-77 (_type_) symbol) ;; 77
+    ;; og:preserve-this signature fix, R1 of the retail-staging ladder (#192):
+    ;; net-world_ir2.asm:12684-12949 dispatches this slot with zero explicit arguments
+    ;; and returns a boolean (ok?, whether every ocean-all want is already resident).
+    (net-world-method-78 (_type_) symbol) ;; 78
+    (net-world-method-79 () none) ;; 79
+    (net-world-method-80 () none) ;; 80
+    (net-world-method-81 () none) ;; 81
+    (net-world-method-82 () none) ;; 82
+    (net-world-method-83 () none) ;; 83
+    (net-world-method-84 () none) ;; 84
+    (net-world-method-85 () none) ;; 85
+    (net-world-method-86 () none) ;; 86
+    )
+  )

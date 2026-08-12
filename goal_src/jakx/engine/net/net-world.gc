@@ -7,3 +7,630 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this net-world.o top-level statics, R1 of the retail-staging ladder
+;; (#192): net-world_ir2.asm:21-32 assigns these three from L971/L972/L973, whose
+;; static data (:29818-29890) is, for each, identical: length 0, allocated-length 18,
+;; content-type symbol, 18 zero words. The length word is 0, not 18, on purpose: every
+;; consumer indexes with a literal bound (18, 6, 2) and never reads length, so this is
+;; retail behavior to transcribe as-is.
+(define *net-world-load-levels* (new 'static 'boxed-array :type symbol :length 0 :allocated-length 18))
+(define *net-world-display-levels* (new 'static 'boxed-array :type symbol :length 0 :allocated-length 18))
+(define *net-world-load-levels2* (new 'static 'boxed-array :type symbol :length 0 :allocated-length 18))
+
+;; og:preserve-this net-world.o top-level static, R1 (#192): net-world_ir2.asm:191-194
+;; (label L948) is a 40-char string statically initialized to
+;; "0123456789012345678901234567890123456789", used purely as a copy buffer by
+;; set-continue-point-from-task (which always overwrites it via copy-charp<-charp
+;; before ever comparing it, so the initial content is dead data, not behavior).
+;; The compile-time (new 'static 'string "...") form that would reproduce those exact
+;; bytes throws inside goalc/compiler/compilation/Static.cpp's own string branch (no
+;; working call site exists anywhere in goal_src/jak1/jak2/jak3/jakx either), so this
+;; lands as the ordinary (new 'global 'string N (the-as string #f)) idiom used
+;; elsewhere in this tree for scratch string buffers instead (e.g.
+;; jak1/engine/camera/cam-debug.gc:33). Same capacity, blank initial content instead
+;; of retail's leftover digits; observably identical, since nothing reads *tmp-string*
+;; before this file's own copy-charp<-charp fills it. Retires if the static-string
+;; compiler path gets fixed and someone wants byte-exact parity for its own sake.
+(define *tmp-string* (new 'global 'string 40 (the-as string #f)))
+
+;; og:preserve-this signature fix, R1 (#192): net-world_ir2.asm:4038-4071 (4 ops), 2
+;; args (this, a slot int). v1 = this + slot*32 (net-world-staging-player's stride);
+;; the byte read at v1+200 is net-state's players[slot] vehicle-selection (asm 188 net-
+;; state offset + 12 vehicle-selection offset + 32*slot = 200 + 32*slot, matching this
+;; op's a0+(a1<<5)+200 exactly). Returns whether that slot's vehicle-selection is >= 0.
+(defmethod net-world-method-64 ((this net-world) (slot int))
+  (>= (-> this net-state players slot vehicle-selection) 0)
+  )
+
+;; og:preserve-this signature fix, R1 (#192): net-world_ir2.asm:12684-12949, 1 arg
+;; (this). Walks (-> this cont)'s want list; for every want flagged ocean-all (bit 20,
+;; level-h.gc:196), requires some *level* slot 0-5 to already hold that name at status
+;; 'loaded or 'active. Returns #f the moment any flagged want fails that test.
+;; (-> this cont) is declared generic basic (matching all-types.gc, unchanged by R0's
+;; move), so every read through it needs a continue-point cast; this is not a
+;; divergence, retail's own asm has no static types either.
+(defmethod net-world-method-78 ((this net-world))
+  (let ((cont (the-as continue-point (-> this cont)))
+        (ok #t)
+        )
+    (dotimes (i (-> cont want-count))
+      (when (logtest? (-> (lookup-level-info (-> cont want i name)) level-flags) #x100000)
+        (let ((s 0)
+              (found #f)
+              )
+          (while (and (< s 6) (not found))
+            (if (and (= (-> *level* level s name) (-> cont want i name))
+                     (or (= (-> *level* level s status) 'loaded)
+                         (= (-> *level* level s status) 'active)
+                         )
+                     )
+                (set! found #t)
+                )
+            (+! s 1)
+            )
+          (if (not found)
+              (set! ok #f)
+              )
+          )
+        )
+      )
+    ok
+    )
+  )
+
+;; og:preserve-this signature fix, R1 (#192): net-world_ir2.asm:11286-12683, 2 args
+;; (this, display?). Lands steps 1-6, 9, 10, 11 of the brief's 11-step reading. Steps 7
+;; and 8 (the two 24-slot player loops: clearing player-to-vehicle-slot-map for any
+;; slot method-64 disowns, and the car/driver mapping arm) are stubbed below; step 7
+;; alone already needs load-state-method-23, which is declared but has no body
+;; anywhere in this tree (game-info-h.gc:402), so it cannot be landed independently of
+;; step 8's larger unlanded surface. og:preserve-this stub, R1 (#192): steps 7-8
+;; need load-state methods 23 (4 args, net-world_ir2.asm:11689-11696), 24 (3 args,
+;; :11994 region) and 26 (4 args, :11928 region), plus *net-vehicles*, *net-drivers*,
+;; *protect-vehicle-slot-1*, *car-level-array*, convert-load-parts-to-car-info and
+;; get-ai-vehicle-cup-idx, none landed anywhere in goal_src/jakx. Retires as R3 of the
+;; retail-staging ladder (#192), once those land.
+(defmethod net-world-method-76 ((this net-world) (display? symbol))
+  (let* ((lobby-empty? (not (or (-> *lobby-levels* 0) (-> *lobby-levels* 1))))
+         (cont (the-as continue-point (-> this cont)))
+         (ready? (net-world-method-78 this))
+         (scratch (new 'stack-no-clear 'array 'int32 4))
+         (k 0)
+         (n 0)
+         )
+    ;; step 3: clear both arrays, slots 0..17
+    (dotimes (i 18)
+      (set! (-> *net-world-load-levels* i) #f)
+      (set! (-> *net-world-display-levels* i) #f)
+      )
+    ;; step 4: the want loop
+    (dotimes (i (-> cont want-count))
+      (let* ((w (-> cont want i))
+             (name (-> w name))
+             (kind (-> (lookup-level-info name) memory-mode))
+             )
+        (cond
+          ((or (= kind (level-memory-mode micro)) (= kind (level-memory-mode borrow0)))
+           (when lobby-empty?
+             (set! (-> *net-world-load-levels* n) name)
+             (set! (-> *net-world-display-levels* n) (if display? (-> w display?) #f))
+             (+! n 1)
+             )
+           )
+          ((= kind (level-memory-mode tiny-center))
+           (set! (-> *net-world-load-levels* n) name)
+           (set! (-> *net-world-display-levels* n) (if display? (-> w display?) #f))
+           (+! n 1)
+           )
+          ((= kind (level-memory-mode tiny))
+           (when ready?
+             (set! (-> *net-world-load-levels* n) name)
+             (set! (-> *net-world-display-levels* n) (if display? (-> w display?) #f))
+             (set! (-> scratch k) n)
+             (+! k 1)
+             (+! n 1)
+             )
+           )
+          )
+        )
+      )
+    ;; step 5: lobby loop
+    (dotimes (j 2)
+      (when (-> *lobby-levels* j)
+        (let ((slot (if (> k 0)
+                         (begin (+! k -1) (-> scratch k))
+                         (let ((s n))
+                           (+! n 1)
+                           s
+                           )
+                         )
+                     )
+              )
+          (set! (-> *net-world-load-levels* slot) (-> *lobby-levels* j))
+          (set! (-> *net-world-display-levels* slot) (-> *lobby-levels-display* j))
+          )
+        )
+      )
+    ;; step 6: pad
+    (while (< n 18)
+      (set! (-> *net-world-load-levels* n) #f)
+      (set! (-> *net-world-display-levels* n) #f)
+      (+! n 1)
+      )
+
+    ;; steps 7-8: og:preserve-this stub, see the note above this defmethod.
+
+    ;; step 9: copy-back, i over 6..17 inclusive
+    (let ((i 6))
+      (while (>= 17 i)
+        (set! (-> *net-world-load-levels* i) (-> *load-state* want i name))
+        (+! i 1)
+        )
+      )
+    ;; step 10: og:preserve-this 72 bytes from the object base, not 18*4 = 72 for all
+    ;; 18 slots' worth of a 4-byte-per-entry copy; this happens to be the same number
+    ;; (3-word array header + 15 data slots = 72 bytes, so slots 0..14 only, not 0..17)
+    ;; but that is retail's own quirk, not a coincidence to "fix". check-start-load
+    ;; only reads slots 0..5 of either array, so this is harmless; a reviewer reading
+    ;; it as an off-by-something bug should read this note first
+    ;; (net-world_ir2.asm:12672-12677).
+    (mem-copy! (the-as pointer *net-world-load-levels2*) (the-as pointer *net-world-load-levels*) 72)
+    ;; step 11
+    (set! (-> this need-start-load) (the-as basic #t))
+    (none)
+    )
+  )
+
+;; og:preserve-this plain transcription, R1 (#192): net-world_ir2.asm:2017-2150, a
+;; clean decompile with no type-prop errors. One divergence: retail's own asm (ops
+;; 14-16 in that scratch's raw disassembly) sets a1 = #f before dispatching method 76
+;; on *net-world*, but the decompiler's own OpenGOAL rendering collapsed that call to
+;; a zero-argument (t9-0), dropping the observed a1=#f; this landing calls
+;; net-world-method-76 directly with that argument restored, matching the raw asm
+;; rather than the decompiler's own lossy rendering of the call. Not yet exercised
+;; anywhere in R1/R2 (nothing lands the process/state that calls it), landed per the
+;; brief's own instruction to bring it in as one of net-world.o's top-level pieces.
+(defun lobby-level-set! ((arg0 int) (arg1 symbol) (arg2 symbol))
+  (set! (-> *lobby-levels* arg0) arg1)
+  (set! (-> *lobby-levels-display* arg0) arg2)
+  (if *net-world*
+      (net-world-method-76 *net-world* #f)
+      (begin
+        (dotimes (i 2)
+          (set! (-> *lobby-levels-tmp* i) (-> *lobby-levels* i))
+          )
+        (want-levels *load-state* (-> *lobby-levels-tmp* data))
+        (if arg1
+            (want-display-level *load-state* arg1 arg2)
+            )
+        )
+      )
+  0
+  )
+
+(define-extern jakx-find-continue-point (function string continue-point))
+
+;; og:preserve-this plain transcription, R1 (#192): net-world_ir2.asm:18753-18937, 1
+;; arg (this; a1-a3 never read). Verified op-by-op against the raw asm, including the
+;; +4 offset trap on every basic-derived field this touches (net-state task-node-name
+;; asm 996 = declared 1000; task-node-info asm 1108 = declared 1112; task asm 1100 =
+;; declared 1104; task-info asm 1104 = declared 1108; cont asm 1096 = declared 1100).
+;; No substitution needed: the R1 scoped decode of game-info.o (this rung, see
+;; game-info.gc's own og:preserve-this note on game-info-method-18) showed that
+;; method's body is a plain name lookup, so this calls it directly, matching retail
+;; exactly, rather than the brief's fallback substitution of jakx-find-continue-point
+;; (kept declared above for parity/documentation only; not called from here).
+(defun set-continue-point-from-task ((this net-world))
+  (set! (-> this task-node) (the uint16 -1))
+  (copy-charp<-charp (-> *tmp-string* data) (-> this net-state task-node-name))
+  (let ((i 0))
+    (while (< i (-> *game-info* sub-task-list length))
+      (when (string= *tmp-string* (-> *game-info* sub-task-list i name))
+        (set! (-> this task-node) i)
+        )
+      (+! i 1)
+      )
+    )
+  (if (= (-> this task-node) (the uint16 -1))
+      (format 0 "THAT'S NOT RIGHT!~%")
+      )
+  (set! (-> this task-node-info) (-> *game-info* sub-task-list (-> this task-node)))
+  (set! (-> this task) (-> (the-as game-task-node-info (-> this task-node-info)) task))
+  (set! (-> this task-info) (-> *game-info* play-list (-> this task)))
+  ;; og:preserve-this raw offset read, R1 (#192): net-mgr's full deftype (with the
+  ;; game-state field this needs) lives in cam-states.gc, which compiles at game.gd
+  ;; slot 469, after net-world.o (429); net-mgr-h.gc (131) only forward-declares it
+  ;; opaquely, same Q1 build-order problem R0 fixed for net-world itself, but moving
+  ;; net-mgr's deftype too is out of this leg's scope. *net-mgr* is always #f in this
+  ;; bring-up (net-mgr-h.gc:15), so this branch is dead code at runtime; the raw read
+  ;; matches net-world_ir2.asm:18858-18859's own `lw v1,152(v1)` (asm offset 152 =
+  ;; declared offset 156, net-mgr-game-state's local-machine-idx). Retires when
+  ;; net-mgr's deftype moves earlier or lands with real data.
+  (let ((machine-idx (if *net-mgr*
+                          (-> (the-as (pointer int32) (&+ (the-as pointer *net-mgr*) 152)) 0)
+                          0
+                          )
+                      )
+        (ti (the-as game-task-info (-> this task-info)))
+        )
+    (set! (-> this cont)
+          (game-info-method-18 *game-info*
+                                (if (and (net-world-method-64 this (+ 1 (* 2 machine-idx)))
+                                         (-> ti split-continue)
+                                         )
+                                    (the-as string (-> ti split-continue))
+                                    (-> ti play-continue)
+                                    )
+                                )
+          )
+    )
+  (when (not (-> this cont))
+    (format 0 "can't find continue pt~%")
+    (break!)
+    )
+  0
+  )
+
+;; og:preserve-this plain transcription, R1 (#192): net-world_ir2.asm:28312-28434, 0
+;; explicit args, reads pp directly (this is retail's own s6). Retail's own call sites
+;; rebind pp around it (end-of-race-start-preload stashes s6, sets s6 := *net-world*,
+;; calls, restores); this landing only reads the ambient pp via with-pp, matching
+;; check-start-load's own body, and leaves the rebinding to callers, per
+;; end-of-race-start-preload's shape (the landed with-pp plus (set! pp X) idiom used
+;; in jakx at cam-interface.gc:112 and jak2's idle-control.gc:55/111,
+;; task-control.gc:1958/1964). jakx-stage-boot-task (below) is the first caller,
+;; rebinding pp around each pass of the three-pass spine.
+(defun check-start-load ()
+  (with-pp
+    (when (-> (the-as net-world pp) need-start-load)
+      (want-levels *load-state* (-> *net-world-load-levels* data))
+      (dotimes (i 6)
+        (when (-> *net-world-load-levels2* i)
+          (want-display-level *load-state* (-> *net-world-load-levels2* i) (-> *net-world-display-levels* i))
+          )
+        )
+      (set! (-> (the-as net-world pp) need-start-load) (the-as basic #f))
+      )
+    )
+  0
+  )
+
+;; og:preserve-this plain transcription, R2 of the retail-staging ladder (#192):
+;; net-world_ir2.asm:12956-13272, the one m76-adjacent method the decompiler fully
+;; typed with no type-prop errors. Its own clean OpenGOAL rendering never reads
+;; "this" (this landing keeps it bound but unused, matching wait-for-levels' own
+;; (net-world-method-77 pp) call shape); the only change from the decompiler's raw
+;; output is making the accumulated ok flag (gp-0) the final form instead of the
+;; decompiler's own (none), since the raw asm plainly returns it (op106, `or
+;; v0,gp,r0`) and the method now declares a symbol return (see net-world-h.gc).
+(defmethod net-world-method-77 ((this net-world))
+  (let ((gp-0 #t))
+    (dotimes (s5-0 6)
+      (let ((s4-0 (-> *load-state* want s5-0 name))
+            (s3-0 (-> *load-state* want s5-0 display?))
+            )
+        (when (and s4-0 (nonzero? s4-0))
+          (let ((v1-8 (level-status? *level* s4-0 #f)))
+            (cond
+              ((or (= v1-8 'display) (= v1-8 'active))
+               )
+              (else
+                (set! gp-0 (cond
+                             ((= v1-8 'loaded)
+                              (when s3-0
+                                (want-display-level *load-state* s4-0 'display)
+                                (set! gp-0 #f)
+                                )
+                              gp-0
+                              )
+                             ((= v1-8 'loading)
+                              (if s3-0
+                                  (set! gp-0 #f)
+                                  )
+                              gp-0
+                              )
+                             (else
+                               #f
+                               )
+                             )
+                      )
+                )
+              )
+            )
+          )
+        )
+      )
+    (let ((v1-19 6)
+          (a0-9 17)
+          )
+      (while (>= a0-9 v1-19)
+        (when (-> *load-state* target v1-19 name)
+          (if (not (and (not (-> *load-state* target v1-19 force-reload))
+                        (= (-> *load-state* target v1-19 name) (-> *level* level v1-19 name))
+                        (= (-> *level* level v1-19 status) 'active)
+                        )
+                   )
+              (set! gp-0 #f)
+              )
+          )
+        (+! v1-19 1)
+        )
+      )
+    (if (not (string-charp= (-> *sound-bank-string* 0) (the-as (pointer uint8) (-> *sound-iop-info* sound-banks 1))))
+        (set! gp-0 #f)
+        )
+    gp-0
+    )
+  )
+
+;; og:preserve-this bring-up boot-only predicate, R3 of the retail-staging ladder
+;; (#192): net-world-method-77's own final clause (net-world_ir2.asm ops 97-105,
+;; transcribed above) compares *sound-bank-string* 0 against
+;; (-> *sound-iop-info* sound-banks 1), EE offset 576, and can never be satisfied on
+;; jakx: the round-2 root-cause doc (2026-08-12, docs/2026-08-12-staging-wait-
+;; rootcause.md, section Q1c) proves the jak3 overlord JakX runs
+;; (game/runtime.cpp:350-353; game/overlord/jakx/* is dead code, its own comment
+;; says so) delivers its C++ SoundIOPInfo two slots late: EE 560/576
+;; (sound-banks[0]/[1]) receive the struct's own untouched, zero-filled pad[11]
+;; bytes, while the IOP's real sound_bank0/1/... land at EE 592/608
+;; (sound-banks[2]/[3]/...). string-charp= there therefore compares a live 13-char
+;; name against a permanent zero byte and returns #f on every call, forever,
+;; regardless of level state -- pass 1 of jakx-stage-boot-task's three-pass spine
+;; gave up with icew already logged in for exactly this reason, not a load-timing
+;; one. That is a port defect in the runtime's EE object layout, issue #55, not a
+;; transcription bug: m77 above stays byte-for-byte faithful to the asm for R4,
+;; when the real wait-for-levels lands with retail's own unbounded suspend loop and
+;; this clause must be satisfiable again -- the durable fix is #55's own JakX-
+;; shaped SoundIOPInfo layout, not deleting the clause. This variant is m77's own
+;; two loops (the level-display sweep over slots 0-5, and the borrow-pair sweep
+;; over slots 6-17), transcribed unchanged, ANDed with (net-world-method-78 this)
+;; in place of m77's own sound-bank clause; used only by jakx-wait-for-levels-boot.
+;; Retires when #55 lands and jakx-wait-for-levels-boot calls net-world-method-77
+;; directly again.
+(defun jakx-net-world-ready-boot? ((this net-world))
+  (let ((gp-0 #t))
+    (dotimes (s5-0 6)
+      (let ((s4-0 (-> *load-state* want s5-0 name))
+            (s3-0 (-> *load-state* want s5-0 display?))
+            )
+        (when (and s4-0 (nonzero? s4-0))
+          (let ((v1-8 (level-status? *level* s4-0 #f)))
+            (cond
+              ((or (= v1-8 'display) (= v1-8 'active))
+               )
+              (else
+                (set! gp-0 (cond
+                             ((= v1-8 'loaded)
+                              (when s3-0
+                                (want-display-level *load-state* s4-0 'display)
+                                (set! gp-0 #f)
+                                )
+                              gp-0
+                              )
+                             ((= v1-8 'loading)
+                              (if s3-0
+                                  (set! gp-0 #f)
+                                  )
+                              gp-0
+                              )
+                             (else
+                               #f
+                               )
+                             )
+                      )
+                )
+              )
+            )
+          )
+        )
+      )
+    (let ((v1-19 6)
+          (a0-9 17)
+          )
+      (while (>= a0-9 v1-19)
+        (when (-> *load-state* target v1-19 name)
+          (if (not (and (not (-> *load-state* target v1-19 force-reload))
+                        (= (-> *load-state* target v1-19 name) (-> *level* level v1-19 name))
+                        (= (-> *level* level v1-19 status) 'active)
+                        )
+                   )
+              (set! gp-0 #f)
+              )
+          )
+        (+! v1-19 1)
+        )
+      )
+    (and gp-0 (net-world-method-78 this))
+    )
+  )
+
+;; og:preserve-this bring-up boot-time variant, R3 of the retail-staging ladder
+;; (#192): wait-for-levels (net-world_ir2.asm:24564-24660) is a defbehavior that
+;; suspends into the kernel scheduler every pass; play runs on the boot path before
+;; any process exists to suspend into. Two changes from the R2 landing, both from
+;; the round-2 root-cause doc (2026-08-12, docs/2026-08-12-staging-wait-
+;; rootcause.md):
+;;
+;; 1. The predicate is now jakx-net-world-ready-boot? (above), not
+;;    (and (net-world-method-77 pp) (net-world-method-78 pp)) directly: m77's own
+;;    final sound-bank clause can never be satisfied on jakx (see that function's
+;;    own note above), so the old predicate was permanently #f and every pass
+;;    burned its whole cap regardless of level state (doc section Q1c).
+;;
+;; 2. The per-level status wait is now its own uncapped while, one per slot 0-5,
+;;    mirroring the old *jakx-boot-continue* fallback arm's own per-level wait
+;;    inside play (level.gc, the boot-cp branch, currently ~3691-3701/3706-3716:
+;;    (while (or 'loading 'loading-bt 'login) (set-blackout-frames ...)
+;;    (load-continue ...))) instead of the R2 landing's single load-continue call
+;;    per outer pass. The doc's own wall-time arithmetic (section Q1d) proves why
+;;    the R2 shape never worked: set-blackout-frames only writes a game-info field,
+;;    it does not block or pace anything, and dgo-load-get-next
+;;    (load-dgo.gc:256-282) is a non-blocking poll that no-ops while the IOP
+;;    streams an object -- so the R2 landing's 6000-iteration cap, spent one
+;;    load-continue call per level per pass, burned all 18000 iterations across
+;;    three passes inside one second of wall-clock time (doc-captured log
+;;    evidence), nowhere near what a multi-megabyte DGO needs. Making the
+;;    per-level wait its own inner while removes the outer pass budget from that
+;;    accounting entirely: a level that is genuinely streaming now drains to
+;;    completion (or a real error) before the outer loop is charged even one pass.
+;;
+;; The outer loop's own bound is now a wall-clock read, not a pass count: the
+;; PS2-accurate 300MHz counter get-cpu-clock wraps (timer-h.gc:24-29, deliberately
+;; masked to 32 bits) so (- now start) is only correct across a wrap if the
+;; DIFFERENCE is re-masked to 32 bits too -- native GOAL subtraction widens to 64
+;; bits first, so an unmasked diff after a wrap reads as a huge, not small, unsigned
+;; value -- done below with (logand #xffffffff ...). That keeps the bound correct
+;; for any elapsed span under the ~14.3-second wrap period (2^32 ticks / 300 MHz);
+;; the chosen 10-second bound (3,000,000,000 ticks) stays comfortably inside it with
+;; margin, and is already >10x the doc's own observed real-world load time (the old
+;; arm's own four-level uncapped drain, icew+iceb+iced+ices, completing inside one
+;; second in a captured boot, doc section Q1d). get-cpu-clock is safe to call this
+;; early: it is a thin wrapper (timer-h.gc:24-29) over the extern __read-ee-timer
+;; (kernel-defs.gc:193), which on the PC port is read_ee_timer()
+;; (game/kernel/common/kmachine.cpp:479-482) reading a Timer reset in
+;; kmachine_init_globals_common (kmachine.cpp:48-55), called from
+;; game/runtime.cpp:216 during C++ runtime bring-up -- long before any GOAL boot
+;; code runs, and with no dependency on *display*, *dproc*, or any process, unlike
+;; (current-time)/PP-relative clocks (gkernel-h.gc:685-687) which need a real PP.
+;; timer-h.o also compiles at game.gd slot ~26, net-world.o at 429, so the macro is
+;; already defined by the time this file compiles.
+;;
+;; do-loading-text is dropped (no text layer reachable this early in boot), so the
+;; show-text argument is dropped with it, unchanged from R2. The give-up message
+;; stays loud either way, per the brief's own risk register item 5. Retires when
+;; the net-world process is spawned at boot and the retail running state drives
+;; staging (R4); wait-for-levels then lands verbatim and this variant is deleted.
+(defun jakx-wait-for-levels-boot ()
+  (with-pp
+    (let ((start-tick (get-cpu-clock))
+          (passes 0)
+          (give-up #f)
+          (elapsed (the uint 0))
+          )
+      (while (and (not give-up)
+                  (not (jakx-net-world-ready-boot? (the-as net-world pp)))
+                  )
+        (check-start-load)
+        (dotimes (i 6)
+          (let ((lev (-> *level* level i)))
+            (while (and lev
+                        (or (= (-> lev status) 'loading)
+                            (= (-> lev status) 'loading-bt)
+                            (= (-> lev status) 'login)
+                            )
+                        )
+              (set-blackout-frames (seconds 0.02))
+              (load-continue lev)
+              )
+            )
+          )
+        ;; og:preserve-this fix (#192): nothing on the staging path ever started a
+        ;; level load without this. check-start-load only fills *load-state*'s want
+        ;; and net-world-method-77 only reads target; the call that actually begins a
+        ;; DGO load, level-get-for-use, lives inside update! (defmethod update!
+        ;; ((this load-state)), level.gc:4121, the branch around :4280), which has
+        ;; exactly one caller in the tree, level-update (level.gc:4811), whose only
+        ;; caller is display-loop-main (main.gc:3135) -- a loop that never runs
+        ;; during play. Retail gets this for free: wait-for-levels (a defbehavior)
+        ;; suspends every pass, so the display loop, and therefore level-update's own
+        ;; update! call, runs between passes. This synchronous stand-in has no
+        ;; display loop to suspend into, so it pumps update! itself here, at the same
+        ;; relative position as level-update's own call (after the load-continue
+        ;; sweep). update! itself never reads pp (checked: no reference in its body),
+        ;; so this is safe under the with-pp *net-world* rebinding jakx-stage-boot-
+        ;; task holds around this whole loop. Retires with jakx-wait-for-levels-boot
+        ;; itself (R4): once the net-world process is spawned and the real
+        ;; wait-for-levels suspends into the display loop, level-update's own update!
+        ;; call covers this and the inline pump here is deleted with the rest of the
+        ;; variant.
+        (update! *load-state*)
+        (+! passes 1)
+        (set! elapsed (the uint (logand #xffffffff (- (get-cpu-clock) start-tick))))
+        (when (>= elapsed (the uint 3000000000))
+          (set! give-up #t)
+          )
+        )
+      (when give-up
+        (format 0 "jakx-wait-for-levels-boot: gave up after ~D passes (~D ticks)~%" passes elapsed)
+        )
+      )
+    )
+  #f
+  )
+
+;; og:preserve-this bring-up boot entry point, R2 (#192): the retail seat for
+;; *jakx-boot-task* is net-world-init-local's own task-node-name seeding
+;; (net-world_ir2.asm ops 102-109); this function is that seat's boot-time stand-in.
+;; It does not spawn a process (that is init-local-world/net-world-init-local, R4);
+;; instead it allocates *net-world* once via process's own (_type_ symbol type string
+;; int) new method (the same allocation init-local-world will eventually wrap with
+;; dead-pool/activate), leaving status 'dead so it is never kernel-scheduled, only
+;; ever driven synchronously from here. The player-slot seeding below is a narrow
+;; substitute for net-world-init-local's own -1 loop (net-world_ir2.asm:15692-16100
+;; ops 14-37): only vehicle-selection is seeded, because that is the only field
+;; set-continue-point-from-task's method-64 call reads (section 1.3 of the brief); a
+;; zeroed heap would otherwise report vehicle-selection 0 >= 0 = #t and pick
+;; split-continue over play-continue. desired-driver-selection/team-id/player-num,
+;; assigned-drivers and vehicle-slot-to-player-map are not seeded here (risk register
+;; item 3: retail does not initialize the reverse map either). Retires when
+;; init-local-world/net-world-init-local land for real (R4). The three-pass spine
+;; itself (m76 #f, wait, m76 #f, wait, m76 #t, wait) transcribes
+;; net-world_ir2.asm:22405-22554's #f/#f/#t argument sequence unchanged; jakx-wait-
+;; for-levels-boot calls check-start-load itself each spin, so it is not repeated
+;; between passes here. One call is not from that citation: set-continue-point-from-
+;; task, before the first m76 pass. The brief's own excerpt of the running state
+;; starts at op159, already past whatever arms (-> *net-world* cont); this is
+;; inference, not a read citation, but it is load-bearing rather than optional:
+;; method 76's want loop reads (-> this cont want-count) and (-> this cont want i
+;; name) from the very first line, and set-continue-point-from-task is the only
+;; function in this leg that writes the cont field, so the first m76 pass has
+;; nothing to walk without it.
+(defun jakx-stage-boot-task ()
+  (when (not *net-world*)
+    (set! *net-world* (the-as net-world (new 'global 'net-world "net-world" #x4000)))
+    (dotimes (i 24)
+      (set! (-> *net-world* net-state players i vehicle-selection) -1)
+      )
+    (copy-charp<-charp (-> *net-world* net-state task-node-name) (-> *jakx-boot-task* data))
+    )
+  (with-pp
+    (set! pp *net-world*)
+    (set-continue-point-from-task *net-world*)
+    ;; og:preserve-this crash fix, R3 of the retail-staging ladder (#192): the
+    ;; round-2 root-cause doc's Q2 (2026-08-12, docs/2026-08-12-staging-wait-
+    ;; rootcause.md) traces a GOAL CRASH REPORT to level-get-target-inside
+    ;; (level.gc:2576) reading
+    ;; (-> *game-info* player-info (view-get-active-index) current-continue level)
+    ;; at level.gc:2591 with current-continue = integer 0: nothing anywhere in
+    ;; goal_src/jakx ever writes that field (game-info-h.gc:156 declares it type
+    ;; continue-point on game-info-player), so a zero-filled game-info leaves it a
+    ;; null basic and the deref faults. The fault fires on the session's first
+    ;; (*draw-hook*) (main.gc:3113, inside display-loop-main), reached via
+    ;; real-main-draw-hook -> update-time-of-day -> update-time-and-speed
+    ;; (sky-tng.gc:139) -> level-get-target-inside -- before level-update's own
+    ;; update-level-inside-boxes has ever run once, so this is independent of how
+    ;; much of the world finished loading; a fully staged world crashes here
+    ;; identically (doc's control evidence: three fallback-arm boots render with
+    ;; zero crash reports, same level.o code, because vis-nick was set and a level
+    ;; was activated). Both lines below are retail's own meaning of these fields,
+    ;; mirrored from the *jakx-boot-continue* fallback arm's own boot-cp branch
+    ;; (level.gc:3685, unchanged by this rung): seed current-continue so the deref
+    ;; is never null for any consumer (this one, and the identical read at
+    ;; level.gc:2708), and want-vis-level so level-get-target-inside's own first
+    ;; loop can return the way it does on the fallback arm once a level with this
+    ;; name goes 'active. cont is declared basic on net-world (net-world-h.gc:73,
+    ;; matching retail's own untyped asm), so the cast mirrors every other read of
+    ;; this field in this file (e.g. net-world-method-78, above).
+    (let ((cont (the-as continue-point (-> *net-world* cont))))
+      (set! (-> *game-info* player-info 0 current-continue) cont)
+      (want-vis-level *load-state* (-> cont vis-nick))
+      )
+    (net-world-method-76 *net-world* #f)
+    (jakx-wait-for-levels-boot)
+    (net-world-method-76 *net-world* #f)
+    (jakx-wait-for-levels-boot)
+    (net-world-method-76 *net-world* #t)
+    (jakx-wait-for-levels-boot)
+    )
+  (none)
+  )

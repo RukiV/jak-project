@@ -13,14 +13,14 @@
   (logtest? (-> *game-info* secrets) #x4000)
   )
 
-;; og:preserve-this bring-up stubs, R7 (#122): methods 17/18/20/23 are dispatched
+;; og:preserve-this bring-up stubs, R7 (#122): methods 17/20/23 are dispatched
 ;; unconditionally from initialize! and anon-function-14-game-info below, with no
 ;; nonzero? guard possible (they are vtable slots, not symbols; a symbol guard cannot
 ;; protect a zero vtable slot). R3a's own landing note on set-continue! claimed method
 ;; 20 was "already landed"; it was not, only its signature was, and the resulting zero
 ;; slot is the R7 boot crash (game-info+0x797, rip at goal 0, exactly this class of
-;; bug). All four share one root cause: game-info_ir2.asm's own bodies for methods
-;; 17/18/20 fail on the same unresolved global, "Unknown symbol: *default-continue*"
+;; bug). All three share one root cause: game-info_ir2.asm's own bodies for methods
+;; 17/20 fail on the same unresolved global, "Unknown symbol: *default-continue*"
 ;; (method 23 has no captured decode at all in this leg's scratch runs); the real
 ;; continue-lookup system these implement is explicitly out of this leg's scope
 ;; (section 1.10 of the leg brief: continue-point methods 9/10/11 are also declared but
@@ -44,8 +44,50 @@
 (defmethod game-info-method-17 ((this game-info) (arg0 int))
   (the-as object #f)
   )
+;; og:preserve-this scoped decode landing, R1 of the retail-staging ladder (#192):
+;; a scratch decode scoped to game-info.o alone (allowed_objects ["game-info"], run
+;; 2026-08-12, GAME.fr3 unchanged at 2,111,127 bytes / 2026-08-10 16:14 before and
+;; after) shows this is a plain name lookup over *level-load-list*'s level-load-info
+;; continues, string= walk, no side effects (that scratch's game-info_ir2.asm:9295-
+;; 9437). It is structurally the same walk as jakx-find-continue-point
+;; (level.gc:2747), confirmed field-by-field: the asm's +60 continues read matches
+;; level-load-info's declared offset 64 (level-load-info is a basic, so machine offset
+;; = declared - 4, the +4 offset trap), and the matched entry's +0 name read matches
+;; continue-point's declared offset 4 name field. The decompiler itself could not
+;; resolve the walk's types this far (ERROR: failed type prop; WARN: return type
+;; mismatch symbol vs string) and cast the found branch to symbol; this landing casts
+;; to string instead, to satisfy the declared signature two methods below
+;; (game-info-h.gc:303) and its already-landed call site in initialize! below (which
+;; reassigns the return into its own string-typed continue-name local, then casts that
+;; to basic before use, so the raw pointer already moves around loosely typed exactly
+;; as retail's own register-level code does). The true value on a match is a
+;; continue-point pointer, not a string; retires when continue-name gets a more
+;; accurate type across its whole call chain (initialize! and
+;; anon-function-14-game-info).
 (defmethod game-info-method-18 ((this game-info) (arg0 string))
-  arg0
+  (if (not arg0)
+      (the-as string #f)
+      (let ((cur *level-load-list*)
+            (found (the-as string #f))
+            )
+        (while (and (not (null? cur)) (not found))
+          (let* ((lli (the-as level-load-info (-> (the-as symbol (car cur)) value)))
+                 (conts (-> lli continues))
+                 )
+            (while (and (not (null? conts)) (not found))
+              (let ((cp (the-as continue-point (car conts))))
+                (if (string= arg0 (-> cp name))
+                    (set! found (the-as string cp))
+                    )
+                )
+              (set! conts (cdr conts))
+              )
+            )
+          (set! cur (cdr cur))
+          )
+        found
+        )
+      )
   )
 (defmethod set-continue! ((this game-info) (arg0 basic) (arg1 int))
   (the-as continue-point #f)
