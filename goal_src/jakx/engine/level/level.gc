@@ -2735,8 +2735,11 @@
 ;; level-load-info's continues list, jak3 get-continue-by-name's walk without the
 ;; *game-info* half. Retires when game-info.gc lands.
 ;; og:preserve-this bring-up want driver state: armed by play when it boots a continue
-;; point; consumed by jakx-want-driver-tick from level-update. Retires with the retail
-;; continue/race position system in game-info.gc.
+;; point; consumed by jakx-want-driver-tick from level-update. An earlier note retired
+;; this "with the retail continue/race position system in game-info.gc"; the 2026-08-12
+;; decodes proved no such system exists (races stage statically via net-world). Retires
+;; if exploration ever adopts retail's net-world staging or a race-start path replaces
+;; free-roam boots.
 (define *jakx-want-driver* #t)
 (define *jakx-want-driver-frame* 0)
 (define *jakx-want-driver-cp* (the continue-point #f))
@@ -2849,12 +2852,57 @@
   (none)
   )
 
+(defun jakx-want-slide-safe? ((cand continue-point))
+  "og:preserve-this bring-up guard: refuse a slide whose want set would evict a section
+the camera is inside. Proven live on icelands (2026-08-12): ice-icea-1's two-entry want
+set evicted iced at the border, deactivate(kill) under the racer, because want-levels'
+name diff discards anything the new set omits. A slide may only fire once every current
+window member the camera is inside-boxes? of survives into the candidate's set, so
+evictions happen behind the racer, never underneath. The 2026-08-12 net-world decode
+proved retail has no mid-race slide to inherit this rule from: races stage one want set
+via wait-for-levels and never move it, so border safety is this driver's own problem."
+  (let ((safe #t))
+    (dotimes (i 6)
+      (let ((cur-name (-> *load-state* want i name)))
+        (when cur-name
+          (dotimes (j (-> *level* length))
+            (let ((lev (-> *level* level j)))
+              (when (and (= (-> lev name) cur-name)
+                         (= (-> lev status) 'active)
+                         (-> lev inside-boxes?)
+                         )
+                (let ((kept #f))
+                  (dotimes (k (min 4 (the int (-> cand want-count))))
+                    (if (= (-> cand want k name) cur-name)
+                        (set! kept #t)
+                        )
+                    )
+                  (if (not kept)
+                      (set! safe #f)
+                      )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    safe
+    )
+  )
+
 (defun jakx-want-driver-tick ()
-  "og:preserve-this bring-up want driver: retail refreshes load-state wants from race
-position through the continue-point system in game-info.gc (unlanded). Until it lands,
-every 30 frames pick the continue point nearest the active camera within the boot
-continue's family (same :level home, so only built DGO want sets are ever requested)
-and apply its want set when it changes; update! then streams the section window."
+  "og:preserve-this bring-up want driver for free exploration of the section families.
+An earlier docstring claimed retail refreshes wants from race position through
+game-info.gc; the 2026-08-12 scoped decodes falsified that: retail level-update's
+continue block is an empty-bodied guard, set-continue! never touches wants, and races
+stage their window once through net-world (task-selected continue, method 76,
+check-start-load, wait-for-levels) with no positional input anywhere. Free exploration
+of the w-families therefore has no retail mechanism to port, and this driver is the
+authored stand-in: every 30 frames pick the continue point nearest the active camera
+within the boot continue's family (same :level home, so only built DGO want sets are
+ever requested) and apply its want set when it changes, guarded by jakx-want-slide-safe?
+above; update! then streams the section window."
   (when *jakx-campath-record*
     (+! *jakx-campath-frame* 1)
     (when (>= *jakx-campath-frame* 20)
@@ -2952,6 +3000,7 @@ and apply its want set when it changes; update! then streams the section window.
             (when (and best
                        (!= best *jakx-want-driver-cp*)
                        (< best-d (* 0.5 cur-d))
+                       (jakx-want-slide-safe? best)
                        )
               (format 0 "want-driver: window slides to ~S~%" (-> best name))
               (set! *jakx-want-driver-cp* best)
@@ -2964,12 +3013,21 @@ and apply its want set when it changes; update! then streams the section window.
                   )
                 (want-levels *load-state* a1-11)
                 )
-              ;; propagate every entry's display? value, including #f: want-levels keeps
-              ;; an existing entry's flag by name, so a hidden want (jungle-wide-start's
-              ;; jungleb) never lands unless pushed explicitly
+              ;; og:preserve-this display every want: an earlier note here argued the #f
+              ;; push was needed for hidden wants to land, but want-levels already
+              ;; initialises every newly added entry hidden, so the explicit #f only ever
+              ;; un-displayed an already-displayed section; on a back-slide (a-3 sits on
+              ;; the b-1-to-c-1 leg and nearest-continue has no direction) that push
+              ;; deactivated the ground under the racer for ~510 m per lap in the
+              ;; recorded repro. Promoting #f to 'display goes one further: the hidden
+              ;; value is retail's preload staging (net-world's wait-for-levels flips it
+              ;; to 'display once loaded, method 77), and this driver has no later flip
+              ;; point, so hold-until-crossed reads as a void ahead. display-wait in the
+              ;; level flags keeps a still-loading level deferred, so this never draws
+              ;; an unloaded level. Non-#f values ('special task variants) pass through.
               (dotimes (i (min 4 (the int (-> best want-count))))
                 (let ((w (-> best want i)))
-                  (want-display-level *load-state* (-> w name) (-> w display?))
+                  (want-display-level *load-state* (-> w name) (or (-> w display?) 'display))
                   )
                 )
               (want-vis-level *load-state* (-> best vis-nick))
@@ -4701,20 +4759,23 @@ overshoot and no separate tunable to keep in sync with speed."
   (none)
   )
 
-;; og:preserve-this bring-up no-op: level-update (method 19) drives level transitions
-;; per frame; the jakx body fails expression conversion. The boot level is already
-;; 'loaded when the loop starts, so a no-op holds until the real port (hand-port from
-;; jak3 level-update planned). The PC level-list push (jak3's og addition) runs so the
-;; C++ loader learns which level fr3s to load and display.
+;; og:preserve-this level-update (method 19) drives per-frame level maintenance. An
+;; earlier note here claimed the retail jakx body "additionally does the music/continue
+;; propagation"; the 2026-08-12 scoped decode falsified both halves. Retail keeps
+;; jak3's entire continue-propagation guard and then executes an EMPTY body (one
+;; instruction wide), and no music write can exist because jakx's level-load-info has
+;; no music-bank or sound-reverb fields. There is no retail walk left to port: retail
+;; races stage their whole want set once through net-world (set-continue-point-from-task
+;; -> method 76 -> check-start-load -> wait-for-levels) and never move it mid-race.
 (defmethod level-update ((this level-group))
-  ;; og:preserve-this bring-up: the retail jakx level-update also pumps every slot's
+  ;; og:preserve-this bring-up: the retail jakx level-update pumps every slot's
   ;; load-continue and runs the load-state update! mid-body (jak3 level.gc:3569 is the
-  ;; landed reference; the jakx retail body additionally does the music/continue
-  ;; propagation, which lands with the target-inside leg). Until then this PC-shaped
-  ;; method carries the pieces streaming and vis need: the per-frame load pump, the
-  ;; bring-up want driver, update!, and (V4, #41) the inside-boxes and vis-valid
-  ;; setters at retail's own relative position, inside-boxes before update! and
-  ;; vis-valid after, matching the scoped decode.
+  ;; landed reference). This PC-shaped method carries the pieces streaming and vis
+  ;; need: the per-frame load pump, the bring-up want driver (a stand-in for the
+  ;; exploration-mode streaming retail never had; see the driver's own notes), update!,
+  ;; and (V4, #41) the inside-boxes and vis-valid setters at retail's own relative
+  ;; position, inside-boxes before update! and vis-valid after, matching the scoped
+  ;; decode.
   (dotimes (i (-> this length))
     (load-continue (-> this level i))
     )
