@@ -7,3 +7,28 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this the brief's own §2.3 called wcar-base "zero own fields,
+;; zero own methods", but the capture actually carries two: jmod-shock-tops
+;; and jmod-shock-mids, both UNKNOWN 4. Landed as extent-true pads (128B
+;; each) rather than the real joint-mod-rotate-local type, same reasoning
+;; as wvehicle's jmod-steering-wheel (goal_src/jakx/engine/vehicle/
+;; wvehicle-h.gc): joint-mod-base is not landed anywhere in goal_src yet,
+;; and the span fits exactly (4 x 32B = 128B, matching
+;; joint-mod-rotate-local's own size, for both fields). A 12-byte gap
+;; precedes them (wvehicle ends at 4660, jmod-shock-tops starts at 4672)
+;; and a 128-byte gap follows them (jmod-shock-mids ends at 4928, the
+;; asserted size is 5,056); neither is resolvable from this rung's scoped
+;; decode (wcar-base.o was not part of the allowed_objects list, and
+;; wcar-skel/wcar are both "never captured" per the brief's §2.2, empty
+;; banner sections with no inventory to scope from).
+(deftype wcar-base (wvehicle)
+  ((pad-post-wvehicle uint8 12  :offset-assert 4660)
+   (jmod-shock-tops   uint8 128 :offset-assert 4672)
+   (jmod-shock-mids   uint8 128 :offset-assert 4800)
+   (pad-tail          uint8 128 :offset-assert 4928)
+   )
+  :method-count-assert 272
+  :size-assert         #x13c0
+  :flag-assert         #x110133013c0
+  )
+
