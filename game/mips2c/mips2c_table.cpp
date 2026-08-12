@@ -430,6 +430,7 @@ namespace get_string_length_asm { extern void link(); }
 namespace draw_string3d_asm { extern void link(); }
 namespace draw_string_asm_packed { extern void link(); }
 namespace draw_string_init_justify { extern void link(); }
+namespace debug_line_clip { extern void link(); }
 namespace cspace_parented_transformq_joint { extern void link(); }
 namespace foreground_check_longest_edge_asm { extern void link(); }
 namespace foreground_generic_merc { extern void link(); }
@@ -744,6 +745,7 @@ PerGameVersion<std::unordered_map<std::string, std::vector<void (*)()>>> gMips2C
     {{"lights",
       {jakx::light_hash_get_bucket_index::link, jakx::add_light_sphere_to_light_group::link,
        jakx::light_hash_count_items::link, jakx::light_hash_add_items::link}},
+     {"debug", {jakx::debug_line_clip::link}},
      {"ocean",
       {jakx::init_ocean_far_regs::link, jakx::draw_large_polygon_ocean::link,
        jakx::render_ocean_quad::link}},
