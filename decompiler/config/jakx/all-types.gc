@@ -41970,7 +41970,6 @@
 ;; rigid-body-h                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
 (deftype rigid-body-info (structure)
   ((max-time-step       float          :offset-assert 0)
    (mass                float          :offset-assert 4)
@@ -41994,26 +41993,14 @@
     (rigid-body-info-method-9 () none) ;; 9 ;; (rigid-body-info-method-9 (_type_) none)
     )
   )
-|#
 
-#|
+;; og:preserve-this see goal_src/jakx/engine/physics/rigid-body-h.gc: the
+;; captured block re-declared rigid-body-info's own 14 fields a second time
+;; under new names at the same offsets (0-196); dropped as duplicate content,
+;; same class as the target-h.gc R1 state-time fix.
 (deftype rigid-body-object-constants (structure)
-  ((info              rigid-body-info :inline :offset-assert 0)
-   (max-time-step     float                   :offset-assert 0)
-   (mass              float                   :offset-assert 4)
-   (inv-mass          float                   :offset-assert 8)
-   (cm-joint-x        meters                  :offset-assert 32)
-   (cm-joint-y        meters                  :offset-assert 36)
-   (cm-joint-z        meters                  :offset-assert 40)
-   (linear-damping    float                   :offset-assert 12)
-   (angular-damping   float                   :offset-assert 16)
-   (bounce-factor     float                   :offset-assert 20)
-   (friction-factor   float                   :offset-assert 24)
-   (inertial-tensor-x meters                  :offset-assert 176)
-   (inertial-tensor-y meters                  :offset-assert 180)
-   (inertial-tensor-z meters                  :offset-assert 184)
-   (gravity           meters                  :offset-assert 188)
-   (name              symbol                  :offset-assert 196) ;; guessed by decompiler
+  ((info rigid-body-info :inline :offset-assert 0)
+   (name symbol                  :offset-assert 196) ;; guessed by decompiler
    )
   :method-count-assert 10
   :size-assert         #xc8
@@ -42022,7 +42009,6 @@
     (rigid-body-object-constants-method-9 () none) ;; 9
     )
   )
-|#
 
 (deftype rigid-body-impact (structure)
   ((point    vector      :inline :offset-assert 0)
@@ -42108,15 +42094,16 @@
   )
 |#
 
-#|
 (deftype rb-perf-data (structure)
   ((process           uint64     :offset-assert 0)
-   (times             UNKNOWN 32 :offset-assert 8)
    (t-rb-all          uint32     :offset-assert 8)
    (t-rb-callback     uint32     :offset-assert 12)
    (t-rb-fc           uint32     :offset-assert 16)
    (t-rb-move         uint32     :offset-assert 20)
    (t-rb-physics      uint32     :offset-assert 24)
+   ;; og:preserve-this see goal_src/jakx/engine/physics/rigid-body-h.gc:
+   ;; extent-true pad, 4 bytes unaccounted between t-rb-physics and t-vqp-all.
+   (pad-vqp-gap       uint8   4  :offset-assert 28)
    (t-vqp-all         uint32     :offset-assert 32)
    (t-vqp-common      uint32     :offset-assert 36)
    (t-vqp-ja-post     uint32     :offset-assert 40)
@@ -42134,18 +42121,23 @@
    (t-nav-part8       uint32     :offset-assert 88)
    (t-nav-part9       uint32     :offset-assert 92)
    (t-nav-part10      uint32     :offset-assert 96)
-   (t-part-turbo      uint32     :offset-assert 116)
+   ;; og:preserve-this reordered by offset (t-part-turbo was captured ahead of
+   ;; exhaust/smoke/scrape/wheels); :offset-assert needs ascending order.
    (t-part-exhaust    uint32     :offset-assert 100)
    (t-part-smoke      uint32     :offset-assert 104)
    (t-part-scrape     uint32     :offset-assert 108)
    (t-part-wheels     uint32     :offset-assert 112)
+   (t-part-turbo      uint32     :offset-assert 116)
    (t-part-debris     uint32     :offset-assert 120)
    (t-part-water      uint32     :offset-assert 124)
    (t-part-forcefield uint32     :offset-assert 128)
    (t-prim-trails     uint32     :offset-assert 132)
-   (begin-times       UNKNOWN 32 :offset-assert 136)
-   (begin-counts      UNKNOWN 32 :offset-assert 264)
-   (end-counts        UNKNOWN 32 :offset-assert 392)
+   ;; og:preserve-this begin-times/begin-counts/end-counts resolved from
+   ;; UNKNOWN 32 to uint32, matching every other t-* counter's width; see
+   ;; goal_src/jakx/engine/physics/rigid-body-h.gc for the arithmetic.
+   (begin-times       uint32  32 :offset-assert 136)
+   (begin-counts      uint32  32 :offset-assert 264)
+   (end-counts        uint32  32 :offset-assert 392)
    )
   :method-count-assert 12
   :size-assert         #x208
@@ -42156,21 +42148,27 @@
     (rb-perf-data-method-11 () none) ;; 11
     )
   )
-|#
 
-#|
+;; og:preserve-this rigid-body-object-flag resolved to uint64: rigid-body-h.o's
+;; own (method 3 rigid-body-object) reads it with `ld a2, 260(gp)` (declared
+;; 264 with the +4 basic-offset correction), an 8-byte load, not the 4-byte
+;; width the captured comment implied. See goal_src/jakx/engine/physics/
+;; rigid-body-h.gc for the full citation and the four bit names the same
+;; inspect method confirms (dead/damaged/disturbed/enable-collision).
 (deftype rigid-body-object (process-focusable)
   ((info               rigid-body-object-constants  :offset-assert 256)
-   (flags              rigid-body-object-flag       :offset-assert 264)
+   (flags              uint64                       :offset-assert 264)
    (max-time-step      float                        :offset-assert 272)
-   (incoming-attack-id uint32                       :offset-assert 276)
-   (disturbed-time     time-frame                   :offset-assert 280) ;; guessed by decompiler
-   (perf               rb-perf-data                 :offset-assert 284)
+   (incoming-attack-id uint32                        :offset-assert 276)
+   ;; og:preserve-this see goal_src/jakx/engine/physics/rigid-body-h.gc:
+   ;; disturbed-time resolved from time-frame (8B) to uint32 (4B), matching
+   ;; the confirmed 4-byte `lwu` load and the confirmed perf@284 that follows.
+   (disturbed-time     uint32                        :offset-assert 280)
+   (perf               rb-perf-data                  :offset-assert 284)
    )
   :method-count-assert 89
   :size-assert         #x120
   :flag-assert         #x5900900120
-  ;; field rigid-body-object-flag is likely a value type.
   (:methods
     (rigid-body-object-method-59 () none) ;; 59
     (rigid-body-object-method-60 () none) ;; 60
@@ -42204,7 +42202,6 @@
     (rigid-body-object-method-88 () none) ;; 88
     )
   )
-|#
 
 #|
 (deftype rigid-body-queue (structure)
