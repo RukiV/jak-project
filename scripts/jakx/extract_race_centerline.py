@@ -19,9 +19,33 @@ from pathlib import Path
 # static-data fragment with one vector per centerline midpoint, ready to
 # paste into level.gc next to the racer code.
 #
+# A race mesh whose track has forks holds more than one race line, and the
+# header's own race-line table says which mesh slices each line drives (#161
+# follow-up, see RACE-LINE MODE below). Without that table the edge array is
+# just "every edge of every branch", and the fork-interleave filter above is a
+# geometric guess at splitting it; with it, the split is read out of the data.
+#
 # usage: python scripts/jakx/extract_race_centerline.py <path to raw .go>
-# example (jungle bake):
+#                                                       [--race-line N] [--symbol NAME]
+# example (jungle bake, the shipped table):
 #   python scripts/jakx/extract_race_centerline.py decompiler_out/jakx/raw_obj/jungles.go
+# example (ice bake, main circuit line):
+#   python scripts/jakx/extract_race_centerline.py decompiler_out/jakx/raw_obj/ices.go --race-line 3
+#
+# RACE-LINE MODE (--race-line N)
+# ------------------------------
+# The race-mesh basic's fourth stored pointer (field `race-lines`, offset 28)
+# is an array of `race-line-count` race-line structures, 64 bytes each, laid
+# out exactly as the captured deftype in decompiler/config/jakx/all-types.gc
+# (~45442) describes. Each race-line carries its own `slices` pointer: an
+# int16 per race-mesh slice, -1 where that slice is NOT on this line and a
+# race-line point index where it is. Walking the mesh slices in order and
+# keeping the `start-edge` of every slice the chosen line marks valid yields
+# that line's edge sequence directly -- no distance gates, no spike removal.
+#
+# The two modes are separate on purpose: passing no --race-line runs the
+# original fork-filter path unchanged, so the shipped jungle table keeps
+# regenerating byte for byte.
 
 SCRIPT_NAME = "extract_race_centerline.py"
 TABLE_SYMBOL = "*jakx-racer-track*"
@@ -35,10 +59,32 @@ HEADER_TAG = b"\xff\xff\xff\xff"
 HEADER_SIZE = 32  # tag(4) + version(1) + flags(1) + 4x uint16 + pad(2) + 4x uint32 ptr
 EDGE_SIZE = 32  # two vec4 float32 records: left, right
 
+# race-mesh-slice: two int16, (start-edge, end-edge). all-types.gc ~45590.
+MESH_SLICE_SIZE = 4
+# race-line: the deftype at all-types.gc ~45442, size-assert #x40.
+RACE_LINE_SIZE = 64
+# a race-line point: four uint16, quantised as offset + (q / RACE_LINE_QUANT) *
+# scale per component. The divisor is 32768 and not 65535/65536: 32768 is the
+# largest value that appears in any component of any line in any of the 24
+# shipped race meshes, and it is the only divisor under which each line's
+# decoded closed-loop length reproduces the `length` float stored beside it in
+# its own race-line header (verified to 1e-5 relative on all nine lines of
+# jungles.go, ices.go and havjungs.go -- see check_race_line_length below).
+RACE_LINE_POINT_SIZE = 8
+RACE_LINE_QUANT = 32768.0
+# tolerance for that self-check, as a fraction of the stored length
+RACE_LINE_LENGTH_TOL = 1e-4
+
 # Known-good decode targets, keyed by input file basename. Add an entry here
 # (md5, expected header fields, expected edge file offset, sanity bbox in
 # real meters) before pointing this script at a new level's raw .go; a file
 # with no entry is refused rather than silently extracted unverified.
+#
+# "race_lines" is the per-line gate for --race-line mode, keyed by line index:
+# point_count is how many mesh slices that line marks valid (and so how many
+# centerline points come out), lap_length_m is the closed-loop length of those
+# midpoints, and max_step_m is that loop's longest single step including the
+# lap seam. A line with no entry is refused, same rule as a file with no entry.
 KNOWN_FILES = {
     "jungles.go": {
         "md5": "e9ef477f93626d33e1e0ad080648f4c8",
@@ -57,8 +103,65 @@ KNOWN_FILES = {
         # legitimate hairpin could be nonzero, so this lives per-file rather
         # than as a blanket constant
         "expected_reversals": 0,
+        # line 0 is the branch the fork-interleave filter happens to keep, so
+        # `--race-line 0` here reproduces the default path's output exactly;
+        # that equality is the regression gate for this whole mode.
+        "race_lines": {
+            0: {"point_count": 97, "lap_length_m": 13267.9, "max_step_m": 272.2},
+            1: {"point_count": 96, "lap_length_m": 13309.3, "max_step_m": 272.2},
+        },
+    },
+    "ices.go": {
+        "md5": "1208a11244af2b7a6e939292278ee661",
+        "header": {
+            "version": 5,
+            "flags": 1,
+            "slice_count": 158,
+            "edge_count": 155,
+            "race_line_count": 5,
+            "ai_valid_mask": 0x1F,
+        },
+        "edges_file_offset": 78560,
+        "bbox_m": {"x": (-1757.0, 1726.0), "z": (-1402.0, 1624.0)},
+        "expected_reversals": 0,
+        # icew's mesh forks three times (slices 7-38, 87-106, 107-126). Lines
+        # 3 and 4 are byte-identical and take the wider branch at all three;
+        # 0, 1 and 2 each cut one of them. See the race-line-header write-up
+        # for the ranking evidence.
+        "race_lines": {
+            0: {"point_count": 124, "lap_length_m": 16793.9, "max_step_m": 477.7},
+            1: {"point_count": 118, "lap_length_m": 16862.2, "max_step_m": 477.7},
+            2: {"point_count": 126, "lap_length_m": 17126.2, "max_step_m": 477.7},
+            3: {"point_count": 124, "lap_length_m": 17183.6, "max_step_m": 477.7},
+            4: {"point_count": 124, "lap_length_m": 17183.6, "max_step_m": 477.7},
+        },
+    },
+    "havjungs.go": {
+        "md5": "065fa5fee491955b38ef0f01b488253d",
+        "header": {
+            "version": 5,
+            "flags": 1,
+            "slice_count": 188,
+            "edge_count": 187,
+            "race_line_count": 2,
+            "ai_valid_mask": 0x3,
+        },
+        "edges_file_offset": 112848,
+        "bbox_m": {"x": (-910.0, 2855.0), "z": (-3321.0, 554.0)},
+        "expected_reversals": 0,
+        # havjungw's mesh forks once (slices 33-41). Line 1 holds the flat,
+        # arc-length-consistent branch; line 0 takes the short climbing one.
+        "race_lines": {
+            0: {"point_count": 183, "lap_length_m": 16761.0, "max_step_m": 265.8},
+            1: {"point_count": 184, "lap_length_m": 16842.4, "max_step_m": 265.8},
+        },
     },
 }
+
+# how far a measured lap length / max step may sit above or below its
+# KNOWN_FILES figure before the run is refused (the figures are recorded to
+# 0.1m, so this is a rounding allowance, not a real tolerance)
+LENGTH_SLACK_M = 0.5
 
 BBOX_SLACK_M = 25.0
 
@@ -213,6 +316,15 @@ def find_race_mesh_header(data):
             continue
         if not (ptrs[0] < ptrs[1] < ptrs[2] < ptrs[3]):
             continue
+        # NOTE ON THE POINTER KEY NAMES. The race-mesh deftype's four trailing
+        # pointers are, in order, `slices`, `edges`, `hash` and `race-lines`
+        # (all-types.gc ~45637). The third and fourth keys below are therefore
+        # misnamed: "race_lines_ptr" is the race-mesh-hash and "fourth_ptr" is
+        # the actual race-lines array. The names are kept because callers and
+        # the KNOWN_FILES offsets already use them, but do not read
+        # "race_lines_ptr" looking for race lines -- a previous investigation
+        # lost a leg to exactly that, hunting a 5-entry table inside the hash's
+        # 1,792 bytes. read_race_lines() is called with fourth_ptr on purpose.
         matches.append(
             {
                 "offset": offset,
@@ -224,8 +336,8 @@ def find_race_mesh_header(data):
                 "ai_valid_mask": ai_valid_mask,
                 "slices_ptr": ptrs[0],
                 "edges_ptr": ptrs[1],
-                "race_lines_ptr": ptrs[2],
-                "fourth_ptr": ptrs[3],
+                "race_lines_ptr": ptrs[2],  # actually `hash`
+                "fourth_ptr": ptrs[3],  # actually `race-lines`
             }
         )
     return matches
@@ -234,7 +346,16 @@ def find_race_mesh_header(data):
 def read_edges(data, edges_file_offset, edge_count):
     """Read edge_count race-mesh-edge records starting at edges_file_offset.
     Each record is two 16-byte float32 vectors, left then right; the lap
-    fraction is packed in left.w. Returns a list of (left, right) 4-tuples."""
+    fraction is packed in left.w. Returns a list of (left, right) 4-tuples.
+
+    The array on disk actually holds edge_count + 1 records: the extra last
+    one repeats edge 0's left and right positions exactly, with lap-dist 1.0
+    instead of 0.0 -- the lap seam's closing edge (verified byte-identical in
+    jungles.go, ices.go and havjungs.go). Reading only edge_count of them is
+    therefore right, not an off-by-one: it takes each distinct edge once, and
+    the seam is closed by wrapping the loop instead. Every mesh slice's
+    start-edge is <= edge_count - 1, so a start-edge selection never needs the
+    duplicate."""
     edges = []
     for i in range(edge_count):
         off = edges_file_offset + i * EDGE_SIZE
@@ -242,6 +363,110 @@ def read_edges(data, edges_file_offset, edge_count):
         right = struct.unpack_from("<ffff", data, off + 16)
         edges.append((left, right))
     return edges
+
+
+def read_mesh_slices(data, slices_file_offset, slice_count):
+    """Read slice_count race-mesh-slice records: two int16, (start-edge,
+    end-edge), indices into the edge array. A slice is the strip of track
+    between those two edges, so consecutive slices normally step the edge
+    index by one; around a fork the start-edge order interleaves the
+    branches, which is exactly the interleave the geometric filter has to
+    guess at and the race-line slice map states outright."""
+    return [
+        struct.unpack_from("<hh", data, slices_file_offset + i * MESH_SLICE_SIZE)
+        for i in range(slice_count)
+    ]
+
+
+def read_race_lines(data, race_lines_file_offset, race_line_count, skew):
+    """Read the race-mesh's `race-lines` array: race_line_count race-line
+    structures of RACE_LINE_SIZE bytes each, per the deftype in all-types.gc.
+    Stored pointers inside each record are rebased to file offsets with the
+    same skew the caller derived for the mesh itself."""
+    lines = []
+    for i in range(race_line_count):
+        off = race_lines_file_offset + i * RACE_LINE_SIZE
+        scale = struct.unpack_from("<ffff", data, off)
+        origin = struct.unpack_from("<ffff", data, off + 16)
+        (length,) = struct.unpack_from("<f", data, off + 32)
+        flags, points_per_slice, point_count, gap_index_count, slice_count, extra_points = (
+            struct.unpack_from("<Hhhhhh", data, off + 36)
+        )
+        points_ptr, gap_indices_ptr, slices_ptr, pad = struct.unpack_from("<IIII", data, off + 48)
+        lines.append(
+            {
+                "index": i,
+                "scale": scale,
+                "origin": origin,
+                "length": length,
+                "flags": flags,
+                "points_per_slice": points_per_slice,
+                "point_count": point_count,
+                "gap_index_count": gap_index_count,
+                "slice_count": slice_count,
+                "extra_points": extra_points,
+                "points_file_offset": points_ptr + skew,
+                "gap_indices_file_offset": gap_indices_ptr + skew,
+                "slices_file_offset": slices_ptr + skew,
+                "pad": pad,
+            }
+        )
+    return lines
+
+
+def read_race_line_slice_map(data, race_line, slice_count):
+    """Read a race-line's per-mesh-slice map: one int16 per race-mesh slice,
+    -1 where the line does not drive that slice and otherwise the index of
+    that slice's last race-line point. Length is the MESH's slice count,
+    which every shipped line's own slice-count field agrees with."""
+    return list(
+        struct.unpack_from(
+            "<" + "h" * slice_count, data, race_line["slices_file_offset"]
+        )
+    )
+
+
+def read_race_line_points(data, race_line, count):
+    """Decode `count` race-line points: four uint16 each, dequantised as
+    origin + (q / RACE_LINE_QUANT) * scale. Returns 3-tuples in raw engine
+    units; the fourth component is always zero in the shipped data (every
+    line's scale.w and origin.w are 0.0), so it is dropped."""
+    pts = []
+    for i in range(count):
+        q = struct.unpack_from(
+            "<HHHH", data, race_line["points_file_offset"] + i * RACE_LINE_POINT_SIZE
+        )
+        pts.append(
+            tuple(
+                race_line["origin"][c] + (q[c] / RACE_LINE_QUANT) * race_line["scale"][c]
+                for c in range(3)
+            )
+        )
+    return pts
+
+
+def check_race_line_length(data, race_line, slice_map):
+    """Self-check on the whole race-line decode. The points the slice map
+    references (0 .. max mapped index) form a closed loop whose length is the
+    `length` float stored in the race-line header; the trailing
+    `extra-points` are not on it. Getting the point stride, the quantisation
+    divisor, the pointer rebasing or the slice map wrong all move this number,
+    so agreement to RACE_LINE_LENGTH_TOL is strong evidence the structure is
+    being read as authored. Returns (measured_m, stored_m, relative_error)."""
+    mapped = [v for v in slice_map if v >= 0]
+    pts = read_race_line_points(data, race_line, max(mapped) + 1)
+    n = len(pts)
+    measured = sum(dist3(pts[i], pts[(i + 1) % n]) for i in range(n)) / METER_LENGTH
+    stored = race_line["length"]
+    return measured, stored, abs(measured - stored) / stored
+
+
+def select_edges_for_race_line(mesh_slices, slice_map):
+    """The centerline edge sequence for one race line: walk the mesh slices in
+    order and take the start-edge of every slice the line marks valid. The
+    result is already ordered along the track and contains no duplicates,
+    because a fork's two branches never share a start-edge on the same line."""
+    return [mesh_slices[i][0] for i, v in enumerate(slice_map) if v >= 0]
 
 
 def format_float(x):
@@ -262,15 +487,18 @@ def format_float(x):
     return s
 
 
-def emit_goal_fragment(midpoints, source_name, source_md5, out):
-    header_line = "(define {} (new 'static 'boxed-array :type vector".format(TABLE_SYMBOL)
+def emit_goal_fragment(midpoints, source_name, source_md5, out, symbol=TABLE_SYMBOL, race_line=None):
+    header_line = "(define {} (new 'static 'boxed-array :type vector".format(symbol)
     indent = header_line.index("(new 'static 'boxed-array") + 2
     pad = " " * indent
 
-    print(
-        ";; BEGIN GENERATED: {} (source {}, md5 {})".format(SCRIPT_NAME, source_name, source_md5),
-        file=out,
-    )
+    # the race-line suffix is appended only in race-line mode, so a default
+    # run's markers stay character for character what is already in level.gc
+    provenance = "source {}, md5 {}".format(source_name, source_md5)
+    if race_line is not None:
+        provenance += ", race line {}".format(race_line)
+
+    print(";; BEGIN GENERATED: {} ({})".format(SCRIPT_NAME, provenance), file=out)
     print(header_line, file=out)
     for x, y, z in midpoints:
         print(
@@ -281,15 +509,26 @@ def emit_goal_fragment(midpoints, source_name, source_md5, out):
         )
     print("{})".format(pad), file=out)
     print("        )", file=out)
-    print(
-        ";; END GENERATED: {} (source {}, md5 {})".format(SCRIPT_NAME, source_name, source_md5),
-        file=out,
-    )
+    print(";; END GENERATED: {} ({})".format(SCRIPT_NAME, provenance), file=out)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("go_path", type=Path, help="path to the raw .go level object")
+    parser.add_argument(
+        "--race-line",
+        type=int,
+        default=None,
+        metavar="N",
+        help="select edges from race line N's own slice map instead of running "
+        "the geometric fork-interleave filter. Required for any mesh with a "
+        "fork the filter is not tuned for.",
+    )
+    parser.add_argument(
+        "--symbol",
+        default=TABLE_SYMBOL,
+        help="GOAL symbol to define (default {})".format(TABLE_SYMBOL),
+    )
     args = parser.parse_args()
 
     go_path = args.go_path
@@ -340,6 +579,12 @@ def main():
 
     edges = read_edges(data, edges_file_offset, header["edge_count"])
 
+    if args.race_line is not None:
+        run_race_line_mode(
+            data, header, skew, edges, known, name, actual_md5, args.race_line, args.symbol
+        )
+        return
+
     lap_fractions = [left[3] for left, _right in edges]
     monotonic = all(
         lap_fractions[i] < lap_fractions[i + 1] for i in range(len(lap_fractions) - 1)
@@ -381,35 +626,9 @@ def main():
     ]
     max_step_m = max(steps_m)
     min_step_m = min(steps_m)
-    if max_step_m > MAX_STEP_M:
-        sys.exit(
-            "error: max final step is {:.2f}m (including the lap seam), expected "
-            "at most {}m".format(max_step_m, MAX_STEP_M)
-        )
-
-    reversal_count = count_reversals(final_points)
-    expected_reversals = known["expected_reversals"]
-    if reversal_count != expected_reversals:
-        sys.exit(
-            "error: {} remaining consecutive-direction reversal(s) after both "
-            "filter passes, expected exactly {}".format(reversal_count, expected_reversals)
-        )
-
-    xs_m = [m[0] / METER_LENGTH for m in final_points]
-    zs_m = [m[2] / METER_LENGTH for m in final_points]
-    bbox = known["bbox_m"]
-    x_lo, x_hi = bbox["x"]
-    z_lo, z_hi = bbox["z"]
-    if not (x_lo - BBOX_SLACK_M <= min(xs_m) and max(xs_m) <= x_hi + BBOX_SLACK_M):
-        sys.exit(
-            "error: midpoint X bbox (meters) {:.2f}..{:.2f} outside expected "
-            "{}..{} (+/- {})".format(min(xs_m), max(xs_m), x_lo, x_hi, BBOX_SLACK_M)
-        )
-    if not (z_lo - BBOX_SLACK_M <= min(zs_m) and max(zs_m) <= z_hi + BBOX_SLACK_M):
-        sys.exit(
-            "error: midpoint Z bbox (meters) {:.2f}..{:.2f} outside expected "
-            "{}..{} (+/- {})".format(min(zs_m), max(zs_m), z_lo, z_hi, BBOX_SLACK_M)
-        )
+    xs_m, zs_m, reversal_count = check_loop_geometry(
+        final_points, known, MAX_STEP_M, "after both filter passes"
+    )
 
     print(
         "extractor sanity: {} points after both fork-filter passes ({} pass 1, "
@@ -431,7 +650,175 @@ def main():
         file=sys.stderr,
     )
 
-    emit_goal_fragment(final_points, name, actual_md5, sys.stdout)
+    emit_goal_fragment(final_points, name, actual_md5, sys.stdout, symbol=args.symbol)
+
+
+def check_loop_geometry(final_points, known, max_step_m_limit, reversal_context):
+    """Gates shared by both selection modes: no step (lap seam included) over
+    the limit, the expected number of consecutive-direction reversals, and a
+    bbox inside the file's known-good one. Returns (xs_m, zs_m,
+    reversal_count) so the caller can report them."""
+    steps_m = [
+        dist3(final_points[i], final_points[(i + 1) % len(final_points)]) / METER_LENGTH
+        for i in range(len(final_points))
+    ]
+    max_step_m = max(steps_m)
+    if max_step_m > max_step_m_limit:
+        sys.exit(
+            "error: max final step is {:.2f}m (including the lap seam), expected "
+            "at most {}m".format(max_step_m, max_step_m_limit)
+        )
+
+    reversal_count = count_reversals(final_points)
+    expected_reversals = known["expected_reversals"]
+    if reversal_count != expected_reversals:
+        sys.exit(
+            "error: {} remaining consecutive-direction reversal(s) {}, expected "
+            "exactly {}".format(reversal_count, reversal_context, expected_reversals)
+        )
+
+    xs_m = [m[0] / METER_LENGTH for m in final_points]
+    zs_m = [m[2] / METER_LENGTH for m in final_points]
+    bbox = known["bbox_m"]
+    x_lo, x_hi = bbox["x"]
+    z_lo, z_hi = bbox["z"]
+    if not (x_lo - BBOX_SLACK_M <= min(xs_m) and max(xs_m) <= x_hi + BBOX_SLACK_M):
+        sys.exit(
+            "error: midpoint X bbox (meters) {:.2f}..{:.2f} outside expected "
+            "{}..{} (+/- {})".format(min(xs_m), max(xs_m), x_lo, x_hi, BBOX_SLACK_M)
+        )
+    if not (z_lo - BBOX_SLACK_M <= min(zs_m) and max(zs_m) <= z_hi + BBOX_SLACK_M):
+        sys.exit(
+            "error: midpoint Z bbox (meters) {:.2f}..{:.2f} outside expected "
+            "{}..{} (+/- {})".format(min(zs_m), max(zs_m), z_lo, z_hi, BBOX_SLACK_M)
+        )
+    return xs_m, zs_m, reversal_count
+
+
+def run_race_line_mode(data, header, skew, edges, known, name, actual_md5, line_index, symbol):
+    """--race-line N: take the centerline from race line N's own slice map
+    rather than from the geometric fork filter, then run the same closed-loop
+    gates. Emits the GOAL fragment on stdout and a sanity line on stderr."""
+    known_lines = known.get("race_lines")
+    if not known_lines or line_index not in known_lines:
+        sys.exit(
+            "error: no known-good race line {} for '{}'. Add it to that file's "
+            "'race_lines' entry in KNOWN_FILES in {} (point count, lap length, "
+            "max step) before baking it.".format(line_index, name, SCRIPT_NAME)
+        )
+    known_line = known_lines[line_index]
+
+    if not (0 <= line_index < header["race_line_count"]):
+        sys.exit(
+            "error: race line {} out of range: the mesh holds {}".format(
+                line_index, header["race_line_count"]
+            )
+        )
+
+    mesh_slices = read_mesh_slices(data, header["slices_ptr"] + skew, header["slice_count"])
+    race_lines = read_race_lines(
+        data, header["fourth_ptr"] + skew, header["race_line_count"], skew
+    )
+    race_line = race_lines[line_index]
+    if race_line["slice_count"] != header["slice_count"]:
+        sys.exit(
+            "error: race line {}'s slice-count {} disagrees with the mesh's {}; "
+            "the slice map cannot be read".format(
+                line_index, race_line["slice_count"], header["slice_count"]
+            )
+        )
+
+    slice_map = read_race_line_slice_map(data, race_line, header["slice_count"])
+    measured_m, stored_m, rel_err = check_race_line_length(data, race_line, slice_map)
+    if rel_err > RACE_LINE_LENGTH_TOL:
+        sys.exit(
+            "error: race line {}'s decoded point loop measures {:.2f}m but its "
+            "header stores {:.2f}m (relative error {:.2e}, tolerance {:.0e}). The "
+            "race-line structure is not being read as authored; refusing to "
+            "bake.".format(line_index, measured_m, stored_m, rel_err, RACE_LINE_LENGTH_TOL)
+        )
+
+    selected = select_edges_for_race_line(mesh_slices, slice_map)
+    if len(selected) != len(set(selected)):
+        sys.exit("error: race line {}'s slice map yields duplicate edges".format(line_index))
+    if selected != sorted(selected):
+        sys.exit(
+            "error: race line {}'s selected edges are not in increasing order".format(line_index)
+        )
+    if len(selected) != known_line["point_count"]:
+        sys.exit(
+            "error: race line {} selects {} edges, expected the known-good {}".format(
+                line_index, len(selected), known_line["point_count"]
+            )
+        )
+
+    lap_fractions = [edges[e][0][3] for e in selected]
+    if not all(lap_fractions[i] < lap_fractions[i + 1] for i in range(len(lap_fractions) - 1)):
+        sys.exit(
+            "error: lap fractions are not strictly monotonic across race line "
+            "{}'s selected edges".format(line_index)
+        )
+
+    final_points = [
+        (
+            (edges[e][0][0] + edges[e][1][0]) / 2.0,
+            (edges[e][0][1] + edges[e][1][1]) / 2.0,
+            (edges[e][0][2] + edges[e][1][2]) / 2.0,
+        )
+        for e in selected
+    ]
+
+    xs_m, zs_m, reversal_count = check_loop_geometry(
+        final_points,
+        known,
+        known_line["max_step_m"],
+        "on race line {}'s selected edges".format(line_index),
+    )
+
+    steps_m = [
+        dist3(final_points[i], final_points[(i + 1) % len(final_points)]) / METER_LENGTH
+        for i in range(len(final_points))
+    ]
+    lap_length_m = sum(steps_m)
+    if abs(lap_length_m - known_line["lap_length_m"]) > LENGTH_SLACK_M:
+        sys.exit(
+            "error: race line {}'s centerline lap measures {:.2f}m, expected the "
+            "known-good {}m (+/- {})".format(
+                line_index, lap_length_m, known_line["lap_length_m"], LENGTH_SLACK_M
+            )
+        )
+
+    invalid = [i for i, v in enumerate(slice_map) if v < 0]
+    print(
+        "extractor sanity: race line {} of {}, {} points from its slice map ({} "
+        "of {} mesh slices off this line: {}), race-line point loop {:.2f}m vs "
+        "stored {:.2f}m (rel err {:.2e}), lap fractions strictly monotonic, "
+        "centerline lap {:.2f}m, bbox (meters) X {:.2f}..{:.2f} Z {:.2f}..{:.2f}, "
+        "step range (meters, incl. lap seam) {:.2f}..{:.2f}, reversals {}".format(
+            line_index,
+            header["race_line_count"],
+            len(final_points),
+            len(invalid),
+            header["slice_count"],
+            invalid,
+            measured_m,
+            stored_m,
+            rel_err,
+            lap_length_m,
+            min(xs_m),
+            max(xs_m),
+            min(zs_m),
+            max(zs_m),
+            min(steps_m),
+            max(steps_m),
+            reversal_count,
+        ),
+        file=sys.stderr,
+    )
+
+    emit_goal_fragment(
+        final_points, name, actual_md5, sys.stdout, symbol=symbol, race_line=line_index
+    )
 
 
 if __name__ == "__main__":
