@@ -97,26 +97,46 @@
 ;; as the racer levers in level.gc.
 (define-extern skel-jungle-clay-jar-a skeleton-group)
 
-;; og:preserve-this racer skeleton family dispatch (#193 root-cause doc, section
-;; 2.5(c), "the durable version of (b)"): mirrors jakx-racer-track-for-family's
-;; (level.gc) family keying one-for-one so the baked centerline and the resident
-;; skeleton-group never drift out of sync. 'junglew (and no boot continue armed
-;; yet, matching the track dispatch's own #f case) keeps the pre-#193 jungle donor,
-;; skel-jungle-clay-jar-a -- it is level-arted (jungle-obs.o, no permanent DGO) and
-;; reads back as integer 0, not #f, when its level never loaded, because the symbol
-;; table is kmalloc'd with KMALLOC_MEMSET (game/kernel/jakx/kscheme.cpp:1550) and
-;; zero-fills every never-assigned symbol; GOAL's (not 0) is #f, so a (not arg0)
-;; guard against that value never fires. jakx-racer-spawn's own zero? guard below
-;; exists for exactly that case. 'icew resolves to skel-ice-flag
-;; (generic-obs.gc), landed permanently resident so it can never hit that trap.
-;; Every other family returns #f so the caller refuses rather than handing the
-;; racer an unrelated world's art. The refusal branch needs its own cast for the
-;; same reason jakx-racer-track-for-family's does: a bare #f there would widen
-;; this function's inferred return type to plain object.
+;; 'havjungw resolves to skel-jungle-clay-jar-a, not a new resident skeleton (#129).
+;; Evidence: this file's own extern note above already lists HJX among
+;; skel-jungle-clay-jar-a's resident DGOs (jungle-obs.gc, dgos
+;; HAVJUNGW/HAVTOURW/HJX/JGX/JUNGLEW). Independently, from the #129 arming: hjx.gd
+;; (goal_src/jakx/dgos) carries both jungle-obs.o (the code defining the
+;; defskelgroup) and jungle-clay-jar-a-ag.go (the art group it needs) together, the
+;; same pairing jgx.gd already carries for the jungle family. havjungw.gd itself
+;; only carries jungle-obs.o, not the art group, but every one of havjungw's six
+;; continues (level-info.gc) wants at least one jungle section DGO that does carry
+;; jungle-clay-jar-a-ag.go: junglea (jga.gd) and jungleg (jgg.gd) both ship it and
+;; cover four of the six continues directly; the "havjung-junglef-start" continue
+;; (#129's own acceptance continue) wants junglef (jgf.gd) displayed, which does
+;; NOT carry the art group, but also wants junglee (jge.gd) non-displayed, which
+;; does -- and a non-displayed want still loads the level (display? only gates
+;; rendering, not residency; see the level-buffer-state-small note in
+;; jakx-shared-level-arming-recipe). So skel-jungle-clay-jar-a is resident across
+;; every havjungw continue, junglef-start included, just not via junglef itself.
 (defun jakx-racer-skel-for-family ((family symbol))
+  "og:preserve-this racer skeleton family dispatch (#193 root-cause doc, section
+2.5(c), \"the durable version of (b)\"): mirrors jakx-racer-track-for-family's
+(level.gc) family keying one-for-one so the baked centerline and the resident
+skeleton-group never drift out of sync. 'junglew (and no boot continue armed
+yet, matching the track dispatch's own #f case) keeps the pre-#193 jungle donor,
+skel-jungle-clay-jar-a -- it is level-arted (jungle-obs.o, no permanent DGO) and
+reads back as integer 0, not #f, when its level never loaded, because the symbol
+table is kmalloc'd with KMALLOC_MEMSET (game/kernel/jakx/kscheme.cpp:1550) and
+zero-fills every never-assigned symbol; GOAL's (not 0) is #f, so a (not arg0)
+guard against that value never fires. jakx-racer-spawn's own zero? guard below
+exists for exactly that case. 'icew resolves to skel-ice-flag
+(generic-obs.gc), landed permanently resident so it can never hit that trap.
+'havjungw resolves to skel-jungle-clay-jar-a (#129): see the note above this
+function for the residency evidence, continue by continue. Every other family
+returns #f so the caller refuses rather than handing the racer an unrelated
+world's art. The refusal branch needs its own cast for the same reason
+jakx-racer-track-for-family's does: a bare #f there would widen this function's
+inferred return type to plain object."
   (cond
     ((or (not family) (= family 'junglew)) skel-jungle-clay-jar-a)
     ((= family 'icew) skel-ice-flag)
+    ((= family 'havjungw) skel-jungle-clay-jar-a)
     (else (the-as skeleton-group #f))
     )
   )
