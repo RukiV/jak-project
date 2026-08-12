@@ -3417,6 +3417,63 @@ above; update! then streams the section window."
         )
 ;; END GENERATED: extract_race_centerline.py (source havjungs.go, md5 065fa5fee491955b38ef0f01b488253d, race line 1)
 
+;; ============================================================================
+;; og:preserve-this INTEGRATION CHERRY-PICK TARGET (#129): everything from here to
+;; the matching end marker below is NOT develop-shaped. jakx-racer-track-for-family
+;; already exists on integr/jakx-loading-stability (landed there under #192,
+;; dispatching 'junglew/#f to *jakx-racer-track* and 'icew to the not-yet-on-develop
+;; *jakx-racer-track-icew*); this branch only adds the 'havjungw arm, using the
+;; table landed two commits up. The function body below is transcribed verbatim
+;; from integration's current level.gc (including its icew arm and full docstring)
+;; so this hunk is a faithful superset, not a fork: replace integration's function
+;; with this one and the only semantic change is the new 'havjungw clause. The
+;; define-extern immediately below is a branch-local compile bridge only --
+;; *jakx-racer-track-icew* has no real definition on this develop-based branch, so
+;; without it (mi) cannot infer this function's return type. Integration already
+;; carries the real definition; drop this extern when applying the function there,
+;; or leave it -- a define-extern over an already-`define`d symbol is a harmless
+;; no-op type redeclaration, not a conflict.
+(define-extern *jakx-racer-track-icew* (array vector))
+
+(defun jakx-racer-track-for-family ((family symbol))
+  "og:preserve-this racer track family dispatch (#192): selects which baked
+centerline table to drive, keyed by the booted continue's own :level field
+(the family: 'junglew, 'icew, 'havjungw, ... -- see the continue-point
+statics in level-info.gc). #f (no boot continue armed yet) and 'junglew both
+resolve to *jakx-racer-track*: that preserves this rung's actual history,
+where the table was always the jungle bake regardless of family, so a jungle
+boot (or a REPL poke before *jakx-want-driver-cp* exists) behaves exactly as
+before. 'icew resolves to *jakx-racer-track-icew*. 'havjungw resolves to
+*jakx-racer-track-havjungw* (#129): the bake exists and the continue chain is
+now armed, closing the gap this docstring used to name explicitly. Every
+other family returns #f rather than one of the armed tables: handing an
+unrelated family the wrong world's table would drive the racer along a
+different world's coordinates entirely, not merely a wrong line of the right
+one. Callers must treat #f as refuse, not as a signal to fall back to the old
+sparse continue-point lerp; jakx-racer-spawn (entity.gc) does exactly that
+with a loud format message. No new 64-bit value is introduced here: all three
+tables are ordinary boxed-array pointers, the same shape *jakx-racer-track*
+already held before this rung, so the 32-bit symbol-value-slot trap
+*jakx-racer-handle* works around (see that note above) does not apply to any
+of them or to this function's own return value. The refusal branch does need
+its own cast though: a bare #f there would give the whole cond (and so this
+function's inferred return type) the union of (array vector) and symbol,
+which the compiler collapses to plain object -- too weak for callers to
+(-> track ...) into. (the-as (array vector) #f) keeps the declared type
+intact while still storing a real #f, the same reinterpret-not-truncate idiom
+*jakx-racer-handle*'s arming set! uses above, applied to a return type
+instead of a field."
+  (cond
+    ((or (not family) (= family 'junglew)) *jakx-racer-track*)
+    ((= family 'icew) *jakx-racer-track-icew*)
+    ((= family 'havjungw) *jakx-racer-track-havjungw*)
+    (else (the-as (array vector) #f))
+    )
+  )
+;; END INTEGRATION CHERRY-PICK TARGET (#129, level.gc half; entity.gc carries the
+;; skeleton-side half of this same commit)
+;; ============================================================================
+
 ;; og:preserve-this bare int index (#161): *jakx-racer-track-index* holds a small
 ;; int (the current point's slot in *jakx-racer-track*), not a 64-bit handle like
 ;; *jakx-racer-handle* above, so the 32-bit symbol-value-slot truncation that
