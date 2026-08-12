@@ -117,19 +117,43 @@
    (bsp-scale                vector :inline              :offset 288)
    (bsp-offset               vector :inline              :offset-assert 304)
 
-   (hfrag-drawable drawable :offset 320)
-   (current-leaf-idx-view uint16 4 :offset 324) ;; per-view (jakx); the scalar at 128 is the jak3-parity slot
-   (unknown-bsp-332       uint16 4 :offset 332) ;; per-view, read next to current-leaf-idx-view by update-visible
-   ;; og:preserve-this the two names below were swapped in the original per-view
-   ;; declaration; fixed per #41's bsp-camera-asm twin diff against jak3
-   ;; (goal_src/jak3/engine/level/bsp.gc): offset 340 writes at the control-flow
-   ;; position jak3 uses for its scalar cam-outside-bsp (the neither-front-nor-
-   ;; back-box-matched bail), offset 344 writes at jak3's cam-using-back position
-   ;; (front/back child selection). Offsets and sizes are unchanged; cam-update.gc's
-   ;; debug-print block and box-extent debug-draw read these by name and were
-   ;; updated to match.
-   (cam-outside-bsp-view  uint8  4 :offset 340) ;; per-view; nonzero when update-visible's "outside" case fires (jak3: cam-outside-bsp)
-   (cam-using-back-view   uint8  4 :offset 344) ;; per-view; nonzero when the back child box was selected over front (jak3: cam-using-back)
+   ;; og:preserve-this issue #192 (vis-pipeline audit, 2026-08-12): the four
+   ;; per-view camera fields below were declared 4 bytes high of where
+   ;; bsp-camera-asm actually stores them, a straight writer/reader address
+   ;; mismatch rather than the +4 basic-offset transcription trap (quickstart's
+   ;; own convention check, bsp-scale at file byte 288, rules that trap out).
+   ;; Confirmed against a scoped scratch decode of retail's own bsp.o
+   ;; (allowed_objects ["bsp" "bsp-h"], disassemble_code output, ntsc_v1): the
+   ;; raw stores read `sh a3, 320(a2)` / `sh a0, 328(a2)` / `sb t1, 336(v1)`
+   ;; (plus `sb r0, 336(v1)` on the normal fall-through) / `sb r0/a1, 340(v1)`,
+   ;; i.e. exactly what bsp.gc:404/408/415/418/419/429 already transcribe. The
+   ;; writer was faithful to retail; these declarations were the -4 victims.
+   ;; hfrag-drawable, the jak3 carryover that used to claim offset 320, is
+   ;; dropped: it has zero readers or writers anywhere in goal_src/jakx, and
+   ;; this same decode proves the real data at 320 is current-leaf-idx-view's
+   ;; first element, not a drawable pointer.
+   ;;
+   ;; This is mechanism A from the audit: current-leaf-idx-view[0] was
+   ;; permanently 0 (nothing ever wrote the declared-but-wrong offset 324), so
+   ;; update-vis! decompressed leaf 0's PVS once and froze there for the
+   ;; level's life (the frozen leaf-0 PVS, the tfrag/tie wedge cull all last
+   ;; week), and inside-bsp? was reading the front/back-child byte instead of
+   ;; the outside flag, so levels the camera had never entered read "inside"
+   ;; and picked up vis-valid, popping between the wedge and all-visible as
+   ;; that misread byte flipped 0/1 across bsp node splits (the boundary pops).
+   ;;
+   ;; unknown-bsp-332 is renamed cam-box-idx-view to match its jak3-scalar twin
+   ;; cam-box-idx (offset 154 above) now that its offset is confirmed; it is
+   ;; the resolved bsp-node index, per cam-update.gc:269's
+   ;; `(* 20 (-> ... cam-box-idx-view arg1))` (20 = bsp-node's own size-assert,
+   ;; bsp-h.gc:35). The #41 name-swap fix this block used to describe (offset
+   ;; 340 is cam-outside-bsp-view's control-flow position, 344 is
+   ;; cam-using-back-view's) is still correct and carries forward unchanged;
+   ;; only the absolute offsets moved.
+   (current-leaf-idx-view uint16 4 :offset 320) ;; per-view (jakx); the scalar at 128 is the jak3-parity slot
+   (cam-box-idx-view      uint16 4 :offset 328) ;; per-view, the resolved bsp-node index (jak3: cam-box-idx); renamed from unknown-bsp-332
+   (cam-outside-bsp-view  uint8  4 :offset 336) ;; per-view; nonzero when update-visible's "outside" case fires (jak3: cam-outside-bsp)
+   (cam-using-back-view   uint8  4 :offset 340) ;; per-view; nonzero when the back child box was selected over front (jak3: cam-using-back)
 
 
    (end uint8 :offset #x18f)
