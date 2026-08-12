@@ -363,39 +363,162 @@
     )
   )
 
-;; og:preserve-this bring-up boot-time variant, R2 (#192): wait-for-levels
-;; (net-world_ir2.asm:24564-24660) is a defbehavior that suspends into the kernel
-;; scheduler every pass; play runs on the boot path before any process exists to
-;; suspend into. This variant keeps the loop predicate transcribed unchanged, (and
-;; (net-world-method-77 pp) (net-world-method-78 pp)), and replaces (suspend) with
-;; the synchronous pump play's own *jakx-boot-continue* arm already uses
-;; (set-blackout-frames plus load-continue, level.gc:3664-3665), applied to whichever
-;; of *level*'s own 6 slots are mid-load. do-loading-text is dropped (no text layer
-;; reachable this early in boot), so the show-text argument is dropped with it. The
-;; loop is capped at 6000 iterations (100 seconds of the 0.02s blackout unit) with a
-;; loud give-up, per the brief's risk register item 5: retail's own predicate
-;; includes a sound-bank string check this bring-up's sound path may never satisfy,
-;; and a hang here must not look like a silent boot stall. Retires when the
-;; net-world process is spawned at boot and the retail running state drives staging
-;; (R4); wait-for-levels then lands verbatim and this variant is deleted.
+;; og:preserve-this bring-up boot-only predicate, R3 of the retail-staging ladder
+;; (#192): net-world-method-77's own final clause (net-world_ir2.asm ops 97-105,
+;; transcribed above) compares *sound-bank-string* 0 against
+;; (-> *sound-iop-info* sound-banks 1), EE offset 576, and can never be satisfied on
+;; jakx: the round-2 root-cause doc (2026-08-12, docs/2026-08-12-staging-wait-
+;; rootcause.md, section Q1c) proves the jak3 overlord JakX runs
+;; (game/runtime.cpp:350-353; game/overlord/jakx/* is dead code, its own comment
+;; says so) delivers its C++ SoundIOPInfo two slots late: EE 560/576
+;; (sound-banks[0]/[1]) receive the struct's own untouched, zero-filled pad[11]
+;; bytes, while the IOP's real sound_bank0/1/... land at EE 592/608
+;; (sound-banks[2]/[3]/...). string-charp= there therefore compares a live 13-char
+;; name against a permanent zero byte and returns #f on every call, forever,
+;; regardless of level state -- pass 1 of jakx-stage-boot-task's three-pass spine
+;; gave up with icew already logged in for exactly this reason, not a load-timing
+;; one. That is a port defect in the runtime's EE object layout, issue #55, not a
+;; transcription bug: m77 above stays byte-for-byte faithful to the asm for R4,
+;; when the real wait-for-levels lands with retail's own unbounded suspend loop and
+;; this clause must be satisfiable again -- the durable fix is #55's own JakX-
+;; shaped SoundIOPInfo layout, not deleting the clause. This variant is m77's own
+;; two loops (the level-display sweep over slots 0-5, and the borrow-pair sweep
+;; over slots 6-17), transcribed unchanged, ANDed with (net-world-method-78 this)
+;; in place of m77's own sound-bank clause; used only by jakx-wait-for-levels-boot.
+;; Retires when #55 lands and jakx-wait-for-levels-boot calls net-world-method-77
+;; directly again.
+(defun jakx-net-world-ready-boot? ((this net-world))
+  (let ((gp-0 #t))
+    (dotimes (s5-0 6)
+      (let ((s4-0 (-> *load-state* want s5-0 name))
+            (s3-0 (-> *load-state* want s5-0 display?))
+            )
+        (when (and s4-0 (nonzero? s4-0))
+          (let ((v1-8 (level-status? *level* s4-0 #f)))
+            (cond
+              ((or (= v1-8 'display) (= v1-8 'active))
+               )
+              (else
+                (set! gp-0 (cond
+                             ((= v1-8 'loaded)
+                              (when s3-0
+                                (want-display-level *load-state* s4-0 'display)
+                                (set! gp-0 #f)
+                                )
+                              gp-0
+                              )
+                             ((= v1-8 'loading)
+                              (if s3-0
+                                  (set! gp-0 #f)
+                                  )
+                              gp-0
+                              )
+                             (else
+                               #f
+                               )
+                             )
+                      )
+                )
+              )
+            )
+          )
+        )
+      )
+    (let ((v1-19 6)
+          (a0-9 17)
+          )
+      (while (>= a0-9 v1-19)
+        (when (-> *load-state* target v1-19 name)
+          (if (not (and (not (-> *load-state* target v1-19 force-reload))
+                        (= (-> *load-state* target v1-19 name) (-> *level* level v1-19 name))
+                        (= (-> *level* level v1-19 status) 'active)
+                        )
+                   )
+              (set! gp-0 #f)
+              )
+          )
+        (+! v1-19 1)
+        )
+      )
+    (and gp-0 (net-world-method-78 this))
+    )
+  )
+
+;; og:preserve-this bring-up boot-time variant, R3 of the retail-staging ladder
+;; (#192): wait-for-levels (net-world_ir2.asm:24564-24660) is a defbehavior that
+;; suspends into the kernel scheduler every pass; play runs on the boot path before
+;; any process exists to suspend into. Two changes from the R2 landing, both from
+;; the round-2 root-cause doc (2026-08-12, docs/2026-08-12-staging-wait-
+;; rootcause.md):
+;;
+;; 1. The predicate is now jakx-net-world-ready-boot? (above), not
+;;    (and (net-world-method-77 pp) (net-world-method-78 pp)) directly: m77's own
+;;    final sound-bank clause can never be satisfied on jakx (see that function's
+;;    own note above), so the old predicate was permanently #f and every pass
+;;    burned its whole cap regardless of level state (doc section Q1c).
+;;
+;; 2. The per-level status wait is now its own uncapped while, one per slot 0-5,
+;;    mirroring the old *jakx-boot-continue* fallback arm's own per-level wait
+;;    inside play (level.gc, the boot-cp branch, currently ~3691-3701/3706-3716:
+;;    (while (or 'loading 'loading-bt 'login) (set-blackout-frames ...)
+;;    (load-continue ...))) instead of the R2 landing's single load-continue call
+;;    per outer pass. The doc's own wall-time arithmetic (section Q1d) proves why
+;;    the R2 shape never worked: set-blackout-frames only writes a game-info field,
+;;    it does not block or pace anything, and dgo-load-get-next
+;;    (load-dgo.gc:256-282) is a non-blocking poll that no-ops while the IOP
+;;    streams an object -- so the R2 landing's 6000-iteration cap, spent one
+;;    load-continue call per level per pass, burned all 18000 iterations across
+;;    three passes inside one second of wall-clock time (doc-captured log
+;;    evidence), nowhere near what a multi-megabyte DGO needs. Making the
+;;    per-level wait its own inner while removes the outer pass budget from that
+;;    accounting entirely: a level that is genuinely streaming now drains to
+;;    completion (or a real error) before the outer loop is charged even one pass.
+;;
+;; The outer loop's own bound is now a wall-clock read, not a pass count: the
+;; PS2-accurate 300MHz counter get-cpu-clock wraps (timer-h.gc:24-29, deliberately
+;; masked to 32 bits) so (- now start) is only correct across a wrap if the
+;; DIFFERENCE is re-masked to 32 bits too -- native GOAL subtraction widens to 64
+;; bits first, so an unmasked diff after a wrap reads as a huge, not small, unsigned
+;; value -- done below with (logand #xffffffff ...). That keeps the bound correct
+;; for any elapsed span under the ~14.3-second wrap period (2^32 ticks / 300 MHz);
+;; the chosen 10-second bound (3,000,000,000 ticks) stays comfortably inside it with
+;; margin, and is already >10x the doc's own observed real-world load time (the old
+;; arm's own four-level uncapped drain, icew+iceb+iced+ices, completing inside one
+;; second in a captured boot, doc section Q1d). get-cpu-clock is safe to call this
+;; early: it is a thin wrapper (timer-h.gc:24-29) over the extern __read-ee-timer
+;; (kernel-defs.gc:193), which on the PC port is read_ee_timer()
+;; (game/kernel/common/kmachine.cpp:479-482) reading a Timer reset in
+;; kmachine_init_globals_common (kmachine.cpp:48-55), called from
+;; game/runtime.cpp:216 during C++ runtime bring-up -- long before any GOAL boot
+;; code runs, and with no dependency on *display*, *dproc*, or any process, unlike
+;; (current-time)/PP-relative clocks (gkernel-h.gc:685-687) which need a real PP.
+;; timer-h.o also compiles at game.gd slot ~26, net-world.o at 429, so the macro is
+;; already defined by the time this file compiles.
+;;
+;; do-loading-text is dropped (no text layer reachable this early in boot), so the
+;; show-text argument is dropped with it, unchanged from R2. The give-up message
+;; stays loud either way, per the brief's own risk register item 5. Retires when
+;; the net-world process is spawned at boot and the retail running state drives
+;; staging (R4); wait-for-levels then lands verbatim and this variant is deleted.
 (defun jakx-wait-for-levels-boot ()
   (with-pp
-    (let ((iterations 0))
-      (while (and (< iterations 6000)
-                  (not (and (net-world-method-77 (the-as net-world pp))
-                            (net-world-method-78 (the-as net-world pp))
-                            )
-                       )
+    (let ((start-tick (get-cpu-clock))
+          (passes 0)
+          (give-up #f)
+          (elapsed (the uint 0))
+          )
+      (while (and (not give-up)
+                  (not (jakx-net-world-ready-boot? (the-as net-world pp)))
                   )
         (check-start-load)
         (dotimes (i 6)
           (let ((lev (-> *level* level i)))
-            (when (and lev
-                       (or (= (-> lev status) 'loading)
-                           (= (-> lev status) 'loading-bt)
-                           (= (-> lev status) 'login)
-                           )
-                       )
+            (while (and lev
+                        (or (= (-> lev status) 'loading)
+                            (= (-> lev status) 'loading-bt)
+                            (= (-> lev status) 'login)
+                            )
+                        )
               (set-blackout-frames (seconds 0.02))
               (load-continue lev)
               )
@@ -421,10 +544,14 @@
         ;; call covers this and the inline pump here is deleted with the rest of the
         ;; variant.
         (update! *load-state*)
-        (+! iterations 1)
+        (+! passes 1)
+        (set! elapsed (the uint (logand #xffffffff (- (get-cpu-clock) start-tick))))
+        (when (>= elapsed (the uint 3000000000))
+          (set! give-up #t)
+          )
         )
-      (when (>= iterations 6000)
-        (format 0 "jakx-wait-for-levels-boot: gave up after ~D iterations~%" iterations)
+      (when give-up
+        (format 0 "jakx-wait-for-levels-boot: gave up after ~D passes (~D ticks)~%" passes elapsed)
         )
       )
     )
@@ -469,6 +596,35 @@
   (with-pp
     (set! pp *net-world*)
     (set-continue-point-from-task *net-world*)
+    ;; og:preserve-this crash fix, R3 of the retail-staging ladder (#192): the
+    ;; round-2 root-cause doc's Q2 (2026-08-12, docs/2026-08-12-staging-wait-
+    ;; rootcause.md) traces a GOAL CRASH REPORT to level-get-target-inside
+    ;; (level.gc:2576) reading
+    ;; (-> *game-info* player-info (view-get-active-index) current-continue level)
+    ;; at level.gc:2591 with current-continue = integer 0: nothing anywhere in
+    ;; goal_src/jakx ever writes that field (game-info-h.gc:156 declares it type
+    ;; continue-point on game-info-player), so a zero-filled game-info leaves it a
+    ;; null basic and the deref faults. The fault fires on the session's first
+    ;; (*draw-hook*) (main.gc:3113, inside display-loop-main), reached via
+    ;; real-main-draw-hook -> update-time-of-day -> update-time-and-speed
+    ;; (sky-tng.gc:139) -> level-get-target-inside -- before level-update's own
+    ;; update-level-inside-boxes has ever run once, so this is independent of how
+    ;; much of the world finished loading; a fully staged world crashes here
+    ;; identically (doc's control evidence: three fallback-arm boots render with
+    ;; zero crash reports, same level.o code, because vis-nick was set and a level
+    ;; was activated). Both lines below are retail's own meaning of these fields,
+    ;; mirrored from the *jakx-boot-continue* fallback arm's own boot-cp branch
+    ;; (level.gc:3685, unchanged by this rung): seed current-continue so the deref
+    ;; is never null for any consumer (this one, and the identical read at
+    ;; level.gc:2708), and want-vis-level so level-get-target-inside's own first
+    ;; loop can return the way it does on the fallback arm once a level with this
+    ;; name goes 'active. cont is declared basic on net-world (net-world-h.gc:73,
+    ;; matching retail's own untyped asm), so the cast mirrors every other read of
+    ;; this field in this file (e.g. net-world-method-78, above).
+    (let ((cont (the-as continue-point (-> *net-world* cont))))
+      (set! (-> *game-info* player-info 0 current-continue) cont)
+      (want-vis-level *load-state* (-> cont vis-nick))
+      )
     (net-world-method-76 *net-world* #f)
     (jakx-wait-for-levels-boot)
     (net-world-method-76 *net-world* #f)
