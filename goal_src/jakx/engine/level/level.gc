@@ -32,6 +32,12 @@
 ;; (send-event *net-world* ...) must see #f (undefined would read 0 = truthy and
 ;; send-event-function would deref low memory).
 (define *net-world* (the-as net-world #f))
+;; og:preserve-this runtime-link guard, R2 of the retail-staging ladder (#192):
+;; net-world.o (429) compiles after level.o (267), the same house idiom as
+;; texture.gc:1869's *car-level-array* guard below. play calls this through the
+;; (nonzero? jakx-stage-boot-task) check; by the time play runs, the whole GAME CGO
+;; has linked and the symbol is bound.
+(define-extern jakx-stage-boot-task (function none))
 (define-extern *car-level-array* car-level-array)
 (define-extern *entity-more-perm* entity-more-perm-hash)
 (define-extern texture-page-default-allocate (function texture-pool texture-page kheap int texture-page))
@@ -3601,148 +3607,161 @@ overshoot and no separate tunable to keep in sync with speed."
     (set! (-> *time-of-day-context* mode) (time-of-day-palette-id unk3))
     (set! (-> *mood-control* overide-weather-flag) #f)
     (set-blackout-frames (seconds 0.02))
-    (when (not *dproc*)
-      (reset! *load-state*)
-      ;; og:preserve-this bring-up: the DGO load chain is live and load-state's update!
-      ;; IS landed (level.gc, full 348-line retail port, runs every frame); an earlier
-      ;; version of this note predated its landing and misled a session (#108). The
-      ;; boot path still drives each level synchronously (jungle-a-1 = junglew
-      ;; tiny-center + junglee tiny + junglea tiny, which exactly tiles the level
-      ;; heap; the tiny allocator has two banks, so a want set can never carry three
-      ;; tiny sections). The want-levels/want-display-level/want-vis-level calls feed
-      ;; update! normally. Flip *jakx-boot-level-load* in the
-      ;; REPL to skip the boot load entirely.
-      (when (and (nonzero? *level-load-list*) *jakx-boot-level-load*)
-        (let ((a1-11 (new 'stack-no-clear 'array 'symbol 18)))
-          (dotimes (i 18)
-            (set! (-> a1-11 i) #f)
-            )
-          (cond
-            (boot-cp
-              (dotimes (i (min 4 (the int (-> boot-cp want-count))))
-                (set! (-> a1-11 i) (-> boot-cp want i name))
-                )
-              )
-            (else
-              (set! (-> a1-11 0) s5-0)
-              (if (= s5-0 'ctysluma)
-                  (set! (-> a1-11 1) 'ctywide)
+    ;; og:preserve-this task-driven staging gate, R2 of the retail-staging ladder
+    ;; (#192): when *jakx-boot-task* is set, drive staging through the retail
+    ;; net-world composer instead of this file's own *jakx-boot-continue* want-set
+    ;; arm. Both levers coexist; the *jakx-boot-continue* arm below is the fallback,
+    ;; unchanged, and stays live when *jakx-boot-task* is #f. Retiring the fallback
+    ;; arm is the ladder's R5, not this rung's; the want driver's own
+    ;; *jakx-want-driver-cp* arming path (inside the boot-cp branch below) is
+    ;; likewise untouched.
+    (if (and *jakx-boot-task* (nonzero? jakx-stage-boot-task))
+        (jakx-stage-boot-task)
+        (begin
+          (when (not *dproc*)
+            (reset! *load-state*)
+            ;; og:preserve-this bring-up: the DGO load chain is live and load-state's update!
+            ;; IS landed (level.gc, full 348-line retail port, runs every frame); an earlier
+            ;; version of this note predated its landing and misled a session (#108). The
+            ;; boot path still drives each level synchronously (jungle-a-1 = junglew
+            ;; tiny-center + junglee tiny + junglea tiny, which exactly tiles the level
+            ;; heap; the tiny allocator has two banks, so a want set can never carry three
+            ;; tiny sections). The want-levels/want-display-level/want-vis-level calls feed
+            ;; update! normally. Flip *jakx-boot-level-load* in the
+            ;; REPL to skip the boot load entirely.
+            (when (and (nonzero? *level-load-list*) *jakx-boot-level-load*)
+              (let ((a1-11 (new 'stack-no-clear 'array 'symbol 18)))
+                (dotimes (i 18)
+                  (set! (-> a1-11 i) #f)
                   )
-              )
-            )
-          (want-levels *load-state* a1-11)
-          )
-        (cond
-          (boot-cp
-            ;; push every entry's display? value, including #f (see the want driver)
-            (dotimes (i (min 4 (the int (-> boot-cp want-count))))
-              (let ((w (-> boot-cp want i)))
-                (want-display-level *load-state* (-> w name) (-> w display?))
+                (cond
+                  (boot-cp
+                    (dotimes (i (min 4 (the int (-> boot-cp want-count))))
+                      (set! (-> a1-11 i) (-> boot-cp want i name))
+                      )
+                    )
+                  (else
+                    (set! (-> a1-11 0) s5-0)
+                    (if (= s5-0 'ctysluma)
+                        (set! (-> a1-11 1) 'ctywide)
+                        )
+                    )
+                  )
+                (want-levels *load-state* a1-11)
                 )
-              )
-            )
-          (else
-            (want-display-level *load-state* s5-0 'display)
-            (if (= s5-0 'ctysluma)
-                (want-display-level *load-state* 'ctywide 'display)
+              (cond
+                (boot-cp
+                  ;; push every entry's display? value, including #f (see the want driver)
+                  (dotimes (i (min 4 (the int (-> boot-cp want-count))))
+                    (let ((w (-> boot-cp want i)))
+                      (want-display-level *load-state* (-> w name) (-> w display?))
+                      )
+                    )
+                  )
+                (else
+                  (want-display-level *load-state* s5-0 'display)
+                  (if (= s5-0 'ctysluma)
+                      (want-display-level *load-state* 'ctywide 'display)
+                      )
+                  )
                 )
-            )
-          )
-        (want-vis-level *load-state* (if boot-cp (-> boot-cp vis-nick) s5-0))
-        (cond
-          (boot-cp
-            (dotimes (i (min 4 (the int (-> boot-cp want-count))))
-              (let ((w (-> boot-cp want i)))
-                (format 0 "boot-continue: loading ~A (~D of ~D)~%" (-> w name) (+ i 1) (-> boot-cp want-count))
-                (let ((s4-1 (level-get-for-use *level* (-> w name) 'active -1)))
-                  (while (and s4-1
-                              (or (= (-> s4-1 status) 'loading)
-                                  (= (-> s4-1 status) 'loading-bt)
-                                  (= (-> s4-1 status) 'login)
-                                  )
-                              )
-                    (set-blackout-frames (seconds 0.02))
-                    (load-continue s4-1)
+              (want-vis-level *load-state* (if boot-cp (-> boot-cp vis-nick) s5-0))
+              (cond
+                (boot-cp
+                  (dotimes (i (min 4 (the int (-> boot-cp want-count))))
+                    (let ((w (-> boot-cp want i)))
+                      (format 0 "boot-continue: loading ~A (~D of ~D)~%" (-> w name) (+ i 1) (-> boot-cp want-count))
+                      (let ((s4-1 (level-get-for-use *level* (-> w name) 'active -1)))
+                        (while (and s4-1
+                                    (or (= (-> s4-1 status) 'loading)
+                                        (= (-> s4-1 status) 'loading-bt)
+                                        (= (-> s4-1 status) 'login)
+                                        )
+                                    )
+                          (set-blackout-frames (seconds 0.02))
+                          (load-continue s4-1)
+                          )
+                        )
+                      )
+                    )
+                  )
+                (else
+                  (let ((s4-1 (level-get-for-use *level* s5-0 'active -1)))
+                    (while (and s4-1
+                                (or (= (-> s4-1 status) 'loading)
+                                    (= (-> s4-1 status) 'loading-bt)
+                                    (= (-> s4-1 status) 'login)
+                                    )
+                                )
+                      (set-blackout-frames (seconds 0.02))
+                      (load-continue s4-1)
+                      )
                     )
                   )
                 )
               )
             )
-          (else
-            (let ((s4-1 (level-get-for-use *level* s5-0 'active -1)))
-              (while (and s4-1
-                          (or (= (-> s4-1 status) 'loading)
-                              (= (-> s4-1 status) 'loading-bt)
-                              (= (-> s4-1 status) 'login)
-                              )
-                          )
-                (set-blackout-frames (seconds 0.02))
-                (load-continue s4-1)
+          (set! *print-login* #f)
+          (cond
+            (boot-cp
+              ;; og:preserve-this bring-up shim: activate and display each level of the continue
+              ;; want set directly. Retirement condition unchanged from before R6: load-state's
+              ;; update! method is landed (see the note above, near *jakx-boot-level-load*), but
+              ;; this direct activation is not proven redundant with it and R6 did not touch it;
+              ;; still Retires with the update! landing once that's confirmed.
+              (dotimes (i (min 4 (the int (-> boot-cp want-count))))
+                (let* ((w (-> boot-cp want i))
+                       (lev (level-get *level* (-> w name)))
+                       )
+                  (when lev
+                    ;; og:preserve-this fix (#152): level-status-update! used to run for every
+                    ;; want entry regardless of display?, so hidden wants went 'active at boot
+                    ;; when the steady-state driver (update!, above) only ever promotes
+                    ;; displayed wants past 'loaded. That asymmetry made the stuck-level
+                    ;; reload bug take ~90 minutes to surface instead of reproducing at boot.
+                    ;; Gating here matches steady state; retires with the boot shim above.
+                    (when (= (-> w display?) 'display)
+                      (level-status-update! lev 'active)
+                      (set! (-> lev display?) 'display)
+                      )
+                    )
+                  )
+                )
+              ;; og:preserve-this retired, R6 (#122): the boot-time (jakx-cam-warp-to-continue
+              ;; boot-cp) call is gone; camera arrival at the continue now goes through
+              ;; initialize!'s own continue path (move-camera!, game-info method 11, still a
+              ;; placeholder per the leg brief section 1.9, so this is not yet a real camera
+              ;; move; it is not a live hazard, matching risk register item 6). The function
+              ;; and its extern are NOT deleted: jakx-cam-fly-tick (above) still calls it for
+              ;; the smoke-test flight driver.
+              ;; arm the bring-up want driver: from here on level-update's tick slides the
+              ;; window as the camera crosses continue thresholds
+              (set! *jakx-want-driver-cp* boot-cp)
+              )
+            (else
+              ;; og:preserve-this added #f check: level-get returns #f while level loading is not
+              ;; up yet on the bring-up; the original assumes the boot level always exists.
+              (let ((s4-2 (level-get *level* s5-0)))
+                (if s4-2
+                    (level-status-update! s4-2 'active)
+                    )
+                ;; og:preserve-this bring-up shim: the load-state update! method (which propagates
+                ;; want -> target -> level display?) is not landed yet, so flip the level's
+                ;; display? directly after boot activation. Retire with the update! landing.
+                (if s4-2
+                    (set! (-> s4-2 display?) 'display)
+                    )
+                ;; og:preserve-this bring-up shim: no camera/target start chain is landed, so the
+                ;; free camera sits at the origin ~400 m from brdroom's geometry. Warp the camera
+                ;; ring onto the level once at boot activation. Retire with the camera start chain.
+                (if s4-2
+                    (jakx-cam-warp-to-level s4-2)
+                    )
                 )
               )
             )
           )
         )
-      )
-    (set! *print-login* #f)
-    (cond
-      (boot-cp
-        ;; og:preserve-this bring-up shim: activate and display each level of the continue
-        ;; want set directly. Retirement condition unchanged from before R6: load-state's
-        ;; update! method is landed (see the note above, near *jakx-boot-level-load*), but
-        ;; this direct activation is not proven redundant with it and R6 did not touch it;
-        ;; still Retires with the update! landing once that's confirmed.
-        (dotimes (i (min 4 (the int (-> boot-cp want-count))))
-          (let* ((w (-> boot-cp want i))
-                 (lev (level-get *level* (-> w name)))
-                 )
-            (when lev
-              ;; og:preserve-this fix (#152): level-status-update! used to run for every
-              ;; want entry regardless of display?, so hidden wants went 'active at boot
-              ;; when the steady-state driver (update!, above) only ever promotes
-              ;; displayed wants past 'loaded. That asymmetry made the stuck-level
-              ;; reload bug take ~90 minutes to surface instead of reproducing at boot.
-              ;; Gating here matches steady state; retires with the boot shim above.
-              (when (= (-> w display?) 'display)
-                (level-status-update! lev 'active)
-                (set! (-> lev display?) 'display)
-                )
-              )
-            )
-          )
-        ;; og:preserve-this retired, R6 (#122): the boot-time (jakx-cam-warp-to-continue
-        ;; boot-cp) call is gone; camera arrival at the continue now goes through
-        ;; initialize!'s own continue path (move-camera!, game-info method 11, still a
-        ;; placeholder per the leg brief section 1.9, so this is not yet a real camera
-        ;; move; it is not a live hazard, matching risk register item 6). The function
-        ;; and its extern are NOT deleted: jakx-cam-fly-tick (above) still calls it for
-        ;; the smoke-test flight driver.
-        ;; arm the bring-up want driver: from here on level-update's tick slides the
-        ;; window as the camera crosses continue thresholds
-        (set! *jakx-want-driver-cp* boot-cp)
-        )
-      (else
-        ;; og:preserve-this added #f check: level-get returns #f while level loading is not
-        ;; up yet on the bring-up; the original assumes the boot level always exists.
-        (let ((s4-2 (level-get *level* s5-0)))
-          (if s4-2
-              (level-status-update! s4-2 'active)
-              )
-          ;; og:preserve-this bring-up shim: the load-state update! method (which propagates
-          ;; want -> target -> level display?) is not landed yet, so flip the level's
-          ;; display? directly after boot activation. Retire with the update! landing.
-          (if s4-2
-              (set! (-> s4-2 display?) 'display)
-              )
-          ;; og:preserve-this bring-up shim: no camera/target start chain is landed, so the
-          ;; free camera sits at the origin ~400 m from brdroom's geometry. Warp the camera
-          ;; ring onto the level once at boot activation. Retire with the camera start chain.
-          (if s4-2
-              (jakx-cam-warp-to-level s4-2)
-              )
-          )
-        )
-      )
     )
   (on #t)
   ;; og:preserve-this restored, R6 (#122): game-info.gc's initialize! landed by R3a

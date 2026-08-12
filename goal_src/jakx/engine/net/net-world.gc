@@ -278,7 +278,8 @@
 ;; check-start-load's own body, and leaves the rebinding to callers, per
 ;; end-of-race-start-preload's shape (the landed with-pp plus (set! pp X) idiom used
 ;; in jakx at cam-interface.gc:112 and jak2's idle-control.gc:55/111,
-;; task-control.gc:1958/1964). No caller lands in this rung; R2 wires one.
+;; task-control.gc:1958/1964). jakx-stage-boot-task (below) is the first caller,
+;; rebinding pp around each pass of the three-pass spine.
 (defun check-start-load ()
   (with-pp
     (when (-> (the-as net-world pp) need-start-load)
@@ -292,4 +293,168 @@
       )
     )
   0
+  )
+
+;; og:preserve-this plain transcription, R2 of the retail-staging ladder (#192):
+;; net-world_ir2.asm:12956-13272, the one m76-adjacent method the decompiler fully
+;; typed with no type-prop errors. Its own clean OpenGOAL rendering never reads
+;; "this" (this landing keeps it bound but unused, matching wait-for-levels' own
+;; (net-world-method-77 pp) call shape); the only change from the decompiler's raw
+;; output is making the accumulated ok flag (gp-0) the final form instead of the
+;; decompiler's own (none), since the raw asm plainly returns it (op106, `or
+;; v0,gp,r0`) and the method now declares a symbol return (see net-world-h.gc).
+(defmethod net-world-method-77 ((this net-world))
+  (let ((gp-0 #t))
+    (dotimes (s5-0 6)
+      (let ((s4-0 (-> *load-state* want s5-0 name))
+            (s3-0 (-> *load-state* want s5-0 display?))
+            )
+        (when (and s4-0 (nonzero? s4-0))
+          (let ((v1-8 (level-status? *level* s4-0 #f)))
+            (cond
+              ((or (= v1-8 'display) (= v1-8 'active))
+               )
+              (else
+                (set! gp-0 (cond
+                             ((= v1-8 'loaded)
+                              (when s3-0
+                                (want-display-level *load-state* s4-0 'display)
+                                (set! gp-0 #f)
+                                )
+                              gp-0
+                              )
+                             ((= v1-8 'loading)
+                              (if s3-0
+                                  (set! gp-0 #f)
+                                  )
+                              gp-0
+                              )
+                             (else
+                               #f
+                               )
+                             )
+                      )
+                )
+              )
+            )
+          )
+        )
+      )
+    (let ((v1-19 6)
+          (a0-9 17)
+          )
+      (while (>= a0-9 v1-19)
+        (when (-> *load-state* target v1-19 name)
+          (if (not (and (not (-> *load-state* target v1-19 force-reload))
+                        (= (-> *load-state* target v1-19 name) (-> *level* level v1-19 name))
+                        (= (-> *level* level v1-19 status) 'active)
+                        )
+                   )
+              (set! gp-0 #f)
+              )
+          )
+        (+! v1-19 1)
+        )
+      )
+    (if (not (string-charp= (-> *sound-bank-string* 0) (the-as (pointer uint8) (-> *sound-iop-info* sound-banks 1))))
+        (set! gp-0 #f)
+        )
+    gp-0
+    )
+  )
+
+;; og:preserve-this bring-up boot-time variant, R2 (#192): wait-for-levels
+;; (net-world_ir2.asm:24564-24660) is a defbehavior that suspends into the kernel
+;; scheduler every pass; play runs on the boot path before any process exists to
+;; suspend into. This variant keeps the loop predicate transcribed unchanged, (and
+;; (net-world-method-77 pp) (net-world-method-78 pp)), and replaces (suspend) with
+;; the synchronous pump play's own *jakx-boot-continue* arm already uses
+;; (set-blackout-frames plus load-continue, level.gc:3664-3665), applied to whichever
+;; of *level*'s own 6 slots are mid-load. do-loading-text is dropped (no text layer
+;; reachable this early in boot), so the show-text argument is dropped with it. The
+;; loop is capped at 6000 iterations (100 seconds of the 0.02s blackout unit) with a
+;; loud give-up, per the brief's risk register item 5: retail's own predicate
+;; includes a sound-bank string check this bring-up's sound path may never satisfy,
+;; and a hang here must not look like a silent boot stall. Retires when the
+;; net-world process is spawned at boot and the retail running state drives staging
+;; (R4); wait-for-levels then lands verbatim and this variant is deleted.
+(defun jakx-wait-for-levels-boot ()
+  (with-pp
+    (let ((iterations 0))
+      (while (and (< iterations 6000)
+                  (not (and (net-world-method-77 (the-as net-world pp))
+                            (net-world-method-78 (the-as net-world pp))
+                            )
+                       )
+                  )
+        (check-start-load)
+        (dotimes (i 6)
+          (let ((lev (-> *level* level i)))
+            (when (and lev
+                       (or (= (-> lev status) 'loading)
+                           (= (-> lev status) 'loading-bt)
+                           (= (-> lev status) 'login)
+                           )
+                       )
+              (set-blackout-frames (seconds 0.02))
+              (load-continue lev)
+              )
+            )
+          )
+        (+! iterations 1)
+        )
+      (when (>= iterations 6000)
+        (format 0 "jakx-wait-for-levels-boot: gave up after ~D iterations~%" iterations)
+        )
+      )
+    )
+  #f
+  )
+
+;; og:preserve-this bring-up boot entry point, R2 (#192): the retail seat for
+;; *jakx-boot-task* is net-world-init-local's own task-node-name seeding
+;; (net-world_ir2.asm ops 102-109); this function is that seat's boot-time stand-in.
+;; It does not spawn a process (that is init-local-world/net-world-init-local, R4);
+;; instead it allocates *net-world* once via process's own (_type_ symbol type string
+;; int) new method (the same allocation init-local-world will eventually wrap with
+;; dead-pool/activate), leaving status 'dead so it is never kernel-scheduled, only
+;; ever driven synchronously from here. The player-slot seeding below is a narrow
+;; substitute for net-world-init-local's own -1 loop (net-world_ir2.asm:15692-16100
+;; ops 14-37): only vehicle-selection is seeded, because that is the only field
+;; set-continue-point-from-task's method-64 call reads (section 1.3 of the brief); a
+;; zeroed heap would otherwise report vehicle-selection 0 >= 0 = #t and pick
+;; split-continue over play-continue. desired-driver-selection/team-id/player-num,
+;; assigned-drivers and vehicle-slot-to-player-map are not seeded here (risk register
+;; item 3: retail does not initialize the reverse map either). Retires when
+;; init-local-world/net-world-init-local land for real (R4). The three-pass spine
+;; itself (m76 #f, wait, m76 #f, wait, m76 #t, wait) transcribes
+;; net-world_ir2.asm:22405-22554's #f/#f/#t argument sequence unchanged; jakx-wait-
+;; for-levels-boot calls check-start-load itself each spin, so it is not repeated
+;; between passes here. One call is not from that citation: set-continue-point-from-
+;; task, before the first m76 pass. The brief's own excerpt of the running state
+;; starts at op159, already past whatever arms (-> *net-world* cont); this is
+;; inference, not a read citation, but it is load-bearing rather than optional:
+;; method 76's want loop reads (-> this cont want-count) and (-> this cont want i
+;; name) from the very first line, and set-continue-point-from-task is the only
+;; function in this leg that writes the cont field, so the first m76 pass has
+;; nothing to walk without it.
+(defun jakx-stage-boot-task ()
+  (when (not *net-world*)
+    (set! *net-world* (the-as net-world (new 'global 'net-world "net-world" #x4000)))
+    (dotimes (i 24)
+      (set! (-> *net-world* net-state players i vehicle-selection) -1)
+      )
+    (copy-charp<-charp (-> *net-world* net-state task-node-name) (-> *jakx-boot-task* data))
+    )
+  (with-pp
+    (set! pp *net-world*)
+    (set-continue-point-from-task *net-world*)
+    (net-world-method-76 *net-world* #f)
+    (jakx-wait-for-levels-boot)
+    (net-world-method-76 *net-world* #f)
+    (jakx-wait-for-levels-boot)
+    (net-world-method-76 *net-world* #t)
+    (jakx-wait-for-levels-boot)
+    )
+  (none)
   )
