@@ -286,6 +286,28 @@
 ;; (ice-task-decode/decode-data.txt:8-10,30 resolves it to play-continue
 ;; "iceb-start"). Both levers coexist; retiring *jakx-boot-continue* is the ladder's
 ;; R5, not this rung's.
+;;
+;; og:preserve-this typed forward-decl, a real typing gap the validation pass hit:
+;; before this line existed, editing the define below to a bare #f made the
+;; compiler infer the global's static type as symbol from that initializer, and
+;; jakx-stage-boot-task's (net-world.gc) unconditional (-> *jakx-boot-task* data)
+;; read then failed to compile, since symbol has no data field (the caller's own
+;; (and *jakx-boot-task* ...) truthy test in play, level.gc, gates whether that
+;; code ever RUNS, not whether it compiles). Pinning the type here with
+;; define-extern, ahead of the define below, the same idiom kernel-defs.gc uses for
+;; *pc-settings-folder* and friends, makes the global's declared type string
+;; regardless of what value it later holds, so (-> *jakx-boot-task* data) compiles
+;; against a real data field no matter which arm is live. Scratch-verified before
+;; landing: with this forward-decl in place, (set! *jakx-boot-task* #f) right after
+;; the committed define compiles clean, so the REPL is how the lever actually holds
+;; #f (armed the same way *jakx-want-driver* is), matching every other bring-up
+;; lever's own REPL-driven idiom in this file. A literal re-define with a bare #f
+;; still does not compile even with the type pinned -- that is GOAL's own stricter,
+;; unrelated rule that a top-level define on an already-typed symbol must match its
+;; declared type, not a gap left open by this fix, and it is not this lever's
+;; problem to solve: nothing here is ever redefined at the source level, only set!
+;; from the REPL. The committed default stays the string.
+(define-extern *jakx-boot-task* string)
 (define *jakx-boot-task* "ice-race-task")
 
 ;; DECOMP BEGINS
