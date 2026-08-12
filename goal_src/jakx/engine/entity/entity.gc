@@ -92,79 +92,109 @@
 ;; even reaches jgx.gd, an independent level DGO). Same forward-decl shape as the
 ;; view.gc/logic-target.gc R4 precedent (#122). manipy and manipy-init need no such
 ;; extern: generic-obs.gc compiles earlier in game.gd (build order 299) than this
-;; file (329). Retires with the real vehicle chain (#152 names the tiers), same as
-;; the racer levers in level.gc.
+;; file (329). skel-ice-flag (generic-obs.gc, same build-order reasoning) needs no
+;; extern either. Retires with the real vehicle chain (#152 names the tiers), same
+;; as the racer levers in level.gc.
 (define-extern skel-jungle-clay-jar-a skeleton-group)
 
+;; og:preserve-this racer skeleton family dispatch (#193 root-cause doc, section
+;; 2.5(c), "the durable version of (b)"): mirrors jakx-racer-track-for-family's
+;; (level.gc) family keying one-for-one so the baked centerline and the resident
+;; skeleton-group never drift out of sync. 'junglew (and no boot continue armed
+;; yet, matching the track dispatch's own #f case) keeps the pre-#193 jungle donor,
+;; skel-jungle-clay-jar-a -- it is level-arted (jungle-obs.o, no permanent DGO) and
+;; reads back as integer 0, not #f, when its level never loaded, because the symbol
+;; table is kmalloc'd with KMALLOC_MEMSET (game/kernel/jakx/kscheme.cpp:1550) and
+;; zero-fills every never-assigned symbol; GOAL's (not 0) is #f, so a (not arg0)
+;; guard against that value never fires. jakx-racer-spawn's own zero? guard below
+;; exists for exactly that case. 'icew resolves to skel-ice-flag
+;; (generic-obs.gc), landed permanently resident so it can never hit that trap.
+;; Every other family returns #f so the caller refuses rather than handing the
+;; racer an unrelated world's art. The refusal branch needs its own cast for the
+;; same reason jakx-racer-track-for-family's does: a bare #f there would widen
+;; this function's inferred return type to plain object.
+(defun jakx-racer-skel-for-family ((family symbol))
+  (cond
+    ((or (not family) (= family 'junglew)) skel-jungle-clay-jar-a)
+    ((= family 'icew) skel-ice-flag)
+    (else (the-as skeleton-group #f))
+    )
+  )
+
 (defun jakx-racer-spawn ()
-  "og:preserve-this bring-up racer spawn (#152, #192): manual REPL lever, since
+  "og:preserve-this bring-up racer spawn (#152, #192, #193): manual REPL lever, since
 there is no C-side boot arg to arm it automatically (see the *jakx-racer* note
 in level.gc). Call from the REPL after boot: (jakx-racer-spawn), then (set!
-*jakx-racer* #t) to start it moving. Spawns a jgx-resident manipy at the boot
-continue's trans (*jakx-want-driver-cp*, set by play's boot-cp branch) and
-registers it as an additional actor-birth spawner. Independent of
-*jakx-racer* on purpose: spawning and inspecting the process is useful even
-before movement is armed. Gated on jakx-racer-track-for-family (level.gc)
-resolving a real table for the boot continue's own :level (#192): a family
-with no baked centerline (havjungw as of this rung, its continue chain is
-unarmed per #129) refuses to spawn, with a loud format message, rather than
-spawning a manipy jakx-racer-tick would then have nothing correct to drive
-for -- either the stale fallback continue-point lerp or, worse, another
-family's table driving the wrong world's coordinates entirely. No-op
-(silent, unchanged from #152) if no boot continue is armed yet, if the
-spawner slot is taken, or if already spawned. Retires with the real vehicle
-chain."
+*jakx-racer* #t) to start it moving. Spawns a family-resident manipy (skel is now
+resolved per family, see jakx-racer-skel-for-family above) at the boot continue's
+trans (*jakx-want-driver-cp*, set by play's boot-cp branch) and registers it as an
+additional actor-birth spawner. Independent of *jakx-racer* on purpose: spawning
+and inspecting the process is useful even before movement is armed. Gated on
+jakx-racer-track-for-family (level.gc) resolving a real table for the boot
+continue's own :level (#192), AND on the family-keyed skel resolving to a real
+resident skeleton-group rather than an unbound (integer 0) one (#193): a family
+with no baked centerline, or a family whose donor art is not resident this boot,
+refuses to spawn with a loud format message, rather than spawning a manipy
+jakx-racer-tick would then have nothing correct to drive for, or that faults the
+instant initialize-skeleton reads its null skeleton-group. No-op (silent,
+unchanged from #152) if no boot continue is armed yet, if the spawner slot is
+taken, or if already spawned. Retires with the real vehicle chain."
   (when (and *jakx-want-driver-cp*
              (zero? *additional-spawner-count*)
              (not (handle->process (-> *jakx-racer-handle* 0)))
              )
-    (if (not (jakx-racer-track-for-family (-> *jakx-want-driver-cp* level)))
-        (format 0 "racer: no baked centerline for ~A, refusing to spawn~%"
-                (-> *jakx-want-driver-cp* level)
-                )
-        (let ((proc (the-as process-drawable
-                             (ppointer->process
-                               (process-spawn manipy
-                                              :init manipy-init
-                                              (-> *jakx-want-driver-cp* trans)
-                                              #f
-                                              skel-jungle-clay-jar-a
-                                              #f
-                                              0
-                                              :name "jakx-racer"
-                                              :from *default-dead-pool*
-                                              :to *entity-pool*
-                                              )
+    (let* ((family (-> *jakx-want-driver-cp* level))
+           (track (jakx-racer-track-for-family family))
+           (skel (jakx-racer-skel-for-family family))
+           )
+      (if (or (not track) (zero? (the-as int skel)))
+          (format 0 "racer: no baked centerline or no resident art for ~A, refusing to spawn~%"
+                  family
+                  )
+          (let ((proc (the-as process-drawable
+                               (ppointer->process
+                                 (process-spawn manipy
+                                                :init manipy-init
+                                                (-> *jakx-want-driver-cp* trans)
+                                                #f
+                                                skel
+                                                #f
+                                                0
+                                                :name "jakx-racer"
+                                                :from *default-dead-pool*
+                                                :to *entity-pool*
+                                                )
+                                 )
                                )
-                             )
-                    )
+                      )
+                )
+            (when proc
+              (set! (-> *jakx-racer-handle* 0) (process->handle proc))
+              (set! *jakx-racer-target-index* 0)
+              (register-additional-spawner proc)
+              (format 0 "racer: spawned at ~S <~m ~m ~m>~%"
+                      (-> *jakx-want-driver-cp* name)
+                      (-> proc root trans x)
+                      (-> proc root trans y)
+                      (-> proc root trans z)
+                      )
+              ;; og bring-up diagnostics (#193 root-cause doc, section 5 "cheapest
+              ;; experiment"): confirm the donor/adoption story from #162 in one log
+              ;; read, no behavior change. First line names the level the racer's art
+              ;; actually resolved onto (process's own level field, written by #162's
+              ;; art-group-get-by-name out-param); second line prints the resolved
+              ;; frame-group's address alongside that donor level's heap range, so an
+              ;; observer can confirm frame-group falls inside [base, top-base) by eye.
+              (format 0 "racer: donor level ~A~%" (-> proc level name))
+              (format 0 "racer: root-channel frame-group #x~X, donor heap [#x~X, #x~X)~%"
+                      (-> proc skel root-channel 0 frame-group)
+                      (-> proc level heap base)
+                      (-> proc level heap top-base)
+                      )
               )
-          (when proc
-            (set! (-> *jakx-racer-handle* 0) (process->handle proc))
-            (set! *jakx-racer-target-index* 0)
-            (register-additional-spawner proc)
-            (format 0 "racer: spawned at ~S <~m ~m ~m>~%"
-                    (-> *jakx-want-driver-cp* name)
-                    (-> proc root trans x)
-                    (-> proc root trans y)
-                    (-> proc root trans z)
-                    )
-            ;; og bring-up diagnostics (#193 root-cause doc, section 5 "cheapest
-            ;; experiment"): confirm the donor/adoption story from #162 in one log
-            ;; read, no behavior change. First line names the level the racer's art
-            ;; actually resolved onto (process's own level field, written by #162's
-            ;; art-group-get-by-name out-param); second line prints the resolved
-            ;; frame-group's address alongside that donor level's heap range, so an
-            ;; observer can confirm frame-group falls inside [base, top-base) by eye.
-            (format 0 "racer: donor level ~A~%" (-> proc level name))
-            (format 0 "racer: root-channel frame-group #x~X, donor heap [#x~X, #x~X)~%"
-                    (-> proc skel root-channel 0 frame-group)
-                    (-> proc level heap base)
-                    (-> proc level heap top-base)
-                    )
             )
           )
-        )
+      )
     )
   (none)
   )
