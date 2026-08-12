@@ -2084,11 +2084,16 @@
 ;; method's former commented block (mood.gc, original lines 2073-3840) at the weather/iweather/
 ;; interp/index writes to mood-control-work offsets 16/20/24/28/32/36/40/44/48/52, the desert
 ;; branch's apply-mood-fog / mood-control-method-20 / apply-fog-height / adjust-num-clouds call
-;; order (original lines 3058-3101, matching jak3 1372-1390), the cloud-interp 8.0x factor, the
-;; two 5-draw-plus-speed rand-vu-float-range redraw blocks, and the closing debug prints (down to
-;; the same L266-L275 format strings and the same 1/300 and 1/speed constants). Three points
+;; order (original lines 3058-3101, matching jak3 1372-1390), the cloud-interp 8.0x factor, and
+;; the closing debug prints (down to the same L266-L275 format strings and the same 1/300 and
+;; 1/speed constants). CORRECTION (docs/2026-08-12-cloud-walk-audit.md): this note previously
+;; claimed the two 5-draw-plus-speed rand-vu-float-range redraw blocks were confirmed line-for-line
+;; too; they were not. The speed draws are faithful, but the 5-draw cloud/fog target sum was a
+;; verbatim jak3 transcription (jak3/engine/gfx/mood/mood.gc:1437-1445, 1473-1481) that diverges
+;; from jakx's own raw block; see the note at that let below for the corrected shape. Four points
 ;; diverge from jak3's literal source because jakx's landed tree does not yet carry the symbol or
-;; field jak3 calls; jakx's own raw decomp is the authority for the third, per the brief:
+;; field jak3 calls, or because jakx's own raw decomp overrides jak3's shape outright; jakx's own
+;; raw decomp is the authority for all four, per the brief:
 ;;  - the "bad weather" cheat gate uses the literal mask #x100000 in place of
 ;;    (game-secrets bad-weather): jakx's game-secrets defenum (settings-h.gc) declares only
 ;;    hero-mode so far, but the raw block (original lines 3550-3556) tests this exact literal
@@ -2106,6 +2111,12 @@
 ;;    clean tree-wide), and landing the real defbehavior is sound-engine scope, not fog scope.
 ;;    The already-playing branch below is NOT jak3's shape and does not need a guard: it is
 ;;    transcribed from jakx's own raw block instead (see the note at that branch).
+;;  - the two 5-draw cloud/fog target redraws (below) are jakx's own raw block's shape, not
+;;    jak3's: five bare uniforms off rand-uint31-gen *random-generator*, clamped into the live
+;;    range, per docs/2026-08-12-cloud-walk-audit.md Q1/Q4. jak3's mood.gc:1437-1445/1473-1481
+;;    uses the range-scaled rand-vu-float-range form this replaced and is not being "fixed" from
+;;    this finding: jak3 has no raw block in this tree to check it against, and its own level data
+;;    (245 of ~296 entries at :max-cloud 1.0) makes the two forms algebraically equivalent there.
 (defmethod init-weather! ((this mood-control))
   (local-vars (v1-32 int) (a1-12 object))
   (let ((s5-0 (level-get-target-inside *level*)))
@@ -2256,13 +2267,51 @@
             (set! (-> this time-until-random cloud)
                   (rand-vu-float-range (-> this time-until-random-min cloud) (-> this time-until-random-max cloud))
                   )
-            (let ((f30-0 (rand-vu-float-range (-> this range min-cloud) (-> this range max-cloud)))
-                  (f28-0 (rand-vu-float-range (-> this range min-cloud) (-> this range max-cloud)))
-                  (f26-0 (rand-vu-float-range (-> this range min-cloud) (-> this range max-cloud)))
-                  (f24-0 (rand-vu-float-range (-> this range min-cloud) (-> this range max-cloud)))
-                  (f2-11 (rand-vu-float-range (-> this range min-cloud) (-> this range max-cloud)))
+            ;; og:preserve-this jakx's own raw block, not jak3's shape: git show
+            ;; 0837ffc7b~1:goal_src/jakx/engine/gfx/mood/mood.gc:3246-3325 draws five bare uniforms
+            ;; on [0,1) off rand-uint31-gen *random-generator* (the sra 8 / logior #x3f800000 /
+            ;; +(-1.0) idiom landed elsewhere in this tree, e.g.
+            ;; jak1/levels/firecanyon/assistant-firecanyon.gc:93-95), not rand-vu-float-range, which
+            ;; reads the VU R register instead (math.gc:682-719, a different stream; see the method
+            ;; note above and docs/2026-08-12-cloud-walk-audit.md). No jakx level has max-cloud above
+            ;; 0.5, so the fmax-only clamp this replaced collapsed the cloud target toward zero on
+            ;; every reseed; the raw block's fmin-then-fmax against the live range is restored below.
+            (let ((f30-0 (let* ((v1-200 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-201 (the-as number (logior #x3f800000 v1-200)))
+                                 )
+                            (+ -1.0 (the-as float v1-201))
+                            )
+                          )
+                  (f28-0 (let* ((v1-202 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-203 (the-as number (logior #x3f800000 v1-202)))
+                                 )
+                            (+ -1.0 (the-as float v1-203))
+                            )
+                          )
+                  (f26-0 (let* ((v1-204 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-205 (the-as number (logior #x3f800000 v1-204)))
+                                 )
+                            (+ -1.0 (the-as float v1-205))
+                            )
+                          )
+                  (f24-0 (let* ((v1-206 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-207 (the-as number (logior #x3f800000 v1-206)))
+                                 )
+                            (+ -1.0 (the-as float v1-207))
+                            )
+                          )
+                  (f2-11 (let* ((v1-208 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-209 (the-as number (logior #x3f800000 v1-208)))
+                                 )
+                            (+ -1.0 (the-as float v1-209))
+                            )
+                          )
                   )
-              (set! (-> this target-interp cloud) (fmax 0.0 (+ -0.25 (* 0.25 (+ f30-0 f28-0 f26-0 f24-0 f2-11)))))
+              (set! (-> this target-interp cloud)
+                    (fmax (fmin (+ -0.25 (* 0.25 (+ f30-0 f28-0 f26-0 f24-0 f2-11))) (-> this range max-cloud))
+                          (-> this range min-cloud)
+                          )
+                    )
               )
             (let ((t9-21 rand-vu-float-range)
                   (a0-27 30.0)
@@ -2291,13 +2340,45 @@
             (set! (-> this time-until-random fog)
                   (rand-vu-float-range (-> this time-until-random-min fog) (-> this time-until-random-max fog))
                   )
-            (let ((f30-1 (rand-vu-float-range (-> this range min-fog) (-> this range max-fog)))
-                  (f28-1 (rand-vu-float-range (-> this range min-fog) (-> this range max-fog)))
-                  (f26-1 (rand-vu-float-range (-> this range min-fog) (-> this range max-fog)))
-                  (f24-1 (rand-vu-float-range (-> this range min-fog) (-> this range max-fog)))
-                  (f0-108 (rand-vu-float-range (-> this range min-fog) (-> this range max-fog)))
+            ;; og:preserve-this same shape as the cloud redraw above, raw block 3445-3524: five bare
+            ;; uniforms off rand-uint31-gen *random-generator*, 0.2x sum, clamped into the live fog
+            ;; range (docs/2026-08-12-cloud-walk-audit.md).
+            (let ((f30-1 (let* ((v1-210 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-211 (the-as number (logior #x3f800000 v1-210)))
+                                 )
+                            (+ -1.0 (the-as float v1-211))
+                            )
+                          )
+                  (f28-1 (let* ((v1-212 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-213 (the-as number (logior #x3f800000 v1-212)))
+                                 )
+                            (+ -1.0 (the-as float v1-213))
+                            )
+                          )
+                  (f26-1 (let* ((v1-214 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-215 (the-as number (logior #x3f800000 v1-214)))
+                                 )
+                            (+ -1.0 (the-as float v1-215))
+                            )
+                          )
+                  (f24-1 (let* ((v1-216 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                 (v1-217 (the-as number (logior #x3f800000 v1-216)))
+                                 )
+                            (+ -1.0 (the-as float v1-217))
+                            )
+                          )
+                  (f0-108 (let* ((v1-218 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                  (v1-219 (the-as number (logior #x3f800000 v1-218)))
+                                  )
+                             (+ -1.0 (the-as float v1-219))
+                             )
+                           )
                   )
-              (set! (-> this target-interp fog) (* 0.2 (+ f30-1 f28-1 f26-1 f24-1 f0-108)))
+              (set! (-> this target-interp fog)
+                    (fmax (fmin (* 0.2 (+ f30-1 f28-1 f26-1 f24-1 f0-108)) (-> this range max-fog))
+                          (-> this range min-fog)
+                          )
+                    )
               )
             (let ((t9-28 rand-vu-float-range)
                   (a0-34 30.0)
