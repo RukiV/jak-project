@@ -2383,19 +2383,14 @@
     )
   )
 
-;; og:preserve-this cam-outside-bsp-view is the jakx per-view twin of jak3's
-;; scalar cam-outside-bsp (jak3 level.gc:2453-2466). The note that used to live
-;; here recorded a real mismatch: bsp-camera-asm wrote the outside flag at
-;; machine offset 336 while the field was declared at 340, so this method read
-;; the adjacent cam-using-back-view byte instead and reported "inside" for
-;; levels the camera had never entered (vis-valid picked up on them for free,
-;; and the render popped between a leaf-0 wedge and all-visible as that
-;; misread byte flipped across bsp node splits). #192 (vis-pipeline audit,
-;; 2026-08-12) confirmed the skew against a scoped decode of retail's own
-;; bsp.o and fixed the declared offset to match the write (bsp-h.gc:153-156);
-;; the mismatch this note used to describe no longer exists. update-level-
-;; inside-boxes (level.gc:4081) is this method's live caller and sole
-;; consumer, feeding inside-boxes? and through it vis-valid.
+;; og:preserve-this machine offset 336 on bsp-header is cam-outside-bsp-view
+;; (declared 340; bsp-h.gc:161), the jakx per-view twin of jak3's scalar
+;; cam-outside-bsp (jak3 level.gc:2453-2466). This method originally landed
+;; reading cam-using-back-view, the pre-fix name carried over from before
+;; f4b0778c0's bsp-header name-swap fix even though this landing postdates
+;; that fix; fixed here to match jak3's twin (#41). update-level-inside-boxes
+;; (level.gc:4081) is its live caller and sole consumer, feeding inside-boxes?
+;; and through it vis-valid.
 (defmethod inside-bsp? ((this level))
   (cond
     ((not (-> this bsp))
