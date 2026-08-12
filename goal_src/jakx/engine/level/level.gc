@@ -1990,6 +1990,19 @@
     )
   )
 
+;; og:preserve-this forward decls for the racer subsystem (#193): the
+;; level-deactivate racer hook below is far earlier in this file than the
+;; *jakx-racer* lever block it needs (~line 3050+), and GOAL requires a symbol
+;; declared before use within a file same as across files; jakx-racer-spawn and
+;; *additional-spawner-count* additionally live in entity.gc, which builds
+;; after level.gc in game.gd (entity.gc:329 vs level.gc:267). Same forward-decl
+;; shape as entity.gc's own skel-jungle-clay-jar-a extern.
+(define-extern jakx-racer-spawn (function none))
+(define-extern *additional-spawner-count* int)
+(define-extern *jakx-racer* symbol)
+(define-extern *jakx-racer-handle* (pointer handle))
+(define-extern *jakx-racer-track-index* int)
+
 ;; definition for method 9 of type level
 ;; INFO: Used lq/sq
 (defmethod deactivate ((this level))
@@ -2017,6 +2030,65 @@
        (send-event (view-get-target s5-1) 'level-deactivate (-> this name))
        )
      (remove-by-param1 *background-draw-engine* (the-as int (-> this bsp)))
+     ;; og:preserve-this bring-up racer level-lifecycle guard (#193): the racer
+     ;; manipy (#152's placeholder, jakx-racer-spawn in entity.gc) has no entity
+     ;; and no level of its own, so #162's cross-level art resolution
+     ;; (process-drawable.gc:619+, landed a95b237a2) homes it on whichever
+     ;; currently-resident level happens to hold jungle-clay-jar-a-ag, writing
+     ;; that level into the process's own level field. That level has no more
+     ;; claim on the racer than any other resident copy holding the same art
+     ;; group, but when the want-driver window later discards it, the next level
+     ;; loaded into the identical heap slot has its DGO stream overwrite the
+     ;; adopted frame-group in place, and the racer's very next
+     ;; (ja :num! (loop!)) reads through the overwritten art header and crashes
+     ;; in num-func-loop! (issue #193 root-cause doc, sections 1-2). Nothing else
+     ;; in jakx protects a process homed this way: deactivate-entities below only
+     ;; walks entity-actor tables (the racer has none), and joint-control-cleanup
+     ;; (engine/anim/joint.gc) has zero callers in jakx. Guard: only fires when a
+     ;; live racer exists AND this is the exact level it adopted art from, so
+     ;; every other level's deactivate is a no-op handle read. Kill it through
+     ;; the real process deactivate (not a raw free) so draw-control/skel/
+     ;; node-list all get torn down together, then respawn from whatever level
+     ;; is currently resident if the racer is still armed: #162 always finds a
+     ;; donor since every jungle DGO but junglex carries the same art group, and
+     ;; its own fallback ('load) covers the case where none does. This is
+     ;; bring-up tooling riding a retail method: the racer is a dev puppet;
+     ;; retail behavior is unaffected by this bug and by this hook, since retail
+     ;; never spawns a parentless, entity-less, level-arted manipy. Retires with
+     ;; the real vehicle chain replacing the puppet (#152 names the tiers).
+     (let ((racer-proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0)))))
+       (when (and racer-proc (= (-> racer-proc level) this))
+         (let ((old-trans (new 'stack-no-clear 'vector))
+               (old-track-index *jakx-racer-track-index*)
+               )
+           (set! (-> old-trans quad) (-> racer-proc root trans quad))
+           (format 0 "racer: donor level ~A deactivating, killing and respawning racer~%" (-> this name))
+           (deactivate racer-proc)
+           (set! (-> *jakx-racer-handle* 0) (the-as handle #f))
+           (set! *additional-spawner-count* 0)
+           (when *jakx-racer*
+             (jakx-racer-spawn)
+             ;; og:preserve-this respawn positioning (#193): jakx-racer-spawn
+             ;; always spawns fresh at *jakx-want-driver-cp*'s trans (entity.gc),
+             ;; which would restart the lap on every donor-level discard instead
+             ;; of continuing it. Hand the captured trans and track index back in
+             ;; after the fact rather than changing the spawn function's
+             ;; signature, since nothing else calls it with a position.
+             ;; *jakx-racer-track-index* is not actually touched by
+             ;; jakx-racer-spawn today (only the continue-point fallback's
+             ;; *jakx-racer-target-index* is reset), so this restore is currently
+             ;; a no-op safety net, kept explicit so a future change to
+             ;; jakx-racer-spawn cannot silently reintroduce the lap restart.
+             (let ((new-proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0)))))
+               (when new-proc
+                 (set! (-> new-proc root trans quad) (-> old-trans quad))
+                 (set! *jakx-racer-track-index* old-track-index)
+                 )
+               )
+             )
+           )
+         )
+       )
      (let ((s5-2 (-> this status)))
        (set! (-> this status) 'shutdown)
        (do-nothing *level*)
