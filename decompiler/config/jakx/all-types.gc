@@ -41974,7 +41974,6 @@
 ;; rigid-body-h                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
 (deftype rigid-body-info (structure)
   ((max-time-step       float          :offset-assert 0)
    (mass                float          :offset-assert 4)
@@ -41998,26 +41997,14 @@
     (rigid-body-info-method-9 () none) ;; 9 ;; (rigid-body-info-method-9 (_type_) none)
     )
   )
-|#
 
-#|
+;; og:preserve-this see goal_src/jakx/engine/physics/rigid-body-h.gc: the
+;; captured block re-declared rigid-body-info's own 14 fields a second time
+;; under new names at the same offsets (0-196); dropped as duplicate content,
+;; same class as the target-h.gc R1 state-time fix.
 (deftype rigid-body-object-constants (structure)
-  ((info              rigid-body-info :inline :offset-assert 0)
-   (max-time-step     float                   :offset-assert 0)
-   (mass              float                   :offset-assert 4)
-   (inv-mass          float                   :offset-assert 8)
-   (cm-joint-x        meters                  :offset-assert 32)
-   (cm-joint-y        meters                  :offset-assert 36)
-   (cm-joint-z        meters                  :offset-assert 40)
-   (linear-damping    float                   :offset-assert 12)
-   (angular-damping   float                   :offset-assert 16)
-   (bounce-factor     float                   :offset-assert 20)
-   (friction-factor   float                   :offset-assert 24)
-   (inertial-tensor-x meters                  :offset-assert 176)
-   (inertial-tensor-y meters                  :offset-assert 180)
-   (inertial-tensor-z meters                  :offset-assert 184)
-   (gravity           meters                  :offset-assert 188)
-   (name              symbol                  :offset-assert 196) ;; guessed by decompiler
+  ((info rigid-body-info :inline :offset-assert 0)
+   (name symbol                  :offset-assert 196) ;; guessed by decompiler
    )
   :method-count-assert 10
   :size-assert         #xc8
@@ -42026,7 +42013,6 @@
     (rigid-body-object-constants-method-9 () none) ;; 9
     )
   )
-|#
 
 (deftype rigid-body-impact (structure)
   ((point    vector      :inline :offset-assert 0)
@@ -42112,15 +42098,16 @@
   )
 |#
 
-#|
 (deftype rb-perf-data (structure)
   ((process           uint64     :offset-assert 0)
-   (times             UNKNOWN 32 :offset-assert 8)
    (t-rb-all          uint32     :offset-assert 8)
    (t-rb-callback     uint32     :offset-assert 12)
    (t-rb-fc           uint32     :offset-assert 16)
    (t-rb-move         uint32     :offset-assert 20)
    (t-rb-physics      uint32     :offset-assert 24)
+   ;; og:preserve-this see goal_src/jakx/engine/physics/rigid-body-h.gc:
+   ;; extent-true pad, 4 bytes unaccounted between t-rb-physics and t-vqp-all.
+   (pad-vqp-gap       uint8   4  :offset-assert 28)
    (t-vqp-all         uint32     :offset-assert 32)
    (t-vqp-common      uint32     :offset-assert 36)
    (t-vqp-ja-post     uint32     :offset-assert 40)
@@ -42138,18 +42125,23 @@
    (t-nav-part8       uint32     :offset-assert 88)
    (t-nav-part9       uint32     :offset-assert 92)
    (t-nav-part10      uint32     :offset-assert 96)
-   (t-part-turbo      uint32     :offset-assert 116)
+   ;; og:preserve-this reordered by offset (t-part-turbo was captured ahead of
+   ;; exhaust/smoke/scrape/wheels); :offset-assert needs ascending order.
    (t-part-exhaust    uint32     :offset-assert 100)
    (t-part-smoke      uint32     :offset-assert 104)
    (t-part-scrape     uint32     :offset-assert 108)
    (t-part-wheels     uint32     :offset-assert 112)
+   (t-part-turbo      uint32     :offset-assert 116)
    (t-part-debris     uint32     :offset-assert 120)
    (t-part-water      uint32     :offset-assert 124)
    (t-part-forcefield uint32     :offset-assert 128)
    (t-prim-trails     uint32     :offset-assert 132)
-   (begin-times       UNKNOWN 32 :offset-assert 136)
-   (begin-counts      UNKNOWN 32 :offset-assert 264)
-   (end-counts        UNKNOWN 32 :offset-assert 392)
+   ;; og:preserve-this begin-times/begin-counts/end-counts resolved from
+   ;; UNKNOWN 32 to uint32, matching every other t-* counter's width; see
+   ;; goal_src/jakx/engine/physics/rigid-body-h.gc for the arithmetic.
+   (begin-times       uint32  32 :offset-assert 136)
+   (begin-counts      uint32  32 :offset-assert 264)
+   (end-counts        uint32  32 :offset-assert 392)
    )
   :method-count-assert 12
   :size-assert         #x208
@@ -42160,21 +42152,27 @@
     (rb-perf-data-method-11 () none) ;; 11
     )
   )
-|#
 
-#|
+;; og:preserve-this rigid-body-object-flag resolved to uint64: rigid-body-h.o's
+;; own (method 3 rigid-body-object) reads it with `ld a2, 260(gp)` (declared
+;; 264 with the +4 basic-offset correction), an 8-byte load, not the 4-byte
+;; width the captured comment implied. See goal_src/jakx/engine/physics/
+;; rigid-body-h.gc for the full citation and the four bit names the same
+;; inspect method confirms (dead/damaged/disturbed/enable-collision).
 (deftype rigid-body-object (process-focusable)
   ((info               rigid-body-object-constants  :offset-assert 256)
-   (flags              rigid-body-object-flag       :offset-assert 264)
+   (flags              uint64                       :offset-assert 264)
    (max-time-step      float                        :offset-assert 272)
-   (incoming-attack-id uint32                       :offset-assert 276)
-   (disturbed-time     time-frame                   :offset-assert 280) ;; guessed by decompiler
-   (perf               rb-perf-data                 :offset-assert 284)
+   (incoming-attack-id uint32                        :offset-assert 276)
+   ;; og:preserve-this see goal_src/jakx/engine/physics/rigid-body-h.gc:
+   ;; disturbed-time resolved from time-frame (8B) to uint32 (4B), matching
+   ;; the confirmed 4-byte `lwu` load and the confirmed perf@284 that follows.
+   (disturbed-time     uint32                        :offset-assert 280)
+   (perf               rb-perf-data                  :offset-assert 284)
    )
   :method-count-assert 89
   :size-assert         #x120
   :flag-assert         #x5900900120
-  ;; field rigid-body-object-flag is likely a value type.
   (:methods
     (rigid-body-object-method-59 () none) ;; 59
     (rigid-body-object-method-60 () none) ;; 60
@@ -42208,7 +42206,6 @@
     (rigid-body-object-method-88 () none) ;; 88
     )
   )
-|#
 
 #|
 (deftype rigid-body-queue (structure)
@@ -44624,35 +44621,34 @@
 ;; rigid-body-surface-h           ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
+;; og:preserve-this see goal_src/jakx/engine/vehicle/wvehicle-h.gc: flags
+;; resolved to uint8, tire-roll-mix/tire-slide-mix dropped as duplicate
+;; union-alias names for the individually-named tire-roll-*/tire-slide-*
+;; floats.
 (deftype rigid-body-surface (structure)
-  ((flags            rigid-body-surface-flag   :offset-assert 0)
-   (surface-type     uint8                     :offset-assert 1)
-   (friction         float                     :offset-assert 4)
-   (bounce           float                     :offset-assert 8)
-   (drag             float                     :offset-assert 12)
-   (depth            float                     :offset-assert 16)
-   (damage           float                     :offset-assert 20)
-   (scrape-sound     uint16                    :offset-assert 24)
-   (glance-sound     uint16                    :offset-assert 26)
-   (impact-sound     uint16                    :offset-assert 28)
-   (tire-roll-mix    UNKNOWN                 6 :offset-assert 32)
-   (tire-roll-hum    float                     :offset-assert 32)
-   (tire-roll-dirt   float                     :offset-assert 36)
-   (tire-roll-sand   float                     :offset-assert 40)
-   (tire-roll-snow   float                     :offset-assert 44)
-   (tire-roll-grass  float                     :offset-assert 48)
-   (tire-roll-knobby float                     :offset-assert 52)
-   (tire-slide-mix   UNKNOWN                 2 :offset-assert 56)
-   (tire-slide-road  float                     :offset-assert 56)
-   (tire-slide-dirt  float                     :offset-assert 60)
+  ((flags            uint8   :offset-assert 0)
+   (surface-type     uint8   :offset-assert 1)
+   (friction         float   :offset-assert 4)
+   (bounce           float   :offset-assert 8)
+   (drag             float   :offset-assert 12)
+   (depth            float   :offset-assert 16)
+   (damage           float   :offset-assert 20)
+   (scrape-sound     uint16  :offset-assert 24)
+   (glance-sound     uint16  :offset-assert 26)
+   (impact-sound     uint16  :offset-assert 28)
+   (tire-roll-hum    float   :offset-assert 32)
+   (tire-roll-dirt   float   :offset-assert 36)
+   (tire-roll-sand   float   :offset-assert 40)
+   (tire-roll-snow   float   :offset-assert 44)
+   (tire-roll-grass  float   :offset-assert 48)
+   (tire-roll-knobby float   :offset-assert 52)
+   (tire-slide-road  float   :offset-assert 56)
+   (tire-slide-dirt  float   :offset-assert 60)
    )
   :method-count-assert 9
   :size-assert         #x40
   :flag-assert         #x900000040
-  ;; field rigid-body-surface-flag is likely a value type.
   )
-|#
 
 ;; (define-extern *material-to-rb-material-table* object)
 ;; (define-extern rigid-body-surface-type-from-material function)
@@ -44732,7 +44728,10 @@
   )
 |#
 
-#|
+;; forward declaration: callback below is typed against vehicle-wheel-state,
+;; declared later in this file.
+(declare-type vehicle-wheel-state structure)
+
 (deftype vehicle-wheel-info (structure)
   ((local-pos          vector                                                                   :inline :offset-assert 0)
    (flags              uint64                                                                           :offset-assert 16) ;; vehicle-wheel-flag
@@ -44760,7 +44759,6 @@
   :size-assert         #x64
   :flag-assert         #x900000064
   )
-|#
 
 #|
 (deftype vehicle-physics-model-info (structure)
@@ -45139,11 +45137,10 @@
   )
 |#
 
-#|
+;; og:preserve-this dropped dataf/dataw (both UNKNOWN 5 :offset-assert 0),
+;; duplicate names for the same 20 bytes the five named floats already cover.
 (deftype vehicle-controls (structure)
-  ((dataf      UNKNOWN 5 :offset-assert 0)
-   (dataw      UNKNOWN 5 :offset-assert 0)
-   (steering   float     :offset-assert 0)
+  ((steering   float     :offset-assert 0)
    (throttle   float     :offset-assert 4)
    (brake      float     :offset-assert 8)
    (lean-z     float     :offset-assert 12)
@@ -45156,7 +45153,6 @@
   :size-assert         #x18
   :flag-assert         #x900000018
   )
-|#
 
 #|
 (deftype vehicle-particle (structure)
@@ -45169,52 +45165,81 @@
   )
 |#
 
-#|
+;; og:preserve-this see goal_src/jakx/engine/vehicle/vehicle-h.gc for the full
+;; citation: every offset below is the captured value +4 (the basic-offset
+;; trap, missing from this specific capture though correctly applied to
+;; rigid-body-object's and wvehicle's own); car-info relocated 284->288 to
+;; land immediately after rigid-body-object; the captured "flags" field
+;; (260->264) dropped as a duplicate of rigid-body-object's own inherited
+;; flags; cam-target-handle folded in from the bring-up shim at its
+;; confirmed offset 752, retiring the shim in cam-states.gc.
 (deftype vehicle (rigid-body-object)
-  ((car-info                        car-info-full                               :offset-assert 284)
-   (flags                           vehicle-flag                                :offset-assert 260) ;; rigid-body-object-flag
-   (damage-matrix                   UNKNOWN                             2       :offset-assert 300)
-   (damage-direction                vector                              :inline :offset-assert 428)
-   (camera-pos                      vector                              :inline :offset-assert 444)
-   (control-hook                    (function vehicle vehicle-controls)         :offset-assert 468) ;; guessed by decompiler
-   (control-mask                    vehicle-controls                            :offset-assert 472)
-   (impact-callback                 basic                                       :offset-assert 476)
-   (controls                        vehicle-controls                    :inline :offset-assert 480)
-   (prev-controls                   vehicle-controls                    :inline :offset-assert 504)
-   (impact                          rigid-body-impact                   :inline :offset-assert 540)
-   (target-acceleration             vector                              :inline :offset-assert 620)
-   (impact-local-pos                vector                              :inline :offset-assert 636)
-   (lin-acceleration                vector                              :inline :offset-assert 652)
-   (max-impact-impulse              float                                       :offset-assert 668)
-   (sum-impact-impulse              float                                       :offset-assert 672)
-   (underside-y                     float                                       :offset-assert 676)
-   (side-x                          float                                       :offset-assert 680)
-   (health                          float                                       :offset-assert 684)
-   (damage-factor                   float                                       :offset-assert 688)
-   (speed-factor                    float                                       :offset-assert 696)
-   (behavior                        uint64                                      :offset-assert 724)
-   (cam-view                        int8                                        :offset-assert 732)
-   (cam-speed-interp                float                                       :offset-assert 740)
-   (camera-dist                     float                                       :offset-assert 744)
-   (impact-proc                     uint64                                      :offset-assert 764) ;; handle
-   (net-player                      uint64                                      :offset-assert 772)
-   (impact-time                     uint32                                      :offset-assert 784)
-   (prev-impact-time                uint32                                      :offset-assert 788)
-   (offscreen-time                  uint32                                      :offset-assert 804)
-   (physics-enabled-time            uint32                                      :offset-assert 820)
-   (water-height                    float                                       :offset-assert 852)
-   (pred                            net-predictor-sphcol                :inline :offset-assert 1804)
-   (next-reliable-send-time         int32                                       :offset-assert 2112)
-   (player-id                       int8                                        :offset-assert 2116)
-   (killed-by                       int8                                        :offset-assert 2117)
-   (killed-with                     int8                                        :offset-assert 2118)
-   (last-warp-time                  int32                                       :offset-assert 2128)
-   (last-sent-vehicle-control-flags uint8                                       :offset-assert 2132)
+  ((car-info                        car-info-full                               :offset-assert 288)
+   (pad-post-car-info                uint8                                12    :offset-assert 292)
+   ;; og:preserve-this see goal_src/jakx/engine/vehicle/vehicle-h.gc:
+   ;; extent-true pad, name/size fit two `matrix` but not load-confirmed.
+   (damage-matrix                   uint8                                128   :offset-assert 304)
+   (damage-direction                vector                              :inline :offset-assert 432)
+   (camera-pos                      vector                              :inline :offset-assert 448)
+   (pad-post-camera-pos             uint8                                8     :offset-assert 464)
+   (control-hook                    (function vehicle vehicle-controls)         :offset-assert 472) ;; guessed by decompiler
+   (control-mask                    vehicle-controls                            :offset-assert 476)
+   (impact-callback                 basic                                       :offset-assert 480)
+   ;; og:preserve-this controls through lin-acceleration are :inline
+   ;; structures/vectors needing 16-byte alignment (STRUCTURE_ALIGNMENT) the
+   ;; captured (+4-corrected) offsets do not land on; left unasserted so
+   ;; auto-placement computes the real offsets (compiler-confirmed: this run
+   ;; lands 16 bytes later than the capture implied). max-impact-impulse
+   ;; through speed-factor likewise: their exact intermediate offsets are
+   ;; not independently confirmed, only their order; pad-pre-behavior
+   ;; absorbs the run's true width, and behavior (728) resumes asserting
+   ;; since it IS independently confirmed (vehicle-h.o's own inspect,
+   ;; `ld a2, 724(gp)`, +4).
+   (controls                        vehicle-controls                    :inline)
+   (prev-controls                   vehicle-controls                    :inline)
+   (impact                          rigid-body-impact                   :inline)
+   (target-acceleration             vector                              :inline)
+   (impact-local-pos                vector                              :inline)
+   (lin-acceleration                vector                              :inline)
+   (max-impact-impulse              float                                       )
+   (sum-impact-impulse              float                                       )
+   (underside-y                     float                                       )
+   (side-x                          float                                       )
+   (health                          float                                       )
+   (damage-factor                   float                                       )
+   (speed-factor                    float                                       )
+   (pad-pre-behavior                uint8                                8     )
+   (behavior                        uint64                                      :offset-assert 728)
+   (cam-view                        int8                                        :offset-assert 736)
+   (pad-post-cam-view               uint8                                7     :offset-assert 737)
+   (cam-speed-interp                float                                       :offset-assert 744)
+   (camera-dist                     float                                       :offset-assert 748)
+   (cam-target-handle               handle                                      :offset-assert 752)
+   (pad-post-cam-target-handle      uint8                                8     :offset-assert 760)
+   (impact-proc                     uint64                                      :offset-assert 768) ;; handle
+   (net-player                      uint64                                      :offset-assert 776)
+   (pad-post-net-player             uint8                                4     :offset-assert 784)
+   (impact-time                     uint32                                      :offset-assert 788)
+   (prev-impact-time                uint32                                      :offset-assert 792)
+   (pad-post-prev-impact-time       uint8                                12    :offset-assert 796)
+   (offscreen-time                  uint32                                      :offset-assert 808)
+   (pad-post-offscreen-time         uint8                                12    :offset-assert 812)
+   (physics-enabled-time            uint32                                      :offset-assert 824)
+   (pad-post-physics-enabled-time   uint8                                28    :offset-assert 828)
+   (water-height                    float                                       :offset-assert 856)
+   (pad-net-payload-gap             uint8                                948   :offset-assert 860)
+   (pred                            net-predictor-sphcol                :inline :offset-assert 1808)
+   (next-reliable-send-time         int32                                       :offset-assert 2116)
+   (player-id                       int8                                        :offset-assert 2120)
+   (killed-by                       int8                                        :offset-assert 2121)
+   (killed-with                     int8                                        :offset-assert 2122)
+   (pad-post-killed-with            uint8                                9     :offset-assert 2123)
+   (last-warp-time                  int32                                       :offset-assert 2132)
+   (last-sent-vehicle-control-flags uint8                                       :offset-assert 2136)
    )
   :method-count-assert 204
   :size-assert         #x859
   :flag-assert         #xcc07d00859
-  ;; field vehicle-flag is likely a value type.
   (:methods
     (vehicle-method-89 () none) ;; 89 ;; (init-reverse (_type_ vehicle-controls) none)
     (vehicle-method-90 () none) ;; 90 ;; (control-hook-ai (_type_ vehicle-controls) none)
@@ -45224,7 +45249,7 @@
     (vehicle-method-94 () none) ;; 94 ;; (vehicle-method-94 (_type_) none)
     (vehicle-method-95 () none) ;; 95 ;; (vehicle-method-95 (_type_ vector float) none)
     (vehicle-method-96 () none) ;; 96 ;; (vehicle-method-96 (_type_ float) none)
-    (vehicle-method-97 () none) ;; 97 ;; (vehicle-method-97 (_type_ float vehicle-physics-work) none)
+    (vehicle-method-97 () none) ;; 97
     (vehicle-method-98 () none) ;; 98 ;; (vehicle-method-98 (_type_) none)
     (vehicle-method-99 () none) ;; 99 ;; (vehicle-method-99 (_type_) none)
     (vehicle-method-100 () none) ;; 100 ;; (vehicle-method-100 (_type_) none)
@@ -45258,9 +45283,14 @@
     (vehicle-method-128 () none) ;; 128 ;; (vehicle-method-128 (_type_) symbol)
     (vehicle-method-129 () none) ;; 129 ;; (vehicle-method-129 (_type_) none)
     (vehicle-method-130 () none) ;; 130 ;; (vehicle-method-130 (_type_) none)
-    (vehicle-method-131 () none) ;; 131 ;; (vehicle-method-131 (_type_ traffic-object-spawn-params) none)
-    (vehicle-method-132 () none) ;; 132 ;; (vehicle-method-132 (_type_ traffic-object-spawn-params) none)
-    (vehicle-method-133 () none) ;; 133 ;; (vehicle-method-133 (_type_ traffic-object-spawn-params) none)
+    ;; og:preserve-this S1 hazard (brief §1.5): the captured annotations for
+    ;; 131-133 cited traffic-object-spawn-params, a type that does not exist
+    ;; anywhere in Jak X. Dropped per the owner's standing rule (the decode
+    ;; wins over an annotation that disagrees with reality); left as bare
+    ;; numeric placeholders.
+    (vehicle-method-131 () none) ;; 131
+    (vehicle-method-132 () none) ;; 132
+    (vehicle-method-133 () none) ;; 133
     (vehicle-method-134 () none) ;; 134 ;; (vehicle-method-134 (_type_) none)
     (vehicle-method-135 () none) ;; 135 ;; (vehicle-method-135 (_type_) none)
     (vehicle-method-136 () none) ;; 136 ;; (vehicle-method-136 (_type_) none)
@@ -45333,7 +45363,6 @@
     (vehicle-method-203 () none) ;; 203
     )
   )
-|#
 
 #|
 (deftype vehicle-draw-thruster-params (structure)
@@ -45668,7 +45697,16 @@
 ;; race-control                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
+;; og:preserve-this see goal_src/jakx/engine/vehicle/wvehicle-h.gc: forced
+;; dependency outside the brief's M1 header list, forward-declared minimally
+;; (race-control's own fields are plain pointers; race-state alone is on
+;; the §2.5 punch list at +920, a reconciliation out of this rung's scope).
+;; :pack-me: wvehicle's own race field lands at 2168, not 16-byte aligned.
+(declare-type race-state basic)
+(declare-type racer-state basic)
+(declare-type race-mesh basic)
+(declare-type race-line basic)
+
 (deftype race-control (structure)
   ((state       race-state   :offset-assert 0)
    (racer-state racer-state  :offset-assert 4)
@@ -45678,11 +45716,11 @@
   :method-count-assert 10
   :size-assert         #x10
   :flag-assert         #xa00000010
+  :pack-me
   (:methods
     (race-control-method-9 () none) ;; 9 ;; (race-control-method-9 (_type_ int vector) none)
     )
   )
-|#
 
 ;; (define-extern output-race-mesh function)
 
@@ -45906,7 +45944,6 @@
 ;; wvehicle-h                     ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
 (deftype wvehicle-sound-loop-state (structure)
   ((id    sound-id  :offset-assert 0) ;; guessed by decompiler
    (vol   float     :offset-assert 4)
@@ -45916,9 +45953,11 @@
   :size-assert         #xc
   :flag-assert         #x90000000c
   )
-|#
 
-#|
+;; og:preserve-this see goal_src/jakx/engine/vehicle/wvehicle-h.gc:
+;; trail-pos marked :inline (a non-inline array of a reference type only
+;; reserves POINTER_SIZE per element, not the 32 bytes surface's offset
+;; needs).
 (deftype vehicle-wheel-state (structure)
   ((info             vehicle-wheel-info               :offset-assert 0)
    (flags            uint8                            :offset-assert 4)
@@ -45932,7 +45971,7 @@
    (ground-normal    vector                   :inline :offset-assert 96)
    (trans            vector                   :inline :offset-assert 112)
    (quat             quaternion               :inline :offset-assert 128)
-   (trail-pos        vector                   2       :offset-assert 144) ;; guessed by decompiler
+   (trail-pos        vector                   2 :inline :offset-assert 144) ;; guessed by decompiler
    (surface          rigid-body-surface               :offset-assert 176) ;; vehicle-wheel-surface
    (pos              float                            :offset-assert 180)
    (pos2             float                            :offset-assert 184)
@@ -45961,9 +46000,9 @@
   :size-assert         #x120
   :flag-assert         #x900000120
   )
-|#
 
-#|
+;; og:preserve-this :pack-me: wvehicle's own net-extra field lands at 2140,
+;; not 16-byte aligned; see goal_src/jakx/engine/vehicle/wvehicle-h.gc.
 (deftype wvehicle-net-extra (structure)
   ((desired-steering  float  :offset-assert 0)
    (desired-throttle  float  :offset-assert 4)
@@ -45972,10 +46011,9 @@
   :method-count-assert 9
   :size-assert         #xc
   :flag-assert         #x90000000c
+  :pack-me
   )
-|#
 
-#|
 (deftype wvehicle-ai-destination (structure)
   ((final-position vector       :inline :offset-assert 0)
    (position       vector       :inline :offset-assert 16)
@@ -45987,9 +46025,7 @@
   :size-assert         #x40
   :flag-assert         #x900000040
   )
-|#
 
-#|
 (deftype wvehicle-ai-state (structure)
   ((destination             wvehicle-ai-destination :inline :offset-assert 0)
    (nav-location            nav-location            :inline :offset-assert 64)
@@ -46008,7 +46044,6 @@
   :size-assert         #x85
   :flag-assert         #x900000085
   )
-|#
 
 #|
 (deftype wvehicle-engine-loop-state (structure)
@@ -46021,15 +46056,16 @@
   )
 |#
 
-#|
+;; og:preserve-this loops landed as an extent-true 32-byte pad; see
+;; goal_src/jakx/engine/vehicle/wvehicle-h.gc for why "wvehicle-engine-loop-state
+;; 2" does not divide the span evenly under any of GOAL's array-sizing rules.
 (deftype wvehicle-engine-mix-state (structure)
-  ((loops UNKNOWN 2 :offset-assert 0)
+  ((loops uint8 32 :offset-assert 0)
    )
   :method-count-assert 9
   :size-assert         #x20
   :flag-assert         #x900000020
   )
-|#
 
 #|
 (deftype v-wpn-turbo-lightning-info (structure)
@@ -46045,22 +46081,29 @@
   )
 |#
 
-#|
+;; og:preserve-this dropped "data" (duplicate alias for the same 4 bytes the
+;; int8 fields and "blob" already cover; see goal_src/jakx/engine/vehicle/
+;; wvehicle-h.gc for the §2.5 punch-list arithmetic this resolves).
+;; :pack-me: wvehicle's own prev-wpn-sync field lands at 4584, not
+;; 16-byte aligned.
 (deftype wvehicle-weapon-sync-blob (structure)
-  ((data              UNKNOWN 4 :offset-assert 0)
-   (wpn-left-type     int8      :offset-assert 0)
+  ((wpn-left-type     int8      :offset-assert 0)
    (wpn-right-type    int8      :offset-assert 1)
    (wpn-left-powerup  int8      :offset-assert 2)
    (wpn-right-powerup int8      :offset-assert 3)
-   (blob              int32     :offset-assert 0)
+   (blob              int32     :offset 0)
    )
   :method-count-assert 9
   :size-assert         #x4
   :flag-assert         #x900000004
+  :pack-me
   )
-|#
 
-#|
+;; og:preserve-this see goal_src/jakx/engine/vehicle/wvehicle-h.gc: wheel,
+;; tire-roll-loop-state and tire-slide-loop-state all marked :inline (each
+;; confirmed exact to the byte by the gap to the next captured field); the
+;; six extent-true pads (2472, 4108, 4144, 4272, 4468, 4597) fill gaps the
+;; captured offsets leave unaccounted, each cited individually there.
 (deftype wvehicle (vehicle)
   ((net-extra                      wvehicle-net-extra        :inline :offset-assert 2140)
    (antenna                        uint64                            :offset-assert 2152)
@@ -46097,7 +46140,11 @@
    (jump-control                   float                             :offset-assert 2436)
    (shortcut-speed-factor          float                             :offset-assert 2440)
    (path-deviation                 float                             :offset-assert 2444)
-   (turbo-supply                   float                             :offset-assert 704)
+   ;; og:preserve-this dropped "turbo-supply" (captured :offset-assert 704):
+   ;; 704 is inside vehicle's own range (near vehicle's speed-factor/behavior
+   ;; run, landed in the vehicle commit), nowhere near the surrounding
+   ;; 2400s here; a decompiler cross-contamination artifact, not a real
+   ;; wvehicle field.
    (turbo-ready                    float                             :offset-assert 2448)
    (slide-factor                   float                             :offset-assert 2452)
    (slide-time                     uint32                            :offset-assert 2456)
@@ -46106,12 +46153,16 @@
    (gear-select                    int8                              :offset-assert 2465)
    (next-gear-select               int8                              :offset-assert 2466)
    (shift-time                     uint32                            :offset-assert 2468)
-   (wheel                          vehicle-wheel-state       4       :offset-assert 2480) ;; guessed by decompiler
+   ;; og:preserve-this 8 bytes unaccounted (2472-2480).
+   (pad-pre-wheel                  uint8                              8 :offset-assert 2472)
+   (wheel                          vehicle-wheel-state       4 :inline :offset-assert 2480)
    (gravity-dir                    vector                    :inline :offset-assert 3632)
    (surface-velocity               vector                    :inline :offset-assert 3648)
-   (tire-roll-loop-state           wvehicle-sound-loop-state 6       :offset-assert 3664) ;; guessed by decompiler
-   (tire-slide-loop-state          wvehicle-sound-loop-state 2       :offset-assert 3760) ;; guessed by decompiler
-   (engine-mix-state-array         UNKNOWN                   2       :offset-assert 3792)
+   (tire-roll-loop-state           wvehicle-sound-loop-state 6 :inline :offset-assert 3664)
+   (tire-slide-loop-state          wvehicle-sound-loop-state 2 :inline :offset-assert 3760)
+   ;; og:preserve-this dropped "engine-mix-state-array" (captured UNKNOWN 2
+   ;; :offset-assert 3792): duplicate alias for the same span
+   ;; min-load-engine-mix-state/max-load-engine-mix-state already cover.
    (min-load-engine-mix-state      wvehicle-engine-mix-state :inline :offset-assert 3792)
    (max-load-engine-mix-state      wvehicle-engine-mix-state :inline :offset-assert 3824)
    (damage-sound-id                sound-id                          :offset-assert 3856) ;; guessed by decompiler
@@ -46143,10 +46194,20 @@
    (eng-vol-variance-seek          float                             :offset-assert 4096)
    (turbo-pitch                    float                             :offset-assert 4100)
    (health-pickup-multiplier       float                             :offset-assert 4104)
-   (jmod-steering-wheel            joint-mod-rotate-local    :inline :offset-assert 4112)
-   (jmod-frame                     UNKNOWN                   2       :offset-assert 4144)
-   (jmod-axles                     UNKNOWN                   4       :offset-assert 4272)
+   ;; og:preserve-this jmod-steering-wheel landed as an extent-true 32-byte
+   ;; pad (joint-mod-rotate-local's own size) rather than the real type:
+   ;; joint-mod-base is not landed anywhere in goal_src yet; see
+   ;; goal_src/jakx/engine/vehicle/wvehicle-h.gc.
+   ;; og:preserve-this 4 bytes unaccounted (4108-4112).
+   (pad-pre-jmod-steering-wheel    uint8                     4         :offset-assert 4108)
+   (jmod-steering-wheel            uint8                     32        :offset-assert 4112)
+   ;; og:preserve-this jmod-frame/jmod-axles landed as extent-true pads
+   ;; (128B/192B); neither width matches joint-mod-rotate-local's own size.
+   (jmod-frame                     uint8                     128     :offset-assert 4144)
+   (jmod-axles                     uint8                     192     :offset-assert 4272)
    (water-sound-envelope           float                             :offset-assert 4464)
+   ;; og:preserve-this 16 bytes unaccounted (4468-4488).
+   (pad-pre-wpn-current-target     uint8                     16      :offset-assert 4468)
    (wpn-current-target             uint64                            :offset-assert 4488)
    (wpn-current-target-acquired    uint64                            :offset-assert 4496)
    (wpn-left                       uint64                            :offset-assert 4504)
@@ -46156,7 +46217,8 @@
    (wpn-oil                        uint64                            :offset-assert 4536)
    (wpn-turbo                      uint64                            :offset-assert 4544)
    (wpn-bulldog-gun                uint64                            :offset-assert 4552)
-   (wpn-drawables                  UNKNOWN                   2       :offset-assert 4560)
+   ;; og:preserve-this dropped "wpn-drawables" (captured UNKNOWN 2), a
+   ;; duplicate alias for the same span wpn-drawable-left/right cover.
    (wpn-drawable-left              uint64                            :offset-assert 4560)
    (wpn-drawable-right             uint64                            :offset-assert 4568)
    (wpn-spin-done-left             int32                             :offset-assert 4576)
@@ -46165,9 +46227,14 @@
    (turbo-suppressor-particle      basic                             :offset-assert 4588)
    (dark-seeking-me                basic                             :offset-assert 4592)
    (dark-suck-sound-pending        int8                              :offset-assert 4596)
-   (vehicle-exhaust-subsampler     UNKNOWN                   2       :offset-assert 4600)
-   (wheel-launcher                 UNKNOWN                   4       :offset-assert 4608)
-   (wheel-fire-launcher            UNKNOWN                   4       :offset-assert 4624)
+   ;; og:preserve-this 3 bytes unaccounted (4597-4600).
+   (pad-pre-vehicle-exhaust        uint8                     3       :offset-assert 4597)
+   ;; og:preserve-this vehicle-exhaust-subsampler/wheel-launcher/
+   ;; wheel-fire-launcher landed as extent-true pads spanning their own
+   ;; captured gaps; see goal_src/jakx/engine/vehicle/wvehicle-h.gc.
+   (vehicle-exhaust-subsampler     uint8                     8       :offset-assert 4600)
+   (wheel-launcher                 uint8                     16      :offset-assert 4608)
+   (wheel-fire-launcher            uint8                     16      :offset-assert 4624)
    (hack-armed-right               basic                             :offset-assert 4640)
    (hack-armed-left                basic                             :offset-assert 4644)
    (shake-amount                   float                             :offset-assert 4648)
@@ -46248,7 +46315,6 @@
     (wvehicle-method-271 () none) ;; 271
     )
   )
-|#
 
 #|
 (deftype vehicle-antenna-init-params (structure)
@@ -51360,20 +51426,19 @@
     )
   )
 
-;; og:bring-up minimal vehicle deftype: the real one (rigid-body-object child) is still
-;; commented; cam-states only reads the handle at 752 and type-checks against it.
-(deftype vehicle (process-drawable)
-  ((vehicle-flags-264  uint64 :offset 264) ;; name guessed; flag-tested (andi 8) by (trans cam-vehicle-shot)
-   (cam-target-handle handle :offset 752) ;; name guessed; truthy-tested and handle-derefed by cam-states
-   )
-  :method-count-assert 50
-  :size-assert         #x2f8
-  :flag-assert         #x32027002f8
-  )
+;; og:preserve-this stale bring-up leftover removed here (M1 vehicle-leg rung 2):
+;; this second, shim-shaped (process-drawable child) vehicle deftype predates the
+;; real landing at line ~45172 (rigid-body-object child, landed in a45d0efbd) and
+;; was never removed when that commit retired the cam-states.gc shim; the two
+;; conflicted on any decode needing to resolve vehicle a second time (own
+;; scoped decode of wcar/wcar-skel/wcar-mongoose/wcar-falcon, this rung: "Diff:
+;; Number of additional methods 115 vs. 0, parent: rigid-body-object vs.
+;; process-drawable, ... when parsing decompiler type file
+;; :all-types.gc:51427"). wvehicle's matching declare-type (process parent) was
+;; equally stale, since the real wvehicle is a vehicle descendant, landed in
+;; e77b7690a. Both types are real deftypes elsewhere in this file now; no
+;; forward declaration is needed for either.
 (declare-type hud-slowmo process) ;; real deftype still commented (in-game-hud child)
-(define-extern vehicle type) ;; the type symbol, for type? calls
-(declare-type wvehicle process)
-(define-extern wvehicle type) ;; the type symbol, for type? calls
 (define-extern hud-slowmo type) ;; the type symbol, for spawn/type? calls
 (define-extern cam-fixed (state camera-slave))
 (define-extern cam-fixed-read-entity (state camera-slave))
@@ -58683,16 +58748,20 @@
 ;; wcar-base                      ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
+;; og:preserve-this see goal_src/jakx/levels/common/wcar-base.gc: both
+;; fields landed as extent-true 128-byte pads (the brief's own §2.3 called
+;; this type "zero own fields", but the capture holds two, both UNKNOWN 4);
+;; a 12-byte pad precedes them and a 128-byte pad closes the asserted size.
 (deftype wcar-base (wvehicle)
-  ((jmod-shock-tops UNKNOWN 4 :offset-assert 4672)
-   (jmod-shock-mids UNKNOWN 4 :offset-assert 4800)
+  ((pad-post-wvehicle uint8 12  :offset-assert 4660)
+   (jmod-shock-tops   uint8 128 :offset-assert 4672)
+   (jmod-shock-mids   uint8 128 :offset-assert 4800)
+   (pad-tail          uint8 128 :offset-assert 4928)
    )
   :method-count-assert 272
   :size-assert         #x13c0
   :flag-assert         #x110133013c0
   )
-|#
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

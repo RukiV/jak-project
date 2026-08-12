@@ -59,6 +59,40 @@
               :bounds (static-spherem 0 1 0 3)
               )
 
+;; og:preserve-this permanent car-art skelgroup (M1 vehicle-leg rung 2): jakx-
+;; vehicle-spawn's donor art is the falcon chassis, JAKVL.DGO's own body panel
+;; (leg brief M1: "a single configured falcon (6 panels + one wheel)"), landed
+;; here beside skel-spotlight rather than in wcar-skel.gc (still a 9-line stub,
+;; sub-leg F body work, out of this rung's scope) for the same reason skel-ice-
+;; flag landed beside skel-spotlight on the racer-lifecycle branch: a permanent
+;; object (generic-obs.o, build order 299) that compiles before entity.o (329),
+;; so jakx-vehicle-spawn needs no forward-declare for this symbol.
+;;
+;; Transcribed verbatim from a scoped scratch decode of wcar-skel.o this rung
+;; (allowed_objects: wcar-skel, wcar-skel-template, wcar, wcar-mongoose,
+;; wcar-falcon; GAME.fr3 checked unaffected before and after, 2,111,127 B /
+;; 2026-08-10 16:14), output wcar-skel_disasm.gc:249-255. The joint indices (1,
+;; 6, and the three mg entries 2/3/4) are the decoder's own resolved values, not
+;; named symbols: wcar-skel.o was "never captured" before this rung (leg brief
+;; §2.2, zero types/externs on record) and no def-art-elt table anywhere in
+;; this tree names falcon-chassis's individual elements, unlike car-interior
+;; and antenna-all in the same output, which the decoder did resolve to names.
+;; Numeric indices are a normal, load-bearing defskelgroup form elsewhere in
+;; this same output (skel-v-snake, skel-v-snake-wheel), not a placeholder.
+;;
+;; This is only the chassis, one of the falcon's six panels; the doors, hood,
+;; fenders, roof and trunk panels are separate art-groups in the same DGO
+;; (jakvl.gd) that retail's own composition machinery (wcar-skel.gc, still
+;; unlanded) joint-mods onto it. A parked chassis-only spawn is the M1 floor,
+;; not the dressed car; retires once wcar-skel.gc lands the real composition.
+(defskelgroup skel-falcon-chassis falcon-chassis 1 6
+              ((2 (meters 20)) (3 (meters 40)) (4 (meters 999999)))
+              :bounds (static-spherem 0 0 0 6)
+              :shadow 5
+              :origin-joint-index 3
+              :shadow-joint-index 3
+              )
+
 ;; WARN: Return type mismatch object vs (pointer sparticle-launch-group).
 (defun entity-lookup-part-group ((arg0 entity-actor) (arg1 (pointer string)) (arg2 symbol))
   (with-pp

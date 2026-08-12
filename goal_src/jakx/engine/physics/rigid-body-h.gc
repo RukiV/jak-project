@@ -7,6 +7,58 @@
 
 ;; DECOMP BEGINS
 
+(deftype rigid-body-info (structure)
+  ((max-time-step       float          :offset-assert 0)
+   (mass                float          :offset-assert 4)
+   (inv-mass            float          :offset-assert 8)
+   (linear-damping      float          :offset-assert 12)
+   (angular-damping     float          :offset-assert 16)
+   (bounce-factor       float          :offset-assert 20)
+   (friction-factor     float          :offset-assert 24)
+   (bounce-mult-factor  float          :offset-assert 28)
+   (cm-offset-joint     vector :inline :offset-assert 32)
+   (inv-inertial-tensor matrix :inline :offset-assert 48)
+   (inertial-tensor     matrix :inline :offset-assert 112)
+   (inertial-tensor-box meters 3       :offset-assert 176) ;; guessed by decompiler
+   (gravity             float          :offset-assert 188)
+   (max-ang-momentum    float          :offset-assert 192)
+   )
+  :method-count-assert 10
+  :size-assert         #xc4
+  :flag-assert         #xa000000c4
+  (:methods
+    (rigid-body-info-method-9 () none) ;; 9 ;; (rigid-body-info-method-9 (_type_) none)
+    )
+  )
+
+;; og:preserve-this the captured comment block re-declared every field of
+;; rigid-body-info (max-time-step, mass, inv-mass, linear/angular-damping,
+;; bounce/friction-factor, inertial-tensor-x/y/z, gravity) a second time under
+;; new names, all at the same offsets rigid-body-info's own :inline fields
+;; already cover (0-196). deftype.cpp's add_field_to_type rejects a redeclared
+;; name outright, and re-declaring the same bytes under a different name is
+;; exactly the state-time class of bug the target-h.gc R1 landing already hit
+;; (all-types.gc, target deftype: an inherited field re-listed under the
+;; child). Dropped rather than kept as a forced-:offset alias, since unlike
+;; target-h's state-object/uint32/float trio (three genuinely different
+;; *interpretations* of one union slot, all plausibly read that way by real
+;; code) these are the same float-for-float breakdown info already exposes;
+;; nothing is lost that (-> x info cm-offset-joint x) does not already reach.
+;; Retirement condition: a method-body decode that reads one of the dropped
+;; names directly (not through info) would justify restoring it as a forced
+;; :offset alias.
+(deftype rigid-body-object-constants (structure)
+  ((info rigid-body-info :inline :offset-assert 0)
+   (name symbol                  :offset-assert 196) ;; guessed by decompiler
+   )
+  :method-count-assert 10
+  :size-assert         #xc8
+  :flag-assert         #xa000000c8
+  (:methods
+    (rigid-body-object-constants-method-9 () none) ;; 9
+    )
+  )
+
 (deftype rigid-body-impact (structure)
   ((point    vector      :inline :offset-assert 0)
    (normal   vector      :inline :offset-assert 16)
@@ -20,4 +72,134 @@
   :method-count-assert 9
   :size-assert         #x44
   :flag-assert         #x900000044
+  )
+
+(deftype rb-perf-data (structure)
+  ((process           uint64     :offset-assert 0)
+   (t-rb-all          uint32     :offset-assert 8)
+   (t-rb-callback     uint32     :offset-assert 12)
+   (t-rb-fc           uint32     :offset-assert 16)
+   (t-rb-move         uint32     :offset-assert 20)
+   (t-rb-physics      uint32     :offset-assert 24)
+   ;; og:preserve-this 4 bytes unaccounted between t-rb-physics (ends 28) and
+   ;; t-vqp-all (32): no field name for it in the capture and this scoped
+   ;; decode's rigid-body-h.o inspect method never prints rb-perf-data's own
+   ;; fields (it is a plain pointer target, not inline anywhere on this
+   ;; rung's chain). Extent-true pad; a decode of whatever function actually
+   ;; writes this counter block would resolve it. Debug-only telemetry, not
+   ;; on the M1 path.
+   (pad-vqp-gap       uint8   4  :offset-assert 28)
+   (t-vqp-all         uint32     :offset-assert 32)
+   (t-vqp-common      uint32     :offset-assert 36)
+   (t-vqp-ja-post     uint32     :offset-assert 40)
+   (t-vqp-parts       uint32     :offset-assert 44)
+   (t-vqp-post        uint32     :offset-assert 48)
+   (t-vqp-sections    uint32     :offset-assert 52)
+   (t-vqp-sound       uint32     :offset-assert 56)
+   (t-nav-part1       uint32     :offset-assert 60)
+   (t-nav-part2       uint32     :offset-assert 64)
+   (t-nav-part3       uint32     :offset-assert 68)
+   (t-nav-part4       uint32     :offset-assert 72)
+   (t-nav-part5       uint32     :offset-assert 76)
+   (t-nav-part6       uint32     :offset-assert 80)
+   (t-nav-part7       uint32     :offset-assert 84)
+   (t-nav-part8       uint32     :offset-assert 88)
+   (t-nav-part9       uint32     :offset-assert 92)
+   (t-nav-part10      uint32     :offset-assert 96)
+   ;; og:preserve-this the captured field list declared t-part-turbo (@116)
+   ;; ahead of t-part-exhaust/smoke/scrape/wheels (@100-112); :offset-assert
+   ;; requires ascending declaration order (it checks against sequential
+   ;; auto-placement), reordered here by offset with no content change.
+   (t-part-exhaust    uint32     :offset-assert 100)
+   (t-part-smoke      uint32     :offset-assert 104)
+   (t-part-scrape     uint32     :offset-assert 108)
+   (t-part-wheels     uint32     :offset-assert 112)
+   (t-part-turbo      uint32     :offset-assert 116)
+   (t-part-debris     uint32     :offset-assert 120)
+   (t-part-water      uint32     :offset-assert 124)
+   (t-part-forcefield uint32     :offset-assert 128)
+   (t-prim-trails     uint32     :offset-assert 132)
+   ;; og:preserve-this begin-times/begin-counts/end-counts are captured as
+   ;; UNKNOWN 32-element arrays with no per-element type. Resolved to uint32,
+   ;; the same width as every other t-* counter in this struct (the array
+   ;; span, 128 bytes over 32 elements, is exactly 4 bytes/element and the
+   ;; three arrays pack back to back with zero gap: 136+128=264, 264+128=392,
+   ;; 392+128=520=size-assert). Debug-only telemetry; not on the M1 path.
+   (begin-times       uint32  32 :offset-assert 136)
+   (begin-counts      uint32  32 :offset-assert 264)
+   (end-counts        uint32  32 :offset-assert 392)
+   )
+  :method-count-assert 12
+  :size-assert         #x208
+  :flag-assert         #xc00000208
+  (:methods
+    (rb-perf-data-method-9 () none) ;; 9
+    (rb-perf-data-method-10 () none) ;; 10
+    (rb-perf-data-method-11 () none) ;; 11
+    )
+  )
+
+;; og:preserve-this rigid-body-object-flag is captured as an unresolved value
+;; type ("field rigid-body-object-flag is likely a value type"). A scoped
+;; decode of rigid-body-h.o's own inspect method ((method 3 rigid-body-object),
+;; rigid-body-h_ir2.asm) settles the width directly: `ld a2, 260(gp)` is a
+;; 64-bit load (declared offset 264 with the +4 basic-offset correction,
+;; docs/jakx-bringup-quickstart.md's offset trap: rigid-body-object is
+;; basic-derived via process-focusable/process/basic, so machine offsets here
+;; run 4 below declared). Landed as a plain uint64 rather than a defenum:
+;; the inspect method's own bit tests name only 4 of what is evidently a much
+;; wider bitfield (dead=8, damaged=4, disturbed=2, enable-collision=1, all
+;; confirmed against the same instruction sequence), and a full defenum needs
+;; the rest of the bits named from a body-landing rung, out of scope here
+;; (headers only, no method bodies this rung).
+(deftype rigid-body-object (process-focusable)
+  ((info               rigid-body-object-constants  :offset-assert 256)
+   (flags              uint64                       :offset-assert 264)
+   (max-time-step      float                        :offset-assert 272)
+   (incoming-attack-id uint32                        :offset-assert 276)
+   ;; og:preserve-this disturbed-time captured as `time-frame` (int64, 8
+   ;; bytes), but rigid-body-h.o's own inspect method reads it with
+   ;; `lwu a2, 276(gp)` (declared 280 with +4), a 4-byte unsigned load, and
+   ;; perf immediately follows at the confirmed offset 284 with no room for
+   ;; an 8-byte field in between. Resolved to uint32 per the load width; the
+   ;; format string prints it with ~D (plain integer), consistent with a
+   ;; truncated frame counter rather than a full time-frame.
+   (disturbed-time     uint32                        :offset-assert 280)
+   (perf               rb-perf-data                  :offset-assert 284)
+   )
+  :method-count-assert 89
+  :size-assert         #x120
+  :flag-assert         #x5900900120
+  (:methods
+    (rigid-body-object-method-59 () none) ;; 59
+    (rigid-body-object-method-60 () none) ;; 60
+    (rigid-body-object-method-61 () none) ;; 61
+    (rigid-body-object-method-62 () none) ;; 62
+    (rigid-body-object-method-63 () none) ;; 63
+    (rigid-body-object-method-64 () none) ;; 64
+    (rigid-body-object-method-65 () none) ;; 65
+    (rigid-body-object-method-66 () none) ;; 66
+    (rigid-body-object-method-67 () none) ;; 67
+    (rigid-body-object-method-68 () none) ;; 68
+    (rigid-body-object-method-69 () none) ;; 69
+    (rigid-body-object-method-70 () none) ;; 70
+    (rigid-body-object-method-71 () none) ;; 71
+    (rigid-body-object-method-72 () none) ;; 72
+    (rigid-body-object-method-73 () none) ;; 73
+    (rigid-body-object-method-74 () none) ;; 74
+    (rigid-body-object-method-75 () none) ;; 75
+    (rigid-body-object-method-76 () none) ;; 76
+    (rigid-body-object-method-77 () none) ;; 77
+    (rigid-body-object-method-78 () none) ;; 78
+    (rigid-body-object-method-79 () none) ;; 79
+    (rigid-body-object-method-80 () none) ;; 80
+    (rigid-body-object-method-81 () none) ;; 81
+    (rigid-body-object-method-82 () none) ;; 82
+    (rigid-body-object-method-83 () none) ;; 83
+    (rigid-body-object-method-84 () none) ;; 84
+    (rigid-body-object-method-85 () none) ;; 85
+    (rigid-body-object-method-86 () none) ;; 86
+    (rigid-body-object-method-87 () none) ;; 87
+    (rigid-body-object-method-88 () none) ;; 88
+    )
   )

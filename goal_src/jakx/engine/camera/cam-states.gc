@@ -13,13 +13,15 @@
 (declare-type net-mgr process)
 (declare-type net-player process)
 (declare-type hud-slowmo process)
-;; og:preserve-this bring-up minimal vehicle (full deftype still commented in all-types)
-(deftype vehicle (process-drawable)
-  ((vehicle-flags-264  uint64 :offset 264) ;; name guessed; flag-tested by cam-states
-   (cam-target-handle  handle :offset 752) ;; name guessed; truthy-tested and handle-derefed
-   )
-  )
-(declare-type wvehicle process-drawable)
+;; og:preserve-this bring-up shim retired: the real vehicle deftype lands in
+;; vehicle-h.gc this rung (feat/jakx-vehicle-types), built before cam-states.o
+;; (gd# 366 vs 467), so it is what resolves here now. Both shim fields
+;; carried over: cam-target-handle keeps its name and offset (752, confirmed
+;; unchanged); vehicle-flags-264 turned out to be rigid-body-object's own
+;; inherited "flags" field (264 is inside rigid-body-object's own 256-288
+;; span, not a new field of vehicle), so its two call sites below now read
+;; -> flags instead. wvehicle's own forward declaration retires too:
+;; wvehicle-h.o (gd# 373) also precedes cam-states.o.
 
 (deftype net-mgr-game-state (structure)
   ((connect-handle     basic  :offset 0)
@@ -2858,7 +2860,7 @@
          (set! (-> *target-camera-runtime* shot) (the-as handle #f))
          (go empty-state)
          )
-        ((logtest? (-> (the-as vehicle gp-1) vehicle-flags-264) 8)
+        ((logtest? (-> (the-as vehicle gp-1) flags) 8)
          (send-event
            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
            'target-cam-stop

@@ -187,7 +187,26 @@
 (cgo-file "garage.gd" common-dep) ;; third bring-up level: the garage hub
 ;; (cgo-file "ashvl2.gd" common-dep)
 ;; (cgo-file "jkclev.gd" common-dep)
-;; (cgo-file "jakvl.gd" common-dep)
+;; og:preserve-this armed for the M1 vehicle-leg dev-lever (rung 2): jakvl is the
+;; falcon's car-body level, "a single configured falcon (6 panels + one wheel)"
+;; per the leg brief's M1 section, chosen over mongl (12 mongoose panels + 22
+;; wheel-ag, pricier) as "the cheaper and more retail-honest choice". Arming here
+;; only adds the DGO to the GOAL-side build; the level still needs
+;; ntsc_v1/inputs.jsonc's levels_to_extract (this rung's next commit) and a full
+;; task extract (explicitly out of this rung's scope, orchestrated separately)
+;; before JAKVL.fr3 exists and falcon-chassis art is actually resident. This is
+;; the first time jakvl.gd has ever gone through a real build: it uncovered two
+;; suffix typos in the .gd itself (fixed alongside this commit), a class of
+;; defect only a real cgo-file pass can catch since goalc classifies each entry
+;; by extension (project-lib.gp:190-221): "falcon-chassis-ag.o" routed through
+;; the GOAL-source compile path like every other jakx object's own code file,
+;; when every sibling panel is ".go"; "jakvl.o" did the same for the level's own
+;; entry, when a scoped decode of jakvl show zero functions (0.00ms, matching
+;; garage.go/brdroom.go, both pure background data with no code component,
+;; neither ending in ".o"). mongl.gd carries the same two-typo shape
+;; (mongoose-chassis-ag.o, mongl.o) as an unarmed, unverified sibling; left
+;; alone since this rung only arms one car.
+(cgo-file "jakvl.gd" common-dep)
 ;; (cgo-file "dra.gd" common-dep)
 ;; (cgo-file "kaelev.gd" common-dep)
 ;; (cgo-file "thbcred.gd" common-dep)

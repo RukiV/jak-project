@@ -7,3 +7,491 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this rigid-body-surface-flag resolved to uint8 (surface-type
+;; immediately follows at offset 1, leaving exactly one byte for flags).
+;; tire-roll-mix/tire-slide-mix (both captured UNKNOWN N) dropped as
+;; duplicate names for the same bytes the individually-named tire-roll-*/
+;; tire-slide-* floats already cover, same class as the other union-alias
+;; fixes this rung.
+(deftype rigid-body-surface (structure)
+  ((flags            uint8   :offset-assert 0)
+   (surface-type     uint8   :offset-assert 1)
+   (friction         float   :offset-assert 4)
+   (bounce           float   :offset-assert 8)
+   (drag             float   :offset-assert 12)
+   (depth            float   :offset-assert 16)
+   (damage           float   :offset-assert 20)
+   (scrape-sound     uint16  :offset-assert 24)
+   (glance-sound     uint16  :offset-assert 26)
+   (impact-sound     uint16  :offset-assert 28)
+   (tire-roll-hum    float   :offset-assert 32)
+   (tire-roll-dirt   float   :offset-assert 36)
+   (tire-roll-sand   float   :offset-assert 40)
+   (tire-roll-snow   float   :offset-assert 44)
+   (tire-roll-grass  float   :offset-assert 48)
+   (tire-roll-knobby float   :offset-assert 52)
+   (tire-slide-road  float   :offset-assert 56)
+   (tire-slide-dirt  float   :offset-assert 60)
+   )
+  :method-count-assert 9
+  :size-assert         #x40
+  :flag-assert         #x900000040
+  )
+
+;; forward declaration: callback below is typed against vehicle-wheel-state,
+;; declared later in this same file.
+(declare-type vehicle-wheel-state structure)
+
+(deftype vehicle-wheel-info (structure)
+  ((local-pos          vector                                                                   :inline :offset-assert 0)
+   (flags              uint64                                                                           :offset-assert 16) ;; vehicle-wheel-flag
+   (callback           (function rigid-body-object vehicle-wheel-state vehicle-wheel-info none)         :offset-assert 24) ;; guessed by decompiler
+   (inertia            float                                                                            :offset-assert 28)
+   (radius             float                                                                            :offset-assert 32)
+   (susp-arm-length    float                                                                            :offset-assert 36)
+   (steer-arm-length   float                                                                            :offset-assert 40)
+   (scale              float                                                                            :offset-assert 44)
+   (travel             float                                                                            :offset-assert 48)
+   (probe-x-offset     float                                                                            :offset-assert 52)
+   (probe-y-offset     float                                                                            :offset-assert 56)
+   (suspension-spring  float                                                                            :offset-assert 60)
+   (suspension-damping float                                                                            :offset-assert 64)
+   (forward-grip       float                                                                            :offset-assert 68)
+   (side-grip          float                                                                            :offset-assert 72)
+   (max-brake-torque   float                                                                            :offset-assert 76)
+   (camber             float                                                                            :offset-assert 80)
+   (x-scale            float                                                                            :offset-assert 84)
+   (probe-radius       float                                                                            :offset-assert 88)
+   (width              float                                                                            :offset-assert 92)
+   (settle-pos         float                                                                            :offset-assert 96)
+   )
+  :method-count-assert 9
+  :size-assert         #x64
+  :flag-assert         #x900000064
+  )
+
+(deftype vehicle-wheel-state (structure)
+  ((info             vehicle-wheel-info               :offset-assert 0)
+   (flags            uint8                            :offset-assert 4)
+   (prev-flags       uint8                            :offset-assert 5)
+   (handle           uint64                           :offset-assert 8) ;; handle
+   (probe-local-pos  vector                   :inline :offset-assert 16)
+   (probe-local-dir  vector                   :inline :offset-assert 32)
+   (local-axis       vector                   :inline :offset-assert 48)
+   (surface-pos      vector                   :inline :offset-assert 64)
+   (ground-pos       vector                   :inline :offset-assert 80)
+   (ground-normal    vector                   :inline :offset-assert 96)
+   (trans            vector                   :inline :offset-assert 112)
+   (quat             quaternion               :inline :offset-assert 128)
+   (trail-pos        vector                   2 :inline :offset-assert 144) ;; guessed by decompiler
+   (surface          rigid-body-surface               :offset-assert 176) ;; vehicle-wheel-surface
+   (pos              float                            :offset-assert 180)
+   (pos2             float                            :offset-assert 184)
+   (inertia          float                            :offset-assert 188)
+   (steer-angle      float                            :offset-assert 192)
+   (angle            float                            :offset-assert 196)
+   (rev              float                            :offset-assert 200)
+   (x-scale          float                            :offset-assert 204)
+   (torque           float                            :offset-assert 208)
+   (braking-torque   float                            :offset-assert 212)
+   (up-force         float                            :offset-assert 216)
+   (drive-diff       float                            :offset-assert 220)
+   (side-vel         float                            :offset-assert 224)
+   (up-vel           float                            :offset-assert 228)
+   (forward-vel      float                            :offset-assert 232)
+   (forward-slip-vel float                            :offset-assert 236)
+   (friction-coef    float                            :offset-assert 240)
+   (sink-depth       float                            :offset-assert 244)
+   (sin-susp-ang     float                            :offset-assert 248)
+   (cos-susp-ang     float                            :offset-assert 252)
+   (part-birth-accum sparticle-launch-control 4       :offset-assert 256) ;; guessed by decompiler
+   (tread-time       uint32                           :offset-assert 272)
+   (tread-tracker    uint64                           :offset-assert 280) ;; handle
+   )
+  :method-count-assert 9
+  :size-assert         #x120
+  :flag-assert         #x900000120
+  )
+
+;; og:preserve-this :pack-me: wvehicle's own net-extra field lands at the
+;; confirmed offset 2140 (raw 2136 + 4, both the original capture and this
+;; rung's own decode of wvehicle-h.o's inspect method agree), which is not
+;; 16-byte aligned. Every :inline structure in this type system defaults to
+;; 16-byte alignment (STRUCTURE_ALIGNMENT) regardless of its own contents
+;; unless marked :pack-me, in which case inline placement uses the type's
+;; own tightest field alignment (4, for this all-float structure) instead.
+(deftype wvehicle-net-extra (structure)
+  ((desired-steering  float  :offset-assert 0)
+   (desired-throttle  float  :offset-assert 4)
+   (desired-wheel-rev float  :offset-assert 8)
+   )
+  :method-count-assert 9
+  :size-assert         #xc
+  :flag-assert         #x90000000c
+  :pack-me
+  )
+
+;; og:preserve-this race-control's own fields (state/racer-state/mesh/line)
+;; are all plain, non-inline pointers (4 bytes each, closing race-control's
+;; own size-assert exactly at 0x10), so the pointee types only need to
+;; exist for the field declarations to resolve; their own internal layouts
+;; are not on this rung's critical path. race-state, racer-state, race-mesh
+;; and race-line are all forced dependencies outside the brief's M1 header
+;; list (rigid-body-h/vehicle-h/wvehicle-h); race-state alone is on the
+;; §2.5 punch list at +920 (1,072 asserted vs 152 fields captured), a
+;; reconciliation this rung is not scoped for. Forward-declared minimally
+;; per the brief's own §5 minimum-and-flag guidance.
+(declare-type race-state basic)
+(declare-type racer-state basic)
+(declare-type race-mesh basic)
+(declare-type race-line basic)
+
+;; og:preserve-this :pack-me: wvehicle's own race field lands at the
+;; confirmed offset 2168, not 16-byte aligned; see wvehicle-net-extra above
+;; for why plain pointer-only structures need this to place correctly.
+(deftype race-control (structure)
+  ((state       race-state   :offset-assert 0)
+   (racer-state racer-state  :offset-assert 4)
+   (mesh        race-mesh    :offset-assert 8) ;; guessed by decompiler
+   (line        race-line    :offset-assert 12)
+   )
+  :method-count-assert 10
+  :size-assert         #x10
+  :flag-assert         #xa00000010
+  :pack-me
+  (:methods
+    (race-control-method-9 () none) ;; 9 ;; (race-control-method-9 (_type_ int vector) none)
+    )
+  )
+
+;; og:preserve-this nav-location is a forced dependency outside the brief's
+;; M1 header list (wvehicle-ai-destination needs it :inline): the whole nav
+;; system (nav-mesh.gc equivalent) is still a goal_src stub despite
+;; all-types.gc showing nav-mesh with 46 real methods, so nav-location has
+;; no home to pull from yet. Landed at the minimum per the brief's §5
+;; guidance: nav-mesh/nav-poly forward-declared (nav-location only holds
+;; pointers to them), nav-location itself fully defined since it is used
+;; inline here. Belongs in nav-mesh.gc or nav-control-h.gc once that system
+;; lands; relocate then rather than duplicate.
+(declare-type nav-mesh basic)
+(declare-type nav-poly basic)
+
+(deftype nav-location (structure)
+  ((nav-mesh nav-mesh :offset-assert 0)
+   (nav-poly nav-poly :offset-assert 4)
+   )
+  :method-count-assert 9
+  :size-assert         #x8
+  :flag-assert         #x900000008
+  )
+
+(deftype wvehicle-ai-destination (structure)
+  ((final-position vector       :inline :offset-assert 0)
+   (position       vector       :inline :offset-assert 16)
+   (velocity       vector       :inline :offset-assert 32)
+   (nav-location   nav-location :inline :offset-assert 48)
+   (handle         uint64               :offset-assert 56)
+   )
+  :method-count-assert 9
+  :size-assert         #x40
+  :flag-assert         #x900000040
+  )
+
+(deftype wvehicle-ai-state (structure)
+  ((destination             wvehicle-ai-destination :inline :offset-assert 0)
+   (nav-location            nav-location            :inline :offset-assert 64)
+   (current-travel          vector                  :inline :offset-assert 80)
+   (previous-steering-error float                           :offset-assert 96)
+   (no-physics-speed        float                           :offset-assert 100)
+   (blocked-timer           float                           :offset-assert 104)
+   (reverse-timer           float                           :offset-assert 108)
+   (flags                   uint32                          :offset-assert 112)
+   (desired-speed           float                           :offset-assert 116)
+   (weapon-timer            uint64                          :offset-assert 120)
+   (weapon-aggression       float                           :offset-assert 128)
+   (mode                    uint8                           :offset-assert 132)
+   )
+  :method-count-assert 9
+  :size-assert         #x85
+  :flag-assert         #x900000085
+  )
+
+;; og:preserve-this loops landed as an extent-true 32-byte pad rather than
+;; "wvehicle-engine-loop-state 2": that type's own size-assert (5 bytes,
+;; id+index) does not divide the 32-byte span evenly under any of GOAL's
+;; array-sizing rules (TypeSystem.cpp:1360-1414: 2x4=8 non-inline reference,
+;; or 2x align(5,N) inline), so the true element layout is under-captured.
+;; wvehicle-engine-mix-state's own size-assert (32) is confirmed by its use
+;; as an inline field twice in wvehicle (min/max-load-engine-mix-state);
+;; the internal breakdown is not on this rung's critical path.
+(deftype wvehicle-engine-mix-state (structure)
+  ((loops uint8 32 :offset-assert 0)
+   )
+  :method-count-assert 9
+  :size-assert         #x20
+  :flag-assert         #x900000020
+  )
+
+;; og:preserve-this dropped "data" (captured UNKNOWN 4, :offset-assert 0):
+;; the brief's own field-extent arithmetic (§2.5) assumed 4 bytes/element
+;; for an untyped UNKNOWN field, computing "fields end 16" against this
+;; type's actual 4-byte size-assert, the -12 delta on the punch list. "data"
+;; is a duplicate alias for the same 4 bytes the four int8 fields (and
+;; "blob") already cover, same union-alias class as this rung's other
+;; fixes; dropping it closes the delta exactly with no pad needed.
+;; og:preserve-this :pack-me: wvehicle's own prev-wpn-sync field lands at
+;; the confirmed offset 4584, not 16-byte aligned.
+(deftype wvehicle-weapon-sync-blob (structure)
+  ((wpn-left-type     int8      :offset-assert 0)
+   (wpn-right-type    int8      :offset-assert 1)
+   (wpn-left-powerup  int8      :offset-assert 2)
+   (wpn-right-powerup int8      :offset-assert 3)
+   (blob              int32     :offset 0)
+   )
+  :method-count-assert 9
+  :size-assert         #x4
+  :flag-assert         #x900000004
+  :pack-me
+  )
+
+(deftype wvehicle-sound-loop-state (structure)
+  ((id    sound-id  :offset-assert 0) ;; guessed by decompiler
+   (vol   float     :offset-assert 4)
+   (pitch float     :offset-assert 8)
+   )
+  :method-count-assert 9
+  :size-assert         #xc
+  :flag-assert         #x90000000c
+  )
+
+;; og:preserve-this three fields marked :inline that the capture did not:
+;; wheel (vehicle-wheel-state 4), tire-roll-loop-state
+;; (wvehicle-sound-loop-state 6), tire-slide-loop-state
+;; (wvehicle-sound-loop-state 2). Each is confirmed by the gap to the next
+;; captured field, exact to the byte: wheel spans 2480-3632 (1,152 =
+;; 4 x sizeof(vehicle-wheel-state)); tire-roll-loop-state spans 3664-3760
+;; (96 = 6 x 16, the type's own 12-byte size rounded up to its inline array
+;; stride alignment); tire-slide-loop-state spans 3760-3792 (32 = 2 x 16).
+;; A non-inline array of a reference type reserves only array_size x
+;; POINTER_SIZE (TypeSystem.cpp:1381-1388), which is nowhere near any of
+;; these spans; the captured offsets only make sense as inline arrays.
+(deftype wvehicle (vehicle)
+  ((net-extra                      wvehicle-net-extra        :inline :offset-assert 2140)
+   (antenna                        uint64                            :offset-assert 2152)
+   (fire-tracker                   uint64                            :offset-assert 2160)
+   (race                           race-control              :inline :offset-assert 2168)
+   (ai                             wvehicle-ai-state         :inline :offset-assert 2192)
+   (engine-rev                     float                             :offset-assert 2328)
+   (engine-inertia                 float                             :offset-assert 2332)
+   (engine-torque                  float                             :offset-assert 2336)
+   (engine-max-torque              float                             :offset-assert 2340)
+   (engine-rpm                     float                             :offset-assert 2344)
+   (engine-load                    float                             :offset-assert 2348)
+   (sound-engine-rpm               float                             :offset-assert 2352)
+   (sound-engine-load              float                             :offset-assert 2356)
+   (sound-engine-envelope          float                             :offset-assert 2360)
+   (wheel-rev                      float                             :offset-assert 2364)
+   (wheel-inertia                  float                             :offset-assert 2368)
+   (wheel-torque                   float                             :offset-assert 2372)
+   (wheel-braking-torque           float                             :offset-assert 2376)
+   (wheel-ground-torque            float                             :offset-assert 2380)
+   (clutch-grab                    float                             :offset-assert 2384)
+   (gear-ratio                     float                             :offset-assert 2388)
+   (final-drive-ratio              float                             :offset-assert 2392)
+   (total-gear-ratio               float                             :offset-assert 2396)
+   (inv-total-gear-ratio           float                             :offset-assert 2400)
+   (avg-drive-wheel-radius         float                             :offset-assert 2404)
+   (drive-wheel-inertia            float                             :offset-assert 2408)
+   (clutch-inertia                 float                             :offset-assert 2412)
+   (idle-throttle                  float                             :offset-assert 2416)
+   (wheelbase                      float                             :offset-assert 2420)
+   (f-track-width                  float                             :offset-assert 2424)
+   (r-track-width                  float                             :offset-assert 2428)
+   (susp-spring-control            float                             :offset-assert 2432)
+   (jump-control                   float                             :offset-assert 2436)
+   (shortcut-speed-factor          float                             :offset-assert 2440)
+   (path-deviation                 float                             :offset-assert 2444)
+   ;; og:preserve-this dropped "turbo-supply" (captured :offset-assert 704):
+   ;; 704 is inside vehicle's own range (near vehicle's speed-factor/behavior
+   ;; run, landed in the vehicle commit), nowhere near the surrounding
+   ;; 2400s here; a decompiler cross-contamination artifact, not a real
+   ;; wvehicle field.
+   (turbo-ready                    float                             :offset-assert 2448)
+   (slide-factor                   float                             :offset-assert 2452)
+   (slide-time                     uint32                            :offset-assert 2456)
+   (max-speed                      float                             :offset-assert 2460)
+   (shift-state                    uint8                             :offset-assert 2464)
+   (gear-select                    int8                              :offset-assert 2465)
+   (next-gear-select               int8                              :offset-assert 2466)
+   (shift-time                     uint32                            :offset-assert 2468)
+   ;; og:preserve-this 8 bytes unaccounted (2472-2480).
+   (pad-pre-wheel                  uint8                              8 :offset-assert 2472)
+   (wheel                          vehicle-wheel-state       4 :inline :offset-assert 2480)
+   (gravity-dir                    vector                    :inline :offset-assert 3632)
+   (surface-velocity               vector                    :inline :offset-assert 3648)
+   (tire-roll-loop-state           wvehicle-sound-loop-state 6 :inline :offset-assert 3664)
+   (tire-slide-loop-state          wvehicle-sound-loop-state 2 :inline :offset-assert 3760)
+   ;; og:preserve-this dropped "engine-mix-state-array" (captured UNKNOWN 2
+   ;; :offset-assert 3792): duplicate alias for the same span
+   ;; min-load-engine-mix-state/max-load-engine-mix-state already cover.
+   (min-load-engine-mix-state      wvehicle-engine-mix-state :inline :offset-assert 3792)
+   (max-load-engine-mix-state      wvehicle-engine-mix-state :inline :offset-assert 3824)
+   (damage-sound-id                sound-id                          :offset-assert 3856) ;; guessed by decompiler
+   (water-sound-id                 sound-id                          :offset-assert 3860) ;; guessed by decompiler
+   (wheel-fire-sound-id            uint32                            :offset-assert 3864)
+   (oil-sound-id                   uint32                            :offset-assert 3868)
+   (turbo-sound-id                 sound-id                          :offset-assert 3872) ;; guessed by decompiler
+   (turbo-sound2-id                uint32                            :offset-assert 3876)
+   (car-fire-loop                  uint32                            :offset-assert 3880)
+   (hang-time-sound-id             uint32                            :offset-assert 3884)
+   (overturned-time                uint32                            :offset-assert 3888)
+   (engine-steady-time             uint32                            :offset-assert 3892)
+   (splash-time                    uint32                            :offset-assert 3896)
+   (knobby-time                    uint32                            :offset-assert 3900)
+   (susp-creak-time                uint32                            :offset-assert 3904)
+   (ground-time                    uint32                            :offset-assert 3908)
+   (jump-time                      uint32                            :offset-assert 3912)
+   (no-slide-time                  uint32                            :offset-assert 3916)
+   (slide-distance                 float                             :offset-assert 3920)
+   (power-slide-hud                uint64                            :offset-assert 3928)
+   (hang-time-hud                  uint64                            :offset-assert 3936)
+   (hang-time                      float                             :offset-assert 3944)
+   (next-slide-sound-play-distance float                             :offset-assert 3948)
+   (attached-array                 handle                    16      :offset-assert 3952) ;; guessed by decompiler
+   (eng-pitch-offset               float                             :offset-assert 4080)
+   (eng-pitch-variance             float                             :offset-assert 4084)
+   (eng-pitch-variance-seek        float                             :offset-assert 4088)
+   (eng-vol-variance               float                             :offset-assert 4092)
+   (eng-vol-variance-seek          float                             :offset-assert 4096)
+   (turbo-pitch                    float                             :offset-assert 4100)
+   (health-pickup-multiplier       float                             :offset-assert 4104)
+   ;; og:preserve-this jmod-steering-wheel captured as joint-mod-rotate-local
+   ;; :inline (size 0x20/32B). Landed as an extent-true pad of the same
+   ;; width instead of pulling in that type: it extends joint-mod-base,
+   ;; part of the animation/joint system, and neither is landed anywhere in
+   ;; goal_src yet (all-types.gc shows both live, but that file is ahead of
+   ;; goal_src here, not a source (mi) reads). Out of this rung's minimum
+   ;; per the brief's §5 guidance; land the real type once joint-mod-base
+   ;; has a home.
+   ;; og:preserve-this 4 bytes unaccounted (4108-4112).
+   (pad-pre-jmod-steering-wheel    uint8                     4         :offset-assert 4108)
+   (jmod-steering-wheel            uint8                     32        :offset-assert 4112)
+   ;; og:preserve-this jmod-frame/jmod-axles (both captured UNKNOWN) landed
+   ;; as extent-true pads: 4144-4272 (128B, 2 elements = 64B each) and
+   ;; 4272-4464 (192B, 4 elements = 48B each). Neither width matches
+   ;; joint-mod-rotate-local's own size (32B/0x20), so these are a
+   ;; different joint-mod type this rung does not identify.
+   (jmod-frame                     uint8                     128     :offset-assert 4144)
+   (jmod-axles                     uint8                     192     :offset-assert 4272)
+   (water-sound-envelope           float                             :offset-assert 4464)
+   ;; og:preserve-this 16 bytes unaccounted (4468-4488).
+   (pad-pre-wpn-current-target     uint8                     16      :offset-assert 4468)
+   (wpn-current-target             uint64                            :offset-assert 4488)
+   (wpn-current-target-acquired    uint64                            :offset-assert 4496)
+   (wpn-left                       uint64                            :offset-assert 4504)
+   (wpn-right                      uint64                            :offset-assert 4512)
+   (wpn-shield                     uint64                            :offset-assert 4520)
+   (wpn-drone                      uint64                            :offset-assert 4528)
+   (wpn-oil                        uint64                            :offset-assert 4536)
+   (wpn-turbo                      uint64                            :offset-assert 4544)
+   (wpn-bulldog-gun                uint64                            :offset-assert 4552)
+   ;; og:preserve-this dropped "wpn-drawables" (captured UNKNOWN 2), a
+   ;; duplicate alias for the same span wpn-drawable-left/right cover.
+   (wpn-drawable-left              uint64                            :offset-assert 4560)
+   (wpn-drawable-right             uint64                            :offset-assert 4568)
+   (wpn-spin-done-left             int32                             :offset-assert 4576)
+   (wpn-spin-done-right            int32                             :offset-assert 4580)
+   (prev-wpn-sync                  wvehicle-weapon-sync-blob :inline :offset-assert 4584)
+   (turbo-suppressor-particle      basic                             :offset-assert 4588)
+   (dark-seeking-me                basic                             :offset-assert 4592)
+   (dark-suck-sound-pending        int8                              :offset-assert 4596)
+   ;; og:preserve-this 3 bytes unaccounted (4597-4600).
+   (pad-pre-vehicle-exhaust        uint8                     3       :offset-assert 4597)
+   ;; og:preserve-this vehicle-exhaust-subsampler/wheel-launcher/
+   ;; wheel-fire-launcher (all captured UNKNOWN) landed as extent-true pads
+   ;; spanning their own gaps (4600-4608, 8B; 4608-4624, 16B; 4624-4640,
+   ;; 16B); no raw load in this scoped decode resolves their element types.
+   (vehicle-exhaust-subsampler     uint8                     8       :offset-assert 4600)
+   (wheel-launcher                 uint8                     16      :offset-assert 4608)
+   (wheel-fire-launcher            uint8                     16      :offset-assert 4624)
+   (hack-armed-right               basic                             :offset-assert 4640)
+   (hack-armed-left                basic                             :offset-assert 4644)
+   (shake-amount                   float                             :offset-assert 4648)
+   (whoosh-sound-id                uint32                            :offset-assert 4652)
+   (sink-sound-id                  uint32                            :offset-assert 4656)
+   )
+  :method-count-assert 272
+  :size-assert         #x1234
+  :flag-assert         #x11011b01234
+  (:methods
+    (wvehicle-method-204 () none) ;; 204
+    (wvehicle-method-205 () none) ;; 205
+    (wvehicle-method-206 () none) ;; 206
+    (wvehicle-method-207 () none) ;; 207
+    (wvehicle-method-208 () none) ;; 208
+    (wvehicle-method-209 () none) ;; 209
+    (wvehicle-method-210 () none) ;; 210
+    (wvehicle-method-211 () none) ;; 211
+    (wvehicle-method-212 () none) ;; 212
+    (wvehicle-method-213 () none) ;; 213
+    (wvehicle-method-214 () none) ;; 214
+    (wvehicle-method-215 () none) ;; 215
+    (wvehicle-method-216 () none) ;; 216
+    (wvehicle-method-217 () none) ;; 217
+    (wvehicle-method-218 () none) ;; 218
+    (wvehicle-method-219 () none) ;; 219
+    (wvehicle-method-220 () none) ;; 220
+    (wvehicle-method-221 () none) ;; 221
+    (wvehicle-method-222 () none) ;; 222
+    (wvehicle-method-223 () none) ;; 223
+    (wvehicle-method-224 () none) ;; 224
+    (wvehicle-method-225 () none) ;; 225
+    (wvehicle-method-226 () none) ;; 226
+    (wvehicle-method-227 () none) ;; 227
+    (wvehicle-method-228 () none) ;; 228
+    (wvehicle-method-229 () none) ;; 229
+    (wvehicle-method-230 () none) ;; 230
+    (wvehicle-method-231 () none) ;; 231
+    (wvehicle-method-232 () none) ;; 232
+    (wvehicle-method-233 () none) ;; 233
+    (wvehicle-method-234 () none) ;; 234
+    (wvehicle-method-235 () none) ;; 235
+    (wvehicle-method-236 () none) ;; 236
+    (wvehicle-method-237 () none) ;; 237
+    (wvehicle-method-238 () none) ;; 238
+    (wvehicle-method-239 () none) ;; 239
+    (wvehicle-method-240 () none) ;; 240
+    (wvehicle-method-241 () none) ;; 241
+    (wvehicle-method-242 () none) ;; 242
+    (wvehicle-method-243 () none) ;; 243
+    (wvehicle-method-244 () none) ;; 244
+    (wvehicle-method-245 () none) ;; 245
+    (wvehicle-method-246 () none) ;; 246
+    (wvehicle-method-247 () none) ;; 247
+    (wvehicle-method-248 () none) ;; 248
+    (wvehicle-method-249 () none) ;; 249
+    (wvehicle-method-250 () none) ;; 250
+    (wvehicle-method-251 () none) ;; 251
+    (wvehicle-method-252 () none) ;; 252
+    (wvehicle-method-253 () none) ;; 253
+    (wvehicle-method-254 () none) ;; 254
+    (wvehicle-method-255 () none) ;; 255
+    (wvehicle-method-256 () none) ;; 256
+    (wvehicle-method-257 () none) ;; 257
+    (wvehicle-method-258 () none) ;; 258
+    (wvehicle-method-259 () none) ;; 259
+    (wvehicle-method-260 () none) ;; 260
+    (wvehicle-method-261 () none) ;; 261
+    (wvehicle-method-262 () none) ;; 262
+    (wvehicle-method-263 () none) ;; 263
+    (wvehicle-method-264 () none) ;; 264
+    (wvehicle-method-265 () none) ;; 265
+    (wvehicle-method-266 () none) ;; 266
+    (wvehicle-method-267 () none) ;; 267
+    (wvehicle-method-268 () none) ;; 268
+    (wvehicle-method-269 () none) ;; 269
+    (wvehicle-method-270 () none) ;; 270
+    (wvehicle-method-271 () none) ;; 271
+    )
+  )
+

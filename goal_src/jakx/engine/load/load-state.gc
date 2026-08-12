@@ -1685,6 +1685,45 @@
 ;; failed to figure out what this is:
 (kmemclose)
 
+;; og:preserve-this M1 vehicle-leg dev-lever (rung 2): the car-level want path.
+;; load-state-method-23 is the retail composer's own way to arm a car want slot
+;; (net-world.gc's R1 stub note, retail-staging ladder #192: method 23 called
+;; at net-world_ir2.asm:11689-11696 with 4 args, matching this branch's now-
+;; fixed declaration a few commits back), but its body is still an uncompiled
+;; failing decode on every branch that carries it (this file, "definition for
+;; method 23 of type load-state" above: "failed type prop", registers read but
+;; never set) -- there is nothing to call, and transcribing a body from a
+;; decode that does not decode would invent content AGENTS.md forbids.
+;;
+;; add-want-level is the primitive method 23's own body would bottom out on for
+;; the actual array write; add-borrow-levels above is the proven, working,
+;; in-tree caller ((-> this want-exp), a stack counter via (&...), name/
+;; display?/force-vis?/force-inside?/slot copied from an existing want entry).
+;; This wraps that same call against (-> *load-state* want) directly, the array
+;; net-world-method-76's own step 9 (net-world.gc) copies slots 6-17 from.
+;; *level* reserves slots 6-11 for car levels (leg brief M1, texture.gc:
+;; 1869-1876, level.gc:1486-1488), so index 6 is car slot 0. No physics, pilot
+;; or net composition here; this only arms the want entry the ordinary
+;; level-load tick already scans every frame.
+(defun jakx-vehicle-want-level! ((level-name symbol))
+  "REPL lever: (jakx-vehicle-want-level! 'jakvl) wants the named car level into
+*load-state*'s want slot 6 (car slot 0), the same array net-world's own step 9
+reads from for the retail composer. Pass #f to clear the slot. Retires once
+load-state-method-23 decodes cleanly and the real retail composer (net-world
+steps 7-8) lands."
+  (let ((idx 6))
+    (add-want-level (-> *load-state* want)
+                     (the-as (pointer int64) (& idx))
+                     level-name
+                     #f
+                     #f
+                     #f
+                     6
+                     )
+    )
+  (none)
+  )
+
 
 
 

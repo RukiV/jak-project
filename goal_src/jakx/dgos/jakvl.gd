@@ -1,10 +1,10 @@
 ("JAKVL.DGO"
- ("falcon-chassis-ag.o"
+ ("falcon-chassis-ag.go"
   "falcon-door-a-ag.go"
   "falcon-hood-a-ag.go"
   "falcon-r-fender-a-ag.go"
   "falcon-roof-a-ag.go"
   "falcon-trunk-a-ag.go"
   "wheel-h-ag.go"
-  "jakvl.o"
+  "jakvl.go"
  ))

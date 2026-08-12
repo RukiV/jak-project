@@ -219,6 +219,81 @@ taken, or if already spawned. Retires with the real vehicle chain."
   (none)
   )
 
+;; og:preserve-this M1 vehicle-leg dev-lever (rung 2): handle stored the same way
+;; *jakx-racer-handle* is (level.gc's own note, cited there in full): GOAL symbol
+;; value slots are 32 bits, so a bare handle-typed symbol would truncate the
+;; pid half on every store; a one-element 'static 'array of handle is a real
+;; 64-bit field instead. A separate slot from *jakx-racer-handle* on purpose,
+;; so the racer and a parked vehicle can coexist.
+(define *jakx-vehicle-handle* (new 'static 'array handle 1 (new 'static 'handle)))
+(set! (-> *jakx-vehicle-handle* 0) (the-as handle #f))
+
+(defun jakx-vehicle-spawn ((pos vector))
+  "og:preserve-this bring-up vehicle spawn (M1 vehicle-leg rung 2): fresh
+sibling to jakx-racer-spawn above, not a modification of it. Manual REPL
+lever: (jakx-vehicle-spawn (-> *jakx-want-driver-cp* trans)) after boot, or
+pass any explicit position. Spawns a manipy wearing skel-falcon-chassis
+(generic-obs.gc), the M1 milestone's parked, renderable car body: no
+physics, no driving, no pilot chain, no additional-spawner registration
+(that registry is a single slot already owned by jakx-racer-spawn --
+register-additional-spawner traps if called a second time while it is
+held -- and this vehicle sits at a fixed position near the start line,
+within ordinary visibility range, unlike the racer which travels the
+whole track and needs the vis-dist-additional-ok? bypass to match).
+Refuses if skel-falcon-chassis reads back as (zero? (the-as int ...)): an
+unbound symbol is truthy integer 0, not #f, because the symbol table is
+kmalloc'd with KMALLOC_MEMSET (game/kernel/jakx/kscheme.cpp:1550) and
+zero-fills every never-assigned symbol, so a plain (not skel) guard could
+never catch it (jakx-racer-spawn's own #193 fix). skel-falcon-chassis was
+landed this rung specifically as a permanent-object defskelgroup so it can
+never actually be unassigned; this check is defensive, not an expected
+failure path. Does NOT check that jakvl's own art is resident: JAKVL.DGO
+must be wanted (jakx-vehicle-want-level!, load-state.gc) and loaded first,
+or the chassis renders with placeholder art regardless of this guard.
+No-op if already spawned. Retires with the real vehicle chain."
+  (when (not (handle->process (-> *jakx-vehicle-handle* 0)))
+    (if (zero? (the-as int skel-falcon-chassis))
+        (format 0 "vehicle: skel-falcon-chassis unbound, refusing to spawn~%")
+        (let ((proc (the-as process-drawable
+                             (ppointer->process
+                               (process-spawn manipy
+                                              :init manipy-init
+                                              pos
+                                              #f
+                                              skel-falcon-chassis
+                                              #f
+                                              0
+                                              :name "jakx-vehicle"
+                                              :from *default-dead-pool*
+                                              :to *entity-pool*
+                                              )
+                                )
+                              )
+                    )
+              )
+          (when proc
+            (set! (-> *jakx-vehicle-handle* 0) (process->handle proc))
+            (format 0 "vehicle: spawned at <~m ~m ~m>~%"
+                    (-> proc root trans x)
+                    (-> proc root trans y)
+                    (-> proc root trans z)
+                    )
+            ;; og bring-up diagnostics, same shape as jakx-racer-spawn's own
+            ;; (#193 root-cause doc, section 5 "cheapest experiment"): confirm
+            ;; the donor/adoption story in one log read, no behavior change.
+            (format 0 "vehicle: donor level ~A~%" (-> proc level name))
+            (format 0 "vehicle: root-channel frame-group #x~X, donor heap [#x~X, #x~X)~%"
+                    (-> proc skel root-channel 0 frame-group)
+                    (-> proc level heap base)
+                    (-> proc level heap top-base)
+                    )
+            )
+          )
+        )
+    )
+  (none)
+  )
+
 ;; og:preserve-this jakx viewport delta vs jak3: actors-update captures the active
 ;; math camera position per viewport into these, and the vis distance checks below
 ;; test both when *view-count* is 2. jak3 keeps a single camera-pos local instead.
