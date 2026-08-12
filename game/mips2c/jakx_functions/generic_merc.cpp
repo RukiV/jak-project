@@ -1508,7 +1508,7 @@ u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
   bool bc = false;
   u32 call_addr = 0;
-  u16 vis[16];
+  u16 vis[16] = {}; // interim guard, retire once the last generic_merc marker is adjudicated
   get_fake_spad_addr2(v1, cache.fake_scratchpad_data, 0, c);// lui v1, 28672
   c->lw(a0, 7436, v1);                              // lw a0, 7436(v1)
   c->daddiu(a1, a0, 448);                           // daddiu a1, a0, 448
@@ -2262,7 +2262,7 @@ u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
   bool bc = false;
   u32 call_addr = 0;
-  u16 vis[16];
+  u16 vis[16] = {}; // interim guard, retire once the last generic_merc marker is adjudicated
   get_fake_spad_addr2(at, cache.fake_scratchpad_data, 0, c);// lui at, 28672
   c->sq(s0, 7552, at);                              // sq s0, 7552(at)
   c->sq(s1, 7568, at);                              // sq s1, 7568(at)
@@ -3869,7 +3869,7 @@ u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
   bool bc = false;
   u32 call_addr = 0;
-  u16 vis[16];
+  u16 vis[16] = {}; // interim guard, retire once the last generic_merc marker is adjudicated
   c->daddiu(sp, sp, -128);                          // daddiu sp, sp, -128
   c->sq(s0, 16, sp);                                // sq s0, 16(sp)
   c->sq(s1, 32, sp);                                // sq s1, 32(sp)
