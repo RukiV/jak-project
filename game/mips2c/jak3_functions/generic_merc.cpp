@@ -821,7 +821,7 @@ void vcallms_311(ExecutionContext* c, u16* vis) {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
   bool bc = false;
-  u16 vis[16];
+  u16 vis[16] = {}; // interim guard, retire once the last generic_merc marker is adjudicated
   get_fake_spad_addr2(at, cache.fake_scratchpad_data, 0, c);// lui at, 28672
   c->sq(s0, 7536, at);                              // sq s0, 7536(at)
   c->sq(s1, 7552, at);                              // sq s1, 7552(at)
@@ -1960,7 +1960,7 @@ void vcallms_454(ExecutionContext* c, u16* vis) {
 u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
   bool bc = false;
-  u16 vis[16];
+  u16 vis[16] = {}; // interim guard, retire once the last generic_merc marker is adjudicated
   get_fake_spad_addr2(v1, cache.fake_scratchpad_data, 0, c);// lui v1, 28672
   c->lw(a0, 7436, v1);                              // lw a0, 7436(v1)
   c->daddiu(a1, a0, 448);                           // daddiu a1, a0, 448

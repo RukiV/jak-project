@@ -601,7 +601,7 @@ u64 execute(void* ctxt) {
   auto* c = (ExecutionContext*)ctxt;
   bool bc = false;
   u32 call_addr = 0;
-  u16 vis[16];
+  u16 vis[16] = {}; // interim guard, retire once the last generic_merc marker is adjudicated
   c->mov64(v1, a0);                                 // or v1, a0, r0
   c->mov64(v1, a1);                                 // or v1, a1, r0
   c->mov64(v1, a2);                                 // or v1, a2, r0
