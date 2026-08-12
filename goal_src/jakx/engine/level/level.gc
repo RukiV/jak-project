@@ -1996,12 +1996,20 @@
 ;; declared before use within a file same as across files; jakx-racer-spawn and
 ;; *additional-spawner-count* additionally live in entity.gc, which builds
 ;; after level.gc in game.gd (entity.gc:329 vs level.gc:267). Same forward-decl
-;; shape as entity.gc's own skel-jungle-clay-jar-a extern.
+;; shape as entity.gc's own skel-jungle-clay-jar-a extern. The last four are the
+;; #193 rework's deferred-respawn record (see the racer lever block below for
+;; why they are plain fields, not a handle container): the hook only arms them,
+;; jakx-racer-tick is the sole consumer and is declared after they are, so it
+;; needs no forward decl of its own.
 (define-extern jakx-racer-spawn (function none))
 (define-extern *additional-spawner-count* int)
 (define-extern *jakx-racer* symbol)
 (define-extern *jakx-racer-handle* (pointer handle))
 (define-extern *jakx-racer-track-index* int)
+(define-extern *jakx-racer-respawn-pending* symbol)
+(define-extern *jakx-racer-respawn-trans* vector)
+(define-extern *jakx-racer-respawn-track-index* int)
+(define-extern *jakx-racer-respawn-exclude-level* symbol)
 
 ;; definition for method 9 of type level
 ;; INFO: Used lq/sq
@@ -2030,9 +2038,9 @@
        (send-event (view-get-target s5-1) 'level-deactivate (-> this name))
        )
      (remove-by-param1 *background-draw-engine* (the-as int (-> this bsp)))
-     ;; og:preserve-this bring-up racer level-lifecycle guard (#193): the racer
-     ;; manipy (#152's placeholder, jakx-racer-spawn in entity.gc) has no entity
-     ;; and no level of its own, so #162's cross-level art resolution
+     ;; og:preserve-this bring-up racer level-lifecycle guard (#193, reworked):
+     ;; the racer manipy (#152's placeholder, jakx-racer-spawn in entity.gc) has
+     ;; no entity and no level of its own, so #162's cross-level art resolution
      ;; (process-drawable.gc:619+, landed a95b237a2) homes it on whichever
      ;; currently-resident level happens to hold jungle-clay-jar-a-ag, writing
      ;; that level into the process's own level field. That level has no more
@@ -2048,45 +2056,40 @@
      ;; live racer exists AND this is the exact level it adopted art from, so
      ;; every other level's deactivate is a no-op handle read. Kill it through
      ;; the real process deactivate (not a raw free) so draw-control/skel/
-     ;; node-list all get torn down together, then respawn from whatever level
-     ;; is currently resident if the racer is still armed: #162 always finds a
-     ;; donor since every jungle DGO but junglex carries the same art group, and
-     ;; its own fallback ('load) covers the case where none does. This is
-     ;; bring-up tooling riding a retail method: the racer is a dev puppet;
-     ;; retail behavior is unaffected by this bug and by this hook, since retail
-     ;; never spawns a parentless, entity-less, level-arted manipy. Retires with
-     ;; the real vehicle chain replacing the puppet (#152 names the tiers).
+     ;; node-list all get torn down together.
+     ;;
+     ;; The respawn is deferred, not inline, and that is the rework: the first
+     ;; landing called jakx-racer-spawn right here, but at this point in
+     ;; deactivate this level's status has not yet moved past 'active (this
+     ;; method only sets it to 'shutdown, and back to 'loaded, much further
+     ;; down), so the level is still a walkable resident and #162's donor scan
+     ;; (art-group-get-by-name) re-picks THIS SAME level as the racer's "new"
+     ;; donor. Proven by replay (gk-racer193.log:2496-2499): the immediately
+     ;; respawned racer logged the same donor level name (junglea), the same
+     ;; root-channel frame-group address (#x1be84d4) and the same heap range
+     ;; (#x1aeea20, #x1fdaa20) as the process that was just killed, so the JGC
+     ;; DGO stream that follows overwrites the new racer's art exactly like it
+     ;; did the old one and the crash still fires. Instead of respawning here,
+     ;; capture the racer's trans, track index, and this level's own name, then
+     ;; arm *jakx-racer-respawn-pending*: jakx-racer-tick (level-update, once per
+     ;; frame) holds off until this level's name no longer appears at status
+     ;; 'active or 'alive anywhere in *level*, which is the only condition that
+     ;; actually proves the donor scan cannot land back on this heap (see that
+     ;; function's own comment for the walk). This is bring-up tooling riding a
+     ;; retail method: the racer is a dev puppet; retail behavior is unaffected
+     ;; by this bug and by this hook, since retail never spawns a parentless,
+     ;; entity-less, level-arted manipy. Retires with the real vehicle chain
+     ;; replacing the puppet (#152 names the tiers).
      (let ((racer-proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0)))))
        (when (and racer-proc (= (-> racer-proc level) this))
-         (let ((old-trans (new 'stack-no-clear 'vector))
-               (old-track-index *jakx-racer-track-index*)
-               )
-           (set! (-> old-trans quad) (-> racer-proc root trans quad))
-           (format 0 "racer: donor level ~A deactivating, killing and respawning racer~%" (-> this name))
-           (deactivate racer-proc)
-           (set! (-> *jakx-racer-handle* 0) (the-as handle #f))
-           (set! *additional-spawner-count* 0)
-           (when *jakx-racer*
-             (jakx-racer-spawn)
-             ;; og:preserve-this respawn positioning (#193): jakx-racer-spawn
-             ;; always spawns fresh at *jakx-want-driver-cp*'s trans (entity.gc),
-             ;; which would restart the lap on every donor-level discard instead
-             ;; of continuing it. Hand the captured trans and track index back in
-             ;; after the fact rather than changing the spawn function's
-             ;; signature, since nothing else calls it with a position.
-             ;; *jakx-racer-track-index* is not actually touched by
-             ;; jakx-racer-spawn today (only the continue-point fallback's
-             ;; *jakx-racer-target-index* is reset), so this restore is currently
-             ;; a no-op safety net, kept explicit so a future change to
-             ;; jakx-racer-spawn cannot silently reintroduce the lap restart.
-             (let ((new-proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0)))))
-               (when new-proc
-                 (set! (-> new-proc root trans quad) (-> old-trans quad))
-                 (set! *jakx-racer-track-index* old-track-index)
-                 )
-               )
-             )
-           )
+         (set! (-> *jakx-racer-respawn-trans* quad) (-> racer-proc root trans quad))
+         (set! *jakx-racer-respawn-track-index* *jakx-racer-track-index*)
+         (set! *jakx-racer-respawn-exclude-level* (-> this name))
+         (format 0 "racer: donor level ~A deactivating, killing racer, deferring respawn~%" (-> this name))
+         (deactivate racer-proc)
+         (set! (-> *jakx-racer-handle* 0) (the-as handle #f))
+         (set! *additional-spawner-count* 0)
+         (set! *jakx-racer-respawn-pending* *jakx-racer*)
          )
        )
      (let ((s5-2 (-> this status)))
@@ -3289,6 +3292,31 @@ above; update! then streams the section window."
 ;; interleave is resolved as of the extractor's two-pass filter above.
 (define *jakx-racer-track-arrive-radius* (meters 50))
 
+;; og:preserve-this deferred-respawn record (#193 rework): the level-deactivate
+;; hook above used to call jakx-racer-spawn synchronously, from inside the
+;; dying donor level's own deactivate. At that point in the call the donor
+;; level has not yet left status 'active, so it is still walkable and #162's
+;; art-donor scan (art-group-get-by-name) re-picks that exact still-resident
+;; level as the racer's new donor, landing the respawned racer on the identical
+;; heap that is about to be overwritten. Replay proof
+;; (gk-racer193.log:2496-2499): the immediate respawn logged the same donor
+;; (junglea), the same frame-group address (#x1be84d4) and the same heap range
+;; as the process just killed. Deferring the respawn to jakx-racer-tick below,
+;; gated on the excluded level actually leaving 'active/'alive, is what lets
+;; the donor scan land on a level that will not be discarded out from under it
+;; again; see the hook's own comment (above, method 9) for the full account and
+;; jakx-racer-tick for the consumer side. Plain fields, not a handle container:
+;; nothing captured here is a 64-bit handle (the killed process's own handle is
+;; already cleared to #f by the hook before this record is armed), so the
+;; 32-bit symbol-value-slot truncation *jakx-racer-handle* works around above
+;; (IR_SetSymbolValue's unconditional store32) does not apply to a trans, a
+;; bare int track index, or a level-name symbol. Retires with the real vehicle
+;; chain, same as the rest of this block (#152 names the tiers).
+(define *jakx-racer-respawn-pending* #f)
+(define *jakx-racer-respawn-trans* (new 'static 'vector))
+(define *jakx-racer-respawn-track-index* 0)
+(define *jakx-racer-respawn-exclude-level* #f)
+
 (defun jakx-racer-cam-tick! ((racer-trans vector))
   "og:preserve-this bring-up chase camera (#152): place the camera
 *jakx-racer-cam-back* behind and *jakx-racer-cam-height* above the racer along its
@@ -3425,6 +3453,31 @@ unusual boot degrades to #161's original y instead of asserting."
       )
   )
 
+(defun jakx-racer-respawn-excluded-active? ()
+  "og:preserve-this deferred-respawn gate (#193 rework): #t while
+*jakx-racer-respawn-exclude-level* still names a level sitting at status
+'active or 'alive anywhere in *level*. Same walk-and-flag shape as
+jakx-want-slide-safe? above (dotimes over (-> *level* level i), compare
+by name, not by object identity: the excluded level's own level object is
+about to be reused for the replacement level, but its name is stable and is
+what the level array actually holds a fresh instance of by the time the slide
+completes). jakx-racer-tick holds the deferred respawn off for as long as this
+returns #t; only #f proves #162's donor scan (art-group-get-by-name) cannot
+re-adopt the dying heap the way the old inline respawn did."
+  (let ((still-active #f))
+    (dotimes (i (-> *level* length))
+      (let ((lev (-> *level* level i)))
+        (when (and (= (-> lev name) *jakx-racer-respawn-exclude-level*)
+                   (or (= (-> lev status) 'active) (= (-> lev status) 'alive))
+                   )
+          (set! still-active #t)
+          )
+        )
+      )
+    still-active
+    )
+  )
+
 (defun jakx-racer-tick ()
   "og:preserve-this bring-up racer driver (#152, #161): move the spawned racer
 manipy toward the next target at *jakx-racer-speed*, advancing on arrival and
@@ -3441,7 +3494,44 @@ visited); unlike that flight driver this MOVES instead of teleporting each
 dwell, so it needs its own target index rather than sharing
 *jakx-cam-fly-index*. Snapping when the remaining distance is no more than one
 frame's step (rather than a separate arrive-radius constant) guarantees no
-overshoot and no separate tunable to keep in sync with speed."
+overshoot and no separate tunable to keep in sync with speed. Also resolves
+any deferred post-kill respawn armed by the level-deactivate hook (#193
+rework) before the drive/camera logic below ever runs."
+  ;; og:preserve-this deferred-respawn consumer (#193 rework): resolves the
+  ;; record armed by the level-deactivate hook (level.gc method 9; see its
+  ;; comment for why the respawn cannot happen inline there, and
+  ;; jakx-racer-respawn-excluded-active? above for the gate). Runs first, ahead
+  ;; of the normal drive/camera branches below, so a respawn firing this frame
+  ;; still gets its trans/track-index restored before anything reads proc's
+  ;; position this same tick.
+  (when *jakx-racer-respawn-pending*
+    (cond
+      ((not *jakx-racer*)
+       ;; disarmed while pending (toggled off from the REPL mid-wait): nothing
+       ;; to spawn, just drop the record
+       (set! *jakx-racer-respawn-pending* #f)
+       (set! *jakx-racer-respawn-exclude-level* #f)
+       )
+      ((jakx-racer-respawn-excluded-active?)
+       ;; excluded level is still active/alive somewhere in *level*: the donor
+       ;; scan could still land back on it, so wait another frame
+       )
+      (else
+        (format 0 "racer: deferred respawn firing, excluded level ~A no longer active, respawning~%"
+                *jakx-racer-respawn-exclude-level*
+                )
+        (jakx-racer-spawn)
+        (let ((new-proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0)))))
+          (when new-proc
+            (set! (-> new-proc root trans quad) (-> *jakx-racer-respawn-trans* quad))
+            (set! *jakx-racer-track-index* *jakx-racer-respawn-track-index*)
+            )
+          )
+        (set! *jakx-racer-respawn-pending* #f)
+        (set! *jakx-racer-respawn-exclude-level* #f)
+        )
+      )
+    )
   (let ((proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0)))))
     (when (and *jakx-racer* proc)
       (cond
