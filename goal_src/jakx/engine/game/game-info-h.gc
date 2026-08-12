@@ -399,9 +399,37 @@
     (load-state-method-20 () none) ;; 20 ;; (restore-load-state (_type_) int)
     (load-state-method-21 () none) ;; 21 ;; (add-borrow-levels (_type_) none)
     (add-borrow-levels (_type_) none) ;; 22 ;; jak3 slot 21
-    (load-state-method-23 () none) ;; 23
-    (load-state-method-24 () none) ;; 24
+    ;; og:preserve-this arity correction (#192, vehicle leg survey L1, "the cheapest
+    ;; unblock on the board"): all three were () none, zero declared arguments,
+    ;; against bodies that read a0-a3 -- the exact AGENTS.md argument-count trap.
+    ;; That is also why their own decompile in load-state.gc still fails ("failed
+    ;; type prop", "Function may read a register that is not set") and is commented
+    ;; out; the wrong arity is the signature of the failure, not a side effect of it.
+    ;; Arities proven from the three call sites in net-world.gc's own decode
+    ;; (...scratchpad\networld-decode\out\jakx\net-world_ir2.asm), by which argument
+    ;; registers are set immediately before each jalr:
+    ;;   method 23, vtable+108 (16 + 4*23): ops[209-215] (asm:11688-11696) and the
+    ;;     two calls at ops[340-356]/[358-370] (asm:11989-12010, 12018-12034) all set
+    ;;     a1, a2 AND a3 before the call -- 4 args (self + 3).
+    ;;   method 24, vtable+112 (16 + 4*24): ops[400-412] (asm:12103-12122) sets only
+    ;;     a1 and a2 before the call; a3 is untouched since the prior call -- 3 args
+    ;;     (self + 2).
+    ;;   method 26, vtable+120 (16 + 4*26): ops[371-396] (asm:12037-12090) sets a1,
+    ;;     a2, and a3 (a3 materialized via the s7/s7+4 boolean idiom, i.e. a real
+    ;;     #t/#f, not a leftover) before the call -- 4 args (self + 3).
+    ;; Corroborated independently by load-state.gc's own commented-out decode
+    ;; attempts (:1341-1344, :1579-1582, :1615-1617): method 23 and 26 each flag all
+    ;; four registers a0-a3 as "may read a register that is not set"; method 24 flags
+    ;; only a0-a2, no a3. Argument types are STRONG, not PROVEN: a1 is used
+    ;; arithmetically as a small array index in every body (car-level-array-style
+    ;; ((a1 + N) << 5) indexing); a2/a3 are tested for truthiness and stored raw into
+    ;; word fields, and method 23's a2 is passed straight to car-type-from-level-name
+    ;; (typed (function symbol vehicle-type) in that same commented decode), which
+    ;; proves a2 symbol there specifically. Signatures only, per the vehicle leg
+    ;; brief's own scoping of this item -- no bodies land in this commit.
+    (load-state-method-23 (_type_ int symbol symbol) none) ;; 23
+    (load-state-method-24 (_type_ int symbol) none) ;; 24
     (load-state-method-25 () none) ;; 25
-    (load-state-method-26 () none) ;; 26
+    (load-state-method-26 (_type_ int symbol symbol) none) ;; 26
     )
   )
