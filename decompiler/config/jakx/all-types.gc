@@ -51422,20 +51422,19 @@
     )
   )
 
-;; og:bring-up minimal vehicle deftype: the real one (rigid-body-object child) is still
-;; commented; cam-states only reads the handle at 752 and type-checks against it.
-(deftype vehicle (process-drawable)
-  ((vehicle-flags-264  uint64 :offset 264) ;; name guessed; flag-tested (andi 8) by (trans cam-vehicle-shot)
-   (cam-target-handle handle :offset 752) ;; name guessed; truthy-tested and handle-derefed by cam-states
-   )
-  :method-count-assert 50
-  :size-assert         #x2f8
-  :flag-assert         #x32027002f8
-  )
+;; og:preserve-this stale bring-up leftover removed here (M1 vehicle-leg rung 2):
+;; this second, shim-shaped (process-drawable child) vehicle deftype predates the
+;; real landing at line ~45172 (rigid-body-object child, landed in a45d0efbd) and
+;; was never removed when that commit retired the cam-states.gc shim; the two
+;; conflicted on any decode needing to resolve vehicle a second time (own
+;; scoped decode of wcar/wcar-skel/wcar-mongoose/wcar-falcon, this rung: "Diff:
+;; Number of additional methods 115 vs. 0, parent: rigid-body-object vs.
+;; process-drawable, ... when parsing decompiler type file
+;; :all-types.gc:51427"). wvehicle's matching declare-type (process parent) was
+;; equally stale, since the real wvehicle is a vehicle descendant, landed in
+;; e77b7690a. Both types are real deftypes elsewhere in this file now; no
+;; forward declaration is needed for either.
 (declare-type hud-slowmo process) ;; real deftype still commented (in-game-hud child)
-(define-extern vehicle type) ;; the type symbol, for type? calls
-(declare-type wvehicle process)
-(define-extern wvehicle type) ;; the type symbol, for type? calls
 (define-extern hud-slowmo type) ;; the type symbol, for spawn/type? calls
 (define-extern cam-fixed (state camera-slave))
 (define-extern cam-fixed-read-entity (state camera-slave))
