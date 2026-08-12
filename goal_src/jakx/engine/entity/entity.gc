@@ -97,48 +97,61 @@
 (define-extern skel-jungle-clay-jar-a skeleton-group)
 
 (defun jakx-racer-spawn ()
-  "og:preserve-this bring-up racer spawn (#152): manual REPL lever, since there is
-no C-side boot arg to arm it automatically (see the *jakx-racer* note in level.gc).
-Call from the REPL after boot: (jakx-racer-spawn), then (set! *jakx-racer* #t) to
-start it moving. Spawns a jgx-resident manipy at the boot continue's trans
-(*jakx-want-driver-cp*, set by play's boot-cp branch) and registers it as an
-additional actor-birth spawner. Independent of *jakx-racer* on purpose: spawning
-and inspecting the process is useful even before movement is armed. No-op if
-already spawned, if the spawner slot is taken, or if no boot continue is armed
-yet. Retires with the real vehicle chain."
+  "og:preserve-this bring-up racer spawn (#152, #192): manual REPL lever, since
+there is no C-side boot arg to arm it automatically (see the *jakx-racer* note
+in level.gc). Call from the REPL after boot: (jakx-racer-spawn), then (set!
+*jakx-racer* #t) to start it moving. Spawns a jgx-resident manipy at the boot
+continue's trans (*jakx-want-driver-cp*, set by play's boot-cp branch) and
+registers it as an additional actor-birth spawner. Independent of
+*jakx-racer* on purpose: spawning and inspecting the process is useful even
+before movement is armed. Gated on jakx-racer-track-for-family (level.gc)
+resolving a real table for the boot continue's own :level (#192): a family
+with no baked centerline (havjungw as of this rung, its continue chain is
+unarmed per #129) refuses to spawn, with a loud format message, rather than
+spawning a manipy jakx-racer-tick would then have nothing correct to drive
+for -- either the stale fallback continue-point lerp or, worse, another
+family's table driving the wrong world's coordinates entirely. No-op
+(silent, unchanged from #152) if no boot continue is armed yet, if the
+spawner slot is taken, or if already spawned. Retires with the real vehicle
+chain."
   (when (and *jakx-want-driver-cp*
              (zero? *additional-spawner-count*)
              (not (handle->process (-> *jakx-racer-handle* 0)))
              )
-    (let ((proc (the-as process-drawable
-                         (ppointer->process
-                           (process-spawn manipy
-                                          :init manipy-init
-                                          (-> *jakx-want-driver-cp* trans)
-                                          #f
-                                          skel-jungle-clay-jar-a
-                                          #f
-                                          0
-                                          :name "jakx-racer"
-                                          :from *default-dead-pool*
-                                          :to *entity-pool*
-                                          )
-                           )
-                         )
+    (if (not (jakx-racer-track-for-family (-> *jakx-want-driver-cp* level)))
+        (format 0 "racer: no baked centerline for ~A, refusing to spawn~%"
+                (-> *jakx-want-driver-cp* level)
                 )
+        (let ((proc (the-as process-drawable
+                             (ppointer->process
+                               (process-spawn manipy
+                                              :init manipy-init
+                                              (-> *jakx-want-driver-cp* trans)
+                                              #f
+                                              skel-jungle-clay-jar-a
+                                              #f
+                                              0
+                                              :name "jakx-racer"
+                                              :from *default-dead-pool*
+                                              :to *entity-pool*
+                                              )
+                               )
+                             )
+                    )
+              )
+          (when proc
+            (set! (-> *jakx-racer-handle* 0) (process->handle proc))
+            (set! *jakx-racer-target-index* 0)
+            (register-additional-spawner proc)
+            (format 0 "racer: spawned at ~S <~m ~m ~m>~%"
+                    (-> *jakx-want-driver-cp* name)
+                    (-> proc root trans x)
+                    (-> proc root trans y)
+                    (-> proc root trans z)
+                    )
+            )
           )
-      (when proc
-        (set! (-> *jakx-racer-handle* 0) (process->handle proc))
-        (set! *jakx-racer-target-index* 0)
-        (register-additional-spawner proc)
-        (format 0 "racer: spawned at ~S <~m ~m ~m>~%"
-                (-> *jakx-want-driver-cp* name)
-                (-> proc root trans x)
-                (-> proc root trans y)
-                (-> proc root trans z)
-                )
         )
-      )
     )
   (none)
   )

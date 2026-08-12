@@ -3347,11 +3347,47 @@ above; update! then streams the section window."
         )
 ;; END GENERATED: extract_race_centerline.py (source ices.go, md5 1208a11244af2b7a6e939292278ee661, race line 3)
 
-;; og:preserve-this bare int index (#161): *jakx-racer-track-index* holds a small
-;; int (the current point's slot in *jakx-racer-track*), not a 64-bit handle like
-;; *jakx-racer-handle* above, so the 32-bit symbol-value-slot truncation that
-;; container works around (IR_SetSymbolValue's unconditional store32) does not
-;; apply here; a bare symbol is safe.
+(defun jakx-racer-track-for-family ((family symbol))
+  "og:preserve-this racer track family dispatch (#192): selects which baked
+centerline table to drive, keyed by the booted continue's own :level field
+(the family: 'junglew, 'icew, 'havjungw, ... -- see the continue-point
+statics in level-info.gc). #f (no boot continue armed yet) and 'junglew both
+resolve to *jakx-racer-track*: that preserves this rung's actual history,
+where the table was always the jungle bake regardless of family, so a jungle
+boot (or a REPL poke before *jakx-want-driver-cp* exists) behaves exactly as
+before. 'icew resolves to the new *jakx-racer-track-icew*. Every other
+family, including 'havjungw whose bake exists (see the icew table's note
+above) but whose continue chain is unarmed (#129), returns #f rather than
+one of the two armed tables: handing an unrelated family the jungle or icew
+table would drive the racer along a different world's coordinates entirely,
+not merely a wrong line of the right one. Callers must treat #f as refuse,
+not as a signal to fall back to the old sparse continue-point lerp;
+jakx-racer-spawn (entity.gc) does exactly that with a loud format message.
+No new 64-bit value is introduced here: both tables are ordinary boxed-array
+pointers, the same shape *jakx-racer-track* already held before this rung,
+so the 32-bit symbol-value-slot trap *jakx-racer-handle* works around (see
+that note above) does not apply to either of them or to this function's own
+return value. The refusal branch does need its own cast though: a bare #f
+there would give the whole cond (and so this function's inferred return
+type) the union of (array vector) and symbol, which the compiler collapses
+to plain object -- too weak for callers to (-> track ...) into. (the-as
+(array vector) #f) keeps the declared type intact while still storing a
+real #f, the same reinterpret-not-truncate idiom *jakx-racer-handle*'s
+arming set! uses above, applied to a return type instead of a field."
+  (cond
+    ((or (not family) (= family 'junglew)) *jakx-racer-track*)
+    ((= family 'icew) *jakx-racer-track-icew*)
+    (else (the-as (array vector) #f))
+    )
+  )
+
+;; og:preserve-this bare int index (#161, #192): *jakx-racer-track-index* holds
+;; a small int (the current point's slot in whichever table
+;; jakx-racer-track-for-family selects -- shared across families rather than
+;; per-table, since only one table is ever active per boot), not a 64-bit
+;; handle like *jakx-racer-handle* above, so the 32-bit symbol-value-slot
+;; truncation that container works around (IR_SetSymbolValue's unconditional
+;; store32) does not apply here; a bare symbol is safe.
 (define *jakx-racer-track-index* 0)
 ;; arrival radius for advancing to the next centerline point: filtered track
 ;; edges are roughly 137 meters apart on average (49 to 272 across the jungle
@@ -3361,6 +3397,13 @@ above; update! then streams the section window."
 ;; orbiting just outside the radius. The old 48-to-386 range came from the
 ;; unfiltered table and included fork-crossing garbage steps; the fork
 ;; interleave is resolved as of the extractor's two-pass filter above.
+;;
+;; og:preserve-this shared across families (#192): one constant serves
+;; whichever table jakx-racer-track-for-family selects, not tuned per family.
+;; It still holds for icew's table: that bake's own step range is 55.95 to
+;; 477.61 m (lap seam included), so 50 m stays under its minimum spacing too
+;; and cannot skip a point. Splitting this per family is future work if a
+;; later bake's minimum step ever comes in under 50 m.
 (define *jakx-racer-track-arrive-radius* (meters 50))
 
 (defun jakx-racer-cam-tick! ((racer-trans vector))
@@ -3500,28 +3543,37 @@ unusual boot degrades to #161's original y instead of asserting."
   )
 
 (defun jakx-racer-tick ()
-  "og:preserve-this bring-up racer driver (#152, #161): move the spawned racer
-manipy toward the next target at *jakx-racer-speed*, advancing on arrival and
-wrapping forever, then pin the chase camera behind it. When *jakx-racer-track*
-is armed (non-#f) the target comes from that baked jungle centerline table,
-walked by *jakx-racer-track-index* and advanced once within
+  "og:preserve-this bring-up racer driver (#152, #161, #192): move the spawned
+racer manipy toward the next target at *jakx-racer-speed*, advancing on
+arrival and wrapping forever, then pin the chase camera behind it. The active
+table comes from jakx-racer-track-for-family, keyed by the booted continue's
+:level (defaulting to the jungle table for compatibility, #f for any family
+with no bake -- see that function's note for the full selection rule). When
+it resolves non-#f the target comes from that baked centerline table, walked
+by *jakx-racer-track-index* and advanced once within
 *jakx-racer-track-arrive-radius* of the current point: this is the real
 authored race-mesh line rather than a lerp between continue points. A boot
-with no baked table (*jakx-racer-track* left #f) falls back to the original
-continue-point walk below, unchanged from #152: candidate selection mirrors
+whose family has no baked table falls back to the original continue-point
+walk below, unchanged from #152: candidate selection mirrors
 jakx-cam-fly-tick's filter above verbatim (same :level home, lightjak
 grid-starts excluded, so only continues whose want sets are built are ever
 visited); unlike that flight driver this MOVES instead of teleporting each
 dwell, so it needs its own target index rather than sharing
-*jakx-cam-fly-index*. Snapping when the remaining distance is no more than one
-frame's step (rather than a separate arrive-radius constant) guarantees no
-overshoot and no separate tunable to keep in sync with speed."
-  (let ((proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0)))))
+*jakx-cam-fly-index*. In practice this fallback branch is now dead weight for
+proc, not logic: jakx-racer-spawn (entity.gc) already refuses to spawn for an
+unarmed family, so proc is never non-#f here without an armed table too; it
+stays as the pre-#192 behavior in case a future spawn path ever bypasses that
+gate. Snapping when the remaining distance is no more than one frame's step
+(rather than a separate arrive-radius constant) guarantees no overshoot and
+no separate tunable to keep in sync with speed."
+  (let* ((proc (the-as process-drawable (handle->process (-> *jakx-racer-handle* 0))))
+         (track (jakx-racer-track-for-family (if *jakx-want-driver-cp* (-> *jakx-want-driver-cp* level) #f)))
+         )
     (when (and *jakx-racer* proc)
       (cond
-        (*jakx-racer-track*
+        (track
           (let ((cur (-> proc root trans)))
-            (let* ((cand (-> *jakx-racer-track* *jakx-racer-track-index*))
+            (let* ((cand (-> track *jakx-racer-track-index*))
                    (cdx (- (-> cand x) (-> cur x)))
                    (cdz (- (-> cand z) (-> cur z)))
                    ;; og:preserve-this x/z-only arrival test (#167 follow-up): cand's y is
@@ -3539,11 +3591,11 @@ overshoot and no separate tunable to keep in sync with speed."
                    )
               (when (<= cdist *jakx-racer-track-arrive-radius*)
                 (set! *jakx-racer-track-index*
-                      (mod (+ *jakx-racer-track-index* 1) (-> *jakx-racer-track* length))
+                      (mod (+ *jakx-racer-track-index* 1) (-> track length))
                       )
                 )
               )
-            (let* ((target (-> *jakx-racer-track* *jakx-racer-track-index*))
+            (let* ((target (-> track *jakx-racer-track-index*))
                    (target-y (jakx-racer-surface-y cur (-> target y)))
                    (dx (- (-> target x) (-> cur x)))
                    (dy (- target-y (-> cur y)))
