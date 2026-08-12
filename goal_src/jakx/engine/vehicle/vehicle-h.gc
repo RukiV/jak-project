@@ -7,3 +7,270 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this dropped dataf/dataw (both UNKNOWN 5 :offset-assert 0),
+;; duplicate names for the same 20 bytes steering/throttle/brake/lean-z/
+;; handbrake already cover; same class as rigid-body-object-constants' fix.
+(deftype vehicle-controls (structure)
+  ((steering   float     :offset-assert 0)
+   (throttle   float     :offset-assert 4)
+   (brake      float     :offset-assert 8)
+   (lean-z     float     :offset-assert 12)
+   (handbrake  float     :offset-assert 16)
+   (flags      uint8     :offset-assert 20) ;; vehicle-controls-flag
+   (prev-flags uint8     :offset-assert 21) ;; vehicle-controls-flag
+   (pad0       uint8   2 :offset-assert 22) ;; guessed by decompiler
+   )
+  :method-count-assert 9
+  :size-assert         #x18
+  :flag-assert         #x900000018
+  )
+
+;; og:preserve-this the captured vehicle deftype's own field offsets are
+;; systematically 4 bytes low (the +4 basic-offset trap from
+;; docs/jakx-bringup-quickstart.md, applied correctly in the SAME scoped
+;; decode for rigid-body-object and wvehicle, but missing here). Every
+;; offset below is the captured value +4, cross-checked three ways:
+;; (1) vehicle-h.o's own (method 3 vehicle) reads camera-dist with
+;; `lwc1 f0, 744(gp)` and impact-proc with `ld a2, 764(gp)` -- both raw,
+;; needing +4 to become the declared 748/768;
+;; (2) cam-states.o (a consumer, typed `vehicle` at these call sites) reads
+;; the shim's cam-target-handle with `ld v1, 748(v1)` (declared 752) and
+;; its own flags test with `ld v1, 260(gp)` (declared 264) -- the same +4
+;; gap, confirming the correction applies uniformly across both objects;
+;; (3) wvehicle's own first field (net-extra, all-types.gc) is
+;; :offset-assert 2140, which only self-consistently auto-places
+;; (align(parent_size, 4)) if vehicle's true size is exactly 2137 --
+;; align(2137, 4) = 2140, exact.
+;; Once shifted, car-info lands at 288, immediately after rigid-body-object
+;; ends (zero gap), rather than colliding with rigid-body-object's own
+;; perf@284. The captured "flags" field (was @260, shifts to @264) is
+;; dropped entirely: 264 is rigid-body-object's own inherited flags field
+;; (confirmed in the rigid-body-object landing, same commit family), and the
+;; capture's own trailing hint ("guessed by decompiler ;;
+;; rigid-body-object-flag") already flagged the suspicion. cam-target-handle
+;; (the bring-up shim's second field, cam-states.gc) is folded in at its
+;; confirmed offset 752, an 8-byte handle, retiring the shim.
+(deftype vehicle (rigid-body-object)
+  ((car-info                        car-info-full                               :offset-assert 288)
+   ;; og:preserve-this 12 bytes unaccounted (292-304): no load in this rung's
+   ;; scoped decode touches this range. Extent-true pad; a broader decode of
+   ;; vehicle.o's non-inspect methods would resolve it.
+   (pad-post-car-info                uint8                                12    :offset-assert 292)
+   ;; og:preserve-this damage-matrix's span is 304-432 (128 bytes). The name
+   ;; and the size (128 = 2x sizeof(matrix)) suggest two 4x4 transform
+   ;; matrices, but no raw load in this scoped decode confirms it and a
+   ;; non-inline `matrix 2` field does not reserve the 128 bytes the offset
+   ;; math needs (GOAL treats a non-inline array of a reference type as
+   ;; pointer-sized per element; TypeSystem.cpp:1381-1388). Landed as an
+   ;; extent-true pad rather than assert a type this rung cannot confirm;
+   ;; a decode of whatever vehicle.o method indexes it would resolve it,
+   ;; and :inline matrix 2 is the likely fix once it does.
+   (damage-matrix                   uint8                                128   :offset-assert 304)
+   (damage-direction                vector                              :inline :offset-assert 432)
+   (camera-pos                      vector                              :inline :offset-assert 448)
+   ;; og:preserve-this 8 bytes unaccounted (464-472).
+   (pad-post-camera-pos             uint8                                8     :offset-assert 464)
+   (control-hook                    (function vehicle vehicle-controls)         :offset-assert 472) ;; guessed by decompiler
+   (control-mask                    vehicle-controls                            :offset-assert 476)
+   (impact-callback                 basic                                       :offset-assert 480)
+   ;; og:preserve-this controls/prev-controls/impact/target-acceleration/
+   ;; impact-local-pos/lin-acceleration are all :inline structures or
+   ;; vectors, and every inline structure in this type system needs 16-byte
+   ;; alignment (common/goal_constants.h STRUCTURE_ALIGNMENT, applied
+   ;; uniformly regardless of a struct's own contents). The captured offsets
+   ;; (+4-corrected) do not all land on 16-byte boundaries; the retail
+   ;; compiler would have padded the same way this one does. Left
+   ;; unasserted here so sequential auto-placement computes the real,
+   ;; alignment-correct offsets; target-acceleration onward resumes
+   ;; asserting once the fields are plain scalars again, both as a
+   ;; self-check on this reasoning and to keep the rest of the layout
+   ;; anchored to the machine-code-derived offsets.
+   (controls                        vehicle-controls                    :inline)
+   (prev-controls                   vehicle-controls                    :inline)
+   (impact                          rigid-body-impact                   :inline)
+   (target-acceleration             vector                              :inline)
+   (impact-local-pos                vector                              :inline)
+   (lin-acceleration                vector                              :inline)
+   ;; og:preserve-this max-impact-impulse through speed-factor land here in
+   ;; relative order (matching the capture) but without individual asserts:
+   ;; the inline-structure run above lands 16 bytes later than the captured
+   ;; offsets implied (confirmed by the compiler: max-impact-impulse
+   ;; auto-places at 688, not the expected 672), and that 16-byte shift is
+   ;; local to this run, not a uniform correction. behavior (728) is
+   ;; independently confirmed by vehicle-h.o's own inspect method
+   ;; (`ld a2, 724(gp)`, +4), so it keeps its assert; the pad immediately
+   ;; before it absorbs whatever this run's true auto-placed width turns
+   ;; out to be, rather than asserting exact intermediate offsets this rung
+   ;; cannot independently confirm for the scalar fields between them.
+   (max-impact-impulse              float                                       )
+   (sum-impact-impulse              float                                       )
+   (underside-y                     float                                       )
+   (side-x                          float                                       )
+   (health                          float                                       )
+   (damage-factor                   float                                       )
+   (speed-factor                    float                                       )
+   (pad-pre-behavior                uint8                                8     )
+   (behavior                        uint64                                      :offset-assert 728)
+   (cam-view                        int8                                        :offset-assert 736)
+   ;; og:preserve-this 7 bytes unaccounted (737-744).
+   (pad-post-cam-view               uint8                                7     :offset-assert 737)
+   (cam-speed-interp                float                                       :offset-assert 744)
+   (camera-dist                     float                                       :offset-assert 748)
+   (cam-target-handle               handle                                      :offset-assert 752)
+   ;; og:preserve-this 8 bytes unaccounted (760-768).
+   (pad-post-cam-target-handle      uint8                                8     :offset-assert 760)
+   (impact-proc                     uint64                                      :offset-assert 768) ;; handle
+   (net-player                      uint64                                      :offset-assert 776)
+   ;; og:preserve-this 4 bytes unaccounted (784-788).
+   (pad-post-net-player             uint8                                4     :offset-assert 784)
+   (impact-time                     uint32                                      :offset-assert 788)
+   (prev-impact-time                uint32                                      :offset-assert 792)
+   ;; og:preserve-this 12 bytes unaccounted (796-808).
+   (pad-post-prev-impact-time       uint8                                12    :offset-assert 796)
+   (offscreen-time                  uint32                                      :offset-assert 808)
+   ;; og:preserve-this 12 bytes unaccounted (812-824).
+   (pad-post-offscreen-time         uint8                                12    :offset-assert 812)
+   (physics-enabled-time            uint32                                      :offset-assert 824)
+   ;; og:preserve-this 28 bytes unaccounted (828-856).
+   (pad-post-physics-enabled-time   uint8                                28    :offset-assert 828)
+   (water-height                    float                                       :offset-assert 856)
+   ;; og:preserve-this the single largest uncaptured span (860-1808, 948
+   ;; bytes): consistent with the brief's own finding that ~85-90% of
+   ;; vehicle's payload is unnamed (S4's net-payload fields, weapon and seat
+   ;; state, and whatever else lives on the wire between water-height and
+   ;; pred, are all somewhere in here). Not resolvable from this rung's
+   ;; scoped decode; a body-landing rung with a wider allowed_objects list
+   ;; is the retirement path.
+   (pad-net-payload-gap             uint8                                948   :offset-assert 860)
+   (pred                            net-predictor-sphcol                :inline :offset-assert 1808)
+   (next-reliable-send-time         int32                                       :offset-assert 2116)
+   (player-id                       int8                                        :offset-assert 2120)
+   (killed-by                       int8                                        :offset-assert 2121)
+   (killed-with                     int8                                        :offset-assert 2122)
+   ;; og:preserve-this 9 bytes unaccounted (2123-2132).
+   (pad-post-killed-with            uint8                                9     :offset-assert 2123)
+   (last-warp-time                  int32                                       :offset-assert 2132)
+   (last-sent-vehicle-control-flags uint8                                       :offset-assert 2136)
+   )
+  :method-count-assert 204
+  :size-assert         #x859
+  :flag-assert         #xcc07d00859
+  (:methods
+    (vehicle-method-89 () none) ;; 89 ;; (init-reverse (_type_ vehicle-controls) none)
+    (vehicle-method-90 () none) ;; 90 ;; (control-hook-ai (_type_ vehicle-controls) none)
+    (vehicle-method-91 () none) ;; 91 ;; (control-hook-player (_type_) none)
+    (vehicle-method-92 () none) ;; 92 ;; (vehicle-method-92 (_type_ vehicle-controls) none)
+    (vehicle-method-93 () none) ;; 93 ;; (vehicle-method-93 (_type_) none)
+    (vehicle-method-94 () none) ;; 94 ;; (vehicle-method-94 (_type_) none)
+    (vehicle-method-95 () none) ;; 95 ;; (vehicle-method-95 (_type_ vector float) none)
+    (vehicle-method-96 () none) ;; 96 ;; (vehicle-method-96 (_type_ float) none)
+    (vehicle-method-97 () none) ;; 97
+    (vehicle-method-98 () none) ;; 98 ;; (vehicle-method-98 (_type_) none)
+    (vehicle-method-99 () none) ;; 99 ;; (vehicle-method-99 (_type_) none)
+    (vehicle-method-100 () none) ;; 100 ;; (vehicle-method-100 (_type_) none)
+    (vehicle-method-101 () none) ;; 101 ;; (vehicle-method-101 (_type_) none)
+    (vehicle-method-102 () none) ;; 102 ;; (vehicle-method-102 (_type_) symbol)
+    (vehicle-method-103 () none) ;; 103 ;; (vehicle-method-103 (_type_) none)
+    (vehicle-method-104 () none) ;; 104 ;; (vehicle-method-104 (_type_) none)
+    (vehicle-method-105 () none) ;; 105 ;; (vehicle-method-105 (_type_) none)
+    (vehicle-method-106 () none) ;; 106 ;; (vehicle-method-106 (_type_) none)
+    (vehicle-method-107 () none) ;; 107 ;; (vehicle-method-107 (_type_ int process) none)
+    (vehicle-method-108 () none) ;; 108 ;; (vehicle-method-108 (_type_ int) none)
+    (vehicle-method-109 () none) ;; 109 ;; (vehicle-method-109 (_type_) none)
+    (vehicle-method-110 () none) ;; 110 ;; (vehicle-method-110 (_type_) none)
+    (vehicle-method-111 () none) ;; 111 ;; (get-linear-accel! (_type_ vector) none)
+    (vehicle-method-112 () none) ;; 112 ;; (copy-vehicle-controls! (_type_ vehicle-controls) none)
+    (vehicle-method-113 () none) ;; 113 ;; (vehicle-method-113 (_type_ vector int int) none)
+    (vehicle-method-114 () none) ;; 114 ;; (vehicle-method-114 (_type_ int) none)
+    (vehicle-method-115 () none) ;; 115 ;; (vehicle-method-115 (_type_) none)
+    (vehicle-method-116 () none) ;; 116 ;; (vehicle-method-116 (_type_ symbol) none)
+    (vehicle-method-117 () none) ;; 117 ;; (vehicle-method-117 (_type_) none)
+    (vehicle-method-118 () none) ;; 118 ;; (vehicle-method-118 (_type_) none)
+    (vehicle-method-119 () none) ;; 119 ;; (vehicle-method-119 (_type_) none)
+    (vehicle-method-120 () none) ;; 120 ;; (apply-gravity (_type_ float) none)
+    (vehicle-method-121 () none) ;; 121 ;; (apply-gravity1 (_type_ float) none)
+    (vehicle-method-122 () none) ;; 122 ;; (vehicle-method-122 (_type_) none)
+    (vehicle-method-123 () none) ;; 123 ;; (vehicle-method-123 (_type_) none)
+    (vehicle-method-124 () none) ;; 124 ;; (vehicle-method-124 (_type_) none)
+    (vehicle-method-125 () none) ;; 125 ;; (vehicle-method-125 (_type_) none)
+    (vehicle-method-126 () none) ;; 126 ;; (vehicle-method-126 (_type_) none)
+    (vehicle-method-127 () none) ;; 127 ;; (check-player-get-on (_type_ process-focusable) symbol)
+    (vehicle-method-128 () none) ;; 128 ;; (vehicle-method-128 (_type_) symbol)
+    (vehicle-method-129 () none) ;; 129 ;; (vehicle-method-129 (_type_) none)
+    (vehicle-method-130 () none) ;; 130 ;; (vehicle-method-130 (_type_) none)
+    (vehicle-method-131 () none) ;; 131
+    (vehicle-method-132 () none) ;; 132
+    (vehicle-method-133 () none) ;; 133
+    (vehicle-method-134 () none) ;; 134 ;; (vehicle-method-134 (_type_) none)
+    (vehicle-method-135 () none) ;; 135 ;; (vehicle-method-135 (_type_) none)
+    (vehicle-method-136 () none) ;; 136 ;; (vehicle-method-136 (_type_) none)
+    (vehicle-method-137 () none) ;; 137 ;; (vehicle-method-137 (_type_) none)
+    (vehicle-method-138 () none) ;; 138 ;; (vehicle-method-138 (_type_) none)
+    (vehicle-method-139 () none) ;; 139 ;; (vehicle-method-139 (_type_) none)
+    (vehicle-method-140 () none) ;; 140 ;; (vehicle-method-140 (_type_) none)
+    (vehicle-method-141 () none) ;; 141 ;; (vehicle-method-141 (_type_) symbol)
+    (vehicle-method-142 () none) ;; 142 ;; (vehicle-method-142 (_type_) none)
+    (vehicle-method-143 () none) ;; 143 ;; (vehicle-method-143 (_type_ process) object)
+    (vehicle-method-144 () none) ;; 144 ;; (vehicle-method-144 (_type_) none)
+    (vehicle-method-145 () none) ;; 145 ;; (vehicle-method-145 (_type_) none)
+    (vehicle-method-146 () none) ;; 146 ;; (vehicle-method-146 (_type_ vector) none)
+    (vehicle-method-147 () none) ;; 147 ;; (vehicle-method-147 (_type_) none)
+    (vehicle-method-148 () none) ;; 148 ;; (vehicle-method-148 (_type_) none)
+    (vehicle-method-149 () none) ;; 149 ;; (vehicle-method-149 (_type_) none)
+    (vehicle-method-150 () none) ;; 150 ;; (vehicle-method-150 (_type_) none)
+    (vehicle-method-151 () none) ;; 151 ;; (set-hit-points (_type_ float) none)
+    (vehicle-method-152 () none) ;; 152
+    (vehicle-method-153 () none) ;; 153
+    (vehicle-method-154 () none) ;; 154
+    (vehicle-method-155 () none) ;; 155
+    (vehicle-method-156 () none) ;; 156
+    (vehicle-method-157 () none) ;; 157
+    (vehicle-method-158 () none) ;; 158
+    (vehicle-method-159 () none) ;; 159
+    (vehicle-method-160 () none) ;; 160
+    (vehicle-method-161 () none) ;; 161
+    (vehicle-method-162 () none) ;; 162
+    (vehicle-method-163 () none) ;; 163
+    (vehicle-method-164 () none) ;; 164
+    (vehicle-method-165 () none) ;; 165
+    (vehicle-method-166 () none) ;; 166
+    (vehicle-method-167 () none) ;; 167
+    (vehicle-method-168 () none) ;; 168
+    (vehicle-method-169 () none) ;; 169
+    (vehicle-method-170 () none) ;; 170
+    (vehicle-method-171 () none) ;; 171
+    (vehicle-method-172 () none) ;; 172
+    (vehicle-method-173 () none) ;; 173
+    (vehicle-method-174 () none) ;; 174
+    (vehicle-method-175 () none) ;; 175
+    (vehicle-method-176 () none) ;; 176
+    (vehicle-method-177 () none) ;; 177
+    (vehicle-method-178 () none) ;; 178
+    (vehicle-method-179 () none) ;; 179
+    (vehicle-method-180 () none) ;; 180
+    (vehicle-method-181 () none) ;; 181
+    (vehicle-method-182 () none) ;; 182
+    (vehicle-method-183 () none) ;; 183
+    (vehicle-method-184 () none) ;; 184
+    (vehicle-method-185 () none) ;; 185
+    (vehicle-method-186 () none) ;; 186
+    (vehicle-method-187 () none) ;; 187
+    (vehicle-method-188 () none) ;; 188
+    (vehicle-method-189 () none) ;; 189
+    (vehicle-method-190 () none) ;; 190
+    (vehicle-method-191 () none) ;; 191
+    (vehicle-method-192 () none) ;; 192
+    (vehicle-method-193 () none) ;; 193
+    (vehicle-method-194 () none) ;; 194
+    (vehicle-method-195 () none) ;; 195
+    (vehicle-method-196 () none) ;; 196
+    (vehicle-method-197 () none) ;; 197
+    (vehicle-method-198 () none) ;; 198
+    (vehicle-method-199 () none) ;; 199
+    (vehicle-method-200 () none) ;; 200
+    (vehicle-method-201 () none) ;; 201
+    (vehicle-method-202 () none) ;; 202
+    (vehicle-method-203 () none) ;; 203
+    )
+  )
+

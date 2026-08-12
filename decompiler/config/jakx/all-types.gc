@@ -45132,11 +45132,10 @@
   )
 |#
 
-#|
+;; og:preserve-this dropped dataf/dataw (both UNKNOWN 5 :offset-assert 0),
+;; duplicate names for the same 20 bytes the five named floats already cover.
 (deftype vehicle-controls (structure)
-  ((dataf      UNKNOWN 5 :offset-assert 0)
-   (dataw      UNKNOWN 5 :offset-assert 0)
-   (steering   float     :offset-assert 0)
+  ((steering   float     :offset-assert 0)
    (throttle   float     :offset-assert 4)
    (brake      float     :offset-assert 8)
    (lean-z     float     :offset-assert 12)
@@ -45149,7 +45148,6 @@
   :size-assert         #x18
   :flag-assert         #x900000018
   )
-|#
 
 #|
 (deftype vehicle-particle (structure)
@@ -45162,52 +45160,81 @@
   )
 |#
 
-#|
+;; og:preserve-this see goal_src/jakx/engine/vehicle/vehicle-h.gc for the full
+;; citation: every offset below is the captured value +4 (the basic-offset
+;; trap, missing from this specific capture though correctly applied to
+;; rigid-body-object's and wvehicle's own); car-info relocated 284->288 to
+;; land immediately after rigid-body-object; the captured "flags" field
+;; (260->264) dropped as a duplicate of rigid-body-object's own inherited
+;; flags; cam-target-handle folded in from the bring-up shim at its
+;; confirmed offset 752, retiring the shim in cam-states.gc.
 (deftype vehicle (rigid-body-object)
-  ((car-info                        car-info-full                               :offset-assert 284)
-   (flags                           vehicle-flag                                :offset-assert 260) ;; rigid-body-object-flag
-   (damage-matrix                   UNKNOWN                             2       :offset-assert 300)
-   (damage-direction                vector                              :inline :offset-assert 428)
-   (camera-pos                      vector                              :inline :offset-assert 444)
-   (control-hook                    (function vehicle vehicle-controls)         :offset-assert 468) ;; guessed by decompiler
-   (control-mask                    vehicle-controls                            :offset-assert 472)
-   (impact-callback                 basic                                       :offset-assert 476)
-   (controls                        vehicle-controls                    :inline :offset-assert 480)
-   (prev-controls                   vehicle-controls                    :inline :offset-assert 504)
-   (impact                          rigid-body-impact                   :inline :offset-assert 540)
-   (target-acceleration             vector                              :inline :offset-assert 620)
-   (impact-local-pos                vector                              :inline :offset-assert 636)
-   (lin-acceleration                vector                              :inline :offset-assert 652)
-   (max-impact-impulse              float                                       :offset-assert 668)
-   (sum-impact-impulse              float                                       :offset-assert 672)
-   (underside-y                     float                                       :offset-assert 676)
-   (side-x                          float                                       :offset-assert 680)
-   (health                          float                                       :offset-assert 684)
-   (damage-factor                   float                                       :offset-assert 688)
-   (speed-factor                    float                                       :offset-assert 696)
-   (behavior                        uint64                                      :offset-assert 724)
-   (cam-view                        int8                                        :offset-assert 732)
-   (cam-speed-interp                float                                       :offset-assert 740)
-   (camera-dist                     float                                       :offset-assert 744)
-   (impact-proc                     uint64                                      :offset-assert 764) ;; handle
-   (net-player                      uint64                                      :offset-assert 772)
-   (impact-time                     uint32                                      :offset-assert 784)
-   (prev-impact-time                uint32                                      :offset-assert 788)
-   (offscreen-time                  uint32                                      :offset-assert 804)
-   (physics-enabled-time            uint32                                      :offset-assert 820)
-   (water-height                    float                                       :offset-assert 852)
-   (pred                            net-predictor-sphcol                :inline :offset-assert 1804)
-   (next-reliable-send-time         int32                                       :offset-assert 2112)
-   (player-id                       int8                                        :offset-assert 2116)
-   (killed-by                       int8                                        :offset-assert 2117)
-   (killed-with                     int8                                        :offset-assert 2118)
-   (last-warp-time                  int32                                       :offset-assert 2128)
-   (last-sent-vehicle-control-flags uint8                                       :offset-assert 2132)
+  ((car-info                        car-info-full                               :offset-assert 288)
+   (pad-post-car-info                uint8                                12    :offset-assert 292)
+   ;; og:preserve-this see goal_src/jakx/engine/vehicle/vehicle-h.gc:
+   ;; extent-true pad, name/size fit two `matrix` but not load-confirmed.
+   (damage-matrix                   uint8                                128   :offset-assert 304)
+   (damage-direction                vector                              :inline :offset-assert 432)
+   (camera-pos                      vector                              :inline :offset-assert 448)
+   (pad-post-camera-pos             uint8                                8     :offset-assert 464)
+   (control-hook                    (function vehicle vehicle-controls)         :offset-assert 472) ;; guessed by decompiler
+   (control-mask                    vehicle-controls                            :offset-assert 476)
+   (impact-callback                 basic                                       :offset-assert 480)
+   ;; og:preserve-this controls through lin-acceleration are :inline
+   ;; structures/vectors needing 16-byte alignment (STRUCTURE_ALIGNMENT) the
+   ;; captured (+4-corrected) offsets do not land on; left unasserted so
+   ;; auto-placement computes the real offsets (compiler-confirmed: this run
+   ;; lands 16 bytes later than the capture implied). max-impact-impulse
+   ;; through speed-factor likewise: their exact intermediate offsets are
+   ;; not independently confirmed, only their order; pad-pre-behavior
+   ;; absorbs the run's true width, and behavior (728) resumes asserting
+   ;; since it IS independently confirmed (vehicle-h.o's own inspect,
+   ;; `ld a2, 724(gp)`, +4).
+   (controls                        vehicle-controls                    :inline)
+   (prev-controls                   vehicle-controls                    :inline)
+   (impact                          rigid-body-impact                   :inline)
+   (target-acceleration             vector                              :inline)
+   (impact-local-pos                vector                              :inline)
+   (lin-acceleration                vector                              :inline)
+   (max-impact-impulse              float                                       )
+   (sum-impact-impulse              float                                       )
+   (underside-y                     float                                       )
+   (side-x                          float                                       )
+   (health                          float                                       )
+   (damage-factor                   float                                       )
+   (speed-factor                    float                                       )
+   (pad-pre-behavior                uint8                                8     )
+   (behavior                        uint64                                      :offset-assert 728)
+   (cam-view                        int8                                        :offset-assert 736)
+   (pad-post-cam-view               uint8                                7     :offset-assert 737)
+   (cam-speed-interp                float                                       :offset-assert 744)
+   (camera-dist                     float                                       :offset-assert 748)
+   (cam-target-handle               handle                                      :offset-assert 752)
+   (pad-post-cam-target-handle      uint8                                8     :offset-assert 760)
+   (impact-proc                     uint64                                      :offset-assert 768) ;; handle
+   (net-player                      uint64                                      :offset-assert 776)
+   (pad-post-net-player             uint8                                4     :offset-assert 784)
+   (impact-time                     uint32                                      :offset-assert 788)
+   (prev-impact-time                uint32                                      :offset-assert 792)
+   (pad-post-prev-impact-time       uint8                                12    :offset-assert 796)
+   (offscreen-time                  uint32                                      :offset-assert 808)
+   (pad-post-offscreen-time         uint8                                12    :offset-assert 812)
+   (physics-enabled-time            uint32                                      :offset-assert 824)
+   (pad-post-physics-enabled-time   uint8                                28    :offset-assert 828)
+   (water-height                    float                                       :offset-assert 856)
+   (pad-net-payload-gap             uint8                                948   :offset-assert 860)
+   (pred                            net-predictor-sphcol                :inline :offset-assert 1808)
+   (next-reliable-send-time         int32                                       :offset-assert 2116)
+   (player-id                       int8                                        :offset-assert 2120)
+   (killed-by                       int8                                        :offset-assert 2121)
+   (killed-with                     int8                                        :offset-assert 2122)
+   (pad-post-killed-with            uint8                                9     :offset-assert 2123)
+   (last-warp-time                  int32                                       :offset-assert 2132)
+   (last-sent-vehicle-control-flags uint8                                       :offset-assert 2136)
    )
   :method-count-assert 204
   :size-assert         #x859
   :flag-assert         #xcc07d00859
-  ;; field vehicle-flag is likely a value type.
   (:methods
     (vehicle-method-89 () none) ;; 89 ;; (init-reverse (_type_ vehicle-controls) none)
     (vehicle-method-90 () none) ;; 90 ;; (control-hook-ai (_type_ vehicle-controls) none)
@@ -45217,7 +45244,7 @@
     (vehicle-method-94 () none) ;; 94 ;; (vehicle-method-94 (_type_) none)
     (vehicle-method-95 () none) ;; 95 ;; (vehicle-method-95 (_type_ vector float) none)
     (vehicle-method-96 () none) ;; 96 ;; (vehicle-method-96 (_type_ float) none)
-    (vehicle-method-97 () none) ;; 97 ;; (vehicle-method-97 (_type_ float vehicle-physics-work) none)
+    (vehicle-method-97 () none) ;; 97
     (vehicle-method-98 () none) ;; 98 ;; (vehicle-method-98 (_type_) none)
     (vehicle-method-99 () none) ;; 99 ;; (vehicle-method-99 (_type_) none)
     (vehicle-method-100 () none) ;; 100 ;; (vehicle-method-100 (_type_) none)
@@ -45251,9 +45278,14 @@
     (vehicle-method-128 () none) ;; 128 ;; (vehicle-method-128 (_type_) symbol)
     (vehicle-method-129 () none) ;; 129 ;; (vehicle-method-129 (_type_) none)
     (vehicle-method-130 () none) ;; 130 ;; (vehicle-method-130 (_type_) none)
-    (vehicle-method-131 () none) ;; 131 ;; (vehicle-method-131 (_type_ traffic-object-spawn-params) none)
-    (vehicle-method-132 () none) ;; 132 ;; (vehicle-method-132 (_type_ traffic-object-spawn-params) none)
-    (vehicle-method-133 () none) ;; 133 ;; (vehicle-method-133 (_type_ traffic-object-spawn-params) none)
+    ;; og:preserve-this S1 hazard (brief §1.5): the captured annotations for
+    ;; 131-133 cited traffic-object-spawn-params, a type that does not exist
+    ;; anywhere in Jak X. Dropped per the owner's standing rule (the decode
+    ;; wins over an annotation that disagrees with reality); left as bare
+    ;; numeric placeholders.
+    (vehicle-method-131 () none) ;; 131
+    (vehicle-method-132 () none) ;; 132
+    (vehicle-method-133 () none) ;; 133
     (vehicle-method-134 () none) ;; 134 ;; (vehicle-method-134 (_type_) none)
     (vehicle-method-135 () none) ;; 135 ;; (vehicle-method-135 (_type_) none)
     (vehicle-method-136 () none) ;; 136 ;; (vehicle-method-136 (_type_) none)
@@ -45326,7 +45358,6 @@
     (vehicle-method-203 () none) ;; 203
     )
   )
-|#
 
 #|
 (deftype vehicle-draw-thruster-params (structure)
