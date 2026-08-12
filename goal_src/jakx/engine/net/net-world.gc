@@ -647,6 +647,25 @@
     (let ((cont (the-as continue-point (-> *net-world* cont))))
       (set! (-> *game-info* player-info 0 current-continue) cont)
       (want-vis-level *load-state* (-> cont vis-nick))
+      ;; og:preserve-this want-driver seed, R3 of the retail-staging ladder
+      ;; (#192): the integration-fallout doc's Q1.5 (2026-08-12, docs/2026-08-12-
+      ;; integration-fallout-rootcause.md) traces boot A's #f readback of
+      ;; *jakx-want-driver-cp* to this arm never doing what the
+      ;; *jakx-boot-continue* fallback arm's own boot-cp branch does
+      ;; (level.gc:4116, (set! *jakx-want-driver-cp* boot-cp)). cont here is the
+      ;; identical retail meaning: a real continue-point carrying trans,
+      ;; camera-trans, quat and camera-rot (level-info.gc:9567-9570 for
+      ;; "iceb-start"), so every consumer that reads those fields
+      ;; (jakx-want-driver-tick, jakx-cam-fly-tick, jakx-racer-spawn) behaves the
+      ;; same on a task-staged boot as on the fallback arm. Safe ONLY together
+      ;; with the *jakx-want-driver* #t -> #f flip (level.gc): with the driver
+      ;; still defaulting on, arming this key also arms jakx-racer-spawn's own
+      ;; consumer path on every retail-staged boot, which is #193's crash (a
+      ;; level-arted skeleton-group read as truthy integer 0) with no REPL step
+      ;; in between to catch it first. Actually moving the camera to
+      ;; camera-trans/camera-rot remains out of scope; that is move-camera!'s
+      ;; job and is unimplemented on both arms.
+      (set! *jakx-want-driver-cp* cont)
       )
     (net-world-method-76 *net-world* #f)
     (jakx-wait-for-levels-boot)
