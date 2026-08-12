@@ -137,6 +137,19 @@ yet. Retires with the real vehicle chain."
                 (-> proc root trans y)
                 (-> proc root trans z)
                 )
+        ;; og bring-up diagnostics (#193 root-cause doc, section 5 "cheapest
+        ;; experiment"): confirm the donor/adoption story from #162 in one log
+        ;; read, no behavior change. First line names the level the racer's art
+        ;; actually resolved onto (process's own level field, written by #162's
+        ;; art-group-get-by-name out-param); second line prints the resolved
+        ;; frame-group's address alongside that donor level's heap range, so an
+        ;; observer can confirm frame-group falls inside [base, top-base) by eye.
+        (format 0 "racer: donor level ~A~%" (-> proc level name))
+        (format 0 "racer: root-channel frame-group #x~X, donor heap [#x~X, #x~X)~%"
+                (-> proc skel root-channel 0 frame-group)
+                (-> proc level heap base)
+                (-> proc level heap top-base)
+                )
         )
       )
     )
