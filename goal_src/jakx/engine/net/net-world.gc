@@ -447,9 +447,10 @@
 ;; og:preserve-this bring-up boot-time variant, R3 of the retail-staging ladder
 ;; (#192): wait-for-levels (net-world_ir2.asm:24564-24660) is a defbehavior that
 ;; suspends into the kernel scheduler every pass; play runs on the boot path before
-;; any process exists to suspend into. Two changes from the R2 landing, both from
-;; the round-2 root-cause doc (2026-08-12, docs/2026-08-12-staging-wait-
-;; rootcause.md):
+;; any process exists to suspend into. Three changes from the R2 landing, all three
+;; from the round-2 root-cause doc lineage (2026-08-12,
+;; docs/2026-08-12-staging-wait-rootcause.md and its 2026-08-12 integration-fallout
+;; follow-up):
 ;;
 ;; 1. The predicate is now jakx-net-world-ready-boot? (above), not
 ;;    (and (net-world-method-77 pp) (net-world-method-78 pp)) directly: m77's own
@@ -474,7 +475,29 @@
 ;;    accounting entirely: a level that is genuinely streaming now drains to
 ;;    completion (or a real error) before the outer loop is charged even one pass.
 ;;
-;; The outer loop's own bound is now a wall-clock read, not a pass count: the
+;; 3. The outer loop itself is now (until (or done give-up) ...), a post-tested
+;;    do-while, not (while (and (not give-up) (not (ready?))) ...), a pre-tested
+;;    while. Retail's own wait-for-levels is a do-while: net-world_ir2.asm:24564-
+;;    24660, label L774, op [1] is (set! t9 check-start-load) (call!) as the very
+;;    first thing the loop body does, unconditional; the ready predicate is read
+;;    only at the bottom, the terminal (b! (not v1) L774 (nop!)), which branches
+;;    back to the top when NOT ready and falls through when ready. The pre-tested
+;;    shape this replaced tested ready? before ever calling check-start-load, so
+;;    on any pass where m76 had already made the target ready (the common case
+;;    once one section is up), the body -- and with it check-start-load, the only
+;;    call site of want-levels/want-display-level on this path -- never ran at
+;;    all, silently discarding whatever the prior net-world-method-76 pass had
+;;    just composed into *net-world-load-levels*. This is the integration-fallout
+;;    doc's Q1 root cause (2026-08-12, docs/2026-08-12-integration-fallout-
+;;    rootcause.md section 1.4): passes 2 and 3 of the three-pass spine below both
+;;    found ready? already #t on entry and both skipped check-start-load entirely,
+;;    so iceb/iced never reached *load-state* and nothing was ever marked
+;;    'display, independent of items 1 and 2 above -- both of which were
+;;    themselves correct and are unchanged by this fix. A do-while is strictly
+;;    more faithful than the loop it replaces: it removes a transcription
+;;    divergence rather than adding one.
+;;
+;; The outer loop's own bound is still a wall-clock read, not a pass count: the
 ;; PS2-accurate 300MHz counter get-cpu-clock wraps (timer-h.gc:24-29, deliberately
 ;; masked to 32 bits) so (- now start) is only correct across a wrap if the
 ;; DIFFERENCE is re-masked to 32 bits too -- native GOAL subtraction widens to 64
@@ -506,10 +529,9 @@
           (passes 0)
           (give-up #f)
           (elapsed (the uint 0))
+          (done #f)
           )
-      (while (and (not give-up)
-                  (not (jakx-net-world-ready-boot? (the-as net-world pp)))
-                  )
+      (until (or done give-up)
         (check-start-load)
         (dotimes (i 6)
           (let ((lev (-> *level* level i)))
@@ -549,6 +571,7 @@
         (when (>= elapsed (the uint 3000000000))
           (set! give-up #t)
           )
+        (set! done (jakx-net-world-ready-boot? (the-as net-world pp)))
         )
       (when give-up
         (format 0 "jakx-wait-for-levels-boot: gave up after ~D passes (~D ticks)~%" passes elapsed)
