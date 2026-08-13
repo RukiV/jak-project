@@ -1994,87 +1994,143 @@ std::string TypeSystem::generate_deftype_footer(const Type* type) const {
     result.append("  :no-inspect\n  ");
   }
 
-  std::string methods_string;
-  std::string state_methods_string;
+  std::string new_method_string;
   std::string states_string;
 
   // New Method
+  //
+  // "new" is exempt from the normal method-id sequence: declare_method special-cases the name
+  // "new" and never consults get_next_method_id for it, so wherever its text lands in the
+  // regenerated source, it always reparses back to the same id. Render it once here and splice
+  // it into the first (:methods) run below, the same place the old fixed two-block layout
+  // always put it.
   auto new_info = type->get_new_method_defined_for_type();
   if (new_info) {
-    methods_string.append("    (new (");
+    new_method_string.append("    (new (");
     for (size_t i = 0; i < new_info->type.arg_count() - 1; i++) {
-      methods_string.append(new_info->type.get_arg(i).print());
+      new_method_string.append(new_info->type.get_arg(i).print());
       if (i != new_info->type.arg_count() - 2) {
-        methods_string.push_back(' ');
+        new_method_string.push_back(' ');
       }
     }
-    methods_string.append(
+    new_method_string.append(
         fmt::format(") {}", new_info->type.get_arg(new_info->type.arg_count() - 1).print(), 0));
 
     auto behavior = new_info->type.try_get_tag("behavior");
     if (behavior) {
-      methods_string.append(fmt::format(" :behavior {}", *behavior));
+      new_method_string.append(fmt::format(" :behavior {}", *behavior));
     }
 
-    methods_string.append(")\n");
+    new_method_string.append(")\n");
   }
 
-  // Rest of methods
-  bool done_with_state_methods = false;  // TODO fix this... this depends on the order of m_methods
+  // Rest of methods.
+  //
+  // The deftype parser (parse_structure_def) assigns method ids strictly by the textual order
+  // it encounters entries in: every entry in a (:state-methods ...) or (:methods ...) block
+  // consumes the next id in turn, regardless of which kind of block it's in. To regenerate a
+  // deftype that reparses back to an identical type, the entries we print must appear in true
+  // id order, split into as many alternating (:state-methods)/(:methods) blocks as needed
+  // wherever the id sequence's kind (state vs. plain method) changes.
+  //
+  // get_methods_defined_for_type() is in the type's original declaration order, which is not
+  // always id order: a :replace/:overlay-at entry reuses its parent's id, which can be lower
+  // than an id this type has already assigned itself. So sort by id explicitly rather than
+  // trusting vector order to already be id order.
+  struct MethodEntry {
+    const MethodInfo* info;
+    bool is_state_entry;
+  };
+  std::vector<MethodEntry> sorted_methods;
   for (auto& info : type->get_methods_defined_for_type()) {
-    if (!done_with_state_methods && info.type.base_type() == "state" && !info.overrides_parent) {
-      if (info.type.arg_count() > 1) {
-        state_methods_string.append(fmt::format("    ({}", info.name));
-        for (size_t i = 0; i < info.type.arg_count() - 1; ++i) {
-          state_methods_string.push_back(' ');
-          state_methods_string.append(info.type.get_arg(i).print());
-        }
-        state_methods_string.append(")\n");
-      } else {
-        state_methods_string.append(fmt::format("    {}\n", info.name));
-      }
-      continue;
-    } else {
-      done_with_state_methods = true;
-    }
-
     // check if we only override the docstring
     if (info.only_overrides_docstring) {
       continue;
     }
+    sorted_methods.push_back({&info, info.type.base_type() == "state" && !info.overrides_parent});
+  }
+  std::stable_sort(
+      sorted_methods.begin(), sorted_methods.end(),
+      [](const MethodEntry& a, const MethodEntry& b) { return a.info->id < b.info->id; });
 
-    methods_string.append(fmt::format("    ({} (", info.name));
+  auto append_state_method = [](std::string& out, const MethodInfo& info) {
+    if (info.type.arg_count() > 1) {
+      out.append(fmt::format("    ({}", info.name));
+      for (size_t i = 0; i < info.type.arg_count() - 1; ++i) {
+        out.push_back(' ');
+        out.append(info.type.get_arg(i).print());
+      }
+      out.append(")\n");
+    } else {
+      out.append(fmt::format("    {}\n", info.name));
+    }
+  };
+
+  auto append_plain_method = [](std::string& out, const MethodInfo& info) {
+    out.append(fmt::format("    ({} (", info.name));
     for (size_t i = 0; i < info.type.arg_count() - 1; i++) {
-      methods_string.append(info.type.get_arg(i).print());
+      out.append(info.type.get_arg(i).print());
       if (i != info.type.arg_count() - 2) {
-        methods_string.push_back(' ');
+        out.push_back(' ');
       }
     }
-    methods_string.append(
-        fmt::format(") {}", info.type.get_arg(info.type.arg_count() - 1).print()));
+    out.append(fmt::format(") {}", info.type.get_arg(info.type.arg_count() - 1).print()));
 
     auto behavior = info.type.try_get_tag("behavior");
     if (behavior) {
-      methods_string.append(fmt::format(" :behavior {}", *behavior));
+      out.append(fmt::format(" :behavior {}", *behavior));
     }
 
     if (info.type.base_type() == "state") {
-      methods_string.append(" :state");
+      out.append(" :state");
     }
 
     if (info.no_virtual) {
-      methods_string.append(" :no-virtual");
+      out.append(" :no-virtual");
     }
 
     if (info.overrides_parent) {
       if (info.overlay_name.has_value()) {
-        methods_string.append(fmt::format(" :overlay-at {}", *info.overlay_name));
+        out.append(fmt::format(" :overlay-at {}", *info.overlay_name));
       } else {
-        methods_string.append(" :replace");
+        out.append(" :replace");
       }
     }
 
-    methods_string.append(fmt::format(")\n", info.id));
+    out.append(fmt::format(")\n", info.id));
+  };
+
+  // Group the id-sorted entries into contiguous same-kind runs and render each run into its own
+  // block. When every state entry sorts below every plain method (or only one kind is present
+  // at all), this is exactly one state-methods run followed by exactly one methods run (or just
+  // one of the two) -- byte-identical to the old fixed two-block layout.
+  struct MethodBlock {
+    bool is_state;
+    std::string text;
+  };
+  std::vector<MethodBlock> blocks;
+  for (size_t i = 0; i < sorted_methods.size();) {
+    bool run_is_state = sorted_methods[i].is_state_entry;
+    MethodBlock block{run_is_state, {}};
+    while (i < sorted_methods.size() && sorted_methods[i].is_state_entry == run_is_state) {
+      if (run_is_state) {
+        append_state_method(block.text, *sorted_methods[i].info);
+      } else {
+        append_plain_method(block.text, *sorted_methods[i].info);
+      }
+      i++;
+    }
+    blocks.push_back(block);
+  }
+
+  if (!new_method_string.empty()) {
+    auto first_methods_block = std::find_if(blocks.begin(), blocks.end(),
+                                            [](const MethodBlock& b) { return !b.is_state; });
+    if (first_methods_block != blocks.end()) {
+      first_methods_block->text = new_method_string + first_methods_block->text;
+    } else {
+      blocks.push_back({false, new_method_string});
+    }
   }
 
   for (auto& info : type->get_states_declared_for_type()) {
@@ -2090,15 +2146,9 @@ std::string TypeSystem::generate_deftype_footer(const Type* type) const {
     }
   }
 
-  if (!state_methods_string.empty()) {
-    result.append("  (:state-methods\n");
-    result.append(state_methods_string);
-    result.append("    )\n");
-  }
-
-  if (!methods_string.empty()) {
-    result.append("  (:methods\n");
-    result.append(methods_string);
+  for (auto& block : blocks) {
+    result.append(block.is_state ? "  (:state-methods\n" : "  (:methods\n");
+    result.append(block.text);
     result.append("    )\n");
   }
 
