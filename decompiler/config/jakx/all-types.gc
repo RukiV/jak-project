@@ -20805,7 +20805,7 @@
   :size-assert         #x80c
   :flag-assert         #xa0000080c
   (:methods
-    (prim-work-method-9 () none) ;; 9 ;; (reset! (_type_) none)
+    (reset! (_type_) none) ;; 9
     )
   )
 
@@ -21110,14 +21110,14 @@
     (want-levels (_type_ (pointer symbol)) int) ;; 11
     (want-sound-banks (_type_ (pointer symbol)) none) ;; 12
     (want-display-level (_type_ symbol symbol) int) ;; 13
-    (load-state-method-14 () none) ;; 14 ;; (want-vis-level (_type_ symbol) none)
+    (load-state-method-14 (_type_ symbol symbol int) none) ;; 14 ;; (want-vis-level (_type_ symbol) none) ;; hint misaligned: m14 is the split-display setter; want-vis-level is slot 15
     (want-vis-level (_type_ symbol) none) ;; 15 ;; jak3 slot 14; jakx inserts a method at 14
     (want-force-vis (_type_ symbol symbol) int) ;; 16 ;; jak3 slot 15
-    (load-state-method-17 () none) ;; 17 ;; (execute-commands-up-to (_type_ float) none)
-    (load-state-method-18 () none) ;; 18 ;; (backup-load-state-and-set-cmds (_type_ pair) int)
-    (load-state-method-19 () none) ;; 19 ;; (restore-load-state-and-cleanup (_type_) int)
-    (load-state-method-20 () none) ;; 20 ;; (restore-load-state (_type_) int)
-    (load-state-method-21 () none) ;; 21 ;; (add-borrow-levels (_type_) none)
+    (want-force-inside (_type_ symbol symbol) none) ;; 17 ;; jak3 slot 16
+    (execute-commands-up-to (_type_ float) none) ;; 18 ;; jak3 slot 17
+    (backup-load-state-and-set-cmds (_type_ pair) int) ;; 19 ;; jak3 slot 18
+    (load-state-method-20 (_type_) int) ;; 20 ;; (restore-load-state (_type_) int) ;; hint misaligned: m20 is restore-load-state-and-cleanup (jak3 slot 19), same signature
+    (restore-load-state (_type_) int) ;; 21 ;; jak3 slot 20
     (add-borrow-levels (_type_) none) ;; 22 ;; jak3 slot 21
     ;; arity correction (#192): mirrors goal_src/jakx/engine/game/game-info-h.gc's
     ;; deftype, whose comment carries the full ops citation from net-world_ir2.asm
@@ -22076,8 +22076,8 @@
   (:methods
     (prototype-node-group-method-9 (_type_) none) ;; 9 ;; free-list init
     (prototype-node-group-method-10 (_type_ prototype-bucket-tie) (pointer uint32)) ;; 10 ;; jakx: called from level-update-after-load; returns ptr to a tie node blob (refine when tie decomp lands)
-    (prototype-node-group-method-11 () none) ;; 11
-    (prototype-node-group-method-12 (_type_ prototype-bucket-tie) (pointer uint32)) ;; 12 ;; jakx: sibling of method 10, other branch in level-update-after-load
+    (prototype-node-group-method-11 (_type_ prototype-bucket) none) ;; 11
+    (prototype-node-group-method-12 (_type_ prototype-bucket-tie level) (pointer uint32)) ;; 12 ;; jakx: sibling of method 10, other branch in level-update-after-load
     (prototype-node-group-method-13 (_type_ level) none) ;; 13 ;; unlink all nodes belonging to a level
     (prototype-node-group-method-14 (_type_) none) ;; 14
     )
@@ -28651,7 +28651,7 @@
     (mem-buffer-method-36 () none) ;; 36
     (mem-buffer-method-37 () none) ;; 37
     (mem-buffer-method-38 () none) ;; 38
-    (mem-buffer-method-39 () none) ;; 39
+    (mem-buffer-method-39 (_type_) uint64) ;; 39
     (mem-buffer-method-40 () none) ;; 40
     (mem-buffer-method-41 () none) ;; 41
     (mem-buffer-method-42 () none) ;; 42
@@ -28659,8 +28659,8 @@
     (mem-buffer-method-44 () none) ;; 44
     (mem-buffer-method-45 () none) ;; 45
     (mem-buffer-method-46 () none) ;; 46
-    (mem-buffer-method-47 () none) ;; 47
-    (mem-buffer-method-48 () none) ;; 48
+    (mem-buffer-method-47 (_type_ pointer) none) ;; 47
+    (mem-buffer-method-48 (_type_ pointer int) none) ;; 48
     (mem-buffer-method-49 () none) ;; 49
     (mem-buffer-method-50 (_type_) none) ;; 50
     (mem-buffer-method-51 () none) ;; 51
@@ -29364,7 +29364,7 @@
   :flag-assert         #xa000000a8
   ;; field handle is likely a value type.
   (:methods
-    (attack-info-method-9 () none) ;; 9 ;; (attack-info-method-9 (_type_ attack-info process-drawable process-drawable) none)
+    (attack-info-method-9 (_type_ attack-info process-drawable process-drawable) none) ;; 9
     )
   )
 
@@ -31243,7 +31243,7 @@
     (process-focusable-method-50 (_type_) int) ;; 50 ;; result cached per entry by attackable-hash-update
     (get-trans (_type_ int) vector) ;; 51 ;; jak3 parity (id 21 there): trans getter used by sc m24 for point-of-interest
     (process-focusable-method-52 (_type_ int) quaternion) ;; 52 ;; get-quat: result feeds quaternion->matrix; jakx adds an index int like m51
-    (process-focusable-method-53 () none) ;; 53
+    (process-focusable-method-53 (_type_) none) ;; 53
     (process-focusable-method-54 () none) ;; 54
     (process-focusable-method-55 (_type_) meters) ;; 55 ;; jak3 get-water-height(25)+30; result consumed as float
     (process-focusable-method-56 (_type_) time-frame) ;; 56 ;; jak3 get-notice-time(26)+30
@@ -32419,7 +32419,7 @@
   :flag-assert         #x900000078
   )
 
-;; (define-extern inspect-bsp-tree function) ;; (function bsp-header bsp-node none)
+(define-extern inspect-bsp-tree (function bsp-header bsp-node none))
 ;; (define-extern map-bsp-tree function) ;; (function (function bsp-node none) bsp-header bsp-node none)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -33912,7 +33912,7 @@
   :flag-assert         #xf00002804
   (:methods
     (entity-more-perm-hash-method-9 () none) ;; 9
-    (entity-more-perm-hash-method-10 () none) ;; 10
+    (entity-more-perm-hash-method-10 (_type_ uint32) uint32) ;; 10
     (entity-more-perm-hash-method-11 () none) ;; 11
     (entity-more-perm-hash-method-12 (_type_ uint (pointer symbol)) entity-more-perm) ;; 12, lookup-or-allocate perm by aid; arg2 receives whether a new slot was allocated
     (entity-more-perm-hash-method-13 (_type_ level) none) ;; 13 ;; called method-of-type style from (method 25 level)
@@ -33933,16 +33933,16 @@
   :flag-assert         #x1a00000008
   (:methods
     (gui-control-method-9 (_type_ process int int string float int) uint) ;; 9
-    (gui-control-method-10 () none) ;; 10
-    (gui-control-method-11 () none) ;; 11
-    (gui-control-method-12 () none) ;; 12
-    (gui-control-method-13 () none) ;; 13
+    (gui-control-method-10 (_type_ process gui-channel) int) ;; 10
+    (gui-control-method-11 (_type_ gui-connection) int) ;; 11
+    (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id) ;; 12
+    (gui-control-method-13 (_type_ symbol) int) ;; 13
     (gui-control-method-14 () none) ;; 14
     (gui-control-method-15 () none) ;; 15
     (gui-control-method-16 (_type_ int uint int int string basic process) int) ;; 16 ;; set-action!
     (gui-control-method-17 (_type_ uint) uint) ;; 17 ;; get-status
     (gui-control-method-18 () none) ;; 18
-    (gui-control-method-19 () none) ;; 19
+    (gui-control-method-19 (_type_ gui-channel gui-connection) symbol) ;; 19
     (gui-control-method-20 (_type_ uint symbol int int int float) object) ;; 20 ;; sound-params-set!
     (gui-control-method-21 () none) ;; 21
     (gui-control-method-22 () none) ;; 22
@@ -36543,7 +36543,7 @@
 ;; bsp                            ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern mem-usage-bsp-tree function) ;; (function bsp-header bsp-node memory-usage-block int none)
+(define-extern mem-usage-bsp-tree (function bsp-header (inline-array bsp-node) memory-usage-block int32 none))
 ;; (define-extern *test-shrub* object) ;; int
 (define-extern bsp-camera-asm (function bsp-header vector int none)) ;; jakx adds a vis-index arg
 (define-extern level-remap-texture (function texture-id texture-id))
@@ -37280,7 +37280,7 @@
 ;; (define-extern debug-merc-highres-runtime function)
 ;; (define-extern debug-merc-size-runtime function)
 ;; (define-extern debug-merc-fade-runtime function)
-;; (define-extern foreground-check-longest-edge function)
+(define-extern foreground-check-longest-edge (function int32))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; foreground                     ;;
@@ -37418,7 +37418,7 @@
 ;; (define-extern generic-tie-upload-next function)
 ;; (define-extern generic-tie-convert-proc function)
 ;; (define-extern generic-tie-convert function)
-;; (define-extern generic-tie-display-stats function)
+(define-extern generic-tie-display-stats (function int))
 ;; (define-extern generic-tie-debug function)
 ;; (define-extern generic-tie-execute function)
 
@@ -37476,7 +37476,7 @@
 (define-extern shadow-make-invert-buf (function none)) ;; 
 ;; (define-extern shadow-dma-init function) ;; (function dma-buffer none)
 ;; (define-extern shadow-dma-end function) ;; (function dma-buffer gs-rgbaq symbol int none)
-;; (define-extern shadow-vu0-block object) ;; vu-function
+(define-extern shadow-vu0-block vu-function)
 ;; (define-extern shadow-xform-verts function) ;; function
 ;; (define-extern shadow-calc-dual-verts function) ;; function
 ;; (define-extern shadow-scissor-edges function) ;; function
@@ -37941,8 +37941,8 @@
 (define-extern tie-init-consts (function tie-consts gs-alpha gs-test gs-test none)) ;; activated, prepared sig
 (define-extern tie-init-engine (function dma-buffer gs-alpha gs-test gs-test none)) ;; activated, prepared sig
 (define-extern tie-end-buffer (function dma-buffer none)) ;; activated, prepared sig
-;; (define-extern tie-int-reg function) ;; (function int string)
-;; (define-extern tie-float-reg function) ;; (function int string)
+(define-extern tie-int-reg (function (int32) string))
+(define-extern tie-float-reg (function (int32) string))
 ;; (define-extern tie-ints function) ;; (function none)
 ;; (define-extern tie-floats function) ;; (function none)
 
@@ -37983,10 +37983,10 @@
 (define-extern etie-init-consts (function etie-consts gs-alpha none))
 (define-extern etie-init-engine (function dma-buffer gs-alpha gs-test none))
 (define-extern etie-end-buffer (function dma-buffer none))
-;; (define-extern etie-float-reg-bp function)
+(define-extern etie-float-reg (function (int32) string))
 ;; (define-extern etie-float-reg function)
 ;; (define-extern etie-floats function)
-;; (define-extern etie-int-reg function)
+(define-extern etie-int-reg (function (int32) string))
 ;; (define-extern etie-ints function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -40656,7 +40656,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern cam-stop function) ;; (function symbol)
-;; (define-extern cam-start function) ;; (function symbol none)
+(define-extern cam-start (function symbol none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; cloth-h                        ;;
@@ -41148,7 +41148,7 @@
 ;; (define-extern region-tree-execute function) ;; (function symbol vector vector none)
 (define-extern region-execute (function none))
 ;; (define-extern region-prim-lookup-by-id function) ;; (function int symbol int drawable-region-prim)
-;; (define-extern region-lookup-by-id function) ;; (function int region)
+(define-extern region-lookup-by-id (function (int32) region))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; script                         ;;
@@ -41863,7 +41863,7 @@
 ;; (define-extern draw-history function) ;; (function control-info none)
 ;; (define-extern target-history-print function) ;; (function history-iterator symbol)
 ;; (define-extern target-print-stats function) ;; (function target symbol symbol)
-;; (define-extern target-move-dist function) ;; (function time-frame float :behavior target)
+(define-extern target-move-dist (function time-frame float :behavior target))
 ;; (define-extern level-setup function) ;; (function none :behavior target)
 ;; og:preserve-this type visibility fix, R5a (#122): captured signature uncommented
 ;; as-is; the body decodes clean once live (calls quaternion-copy! on (-> self root)'s
@@ -43327,7 +43327,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern cloud-track function) ;; (function process-tree process-tree (function vector none) time-frame time-frame time-frame none :behavior process)
-;; (define-extern eco-blue-glow function) ;; (function vector none)
+(define-extern eco-blue-glow (function vector none))
 ;; (define-extern process-contact-action function) ;; (function process none :behavior target)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -43487,7 +43487,7 @@
 ;; (define-extern render-eyes-64 function) ;; (function dma-buffer eye-control int pointer)
 (define-extern dirty-eyes (function none)) ;; refine after unlock
 (define-extern update-eyes (function none))
-;; (define-extern convert-eye-data function) ;; (function eye uint float)
+(define-extern convert-eye-data (function eye uint float))
 (define-extern merc-eye-anim (function process-drawable none)) ;; jak3 sig; called by evaluate-joint-control, guarded until the eye leg defines it
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -46330,8 +46330,8 @@
   )
 |#
 
-;; (define-extern rpm->radians-per-sec function) ;; (function float degrees)
-;; (define-extern radians-per-sec->rpm function) ;; (function degrees float)
+(define-extern rpm->radians-per-sec (function (float) float))
+(define-extern radians-per-sec->rpm (function float float))
 ;; (define-extern vehicle-shielded? function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -48917,7 +48917,7 @@
     )
   )
 
-;; (define-extern lobby-vehicle-flag->string function)
+(define-extern lobby-vehicle-flag->string (function (int32) string))
 ;; og:preserve-this type fix, R3a (#122): game-info_ir2.asm op 14 only ever compares
 ;; this global against #f (a truthy/falsy flag read), matching the house convention for
 ;; a symbol-typed flag global; the guessed "object" type left it unresolvable to the
@@ -51602,7 +51602,7 @@
 ;; vehicle-effects                ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern calc-fade-vals function) ;; (function float none)
+(define-extern calc-fade-vals (function float none))
 ;; (define-extern *vehicle-headlight-glow-template* object) ;; sprite-glow-data
 ;; (define-extern *vehicle-taillight-glow-template* object) ;; sprite-glow-data
 ;; (define-extern *vehicle-thruster-glow-template* object) ;; sprite-glow-data
@@ -51673,7 +51673,7 @@
 
 ;; (define-extern vehicle-manager-event-handler function) ;; (function process int symbol event-message-block object :behavior vehicle-manager)
 ;; (define-extern vehicle-manager-init-by-other function) ;; (function object :behavior vehicle-manager)
-;; (define-extern vehicle-manager-start function) ;; (function process none)
+(define-extern vehicle-manager-start (function process none))
 ;; (define-extern vehicle-manager-kill function) ;; (function none)
 (define-extern *car-appearance-hack* int)
 (define-extern *car-info-default* (pointer uint32))
@@ -51739,6 +51739,30 @@
 ;; find-nearest                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+(defenum search-info-flag
+  :type uint32
+  :bitfield #t
+  (abort 0)
+  (crate 1)
+  (guard 2)
+  (attackable 3)
+  (enemy 4)
+  (attackable-priority 5)
+  (high-priority 6)
+  (on-screen 7)
+  (prefer-dist 8)
+  (prefer-angle 9)
+  (prefer-xz 10)
+  (cull-angle 11)
+  (cull-angle-simple 12)
+  (cull-xz 13)
+  (back-point 14)
+  (combo 15)
+  (probe 16)
+  (probe-camera 17)
+  (prefer-center 18)
+  )
+
 #|
 (deftype search-info (structure)
   ((point        vector            :inline :offset-assert 0)
@@ -51761,7 +51785,7 @@
 |#
 
 ;; (define-extern *search-info* object) ;; search-info
-;; (define-extern find-nearest-focusable function) ;; (function (array collide-shape) vector float search-info-flag search-info-flag vector vector float process-focusable)
+(define-extern find-nearest-focusable (function (array collide-shape) vector float search-info-flag search-info-flag vector vector float process-focusable))
 ;; (define-extern in-process-array? function)
 ;; (define-extern fst-insertion-helper function)
 ;; (define-extern find-sorted-targets! function)
@@ -59095,9 +59119,9 @@
 ;; jakx-init                      ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern jakx-login function)
-;; (define-extern jakx-activate function)
-;; (define-extern jakx-deactivate function)
+(define-extern jakx-login (function int32))
+(define-extern jakx-activate (function int32))
+(define-extern jakx-deactivate (function int32))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; speech-ashelin                 ;;
@@ -62440,7 +62464,7 @@
 ;; (define-extern *local-highscore-table-info* object)
 ;; (define-extern get-net-driver-idx-by-type function)
 ;; (define-extern get-net-driver-by-type function)
-;; (define-extern get-driver-flavor-text function)
+(define-extern get-driver-flavor-text (function (int32) int32))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-menu-manager             ;;
@@ -64433,3 +64457,25 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; speech-ximon                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(define-extern *capture-tga-temp* int32)
+(define-extern *car-part-temp-string* string)
+(define-extern *coli-center-arch-explode-params* joint-exploder-static-params)
+(define-extern *default-fast-curve* curve2d-fast)
+(define-extern *eye-work* eye-work)
+(define-extern *footstep-surface* pat-surface)
+(define-extern *generic-tie* symbol)
+(define-extern *ip-to-name-map* (array ip-to-name-map))
+(define-extern *material-to-rb-material-table* (pointer uint8))
+(define-extern *medius-player-account-id* int32)
+(define-extern *minimap-class-list* (inline-array minimap-class-node))
+(define-extern *net-process-class-info-net-player* net-process-class-info)
+(define-extern *prim-work* prim-work)
+(define-extern *rigid-body-surfaces* (pointer rigid-body-surface))
+(define-extern *scert-function-id* int32)
+(define-extern *shadow-data* shadow-data)
+(define-extern *snow-dinobreak-explode-params* joint-exploder-static-params)
+(define-extern *sys-msg-cheat* pointer)
+(define-extern *video-mode* int32)
+(define-extern etie-float-reg-bp (function (int32) string))
+(define-extern set-lobby-camera-seek-time! (function float float))
