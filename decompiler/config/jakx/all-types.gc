@@ -44507,6 +44507,28 @@
   )
 |#
 
+;; resurrected from the dead block above (jak3 transplant: the mem-nav/spr-nav
+;; union overlays restored to :offset per the jak3 twin, and :pack-me adopted
+;; verbatim -- it is required downstream for nav-engine's work-buf-array to
+;; land at its asserted offset 28, see nav-engine below; asserts verified
+;; against the game registration oracle. jak3 twin: all-types.gc:38520-38535)
+(deftype nav-engine-spr-buffer (structure)
+  ((mem-addr  (pointer nav-mesh)          :offset-assert 0) ;; guessed by decompiler
+   (mem-nav   uint32                      :offset 0)
+   (spr-addr  (inline-array nav-control)  :offset-assert 4) ;; guessed by decompiler
+   (spr-nav   uint32                      :offset 4)
+   (q-size    uint32                      :offset-assert 8)
+   (i-nav     uint8                       :offset-assert 12)
+   (done      int8                        :offset-assert 13)
+   (nav-count int8                        :offset-assert 14)
+   (i-pass    int8                        :offset-assert 15)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x10
+  :flag-assert         #x900000010
+  )
+
 #|
 (deftype nav-engine (structure)
   ((spr-addr              uint32                    :offset-assert 0)
@@ -44551,6 +44573,53 @@
   )
 |#
 
+;; resurrected from the dead block above (jak3 transplant: work-buf-array's
+;; missing :inline restored, and the spr/mem pointer overlays restored to
+;; :offset per the jak3 twin; asserts verified against the game registration
+;; oracle. Depends on nav-engine-spr-buffer's :pack-me landing first. jak3
+;; twin: all-types.gc:38537-38559)
+(deftype nav-engine (structure)
+  ((spr-addr              uint32                    :offset-assert 0)
+   (nav-work-addr         uint32                    :offset-assert 4)
+   (nav-mesh-addr         nav-mesh                  :offset-assert 8) ;; guessed by decompiler
+   (poly-array-addr       uint32                    :offset-assert 12)
+   (hash-sphere-addr      uint32                    :offset-assert 16)
+   (hash-buckets-addr     uint32                    :offset-assert 20)
+   (buf-nav-control-count int8                      :offset-assert 24)
+   (max-pass-count        int8                      :offset-assert 25)
+   (output-sphere-hash    uint8                     :offset-assert 26)
+   (work-buf-array        nav-engine-spr-buffer   3 :inline :offset-assert 28) ;; guessed by decompiler
+   (spr-work              nav-mesh-work             :offset 4)
+   (mem-work              nav-mesh-work             :offset-assert 76)
+   (spr-mesh              nav-mesh                  :offset 8) ;; guessed by decompiler
+   (mem-mesh              nav-mesh                  :offset-assert 80) ;; guessed by decompiler
+   (spr-poly-array        uint32                    :offset 12)
+   (mem-poly-array        (inline-array nav-poly)   :offset-assert 84) ;; guessed by decompiler
+   (hash-sphere-list      uint32                    :offset 16)
+   (hash-buckets          uint32                    :offset 20)
+   (to-spr-wait           uint32                    :offset-assert 88)
+   (from-spr-wait         uint32                    :offset-assert 92)
+   )
+  :method-count-assert 22
+  :size-assert         #x60
+  :flag-assert         #x1600000060
+  (:methods
+    (nav-engine-method-9 () none) ;; 9 ;; (inc-spr-addr! (_type_ uint) uint)
+    (nav-engine-method-10 () none) ;; 10 ;; (lay-out-spad-memory (_type_ nav-mesh) none)
+    (nav-engine-method-11 () none) ;; 11 ;; (set-up-mem-work (_type_) none)
+    (nav-engine-method-12 () none) ;; 12 ;; (add-spheres-from-mesh-user-list (_type_ sphere-hash nav-mesh) none)
+    (nav-engine-method-13 () none) ;; 13 ;; (add-all-spheres (_type_) none)
+    (nav-engine-method-14 () none) ;; 14 ;; (do-sphere-lookups (_type_) none)
+    (nav-engine-method-15 () none) ;; 15 ;; (update-nav-controls-pipelined-in-spr (_type_) none)
+    (nav-engine-method-16 () none) ;; 16 ;; (update-nav-controls-in-spr (_type_) none)
+    (nav-engine-method-17 () none) ;; 17 ;; (upload-nav-to-spr (_type_ nav-engine-spr-buffer) none)
+    (nav-engine-method-18 () none) ;; 18 ;; (download-nav-from-spr (_type_ nav-engine-spr-buffer) none)
+    (nav-engine-method-19 () none) ;; 19 ;; (do-callbacks (_type_ nav-engine-spr-buffer) none)
+    (nav-engine-method-20 () none) ;; 20 ;; (reloc-ptrs-to-spad (_type_ nav-engine-spr-buffer) none)
+    (nav-engine-method-21 () none) ;; 21 ;; (reloc-ptrs-to-mem (_type_ nav-engine-spr-buffer) none)
+    )
+  )
+
 ;; (define-extern nav-dma-send-to-spr-no-flush function) ;; (function pointer pointer int none)
 ;; (define-extern nav-dma-send-from-spr-no-flush function) ;; (function pointer pointer int none)
 ;; (define-extern inc-mod3 function) ;; (function int int)
@@ -44571,6 +44640,19 @@
   )
 |#
 
+;; resurrected from the dead block above (jak3 transplant: sphere-array's
+;; missing :inline restored per the jak3 twin, closing the tail hole that left
+;; the type at computed size 80 against its asserted 272; asserts verified
+;; against the game registration oracle. jak3 twin: all-types.gc:38588-38595)
+(deftype nav-find-clear-spot-work (structure)
+  ((id-array     int8   16 :offset-assert 0)
+   (sphere-array sphere 16 :inline :offset-assert 16)
+   )
+  :method-count-assert 9
+  :size-assert         #x110
+  :flag-assert         #x900000110
+  )
+
 #|
 (deftype nav-find-corner-work (structure)
   ((cur-poly     nav-poly                 :offset-assert 0)
@@ -44590,6 +44672,32 @@
   :flag-assert         #x9000000b8
   )
 |#
+
+;; resurrected from the dead block above (no jak3 twin exists for this type;
+;; the 4 UNKNOWN-typed fields are resolved by placement math against the
+;; block's own pre-existing, already-correct offset-asserts (dir at 80,
+;; route-portal at 128, size-assert 0xb8), cross-checked against the
+;; daddiu/array-loop load-kind evidence in the inspect scan. Element TYPE
+;; identity (vector vs. another 16-byte type; float vs. degrees/meters) is
+;; inferred from local file convention, not independently confirmed, see
+;; blocks.md item 5 for the full reasoning)
+(deftype nav-find-corner-work (structure)
+  ((cur-poly     nav-poly                 :offset-assert 0)
+   (target-poly  nav-poly                 :offset-assert 4)
+   (start-pos    vector           :inline :offset-assert 16)
+   (target-pos   vector           :inline :offset-assert 32)
+   (tmp          vector   2       :inline :offset-assert 48)
+   (dir          vector           :inline :offset-assert 80)
+   (frust        vector   2       :inline :offset-assert 96)
+   (route-portal nav-route-portal :inline :offset-assert 128)
+   (portal-count int16                    :offset-assert 166)
+   (frust-dots   float    2               :offset-assert 168)
+   (frust-x-dots float    2               :offset-assert 176)
+   )
+  :method-count-assert 9
+  :size-assert         #xb8
+  :flag-assert         #x9000000b8
+  )
 
 ;; (define-extern *debug-nav-control-output* object) ;; symbol
 ;; (define-extern *debug-nav-control* object) ;; symbol
@@ -44698,6 +44806,37 @@
   :flag-assert         #x9000000c0
   )
 |#
+
+;; resurrected from the dead block above (jak3 transplant: best-dir and
+;; temp-dir's missing :inline restored per the jak3 twin, closing the
+;; mid-structure hole that put temp-dir at computed offset 40 against its
+;; asserted 64; asserts verified against the game registration oracle.
+;; jak3 twin: all-types.gc:38629-38653)
+(deftype nav-control-cfs-work (structure)
+  ((in-dir              vector  :inline :offset-assert 0)
+   (right-dir           vector  :inline :offset-assert 16)
+   (best-dir            vector  2 :inline :offset-assert 32) ;; guessed by decompiler
+   (temp-dir            vector  2 :inline :offset-assert 64) ;; guessed by decompiler
+   (away-dir            vector  :inline :offset-assert 96)
+   (best-dir-angle      degrees 2       :offset-assert 112) ;; guessed by decompiler
+   (ignore-mask         uint64          :offset-assert 120)
+   (initial-ignore-mask uint64          :offset-assert 128)
+   (i-sphere            int32           :offset-assert 136)
+   (i-first-sphere      int32           :offset-assert 140)
+   (i-inside-sphere     int32           :offset-assert 144)
+   (inside-sphere-dist  float           :offset-assert 148)
+   (sign                float           :offset-assert 152)
+   (travel-len          float           :offset-assert 156)
+   (dist2               float           :offset-assert 160)
+   (inside-dist         float           :offset-assert 164)
+   (rand-angle          float           :offset-assert 168)
+   (dir-update          basic           :offset-assert 172)
+   (debug-offset        vector  :inline :offset-assert 176)
+   )
+  :method-count-assert 9
+  :size-assert         #xc0
+  :flag-assert         #x9000000c0
+  )
 
 ;; (define-extern *nav-triangle-test-count* object) ;; int
 ;; (define-extern *nav-last-triangle-test-count* object) ;; int
@@ -56605,6 +56744,13 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; +:allow-misaligned adopted verbatim from the jak3 twin
+;; (decompiler/config/jak3/all-types.gc:40590-40601). Required for
+;; mysql-nav-graph's level-info-array (an inline array of this type) to land
+;; at its asserted offset 40 instead of auto-computing to 48: inline-array
+;; start alignment relaxes to the element type's own max field alignment
+;; (4, all fields here are symbol/uint32/int32) only when the element type
+;; carries :pack-me or :allow-misaligned (Type.cpp get_inline_array_start_alignment).
 (deftype mysql-nav-graph-level-info (structure)
   ((level         symbol  :offset-assert 0) ;; guessed by decompiler
    (level-id      uint32  :offset-assert 4)
@@ -56612,6 +56758,7 @@
    (branch-count  int32   :offset-assert 12)
    (to-link-count int32   :offset-assert 16)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x14
   :flag-assert         #x900000014
@@ -56654,6 +56801,47 @@
     )
   )
 |#
+
+;; resurrected from the dead block above (jak3 transplant: level-info-array's
+;; missing :inline restored per the jak3 twin, closing the tail hole that left
+;; the type at computed size 168 against its asserted 1064; asserts verified
+;; against the game registration oracle. REQUIRES the mysql-nav-graph-level-info
+;; companion fix (:allow-misaligned, see above) to actually close. jak3 twin:
+;; all-types.gc:40603-40617)
+(deftype mysql-nav-graph (basic)
+  ((nav_graph_id            uint32                               :offset-assert 4)
+   (graph-type              symbol                               :offset-assert 8) ;; guessed by decompiler
+   (node-array              mysql-nav-node-array                 :offset-assert 12) ;; guessed by decompiler
+   (edge-array              mysql-nav-edge-array                 :offset-assert 16) ;; guessed by decompiler
+   (visnode-array           mysql-nav-visnode-array              :offset-assert 20) ;; guessed by decompiler
+   (pov-conn-array          (inline-array mysql-nav-pov-conn)    :offset-assert 24) ;; guessed by decompiler
+   (pov-conn-array-length   int32                                :offset-assert 28)
+   (level-info-array-length int32                                :offset-assert 32)
+   (level-info-last-lookup  int32                                :offset-assert 36)
+   (level-info-array        mysql-nav-graph-level-info        32 :inline :offset-assert 40) ;; guessed by decompiler
+   )
+  :method-count-assert 24
+  :size-assert         #x428
+  :flag-assert         #x1800000428
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type string) _type_)
+    (mysql-nav-graph-method-9 () none) ;; 9 ;; (init-from-sql! (_type_ symbol string) symbol)
+    (mysql-nav-graph-method-10 () none) ;; 10 ;; (exec-sql! (_type_) symbol)
+    (mysql-nav-graph-method-11 () none) ;; 11 ;; (indexof-nav-node (_type_ int) int)
+    (mysql-nav-graph-method-12 () none) ;; 12 ;; (indexof-nav-edge (_type_ int) int)
+    (mysql-nav-graph-method-13 () none) ;; 13 ;; (alloc-new-node! (_type_) int)
+    (mysql-nav-graph-method-14 () none) ;; 14 ;; (alloc-new-edge! (_type_) int)
+    (mysql-nav-graph-method-15 () none) ;; 15 ;; (indexof-visnode (_type_ int int) int)
+    (mysql-nav-graph-method-16 () none) ;; 16 ;; (alloc-new-visnode! (_type_ int int) int)
+    (mysql-nav-graph-method-17 () none) ;; 17 ;; (mysql-nav-graph-method-17 (_type_) none)
+    (mysql-nav-graph-method-18 () none) ;; 18 ;; (lookup-level-info2 (_type_ mysql-nav-node symbol) mysql-nav-graph-level-info)
+    (mysql-nav-graph-method-19 () none) ;; 19 ;; (mysql-nav-graph-method-19 (_type_) int)
+    (mysql-nav-graph-method-20 () none) ;; 20 ;; (mysql-nav-graph-method-20 (_type_) none)
+    (mysql-nav-graph-method-21 () none) ;; 21 ;; (get-graph-type (_type_ symbol) symbol)
+    (mysql-nav-graph-method-22 () none) ;; 22 ;; (mysql-nav-graph-method-22 (_type_) int)
+    (mysql-nav-graph-method-23 () none) ;; 23 ;; (mysql-nav-graph-method-23 (_type_ vector vector) symbol)
+    )
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
