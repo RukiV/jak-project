@@ -34577,30 +34577,41 @@
 (declare-type gui-control basic)
 ;; og:bring-up minimal gui-control deftype: the full one is commented (broken field read);
 ;; cam-states only calls m9 (the add-request method).
+;; layout settled 2026-08-14: jak3 twin + channel arithmetic (96->112 channels,
+;; 48->64 connections; 3376+576+272 = 4224 exact) + live instance bytes from
+;; the owner's savestates corroborating every boundary in all four states
 (deftype gui-control (basic)
-  ((engine  engine  :offset-assert 4)
+  ((engine             engine          :offset-assert 4)   ;; guessed by decompiler (unchanged from jak3)
+   (update-time        time-frame      :offset-assert 8)
+   (connections        gui-connection  32  :inline :offset-assert 16)    ;; count unchanged from jak3; element grew 48->64 (jakx gui-connection registry size)
+   (spool-connections  gui-connection  4   :inline :offset-assert 2064)  ;; count unchanged; offset shifts with the wider element (16 + 32*64)
+   (ids                sound-id        112 :offset-assert 2320)         ;; count 96->112, tracks jakx's gui-channel (max 112) vs jak3's (max 96)
+   (times              time-frame      112 :offset-assert 2768)
+   (cmd                pair            112 :offset-assert 3664)
+   (group              uint8           112 :offset-assert 4112)         ;; jak3's sound-group (uint8, 3-bit enum, values 0-7) not yet ported to jakx (og:preserve-this: see gsound.gc's sound-group-pause/-stop/-continue, all still (arg0 uint)); storage width (1 byte) is unaffected by the missing enum wrapper and is confirmed byte-for-byte against the live instance (see findings.md, all observed group bytes in [0,7])
    )
   :method-count-assert 26
-  :size-assert         #x8
-  :flag-assert         #x1a00000008
+  :size-assert         #x1080
+  :flag-assert         #x1a00001080
   (:methods
-    (gui-control-method-9 (_type_ process int int string float int) uint) ;; 9
-    (gui-control-method-10 (_type_ process gui-channel) int) ;; 10
-    (gui-control-method-11 (_type_ gui-connection) int) ;; 11
-    (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id) ;; 12
-    (gui-control-method-13 (_type_ symbol) int) ;; 13
-    (gui-control-method-14 (_type_ object object object) none) ;; 14
-    (gui-control-method-15 () none) ;; 15
-    (gui-control-method-16 (_type_ int uint int int string basic process) int) ;; 16 ;; set-action!
-    (gui-control-method-17 (_type_ uint) uint) ;; 17 ;; get-status
-    (gui-control-method-18 () none) ;; 18
-    (gui-control-method-19 (_type_ gui-channel gui-connection) symbol) ;; 19
-    (gui-control-method-20 (_type_ uint symbol int int int float) object) ;; 20 ;; sound-params-set!
-    (gui-control-method-21 () none) ;; 21
-    (gui-control-method-22 (_type_ object) none) ;; 22
-    (gui-control-method-23 () none) ;; 23
-    (gui-control-method-24 () none) ;; 24
-    (gui-control-method-25 (_type_ object object) none) ;; 25
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type int) _type_)
+    (gui-control-method-9 () none) ;; 9 ;; (add-process (_type_ process gui-channel gui-action string float time-frame) sound-id)
+    (gui-control-method-10 () none) ;; 10 ;; (remove-process (_type_ process gui-channel) int)
+    (gui-control-method-11 () none) ;; 11 ;; (stop-str (_type_ gui-connection) int)
+    (gui-control-method-12 () none) ;; 12 ;; (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id)
+    (gui-control-method-13 () none) ;; 13 ;; (update (_type_ symbol) int)
+    (gui-control-method-14 () none) ;; 14 ;; (lookup-gui-connection-id (_type_ string gui-channel gui-action) sound-id)
+    (gui-control-method-15 () none) ;; 15 ;; (lookup-gui-connection (_type_ process gui-channel string sound-id) gui-connection)
+    (gui-control-method-16 () none) ;; 16 ;; (set-action! (_type_ gui-action sound-id gui-channel gui-action string (function gui-connection symbol) process) int)
+    (gui-control-method-17 () none) ;; 17 ;; (get-status (_type_ sound-id) gui-status)
+    (gui-control-method-18 () none) ;; 18 ;; (gui-control-method-18 (_type_ gui-channel) symbol)
+    (gui-control-method-19 () none) ;; 19 ;; (handle-command-list (_type_ gui-channel gui-connection) symbol)
+    (gui-control-method-20 () none) ;; 20 ;; (sound-params-set! (_type_ sound-id symbol int int int float) gui-connection)
+    (gui-control-method-21 () none) ;; 21 ;; (gui-control-method-21 (_type_ gui-connection) int)
+    (gui-control-method-22 () none) ;; 22 ;; (gui-control-method-22 (_type_ gui-connection vector) int)
+    (gui-control-method-23 () none) ;; 23 ;; (update-connection (_type_ gui-connection process symbol) none)
+    (gui-control-method-24 () none) ;; 24 ;; (handle-command (_type_ gui-channel gui-channel symbol gui-connection) symbol)
+    (gui-control-method-25 () none) ;; 25 ;; (channel-id-set! (_type_ gui-connection sound-id) int)
     )
   )
 (declare-type process-nettable process)
