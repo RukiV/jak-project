@@ -24145,10 +24145,20 @@
   )
 |#
 ;; resurrected via offset-fix package (2026-08-13 adjudication)
+;; companion fix: :allow-misaligned added (arithmetically required, no jak3 twin;
+;; all of this type's own fields are plain 4-byte scalars/pointers, none :inline,
+;; so the relaxed alignment computed by StructureType::get_inline_array_start_alignment
+;; (Type.cpp:888-902, max(field.alignment()) once relaxed) is 4, confirmed by direct
+;; read of this source before applying) so net-type-broadcast-schedule's threshold-data field(s) can
+;; auto-place at its converted union-overlay offset (8, not 16-aligned)
+;; instead of being forced to the unflagged default of 16-byte start alignment;
+;; does not change this type's own asserts (deftype.cpp:553 excludes keyword flags
+;; from flag-assert).
 (deftype anonymous-0 (structure)
   ((error-threshold-magnitude float                                       :offset-assert 0)
    (pf-threshold-callback     basic  :overlay-at error-threshold-magnitude :offset-assert 0)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x4
   :flag-assert         #x900000004
@@ -29184,6 +29194,23 @@
   :flag-assert         #x90000000d
   )
 |#
+;; resurrected from the dead block above (union-overlay defect:
+;; threshold-data->8, transport-flags->12 converted :offset-assert to :offset
+;; (union-overlay), no jak3 twin for this type, dead-block provenance rule
+;; applied (consecutive non-increasing offset); confidence mechanical
+;; (dead-block provenance rule only); asserts verified against the game
+;; registration oracle).
+(deftype net-type-broadcast-schedule (structure)
+  ((min-update-interval  uint32              :offset-assert 0)
+   (error-threshold-type int32               :offset-assert 4)
+   (threshold-data       anonymous-0 :inline :offset 8)
+   (transport-flags      int8                :offset 12)
+   )
+  :method-count-assert 9
+  :size-assert         #xd
+  :flag-assert         #x90000000d
+  )
+
 
 #|
 (deftype net-type-field (structure)
@@ -39045,6 +39072,24 @@
   :flag-assert         #x900000080
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: morph->76,
+;; fog->92, fade->108 converted :offset-assert to :offset (union-overlay),
+;; jak3 twin decompiler/config/jak3/all-types.gc:31737 confirms the overlay;
+;; confidence proven (jak3-corroborated); asserts verified against the game
+;; registration oracle).
+(deftype etn-matrix (structure)
+  ((rmtx  matrix  :inline :offset-assert 0)
+   (nmtx  matrix3 :inline :offset-assert 64)
+   (morph float           :offset 76)
+   (fog   float           :offset 92)
+   (fade  uint32          :offset 108)
+   (tint  qword   :inline :offset-assert 112)
+   )
+  :method-count-assert 9
+  :size-assert         #x80
+  :flag-assert         #x900000080
+  )
+
 
 #|
 (deftype etn-vtx (structure)
@@ -41632,6 +41677,24 @@
   :flag-assert         #xe00000010
   )
 |#
+;; resurrected from the dead block above (redeclares-inherited defect:
+;; `length`, `allocated-length` dropped (redeclares-inherited), owned by
+;; ancestor inline-array-class at goal_src/jakx/kernel/gcommon.gc:1040-1041;
+;; confidence proven (live ancestor field cited); asserts verified against the
+;; game registration oracle).
+;; ALSO bundled here (orchestrator batch-1-adjacent instruction, folded into this
+;; type's own landing since the field does not exist until the type is live): data
+;; was missing :inline, confirmed against its jak3 twin at decompiler/config/jak3/all-types.gc (deftype volume-descriptor-array, data field);
+;; this is a missing-keyword defect adjacent to but outside union-overlay/
+;; redeclares-inherited, flagged by lane-b as 'not applied here (outside brief scope)'
+;; and applied here instead.
+(deftype volume-descriptor-array (inline-array-class)
+  ((data             plane-volume :dynamic :inline :offset-assert 16))
+  :method-count-assert 14
+  :size-assert         #x10
+  :flag-assert         #xe00000010
+  )
+
 
 #|
 (deftype cam-layout (process)
@@ -41923,6 +41986,18 @@
   :flag-assert         #xe00000010
   )
 |#
+;; resurrected from the dead block above (redeclares-inherited defect:
+;; `length`, `allocated-length` dropped (redeclares-inherited), owned by
+;; ancestor inline-array-class at goal_src/jakx/kernel/gcommon.gc:1040-1041;
+;; confidence proven (live ancestor field cited); asserts verified against the
+;; game registration oracle).
+(deftype cam-collision-record-array (inline-array-class)
+  ((data             cam-collision-record :dynamic :offset-assert 16))
+  :method-count-assert 14
+  :size-assert         #x10
+  :flag-assert         #xe00000010
+  )
+
 
 ;; (define-extern *camera-old-cpu* object) ;; int
 ;; (define-extern *camera-old-vu* object) ;; int
@@ -42665,6 +42740,24 @@
   :flag-assert         #xe00000010
   )
 |#
+;; resurrected from the dead block above (redeclares-inherited defect:
+;; `length`, `allocated-length` dropped (redeclares-inherited), owned by
+;; ancestor inline-array-class at goal_src/jakx/kernel/gcommon.gc:1040-1041;
+;; confidence proven (live ancestor field cited); asserts verified against the
+;; game registration oracle).
+;; ALSO bundled here (orchestrator batch-1-adjacent instruction, folded into this
+;; type's own landing since the field does not exist until the type is live): data
+;; was missing :inline, confirmed against its jak3 twin at decompiler/config/jak3/all-types.gc (deftype color-array, data field);
+;; this is a missing-keyword defect adjacent to but outside union-overlay/
+;; redeclares-inherited, flagged by lane-b as 'not applied here (outside brief scope)'
+;; and applied here instead.
+(deftype color-array (inline-array-class)
+  ((data             rgbaf :dynamic :inline :offset-assert 16))
+  :method-count-assert 14
+  :size-assert         #x10
+  :flag-assert         #xe00000010
+  )
+
 
 #|
 (deftype light-trail-composition (structure)
@@ -42709,6 +42802,20 @@
   :flag-assert         #x900000010
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: birth-time->12
+;; converted :offset-assert to :offset (union-overlay), jak3 twin
+;; decompiler/config/jak3/all-types.gc:35104 confirms the overlay; confidence
+;; proven (jak3-corroborated); asserts verified against the game registration
+;; oracle).
+(deftype light-trail-breadcrumb (structure)
+  ((pos        vector :inline :offset-assert 0)
+   (birth-time uint32         :offset 12)
+   )
+  :method-count-assert 9
+  :size-assert         #x10
+  :flag-assert         #x900000010
+  )
+
 
 #|
 (deftype breadcrumb-array (inline-array-class)
@@ -42721,6 +42828,18 @@
   :flag-assert         #xe00000010
   )
 |#
+;; resurrected from the dead block above (redeclares-inherited defect:
+;; `length`, `allocated-length` dropped (redeclares-inherited), owned by
+;; ancestor inline-array-class at goal_src/jakx/kernel/gcommon.gc:1040-1041;
+;; confidence proven (live ancestor field cited); asserts verified against the
+;; game registration oracle).
+(deftype breadcrumb-array (inline-array-class)
+  ((data             light-trail-breadcrumb :dynamic :offset-assert 16))
+  :method-count-assert 14
+  :size-assert         #x10
+  :flag-assert         #xe00000010
+  )
+
 
 #|
 (deftype light-trail (prim-client)
@@ -43026,6 +43145,24 @@
   :flag-assert         #xe00000010
   )
 |#
+;; resurrected from the dead block above (redeclares-inherited defect:
+;; `length`, `allocated-length` dropped (redeclares-inherited), owned by
+;; ancestor inline-array-class at goal_src/jakx/kernel/gcommon.gc:1040-1041;
+;; confidence proven (live ancestor field cited); asserts verified against the
+;; game registration oracle).
+;; ALSO bundled here (orchestrator batch-1-adjacent instruction, folded into this
+;; type's own landing since the field does not exist until the type is live): data
+;; was missing :inline, confirmed against its jak3 twin at decompiler/config/jak3/all-types.gc (deftype lightning-spans-array, data field);
+;; this is a missing-keyword defect adjacent to but outside union-overlay/
+;; redeclares-inherited, flagged by lane-b as 'not applied here (outside brief scope)'
+;; and applied here instead.
+(deftype lightning-spans-array (inline-array-class)
+  ((data             lightning-span :dynamic :inline :offset-assert 16))
+  :method-count-assert 14
+  :size-assert         #x10
+  :flag-assert         #xe00000010
+  )
+
 
 #|
 (deftype lightning-spans-internal-array (inline-array-class)
@@ -43038,6 +43175,24 @@
   :flag-assert         #xe00000010
   )
 |#
+;; resurrected from the dead block above (redeclares-inherited defect:
+;; `length`, `allocated-length` dropped (redeclares-inherited), owned by
+;; ancestor inline-array-class at goal_src/jakx/kernel/gcommon.gc:1040-1041;
+;; confidence proven (live ancestor field cited); asserts verified against the
+;; game registration oracle).
+;; ALSO bundled here (orchestrator batch-1-adjacent instruction, folded into this
+;; type's own landing since the field does not exist until the type is live): data
+;; was missing :inline, confirmed against its jak3 twin at decompiler/config/jak3/all-types.gc (deftype lightning-spans-internal-array, data field);
+;; this is a missing-keyword defect adjacent to but outside union-overlay/
+;; redeclares-inherited, flagged by lane-b as 'not applied here (outside brief scope)'
+;; and applied here instead.
+(deftype lightning-spans-internal-array (inline-array-class)
+  ((data             lightning-span-internal :dynamic :inline :offset-assert 16))
+  :method-count-assert 14
+  :size-assert         #x10
+  :flag-assert         #xe00000010
+  )
+
 
 #|
 (deftype tex-u-holder (structure)
@@ -43107,6 +43262,57 @@
     )
   )
 |#
+;; resurrected from the dead block above (union-overlay defect:
+;; num-active-spans->108, num-spans->109 converted :offset-assert to :offset
+;; (union-overlay), jak3 twin decompiler/config/jak3/all-types.gc:35367
+;; confirms the overlay; confidence proven (jak3-corroborated); asserts
+;; verified against the game registration oracle).
+(deftype lightning-bolt (basic)
+  ((current-points                vector-array                     :offset-assert 4) ;; guessed by decompiler
+   (desired-points                vector-array                     :offset-assert 8) ;; guessed by decompiler
+   (span-pts-start                vector-array                     :offset-assert 12) ;; guessed by decompiler
+   (spans                         lightning-spans-array            :offset-assert 16) ;; guessed by decompiler
+   (spans-internal                lightning-spans-internal-array   :offset-assert 20) ;; guessed by decompiler
+   (strip1                        prim-strip                       :offset-assert 24) ;; guessed by decompiler
+   (strip2                        prim-strip                       :offset-assert 28) ;; guessed by decompiler
+   (inner-point-travel-time       uint64                           :offset-assert 32) ;; time-frame
+   (start-fade-time               uint64                           :offset-assert 40) ;; time-frame
+   (new-inner-point-generate-time uint64                           :offset-assert 48) ;; time-frame
+   (last-generate-time            uint64                           :offset-assert 56) ;; time-frame
+   (base-width                    float                            :offset-assert 64)
+   (current-uv-shift              float                            :offset-assert 68)
+   (current-fade-scalar           float                            :offset-assert 72)
+   (fractal-reduction             float                            :offset-assert 76)
+   (appearance                    lightning-appearance             :offset-assert 80)
+   (fade-mode                     uint64                           :offset-assert 88)
+   (generate-mode                 uint64                           :offset-assert 96)
+   (snap-inner-points?            symbol                           :offset-assert 104) ;; guessed by decompiler
+   (span-data                     int8                           2 :offset-assert 108) ;; guessed by decompiler
+   (num-active-spans              int8                             :offset 108)
+   (num-spans                     int8                             :offset 109)
+   (base-color                    rgba                             :offset-assert 112) ;; guessed by decompiler
+   )
+  :method-count-assert 23
+  :size-assert         #x74
+  :flag-assert         #x1700000074
+  (:methods
+    (lightning-bolt-method-9 () none) ;; 9 ;; (init! (_type_ int int lightning-appearance) none)
+    (lightning-bolt-method-10 () none) ;; 10 ;; (reset-spans! (_type_) none)
+    (lightning-bolt-method-11 () none) ;; 11 ;; (lightning-bolt-method-11 (_type_) none)
+    (lightning-bolt-method-12 () none) ;; 12 ;; (lightning-bolt-method-12 (_type_) none)
+    (lightning-bolt-method-13 () none) ;; 13 ;; (lightning-bolt-method-13 (_type_ int) none)
+    (lightning-bolt-method-14 () none) ;; 14 ;; (lightning-bolt-method-14 (_type_) int)
+    (lightning-bolt-method-15 () none) ;; 15 ;; (lightning-bolt-method-15 (_type_ object int lightning-span-internal) none)
+    (lightning-bolt-method-16 () none) ;; 16 ;; (lightning-bolt-method-16 (_type_ vector float float vector matrix) none)
+    (lightning-bolt-method-17 () none) ;; 17 ;; (lightning-bolt-method-17 (_type_ uint float float curve2d-fast float) float)
+    (lightning-bolt-method-18 () none) ;; 18 ;; (lightning-bolt-method-18 (_type_ prim-strip vector rgba float float) none)
+    (lightning-bolt-method-19 () none) ;; 19 ;; (lightning-bolt-method-19 (_type_ vector int int matrix float float) none)
+    (lightning-bolt-method-20 () none) ;; 20 ;; (lightning-bolt-method-20 (_type_ int lightning-span-internal) vector)
+    (lightning-bolt-method-21 () none) ;; 21 ;; (lightning-bolt-method-21 (_type_ int int float) none)
+    (lightning-bolt-method-22 () none) ;; 22 ;; (lightning-bolt-method-22 (_type_) none)
+    )
+  )
+
 
 #|
 (deftype lightning-new-tracker (process)
@@ -44994,6 +45200,24 @@
   :flag-assert         #xe00000010
   )
 |#
+;; resurrected from the dead block above (redeclares-inherited defect:
+;; `length`, `allocated-length` dropped (redeclares-inherited), owned by
+;; ancestor inline-array-class at goal_src/jakx/kernel/gcommon.gc:1040-1041;
+;; confidence proven (live ancestor field cited); asserts verified against the
+;; game registration oracle).
+;; ALSO bundled here (orchestrator batch-1-adjacent instruction, folded into this
+;; type's own landing since the field does not exist until the type is live): data
+;; was missing :inline, confirmed against its jak3 twin at decompiler/config/jak3/all-types.gc (deftype flow-section-array, data field);
+;; this is a missing-keyword defect adjacent to but outside union-overlay/
+;; redeclares-inherited, flagged by lane-b as 'not applied here (outside brief scope)'
+;; and applied here instead.
+(deftype flow-section-array (inline-array-class)
+  ((data             flow-section :dynamic :inline :offset-assert 16))
+  :method-count-assert 14
+  :size-assert         #x10
+  :flag-assert         #xe00000010
+  )
+
 
 #|
 (deftype flow-control (basic)
@@ -47044,6 +47268,31 @@
   :flag-assert         #x900000060
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: look-front->32
+;; converted :offset-assert to :offset (union-overlay), jak3 twin
+;; decompiler/config/jak3/all-types.gc:53468 confirms the overlay; confidence
+;; proven (jak3-corroborated); asserts verified against the game registration
+;; oracle).
+(deftype vehicle-camera-info (structure)
+  ((string-min-height meters         :offset-assert 0)
+   (string-max-height meters         :offset-assert 4)
+   (string-min-length meters         :offset-assert 8)
+   (string-max-length meters         :offset-assert 12)
+   (min-fov           float          :offset-assert 16)
+   (max-fov           float          :offset-assert 20)
+   (head-offset       float          :offset-assert 24)
+   (foot-offset       float          :offset-assert 28)
+   (look-pos-array    vector 4       :offset-assert 32) ;; guessed by decompiler
+   (look-front        vector :inline :offset 32)
+   (look-left         vector :inline :offset-assert 48)
+   (look-right        vector :inline :offset-assert 64)
+   (look-rear         vector :inline :offset-assert 80)
+   )
+  :method-count-assert 9
+  :size-assert         #x60
+  :flag-assert         #x900000060
+  )
+
 
 #|
 (deftype vehicle-sound-loop-info (structure)
@@ -47281,6 +47530,30 @@
   :flag-assert         #x900000010
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: position->0,
+;; pos-x->0, pos-y->4, pos-z->8, angle->12, flags->14 converted :offset-assert
+;; to :offset (union-overlay), jak3 twin
+;; decompiler/config/jak3/all-types.gc:53652 confirms the overlay; mask: auto
+;; 16, declared assert 14 (gap -2) -> `:offset 14`. no match in jak3 twin
+;; (all-types.gc:53652) -- jakx-only field; dead-block provenance rule applied
+;; (consecutive non-increasing offset); confidence mixed (jak3-corroborated +
+;; mechanical-only fields); asserts verified against the game registration
+;; oracle).
+(deftype vehicle-seat-info (structure)
+  ((data     uint8  16      :offset-assert 0) ;; guessed by decompiler
+   (position vector :inline :offset 0)
+   (pos-x    float          :offset 0)
+   (pos-y    float          :offset 4)
+   (pos-z    float          :offset 8)
+   (angle    int16          :offset 12)
+   (flags    uint8          :offset 14) ;; vehicle-seat-flag
+   (mask     uint16         :offset 14)
+   )
+  :method-count-assert 9
+  :size-assert         #x10
+  :flag-assert         #x900000010
+  )
+
 
 #|
 (deftype vehicle-daxter-info (structure)
@@ -48092,6 +48365,21 @@
   :flag-assert         #x900000020
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: lap-dist->12
+;; converted :offset-assert to :offset (union-overlay), jak3 twin
+;; decompiler/config/jak3/all-types.gc:56580 confirms the overlay; confidence
+;; proven (jak3-corroborated); asserts verified against the game registration
+;; oracle).
+(deftype race-mesh-edge (structure)
+  ((left     vector :inline :offset-assert 0)
+   (right    vector :inline :offset-assert 16)
+   (lap-dist float          :offset 12)
+   )
+  :method-count-assert 9
+  :size-assert         #x20
+  :flag-assert         #x900000020
+  )
+
 
 #|
 (deftype race-mesh-slice (structure)
@@ -48104,6 +48392,21 @@
   :flag-assert         #x900000004
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: start-edge->0,
+;; end-edge->2 converted :offset-assert to :offset (union-overlay), jak3 twin
+;; decompiler/config/jak3/all-types.gc:56590 confirms the overlay; confidence
+;; proven (jak3-corroborated); asserts verified against the game registration
+;; oracle).
+(deftype race-mesh-slice (structure)
+  ((edge-index-array uint16 2 :offset-assert 0) ;; guessed by decompiler
+   (start-edge       int16    :offset 0)
+   (end-edge         int16    :offset 2)
+   )
+  :method-count-assert 9
+  :size-assert         #x4
+  :flag-assert         #x900000004
+  )
+
 
 #|
 (deftype race-mesh-hash-cell (structure)
@@ -53475,6 +53778,35 @@
   :flag-assert         #x900000010
   )
 |#
+;; resurrected from the dead block above (union-overlay defect:
+;; user-uint64->0, user-float0->0, user-float->0, user-int32->0,
+;; user-uint32->0, user-int16->0, user-uint16->0, user-int8->0, user-int80->0,
+;; user-int81->1, user-uint8->0 converted :offset-assert to :offset
+;; (union-overlay), jak3 twin decompiler/config/jak3/all-types.gc:32314
+;; confirms the overlay; confidence proven (jak3-corroborated); asserts
+;; verified against the game registration oracle).
+(deftype game-save-tag (structure)
+  ((user-object object 2 :offset-assert 0) ;; guessed by decompiler
+   (user-uint64 uint64   :offset 0)
+   (user-float0 float    :offset 0)
+   (user-float  float  2 :offset 0) ;; guessed by decompiler
+   (user-int32  int32  2 :offset 0) ;; guessed by decompiler
+   (user-uint32 uint32 2 :offset 0) ;; guessed by decompiler
+   (user-int16  int16  4 :offset 0) ;; guessed by decompiler
+   (user-uint16 uint16 4 :offset 0) ;; guessed by decompiler
+   (user-int8   int8   8 :offset 0) ;; guessed by decompiler
+   (user-int80  int8     :offset 0)
+   (user-int81  int8     :offset 1)
+   (user-uint8  uint8  8 :offset 0) ;; guessed by decompiler
+   (elt-count   int32    :offset-assert 8)
+   (elt-size    uint16   :offset-assert 12)
+   (elt-type    uint16   :offset-assert 14) ;; game-save-elt
+   )
+  :method-count-assert 9
+  :size-assert         #x10
+  :flag-assert         #x900000010
+  )
+
 
 #|
 (deftype game-save (basic)
@@ -55592,12 +55924,22 @@
   :flag-assert         #x90000000c
   )
 
+;; companion fix: :allow-misaligned added (arithmetically required, no jak3 twin;
+;; all of this type's own fields are plain 4-byte scalars/pointers, none :inline,
+;; so the relaxed alignment computed by StructureType::get_inline_array_start_alignment
+;; (Type.cpp:888-902, max(field.alignment()) once relaxed) is 4, confirmed by direct
+;; read of this source before applying) so anim-test-obj/anim-test-sequence's item-list/seq-list field(s) can
+;; auto-place at its converted union-overlay offset (12, not 16-aligned)
+;; instead of being forced to the unflagged default of 16-byte start alignment;
+;; does not change this type's own asserts (deftype.cpp:553 excludes keyword flags
+;; from flag-assert).
 (deftype glst-list (structure)
   ((head     glst-node  :offset-assert 0)
    (tail     glst-node  :offset-assert 4)
    (tailpred glst-node  :offset-assert 8)
    (numelem  int32      :offset-assert 12)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x10
   :flag-assert         #x900000010
@@ -55664,6 +56006,15 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; companion fix: :allow-misaligned added (arithmetically required, no jak3 twin;
+;; all of this type's own fields are plain 4-byte scalars/pointers, none :inline,
+;; so the relaxed alignment computed by StructureType::get_inline_array_start_alignment
+;; (Type.cpp:888-902, max(field.alignment()) once relaxed) is 4, confirmed by direct
+;; read of this source before applying) so anim-test-obj/anim-test-sequence's list-con field(s) can
+;; auto-place at its converted union-overlay offset (44/36, not 16-aligned)
+;; instead of being forced to the unflagged default of 16-byte start alignment;
+;; does not change this type's own asserts (deftype.cpp:553 excludes keyword flags
+;; from flag-assert).
 (deftype list-control (structure)
   ((listfunc            (function int list-control symbol)  :offset-assert 0) ;; guessed by decompiler
    (list-owner          uint32                              :offset-assert 4)
@@ -55686,6 +56037,7 @@
    (user-info           int32                               :offset-assert 72)
    (return-int          int32                               :offset-assert 76)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x50
   :flag-assert         #x900000050
@@ -55822,6 +56174,29 @@
   :flag-assert         #x900000090
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: list-con->44
+;; converted :offset-assert to :offset (union-overlay), jak3 twin
+;; decompiler/config/jak3/all-types.gc:39773 confirms the overlay; confidence
+;; proven (jak3-corroborated); asserts verified against the game registration
+;; oracle).
+(deftype anim-test-obj (glst-named-node)
+  ((obj-art-group basic                :offset-assert 12)
+   (seq-list      glst-list    :inline :offset-assert 16)
+   (flags         int32                :offset-assert 32)
+   (mesh-geo      basic                :offset-assert 36)
+   (joint-geo     basic                :offset-assert 40)
+   (list-con      list-control :inline :offset 44)
+   (parent        uint32               :offset-assert 124)
+   (anim-index    int32                :offset-assert 128)
+   (anim-hindex   int32                :offset-assert 132)
+   (seq-index     int32                :offset-assert 136)
+   (seq-hindex    int32                :offset-assert 140)
+   )
+  :method-count-assert 9
+  :size-assert         #x90
+  :flag-assert         #x900000090
+  )
+
 
 #|
 (deftype anim-test-sequence (glst-named-node)
@@ -55836,6 +56211,23 @@
   :flag-assert         #x900000078
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: item-list->12,
+;; list-con->36 converted :offset-assert to :offset (union-overlay), jak3 twin
+;; decompiler/config/jak3/all-types.gc:39791 confirms the overlay; confidence
+;; proven (jak3-corroborated); asserts verified against the game registration
+;; oracle).
+(deftype anim-test-sequence (glst-named-node)
+  ((item-list    glst-list     :inline :offset 12)
+   (playing-item int32                 :offset-assert 28)
+   (flags        int32                 :offset-assert 32)
+   (list-con     list-control  :inline :offset 36)
+   (parent       anim-test-obj         :offset-assert 116)
+   )
+  :method-count-assert 9
+  :size-assert         #x78
+  :flag-assert         #x900000078
+  )
+
 
 #|
 (deftype anim-test-seq-item (glst-named-node)
@@ -56666,6 +57058,15 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; companion fix: :allow-misaligned added (arithmetically required, no jak3 twin;
+;; all of this type's own fields are plain 4-byte scalars/pointers, none :inline,
+;; so the relaxed alignment computed by StructureType::get_inline_array_start_alignment
+;; (Type.cpp:888-902, max(field.alignment()) once relaxed) is 4, confirmed by direct
+;; read of this source before applying) so nav-graph-editor's default-edge field(s) can
+;; auto-place at its converted union-overlay offset (396, not 16-aligned)
+;; instead of being forced to the unflagged default of 16-byte start alignment;
+;; does not change this type's own asserts (deftype.cpp:553 excludes keyword flags
+;; from flag-assert).
 (deftype mysql-nav-edge (structure)
   ((mysql-save-flag    mysql-save-flag     :offset-assert 0) ;; guessed by decompiler
    (runtime-id         uint32              :offset-assert 4)
@@ -56687,6 +57088,7 @@
    (width              float               :offset-assert 68)
    (minimap_edge_flag  int32               :offset-assert 72) ;; nav-minimap-edge-flag
    )
+  :allow-misaligned
   :method-count-assert 10
   :size-assert         #x4c
   :flag-assert         #xa0000004c
@@ -63883,6 +64285,15 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; companion fix: :allow-misaligned added (arithmetically required, no jak3 twin;
+;; all of this type's own fields are plain 4-byte scalars/pointers, none :inline,
+;; so the relaxed alignment computed by StructureType::get_inline_array_start_alignment
+;; (Type.cpp:888-902, max(field.alignment()) once relaxed) is 4, confirmed by direct
+;; read of this source before applying) so wvehicle-part-work's dirt-launcher/dust-launcher/ripple-launcher/snow-launcher/grass-launcher field(s) can
+;; auto-place at its converted union-overlay offset (568/628/748/808/868, not 16-aligned)
+;; instead of being forced to the unflagged default of 16-byte start alignment;
+;; does not change this type's own asserts (deftype.cpp:553 excludes keyword flags
+;; from flag-assert).
 (deftype wvehicle-wheel-launcher-spec (structure)
   ((mat                    matrix              :offset-assert 0)
    (particle-system        sparticle-system    :offset-assert 4) ;; guessed by decompiler
@@ -63900,6 +64311,7 @@
    (ptr-part-birth-accum   uint32              :offset-assert 52)
    (ptr-streak-birth-accum uint32              :offset-assert 56)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x3c
   :flag-assert         #x90000003c
@@ -63963,6 +64375,74 @@
   :flag-assert         #x9000003b0
   )
 |#
+;; resurrected from the dead block above (union-overlay defect:
+;; dirt-launcher->568, dust-launcher->628, spray-launcher->688,
+;; ripple-launcher->748, dummy-spec->928 converted :offset-assert to :offset
+;; (union-overlay), jak3 twin decompiler/config/jak3/all-types.gc:58326
+;; confirms the overlay; snow-launcher: auto 816, declared assert 808 (gap -8)
+;; -> `:offset 808`. no match in jak3 twin (all-types.gc:58326) -- jakx-only
+;; field; dead-block provenance rule applied (consecutive non-increasing
+;; offset); grass-launcher: auto 880, declared assert 868 (gap -12) ->
+;; `:offset 868`. no match in jak3 twin (all-types.gc:58326) -- jakx-only
+;; field; dead-block provenance rule applied (consecutive non-increasing
+;; offset); confidence mixed (jak3-corroborated + mechanical-only fields);
+;; asserts verified against the game registration oracle).
+(deftype wvehicle-part-work (structure)
+  ((streak             spark-launch-params          :inline :offset-assert 0)
+   (local-mat          matrix                       :inline :offset-assert 80)
+   (world-mat          matrix                       :inline :offset-assert 144)
+   (velocity           vector                       :inline :offset-assert 208)
+   (side-dir           vector                       :inline :offset-assert 224)
+   (up-dir             vector                       :inline :offset-assert 240)
+   (forward-dir        vector                       :inline :offset-assert 256)
+   (wheel-axis         vector                       :inline :offset-assert 272)
+   (surface-pos        vector                       :inline :offset-assert 288)
+   (part-vel           vector                       :inline :offset-assert 304)
+   (pos-l              vector                       :inline :offset-assert 320)
+   (pos-r              vector                       :inline :offset-assert 336)
+   (offset             vector                       :inline :offset-assert 352)
+   (zero-offset        vector                       :inline :offset-assert 368)
+   (prev-pos           vector                       :inline :offset-assert 384)
+   (cull-plane         vector                       :inline :offset-assert 400)
+   (cam-velocity       vector                       :inline :offset-assert 416)
+   (world-pos          vector                       :inline :offset-assert 432)
+   (dir                vector                       :inline :offset-assert 448)
+   (rgb                rgbaf                        :inline :offset-assert 464)
+   (surface-type       uint8                                :offset-assert 480)
+   (wheel-rev-speed    float                                :offset-assert 484)
+   (wheel-speed        float                                :offset-assert 488)
+   (wheel-radius       float                                :offset-assert 492)
+   (wheel-width        float                                :offset-assert 496)
+   (part-num           float                                :offset-assert 500)
+   (rand-val           float                                :offset-assert 504)
+   (streak-ratio       float                                :offset-assert 508)
+   (streak-num         float                                :offset-assert 512)
+   (streak-color-index uint32                               :offset-assert 516)
+   (duration           float                                :offset-assert 520)
+   (scale              float                                :offset-assert 524)
+   (slip               float                                :offset-assert 528)
+   (up-force           float                                :offset-assert 532)
+   (alpha              float                                :offset-assert 536)
+   (alpha-range        float                                :offset-assert 540)
+   (vel-scale          float                                :offset-assert 544)
+   (vel-range          float                                :offset-assert 548)
+   (speed              float                                :offset-assert 552)
+   (y-accel            float                                :offset-assert 556)
+   (cur-time           uint32                               :offset-assert 560)
+   (ups                float                                :offset-assert 564)
+   (dirt-launcher      wvehicle-wheel-launcher-spec :inline :offset 568)
+   (dust-launcher      wvehicle-wheel-launcher-spec :inline :offset 628)
+   (spray-launcher     wvehicle-wheel-launcher-spec :inline :offset 688)
+   (ripple-launcher    wvehicle-wheel-launcher-spec :inline :offset 748)
+   (snow-launcher      wvehicle-wheel-launcher-spec :inline :offset 808)
+   (grass-launcher     wvehicle-wheel-launcher-spec :inline :offset 868)
+   (dummy-spec         sp-field-init-spec           :inline :offset 928)
+   )
+  :method-count-assert 9
+  :size-assert         #x3b0
+  :flag-assert         #x9000003b0
+  )
+
 
 #|
 (deftype tire-trail-crumb (light-trail-breadcrumb)
@@ -63974,6 +64454,20 @@
   :flag-assert         #x900000020
   )
 |#
+;; resurrected from the dead block above (union-overlay defect: uu->28
+;; converted :offset-assert to :offset (union-overlay), jak3 twin
+;; decompiler/config/jak3/all-types.gc:58367 confirms the overlay; confidence
+;; proven (jak3-corroborated); asserts verified against the game registration
+;; oracle).
+(deftype tire-trail-crumb (light-trail-breadcrumb)
+  ((offset vector :inline :offset-assert 16)
+   (uu     float          :offset 28)
+   )
+  :method-count-assert 9
+  :size-assert         #x20
+  :flag-assert         #x900000020
+  )
+
 
 #|
 (deftype tire-trail (light-trail)
@@ -65009,6 +65503,27 @@
   :flag-assert         #x900000030
   )
 |#
+;; resurrected from the dead block above (union-overlay defect:
+;; size-delta->28, size->12 converted :offset-assert to :offset
+;; (union-overlay), no jak3 twin for this type, dead-block provenance rule
+;; applied (consecutive non-increasing offset); confidence mechanical
+;; (dead-block provenance rule only); asserts verified against the game
+;; registration oracle).
+(deftype smoke-particle (structure)
+  ((pos        vector :inline :offset-assert 0)
+   (vel        vector :inline :offset-assert 16)
+   (size-delta float          :offset 28)
+   (size       float          :offset 12)
+   (decay      float          :offset-assert 32)
+   (rot        float          :offset-assert 36)
+   (rot-delta  float          :offset-assert 40)
+   (color      uint32         :offset-assert 44)
+   )
+  :method-count-assert 9
+  :size-assert         #x30
+  :flag-assert         #x900000030
+  )
+
 
 #|
 (deftype particle-buffer (prim-client)
