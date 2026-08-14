@@ -41127,6 +41127,28 @@
     )
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: adds :allow-misaligned
+;; per the jak3 twin at decompiler/config/jak3/all-types.gc:33461-33472, otherwise
+;; byte-identical to the jakx dead block; required as a companion fix so
+;; actor-hash-buckets' inline array of 4 actor-hash-bucket can auto-place at its
+;; asserted offset 8 rather than being forced to 16-byte start alignment
+;; (TypeSystem.cpp:1325-1337, Type.cpp:888-897); jakx's own method-stub naming kept
+;; over jak3's adopted signature; asserts verified against the game registration
+;; oracle)
+(deftype actor-hash-bucket (structure)
+  ((length     int16                            :offset-assert 0)
+   (max-length int16                            :offset-assert 2)
+   (data       (inline-array actor-cshape-ptr)  :offset-assert 4) ;; guessed by decompiler
+   )
+  :allow-misaligned
+  :method-count-assert 10
+  :size-assert         #x8
+  :flag-assert         #xa00000008
+  (:methods
+    (actor-hash-bucket-method-9 () none) ;; 9 ;; (add-actor-cshape (_type_ collide-shape) none)
+    )
+  )
+
 
 #|
 (deftype actor-hash-buckets (structure)
@@ -41371,6 +41393,12 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; companion fix: :pack-me added, matching plane-volume's own jak3 twin at
+;; decompiler/config/jak3/all-types.gc:33841, so vol-control's two inline arrays
+;; of 32 plane-volume (pos-vol/neg-vol) can stride at their proven 24-byte size
+;; instead of being forced to a 16-byte-aligned stride; does not change this
+;; type's own asserts (deftype.cpp:553 excludes keyword flags from flag-assert);
+;; see decompiler/config/jakx/all-types.gc, vol-control, for the dependent type.
 (deftype plane-volume (structure)
   ((volume-type  symbol                :offset-assert 0) ;; guessed by decompiler
    (point-count  int16                 :offset-assert 4)
@@ -41380,6 +41408,7 @@
    (num-planes   int32                 :offset-assert 16)
    (plane        (inline-array plane)  :offset-assert 20) ;; guessed by decompiler
    )
+  :pack-me
   :method-count-assert 12
   :size-assert         #x18
   :flag-assert         #xc00000018
@@ -47033,6 +47062,13 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; companion fix: :allow-misaligned added (arithmetically required, no jak3 twin
+;; for this exact flag) so vehicle-sound-info's inline arrays of
+;; vehicle-sound-loop-info (tire-roll-sounds/tire-slide-sounds, both starting at
+;; non-16-aligned offsets) can auto-place instead of being forced to 16-byte start
+;; alignment; does not change this type's own asserts (deftype.cpp:553 excludes
+;; keyword flags from flag-assert); see decompiler/config/jakx/all-types.gc,
+;; vehicle-sound-info, for the dependent type.
 (deftype vehicle-sound-loop-info (structure)
   ((sound        uint16  :offset-assert 0) ;; sound-name
    (speed        float   :offset-assert 4)
@@ -47043,6 +47079,7 @@
    (min-pitch    float   :offset-assert 24)
    (max-pitch    float   :offset-assert 28)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x20
   :flag-assert         #x900000020
