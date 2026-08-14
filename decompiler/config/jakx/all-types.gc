@@ -36471,6 +36471,28 @@
   )
 
 
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-state-flag
+  :type uint32
+  :bitfield #t
+  (display-marks      0)
+  (recovery-mode      1)
+  (initialized        2)
+  (debug              3)
+  (directional-mode   4)
+  (trapped-by-sphere  5)
+  (target-poly-dirty  6)
+  (blocked            7)
+  (in-target-poly     8)
+  (at-target          9)
+  (target-inside     10)
+  (in-mesh           11)
+  (avoiding-sphere   12)
+  (touching-sphere   13)
+  (at-gap            14)
+  (use-position 15)
+  )
+
 ;; cycle breaker: nav-state <-> nav-control (see declare-types.gc header)
 (declare-type nav-control structure)
 #|
@@ -36554,6 +36576,22 @@
     )
   )
 |#
+
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-control-flag
+  :type uint32
+  :bitfield #t
+  (display-marks        0) ;; 1
+  (debug                1) ;; 2
+  (no-redirect-in-clamp 2) ;; 4
+  (limit-rotation-rate  3) ;; 8
+  (update-heading-from-facing 4) ;; 16
+  (use-momentum        5) ;; 32
+  (momentum-ignore-heading 6) ;; 64
+  (output-sphere-hash  7) ;; 128
+  (kernel-run          8) ;; 256
+  (ncf9                9)
+  )
 
 #|
 (deftype nav-control (structure)
@@ -56108,6 +56146,29 @@
 ;; mysql-nav-graph                ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; jak3-verbatim supplement (nav cluster)
+(defenum mysql-save-flag
+  :type uint32
+  :bitfield #t
+  (delete 1)
+  (update 2)
+  (insert 3)
+  )
+
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-node-flag
+  "This string value is stored in their SQL database"
+  :type uint32
+  :bitfield #t
+  (blocker 0)
+  (pov 1)
+  (visited 2)
+  (blocked 3)
+  (pedestrian 4)
+  (selected 5)
+  (hidden 6)
+  )
+
 ;; forward-reference breaker: mysql-nav-node -> mysql-nav-edge (see declare-types.gc header)
 (declare-type mysql-nav-edge structure)
 #|
@@ -56150,6 +56211,41 @@
   :flag-assert         #xe00000010
   )
 |#
+
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-directionality
+  :type uint32
+  :bitfield #f
+  (default 0)
+  (directed 1)
+  (bi_directional 2)
+  )
+
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-clock-mask
+  "This string value is stored in their SQL database"
+  :type uint32
+  :bitfield #t
+  (phase-1 0)
+  (phase-1a 1)
+  (phase-2 2)
+  (phase-2a 3)
+  (phase-3 4)
+  (phase-3a 5)
+  (phase-4 6)
+  (phase-4a 7)
+  )
+
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-clock-type
+  "This string value is stored in their SQL database"
+  :type uint32
+  :bitfield #f
+  (no-clock 0)
+  (clock2 1)
+  (clock3 2)
+  (clock4 3)
+  )
 
 #|
 (deftype mysql-nav-edge (structure)
@@ -56315,6 +56411,18 @@
 ;; nav-graph-editor               ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-com-type
+  :type uint32
+  (undo-move-node 0)
+  (undo-delete-edge 1)
+  (undo-delete-node 2)
+  (undo-new-node 3)
+  (undo-new-edge 4)
+  (undo-delete-visnode 5)
+  (undo-new-visnode 6)
+  )
+
 #|
 (deftype nav-graph-command (structure)
   ((com-type nav-com-type         :offset-assert 0) ;; guessed by decompiler
@@ -56463,17 +56571,27 @@
 
 ;; vector-array is already defined!
 
-#|
+;; all-types.gc:56575 (dead).  The dead block re-declared the inherited
+;; length / allocated-length fields, which throws "already has a field named
+;; length" (same class of defect as hud-sprite-array, all-types.gc:50897); only
+;; `data` belongs here.
 (deftype int16-array (inline-array-class)
-  ((length           int32          :offset-assert 4)
-   (allocated-length int32          :offset-assert 8)
-   (data             int16 :dynamic :offset-assert 16) ;; guessed by decompiler
+  ((data int16 :dynamic :offset-assert 16)
    )
   :method-count-assert 14
   :size-assert         #x10
   :flag-assert         #xe00000010
   )
-|#
+
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-mesh-poly-flag
+  :type uint32
+  :bitfield #t
+  (gap 0)
+  (off 1)
+  (nmpf2 2)
+  (user0 3)
+  )
 
 #|
 (deftype nav-mesh-poly (structure)
@@ -56530,17 +56648,24 @@
   )
 
 
-#|
+;; all-types.gc:56642 (dead).  The dead block re-declared the inherited
+;; length / allocated-length fields, which throws "already has a field named
+;; length" (same class of defect as hud-sprite-array, all-types.gc:50897); only
+;; `data` belongs here.
 (deftype nav-mesh-tri-quad-array (inline-array-class)
-  ((length           int32                      :offset-assert 4)
-   (allocated-length int32                      :offset-assert 8)
-   (data             nav-mesh-tri-quad :dynamic :offset-assert 16) ;; guessed by decompiler
+  ((data nav-mesh-tri-quad :dynamic :offset-assert 16)
    )
   :method-count-assert 14
   :size-assert         #x10
   :flag-assert         #xe00000010
   )
-|#
+
+;; jak3-verbatim supplement (nav cluster)
+(defenum nav-mesh-editable-flag
+  :type uint32
+  :bitfield #t
+  (nmef0 0)
+  )
 
 #|
 (deftype nav-mesh-editable (structure)
