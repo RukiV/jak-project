@@ -8667,12 +8667,9 @@
    (scale            float                :offset-assert 28)
    (color            rgba                 :offset-assert 32) ;; guessed by decompiler
    )
-  :method-count-assert 10
+  :method-count-assert 9
   :size-assert         #x24
-  :flag-assert         #xa00000024
-  (:methods
-    (minimap-class-node-method-9 (_type_) symbol) ;; 9
-    )
+  :flag-assert         #x900000024
   )
 
 (deftype connection-minimap (connection-pers)
@@ -20670,10 +20667,11 @@
    (ind-1 uint8  :offset-assert 1)
    (tri-0 uint8  :offset-assert 2)
    (tri-1 uint8  :offset-assert 3)
+   (pad   uint32 :offset-assert 4)
    )
   :method-count-assert 9
-  :size-assert         #x4
-  :flag-assert         #x900000004
+  :size-assert         #x8
+  :flag-assert         #x900000008
   )
 
 (deftype shadow-tri (structure)
@@ -20961,6 +20959,9 @@
    )
   :method-count-assert 9
   :size-assert         #x80000
+  ;; the game's registration qword is #x900080000; the decompiler composes
+  ;; flag-asserts with size truncated to u16, so a >64KB structure cannot
+  ;; carry the game-faithful value (audit false positive, decompiler quirk)
   :flag-assert         #x900000000
   )
 
@@ -30758,9 +30759,9 @@
    (vertex-data (inline-array vector)   :offset-assert 16) ;; guessed by decompiler
    (tris        collide-mesh-tri      1 :inline :offset 32) ;; guessed by decompiler
    )
-  :method-count-assert 16
+  :method-count-assert 15
   :size-assert         #x28
-  :flag-assert         #x1000000028
+  :flag-assert         #xf00000028
   (:methods
     (debug-draw-tris (_type_ process-drawable int) none) ;; 9
     (overlap-test (_type_ collide-mesh-cache-tri vector) symbol) ;; 10
@@ -30768,7 +30769,6 @@
     (sphere-on-platform-test (_type_ collide-mesh-cache-tri collide-tri-result vector float) float) ;; 12
     (unpack-mesh-to-cache! (_type_ (inline-array collide-mesh-cache-tri) matrix) none) ;; 13
     (collide-mesh-math-1 (_type_ object object) none) ;; 14
-    (collide-mesh-math-2 (_type_ object object object) none) ;; 15
     )
   )
 
@@ -41418,16 +41418,10 @@
    (first-cutoutvol int32          :offset-assert 168)
    (res-key         float          :offset-assert 172)
    )
-  :method-count-assert 21
+  :method-count-assert 15
   :size-assert         #xb0
-  :flag-assert         #x15002000b0
+  :flag-assert         #xf002000b0
   (:methods
-    (cam-layout-method-9 () none) ;; 9
-    (cam-layout-method-10 () none) ;; 10
-    (cam-layout-method-11 () none) ;; 11
-    (cam-layout-method-12 () none) ;; 12
-    (cam-layout-method-13 () none) ;; 13
-    (cam-layout-method-14 () none) ;; 14
     )
   (:states
     cam-layout-active ;; associated process guessed by decompiler, old: (state cam-layout)
@@ -43332,8 +43326,10 @@
   :method-count-assert 89
   :size-assert         #x120
   :flag-assert         #x5900900120
+  (:state-methods
+    idle ;; 59
+    )
   (:methods
-    (rigid-body-object-method-59 () none) ;; 59
     (rigid-body-object-method-60 () none) ;; 60
     (rigid-body-object-method-61 () none) ;; 61
     (rigid-body-object-method-62 () none) ;; 62
@@ -49148,8 +49144,10 @@
   :method-count-assert 56
   :size-assert         #xf4
   :flag-assert         #x38007000f4
+  (:state-methods
+    idle ;; 42
+    )
   (:methods
-    (net-powerup-method-42 () none) ;; 42
     (net-powerup-method-43 () none) ;; 43
     (net-powerup-method-44 () none) ;; 44
     (net-powerup-method-45 () none) ;; 45
@@ -49196,8 +49194,10 @@
   :method-count-assert 57
   :size-assert         #x108
   :flag-assert         #x3900800108
+  (:state-methods
+    idle ;; 50
+    )
   (:methods
-    (powerup-draw-method-50 () none) ;; 50
     (powerup-draw-method-51 () none) ;; 51
     (powerup-draw-method-52 () none) ;; 52
     (powerup-draw-method-53 () none) ;; 53
@@ -50529,8 +50529,10 @@
   :method-count-assert 56
   :size-assert         #xf8
   :flag-assert         #x38007000f8
+  (:state-methods
+    running ;; 50
+    )
   (:methods
-    (eco-method-50 () none) ;; 50
     (eco-method-51 () none) ;; 51
     (eco-method-52 () none) ;; 52
     (eco-method-53 () none) ;; 53
@@ -51622,9 +51624,9 @@
    (vehicle-part-fade          uint8     :offset-assert 420)
    (vehicle-loaded-time        uint64    :offset-assert 424)
    )
-  :method-count-assert 195
+  :method-count-assert 196
   :size-assert         #x1b0
-  :flag-assert         #xc3012001b0
+  :flag-assert         #xc4012001b0
   (:methods
     (lobby-menu-manager-method-15 () none) ;; 15
     (lobby-menu-manager-method-16 () none) ;; 16
@@ -51806,6 +51808,7 @@
     (lobby-menu-manager-method-192 () none) ;; 192
     (lobby-menu-manager-method-193 () none) ;; 193
     (lobby-menu-manager-method-194 () none) ;; 194
+    (lobby-menu-manager-method-195 () none) ;; 195
     )
   )
 
@@ -53364,16 +53367,10 @@
    (pulse-count int8    :offset-assert 176)
    (i-pulse     int8    :offset-assert 177)
    )
-  :method-count-assert 23
+  :method-count-assert 17
   :size-assert         #xb2
-  :flag-assert         #x17003000b2
+  :flag-assert         #x11003000b2
     (:methods
-    (vehicle-rev-manager-method-9 () none) ;; 9
-    (vehicle-rev-manager-method-10 () none) ;; 10
-    (vehicle-rev-manager-method-11 () none) ;; 11
-    (vehicle-rev-manager-method-12 () none) ;; 12
-    (vehicle-rev-manager-method-13 () none) ;; 13
-    (vehicle-rev-manager-method-14 () none) ;; 14
     )
   (:state-methods
     idle ;; 15
@@ -55579,16 +55576,10 @@
    (part      sparticle-launch-control  :offset-assert 148) ;; guessed by decompiler
    (old-group sparticle-launch-group    :offset-assert 152) ;; guessed by decompiler
    )
-  :method-count-assert 21
+  :method-count-assert 15
   :size-assert         #x9c
-  :flag-assert         #x150010009c
+  :flag-assert         #xf0010009c
   (:methods
-    (part-tester-method-9 () none) ;; 9
-    (part-tester-method-10 () none) ;; 10
-    (part-tester-method-11 () none) ;; 11
-    (part-tester-method-12 () none) ;; 12
-    (part-tester-method-13 () none) ;; 13
-    (part-tester-method-14 () none) ;; 14
     )
   (:states
     part-tester-idle ;; associated process guessed by decompiler, old: (state part-tester)
@@ -58312,12 +58303,9 @@
 (deftype eco-powerup-draw (powerup-draw)
   ((vehicle-handle uint64  :offset-assert 264)
    )
-  :method-count-assert 58
+  :method-count-assert 57
   :size-assert         #x110
-  :flag-assert         #x3a00800110
-  (:state-methods
-    idle ;; 50
-    )
+  :flag-assert         #x3900800110
   )
 
 
@@ -58423,12 +58411,9 @@
   ((launcher    basic  :offset-assert 248)
    (birth-accum float  :offset-assert 252)
    )
-  :method-count-assert 57
+  :method-count-assert 56
   :size-assert         #x100
-  :flag-assert         #x3900700100
-  (:state-methods
-    running ;; 50
-    )
+  :flag-assert         #x3800700100
   )
 
 
@@ -58450,12 +58435,9 @@
   ((launcher    basic  :offset-assert 248)
    (birth-accum float  :offset-assert 252)
    )
-  :method-count-assert 57
+  :method-count-assert 56
   :size-assert         #x100
-  :flag-assert         #x3900700100
-  (:state-methods
-    running ;; 50
-    )
+  :flag-assert         #x3800700100
   )
 
 
@@ -58477,12 +58459,9 @@
   ((launcher    basic  :offset-assert 248)
    (birth-accum float  :offset-assert 252)
    )
-  :method-count-assert 57
+  :method-count-assert 56
   :size-assert         #x100
-  :flag-assert         #x3900700100
-  (:state-methods
-    running ;; 50
-    )
+  :flag-assert         #x3800700100
   )
 
 
@@ -62208,16 +62187,10 @@
    (text-time     uint64  :offset-assert 184)
    (suppress-text basic   :offset-assert 192)
    )
-  :method-count-assert 23
+  :method-count-assert 17
   :size-assert         #xc4
-  :flag-assert         #x17004000c4
+  :flag-assert         #x11004000c4
     (:methods
-    (sabotage-sequence-method-9 () none) ;; 9
-    (sabotage-sequence-method-10 () none) ;; 10
-    (sabotage-sequence-method-11 () none) ;; 11
-    (sabotage-sequence-method-12 () none) ;; 12
-    (sabotage-sequence-method-13 () none) ;; 13
-    (sabotage-sequence-method-14 () none) ;; 14
     )
   (:state-methods
     idle ;; 15
@@ -62271,16 +62244,10 @@
    (context     basic          :offset-assert 184)
    (text        basic          :offset-assert 188)
    )
-  :method-count-assert 22
+  :method-count-assert 16
   :size-assert         #xc0
-  :flag-assert         #x16003000c0
+  :flag-assert         #x10003000c0
   (:methods
-    (hoff-text-floater-method-9 () none) ;; 9
-    (hoff-text-floater-method-10 () none) ;; 10
-    (hoff-text-floater-method-11 () none) ;; 11
-    (hoff-text-floater-method-12 () none) ;; 12
-    (hoff-text-floater-method-13 () none) ;; 13
-    (hoff-text-floater-method-14 () none) ;; 14
     )
   (:state-methods
     run ;; 15
@@ -65849,12 +65816,9 @@
   ((high-value     basic  :offset-assert 244)
    (original-owner int32  :offset-assert 248)
    )
-  :method-count-assert 57
+  :method-count-assert 56
   :size-assert         #xfc
-  :flag-assert         #x39007000fc
-  (:state-methods
-    idle ;; 42
-    )
+  :flag-assert         #x38007000fc
   )
 
 
@@ -65872,9 +65836,9 @@
 ;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced 57->58)
 (deftype artifact-draw (eco-powerup-draw)
   ()
-  :method-count-assert 58
+  :method-count-assert 57
   :size-assert         #x110
-  :flag-assert         #x3a00800110
+  :flag-assert         #x3900800110
   (:state-methods
     idle ;; 50
     )
@@ -68570,12 +68534,9 @@
 (deftype collectoid-draw (powerup-draw)
   ((base-y float  :offset-assert 264)
    )
-  :method-count-assert 58
+  :method-count-assert 57
   :size-assert         #x10c
-  :flag-assert         #x3a0080010c
-  (:state-methods
-    idle ;; 50
-    )
+  :flag-assert         #x390080010c
   )
 
 
@@ -68849,12 +68810,9 @@
 ;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced 89->90)
 (deftype train-car (train-object)
   ()
-  :method-count-assert 90
+  :method-count-assert 89
   :size-assert         #x130
-  :flag-assert         #x5a00a00130
-  (:state-methods
-    idle ;; 59
-    )
+  :flag-assert         #x5900a00130
   )
 
 
