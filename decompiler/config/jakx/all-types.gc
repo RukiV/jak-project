@@ -38106,6 +38106,19 @@
   :flag-assert         #x900000280
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: repl-mult's missing
+;; :inline restored per the jak3 twin (decompiler/config/jak3/all-types.gc,
+;; "deftype blerc-dcache"), closing the tail hole that left the type at
+;; computed size 160 against its asserted 640; asserts verified against the
+;; game registration oracle)
+(deftype blerc-dcache (structure)
+  ((repl-mult vector 40 :inline :offset-assert 0) ;; guessed by decompiler
+   )
+  :method-count-assert 9
+  :size-assert         #x280
+  :flag-assert         #x900000280
+  )
+
 
 #|
 (deftype blerc-globals (structure)
@@ -40936,6 +40949,18 @@
   :flag-assert         #x900004000
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: data's missing
+;; :inline restored per the jak3 twin, closing the tail hole that left the
+;; type at computed size 4096 against its asserted 16384; asserts verified
+;; against the game registration oracle)
+(deftype collide-probe-stack (structure)
+  ((data collide-probe-stack-elem 1024 :inline :offset-assert 0) ;; guessed by decompiler
+   )
+  :method-count-assert 9
+  :size-assert         #x4000
+  :flag-assert         #x900004000
+  )
+
 
 ;; (define-extern creates-new-method? function) ;; (function type int symbol)
 ;; (define-extern overrides-parent-method? function) ;; (function type int symbol)
@@ -41210,6 +41235,32 @@
     )
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: data's missing
+;; :inline restored per the jak3 twin at decompiler/config/jak3/all-types.gc
+;; (actor-hash-buckets, grep for exact line), closing the mid-hole that left
+;; tpos at computed offset 32 against its asserted 80; asserts verified against
+;; the game registration oracle. COMPANION FIX REQUIRED: actor-hash-bucket
+;; (the element type, itself still dead elsewhere in this file, decompiler/
+;; config/jakx/all-types.gc "deftype actor-hash-bucket") is missing
+;; :allow-misaligned, which its own jak3 twin carries
+;; (decompiler/config/jak3/all-types.gc:33461-33472). Without it, data's inline
+;; array of 4 actor-hash-bucket needs 16-byte start alignment and auto-places
+;; at 16, not the asserted 8. See lane-a/blocks.md item for the full mechanism
+;; citation (TypeSystem.cpp:1325-1337, Type.cpp:888-897).)
+(deftype actor-hash-buckets (structure)
+  ((hash spatial-hash              :offset-assert 0) ;; guessed by decompiler
+   (list engine                    :offset-assert 4) ;; guessed by decompiler
+   (data actor-hash-bucket 4 :inline :offset-assert 8) ;; guessed by decompiler
+   (tpos vector            :inline :offset-assert 80)
+   )
+  :method-count-assert 10
+  :size-assert         #x60
+  :flag-assert         #xa00000060
+  (:methods
+    (actor-hash-buckets-method-9 () none) ;; 9 ;; (hash-actors (_type_) none)
+    )
+  )
+
 
 (define-extern *actor-hash* spatial-hash)
 ;; (define-extern *actor-hash-buckets* object) ;; actor-hash-buckets
@@ -41915,6 +41966,36 @@
   :flag-assert         #x9000001d0
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: linevec4w, color,
+;; plotvec, linevec, crossvec, bboxvec and fov-vv all restored to jak3's exact
+;; element type (vector4w where jak3 uses it) and array counts, several of
+;; which the jakx dead block collapsed to a bare "vector" with no count; this
+;; closes all 6 REAL-HOLE fields (color, linevec, rel-vec, bboxvec, fov-vv,
+;; fov-src) simultaneously since each cascades from the field before it;
+;; asserts verified against the game registration oracle)
+(deftype cam-dbg-scratch (structure)
+  ((linevec4w      vector4w 2 :inline :offset-assert 0) ;; vector4w 2 :inline
+   (color          vector4w   :inline :offset-assert 32) ;; vector4w :inline
+   (plotvec        vector4w 2 :inline :offset-assert 48) ;; vector4w 2 :inline
+   (linevec        vector4w 2 :inline :offset-assert 80) ;; vector4w 2 :inline
+   (rel-vec        vector     :inline :offset-assert 112)
+   (sphere-v-start vector     :inline :offset-assert 128)
+   (sphere-v-end   vector     :inline :offset-assert 144)
+   (sphere-v-down  vector     :inline :offset-assert 160)
+   (sphere-vec     vector     :inline :offset-assert 176)
+   (crossvec       vector 3   :inline :offset-assert 192)
+   (bboxvec        vector 6   :inline :offset-assert 240)
+   (fov-vv         vector 4   :inline :offset-assert 336)
+   (fov-src        vector     :inline :offset-assert 400)
+   (fov-dest       vector     :inline :offset-assert 416)
+   (fov-vert       vector     :inline :offset-assert 432)
+   (fov-horz       vector     :inline :offset-assert 448)
+   )
+  :method-count-assert 9
+  :size-assert         #x1d0
+  :flag-assert         #x9000001d0
+  )
+
 
 #|
 (deftype cam-debug-tri (structure)
@@ -41927,6 +42008,20 @@
   :flag-assert         #x900000044
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: vertex's missing
+;; :inline restored per the jak3 twin, closing the mid-hole that left
+;; intersect at computed offset 16 against its asserted 48; asserts verified
+;; against the game registration oracle)
+(deftype cam-debug-tri (structure)
+  ((vertex    vector 3 :inline :offset-assert 0) ;; guessed by decompiler
+   (intersect vector   :inline :offset-assert 48)
+   (color     vector4w         :offset-assert 64)
+   )
+  :method-count-assert 9
+  :size-assert         #x44
+  :flag-assert         #x900000044
+  )
+
 
 #|
 (deftype cam-collision-record (structure)
@@ -42791,6 +42886,42 @@
   :flag-assert         #x900000091
   )
 |#
+;; resurrected from the dead block above (companion field-type fix, transcribed verbatim,
+;; no placement defect of its own: light-trail's appearance field (plain, non-inline
+;; reference) needs this type at least live to resolve at all; all of its own field types
+;; (curve-color-piecewise, curve2d-piecewise, texture-id) are already live, no further
+;; dependency; asserts verified against the game registration oracle)
+(deftype light-trail-composition (structure)
+  ((color-mode        uint64                        :offset-assert 0)
+   (color-curve       curve-color-piecewise         :offset-assert 8) ;; guessed by decompiler
+   (color-repeat-dist float                         :offset-assert 12)
+   (alpha-1-mode      uint64                        :offset-assert 16)
+   (alpha-2-mode      uint64                        :offset-assert 24)
+   (base-alpha        float                         :offset-assert 32)
+   (alpha-curve-1     curve2d-piecewise             :offset-assert 36) ;; guessed by decompiler
+   (alpha-curve-2     curve2d-piecewise             :offset-assert 40) ;; guessed by decompiler
+   (alpha-repeat-dist float                         :offset-assert 44)
+   (width-mode        uint64                        :offset-assert 48)
+   (base-width        float                         :offset-assert 56)
+   (width-curve       curve2d-piecewise             :offset-assert 60) ;; guessed by decompiler
+   (width-repeat-dist float                         :offset-assert 64)
+   (uv-mode           uint64                        :offset-assert 72)
+   (uv-repeat-dist    float                         :offset-assert 80)
+   (max-age           uint64                        :offset-assert 88) ;; time-frame
+   (tex-id            texture-id                    :offset-assert 96) ;; guessed by decompiler
+   (tex-name          basic                         :offset-assert 100)
+   (lie-mode          uint64                        :offset-assert 104) ;; lie-mode
+   (lie-vector        vector                :inline :offset-assert 112)
+   (zbuffer?          symbol                        :offset-assert 128) ;; guessed by decompiler
+   (use-tape-mode?    symbol                        :offset-assert 132) ;; guessed by decompiler
+   (blend-mode        uint64                        :offset-assert 136)
+   (frame-stagger     uint8                         :offset-assert 144)
+   )
+  :method-count-assert 9
+  :size-assert         #x91
+  :flag-assert         #x900000091
+  )
+
 
 #|
 (deftype light-trail-breadcrumb (structure)
@@ -42876,6 +43007,49 @@
     )
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: cache-vector's
+;; missing :inline restored per the jak3 twin, closing both the REAL-HOLE
+;; (cache-vector itself, computed 60 vs asserted 64) and the REAL-HOLE-AT-TAIL
+;; (computed 80 vs asserted 128) simultaneously: 4 * round(16,16) = 64,
+;; 64 (offset) + 64 = 128 = size-assert exactly. jakx's own parent is
+;; prim-client (size 4, matching jak3's own basic-parent cursor start of 4),
+;; a jakx-specific class-hierarchy insertion unrelated to this defect, left
+;; as the jakx dead block already has it. Asserts verified against the game
+;; registration oracle.)
+(deftype light-trail (prim-client)
+  ((crumb-array             (array uint8)             :offset-assert 4) ;; guessed by decompiler
+   (crumb-size              uint8                     :offset-assert 8)
+   (crumb-count             int16                     :offset-assert 10)
+   (max-crumb-count         int16                     :offset-assert 12)
+   (appearance              light-trail-composition   :offset-assert 16)
+   (start-marker            uint64                    :offset-assert 24)
+   (end-marker              uint64                    :offset-assert 32)
+   (decision                uint64                    :offset-assert 40) ;; light-trail-decision
+   (total-distance-traveled float                     :offset-assert 48)
+   (strip                   prim-strip                :offset-assert 52) ;; guessed by decompiler
+   (strip2                  prim-strip                :offset-assert 56) ;; guessed by decompiler
+   (cache-vector            vector                  4 :inline :offset-assert 64) ;; guessed by decompiler
+   )
+  :method-count-assert 23
+  :size-assert         #x80
+  :flag-assert         #x1700000080
+  (:methods
+    (light-trail-method-10 () none) ;; 10 ;; (reset! (_type_) none)
+    (light-trail-method-11 () none) ;; 11 ;; (add-crumb! (_type_ vector time-frame) int)
+    (light-trail-method-12 () none) ;; 12 ;; (build-prim-strip! (_type_) none)
+    (light-trail-method-13 () none) ;; 13 ;; (common-trans! (_type_) int)
+    (light-trail-method-14 () none) ;; 14 ;; (expire-old-points! (_type_) none)
+    (light-trail-method-15 () none) ;; 15 ;; (light-trail-method-15 (_type_) none)
+    (light-trail-method-16 () none) ;; 16 ;; (add-vert-to-prim-strip! (_type_ prim-strip vector rgba float float) none)
+    (light-trail-method-17 () none) ;; 17 ;; (add-tri-pair-to-prim! (_type_ vector rgba float vector float) symbol)
+    (light-trail-method-18 () none) ;; 18 ;; (calc-vertex-pos! (_type_ light-trail-breadcrumb int vector vector) none)
+    (light-trail-method-19 () none) ;; 19 ;; (crumb-age-out-callback (_type_ float int) none)
+    (light-trail-method-20 () none) ;; 20 ;; (reset-crumbs! (_type_) none)
+    (light-trail-method-21 () none) ;; 21 ;; (replace-last-crumb! (_type_ vector) none)
+    (light-trail-method-22 () none) ;; 22
+    )
+  )
+
 
 #|
 (deftype weapon-trail-crumb (light-trail-breadcrumb)
@@ -45474,6 +45648,36 @@
   :flag-assert         #x900000354
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: scan-colors's
+;; missing :inline restored per the jak3 twin's analogous field, closing BOTH
+;; REAL-HOLE fields (scan-colors itself and the cascaded scanline) at once:
+;; without :inline the 32-element vector4w array is 32 pointers (128 bytes),
+;; landing scanline at computed 464 against its asserted 848; with :inline,
+;; 32 * 16 = 512 bytes, landing scanline exactly at 848. jakx carries two
+;; extra dma-gif-packet fields (draw-no-tex-tmpl, sprite-no-tex-tmpl) jak3
+;; does not have -- left untouched, they are not flagged as defective and
+;; account for the +64-byte size difference from jak3's own 788-byte twin.
+;; Asserts verified against the game registration oracle.)
+(deftype hud-sprite-work (structure)
+  ((adgif-tmpl         dma-gif-packet :inline :offset-assert 0)
+   (draw-tmpl          dma-gif-packet :inline :offset-assert 32)
+   (draw-no-tex-tmpl   dma-gif-packet :inline :offset-assert 64)
+   (sprite-tmpl        dma-gif-packet :inline :offset-assert 96)
+   (sprite-no-tex-tmpl dma-gif-packet :inline :offset-assert 128)
+   (box-tmpl           dma-gif-packet :inline :offset-assert 160)
+   (box2-tmpl          dma-gif-packet :inline :offset-assert 192)
+   (mask-tmpl          dma-gif-packet :inline :offset-assert 224)
+   (line-tmpl          dma-gif-packet :inline :offset-assert 256)
+   (scan-tmpl          dma-gif-packet :inline :offset-assert 288)
+   (line-color         uint64                 :offset-assert 320) ;; gs-rgbaq
+   (scan-colors        vector4w       32 :inline :offset-assert 336) ;; guessed by decompiler
+   (scanline           uint32                 :offset-assert 848)
+   )
+  :method-count-assert 9
+  :size-assert         #x354
+  :flag-assert         #x900000354
+  )
+
 
 ;; (define-extern *hud-string-array* object)
 ;; (define-extern *hud-string-used-list* object)
@@ -47379,6 +47583,41 @@
   :flag-assert         #x90000011c
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: tire-roll-sounds and
+;; tire-slide-sounds were missing :inline, restored per the jak3 twin at
+;; decompiler/config/jak3/all-types.gc:53556-53557, and the eight named loop overlays
+;; converted from :offset-assert to :offset per the same twin at jak3
+;; all-types.gc:53558-53563; this closes the hole that left tire-slide-sounds at
+;; computed offset 52 against its asserted 220; jakx's own 6-element roll count kept
+;; over jak3's 4; REQUIRES the companion :allow-misaligned on vehicle-sound-loop-info,
+;; since the array starts at 28 and an unrelaxed inline element demands 16; asserts
+;; verified against the game registration oracle)
+(deftype vehicle-sound-info (structure)
+  ((water-sound            uint16                          :offset-assert 0) ;; sound-name
+   (jump-sound             uint16                          :offset-assert 2) ;; sound-name
+   (turbo-sound            uint16                          :offset-assert 4) ;; sound-name
+   (susp-creak-sound       uint16                          :offset-assert 6) ;; sound-name
+   (susp-bottom-out-sound  uint16                          :offset-assert 8) ;; sound-name
+   (susp-speed-threshold   float                           :offset-assert 12)
+   (rpm-scale              float                           :offset-assert 16)
+   (engine-loop-count      int8                            :offset-assert 20)
+   (engine-loop-array      uint32                          :offset-assert 24)
+   (tire-roll-sounds       vehicle-sound-loop-info 6 :inline :offset-assert 28) ;; guessed by decompiler
+   (tire-slide-sounds      vehicle-sound-loop-info 2 :inline :offset-assert 220) ;; guessed by decompiler
+   (tire-roll-hum-sound    vehicle-sound-loop-info :inline :offset 28)
+   (tire-roll-dirt-sound   vehicle-sound-loop-info :inline :offset 60)
+   (tire-roll-sand-sound   vehicle-sound-loop-info :inline :offset 92)
+   (tire-roll-snow-sound   vehicle-sound-loop-info :inline :offset 124)
+   (tire-roll-grass-sound  vehicle-sound-loop-info :inline :offset 156)
+   (tire-roll-knobby-sound vehicle-sound-loop-info :inline :offset 188)
+   (tire-slide-road-sound  vehicle-sound-loop-info :inline :offset 220)
+   (tire-slide-dirt-sound  vehicle-sound-loop-info :inline :offset 252)
+   )
+  :method-count-assert 9
+  :size-assert         #x11c
+  :flag-assert         #x90000011c
+  )
+
 
 #|
 (deftype vehicle-particle-info (structure)
@@ -47400,6 +47639,33 @@
   :flag-assert         #x9000000e0
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: the six vector arrays
+;; exhaust-local-pos, exhaust-local-dir, smoke-local-pos, smoke-local-vel,
+;; headlight-local-pos and taillight-local-pos were missing :inline, restored per the
+;; jak3 twin at decompiler/config/jak3/all-types.gc:53576-53581; thruster-local-pos is
+;; deliberately NOT inlined -- jakx's own inspect method loads it with lwu at offset 12,
+;; i.e. it is a plain pointer here, unlike jak3's inline pair; the cascade closes every
+;; one of the five reported holes and the 200-against-224 tail hole at once; asserts
+;; verified against the game registration oracle)
+(deftype vehicle-particle-info (structure)
+  ((headlight-count       int8     :offset-assert 0)
+   (taillight-count       int8     :offset-assert 1)
+   (thruster-count        int8     :offset-assert 2)
+   (thruster-flame-width  meters   :offset-assert 4)
+   (thruster-flame-length meters   :offset-assert 8)
+   (thruster-local-pos    vector   :offset-assert 12) ;; guessed by decompiler
+   (exhaust-local-pos     vector 2 :inline :offset-assert 16) ;; guessed by decompiler
+   (exhaust-local-dir     vector 2 :inline :offset-assert 48) ;; guessed by decompiler
+   (smoke-local-pos       vector 2 :inline :offset-assert 80) ;; guessed by decompiler
+   (smoke-local-vel       vector 2 :inline :offset-assert 112) ;; guessed by decompiler
+   (headlight-local-pos   vector 3 :inline :offset-assert 144) ;; guessed by decompiler
+   (taillight-local-pos   vector 2 :inline :offset-assert 192) ;; guessed by decompiler
+   )
+  :method-count-assert 9
+  :size-assert         #xe0
+  :flag-assert         #x9000000e0
+  )
+
 
 #|
 (deftype vehicle-section-info (structure)
@@ -47465,6 +47731,41 @@
   :flag-assert         #x9000006e0
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: section-array's missing
+;; :inline restored per the jak3 twin at decompiler/config/jak3/all-types.gc:53608, and
+;; the twelve named section overlays converted from :offset-assert to :offset per the
+;; same twin at jak3 all-types.gc:53609-53614; the single :inline closes the hole that
+;; left section-array at computed offset 24 against its asserted 32 and makes the type
+;; close at 32 + 12 * align(132,16) = 1760; the :offset conversion is what lets
+;; section-hood sit at 1184 rather than being swept to the sequential cursor; jakx's own
+;; 12-element count kept over jak3's 4; asserts verified against the game registration
+;; oracle)
+(deftype vehicle-damage-info (structure)
+  ((inv-toughness-factor float                        :offset-assert 0)
+   (hit-points           float                        :offset-assert 4)
+   (inv-hit-points       float                        :offset-assert 8)
+   (hit-threshold        float                        :offset-assert 12)
+   (impact-damage-factor float                        :offset-assert 16)
+   (section-mask         uint32                       :offset-assert 20)
+   (section-array        vehicle-section-info 12 :inline :offset-assert 32) ;; guessed by decompiler
+   (section-lf-fender    vehicle-section-info :inline :offset 32)
+   (section-rf-fender    vehicle-section-info :inline :offset 176)
+   (section-lr-fender    vehicle-section-info :inline :offset 320)
+   (section-rr-fender    vehicle-section-info :inline :offset 464)
+   (section-l-door       vehicle-section-info :inline :offset 608)
+   (section-r-door       vehicle-section-info :inline :offset 752)
+   (section-hood         vehicle-section-info :inline :offset 1184)
+   (section-trunk        vehicle-section-info :inline :offset 1328)
+   (section-f-bumper     vehicle-section-info :inline :offset 896)
+   (section-r-bumper     vehicle-section-info :inline :offset 1040)
+   (section-roof         vehicle-section-info :inline :offset 1472)
+   (section-cockpit      vehicle-section-info :inline :offset 1616)
+   )
+  :method-count-assert 9
+  :size-assert         #x6e0
+  :flag-assert         #x9000006e0
+  )
+
 
 #|
 (deftype vehicle-setup-info (structure)
@@ -47484,6 +47785,32 @@
   :flag-assert         #x900000020
   )
 |#
+;; resurrected from the dead block above (pad-only: jak3's twin at
+;; decompiler/config/jak3/all-types.gc:53621-53640 is a different 44-byte layout and
+;; does not explain jakx's gap; the ten inspect-attested fields close at 28 while the
+;; game registration oracle says 32, and deftype.cpp:553 takes the size straight from
+;; the field cursor with no rounding, so exactly four unattributed bytes live at offset
+;; 28; named pad-tail rather than guessed -- jak3 carries an (inline-array vector)
+;; "color" field in the same relative slot, which is the leading hypothesis but is not
+;; evidenced in jakx; asserts verified against the game registration oracle)
+(deftype vehicle-setup-info (structure)
+  ((settle-height       float  :offset-assert 0)
+   (settle-rot-x        float  :offset-assert 4)
+   (idle-settle-height  float  :offset-assert 8)
+   (idle-settle-rot-x   float  :offset-assert 12)
+   (shadow-bot-clip     float  :offset-assert 16)
+   (shadow-locus-dist   float  :offset-assert 20)
+   (look-select         uint8  :offset-assert 24)
+   (rp-node-count       int8   :offset-assert 25)
+   (color-option-count  int8   :offset-assert 26)
+   (color-option-select int8   :offset-assert 27)
+   (pad-tail            uint32 :offset-assert 28) ;; pad-only: 4 unattributed bytes, see blocks-batch2.md
+   )
+  :method-count-assert 9
+  :size-assert         #x20
+  :flag-assert         #x900000020
+  )
+
 
 #|
 (deftype vehicle-pilot-info (structure)
@@ -48337,6 +48664,28 @@
   :flag-assert         #x900000090
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: cell-quads / slice-quads /
+;; cell-bits / slice-bits were missing :inline, restored per the byte-identical jak3
+;; twin at decompiler/config/jak3/all-types.gc:56507-56510, which also places the two
+;; vector16ub overlays with :offset rather than :offset-assert; this closes both the
+;; mid-hole that left slice-quads at computed offset 56 against its asserted 80 and the
+;; tail hole that closed the type at 96 against its asserted 144; asserts verified
+;; against the game registration oracle)
+(deftype race-mesh-hash-search (structure)
+  ((best-dist             float                  :offset-assert 0)
+   (debug-cells-searched  int32                  :offset-assert 4)
+   (debug-slices-searched int32                  :offset-assert 8)
+   (bounds                bounding-box4w :inline :offset-assert 16)
+   (cell-quads            vector         2 :inline :offset-assert 48) ;; guessed by decompiler
+   (slice-quads           vector         4 :inline :offset-assert 80) ;; guessed by decompiler
+   (cell-bits             vector16ub     2 :inline :offset 48) ;; guessed by decompiler
+   (slice-bits            vector16ub     2 :inline :offset 80) ;; guessed by decompiler
+   )
+  :method-count-assert 9
+  :size-assert         #x90
+  :flag-assert         #x900000090
+  )
+
 
 #|
 (deftype race-mesh-slice-query (structure)
@@ -51887,6 +52236,19 @@
   :flag-assert         #x900000084
   )
 |#
+;; resurrected from the dead block above (companion parent-dependency fix, transcribed
+;; verbatim, no placement defect of its own: item-num-selection-info's pad-only fix computes
+;; its pad against this type's registered size #x84 = 132, the exact figure lane-a's own
+;; analysis already used; asserts verified against the game registration oracle)
+(deftype item-list-selection-info (dropdown-item-info)
+  ((menu-options-info-sym basic   :offset-assert 124)
+   (add-string            uint32  :offset-assert 128)
+   )
+  :method-count-assert 9
+  :size-assert         #x84
+  :flag-assert         #x900000084
+  )
+
 
 #|
 (deftype item-list-selection (dropdown-item)
@@ -51899,6 +52261,21 @@
   :flag-assert         #x4601d0025c
   )
 |#
+;; resurrected from the dead block above (companion parent-dependency fix, transcribed
+;; verbatim, no placement defect of its own: item-num-selection needs this live as its own
+;; parent before item-num-max-selection's pad-only fix can compute against
+;; item-num-selection's registered size; asserts verified against the game registration
+;; oracle)
+(deftype item-list-selection (dropdown-item)
+  ((menu-options-info-ptr menu-selection-struct  :offset-assert 592)
+   (selection-type        basic                  :offset-assert 596)
+   (selection-index       int32                  :offset-assert 600)
+   )
+  :method-count-assert 70
+  :size-assert         #x25c
+  :flag-assert         #x4601d0025c
+  )
+
 
 #|
 (deftype item-list-driver-selection (item-list-selection)
@@ -51917,6 +52294,18 @@
   :flag-assert         #x900000088
   )
 |#
+;; resurrected from the dead block above (pad-only: the dead block declares
+;; zero fields of its own; item-list-selection-info (the parent) registers at
+;; 132 bytes and this type's own size-assert is 136 -- a plain 4-byte tail
+;; pad, no jak3 twin, no inspect_map coverage. Confidence: pad-only.)
+(deftype item-num-selection-info (item-list-selection-info)
+  ((pad-tail uint32 :offset-assert 132)
+   )
+  :method-count-assert 9
+  :size-assert         #x88
+  :flag-assert         #x900000088
+  )
+
 
 #|
 (deftype menu-num-info (structure)
@@ -51953,6 +52342,19 @@
   :flag-assert         #x4601e00264
   )
 |#
+;; resurrected from the dead block above (companion parent-dependency fix, transcribed
+;; verbatim, no placement defect of its own: item-num-max-selection's pad-only fix computes its
+;; pad against this type's registered size #x264 = 612, the exact figure lane-a's own analysis
+;; already used; asserts verified against the game registration oracle)
+(deftype item-num-selection (item-list-selection)
+  ((num-selection int32   :offset-assert 604)
+   (sound-id      uint32  :offset-assert 608)
+   )
+  :method-count-assert 70
+  :size-assert         #x264
+  :flag-assert         #x4601e00264
+  )
+
 
 #|
 (deftype item-num-max-selection (item-num-selection)
@@ -51962,6 +52364,19 @@
   :flag-assert         #x4601e00268
   )
 |#
+;; resurrected from the dead block above (pad-only: the dead block declares
+;; zero fields of its own; item-num-selection (the parent) registers at 612
+;; bytes and this type's own size-assert is 616 -- a plain 4-byte tail pad,
+;; no jak3 twin, no inspect_map coverage (inspect only ever printed
+;; num-selection, an inherited field). Confidence: pad-only.)
+(deftype item-num-max-selection (item-num-selection)
+  ((pad-tail uint32 :offset-assert 612)
+   )
+  :method-count-assert 70
+  :size-assert         #x268
+  :flag-assert         #x4601e00268
+  )
+
 
 #|
 (deftype games-list-selection (string-menu)
@@ -52260,6 +52675,65 @@
     )
   )
 |#
+;; resurrected from the dead block above (pad-only: a 4-byte gap between
+;; layout-select's end (296) and screen-pos-x's asserted offset (300). No jak3
+;; twin. inspect_map.json's own scan of (method 3 keyboard-control) confirms
+;; every field from screen-pos-x onward (296/300/304/332 raw, +4 basic-tag
+;; convention gives 300/304/308/336) matches the dead block's own existing
+;; asserts verbatim -- independently confirmed correct as-is, not touched.
+;; NOTE: this block still carries the jakx dead block's own pre-existing
+;; misplaced "name" field (declared :offset-assert 4, clearly a stray
+;; redeclaration of the inherited process-level name slot) -- that is the
+;; redeclares-inherited defect class assigned to lane-b, deliberately left
+;; untouched; the corrected block will show exactly 1 residual placement
+;; problem on that field until lane-b's companion fix lands. Confidence:
+;; pad-only for my fix; BLOCKED on lane-b for a fully clean build.)
+;; MERGED at landing time with lane-b's redeclares-inherited fix (the stray
+;; field lane-a's own analysis deliberately left untouched is dropped here): GOAL's
+;; compiler rejects any offset-assert mismatch fatally, so this residual could not
+;; be left for a later batch to clear as originally planned; both fixes land in one
+;; block instead.
+;; :methods/:state-methods reordered [53, 54, 51, 52, 50] -> [50, 51, 52, 53, 54] (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, assigns method ids by TEXTUAL order of
+;; the :methods/:state-methods entries, not by their trailing ';; NN' comment;
+;; the dead block listed them out of id order, textual reorder only, no content
+;; invented).
+(deftype keyboard-control (process-drawable)
+  ((selected      int32                       :offset-assert 248)
+   (pos-x         int32                       :offset-assert 252)
+   (pos-y         int32                       :offset-assert 256)
+   (up            basic                       :offset-assert 260)
+   (down          basic                       :offset-assert 264)
+   (left          basic                       :offset-assert 268)
+   (right         basic                       :offset-assert 272)
+   (up-count      int32                       :offset-assert 276)
+   (down-count    int32                       :offset-assert 280)
+   (left-count    int32                       :offset-assert 284)
+   (right-count   int32                       :offset-assert 288)
+   (layout-select int32                       :offset-assert 292)
+   (pad-pre-screen-pos-x uint32               :offset-assert 296)
+   (screen-pos-x  int32                       :offset-assert 300)
+   (screen-pos-y  int32                       :offset-assert 304)
+   (max-chars     int32                       :offset-assert 308)
+   (flags         uint64                      :offset-assert 312)
+   (alpha         float                       :offset-assert 320)
+   (j-mod         joint-mod-set-world :inline :offset-assert 336)
+   )
+  :method-count-assert 55
+  :size-assert         #x190
+  :flag-assert         #x3701000190
+    (:state-methods
+    idle ;; 50
+    done ;; 51
+    cancel ;; 52
+    )
+  (:methods
+    (keyboard-control-method-53 () none) ;; 53
+    (keyboard-control-method-54 () none) ;; 54
+    )
+  
+  )
+
 
 ;; (define-extern cpad-or-kbd-pressed-var? function)
 ;; (define-extern kbd-clear! function)
@@ -53822,6 +54296,57 @@
     )
   )
 |#
+;; resurrected from the dead block above. NOT a byte-identical jak3 transplant
+;; (jak3's own game-save is only 80 bytes vs jakx's registered 112; jak3 cited
+;; for MECHANISM only). Reconstructed from jakx's own inspect_map.json field
+;; scan (built from this exact type's (method 3 game-save) MIPS loads) plus
+;; the basic+4 offset convention (basic reference tagged +4). The info-int32/
+;; info-int8 union span is jak3's own established mechanism (a raw byte/int
+;; blob reinterpreted via a chain of :offset overlay fields), extended to 24
+;; elements (96 bytes, not jak3's 16/64) to make room for jakx's own added
+;; "name" field and to close exactly on the oracle size 112 -- this 24-element
+;; count is independently confirmed twice: inspect_map's own raw array-count
+;; scan reads 24, AND 16(start)+24*4=112 exactly matches size-assert with tag
+;; landing precisely at its own :dynamic offset. "name"'s exact element type
+;; (int8 here) is NOT independently confirmed -- flagged pad-like uncertainty,
+;; see lane-a/blocks.md. Asserts verified against the game registration oracle.
+;; Confidence: jak3-inferred, not proven.
+(deftype game-save (basic)
+  ((version               int32                       :offset-assert 4)
+   (allocated-length      int32                       :offset-assert 8)
+   (length                int32                       :offset-assert 12)
+   (info-int32            int32         24            :offset-assert 16) ;; guessed by decompiler
+   (info-int8             int8          96            :overlay-at info-int32) ;; guessed by decompiler
+   (level-index           int32                       :offset 16)
+   (gem-count             float                       :offset 20)
+   (skill-count           float                       :offset 24)
+   (completion-percentage float                       :offset 28)
+   (minute                uint8                       :offset 36)
+   (hour                  uint8                       :offset 37)
+   (week                  uint8                       :offset 38)
+   (day                   uint8                       :offset 39)
+   (month                 uint8                       :offset 40)
+   (year                  uint8                       :offset 41)
+   (language              uint8                       :offset 42)
+   (new-game              int32                       :offset 44)
+   (game-time             time-frame                  :offset 48)
+   (purchase-secrets      uint32        2             :offset 56)
+   (secrets               uint32        2             :offset 64)
+   (features              uint32        2             :offset 72)
+   (name                  int8          16            :offset 80)
+   (tag                   game-save-tag :inline :dynamic :offset-assert 112) ;; guessed by decompiler
+   )
+  :method-count-assert 12
+  :size-assert         #x70
+  :flag-assert         #xc00000070
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type int) _type_)
+    (game-save-method-9 () none) ;; 9 ;; (save-to-file (_type_ string) _type_)
+    (game-save-method-10 () none) ;; 10 ;; (load-from-file (_type_ string) _type_)
+    (game-save-method-11 () none) ;; 11 ;; (debug-inspect (_type_ symbol) _type_)
+    )
+  )
+
 
 #|
 (deftype auto-save (process)
@@ -56339,6 +56864,51 @@
     )
   )
 |#
+;; resurrected from the dead block above (pad-only: process's own registered
+;; size is 144 and this type's size-assert is 148 -- a plain 4-byte tail pad.
+;; No jak3 twin, no inspect_map coverage beyond the pre-existing "name" field.
+;; NOTE: this block still carries the jakx dead block's own pre-existing
+;; misplaced "name" field (declared :offset-assert 4, a stray redeclaration of
+;; the inherited process-level name slot) -- redeclares-inherited class,
+;; lane-b's scope, deliberately left untouched; it does not perturb the
+;; sequential cursor (its own mismatch is absorbed without advancing the
+;; cursor) so the tail-pad fix is unaffected, but the corrected block will
+;; still show exactly 1 residual placement problem on "name" until lane-b's
+;; fix lands. Confidence: pad-only for my fix; BLOCKED on lane-b for a fully
+;; clean build.)
+;; MERGED at landing time with lane-b's redeclares-inherited fix (the stray
+;; field lane-a's own analysis deliberately left untouched is dropped here): GOAL's
+;; compiler rejects any offset-assert mismatch fatally, so this residual could not
+;; be left for a later batch to clear as originally planned; both fixes land in one
+;; block instead.
+;; dropped 6 override entries (id < parent count 15): methods:9, methods:10, methods:11, methods:12, methods:13, methods:14 -- these ids are already covered by the live parent's own
+;; :method-count-assert (15), so declaring them here double-counts
+;; toward this type's own method-count-assert (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, has no notion of inherited-slot overrides,
+;; it just counts every entry as new); confirmed against type_registry.json before
+;; dropping, not guessed. Dropped stub bodies were decompiler '() none'
+;; placeholders, no real content lost.
+;; :methods/:state-methods reordered [15, 18, 16, 17] -> [15, 16, 17, 18] (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, assigns method ids by TEXTUAL order of
+;; the :methods/:state-methods entries, not by their trailing ';; NN' comment;
+;; the dead block listed them out of id order, textual reorder only, no content
+;; invented).
+(deftype save-memcard (process)
+  (
+   (pad-tail uint32 :offset-assert 144)
+   )
+  :method-count-assert 19
+  :size-assert         #x94
+  :flag-assert         #x1300100094
+    (:state-methods
+    create-file ;; 15
+    error-error ;; 16
+    done-done ;; 17
+    save-account ;; 18
+    )
+  
+  )
+
 
 #|
 (deftype part-tester (process)
@@ -56390,6 +56960,33 @@
   :flag-assert         #x3b00800110
   )
 |#
+;; resurrected from the dead block above (pad-only: an 8-byte gap between
+;; process-focusable's own registered size (256) and effect's asserted offset
+;; (264). No jak3 twin. inspect_map.json confirms effect/sound-id load from
+;; raw 260/264 (+4 basic-tag convention = 264/268, matching the dead block's
+;; own existing asserts verbatim). NOTE: this block still carries the jakx
+;; dead block's own pre-existing misplaced "state-time" field (declared
+;; :offset-assert 240, a stray redeclaration of an inherited slot) --
+;; redeclares-inherited class, lane-b's scope, deliberately left untouched;
+;; the corrected block will show exactly 1 residual placement problem on that
+;; field until lane-b's companion fix lands. Confidence: pad-only for my fix;
+;; BLOCKED on lane-b for a fully clean build.)
+;; MERGED at landing time with lane-b's redeclares-inherited fix (the stray
+;; field lane-a's own analysis deliberately left untouched is dropped here): GOAL's
+;; compiler rejects any offset-assert mismatch fatally, so this residual could not
+;; be left for a later batch to clear as originally planned; both fixes land in one
+;; block instead.
+(deftype test-process (process-focusable)
+  (
+   (pad-pre-effect uint64 :offset-assert 256)
+   (effect     uint8   :offset-assert 264)
+   (sound-id   uint32  :offset-assert 268)
+   )
+  :method-count-assert 59
+  :size-assert         #x110
+  :flag-assert         #x3b00800110
+  )
+
 
 ;; (define-extern save-memcard-init-by-other function)
 ;; (define-extern *debug-save-memcard-dead-pool* object)
@@ -57447,6 +58044,117 @@
     )
   )
 |#
+;; resurrected from the dead block above (union-overlay defect:
+;; default-edge->396, command-array->472 converted :offset-assert to :offset
+;; (union-overlay), jak3 twin decompiler/config/jak3/all-types.gc:40674
+;; confirms the overlay; confidence proven (jak3-corroborated); asserts
+;; verified against the game registration oracle).
+;; dropped 6 override entries (id < parent count 15): methods:9, methods:10, methods:11, methods:12, methods:13, methods:14 -- these ids are already covered by the live parent's own
+;; :method-count-assert (15), so declaring them here double-counts
+;; toward this type's own method-count-assert (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, has no notion of inherited-slot overrides,
+;; it just counts every entry as new); confirmed against type_registry.json before
+;; dropping, not guessed. Dropped stub bodies were decompiler '() none'
+;; placeholders, no real content lost.
+;; :methods/:state-methods reordered [30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 23, 15, 20, 24, 16, 19, 18, 25, 26, 27, 21, 22, 28, 17, 29] -> [15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68] (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, assigns method ids by TEXTUAL order of
+;; the :methods/:state-methods entries, not by their trailing ';; NN' comment;
+;; the dead block listed them out of id order, textual reorder only, no content
+;; invented).
+(deftype nav-graph-editor (process)
+  ((nav-graph           mysql-nav-graph                 :offset-assert 144) ;; guessed by decompiler
+   (mode                symbol                          :offset-assert 148) ;; guessed by decompiler
+   (command-id          int32                           :offset-assert 152)
+   (max-command         int32                           :offset-assert 156)
+   (selected-index      int32                           :offset-assert 160)
+   (selected-dist       float                           :offset-assert 164)
+   (selected-node-edge? symbol                          :offset-assert 168) ;; guessed by decompiler
+   (closest-node        int32                           :offset-assert 172)
+   (dist-closest-node   float                           :offset-assert 176)
+   (closest-edge        int32                           :offset-assert 180)
+   (dist-closest-edge   float                           :offset-assert 184)
+   (mouse-pos           vector                  :inline :offset-assert 192)
+   (mouse-hit           vector                  :inline :offset-assert 208)
+   (mouse-hit-pick      vector                  :inline :offset-assert 224)
+   (mouse-normal        vector                  :inline :offset-assert 240)
+   (mouse-spos-hold     vector                  :inline :offset-assert 256)
+   (edge-src            int32                           :offset-assert 272)
+   (edge-dst            int32                           :offset-assert 276)
+   (edge-visibility     int32                           :offset-assert 280)
+   (vehicle-edit-mode   symbol                          :offset-assert 284) ;; guessed by decompiler
+   (hover-edit-mode     symbol                          :offset-assert 288) ;; guessed by decompiler
+   (plane-height        float                           :offset-assert 292)
+   (plane-height-hold   float                           :offset-assert 296)
+   (minimap-make-mode   uint8                           :offset-assert 300)
+   (clipping-dist       float                           :offset-assert 304)
+   (default-node        mysql-nav-node          :inline :offset-assert 320)
+   (default-edge        mysql-nav-edge          :inline :offset 396)
+   (command-array       nav-graph-command-array         :offset 472) ;; guessed by decompiler
+   )
+  :method-count-assert 69
+  :size-assert         #x1dc
+  :flag-assert         #x45015001dc
+    (:state-methods
+    move-node ;; 15
+    move-plane ;; 16
+    create ;; 17
+    edit-edge ;; 18
+    create-edge ;; 19
+    adjust-plane ;; 20
+    adjust-it ;; 21
+    adjust-minimap ;; 22
+    adjust-node-angle ;; 23
+    adjust-node-radius ;; 24
+    adjust-edge-visibility ;; 25
+    adjust-edge-width ;; 26
+    adjust-edge-density ;; 27
+    draw-closest-minimap ;; 28
+    create-pov ;; 29
+    )
+  (:methods
+    (nav-graph-editor-method-30 () none) ;; 30
+    (nav-graph-editor-method-31 () none) ;; 31
+    (nav-graph-editor-method-32 () none) ;; 32
+    (nav-graph-editor-method-33 () none) ;; 33
+    (nav-graph-editor-method-34 () none) ;; 34
+    (nav-graph-editor-method-35 () none) ;; 35
+    (nav-graph-editor-method-36 () none) ;; 36
+    (nav-graph-editor-method-37 () none) ;; 37
+    (nav-graph-editor-method-38 () none) ;; 38
+    (nav-graph-editor-method-39 () none) ;; 39
+    (nav-graph-editor-method-40 () none) ;; 40
+    (nav-graph-editor-method-41 () none) ;; 41
+    (nav-graph-editor-method-42 () none) ;; 42
+    (nav-graph-editor-method-43 () none) ;; 43
+    (nav-graph-editor-method-44 () none) ;; 44
+    (nav-graph-editor-method-45 () none) ;; 45
+    (nav-graph-editor-method-46 () none) ;; 46
+    (nav-graph-editor-method-47 () none) ;; 47
+    (nav-graph-editor-method-48 () none) ;; 48
+    (nav-graph-editor-method-49 () none) ;; 49
+    (nav-graph-editor-method-50 () none) ;; 50
+    (nav-graph-editor-method-51 () none) ;; 51
+    (nav-graph-editor-method-52 () none) ;; 52
+    (nav-graph-editor-method-53 () none) ;; 53
+    (nav-graph-editor-method-54 () none) ;; 54
+    (nav-graph-editor-method-55 () none) ;; 55
+    (nav-graph-editor-method-56 () none) ;; 56
+    (nav-graph-editor-method-57 () none) ;; 57
+    (nav-graph-editor-method-58 () none) ;; 58
+    (nav-graph-editor-method-59 () none) ;; 59
+    (nav-graph-editor-method-60 () none) ;; 60
+    (nav-graph-editor-method-61 () none) ;; 61
+    (nav-graph-editor-method-62 () none) ;; 62
+    (nav-graph-editor-method-63 () none) ;; 63
+    (nav-graph-editor-method-64 () none) ;; 64
+    (nav-graph-editor-method-65 () none) ;; 65
+    (nav-graph-editor-method-66 () none) ;; 66
+    (nav-graph-editor-method-67 () none) ;; 67
+    (nav-graph-editor-method-68 () none) ;; 68
+    )
+  
+  )
+
 
 ;; (define-extern *nav-graph-editor* object) ;; (pointer nav-graph-editor)
 ;; (define-extern get-node-draw-position function) ;; (function vector mysql-nav-node vector)
@@ -64537,6 +65245,21 @@
   :flag-assert         #x900000080
   )
 |#
+;; resurrected from the dead block above (jak3 transplant: roll-basis-params' and
+;; slide-basis-params' missing :inline restored per the jak3 twin at
+;; decompiler/config/jak3/all-types.gc:58407-58408, closing both the hole that left
+;; slide-basis-params at computed offset 24 against its asserted 96 and the tail hole
+;; that closed the type at 104 against its asserted 128; jakx's own 6-element roll count
+;; kept over jak3's 4; asserts verified against the game registration oracle)
+(deftype wvehicle-sound-work (structure)
+  ((roll-basis-params  wvehicle-sound-loop-params 6 :inline :offset-assert 0) ;; guessed by decompiler
+   (slide-basis-params wvehicle-sound-loop-params 2 :inline :offset-assert 96) ;; guessed by decompiler
+   )
+  :method-count-assert 9
+  :size-assert         #x80
+  :flag-assert         #x900000080
+  )
+
 
 #|
 (deftype update-engine-mix-state-params (structure)
@@ -65461,6 +66184,51 @@
     )
   )
 |#
+;; resurrected from the dead block above (union-overlay defect:
+;; defer-kaboom->952 converted :offset-assert to :offset (union-overlay), no
+;; jak3 twin for this type, dead-block provenance rule applied (consecutive
+;; non-increasing offset); confidence mechanical (dead-block provenance rule
+;; only); asserts verified against the game registration oracle).
+;; dropped 4 override entries (id < parent count 75): state-methods:53, state-methods:52, state-methods:51, state-methods:50 -- these ids are already covered by the live parent's own
+;; :method-count-assert (75), so declaring them here double-counts
+;; toward this type's own method-count-assert (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, has no notion of inherited-slot overrides,
+;; it just counts every entry as new); confirmed against type_registry.json before
+;; dropping, not guessed. Dropped stub bodies were decompiler '() none'
+;; placeholders, no real content lost.
+;; :methods/:state-methods reordered [78, 79, 80, 77, 76, 75] -> [75, 76, 77, 78, 79, 80] (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, assigns method ids by TEXTUAL order of
+;; the :methods/:state-methods entries, not by their trailing ';; NN' comment;
+;; the dead block listed them out of id order, textual reorder only, no content
+;; invented).
+(deftype v-yellow-guided-missile (net-projectile)
+  ((trail-tracker        uint64                       :offset-assert 568)
+   (blast-radius         float                        :offset-assert 576)
+   (initial-velocity     float                        :offset-assert 580)
+   (time-of-next-pitch   uint64                       :offset-assert 584)
+   (time-strike-standoff int32                        :offset-assert 592)
+   (next-rot             quaternion           :inline :offset-assert 608)
+   (previous-target      uint64                       :offset-assert 624)
+   (pred                 net-predictor-simple :inline :offset-assert 640)
+   (defer-kaboom         uint64                       :offset 952)
+   (last-hit             uint64                       :offset-assert 960)
+   )
+  :method-count-assert 81
+  :size-assert         #x3c8
+  :flag-assert         #x51034003c8
+    (:state-methods
+    launching ;; 75
+    wild ;; 76
+    tracking ;; 77
+    )
+  (:methods
+    (v-yellow-guided-missile-method-78 () none) ;; 78
+    (v-yellow-guided-missile-method-79 () none) ;; 79
+    (v-yellow-guided-missile-method-80 () none) ;; 80
+    )
+  
+  )
+
 
 ;; (define-extern mine-a-init-remote function)
 ;; (define-extern *msg-map-mine-a* array)
@@ -67564,6 +68332,92 @@
     )
   )
 |#
+;; resurrected from the dead block above (pad-only: a 4-byte gap between
+;; last-sent-time's end (272) and mesh's asserted offset (276). No jak3 twin.
+;; SPECIAL EVIDENCE, memstate/instance-evidence.md: a live captured instance
+;; of this exact type shows bytes 272-275 as all-zero (consistent with an
+;; unused/zeroed pad field) immediately followed by a plausible live pointer
+;; value at 276-279 (mesh) and a plausible int16 value (15) at 280-281
+;; (slice-id) -- the pad hypothesis is corroborated by the live capture, not
+;; just cursor math. The SAME capture also shows bytes 284-299 (the declared
+;; race-line/lap-dist/partial-lap span) holding a length-prefixed GOAL string
+;; object spelling this process's OWN type name, "raceline-weapon\0" --
+;; adjudicated in full in lane-a/blocks.md (does NOT affect mesh, my assigned
+;; field; DOES cast serious doubt on race-line/lap-dist/lap, left untouched
+;; and flagged rather than silently resolved). NOTE: this block still carries
+;; the jakx dead block's own pre-existing misplaced "prox" field (declared
+;; :offset-assert 168) -- redeclares-inherited, lane-b's scope, untouched; the
+;; corrected block will show exactly 1 residual placement problem on that
+;; field until lane-b's companion fix lands. Confidence: pad-only for my fix
+;; (mesh); BLOCKED on lane-b for a fully clean build; race-line/lap-dist/lap
+;; separately flagged unprovable, see blocks.md.)
+;; MERGED at landing time with lane-b's redeclares-inherited fix (the stray
+;; field lane-a's own analysis deliberately left untouched is dropped here): GOAL's
+;; compiler rejects any offset-assert mismatch fatally, so this residual could not
+;; be left for a later batch to clear as originally planned; both fixes land in one
+;; block instead.
+;; :methods/:state-methods reordered [52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78, 50, 51] -> [50, 51, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 73, 74, 75, 76, 77, 78] (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, assigns method ids by TEXTUAL order of
+;; the :methods/:state-methods entries, not by their trailing ';; NN' comment;
+;; the dead block listed them out of id order, textual reorder only, no content
+;; invented).
+(deftype raceline-weapon (process-drawable)
+  ((owner-id       int8                       :offset-assert 248)
+   (delta-height   float                      :offset-assert 252)
+   (birth-time     int32                      :offset-assert 256)
+   (minimap        connection-minimap         :offset-assert 260)
+   (visible        basic                      :offset-assert 264)
+   (last-sent-time int32                      :offset-assert 268)
+   (pad-pre-mesh   uint32                     :offset-assert 272)
+   (mesh           basic                      :offset-assert 276)
+   (slice-id       int16                      :offset-assert 280)
+   (race-line      race-line                  :offset-assert 284)
+   (lap-dist       float                      :offset-assert 288)
+   (lap            int32                      :offset-assert 292)
+   (direction      vector             :inline :offset-assert 304)
+   (nearest-pos    vector             :inline :offset-assert 320)
+   (target-pos     vector             :inline :offset-assert 336)
+   (speed          float                      :offset-assert 352)
+   )
+  :method-count-assert 79
+  :size-assert         #x164
+  :flag-assert         #x4f00e00164
+    (:state-methods
+    tracking ;; 50
+    die ;; 51
+    )
+  (:methods
+    (raceline-weapon-method-52 () none) ;; 52
+    (raceline-weapon-method-53 () none) ;; 53
+    (raceline-weapon-method-54 () none) ;; 54
+    (raceline-weapon-method-55 () none) ;; 55
+    (raceline-weapon-method-56 () none) ;; 56
+    (raceline-weapon-method-57 () none) ;; 57
+    (raceline-weapon-method-58 () none) ;; 58
+    (raceline-weapon-method-59 () none) ;; 59
+    (raceline-weapon-method-60 () none) ;; 60
+    (raceline-weapon-method-61 () none) ;; 61
+    (raceline-weapon-method-62 () none) ;; 62
+    (raceline-weapon-method-63 () none) ;; 63
+    (raceline-weapon-method-64 () none) ;; 64
+    (raceline-weapon-method-65 () none) ;; 65
+    (raceline-weapon-method-66 () none) ;; 66
+    (raceline-weapon-method-67 () none) ;; 67
+    (raceline-weapon-method-68 () none) ;; 68
+    (raceline-weapon-method-69 () none) ;; 69
+    (raceline-weapon-method-70 () none) ;; 70
+    (raceline-weapon-method-71 () none) ;; 71
+    (raceline-weapon-method-72 () none) ;; 72
+    (raceline-weapon-method-73 () none) ;; 73
+    (raceline-weapon-method-74 () none) ;; 74
+    (raceline-weapon-method-75 () none) ;; 75
+    (raceline-weapon-method-76 () none) ;; 76
+    (raceline-weapon-method-77 () none) ;; 77
+    (raceline-weapon-method-78 () none) ;; 78
+    )
+  
+  )
+
 
 ;; (define-extern raceline-weapon-init-remote function)
 ;; (define-extern *msg-map-raceline-weapon* array)
@@ -68347,6 +69201,32 @@
     )
   )
 |#
+;; resurrected from the dead block above (companion parent-dependency fix, transcribed
+;; verbatim, no placement defect of its own: BOTH time-freeze-long-draw's and
+;; time-freeze-med-draw's pad-only fixes compute their pad against this type's registered size
+;; #x118 = 280, the exact figure lane-a's own analysis already used for both siblings; asserts
+;; verified against the game registration oracle)
+;; :methods/:state-methods reordered [57, 50] -> [50, 57] (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, assigns method ids by TEXTUAL order of
+;; the :methods/:state-methods entries, not by their trailing ';; NN' comment;
+;; the dead block listed them out of id order, textual reorder only, no content
+;; invented).
+(deftype time-freeze-short-draw (powerup-draw)
+  ((base-y         float   :offset-assert 264)
+   (vehicle-handle uint64  :offset-assert 272)
+   )
+  :method-count-assert 58
+  :size-assert         #x118
+  :flag-assert         #x3a00900118
+    (:state-methods
+    idle ;; 50
+    )
+  (:methods
+    (time-freeze-short-draw-method-57 () none) ;; 57
+    )
+  
+  )
+
 
 #|
 (deftype time-freeze-short (net-powerup)
@@ -68375,6 +69255,21 @@
   :flag-assert         #x3a00a00128
   )
 |#
+;; resurrected from the dead block above (pad-only: the dead block declares
+;; zero fields of its own; time-freeze-short-draw (the parent) registers at
+;; 280 bytes and this type's own size-assert is 296 -- a plain 16-byte tail
+;; pad, no jak3 twin, inspect_map shows only 2 fields (base-y, vehicle-handle)
+;; both of which belong to a SIBLING type (time-freeze-med-draw shares the
+;; exact same oracle shape and inspect readback) rather than genuinely new
+;; content of this specific type. Confidence: pad-only.)
+(deftype time-freeze-long-draw (time-freeze-short-draw)
+  ((pad-tail uint8 16 :offset-assert 280)
+   )
+  :method-count-assert 58
+  :size-assert         #x128
+  :flag-assert         #x3a00a00128
+  )
+
 
 #|
 (deftype time-freeze-long (time-freeze-short)
@@ -68401,6 +69296,18 @@
   :flag-assert         #x3a00a00128
   )
 |#
+;; resurrected from the dead block above (pad-only: identical shape and
+;; identical repair to its sibling time-freeze-long-draw -- same parent, same
+;; oracle size/method-count/flag, same inspect_map readback (base-y,
+;; vehicle-handle only). Confidence: pad-only.)
+(deftype time-freeze-med-draw (time-freeze-short-draw)
+  ((pad-tail uint8 16 :offset-assert 280)
+   )
+  :method-count-assert 58
+  :size-assert         #x128
+  :flag-assert         #x3a00a00128
+  )
+
 
 #|
 (deftype time-freeze-med (time-freeze-short)
@@ -68892,6 +69799,106 @@
     )
   )
 |#
+;; resurrected from the dead block above (pad-only: an 8-byte gap between
+;; hud-timer's end (720) and start-time's asserted offset (728). No jak3 twin.
+;; inspect_map.json confirms start-time (and every field from explained-dark-
+;; eco through lap-count) loads at raw offset = dead-block-assert - 4, i.e.
+;; the basic-tag +4 convention holds throughout -- every OTHER field in this
+;; block is independently confirmed correct as-is. NOTE: this block still
+;; carries the jakx dead block's own pre-existing misplaced "state-time"
+;; field (declared :offset-assert 304) -- redeclares-inherited, lane-b's
+;; scope, untouched. SEPARATE FINDING for lane-b: this simulator, corrected
+;; for the two documented placecheck.py bugs (single-inline-field rounding,
+;; :pack-me vs :allow-misaligned), finds mask-controls (asserted 696) and
+;; locked-controls (asserted 700) place CLEANLY with ZERO mismatch once
+;; player-controls' own real (unrounded) size is used -- placement_defects.
+;; json's union-overlay entries for these two fields (computed 704 for both)
+;; appear to be an artifact of the classifier's OLD single-inline-field
+;; rounding bug (see nav-residue/blocks.md bug #1), not a real union; worth
+;; independent confirmation before lane-b spends a fix on them. Confidence:
+;; pad-only for my fix; BLOCKED on lane-b's state-time fix for a fully clean
+;; build.)
+;; MERGED at landing time with lane-b's redeclares-inherited fix (the stray
+;; field lane-a's own analysis deliberately left untouched is dropped here): GOAL's
+;; compiler rejects any offset-assert mismatch fatally, so this residual could not
+;; be left for a later batch to clear as originally planned; both fixes land in one
+;; block instead.
+;; dropped 2 override entries (id < parent count 111): state-methods:42, state-methods:43 -- these ids are already covered by the live parent's own
+;; :method-count-assert (111), so declaring them here double-counts
+;; toward this type's own method-count-assert (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, has no notion of inherited-slot overrides,
+;; it just counts every entry as new); confirmed against type_registry.json before
+;; dropping, not guessed. Dropped stub bodies were decompiler '() none'
+;; placeholders, no real content lost.
+;; :methods/:state-methods reordered [113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131, 111, 112] -> [111, 112, 113, 114, 115, 116, 117, 118, 119, 120, 121, 122, 123, 124, 125, 126, 127, 128, 129, 130, 131] (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, assigns method ids by TEXTUAL order of
+;; the :methods/:state-methods entries, not by their trailing ';; NN' comment;
+;; the dead block listed them out of id order, textual reorder only, no content
+;; invented).
+(deftype net-player-training (net-player-deathrace)
+  ((explained-dark-eco      basic                    :offset-assert 528)
+   (explained-mult-weapons  basic                    :offset-assert 532)
+   (explained-full-dark-eco basic                    :offset-assert 536)
+   (complete                basic                    :offset-assert 540)
+   (race-info               basic                    :offset-assert 544)
+   (info                    training-info            :offset-assert 548)
+   (goal-pos                vector           :inline :offset-assert 560)
+   (player-pos              vector           :inline :offset-assert 576)
+   (player-vel              vector           :inline :offset-assert 592)
+   (player-mat              matrix           :inline :offset-assert 608)
+   (player-controls         vehicle-controls :inline :offset-assert 672)
+   (mask-controls           vehicle-controls         :offset-assert 696)
+   (locked-controls         vehicle-controls         :offset-assert 700)
+   (arrow                   uint64                   :offset-assert 704)
+   (hud-timer               uint64                   :offset-assert 712)
+   (pad-pre-start-time      uint64                   :offset-assert 720)
+   (start-time              uint64                   :offset-assert 728)
+   (time-limit              uint64                   :offset-assert 736)
+   (test-time               uint64                   :offset-assert 744)
+   (player-health           float                    :offset-assert 752)
+   (prev-player-health      float                    :offset-assert 756)
+   (goal-dist               float                    :offset-assert 760)
+   (desired-letterbox       float                    :offset-assert 764)
+   (letterbox               float                    :offset-assert 768)
+   (fail-dist               float                    :offset-assert 772)
+   (max-count               int16                    :offset-assert 776)
+   (i-goal                  int8                     :offset-assert 778)
+   (show-message?           basic                    :offset-assert 780)
+   (bot                     uint64                   :offset-assert 784)
+   (lap-distance            float                    :offset-assert 792)
+   (lap-count               int8                     :offset-assert 796)
+   )
+  :method-count-assert 132
+  :size-assert         #x31d
+  :flag-assert         #x840290031d
+    (:state-methods
+    failed ;; 111
+    restart ;; 112
+    )
+  (:methods
+    (net-player-training-method-113 () none) ;; 113
+    (net-player-training-method-114 () none) ;; 114
+    (net-player-training-method-115 () none) ;; 115
+    (net-player-training-method-116 () none) ;; 116
+    (net-player-training-method-117 () none) ;; 117
+    (net-player-training-method-118 () none) ;; 118
+    (net-player-training-method-119 () none) ;; 119
+    (net-player-training-method-120 () none) ;; 120
+    (net-player-training-method-121 () none) ;; 121
+    (net-player-training-method-122 () none) ;; 122
+    (net-player-training-method-123 () none) ;; 123
+    (net-player-training-method-124 () none) ;; 124
+    (net-player-training-method-125 () none) ;; 125
+    (net-player-training-method-126 () none) ;; 126
+    (net-player-training-method-127 () none) ;; 127
+    (net-player-training-method-128 () none) ;; 128
+    (net-player-training-method-129 () none) ;; 129
+    (net-player-training-method-130 () none) ;; 130
+    (net-player-training-method-131 () none) ;; 131
+    )
+  
+  )
+
 
 #|
 (deftype training2-race-hud (in-game-hud)
@@ -72959,6 +73966,39 @@
     )
   )
 |#
+;; resurrected from the dead block above (pad-only: a 4-byte gap between the
+;; parent dropdown-item's own registered size (592) and disabled's asserted
+;; offset (596). No jak3 twin exists for editable-selection. inspect_map.json's
+;; own independent scan of (method 3 editable-selection) confirms disabled/
+;; keyboard-flags/max-chars/text load from 592/596/604/608 respectively (raw
+;; MIPS displacement; +4 for the basic-reference tag convention gives exactly
+;; 596/600/608/612, matching the dead block's own existing asserts verbatim --
+;; so those 4 fields are independently confirmed correct as-is, not touched).
+;; The 4-byte gap itself has no name/type evidence from any source; pad
+;; labeled by the field it precedes, per this file's established
+;; pad-pre-<field> convention (see v-wpn-chicken-drone, v-wpn-success-seeker
+;; in this same file for the identical pattern). Confidence: pad-only.)
+;; dropped 1 override entries (id < parent count 70): state-methods:52 -- these ids are already covered by the live parent's own
+;; :method-count-assert (70), so declaring them here double-counts
+;; toward this type's own method-count-assert (parse_structure_def,
+;; common/type_system/deftype.cpp:~562, has no notion of inherited-slot overrides,
+;; it just counts every entry as new); confirmed against type_registry.json before
+;; dropping, not guessed. Dropped stub bodies were decompiler '() none'
+;; placeholders, no real content lost.
+(deftype editable-selection (dropdown-item)
+  ((pad-pre-disabled basic  :offset-assert 592)
+   (disabled       basic   :offset-assert 596)
+   (keyboard-flags uint64  :offset-assert 600)
+   (max-chars      int32   :offset-assert 608)
+   (text           uint32  :offset-assert 612)
+   )
+  :method-count-assert 70
+  :size-assert         #x268
+  :flag-assert         #x4601e00268
+  (:state-methods
+    )
+  )
+
 
 #|
 (deftype dropdown-button (dropdown-item)
@@ -73389,6 +74429,18 @@
   :flag-assert         #x4501b00239
   )
 |#
+;; resurrected from the dead block above (companion parent-dependency fix, transcribed
+;; verbatim, no placement defect of its own: scrolling-scenes-item's pad-only fix computes its
+;; pad against this type's registered size #x239 = 569, the exact figure lane-a's own analysis
+;; already used; asserts verified against the game registration oracle)
+(deftype scrolling-secrets-item (scrolling-item)
+  ((idx int8  :offset-assert 568)
+   )
+  :method-count-assert 69
+  :size-assert         #x239
+  :flag-assert         #x4501b00239
+  )
+
 
 #|
 (deftype scrolling-secrets-menu (scrolling-menu-medius)
@@ -73409,6 +74461,19 @@
   :flag-assert         #x4501b0023a
   )
 |#
+;; resurrected from the dead block above (pad-only: the dead block declares
+;; zero fields of its own; scrolling-secrets-item (the parent) registers at
+;; 569 bytes and this type's own size-assert is 570 -- a single 1-byte tail
+;; pad, no jak3 twin, no inspect_map coverage beyond one unrelated field
+;; ("idx"). Confidence: pad-only.)
+(deftype scrolling-scenes-item (scrolling-secrets-item)
+  ((pad-tail uint8 :offset-assert 569)
+   )
+  :method-count-assert 69
+  :size-assert         #x23a
+  :flag-assert         #x4501b0023a
+  )
+
 
 #|
 (deftype scrolling-scenes-menu (scrolling-secrets-menu)
