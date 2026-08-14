@@ -36450,6 +36450,23 @@
   )
 |#
 
+;; resurrected from the dead block above (jak3 transplant pilot: out-travel needs
+;; :inline for the jak3 twin's array layout, which resolves the placement defect
+;; blocking closest-sphere-dist2 at offset 80; asserts verified against the game
+;; registration oracle)
+(deftype nav-avoid-spheres-params (structure)
+  ((current-pos          vector :inline :offset-assert 0)
+   (travel               vector :inline :offset-assert 16)
+   (pref-dir             vector :inline :offset-assert 32)
+   (out-travel           vector 2 :inline :offset-assert 48) ;; guessed by decompiler
+   (closest-sphere-dist2 float          :offset-assert 80)
+   (avoiding-sphere?     symbol         :offset-assert 84) ;; guessed by decompiler
+   )
+  :method-count-assert 9
+  :size-assert         #x58
+  :flag-assert         #x900000058
+  )
+
 #|
 (deftype nav-callback-info (structure)
   ((callback-count int32                                 :offset-assert 0)
@@ -36740,7 +36757,7 @@
     (set-speed! (_type_ meters) none) ;; 47
     (reset! (_type_ nav-control) none) ;; 48
     (nav-state-method-49 () none) ;; 49
-    (navigate-using-best-dir-use-existing-avoid-spheres () none) ;; 50 ;; jak3 sig blocked on nav-avoid-spheres-params: (navigate-using-best-dir-use-existing-avoid-spheres (_type_ nav-avoid-spheres-params) none)
+    (navigate-using-best-dir-use-existing-avoid-spheres (_type_ nav-avoid-spheres-params) none) ;; 50
     (nav-state-method-51 (_type_) none) ;; 51
     (navigate-using-route-portals (_type_) none) ;; 52
     (navigate-using-best-dir-recompute-avoid-spheres-1 (_type_) none) ;; 53
@@ -36789,11 +36806,11 @@
     (find-poly-containing-point-2 (_type_ vector) nav-poly) ;; 15
     (is-above-poly-max-height? (_type_ vector float) symbol) ;; 16
     (is-in-mesh? (_type_ vector float) symbol) ;; 17
-    (avoid-spheres-1! () none) ;; 18 ;; jak3 sig blocked on nav-avoid-spheres-params: (avoid-spheres-1! (_type_ nav-avoid-spheres-params) symbol)
-    (avoid-spheres-2! () none) ;; 19 ;; jak3 sig blocked on nav-avoid-spheres-params: (avoid-spheres-2! (_type_ nav-avoid-spheres-params) symbol)
+    (avoid-spheres-1! (_type_ nav-avoid-spheres-params) symbol) ;; 18
+    (avoid-spheres-2! (_type_ nav-avoid-spheres-params) symbol) ;; 19
     (clamp-vector-to-mesh-cross-gaps (_type_ vector nav-poly vector float symbol clamp-travel-vector-to-mesh-return-info) none) ;; 20
     (clamp-vector-to-mesh-no-gaps (_type_ vector nav-poly vector clamp-travel-vector-to-mesh-return-info) none) ;; 21
-    (find-first-sphere-and-update-avoid-params () none) ;; 22 ;; jak3 sig blocked on nav-avoid-spheres-params: (find-first-sphere-and-update-avoid-params (_type_ vector nav-avoid-spheres-params) float)
+    (find-first-sphere-and-update-avoid-params (_type_ vector nav-avoid-spheres-params) float) ;; 22
     (set-spheres-from-nav-ids (_type_) none) ;; 23
     (check-sphere-blocked! (_type_ vector int) symbol) ;; 24
     (get-max-rotation-rate (_type_) float) ;; 25
