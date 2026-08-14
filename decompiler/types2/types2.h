@@ -37,6 +37,18 @@ struct UnknownLabel {
   int label_idx = -1;
   std::string label_name;  // just for debug prints
   std::optional<TypeSpec> selected_type;
+  // How many times backprop_tagged_type has overwritten selected_type with a
+  // different guess. See backprop_tagged_type's UNKNOWN_LABEL case and
+  // kMaxTagFlips: past that cap this stops counting as a "change" so a contested
+  // guess can't spin types2::run's outer loop forever (docket 2026-08-13/14
+  // "Types2 non-termination").
+  int flip_count = 0;
+  // set true the one time the contested-guess warning fires for this tag.
+  bool contested_warned = false;
+  // function that owns the instruction this tag is attached to, so a contested
+  // guess can be reported as a func-level warning. Set at tag creation time
+  // (types2_for_label), not owned.
+  Function* owning_func = nullptr;
 };
 
 /*!
@@ -45,6 +57,11 @@ struct UnknownLabel {
 struct UnknownStackStructure {
   int stack_offset = -1;
   std::optional<TypeSpec> selected_type;
+  // see UnknownLabel::flip_count.
+  int flip_count = 0;
+  bool contested_warned = false;
+  // set at tag creation time (types2_addr_on_stack), not owned.
+  Function* owning_func = nullptr;
 };
 
 /*!
@@ -238,6 +255,34 @@ struct TypePropExtras {
   bool needs_rerun = false;
   bool tags_locked = false;
 };
+
+// Cap on how many times backprop_tagged_type may flip a single UnknownStackStructure
+// or UnknownLabel tag's guessed type before treating the guess as genuinely
+// contested (two consumers demanding incompatible types for one slot) rather than
+// still converging, and giving up on it instead of looping forever. LCA is
+// deliberately not used here: lca(vector, nav-poly) = structure broke working
+// loads in the investigation that root-caused this (docket 2026-08-13/14,
+// "Types2 non-termination").
+//
+// Measured 2026-08-14 against the full jakx corpus (2476 objects, ntsc_v1): the
+// highest legitimate flip_count reached by any tag was 11 (a stack structure guess
+// in expand-bounding-box-from-nav-meshes, which converges cleanly). The nav-mesh
+// slot-19/44 signature-drift poison case (navloop repro) flips the same tag once
+// per outer iteration with no bound, reaching 8.3 million flips in 90 seconds
+// before the process was killed. 128 gives ~11.6x headroom over the measured
+// healthy maximum while still being reached by the poison case in microseconds.
+constexpr int kMaxTagFlips = 128;
+
+// Safety-net cap on the outer worklist loop in types2::run (types2.cpp). If a
+// function's types still fail to converge for any reason (including a
+// kMaxTagFlips-tripped tag that individually stops signalling changes but leaves
+// other parts of the function still settling), bail via the existing
+// hit_error/goto end_type_pass path (asm punt) rather than spin forever.
+//
+// Measured 2026-08-14 against the same full jakx corpus: the highest
+// outer_iterations reached by any function was 24 ((top-level-login
+// cam-update-h)), which converges cleanly. 256 gives ~10.7x headroom.
+constexpr int kMaxOuterIterations = 256;
 
 void run(Output& out, const Input& input);
 

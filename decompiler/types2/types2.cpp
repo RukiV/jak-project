@@ -611,11 +611,19 @@ void run(Output& out, const Input& input) {
 
   // Run propagation, until we get through an iteration with no changes
   [[maybe_unused]] int blocks_run = 0;
-  [[maybe_unused]] int outer_iterations = 0;
+  int outer_iterations = 0;
   bool needs_rerun = true;
   bool hit_error = false;
   while (needs_rerun) {
     outer_iterations++;
+    // Safety net (docket 2026-08-13/14 "Types2 non-termination"): a function whose
+    // types still fail to converge (a kMaxTagFlips-tripped tag settling elsewhere,
+    // or any other cause) bails via the existing asm-punt path instead of spinning
+    // forever. See kMaxOuterIterations for the measurement behind the cap value.
+    if (outer_iterations > kMaxOuterIterations) {
+      hit_error = true;
+      goto end_type_pass;
+    }
     needs_rerun = false;
 
     for (auto block_idx : function_cache.block_visit_order) {
@@ -666,6 +674,10 @@ void run(Output& out, const Input& input) {
   function_cache.blocks.at(0).needs_run = true;
   while (needs_rerun) {
     outer_iterations++;
+    if (outer_iterations > kMaxOuterIterations) {
+      hit_error = true;
+      goto end_type_pass;
+    }
     needs_rerun = false;
     for (auto block_idx : function_cache.block_visit_order) {
       if (function_cache.blocks.at(block_idx).needs_run) {

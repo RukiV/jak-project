@@ -249,6 +249,7 @@ std::vector<TP_Type> try_get_type_of_expr(const types2::TypeState& type_state,
 }
 
 namespace types2 {
+
 /*!
  * Given a tagged type, and an expectation for what it should be, backprop constraints.
  */
@@ -293,23 +294,68 @@ bool backprop_tagged_type(const TP_Type& expected_type,
         }
       }
 
-    case types2::Tag::UNKNOWN_LABEL:
-      if (actual_type.tag.unknown_label->selected_type &&
-          actual_type.tag.unknown_label->selected_type == expected_type.typespec()) {
+    case types2::Tag::UNKNOWN_LABEL: {
+      auto* tag = actual_type.tag.unknown_label;
+      if (tag->selected_type && tag->selected_type == expected_type.typespec()) {
         return false;  // no need to update
-      } else {
-        actual_type.tag.unknown_label->selected_type = expected_type.typespec();
-        return true;
       }
+      // Non-monotone tag ping-pong guard (docket 2026-08-13/14 "Types2
+      // non-termination"): two consumers demanding different types for the same
+      // unknown label can otherwise flip this tag forever, spinning types2::run's
+      // outer worklist loop. Keep overwriting the guess (later code still wants the
+      // latest value), but once it has flipped more than kMaxTagFlips times, stop
+      // reporting a change so the caller stops rerunning over this alone, and warn
+      // once so the contested guess is visible instead of silently wrong.
+      bool was_set = tag->selected_type.has_value();
+      auto prev_type = tag->selected_type;
+      tag->selected_type = expected_type.typespec();
+      if (!was_set) {
+        return true;  // first guess, not a flip.
+      }
+      tag->flip_count++;
+      if (tag->flip_count > kMaxTagFlips) {
+        if (!tag->contested_warned) {
+          tag->contested_warned = true;
+          if (tag->owning_func) {
+            tag->owning_func->warnings.warning("contested label guess for '{}': {} vs {}",
+                                               tag->label_name, prev_type->print(),
+                                               expected_type.typespec().print());
+          }
+        }
+        return false;
+      }
+      return true;
+    }
 
-    case types2::Tag::UNKNOWN_STACK_STRUCTURE:
-      if (actual_type.tag.unknown_stack_structure->selected_type &&
-          actual_type.tag.unknown_stack_structure->selected_type == expected_type.typespec()) {
+    case types2::Tag::UNKNOWN_STACK_STRUCTURE: {
+      auto* tag = actual_type.tag.unknown_stack_structure;
+      if (tag->selected_type && tag->selected_type == expected_type.typespec()) {
         return false;  // no need to update
-      } else {
-        actual_type.tag.unknown_stack_structure->selected_type = expected_type.typespec();
-        return true;
       }
+      // See UNKNOWN_LABEL above: same non-monotone ping-pong guard. This is the
+      // case the nav-mesh slot-19/44 signature-drift poison actually hits (a
+      // vector-! call and a mis-signatured callee arg disagreeing forever about one
+      // guessed stack slot's type).
+      bool was_set = tag->selected_type.has_value();
+      auto prev_type = tag->selected_type;
+      tag->selected_type = expected_type.typespec();
+      if (!was_set) {
+        return true;  // first guess, not a flip.
+      }
+      tag->flip_count++;
+      if (tag->flip_count > kMaxTagFlips) {
+        if (!tag->contested_warned) {
+          tag->contested_warned = true;
+          if (tag->owning_func) {
+            tag->owning_func->warnings.warning("contested stack guess at sp+{}: {} vs {}",
+                                               tag->stack_offset, prev_type->print(),
+                                               expected_type.typespec().print());
+          }
+        }
+        return false;
+      }
+      return true;
+    }
 
     case types2::Tag::FIELD_ACCESS: {
       ASSERT(false);  // this code works, but the later stuff can't get use it yet.
@@ -393,6 +439,7 @@ void types2_for_label(types2::Type& type_out,
         instr.unknown_label_tag = std::make_unique<types2::UnknownLabel>();
         instr.unknown_label_tag->label_idx = label_idx;
         instr.unknown_label_tag->label_name = name;
+        instr.unknown_label_tag->owning_func = env.func;
         type_out.tag.unknown_label = instr.unknown_label_tag.get();
         type_out.tag.kind = types2::Tag::UNKNOWN_LABEL;
         type_out.type = {};
@@ -1061,6 +1108,7 @@ void types2_addr_on_stack(types2::Type& type_out,
       // lg::print("Encountered unknown stack address {} : {}\n", env.func->name(), offset);
       instr.unknown_stack_structure_tag = std::make_unique<types2::UnknownStackStructure>();
       instr.unknown_stack_structure_tag->stack_offset = offset;
+      instr.unknown_stack_structure_tag->owning_func = env.func;
       type_out.tag.unknown_stack_structure = instr.unknown_stack_structure_tag.get();
       type_out.tag.kind = types2::Tag::UNKNOWN_STACK_STRUCTURE;
       type_out.type = {};
