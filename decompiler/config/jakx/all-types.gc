@@ -50591,44 +50591,59 @@
 ;; menu2-h                        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
+;; all-types.gc:49869 (dead)
+;; The game registers menu-string at size #x44 = 68 while its parent hud-string
+;; is 64 (both from their own (new 'type ...) qwords), and (method 3 menu-string)
+;; prints only hud-string's twelve fields - so four bytes at 64 exist but are
+;; never named or inspected.  Same defect class as index-sprite-list-menu-info
+;; below, at the tail rather than the head; `pad-tail` follows the naming already
+;; used by resurrect/offset-fixes/can-leaves-floor.gc and hud-results.gc.
+;; The four bytes are PROVEN, the pad's identity is not.
 (deftype menu-string (hud-string)
-  ()
+  ((pad-tail uint8 4  :offset-assert 64)
+   )
   :method-count-assert 10
   :size-assert         #x44
   :flag-assert         #xa00000044
   )
-|#
 
-#|
+
+;; all-types.gc:49878 (dead)
 (deftype menu-option-info (structure)
   ((display-name-id uint32  :offset-assert 0)
    (sym             basic   :offset-assert 4)
    (extra           basic   :offset-assert 8)
-   (extra-object    basic   :offset-assert 8)
-   (extra-int       int32   :offset-assert 8)
+   ;; union: (method 3 menu-option-info) prints "extra", "extra-object" and
+   ;; "extra-int" from the SAME `lw a2, 8(gp)`.
+   (extra-object    basic   :overlay-at extra  :offset-assert 8)
+   (extra-int       int32   :overlay-at extra  :offset-assert 8)
    )
   :method-count-assert 9
   :size-assert         #xc
   :flag-assert         #x90000000c
-  ;; field extra uses ~A with a signed load. field extra-object uses ~A with a signed load.
   )
-|#
 
-#|
+
+;; all-types.gc:49893 (dead)
 (deftype strings-extra-struct (structure)
-  ((text         UNKNOWN 128 :offset-assert 0)
-   (extra        basic       :offset-assert 128)
-   (extra-object basic       :offset-assert 128)
-   (extra-int    int32       :offset-assert 128)
-   (extra-int16  UNKNOWN 2   :offset-assert 128)
+  ;; `text` element type resolved, not guessed: the inspect's own format string
+  ;; is "~1Ttext[128] @ #x~X~%" (menu2-h_ir2.asm, (method 3 strings-extra-struct)
+  ;; op 13), so the count is 128 straight from the game; `extra` sits at 128, so
+  ;; the 128 elements occupy bytes 0..127 - one byte each.  uint8 is the only
+  ;; element type that fits.  Calibration for the same generator convention:
+  ;; "extra-int16[2]" is 2 elements over the 4 bytes at 128, i.e. int16, which
+  ;; is what its name says.
+  ((text         uint8  128                          :offset-assert 0)
+   (extra        basic                               :offset-assert 128)
+   (extra-object basic  :overlay-at extra            :offset-assert 128)
+   (extra-int    int32  :overlay-at extra            :offset-assert 128)
+   (extra-int16  int16  2  :overlay-at extra         :offset-assert 128)
    )
   :method-count-assert 9
   :size-assert         #x84
   :flag-assert         #x900000084
-  ;; field extra uses ~A with a signed load. field extra-object uses ~A with a signed load.
   )
-|#
+
 
 #|
 (deftype menu-selection-struct (structure)
@@ -50653,26 +50668,27 @@
   )
 
 
-#|
+;; all-types.gc:49931 (dead)
 (deftype animation-info (structure)
   ((enter-anim   int32          :offset-assert 0)
    (exit-anim    int32          :offset-assert 4)
    (running-anim int32          :offset-assert 8)
    (anim-speed   float          :offset-assert 12)
    (enter-delay  uint32         :offset-assert 16)
+   ;; 16-byte alignment carries the cursor from 20 to 32 on its own
    (3d-offset    vector :inline :offset-assert 32)
-   (3d-offset-x  float          :offset-assert 32)
-   (3d-offset-y  float          :offset-assert 36)
-   (3d-offset-z  float          :offset-assert 40)
-   (3d-offset-w  float          :offset-assert 44)
+   (3d-offset-x  float  :overlay-at 3d-offset  :offset-assert 32)
+   (3d-offset-y  float  :offset 36)
+   (3d-offset-z  float  :offset 40)
+   (3d-offset-w  float  :offset 44)
    )
   :method-count-assert 9
   :size-assert         #x30
   :flag-assert         #x900000030
   )
-|#
 
-#|
+
+;; all-types.gc:49939 (dead)
 (deftype base-menu-info (structure)
   ((menu-type     basic           :offset-assert 0)
    (children      basic           :offset-assert 4)
@@ -50695,13 +50711,14 @@
   :size-assert         #x34
   :flag-assert         #x900000034
   )
-|#
 
-#|
+
+;; all-types.gc:50174 (dead)
 (deftype base-menu (process-drawable)
   ((child-handles     basic                       :offset-assert 248)
    (info-ptr          base-menu-info              :offset-assert 252)
    (focused?          basic                       :offset-assert 256)
+   ;; 16-byte alignment carries the cursor from 260 to 272
    (3d-menu-2d-offset vector              :inline :offset-assert 272)
    (pos-x             float                       :offset-assert 288)
    (pos-y             float                       :offset-assert 292)
@@ -50739,18 +50756,18 @@
     (base-menu-method-64 () none) ;; 64
     )
   )
-|#
 
-#|
+
+;; all-types.gc:50218 (dead)
 (deftype jakx-logo-menu (base-menu)
   ()
   :method-count-assert 65
   :size-assert         #x218
   :flag-assert         #x4101900218
   )
-|#
 
-#|
+
+;; all-types.gc:50227 (dead)
 (deftype map-menu (base-menu)
   ()
   :method-count-assert 66
@@ -50760,9 +50777,9 @@
     (map-menu-method-65 () none) ;; 65
     )
   )
-|#
 
-#|
+
+;; all-types.gc:50239 (dead)
 (deftype selection-menu-manager (base-menu)
   ((selection-index      int32  :offset-assert 536)
    (prev-selection-index int32  :offset-assert 540)
@@ -50776,32 +50793,32 @@
     (selection-menu-manager-method-66 () none) ;; 66
     )
   )
-|#
 
-#|
+
+;; all-types.gc:50045 (dead)
 (deftype sprite-info (structure)
-  ((offset            vector :inline :offset-assert 0)
-   (offset-x          float          :offset-assert 0)
-   (offset-y          float          :offset-assert 4)
-   (offset-z          float          :offset-assert 8)
-   (offset-w          float          :offset-assert 12)
-   (pos-z             int32          :offset-assert 16)
-   (tex-name          basic          :offset-assert 20)
-   (tex-id            uint32         :offset-assert 24)
-   (scale-x           float          :offset-assert 28)
-   (scale-y           float          :offset-assert 32)
-   (flags             uint16         :offset-assert 36)
-   (offset-from-index int8           :offset-assert 38)
-   (offset-dir        uint8          :offset-assert 39)
-   (texture-index     int8           :offset-assert 40)
+  ((offset            vector :inline            :offset-assert 0)
+   (offset-x          float  :overlay-at offset :offset-assert 0)
+   (offset-y          float  :offset 4)
+   (offset-z          float  :offset 8)
+   (offset-w          float  :offset 12)
+   (pos-z             int32                     :offset-assert 16)
+   (tex-name          basic                     :offset-assert 20)
+   (tex-id            uint32                    :offset-assert 24)
+   (scale-x           float                     :offset-assert 28)
+   (scale-y           float                     :offset-assert 32)
+   (flags             uint16                    :offset-assert 36)
+   (offset-from-index int8                      :offset-assert 38)
+   (offset-dir        uint8                     :offset-assert 39)
+   (texture-index     int8                      :offset-assert 40)
    )
   :method-count-assert 9
   :size-assert         #x29
   :flag-assert         #x900000029
   )
-|#
 
-#|
+
+;; all-types.gc:50278 (dead)
 (deftype transition-info (animation-info)
   ((enter-pos-x     float  :offset-assert 48)
    (enter-pos-y     float  :offset-assert 52)
@@ -50821,11 +50838,15 @@
   :size-assert         #x64
   :flag-assert         #x900000064
   )
-|#
 
-#|
+
+;; all-types.gc:50300 (dead).  `trans-info` is a NARROWING of the inherited
+;; base-menu-info field, not a new one - same name, same offset 16, and
+;; transition-info is a child of animation-info, so :override is both legal and
+;; required.  (method 3 sprite-menu-info) prints trans-info from `lwu 16`, the
+;; same load base-menu-info uses.
 (deftype sprite-menu-info (base-menu-info)
-  ((trans-info   transition-info  :offset-assert 16)
+  ((trans-info   transition-info  :override)
    (sprites-info basic            :offset-assert 52)
    (color        uint32           :offset-assert 56)
    )
@@ -50833,21 +50854,27 @@
   :size-assert         #x3c
   :flag-assert         #x90000003c
   )
-|#
 
-#|
+
+;; all-types.gc:50102 / 50260 (both dead).
+;; The element types are PROVEN from the inline stride the login pokes into the
+;; type's heap-base, which for an inline-array-class child IS the stride
+;; (all-types.gc:203-205 says so, and the login does `sh 64, 12(hud-sprite-array)`
+;; and `sh 80, 12(menu-string-array)` at menu2-h_ir2.asm ops 155-157 / 268-270).
+;; hud-sprite is registered at size 52 -> 16-aligned stride 64; menu-string at 68
+;; -> stride 80.  No other candidate type in the file has those sizes.
+;; The dead blocks also re-declared the inherited length / allocated-length,
+;; which throws "already has a field named length"; only `data` belongs here.
 (deftype hud-sprite-array (inline-array-class)
-  ((length           int32            :offset-assert 4)
-   (allocated-length int32            :offset-assert 8)
-   (data             UNKNOWN :dynamic :offset-assert 16)
+  ((data hud-sprite :inline :dynamic :offset-assert 16)
    )
   :method-count-assert 14
   :size-assert         #x10
   :flag-assert         #xe00000010
   )
-|#
 
-#|
+
+;; all-types.gc:50324 (dead)
 (deftype sprite-menu (base-menu)
   ((sprites basic  :offset-assert 536)
    (alpha   float  :offset-assert 540)
@@ -50859,7 +50886,7 @@
     (sprite-menu-method-65 () none) ;; 65
     )
   )
-|#
+
 
 #|
 (deftype menu-prim-strip-client (prim-client)
@@ -50886,7 +50913,7 @@
   )
 
 
-#|
+;; all-types.gc:50363 (dead)
 (deftype prim-strip-menu (sprite-menu)
   ((p-client-array basic  :offset-assert 544)
    (colors         basic  :offset-assert 548)
@@ -50898,7 +50925,7 @@
     (prim-strip-menu-method-66 () none) ;; 66
     )
   )
-|#
+
 
 #|
 (deftype sprite-ptr-info (sprite-info)
@@ -50910,38 +50937,67 @@
   )
 |#
 
-#|
+;; all-types.gc:50387 (dead)
 (deftype sprite-ptr-menu-info (sprite-menu-info)
   ()
   :method-count-assert 9
   :size-assert         #x3c
   :flag-assert         #x90000003c
   )
-|#
 
-#|
+
+;; all-types.gc:50396 (dead)
 (deftype sprite-ptr-menu (prim-strip-menu)
   ()
   :method-count-assert 67
   :size-assert         #x228
   :flag-assert         #x4301a00228
   )
-|#
 
-#|
+
+;; all-types.gc:50405 (dead).
+;;
+;; ADJUDICATED after the round-3 gate crash
+;; "Field index-list was placed at 60 but offset-assert was set to 68".
+;; There is a REAL 8-byte hole between the parent's end (60) and this type's
+;; first field (68).  It is not an alignment artifact: no alignment takes 60 to
+;; 68 (4-align gives 60, 8-align 64, 16-align 64).
+;;
+;; The parent is NOT missing 8 bytes.  sprite-menu-info is registered by the
+;; game at size 0x3c = 60, and three of its other children start their own
+;; fields at exactly 60 and close on their own registered sizes:
+;; string-menu-info (60, 64 -> 68), big-text-menu-info (60, 64, 68, 72 -> 76),
+;; basic-list-selection-info (-> 72).  sprite-ptr-menu-info is registered at 60
+;; with no fields of its own, which pins the parent at 60 on its own.
+;; Growing the parent to 68 would break all four.
+;;
+;; The fields are NOT 8 lower.  The game registers this type at 0x54 = 84, and
+;; 68/72/76/80 closes on 84 exactly; shifted down 8 it would close on 76.  The
+;; game's own inspect confirms the higher offsets directly: (method 3
+;; index-sprite-list-menu-info) in menu2-h_ir2.asm loads index-list from
+;; `lwu a2, 68(gp)`, horiz-list? from 72, item-offset from `lw a2, 76(gp)` and
+;; color-array from 80, and prints nothing at all from 60 or 64.
+;;
+;; So the gap is PROVEN and the pad's identity is not.  Note the inspect
+;; re-prints sprites-info (52) and trans-info (16) immediately before index-list,
+;; which is the signature of re-declared parent fields; those consume no space,
+;; so they do not explain the hole.  Whether the 8 bytes are one hole, or a
+;; 4-byte hole plus one unnamed word at 64, is not decidable from the inspect,
+;; and every such reading is layout-identical to the filler below.
 (deftype index-sprite-list-menu-info (sprite-menu-info)
-  ((index-list  basic  :offset-assert 68)
-   (horiz-list? basic  :offset-assert 72)
-   (item-offset int32  :offset-assert 76)
-   (color-array basic  :offset-assert 80)
+  ((pad-pre-index-list uint8 8  :offset-assert 60)
+   (index-list         basic    :offset-assert 68)
+   (horiz-list?        basic    :offset-assert 72)
+   (item-offset        int32    :offset-assert 76)
+   (color-array        basic    :offset-assert 80)
    )
   :method-count-assert 9
   :size-assert         #x54
   :flag-assert         #x900000054
   )
-|#
 
-#|
+
+;; all-types.gc:50418 (dead)
 (deftype index-sprite-list-menu (prim-strip-menu)
   ((index-list basic  :offset-assert 552)
    )
@@ -50949,52 +51005,49 @@
   :size-assert         #x22c
   :flag-assert         #x4301a0022c
   )
-|#
 
-#|
+
+;; all-types.gc:50428 (dead)
 (deftype string-info (structure)
-  ((offset                  vector :inline :offset-assert 0)
-   (offset-x                float          :offset-assert 0)
-   (offset-y                float          :offset-assert 4)
-   (offset-z                float          :offset-assert 8)
-   (offset-w                float          :offset-assert 12)
-   (pos-z                   int32          :offset-assert 16)
-   (id                      uint32         :offset-assert 20)
-   (font-scale              float          :offset-assert 24)
-   (width                   float          :offset-assert 28)
-   (height                  float          :offset-assert 32)
-   (string-ptr              basic          :offset-assert 36)
-   (string-ptr-needs-format basic          :offset-assert 40)
-   (font-flags              uint16         :offset-assert 44)
-   (font-color              uint8          :offset-assert 46)
-   (font-color-2            uint8          :offset-assert 47)
-   (font-color-3            uint8          :offset-assert 48)
-   (offset-dir              uint8          :offset-assert 49)
-   (offset-from-index       int8           :offset-assert 50)
-   (offset-type-from        int8           :offset-assert 51)
-   (is-player-string        basic          :offset-assert 52)
-   (tmp-talking             int32          :offset-assert 56)
-   (extra-arg               basic          :offset-assert 60)
+  ((offset                  vector :inline            :offset-assert 0)
+   (offset-x                float  :overlay-at offset :offset-assert 0)
+   (offset-y                float  :offset 4)
+   (offset-z                float  :offset 8)
+   (offset-w                float  :offset 12)
+   (pos-z                   int32                     :offset-assert 16)
+   (id                      uint32                    :offset-assert 20)
+   (font-scale              float                     :offset-assert 24)
+   (width                   float                     :offset-assert 28)
+   (height                  float                     :offset-assert 32)
+   (string-ptr              basic                     :offset-assert 36)
+   (string-ptr-needs-format basic                     :offset-assert 40)
+   (font-flags              uint16                    :offset-assert 44)
+   (font-color              uint8                     :offset-assert 46)
+   (font-color-2            uint8                     :offset-assert 47)
+   (font-color-3            uint8                     :offset-assert 48)
+   (offset-dir              uint8                     :offset-assert 49)
+   (offset-from-index       int8                      :offset-assert 50)
+   (offset-type-from        int8                      :offset-assert 51)
+   (is-player-string        basic                     :offset-assert 52)
+   (tmp-talking             int32                     :offset-assert 56)
+   (extra-arg               basic                     :offset-assert 60)
    )
   :method-count-assert 9
   :size-assert         #x40
   :flag-assert         #x900000040
   )
-|#
 
-#|
+
 (deftype menu-string-array (inline-array-class)
-  ((length           int32            :offset-assert 4)
-   (allocated-length int32            :offset-assert 8)
-   (data             UNKNOWN :dynamic :offset-assert 16)
+  ((data menu-string :inline :dynamic :offset-assert 16)
    )
   :method-count-assert 14
   :size-assert         #x10
   :flag-assert         #xe00000010
   )
-|#
 
-#|
+
+;; all-types.gc:50471 (dead)
 (deftype string-menu-info (sprite-menu-info)
   ((strings-info basic  :offset-assert 60)
    (text-ids     basic  :offset-assert 64)
@@ -51003,9 +51056,9 @@
   :size-assert         #x44
   :flag-assert         #x900000044
   )
-|#
 
-#|
+
+;; all-types.gc:50482 (dead)
 (deftype string-menu (prim-strip-menu)
   ((strings  basic  :offset-assert 552)
    (text-ids basic  :offset-assert 556)
@@ -51018,18 +51071,18 @@
     (string-menu-method-68 () none) ;; 68
     )
   )
-|#
 
-#|
+
+;; all-types.gc:50497 (dead)
 (deftype options-bar-indicator (string-menu)
   ()
   :method-count-assert 69
   :size-assert         #x230
   :flag-assert         #x4501a00230
   )
-|#
 
-#|
+
+;; all-types.gc:50506 (dead)
 (deftype game-text-menu-info (string-menu-info)
   ((text-id uint32  :offset-assert 68)
    )
@@ -51037,9 +51090,9 @@
   :size-assert         #x48
   :flag-assert         #x900000048
   )
-|#
 
-#|
+
+;; all-types.gc:50516 (dead)
 (deftype game-text-menu (string-menu)
   ((text-id uint32  :offset-assert 560)
    )
@@ -51047,16 +51100,16 @@
   :size-assert         #x234
   :flag-assert         #x4501b00234
   )
-|#
 
-#|
+
+;; all-types.gc:50526 (dead)
 (deftype dynamic-string-menu (string-menu)
   ()
   :method-count-assert 69
   :size-assert         #x230
   :flag-assert         #x4501a00230
   )
-|#
+
 
 #|
 (deftype dynamic-driver-info (dynamic-string-menu)
@@ -51067,7 +51120,8 @@
   )
 |#
 
-#|
+;; all-types.gc:50544 (dead).  `selected-offset` is a non-inline vector
+;; reference (4 bytes at 100), giving 104 = #x68.
 (deftype dropdown-trans-info (transition-info)
   ((selected-offset vector  :offset-assert 100)
    )
@@ -51075,20 +51129,22 @@
   :size-assert         #x68
   :flag-assert         #x900000068
   )
-|#
 
-#|
+
+;; all-types.gc:50355 (dead).  Second narrowing of trans-info (dropdown-trans-info
+;; is a child of transition-info) - :override again.
 (deftype dropdown-item-info (string-menu-info)
-  ((trans-info                  dropdown-trans-info         :offset-assert 16)
+  ((trans-info                  dropdown-trans-info :override)
    (selection-box-width         int32                       :offset-assert 68)
    (selection-box-height        int32                       :offset-assert 72)
    (selection-type              basic                       :offset-assert 76)
    (selection-extra             int32                       :offset-assert 80)
+   ;; 16-byte alignment carries the cursor from 84 to 96
    (selection-box-offset        vector              :inline :offset-assert 96)
-   (selection-box-offset-x      float                       :offset-assert 96)
-   (selection-box-offset-y      float                       :offset-assert 100)
-   (selection-box-offset-z      float                       :offset-assert 104)
-   (selection-box-offset-w      float                       :offset-assert 108)
+   (selection-box-offset-x      float  :overlay-at selection-box-offset :offset-assert 96)
+   (selection-box-offset-y      float  :offset 100)
+   (selection-box-offset-z      float  :offset 104)
+   (selection-box-offset-w      float  :offset 108)
    (selection-box-color         uint32                      :offset-assert 112)
    (down-index-modifier         int8                        :offset-assert 116)
    (up-index-modifier           int8                        :offset-assert 117)
@@ -51101,9 +51157,9 @@
   :size-assert         #x7a
   :flag-assert         #x90000007a
   )
-|#
 
-#|
+
+;; all-types.gc:50580 (dead)
 (deftype dropdown-item (string-menu)
   ((selected           basic          :offset-assert 560)
    (p-client-selection basic          :offset-assert 564)
@@ -51118,7 +51174,7 @@
     (dropdown-item-method-69 () none) ;; 69
     )
   )
-|#
+
 
 #|
 (deftype item-list-selection-info (dropdown-item-info)
@@ -51256,7 +51312,7 @@
   )
 |#
 
-#|
+;; all-types.gc:50733 (dead)
 (deftype big-text-menu-info (sprite-menu-info)
   ((string-info string-info  :offset-assert 60)
    (text        basic        :offset-assert 64)
@@ -51267,9 +51323,9 @@
   :size-assert         #x4c
   :flag-assert         #x90000004c
   )
-|#
 
-#|
+
+;; all-types.gc:50746 (dead)
 (deftype big-text-menu (sprite-menu)
   ((big-text    basic  :offset-assert 544)
    (vert-offset float  :offset-assert 548)
@@ -51283,7 +51339,7 @@
     (big-text-menu-method-66 () none) ;; 66
     )
   )
-|#
+
 
 ;; (define-extern *jakx-logo-seen?* object)
 
@@ -70477,6 +70533,16 @@
   :flag-assert         #x4501b00238
   )
 |#
+;; resurrected via menu-cluster package step 6
+(deftype scrolling-item (string-menu)
+  ((selected     basic  :offset-assert 560)
+   (scroll-alpha float  :offset-assert 564)
+   )
+  :method-count-assert 69
+  :size-assert         #x238
+  :flag-assert         #x4501b00238
+  )
+
 
 #|
 (deftype scrolling-menu-info (dropdown-item-info)
@@ -70496,6 +70562,24 @@
   :flag-assert         #x9000000c0
   )
 |#
+;; resurrected via menu-cluster package step 6
+(deftype scrolling-menu-info (dropdown-item-info)
+  ((item-spacing                vector         :inline :offset-assert 128)
+   (offset-to-top-item          vector         :inline :offset-assert 144)
+   (scroll-stages               int32                  :offset-assert 160)
+   (visible-item-ct             int32                  :offset-assert 164)
+   (child-info                  base-menu-info         :offset-assert 168)
+   (sel-id-backup-symbol        basic                  :offset-assert 172)
+   (use-third-color             basic                  :offset-assert 176)
+   (selection-box-item-offset-x int32                  :offset-assert 180)
+   (selection-box-item-offset-y int32                  :offset-assert 184)
+   (lr-scroll                   basic                  :offset-assert 188)
+   )
+  :method-count-assert 9
+  :size-assert         #xc0
+  :flag-assert         #x9000000c0
+  )
+
 
 #|
 (deftype scrolling-menu (dropdown-item)
@@ -70523,6 +70607,30 @@
     )
   )
 |#
+;; resurrected via menu-cluster package step 6
+(deftype scrolling-menu (dropdown-item)
+  ((cur-idx          int32  :offset-assert 592)
+   (top-idx          int32  :offset-assert 596)
+   (cur-scroll       int32  :offset-assert 600)
+   (scroll-dir       int32  :offset-assert 604)
+   (total-item-ct    int32  :offset-assert 608)
+   (physical-item-ct int32  :offset-assert 612)
+   )
+  :method-count-assert 77
+  :size-assert         #x268
+  :flag-assert         #x4d01e00268
+  ;; `running` (slot 52) deliberately omitted - see the header.
+  (:methods
+    (scrolling-menu-method-70 () none) ;; 70
+    (scrolling-menu-method-71 () none) ;; 71
+    (scrolling-menu-method-72 () none) ;; 72
+    (scrolling-menu-method-73 () none) ;; 73
+    (scrolling-menu-method-74 () none) ;; 74
+    (scrolling-menu-method-75 () none) ;; 75
+    (scrolling-menu-method-76 () none) ;; 76
+    )
+  )
+
 
 #|
 (deftype scrolling-menu-medius (scrolling-menu)
