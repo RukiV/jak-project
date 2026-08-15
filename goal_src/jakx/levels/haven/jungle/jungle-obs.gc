@@ -836,20 +836,21 @@
   :virtual #t
   :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
     (case message
-      ;; og:preserve-this bring-up artifact (re-derive): process-nettable methods
-      ;; 27/28/29 carry placeholder zero-arg sigs in process-nettable-h.gc, so the
-      ;; decompiler dropped the call arguments here, leaving the dead constants
-      ;; below. Retail sequence (jungle-obs_ir2.asm, anon-function 17): method-27
-      ;; takes 'explode (begin message) and returns the buffer handle; method-29
-      ;; takes that return plus -2 and 64 (send); method-28 takes the same return
-      ;; (end message). Re-derive this handler from
-      ;; decompiler_out/jakx/jungle-obs_disasm.gc when those methods land real sigs
-      ;; (these calls then become arity errors at exactly these lines).
+      ;; og:preserve-this bring-up parking: the net-replication sequence below cannot
+      ;; compile against the current process-nettable stubs. Methods 27/28/29 return
+      ;; none (process-nettable.gc stubs; all-types.gc:29651-29653), so binding
+      ;; method-27's result and threading it into method-29 fails codegen on a
+      ;; NullType. Parked verbatim rather than rewritten, matching the parked send
+      ;; section in net-simple-destruct.gc. Retail sequence (jungle-obs_ir2.asm,
+      ;; anon-function 17): method-27 takes 'explode (begin message) and returns the
+      ;; buffer handle; method-29 takes that return plus -2 and 64 (send); method-28
+      ;; takes the same return (end message). Re-derive from
+      ;; decompiler_out/jakx/jungle-obs_disasm.gc when those methods land real sigs.
       (('explode)
-       (let ((gp-0 (process-nettable-method-27 self 'explode)))
-         (process-nettable-method-29 self gp-0 -2 64)
-         )
-       ((method-of-object self process-nettable-method-28))
+       ;; (let ((gp-0 (process-nettable-method-27 self 'explode)))
+       ;;   (process-nettable-method-29 self gp-0 -2 64)
+       ;;   )
+       ;; ((method-of-object self process-nettable-method-28))
        (let ((v0-0 #t))
          (set! (-> self exploded) (the-as basic v0-0))
          v0-0
