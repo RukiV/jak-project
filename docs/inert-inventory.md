@@ -28,9 +28,12 @@ written is read-only by design and not a finding.
 
 | symbol | reading files | switch commented in |
 |---|---:|---|
+| `*jakx-boot-task*` | 2 | `goal_src/jakx/engine/level/level-h.gc` |
 | `*display-bug-report*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-level-border*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-scene-control*` | 1 | `goal_src/jakx/engine/game/main.gc` |
+| `*jakx-racer*` | 1 | `goal_src/jakx/engine/level/level.gc` |
+| `*jakx-want-driver*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*master-exit*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
@@ -167,7 +170,6 @@ written is read-only by design and not a finding.
 | `*jakx-cam-start*` | 1 | `goal_src/jakx/engine/camera/cam-start.gc` |
 | `*jakx-campath-record*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*jakx-view-target*` | 1 | `goal_src/jakx/engine/level/level.gc` |
-| `*jakx-want-driver*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*kernel-boot-level*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*keybd-hold-ct*` | 1 | `goal_src/jakx/engine/ps2/pad.gc` |
 | `*keybd-last-key*` | 1 | `goal_src/jakx/engine/ps2/pad.gc` |
@@ -200,6 +202,7 @@ written is read-only by design and not a finding.
 | `*record-fma-real*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-start*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-use-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*scert-function-id*` | 1 | `goal_src/jakx/engine/net/scert-funcs.gc` |
 | `*select-race-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*sfx-volume-during-speech*` | 1 | `goal_src/jakx/engine/sound/speech-h.gc` |
 | `*shadow*` | 1 | `goal_src/jakx/engine/gfx/foreground/shadow-cpu-h.gc` |
