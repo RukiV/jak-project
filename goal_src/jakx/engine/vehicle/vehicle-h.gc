@@ -10,6 +10,12 @@
 ;; og:preserve-this dropped dataf/dataw (both UNKNOWN 5 :offset-assert 0),
 ;; duplicate names for the same 20 bytes steering/throttle/brake/lean-z/
 ;; handbrake already cover; same class as rigid-body-object-constants' fix.
+;; og:preserve-this jak3's copy of this type carries :pack-me
+;; (decompiler/config/jak3/all-types.gc); jakx's lacked it. Without it the
+;; compiler inserts its own inter-field padding when this type is embedded
+;; :inline elsewhere, which is why vehicle's own controls-through-
+;; speed-factor run below could not assert the captured offsets directly.
+;; Adding it here, proven by a zero-positive-delta full-corpus decode gate.
 (deftype vehicle-controls (structure)
   ((steering   float     :offset-assert 0)
    (throttle   float     :offset-assert 4)
@@ -20,6 +26,7 @@
    (prev-flags uint8     :offset-assert 21) ;; vehicle-controls-flag
    (pad0       uint8   2 :offset-assert 22) ;; guessed by decompiler
    )
+  :pack-me
   :method-count-assert 9
   :size-assert         #x18
   :flag-assert         #x900000018
@@ -73,43 +80,34 @@
    (control-hook                    (function vehicle vehicle-controls)         :offset-assert 472) ;; guessed by decompiler
    (control-mask                    vehicle-controls                            :offset-assert 476)
    (impact-callback                 basic                                       :offset-assert 480)
-   ;; og:preserve-this controls/prev-controls/impact/target-acceleration/
-   ;; impact-local-pos/lin-acceleration are all :inline structures or
-   ;; vectors, and every inline structure in this type system needs 16-byte
-   ;; alignment (common/goal_constants.h STRUCTURE_ALIGNMENT, applied
-   ;; uniformly regardless of a struct's own contents). The captured offsets
-   ;; (+4-corrected) do not all land on 16-byte boundaries; the retail
-   ;; compiler would have padded the same way this one does. Left
-   ;; unasserted here so sequential auto-placement computes the real,
-   ;; alignment-correct offsets; target-acceleration onward resumes
-   ;; asserting once the fields are plain scalars again, both as a
-   ;; self-check on this reasoning and to keep the rest of the layout
-   ;; anchored to the machine-code-derived offsets.
-   (controls                        vehicle-controls                    :inline)
-   (prev-controls                   vehicle-controls                    :inline)
-   (impact                          rigid-body-impact                   :inline)
-   (target-acceleration             vector                              :inline)
-   (impact-local-pos                vector                              :inline)
-   (lin-acceleration                vector                              :inline)
-   ;; og:preserve-this max-impact-impulse through speed-factor land here in
-   ;; relative order (matching the capture) but without individual asserts:
-   ;; the inline-structure run above lands 16 bytes later than the captured
-   ;; offsets implied (confirmed by the compiler: max-impact-impulse
-   ;; auto-places at 688, not the expected 672), and that 16-byte shift is
-   ;; local to this run, not a uniform correction. behavior (728) is
-   ;; independently confirmed by vehicle-h.o's own inspect method
-   ;; (`ld a2, 724(gp)`, +4), so it keeps its assert; the pad immediately
-   ;; before it absorbs whatever this run's true auto-placed width turns
-   ;; out to be, rather than asserting exact intermediate offsets this rung
-   ;; cannot independently confirm for the scalar fields between them.
-   (max-impact-impulse              float                                       )
-   (sum-impact-impulse              float                                       )
-   (underside-y                     float                                       )
-   (side-x                          float                                       )
-   (health                          float                                       )
-   (damage-factor                   float                                       )
-   (speed-factor                    float                                       )
-   (pad-pre-behavior                uint8                                8     )
+   ;; og:preserve-this controls through lin-acceleration are :inline
+   ;; structures/vectors needing 16-byte alignment (STRUCTURE_ALIGNMENT); the
+   ;; captured (+4-corrected) offsets previously did not land on it because
+   ;; vehicle-controls lacked :pack-me (see that type's own comment above).
+   ;; With :pack-me added, the captured offsets assert directly below.
+   ;; unknown-float-700 and unknown-float-704 (raw capture 700/704,
+   ;; +4-corrected offsets 704/708) are load-proven -- dropping either
+   ;; regresses the wvehicle-net and wvehicle-h decodes in the full-corpus
+   ;; gate -- but no inspect method in this rung's scope names them; retire
+   ;; the placeholder names once one does. pad-pre-behavior widens from 8 to
+   ;; 16 to absorb them and still lands behavior at its independently
+   ;; confirmed offset (vehicle-h.o's own inspect, `ld a2, 724(gp)`, +4).
+   (controls                        vehicle-controls                    :inline :offset 484)
+   (prev-controls                   vehicle-controls                    :inline :offset 508)
+   (impact                          rigid-body-impact                   :inline :offset 544)
+   (target-acceleration             vector                              :inline :offset 624)
+   (impact-local-pos                vector                              :inline :offset 640)
+   (lin-acceleration                vector                              :inline :offset 656)
+   (max-impact-impulse              float                                       :offset 672)
+   (sum-impact-impulse              float                                       :offset 676)
+   (underside-y                     float                                       :offset 680)
+   (side-x                          float                                       :offset 684)
+   (health                          float                                       :offset 688)
+   (damage-factor                   float                                       :offset 692)
+   (speed-factor                    float                                       :offset 700)
+   (unknown-float-700               float                                       :offset 704)
+   (unknown-float-704               float                                       :offset 708)
+   (pad-pre-behavior                uint8                                16    :offset 712)
    (behavior                        uint64                                      :offset-assert 728)
    (cam-view                        int8                                        :offset-assert 736)
    ;; og:preserve-this 7 bytes unaccounted (737-744).
