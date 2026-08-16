@@ -56976,6 +56976,25 @@
   :flag-assert         #x900000014
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype keyboard-key (structure)
+  ((data  uint8  4 :offset-assert 0)
+   (char  uint8  :offset-assert 0 :overlay-at (-> data 0))
+   (char2 uint8  :offset-assert 1 :overlay-at (-> data 1))
+   (char3 uint8  :offset-assert 2 :overlay-at (-> data 2))
+   (char4 uint8  :offset-assert 3 :overlay-at (-> data 3))
+   (pos-x int8   :offset-assert 4)
+   (pos-y int8   :offset-assert 5)
+   (size  int8   :offset-assert 6)
+   (dummy uint8  :offset-assert 7)
+   (tid   uint32 :offset-assert 8)
+   (tid2  uint32 :offset-assert 12)
+   (scale float  :offset-assert 16)
+   )
+  :method-count-assert 9
+  :size-assert         #x14
+  :flag-assert         #x900000014
+  )
 
 #|
 (deftype keyboard-control (process-drawable)
@@ -58610,10 +58629,14 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; medius bulk field wave: fmv-work.buffers is inline at offset 4, not 16-aligned;
+;; :allow-misaligned relaxes the inline-array start alignment (own-field alignment
+;; 4, stride stays the normal 16-rounded align(8,16)=16)
 (deftype fmv-buffer (structure)
   ((buff  uint32  :offset-assert 0)
    (start int32   :offset-assert 4)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x8
   :flag-assert         #x900000008
@@ -58649,6 +58672,34 @@
   :flag-assert         #x900000150
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype fmv-work (structure)
+  ((current-buffer uint32         :offset-assert 0)
+   (buffers        fmv-buffer     2 :inline :offset-assert 4)
+   (buffer-size    uint32         :offset-assert 36)
+   (cursor         uint32         :offset-assert 40)
+   (name           basic          :offset-assert 44)
+   (dma-addr       uint32         :offset-assert 48)
+   (data-size      uint32         :offset-assert 52)
+   (num-frames     uint32         :offset-assert 56)
+   (copied-size    uint32         :offset-assert 60)
+   (count-frame    uint32         :offset-assert 64)
+   (own-rpc        basic          :offset-assert 68)
+   (len-read       int32          :offset-assert 72)
+   (finished       basic          :offset-assert 76)
+   (current-frame  int32          :offset-assert 80)
+   (page           basic          :offset-assert 84)
+   (tex            basic          :offset-assert 88)
+   (corner         uint128        4 :offset-assert 96)
+   (pos            uint128        4 :offset-assert 160)
+   (uv             uint128        4 :offset-assert 224)
+   (col            vector4w       :inline :offset-assert 288)
+   (draw-tmpl      dma-gif-packet :inline :offset-assert 304)
+   )
+  :method-count-assert 9
+  :size-assert         #x150
+  :flag-assert         #x900000150
+  )
 
 ;; (define-extern *subtitles-text* object)
 ;; (define-extern *fmv-m2v-name* object)
@@ -59345,6 +59396,33 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype udp-layer (structure)
+  ((machines            udp-layer-machine 8 :inline :offset-assert 0)
+   (socket              int32             :offset-assert 256)
+   (data-cb             basic             :offset-assert 260)
+   (nat-discovery-time  int32             :offset-assert 264)
+   (nat-discovery-tries int32             :offset-assert 268)
+   (nat-discovery-ip    uint32            :offset-assert 272)
+   (nat-discovery-port  int32             :offset-assert 276)
+   )
+  :method-count-assert 20
+  :size-assert         #x118
+  :flag-assert         #x1400000118
+  (:methods
+    (udp-layer-method-9 () none) ;; 9
+    (udp-layer-method-10 () none) ;; 10
+    (udp-layer-method-11 () none) ;; 11
+    (udp-layer-method-12 () none) ;; 12
+    (udp-layer-method-13 () none) ;; 13
+    (udp-layer-method-14 () none) ;; 14
+    (udp-layer-method-15 () none) ;; 15
+    (udp-layer-method-16 () none) ;; 16
+    (udp-layer-method-17 () none) ;; 17
+    (udp-layer-method-18 () none) ;; 18
+    (udp-layer-method-19 () none) ;; 19
+    )
+  )
 
 ;; (define-extern *udp-buffer* object)
 ;; (define-extern *udp-layer* object)
@@ -71064,6 +71142,24 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype particle-buffer (prim-client)
+  ((tex-id           uint32         :offset-assert 4)
+   (smoke-part-count int32          :offset-assert 8)
+   (smoke-parts      smoke-particle 50 :inline :offset-assert 16)
+   (strip            basic          :offset-assert 2416)
+   (single-strip     uint32         3 :offset-assert 2420)
+   )
+  :method-count-assert 14
+  :size-assert         #x980
+  :flag-assert         #xe00000980
+  (:methods
+    (particle-buffer-method-10 () none) ;; 10
+    (particle-buffer-method-11 () none) ;; 11
+    (particle-buffer-method-12 () none) ;; 12
+    (particle-buffer-method-13 () none) ;; 13
+    )
+  )
 
 #|
 (deftype smoke-system (process-nettable)
@@ -71237,6 +71333,17 @@
   :flag-assert         #x900000040
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype strip-segment (structure)
+  ((strip-length int8    :offset-assert 0)
+   (strip-index  int8    :offset-assert 1)
+   (birth-time   int32   :offset-assert 4)
+   (points       uint128 3 :offset-assert 16)
+   )
+  :method-count-assert 9
+  :size-assert         #x40
+  :flag-assert         #x900000040
+  )
 
 #|
 (deftype oil-trail (prim-client)
@@ -71261,6 +71368,28 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype oil-trail (prim-client)
+  ((tex-id                   uint32        :offset-assert 4)
+   (segment-count            int32         :offset-assert 8)
+   (last-segment-last-point  vector        :inline :offset-assert 16)
+   (last-segment-first-point vector        :inline :offset-assert 32)
+   (segments                 strip-segment 50 :inline :offset-assert 48)
+   (strip                    basic         :offset-assert 3248)
+   )
+  :method-count-assert 17
+  :size-assert         #xcb4
+  :flag-assert         #x1100000cb4
+  (:methods
+    (oil-trail-method-10 () none) ;; 10
+    (oil-trail-method-11 () none) ;; 11
+    (oil-trail-method-12 () none) ;; 12
+    (oil-trail-method-13 () none) ;; 13
+    (oil-trail-method-14 () none) ;; 14
+    (oil-trail-method-15 () none) ;; 15
+    (oil-trail-method-16 () none) ;; 16
+    )
+  )
 
 #|
 (deftype slip-object (process-drawable)
@@ -72444,6 +72573,15 @@
   :flag-assert         #x900000044
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype race-line-get-points (structure)
+  ((points uint128 4 :offset-assert 0)
+   (index  int32   :offset-assert 64)
+   )
+  :method-count-assert 9
+  :size-assert         #x44
+  :flag-assert         #x900000044
+  )
 
 ;; (define-extern test-find-line-info function)
 ;; (define-extern test-find-closest-point function)
