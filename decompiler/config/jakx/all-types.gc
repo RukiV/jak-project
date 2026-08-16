@@ -51158,6 +51158,48 @@
   :flag-assert         #x90000006c
   )
 |#
+;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this :pack-me is load-bearing here, not cosmetic.
+;; rigid-body-vehicle-constants embeds this type :inline at offset 316, which is
+;; 4-aligned but not 16-aligned. Without :pack-me, Type.cpp's
+;; get_inline_array_start_alignment returns STRUCTURE_ALIGNMENT (16) and
+;; TypeSystem.cpp's add_field_to_type refuses the placement. Every field here is
+;; a float or meters, so the packed alignment is 4 and 316 places exactly. Same
+;; class as the vehicle-controls fix.
+(deftype vehicle-handling-info (structure)
+  ((brake-factor                float   :offset-assert 0)
+   (turbo-boost-factor          float   :offset-assert 4)
+   (turbo-boost-half-gain-speed float   :offset-assert 8)
+   (tire-steering-angle         float   :offset-assert 12)
+   (tire-steering-speed-factor  float   :offset-assert 16)
+   (tire-steering-speed-bias    float   :offset-assert 20)
+   (ackermann-factor            float   :offset-assert 24)
+   (tire-static-friction        float   :offset-assert 28)
+   (tire-static-friction-speed  meters  :offset-assert 32)
+   (tire-dynamic-friction       float   :offset-assert 36)
+   (tire-dynamic-friction-speed meters  :offset-assert 40)
+   (tire-arcade-factor          float   :offset-assert 44)
+   (drag-force-factor           float   :offset-assert 48)
+   (rolling-resistance          float   :offset-assert 52)
+   (downforce-factor            float   :offset-assert 56)
+   (roll-control-factor         float   :offset-assert 60)
+   (jump-thrust-factor          float   :offset-assert 64)
+   (buoyancy-factor             float   :offset-assert 68)
+   (water-drag-factor           float   :offset-assert 72)
+   (air-roll-torque             float   :offset-assert 76)
+   (air-pitch-torque            float   :offset-assert 80)
+   (air-angular-damping         float   :offset-assert 84)
+   (hop-turn-torque             float   :offset-assert 88)
+   (ground-torque-scale         float   :offset-assert 92)
+   (cos-ground-effect-angle     float   :offset-assert 96)
+   (ai-steering-factor          float   :offset-assert 100)
+   (ai-throttle-factor          float   :offset-assert 104)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x6c
+  :flag-assert         #x90000006c
+  )
 
 #|
 (deftype vehicle-engine-info (structure)
@@ -51178,6 +51220,24 @@
   :flag-assert         #x900000038
   )
 |#
+;; resurrected from the dead block above (dead-type sweep)
+(deftype vehicle-engine-info (structure)
+  ((max-torque          float      :offset-assert 0)
+   (inertia             float      :offset-assert 4)
+   (drag                float      :offset-assert 8)
+   (idle-rpm            float      :offset-assert 12)
+   (clutch-min-rpm      float      :offset-assert 16)
+   (clutch-max-rpm      float      :offset-assert 20)
+   (min-rpm             float      :offset-assert 24)
+   (max-rpm             float      :offset-assert 28)
+   (peak-torque-rpm     float      :offset-assert 32)
+   (powerband-width-rpm float      :offset-assert 36)
+   (torque-data         uint8 16 :offset-assert 40)
+   )
+  :method-count-assert 9
+  :size-assert         #x38
+  :flag-assert         #x900000038
+  )
 
 #|
 (deftype vehicle-transmission-info (structure)
@@ -51194,6 +51254,12 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this :pack-me is load-bearing here, not cosmetic.
+;; rigid-body-vehicle-constants embeds this type :inline at offset 264, which is
+;; 8-aligned but not 16-aligned (the engine field ends the cursor there).
+;; Without :pack-me the placement alignment is STRUCTURE_ALIGNMENT (16) and the
+;; field lands at 272. Every field here is a float or an int8, so the packed
+;; alignment is 4 and 264 places exactly. Same class as the vehicle-controls fix.
 (deftype vehicle-transmission-info (structure)
   ((inertia           float   :offset-assert 0)
    (upshift-rpm       float   :offset-assert 4)
@@ -51202,6 +51268,7 @@
    (gear-ratio-array  float 8 :offset-assert 16) ;; guessed by decompiler
    (gear-count        int8    :offset-assert 48)
    )
+  :pack-me
   :method-count-assert 9
   :size-assert         #x31
   :flag-assert         #x900000031
@@ -51296,11 +51363,21 @@
    (max-fov           float          :offset-assert 20)
    (head-offset       float          :offset-assert 24)
    (foot-offset       float          :offset-assert 28)
-   (look-pos-array    vector 4       :offset-assert 32) ;; guessed by decompiler
+   ;; og:preserve-this look-pos-array needs :inline, and the four named vectors
+   ;; that overlay it become :offset. The game's own (method 3
+   ;; vehicle-camera-info) inspect prints look-pos-array[4] at this+32 and then
+   ;; look-front/look-left/look-right/look-rear at 32/48/64/80, so the array's
+   ;; four elements are 16 bytes apart: inline vectors, not a four-pointer
+   ;; array. jak3's copy of this type is identical in shape (its own
+   ;; look-pos-array is `vector 4 :inline` with the same four :offset
+   ;; overlays). Without :inline the static decompiler reads offsets 32-47 as
+   ;; four references and fails every rigid-body-vehicle-constants static with
+   ;; "did not have a proper reference for array element 1".
+   (look-pos-array    vector 4 :inline :offset-assert 32)
    (look-front        vector :inline :offset 32)
-   (look-left         vector :inline :offset-assert 48)
-   (look-right        vector :inline :offset-assert 64)
-   (look-rear         vector :inline :offset-assert 80)
+   (look-left         vector :inline :offset 48)
+   (look-right        vector :inline :offset 64)
+   (look-rear         vector :inline :offset 80)
    )
   :method-count-assert 9
   :size-assert         #x60
@@ -51343,6 +51420,16 @@
    (max-pitch    float   :offset-assert 28)
    )
   :allow-misaligned
+  ;; og:preserve-this :pack-me added alongside :allow-misaligned. The two flags
+  ;; are independent (deftype.cpp:605/615, Type.h:315/321) and only :pack-me sets
+  ;; is_packed(), which data_decompile.cpp:1151 requires before it will decompile
+  ;; a structure sitting at a non-8-aligned address. tire-roll-sounds starts at
+  ;; vehicle-sound-info+28 and vehicle-sound-info itself sits at
+  ;; rigid-body-vehicle-constants+544, so element 0 lands on 572, i.e. 4-aligned,
+  ;; and every rigid-body-vehicle-constants static failed on it. This is
+  ;; placement-neutral: :allow-misaligned already dropped the start alignment to
+  ;; 4, and the stride is align(32, 4) == align(32, 16) == 32 either way.
+  :pack-me
   :method-count-assert 9
   :size-assert         #x20
   :flag-assert         #x900000020
@@ -51637,6 +51724,12 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this :pack-me is load-bearing here, not cosmetic.
+;; rigid-body-vehicle-constants embeds this type :inline at offset 424, which is
+;; 8-aligned but not 16-aligned (the handling field ends the cursor there).
+;; Without :pack-me the placement alignment is STRUCTURE_ALIGNMENT (16) and the
+;; field lands at 432. Every field here is a float, so the packed alignment is 4
+;; and 424 places exactly. Same class as the vehicle-controls fix.
 (deftype vehicle-pilot-info (structure)
   ((player-turn-anim-bias float  :offset-assert 0)
    (player-turn-anim-min  float  :offset-assert 4)
@@ -51645,6 +51738,7 @@
    (pilot-y-accel-factor  float  :offset-assert 16)
    (pilot-z-accel-factor  float  :offset-assert 20)
    )
+  :pack-me
   :method-count-assert 9
   :size-assert         #x18
   :flag-assert         #x900000018
@@ -51708,6 +51802,34 @@
   :flag-assert         #x90000000f
   )
 |#
+;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this the dead block's two UNKNOWN placeholders are typed from the
+;; game's own (method 3 vehicle-daxter-info) inspect in vehicle-h plus the size
+;; the type registers itself with (15):
+;;   data[3]   is printed as an address at gp+0 and the next field starts at 12,
+;;             so 12 bytes over 3 elements = 4 bytes each; the three overlays
+;;             covering it (chassis-seats, trunk-seats, roof-seats at 0/4/8) are
+;;             each printed with `lwu`, so uint32.
+;;   counts[3] is printed as an address at gp+12 and the type ends at 15, so
+;;             3 bytes over 3 elements = 1 byte each; its three overlays
+;;             (chassis-seat-count, trunk-seat-count, roof-seat-count at
+;;             12/13/14) are each printed with `lb`, so int8.
+;; The named fields become :offset overlays, matching the jak3 vehicle-seat-info
+;; pattern for an inspect that prints both the raw array and its union members.
+(deftype vehicle-daxter-info (structure)
+  ((data               uint32 3 :offset-assert 0)
+   (counts             int8   3 :offset-assert 12)
+   (chassis-seats      uint32   :offset 0)
+   (trunk-seats        uint32   :offset 4)
+   (roof-seats         uint32   :offset 8)
+   (chassis-seat-count int8     :offset 12)
+   (trunk-seat-count   int8     :offset 13)
+   (roof-seat-count    int8     :offset 14)
+   )
+  :method-count-assert 9
+  :size-assert         #xf
+  :flag-assert         #x90000000f
+  )
 
 #|
 (deftype vehicle-rider-info (structure)
@@ -51723,6 +51845,38 @@
   :flag-assert         #x900000058
   )
 |#
+;; resurrected from the dead block above (dead-type sweep), with two corrections
+;; from jakx machine evidence.
+;; og:preserve-this (1) seat-array and rider-hand-offset need :inline. The game's
+;; own (method 3 vehicle-rider-info) inspect prints both as `@ #x~X` address
+;; arrays; seat-array[2] starts at 16 and rider-hand-offset[2] starts at 48, and
+;; attach-point-array starts at 80, so each spans 32 bytes over 2 elements = 16
+;; bytes each. That is vehicle-seat-info (16) and vector (16) held inline, not a
+;; two-pointer array (which would be 8 bytes).
+;; og:preserve-this (2) attach-point-array is (inline-array matrix), NOT jak3's
+;; (inline-array vehicle-attach-point). jak3's vehicle-attach-point is 32 bytes
+;; (decompiler/config/jak3/all-types.gc, local-pos + rot, :size-assert #x20), and
+;; data_decompile.cpp's 32-byte stride for this field name is registered under
+;; GameVersion::Jak3 only. jakx's own code contradicts it: both (method 228
+;; wvehicle) and (method 229 wvehicle) in wvehicle-util load this field and index
+;; it with `dsll a2, a2, 6`, a stride of 64, then hand element+0 to matrix*!
+;; (function matrix matrix matrix matrix) as a matrix and element+48 to
+;; vector-matrix*! (function vector vector matrix vector) as a vector. A 64-byte
+;; element whose byte 48 is a vector is a matrix and its trans row. No type named
+;; vehicle-attach-point is registered, inspected, or named anywhere in the jakx
+;; corpus, so there is nothing to transplant here.
+(deftype vehicle-rider-info (structure)
+  ((seat-count         int8                          :offset-assert 0)
+   (attach-point-count int8                          :offset-assert 1)
+   (seat-array         vehicle-seat-info   2 :inline :offset-assert 16)
+   (rider-hand-offset  vector              2 :inline :offset-assert 48)
+   (attach-point-array (inline-array matrix)         :offset-assert 80)
+   (attach-node-array  uint32                        :offset-assert 84)
+   )
+  :method-count-assert 9
+  :size-assert         #x58
+  :flag-assert         #x900000058
+  )
 
 #|
 (deftype vehicle-hardpoint-info (structure)
@@ -51742,6 +51896,40 @@
   :flag-assert         #x90000003a
   )
 |#
+;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this the dead block's two UNKNOWN placeholders are typed from the
+;; game's own (method 3 vehicle-hardpoint-info) inspect in vehicle-h, the size
+;; the type registers itself with (58), and live loads at the matching
+;; rigid-body-vehicle-constants offsets (this type sits :inline at 3136):
+;;   nodes[7] is printed as an address at gp+48 and the next non-overlay field,
+;;            shield-anim, is an int16 at 56, so seven elements have to fit in
+;;            eight bytes: one byte each. The four overlays inside it are each
+;;            printed with `lb` (left-gun 48, right-gun 49, mine-launcher 50,
+;;            trunk 51), and live code reads two of them at one byte:
+;;            `lb v1, 3184(v1)` in (method 66 vehicle) and `lb v1, 3186(v1)` in
+;;            wvehicle-weapons2. shield-anim is likewise read as `lh gp,
+;;            3192(a0)` in wvehicle-weapons3, matching int16 at 3136+56.
+;;   super-turbo-attach[3] is printed as an address at gp+52, which is the last
+;;            three bytes of nodes[7] (48..54), so int8 3; left-gun through trunk
+;;            plus these three then account for all seven nodes exactly. No code
+;;            in the corpus reads 3188-3190 directly, so this one is inferred
+;;            from containment rather than load-proven.
+(deftype vehicle-hardpoint-info (structure)
+  ((local-pos-array    uint32          :offset-assert 0)
+   (flag-attach        vector  :inline :offset-assert 16)
+   (antenna-attach     vector  :inline :offset-assert 32)
+   (nodes              int8    7       :offset-assert 48)
+   (shield-anim        int16           :offset-assert 56)
+   (left-gun           int8            :offset 48)
+   (right-gun          int8            :offset 49)
+   (mine-launcher      int8            :offset 50)
+   (trunk              int8            :offset 51)
+   (super-turbo-attach int8    3       :offset 52)
+   )
+  :method-count-assert 9
+  :size-assert         #x3a
+  :flag-assert         #x90000003a
+  )
 
 #|
 (deftype vehicle-explosion-info (joint-exploder-static-params)
@@ -51882,6 +52070,46 @@
     )
   )
 |#
+;; resurrected from the dead block above (dead-type sweep), verbatim: every
+;; :offset-assert here auto-places exactly once its five dead dependencies above
+;; are live (vehicle-engine-info, vehicle-handling-info with :pack-me,
+;; vehicle-rider-info, vehicle-daxter-info, vehicle-hardpoint-info), and the
+;; closing cursor lands on 3260 = #xcbc, the size the type registers itself with.
+(deftype rigid-body-vehicle-constants (rigid-body-object-constants)
+  ((flags           uint32                               :offset-assert 200)
+   (vehicle-type    uint8                                :offset-assert 204) ;; vehicle-type-u8
+   (engine          vehicle-engine-info          :inline :offset-assert 208)
+   (transmission    vehicle-transmission-info    :inline :offset-assert 264)
+   (handling        vehicle-handling-info        :inline :offset-assert 316)
+   (pilot           vehicle-pilot-info           :inline :offset-assert 424)
+   (camera          vehicle-camera-info          :inline :offset-assert 448)
+   (sound           vehicle-sound-info           :inline :offset-assert 544)
+   (particles       vehicle-particle-info        :inline :offset-assert 832)
+   (damage          vehicle-damage-info          :inline :offset-assert 1056)
+   (physics-model   vehicle-physics-model-info   :inline :offset-assert 2816)
+   (setup           vehicle-setup-info                   :offset-assert 3028)
+   (rider           vehicle-rider-info           :inline :offset-assert 3040)
+   (daxter          vehicle-daxter-info                  :offset-assert 3128)
+   (hardpoint       vehicle-hardpoint-info       :inline :offset-assert 3136)
+   (shield          vehicle-shield-info          :inline :offset-assert 3200)
+   (explosion       vehicle-explosion-info               :offset-assert 3236) ;; guessed by decompiler
+   (explosion-part  int32                                :offset-assert 3240)
+   (debris          debris-static-params                 :offset-assert 3244) ;; guessed by decompiler
+   (name-text       text-id                              :offset-assert 3248) ;; guessed by decompiler
+   (helmet-offset   vector                               :offset-assert 3252)
+   (particle-common vehicle-particle-common-info         :offset-assert 3256)
+   )
+  :method-count-assert 11
+  :size-assert         #xcbc
+  :flag-assert         #xb00000cbc
+  (:methods
+    ;; og:preserve-this arity corrected from the dead block's () by register
+    ;; reads: the body in vehicle-util reads a0 at its first two ops
+    ;; (`sw v1, 3256(a0)` then `lwu a0, 3256(a0)`) without ever setting it, and
+    ;; never touches a1 or later, so it takes exactly one argument, this.
+    (rigid-body-vehicle-constants-method-10 (_type_) none) ;; 10
+    )
+  )
 
 #|
 (deftype vehicle-section (structure)
@@ -71228,22 +71456,29 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern *wcar-explosion-info* vehicle-explosion-info) ;; vehicle-explosion-info
-;; (define-extern *v-mongoose-constants* object)
-;; (define-extern *v-falcon-constants* object)
-;; (define-extern *v-wombat-constants* object)
-;; (define-extern *v-possum-constants* object)
-;; (define-extern *v-bobcat-constants* object)
-;; (define-extern *v-cougar-constants* object)
-;; (define-extern *v-wolf-constants* object)
-;; (define-extern *v-bear-constants* object)
-;; (define-extern *v-leopard-constants* object)
-;; (define-extern *v-panther-constants* object)
-;; (define-extern *v-tiger-constants* object)
-;; (define-extern *v-cheetah-constants* object)
-;; (define-extern *v-gila-constants* object)
-;; (define-extern *v-snake-constants* object) ;; rigid-body-vehicle-constants
-;; (define-extern *v-daxtermobile-constants* object)
-;; (define-extern *v-drone-constants* object)
+;; og:preserve-this the sixteen car constants symbols below are activated with
+;; their real type. The in-file hint on *v-snake-constants* named it, and wcar's
+;; own top-level login proves it for every one of them: each symbol is set from
+;; a static label, then written at +3236 with *wcar-explosion-info* (a
+;; vehicle-explosion-info) and at +3244 with #f, which are exactly the explosion
+;; and debris fields of rigid-body-vehicle-constants. Every one of the sixteen
+;; also feeds (method 66 v-<car>) as the vehicle's info constants.
+(define-extern *v-mongoose-constants* rigid-body-vehicle-constants)
+(define-extern *v-falcon-constants* rigid-body-vehicle-constants)
+(define-extern *v-wombat-constants* rigid-body-vehicle-constants)
+(define-extern *v-possum-constants* rigid-body-vehicle-constants)
+(define-extern *v-bobcat-constants* rigid-body-vehicle-constants)
+(define-extern *v-cougar-constants* rigid-body-vehicle-constants)
+(define-extern *v-wolf-constants* rigid-body-vehicle-constants)
+(define-extern *v-bear-constants* rigid-body-vehicle-constants)
+(define-extern *v-leopard-constants* rigid-body-vehicle-constants)
+(define-extern *v-panther-constants* rigid-body-vehicle-constants)
+(define-extern *v-tiger-constants* rigid-body-vehicle-constants)
+(define-extern *v-cheetah-constants* rigid-body-vehicle-constants)
+(define-extern *v-gila-constants* rigid-body-vehicle-constants)
+(define-extern *v-snake-constants* rigid-body-vehicle-constants)
+(define-extern *v-daxtermobile-constants* rigid-body-vehicle-constants)
+(define-extern *v-drone-constants* rigid-body-vehicle-constants)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; vehicle-antenna                ;;
@@ -81035,7 +81270,7 @@
 ;; og:preserve-this provisional extern removed: shadowed the rigid-body-control deftype and broke goal_src's (declare-type rigid-body-control ...) in JakXTypeConsistency
 (define-extern rigid-body-object-extra-info object) ;; provisional: call-site evidence only
 (define-extern rigid-body-queue-manager object) ;; provisional: call-site evidence only
-(define-extern rigid-body-vehicle-constants object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the rigid-body-vehicle-constants deftype, resurrected above, and would break goal_src in JakXTypeConsistency
 (define-extern save-memcard object) ;; provisional: call-site evidence only
 (define-extern sce-stat object) ;; provisional: call-site evidence only
 (define-extern scrolling-item-incoming-clan-invite object) ;; provisional: call-site evidence only
