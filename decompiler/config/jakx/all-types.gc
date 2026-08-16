@@ -52300,6 +52300,17 @@
   :flag-assert         #x90000006c
   )
 |#
+;; resurrected from the dead block above (dead-type sweep)
+(deftype race-ai-tuning-info (structure)
+  ((tuning-entry     race-ai-tuning-entry     6 :inline :offset-assert 0)
+   (ahead-threshold  float                     :offset-assert 96)
+   (behind-threshold float                     :offset-assert 100)
+   (base-speed       race-ai-base-speed-info   :offset-assert 104)
+   )
+  :method-count-assert 9
+  :size-assert         #x6c
+  :flag-assert         #x90000006c
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -71745,30 +71756,40 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern *generic-ai-tuning* array)
-;; (define-extern *snow-ai-tuning* array)
-;; (define-extern *kras-ai-tuning* array)
-;; (define-extern *spargus-ai-tuning* array)
-;; (define-extern *jungle-ai-tuning* array)
-;; (define-extern *haven-ai-tuning* array)
-;; (define-extern *sewer-ai-tuning* array)
-;; (define-extern *drome-ai-tuning* array)
-;; (define-extern *dromdoc-ai-tuning* array)
-;; (define-extern *kratour-ai-tuning* array)
-;; (define-extern *havtour-ai-tuning* array)
-;; (define-extern *canyon-ai-tuning* array)
-;; (define-extern *spatour-ai-tuning* array)
-;; (define-extern *docks-ai-tuning* array)
-;; (define-extern *icepass-ai-tuning* array)
-;; (define-extern *havsew-ai-tuning* array)
-;; (define-extern *peak-ai-tuning* array)
-;; (define-extern *icetour-ai-tuning* array)
-;; (define-extern *dockkra-ai-tuning* array)
-;; (define-extern *ice-ai-tuning* array)
-;; (define-extern *temple-ai-tuning* array)
-;; (define-extern *canspar-ai-tuning* array)
-;; (define-extern *havjung-ai-tuning* array)
-;; (define-extern *spartem-ai-tuning* array)
-;; (define-extern *iceberg-ai-tuning* array)
+;; the following 24 globals (snow through iceberg) are all set in
+;; (top-level-login race-ai-tuning) by the identical machine-code pattern
+;; already active for *generic-ai-tuning* and *snow-ai-tuning*: each is
+;; loaded from a label the decompiler independently types
+;; (array race-ai-tuning-info) from the label's own embedded type tag,
+;; confirmed for every one of the 24 by grepping race-ai-tuning_ir2.asm for
+;; every `s.w! *X-ai-tuning*` site. Activating only *snow-ai-tuning* left
+;; the whole top-level-login function un-convertible (all-or-nothing: the
+;; decompiler emits nothing for the function until every static ref in it
+;; resolves), so all are typed together here rather than one at a time.
+(define-extern *snow-ai-tuning* (array race-ai-tuning-info))
+(define-extern *kras-ai-tuning* (array race-ai-tuning-info))
+(define-extern *spargus-ai-tuning* (array race-ai-tuning-info))
+(define-extern *jungle-ai-tuning* (array race-ai-tuning-info))
+(define-extern *haven-ai-tuning* (array race-ai-tuning-info))
+(define-extern *sewer-ai-tuning* (array race-ai-tuning-info))
+(define-extern *drome-ai-tuning* (array race-ai-tuning-info))
+(define-extern *dromdoc-ai-tuning* (array race-ai-tuning-info))
+(define-extern *kratour-ai-tuning* (array race-ai-tuning-info))
+(define-extern *havtour-ai-tuning* (array race-ai-tuning-info))
+(define-extern *canyon-ai-tuning* (array race-ai-tuning-info))
+(define-extern *spatour-ai-tuning* (array race-ai-tuning-info))
+(define-extern *docks-ai-tuning* (array race-ai-tuning-info))
+(define-extern *icepass-ai-tuning* (array race-ai-tuning-info))
+(define-extern *havsew-ai-tuning* (array race-ai-tuning-info))
+(define-extern *peak-ai-tuning* (array race-ai-tuning-info))
+(define-extern *icetour-ai-tuning* (array race-ai-tuning-info))
+(define-extern *dockkra-ai-tuning* (array race-ai-tuning-info))
+(define-extern *ice-ai-tuning* (array race-ai-tuning-info))
+(define-extern *temple-ai-tuning* (array race-ai-tuning-info))
+(define-extern *canspar-ai-tuning* (array race-ai-tuning-info))
+(define-extern *havjung-ai-tuning* (array race-ai-tuning-info))
+(define-extern *spartem-ai-tuning* (array race-ai-tuning-info))
+(define-extern *iceberg-ai-tuning* (array race-ai-tuning-info))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; minimap                        ;;
