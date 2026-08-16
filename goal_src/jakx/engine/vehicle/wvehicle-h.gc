@@ -38,37 +38,11 @@
   :flag-assert         #x900000040
   )
 
-;; forward declaration: callback below is typed against vehicle-wheel-state,
-;; declared later in this same file.
-(declare-type vehicle-wheel-state structure)
-
-(deftype vehicle-wheel-info (structure)
-  ((local-pos          vector                                                                   :inline :offset-assert 0)
-   (flags              uint64                                                                           :offset-assert 16) ;; vehicle-wheel-flag
-   (callback           (function rigid-body-object vehicle-wheel-state vehicle-wheel-info none)         :offset-assert 24) ;; guessed by decompiler
-   (inertia            float                                                                            :offset-assert 28)
-   (radius             float                                                                            :offset-assert 32)
-   (susp-arm-length    float                                                                            :offset-assert 36)
-   (steer-arm-length   float                                                                            :offset-assert 40)
-   (scale              float                                                                            :offset-assert 44)
-   (travel             float                                                                            :offset-assert 48)
-   (probe-x-offset     float                                                                            :offset-assert 52)
-   (probe-y-offset     float                                                                            :offset-assert 56)
-   (suspension-spring  float                                                                            :offset-assert 60)
-   (suspension-damping float                                                                            :offset-assert 64)
-   (forward-grip       float                                                                            :offset-assert 68)
-   (side-grip          float                                                                            :offset-assert 72)
-   (max-brake-torque   float                                                                            :offset-assert 76)
-   (camber             float                                                                            :offset-assert 80)
-   (x-scale            float                                                                            :offset-assert 84)
-   (probe-radius       float                                                                            :offset-assert 88)
-   (width              float                                                                            :offset-assert 92)
-   (settle-pos         float                                                                            :offset-assert 96)
-   )
-  :method-count-assert 9
-  :size-assert         #x64
-  :flag-assert         #x900000064
-  )
+;; og:preserve-this vehicle-wheel-info moved to vehicle-h.gc. The game registers
+;; it in vehicle-h, not here, and vehicle-h.o precedes wvehicle-h.o in build
+;; order, which vehicle-physics-model-info needs since it holds two of them
+;; :inline. vehicle-wheel-state below stays: the game does register that one in
+;; this object.
 
 (deftype vehicle-wheel-state (structure)
   ((info             vehicle-wheel-info               :offset-assert 0)

@@ -1,19 +1,13 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: wcar-wombat.gc
-;; name in dgo: wcar-wombat
-;; dgos: COMMON, GAME
-
-;; DECOMP BEGINS
-
-;; definition of type v-wombat
-(deftype v-wombat (wcar-base)
+;; definition of type v-snake
+(deftype v-snake (wcar-base)
   ()
   )
 
-;; definition for method 3 of type v-wombat
-(defmethod inspect ((this v-wombat))
+;; definition for method 3 of type v-snake
+(defmethod inspect ((this v-snake))
   (when (not this)
     (set! this this)
     (goto cfg-4)
@@ -25,9 +19,9 @@
   this
   )
 
-;; definition for method 115 of type v-wombat
+;; definition for method 115 of type v-snake
 ;; WARN: Return type mismatch int vs none.
-(defmethod vehicle-method-115 ((this v-wombat))
+(defmethod vehicle-method-115 ((this v-snake))
   (let ((s5-0 (new 'stack-no-clear 'quaternion)))
     (let ((f30-0 (* 4096.0 (-> this controls steering))))
       (quaternion-set! (the-as quaternion (&-> s5-0 x)) 0.0 (sin f30-0) 0.0 (cos f30-0))
@@ -37,21 +31,23 @@
       )
     )
   0
-  (let ((s5-1 (new 'stack-no-clear 'quaternion)))
+  (let ((s5-1 (new 'stack-no-clear 'inline-array 'quaternion 3)))
+    (set-vector! (-> s5-1 2) 1092.2667 1092.2667 0.0 0.0)
     (dotimes (s4-1 4)
-      (let ((v1-7 (-> this wheel s4-1)))
-        (-> v1-7 info)
+      (let ((s3-1 (-> this wheel s4-1)))
+        (-> s3-1 info)
         (quaternion-set!
-          (the-as quaternion (&-> s5-1 x))
-          (-> v1-7 sin-susp-ang)
+          (-> s5-1 0)
           0.0
           0.0
-          (+ 1.0 (-> v1-7 cos-susp-ang))
+          (* (-> s3-1 sin-susp-ang) (-> s3-1 x-scale))
+          (+ 1.0 (-> s3-1 cos-susp-ang))
           )
+        (quaternion-normalize! (-> s5-1 0))
+        (quaternion-axis-angle! (-> s5-1 1) 0.0 0.0 (-> s3-1 x-scale) (-> (&-> s5-1 0 vec data s4-1) 8))
         )
-      (quaternion-normalize! (the-as quaternion (&-> s5-1 x)))
-      (let ((v1-11 (+ (+ (* 48 s4-1) 4268) (the-as int this))))
-        (quaternion-copy! (the-as quaternion (+ v1-11 32)) (the-as quaternion (&-> s5-1 x)))
+      (let ((v1-15 (+ (+ (* 48 s4-1) 4268) (the-as int this))))
+        (quaternion*! (the-as quaternion (+ v1-15 32)) (-> s5-1 0) (-> s5-1 1))
         )
       0
       )
@@ -60,31 +56,31 @@
   (none)
   )
 
-;; definition for method 100 of type v-wombat
+;; definition for method 100 of type v-snake
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch int vs none.
-(defmethod vehicle-method-100 ((this v-wombat))
+(defmethod vehicle-method-100 ((this v-snake))
   (let ((v1-2 (-> (the-as collide-shape-prim-group (-> this root root-prim)) child)))
     (set! (-> v1-2 0 local-sphere quad)
-          (-> (new 'static 'vector :data (new 'static 'array float 4 9830.4 0.0 17408.0 4505.6)) quad)
+          (-> (new 'static 'vector :data (new 'static 'array float 4 8192.0 3276.8 7864.32 4915.2)) quad)
           )
     (set! (-> v1-2 1 local-sphere quad)
-          (-> (new 'static 'vector :data (new 'static 'array float 4 -9830.4 0.0 17408.0 4505.6)) quad)
+          (-> (new 'static 'vector :data (new 'static 'array float 4 -8192.0 3276.8 7864.32 4915.2)) quad)
           )
     (set! (-> v1-2 2 local-sphere quad)
-          (-> (new 'static 'vector :data (new 'static 'array float 4 9830.4 1638.4 -12083.2 4505.6)) quad)
+          (-> (new 'static 'vector :data (new 'static 'array float 4 8192.0 3276.8 -11878.4 4915.2)) quad)
           )
     (set! (-> v1-2 3 local-sphere quad)
-          (-> (new 'static 'vector :data (new 'static 'array float 4 -9830.4 1638.4 -12083.2 4505.6)) quad)
+          (-> (new 'static 'vector :data (new 'static 'array float 4 -8192.0 3276.8 -11878.4 4915.2)) quad)
           )
     (set! (-> v1-2 4 local-sphere quad)
-          (-> (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 17408.0 4915.2)) quad)
+          (-> (new 'static 'vector :data (new 'static 'array float 4 0.0 3276.8 9011.2 4505.6)) quad)
           )
     (set! (-> v1-2 5 local-sphere quad)
-          (-> (new 'static 'vector :data (new 'static 'array float 4 0.0 4096.0 1638.4 7372.8)) quad)
+          (-> (new 'static 'vector :data (new 'static 'array float 4 0.0 4300.8 -1638.4 5939.2)) quad)
           )
     (set! (-> v1-2 6 local-sphere quad)
-          (-> (new 'static 'vector :data (new 'static 'array float 4 0.0 3686.4 -11878.4 6144.0)) quad)
+          (-> (new 'static 'vector :data (new 'static 'array float 4 0.0 3686.4 -11878.4 5324.8)) quad)
           )
     )
   ((method-of-type wcar-base vehicle-method-100) this)
@@ -92,24 +88,23 @@
   (none)
   )
 
-;; definition for method 66 of type v-wombat
-;; WARN: Return type mismatch uint vs none.
-(defmethod rigid-body-object-method-66 ((this v-wombat))
+;; definition for method 66 of type v-snake
+(defmethod rigid-body-object-method-66 ((this v-snake))
   (initialize-skeleton
     this
-    (the-as skeleton-group (art-group-get-by-name *level* "skel-wombat-chassis" (the-as (pointer level) #f)))
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-snake-chassis" (the-as (pointer level) #f)))
     (the-as pair 0)
     )
   ((method-of-type vehicle-section vehicle-section-method-9)
    (the-as vehicle-section (&-> this pad-net-payload-gap 868))
    this
    (art-group-get-by-name *level* "skel-car-interior" (the-as (pointer level) #f))
-   22
+   21
    )
   (let ((v1-7
           (get-car-skel-part
             (-> this level)
-            "wombat-door"
+            "snake-door"
             (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part2-temp-l" (the-as (pointer level) #f)))
             )
           )
@@ -122,20 +117,20 @@
        (the-as vehicle-section (&-> this pad-net-payload-gap 420))
        this
        (art-group-get-by-name *level* "skel-car-part2-temp-l" (the-as (pointer level) #f))
-       19
+       25
        )
       ((method-of-type vehicle-section vehicle-section-method-9)
        (the-as vehicle-section (&-> this pad-net-payload-gap 484))
        this
        (art-group-get-by-name *level* "skel-car-part2-temp-r" (the-as (pointer level) #f))
-       23
+       24
        )
       )
     )
   (let ((v1-16
           (get-car-skel-part
             (-> this level)
-            "wombat-f-fender"
+            "snake-f-fender"
             (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part2-temp-l" (the-as (pointer level) #f)))
             )
           )
@@ -148,20 +143,20 @@
        (the-as vehicle-section (&-> this pad-net-payload-gap 164))
        this
        (art-group-get-by-name *level* "skel-car-part2-temp-l" (the-as (pointer level) #f))
-       41
+       0
        )
       ((method-of-type vehicle-section vehicle-section-method-9)
        (the-as vehicle-section (&-> this pad-net-payload-gap 228))
        this
        (art-group-get-by-name *level* "skel-car-part2-temp-r" (the-as (pointer level) #f))
-       43
+       0
        )
       )
     )
   (let ((v1-25
           (get-car-skel-part
             (-> this level)
-            "wombat-r-fender"
+            "snake-r-fender"
             (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part2-temp-l" (the-as (pointer level) #f)))
             )
           )
@@ -174,59 +169,23 @@
        (the-as vehicle-section (&-> this pad-net-payload-gap 292))
        this
        (art-group-get-by-name *level* "skel-car-part2-temp-l" (the-as (pointer level) #f))
-       40
+       0
        )
       ((method-of-type vehicle-section vehicle-section-method-9)
        (the-as vehicle-section (&-> this pad-net-payload-gap 356))
        this
        (art-group-get-by-name *level* "skel-car-part2-temp-r" (the-as (pointer level) #f))
-       39
+       0
        )
       )
     )
   (if (get-car-skel-part
         (-> this level)
-        "wombat-trunk"
+        "snake-trunk"
         (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f)))
         )
       ((method-of-type vehicle-section vehicle-section-method-9)
        (the-as vehicle-section (&-> this pad-net-payload-gap 740))
-       this
-       (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f))
-       38
-       )
-      )
-  (if (get-car-skel-part
-        (-> this level)
-        "wombat-hood"
-        (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f)))
-        )
-      ((method-of-type vehicle-section vehicle-section-method-9)
-       (the-as vehicle-section (&-> this pad-net-payload-gap 676))
-       this
-       (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f))
-       42
-       )
-      )
-  (if (get-car-skel-part
-        (-> this level)
-        "wombat-roof"
-        (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f)))
-        )
-      ((method-of-type vehicle-section vehicle-section-method-9)
-       (the-as vehicle-section (&-> this pad-net-payload-gap 804))
-       this
-       (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f))
-       20
-       )
-      )
-  (if (get-car-skel-part
-        (-> this level)
-        "wombat-f-bumper"
-        (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f)))
-        )
-      ((method-of-type vehicle-section vehicle-section-method-9)
-       (the-as vehicle-section (&-> this pad-net-payload-gap 548))
        this
        (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f))
        0
@@ -234,7 +193,43 @@
       )
   (if (get-car-skel-part
         (-> this level)
-        "wombat-r-bumper"
+        "snake-hood"
+        (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f)))
+        )
+      ((method-of-type vehicle-section vehicle-section-method-9)
+       (the-as vehicle-section (&-> this pad-net-payload-gap 676))
+       this
+       (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f))
+       26
+       )
+      )
+  (if (get-car-skel-part
+        (-> this level)
+        "snake-roof"
+        (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f)))
+        )
+      ((method-of-type vehicle-section vehicle-section-method-9)
+       (the-as vehicle-section (&-> this pad-net-payload-gap 804))
+       this
+       (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f))
+       23
+       )
+      )
+  (if (get-car-skel-part
+        (-> this level)
+        "snake-f-bumper"
+        (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f)))
+        )
+      ((method-of-type vehicle-section vehicle-section-method-9)
+       (the-as vehicle-section (&-> this pad-net-payload-gap 548))
+       this
+       (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f))
+       22
+       )
+      )
+  (if (get-car-skel-part
+        (-> this level)
+        "snake-r-bumper"
         (the-as skeleton-group (art-group-get-by-name *level* "skel-car-part-temp" (the-as (pointer level) #f)))
         )
       ((method-of-type vehicle-section vehicle-section-method-9)
@@ -253,40 +248,40 @@
   ((method-of-type joint-mod-trans-rot-local init)
    (the-as joint-mod-trans-rot-local (-> this jmod-axles))
    this
-   (the-as uint 8)
+   (the-as uint 5)
    (joint-mod-base-flags attached)
    )
   ((method-of-type joint-mod-trans-rot-local init)
    (the-as joint-mod-trans-rot-local (&-> this jmod-axles 48))
    this
-   (the-as uint 9)
+   (the-as uint 6)
    (joint-mod-base-flags attached)
    )
   ((method-of-type joint-mod-trans-rot-local init)
    (the-as joint-mod-trans-rot-local (&-> this jmod-axles 96))
    this
-   (the-as uint 6)
+   (the-as uint 12)
    (joint-mod-base-flags attached)
    )
   ((method-of-type joint-mod-trans-rot-local init)
    (the-as joint-mod-trans-rot-local (&-> this jmod-axles 144))
    this
-   (the-as uint 5)
+   (the-as uint 13)
    (joint-mod-base-flags attached)
    )
   ((method-of-type joint-mod-add-local init)
    (the-as joint-mod-add-local (-> this jmod-frame))
    this
-   (the-as uint 7)
+   (the-as uint 4)
    (joint-mod-base-flags trans quat)
    )
   ((method-of-type joint-mod-add-local init)
    (the-as joint-mod-add-local (&-> this jmod-frame 64))
    this
-   (the-as uint 4)
+   (the-as uint 11)
    (joint-mod-base-flags trans quat)
    )
-  (rigid-body-object-method-64 this *v-wombat-constants*)
+  (rigid-body-object-method-64 this *v-snake-constants*)
   (let ((s5-24 (the-as art-group #f)))
     (cond
       ((get-art-group-by-name (-> this level) "wheel-a")
@@ -357,22 +352,10 @@
        )
       )
     (when s5-24
-      (let* ((a0-104 this)
-             (t9-97 (method-of-object a0-104 wvehicle-method-213))
-             )
-        (t9-97 a0-104 s5-24)
+      (let ((t9-97 (method-of-object this wvehicle-method-213)))
+        (t9-97 this s5-24)
         )
       )
     )
-  (let ((v1-187 (&-> this pad-net-payload-gap 292)))
-    (logior! (-> v1-187 54) 8)
-    )
-  (let ((v1-188 (&-> this pad-net-payload-gap 356)))
-    (logior! (-> v1-188 54) 8)
-    )
   (none)
   )
-
-
-
-

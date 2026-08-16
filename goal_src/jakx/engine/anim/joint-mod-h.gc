@@ -164,3 +164,45 @@
     (new (symbol type) _type_) ;; 0 ;; (new (symbol type process-drawable int symbol) _type_)
     )
   )
+
+;; joint-mod-add-local, joint-mod-rotate-local and joint-mod-trans-rot-local landed
+;; for the same build-first reason joint-mod-base and joint-mod-set-world were: the
+;; wcar bodies call (method-of-type joint-mod-rotate-local init) and the two others,
+;; which needs the full type defined earlier in build order, and joint-mod-h.o runs
+;; well ahead of the wcar objects. offline-test -f and the plain type-consistency
+;; test both preload all-types and would not catch the gap. Transcribed verbatim from
+;; decompiler/config/jakx/all-types.gc to satisfy the two-file consistency rule; the
+;; rest of the joint-mod-base family is still not landed here.
+
+(deftype joint-mod-add-local (joint-mod-base)
+  "Add to the trans, rotate the quat, and multiply the scale of the joint transform. The components can be selected by the flag.
+   Unlike jak 2, this actually multiplies the scale, instead of adding."
+  ((transform transformq :inline :offset-assert 16)
+   )
+  :method-count-assert 12
+  :size-assert         #x40
+  :flag-assert         #xc00000040
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type process-drawable int symbol symbol symbol) _type_)
+    )
+  )
+
+(deftype joint-mod-rotate-local (joint-mod-base)
+  ((rotation quaternion :inline :offset-assert 16)
+   )
+  :method-count-assert 12
+  :size-assert         #x20
+  :flag-assert         #xc00000020
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type process-drawable int symbol) _type_)
+    )
+  )
+
+(deftype joint-mod-trans-rot-local (joint-mod-base)
+  ((trans vector     :inline :offset-assert 16)
+   (rot   quaternion :inline :offset-assert 32)
+   )
+  :method-count-assert 12
+  :size-assert         #x30
+  :flag-assert         #xc00000030
+  )
