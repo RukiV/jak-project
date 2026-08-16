@@ -50981,6 +50981,19 @@
     )
   )
 |#
+;; resurrected from the dead block above (dead-type sweep)
+(deftype medius-game-array (structure)
+  ((ct   int32      :offset-assert 0)
+   (data net-available-game 64 :inline :offset-assert 4)
+   )
+  :method-count-assert 11
+  :size-assert         #x5404
+  :flag-assert         #xb00005404
+  (:methods
+    (medius-game-array-method-9 () none) ;; 9
+    (medius-game-array-method-10 () none) ;; 10
+    )
+  )
 
 #|
 (deftype medius-game-filter-settings (structure)
@@ -51012,7 +51025,7 @@
 
 
 (define-extern *medius-game-status-cache* medius-cache)
-;; (define-extern *medius-games* object)
+(define-extern *medius-games* medius-game-array)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-predict-h                  ;;
@@ -57531,6 +57544,23 @@
    (total-pages int32     :offset-assert 8)
    (ct          int32     :offset-assert 12)
    (data        UNKNOWN 5 :offset-assert 16)
+   )
+  :method-count-assert 11
+  :size-assert         #x100
+  :flag-assert         #xb00000100
+  (:methods
+    (medius-room-array-method-9 () none) ;; 9
+    (medius-room-array-method-10 () none) ;; 10
+    )
+  )
+|#
+;; resurrected from the dead block above (dead-type sweep)
+(deftype medius-room-array (structure)
+  ((total-ct    int32     :offset-assert 0)
+   (base-page   int32     :offset-assert 4)
+   (total-pages int32     :offset-assert 8)
+   (ct          int32     :offset-assert 12)
+   (data        medius-room 5 :inline :offset-assert 16)
    )
   :method-count-assert 11
   :size-assert         #x100
@@ -80617,7 +80647,12 @@
 ;; typed <the type object>); the correct type medius-cache is now active near
 ;; medius-cache's own section, uncommented from the pre-existing candidate declaration
 ;; the typing program had already recorded there
-(define-extern *medius-games* object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: mistyped *medius-games* as object,
+;; leaving its static instance (net-mgr-medius-games-h_ir2.asm L1) undecodable
+;; (Unimplemented decompile_at_label for Label: L1 and Type: object); the static
+;; block is 5380 words (21520 bytes = #x5410), exactly medius-game-array's
+;; :size-assert #x5404 rounded up to the next 16-byte boundary, so the extern is
+;; now typed medius-game-array near that type's own section
 (define-extern *medius-ignores* object) ;; provisional: call-site evidence only
 (define-extern *medius-incoming-clan-invites* object) ;; provisional: call-site evidence only
 (define-extern *medius-init-in-params* object) ;; provisional: call-site evidence only
