@@ -41488,6 +41488,17 @@
 ;; debug-vertex-stats is already defined!
 
 ;; (define-extern transform-float-point function) ;; (function vector vector4w vector4w)
+;; resurrected here (blocks the cam-debug family's camera-line-draw, an
+;; "Unknown symbol" error reached inside an already-resolved function body,
+;; per cam-debug's own scoped-decode gate), confirmed against jak3 twin at
+;; decompiler/config/jak3/all-types.gc:30718-30723, docstring included
+;; verbatim per that twin.
+(define-extern transform-float-point
+               "Transform a point, using the cached matrix in VU0 registers, set from init-for-transform.
+                The argument order is backward - be careful!
+                After transformation, point is constrained to be within some region, but this is not proper clipping,
+                so you should do this yourself."
+               (function vector vector4w vector4w))
 ;; (define-extern add-debug-point function) ;; (function symbol bucket-id vector symbol)
 ;; (define-extern debug-line-clip? function) ;; (function vector vector vector vector symbol)
 ;; (define-extern internal-draw-debug-line function) ;; (function bucket-id vector vector rgba symbol rgba symbol)
@@ -45977,12 +45988,31 @@
 
 
 ;; (define-extern *camera-old-cpu* object) ;; int
+;; batch-activated per the jak3 twin (decompiler/config/jak3/all-types.gc:34194-34239),
+;; scoped to cam-debug's own baseline decode evidence: every function below was a
+;; "Function X has unknown type" (or "didn't know its type") error in a fresh scoped
+;; decode against the unmodified config (--proj-path pinned, allowed_objects:
+;; ["cam-debug"]), and *camera-old-vu* was an explicit "did not know the type of
+;; symbol" error inside (top-level-login cam-debug). *camera-old-cpu* is already
+;; declared elsewhere in this file (the alphabetical provisional-extern list); it
+;; is fixed there instead of duplicated here, from object to int per the jak3
+;; twin, same treatment as *camera-layout-blink* in the cam-layout family's own
+;; transplant, and its dead comment above stays dead. debug-set-camera-pos-rot!
+;; is likewise already declared elsewhere (the same alphabetical list) with the
+;; exact signature its own dead comment below already carries, so nothing to
+;; activate there either; its dead comment stays dead too.
 ;; (define-extern *camera-old-vu* object) ;; int
+(define-extern *camera-old-vu* int)
 ;; (define-extern *camera-old-tfrag-bytes* object) ;; int
+(define-extern *camera-old-tfrag-bytes* int)
 ;; (define-extern *camera-old-level* object) ;; string
+(define-extern *camera-old-level* string)
 ;; (define-extern *camera-old-stat-string-tfrag* object) ;; string
+(define-extern *camera-old-stat-string-tfrag* string)
 ;; (define-extern *camera-old-stat-string-tfrag-near* object) ;; string
+(define-extern *camera-old-stat-string-tfrag-near* string)
 ;; (define-extern *camera-old-stat-string-total* object) ;; string
+(define-extern *camera-old-stat-string-total* string)
 ;; (define-extern cam-slave-options->string function) ;; (function cam-slave-options object string)
 ;; resurrected here (blocks the cam-layout family's anon-function 4, per the
 ;; cam-layout section's own scoped-decode gate), confirmed against jak3 twin at
@@ -45994,9 +46024,13 @@
 ;; (define-extern cam-index-options->string function) ;; (function cam-index-options object string)
 (define-extern cam-index-options->string (function cam-index-options object string))
 ;; (define-extern slave-los-state->string function) ;; (function slave-los-state string)
+(define-extern slave-los-state->string (function slave-los-state string))
 ;; (define-extern cam-line-dma function) ;; (function pointer)
+(define-extern cam-line-dma (function pointer))
 ;; (define-extern camera-line2d function) ;; (function vector4w vector4w pointer)
+(define-extern camera-line2d (function vector4w vector4w pointer))
 ;; (define-extern camera-plot-float-func function) ;; (function float float float float (function float float) vector4w none)
+(define-extern camera-plot-float-func (function float float float float (function float float) vector4w none))
 ;; (define-extern camera-line-setup function) ;; (function vector4w none)
 ;; resurrected here (blocks the cam-layout family's decode), confirmed against
 ;; jak3 twin at decompiler/config/jak3/all-types.gc (cam-debug section,
@@ -46010,19 +46044,30 @@
 (define-extern camera-line-draw (function vector vector none))
 (define-extern camera-line (function vector vector vector4w none))
 ;; (define-extern camera-line-rel function) ;; (function vector vector vector4w none)
+(define-extern camera-line-rel (function vector vector vector4w none))
 (define-extern camera-line-rel-len (function vector vector float vector4w none))
 ;; (define-extern camera-sphere function) ;; (function vector float vector4w none)
+(define-extern camera-sphere (function vector float vector4w none))
 (define-extern camera-cross (function vector vector vector vector4w meters none))
 (define-extern camera-bounding-box-draw (function bounding-box basic rgba none))
 ;; (define-extern *cam-debug-los-tri-current* object) ;; int
+(define-extern *cam-debug-los-tri-current* int)
 ;; (define-extern *cam-debug-los-tri* object) ;; (inline-array cam-debug-tri)
+(define-extern *cam-debug-los-tri* (inline-array cam-debug-tri))
 ;; (define-extern *cam-debug-coll-tri-current* object) ;; int
+(define-extern *cam-debug-coll-tri-current* int)
 ;; (define-extern *cam-debug-coll-tri* object) ;; (inline-array cam-debug-tri)
+(define-extern *cam-debug-coll-tri* (inline-array cam-debug-tri))
 ;; (define-extern cam-debug-reset-coll-tri function) ;; (function none)
+(define-extern cam-debug-reset-coll-tri (function none))
 ;; (define-extern cam-debug-add-los-tri function) ;; (function (inline-array collide-cache-tri) vector vector none)
+(define-extern cam-debug-add-los-tri (function (inline-array collide-cache-tri) vector vector none))
 ;; (define-extern cam-debug-add-coll-tri function) ;; (function cam-debug-tri vector cam-debug-tri none)
+(define-extern cam-debug-add-coll-tri (function cam-debug-tri vector cam-debug-tri none))
 ;; (define-extern cam-debug-draw-tris function) ;; (function symbol)
+(define-extern cam-debug-draw-tris (function symbol))
 ;; (define-extern camera-fov-draw function) ;; (function int int vector float float vector4w none)
+(define-extern camera-fov-draw (function int int vector float float vector4w none))
 ;; (define-extern camera-fov-frame function) ;; (function matrix vector float float float vector4w symbol)
 ;; resurrected here (blocks the cam-layout family's anon-function 4, per the
 ;; cam-layout section's own scoped-decode gate), confirmed against jak3 twin at
@@ -46030,20 +46075,33 @@
 ;; cam-slave-options->string/cam-index-options->string above.
 (define-extern camera-fov-frame (function matrix vector float float float vector4w symbol))
 ;; (define-extern debug-euler function) ;; (function cam-dbg-scratch object)
+(define-extern debug-euler (function cam-dbg-scratch object))
 ;; (define-extern bike-cam-limit function) ;; (function float float)
+(define-extern bike-cam-limit (function float float))
 (define-extern camera-slave-debug (function camera-slave none))
 ;; (define-extern master-draw-coordinates function) ;; (function vector none)
+(define-extern master-draw-coordinates (function vector none))
 ;; (define-extern *cam-collision-record-first* object) ;; int
+(define-extern *cam-collision-record-first* int)
 ;; (define-extern *cam-collision-record-last* object) ;; int
+(define-extern *cam-collision-record-last* int)
 ;; (define-extern *cam-collision-record-show* object) ;; int
+(define-extern *cam-collision-record-show* int)
 ;; (define-extern *cam-collision-record* object) ;; cam-collision-record-array
+(define-extern *cam-collision-record* cam-collision-record-array)
 ;; (define-extern cam-collision-record-save function) ;; (function vector vector int symbol camera-slave none)
+(define-extern cam-collision-record-save (function vector vector int symbol camera-slave none))
 ;; (define-extern cam-collision-record-step function) ;; (function int none)
+(define-extern cam-collision-record-step (function int none))
 ;; (define-extern cam-collision-record-draw function) ;; (function none)
+(define-extern cam-collision-record-draw (function none))
 ;; (define-extern camera-master-debug function) ;; (function camera-master none)
+(define-extern camera-master-debug (function camera-master none))
 ;; (define-extern debug-set-camera-pos-rot! function) ;; (function vector matrix vector)
 ;; (define-extern cam-restore function) ;; (function none)
+(define-extern cam-restore (function none))
 ;; (define-extern cam-restore-generic-bug function) ;; (function none)
+(define-extern cam-restore-generic-bug (function none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; cam-start                      ;;
@@ -81650,7 +81708,7 @@
 (define-extern *boss-hud-proc* (pointer boss-hud))
 (define-extern *buddy-list-type* object) ;; provisional: call-site evidence only
 (define-extern *camera-layout-blink* symbol) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:34037 (was provisional: call-site evidence only; the cam-layout section's own dead comment for this symbol stays dead, this is its one active declaration)
-(define-extern *camera-old-cpu* object) ;; provisional: call-site evidence only
+(define-extern *camera-old-cpu* int) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:34194 (was provisional: call-site evidence only; the cam-debug section's own dead comment for this symbol stays dead, this is its one active declaration)
 (define-extern *car-look-mask-array* object) ;; provisional: call-site evidence only
 (define-extern *car-part-art-group-names* object) ;; provisional: call-site evidence only
 (define-extern *car-part-info-arrays* object) ;; provisional: call-site evidence only
