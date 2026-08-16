@@ -2133,5 +2133,82 @@
   "(method 100 v-tiger)": [[2, "v1", "collide-shape-prim-group"]],
   "(method 100 v-wolf)": [[2, "v1", "collide-shape-prim-group"]],
   "(method 100 v-wombat)": [[2, "v1", "collide-shape-prim-group"]],
-  "(method 100 vehicle)": [[[2, 8], "v1", "collide-shape-prim-group"]]
+  "(method 100 vehicle)": [[[2, 8], "v1", "collide-shape-prim-group"]],
+
+  ////////////////////////////////////////////////////////////////////////////
+  // Inlined (rand-float-gen): mtc1 of a raw IEEE-754 bit pattern
+  ////////////////////////////////////////////////////////////////////////////
+  // jak1 math.gc:240 defines the macro as
+  //   (+ -1.0 (the-as float (logior #x3f800000 (/ (rand-uint31-gen gen) 256))))
+  // so every inlined use compiles to: rand-uint31-gen -> (sra .. 8) ->
+  // (logior #x3f800000 ..) -> mtc1 -> add.s with -1.0. The GPR feeding that mtc1
+  // holds a raw float bit pattern, but the decompiler's gpr->fpr rule copies the
+  // GPR's GOAL type straight onto the FPR (types2/ForwardProp.cpp
+  // types2_for_gpr_to_fpr, "for now, we'll just copy the type"), so the FPR is
+  // typed uint and IR2/FormExpressionAnalysis.cpp update_from_stack_float_2
+  // rejects the following add.s with
+  //   "Floating point math attempted on invalid types: float and uint".
+  // Fix shape is the same one jak1, jak2 and jak3 use for this macro, and the
+  // same one jakx already uses for its own generate-rand-vector-on-sphere above:
+  // cast the source GPR to float at the mtc1's own op index. Op indices were read
+  // out of each object's own _ir2.asm at 3e3f3b6fe and iterated to a fixed point
+  // (a function with several inlined uses only reports its first failure per run).
+  //
+  // docks-obs / ice-obs / atoll-obs / drome-obs: level-obs idle handlers that
+  // seed a random start angle before their spin loop.
+  "(code idle wind-rotor)": [[11, "v1", "float"]],
+  "(code idle ice-flag)": [[9, "v1", "float"]],
+  "(code idle atoll-dish)": [[11, "v1", "float"]],
+  "(code idle atoll-rotor)": [[11, "v1", "float"]],
+  "(code idle drome-tunnel-drum)": [[11, "v1", "float"]],
+  // lobby-adventure-obs: the four trophy displays and the three world-map props,
+  // identical bodies to the level-obs ones above.
+  "(code idle menu-haven-trophy)": [[9, "v1", "float"]],
+  "(code idle menu-kras-trophy)": [[9, "v1", "float"]],
+  "(code idle menu-marauder-trophy)": [[9, "v1", "float"]],
+  "(code idle menu-spargus-trophy)": [[9, "v1", "float"]],
+  "(code idle wm-docks-crane)": [[9, "v1", "float"]],
+  "(code idle wm-drome-wind-machine)": [[9, "v1", "float"]],
+  "(code idle wm-kras-circular-tower)": [[9, "v1", "float"]],
+  // same idiom in anonymous bodies the decompiler has not named yet
+  "(anon-function 10 construction-obs-h)": [[16, "v1", "float"]],
+  "(anon-function 12 kcross-obs)": [[9, "v1", "float"]],
+  "(anon-function 26 kras-obs)": [[9, "v1", "float"]],
+  "(anon-function 28 kras-obs)": [[9, "v1", "float"]],
+  // mood: the weather updaters roll a random value per lamp/flame element, so
+  // several inlined uses share one function.
+  "(method 9 mood-control)": [
+    [372, "v1", "float"],
+    [391, "v1", "float"],
+    [404, "v1", "float"],
+    [417, "v1", "float"],
+    [430, "v1", "float"],
+    [443, "v1", "float"],
+    [476, "v1", "float"],
+    [561, "v1", "float"],
+    [580, "v1", "float"],
+    [593, "v1", "float"],
+    [606, "v1", "float"],
+    [619, "v1", "float"],
+    [632, "v1", "float"],
+    [662, "v1", "float"]
+  ],
+  "update-mood-electricity": [[23, "v1", "float"]],
+  "update-mood-flames": [
+    [35, "v1", "float"],
+    [62, "v1", "float"],
+    [83, "v1", "float"]
+  ],
+  "update-mood-flicker": [
+    [38, "v1", "float"],
+    [58, "v1", "float"],
+    [79, "v1", "float"],
+    [102, "v1", "float"]
+  ],
+  "update-mood-florescent": [
+    [24, "v1", "float"],
+    [46, "v1", "float"],
+    [75, "v1", "float"]
+  ],
+  "sparticle-sparks-birth": [[30, "v1", "float"]]
 }
