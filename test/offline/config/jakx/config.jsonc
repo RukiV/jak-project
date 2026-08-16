@@ -378,10 +378,11 @@
     // only the error comment block; goal_src lands the hand-carried method and the
     // decomp-vs-REF diff still gates the types and the other methods
     "gsound-h",
-    // the decompiler cannot express the two zero-filled statics
-    // (*net-simple-destruct-indices* int16 x400 and the symbol-array powerup name
-    // table print as <static-data Lnn>); goal_src lands compilable equivalents
-    // and the decomp-vs-REF diff still gates the code
+    // both statics now decompile clean (label_types.jsonc sizes L123 and the
+    // apply()-abort fix in insert_static_refs stopped it from suppressing L122
+    // right after); the remaining blocker is get-destruct-perm's raw (&-> ...) cast
+    // to a symbol's value slot, which goalc types as (pointer object) without the
+    // hand-cast goal_src carries; the decomp-vs-REF diff still gates the code
     "net-simple-destruct",
     "types-h", // weird array of types.
     // "hfrag-h", // weird duplicate type
@@ -396,9 +397,10 @@
     // foreground-emerc never converts, so the whole file skips goalc in the
     // offline set (jak3's config does the same); the decomp-vs-REF diff still runs
     "foreground",
-    // the retail static at L27 carries pointer-to-label table fields the static
-    // decoder cannot decode, so the REF records <static-data L27> which does not
-    // compile; the decomp-vs-REF diff still runs (goal_src hand-authors the static)
+    // the retail static at L27 now decompiles clean (label_types.jsonc sizes it), but
+    // codegen still fails: the decompiler emits two internal-named (method inspect
+    // attackable-hash) definitions and goalc refuses the duplicate; goal_src hand-
+    // authors the type and the decomp-vs-REF diff still gates the code
     "attackable-hash",
     // the REF records the parked gui-control/spooler/external-art surface, which
     // still carries CFG and type-prop errors; goal_src lands the art slice and
