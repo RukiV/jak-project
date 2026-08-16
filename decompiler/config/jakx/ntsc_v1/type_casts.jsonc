@@ -2242,5 +2242,38 @@
   //   (function mood-context float int none :behavior time-of-day-proc))
   // uncommented, which is the derived signature already sitting commented in
   // all-types.gc. Promoting it belongs to the menumap-effects landing.
-  "update-mood-menumap": [[[40, 76], "s5", "menumap-states"]]
+  "update-mood-menumap": [[[40, 76], "s5", "menumap-states"]],
+  // init-mood-menumap and set-menumap-target!: the same mood-context scratch
+  // overlay as update-mood-menumap above, same object, same field at 1840.
+  // Both bodies compute (+ base 1840) into a plain register with no loop
+  // register (no s5 slot reserved), so the overlay pointer lives in v1 in
+  // each function rather than s5.
+  //
+  // init-mood-menumap: v1 is set at op 0 (daddiu v1, a0, 1840) and last read
+  // at op 12 (the target-values store address); range runs to 13 to also
+  // cover the store that consumes that address, same as update-mood-menumap's
+  // 75-to-76 pattern. Measured: ending at 12 still clears the "Cannot access
+  // array of type int" error but leaves the target-values write as
+  // (-> (+ (* a0-1 4) (the-as int v1-0)) 5), while 13 collapses both writes to
+  // (-> v1-0 current-values a0-1) and (-> v1-0 target-values a0-1).
+  "init-mood-menumap": [[[0, 13], "v1", "menumap-states"]],
+  // set-menumap-target!: unlike the two functions above, the overlay add
+  // reuses the SAME register for source and destination (daddiu v1, v1, 1840
+  // at op 9, not a distinct dest like s5/gp or v1/a0), so a cast range
+  // starting at op 9 itself forces the pre-add read of v1 to menumap-states
+  // too and the add fails ("add failed: menumap-states <integer 1840>", a
+  // structure plus a constant that is neither its exact size nor a 16-aligned
+  // stride). The range has to start one op after the add, at 10, so op 9
+  // computes its natural pointer type first and only subsequent reads of v1
+  // get the override. Last read is at op 29 (the second branch's store
+  // address, mirroring op 19's first branch); range runs to 30 to cover the
+  // store that consumes that address, same shape as the other two entries.
+  // Measured: starting at 9 throws the add-failed error above; ending the
+  // range at 29 still clears it but only the first (zero?) branch collapses
+  // to (-> (the-as menumap-states v1-3) target-values a0-2), because its
+  // consuming store (op 20) is inside the range while the second branch's
+  // consuming store (op 30) is not, so the second branch stays raw:
+  // (-> (+ (* a0-2 4) (the-as int v1-3)) 5). 10 to 30 collapses both branches
+  // to (-> v1-3 target-values a0-2).
+  "set-menumap-target!": [[[10, 30], "v1", "menumap-states"]]
 }
