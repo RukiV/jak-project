@@ -5,7 +5,7 @@
 ;; name in dgo: mood
 ;; dgos: ENGINE, GAME
 
-;; og:preserve-this landing notes: the per-effect helpers (flames/flicker/florescent/pulse/electricity/light/direction), the movie setters, the override pair, copy-mood-exterior, and mood-control m23/m24 stay commented (decomp errors; not on the brdroom path). clear-mood-times / update-mood-itimes / update-mood-interior / update-mood-exterior / copy-mood-exterior-ambi / init-weather! (m9) are live (fog audit Q4 item 1, docs/2026-08-12-fog-state-audit.md); its pump call site is armed at time-of-day.gc.
+;; og:preserve-this landing notes: the per-effect helpers (flames/flicker/florescent/pulse/electricity/light/direction), the override pair, copy-mood-exterior, and mood-control m23/m24 stay commented (decomp errors; not on the brdroom path). clear-mood-times / update-mood-itimes / update-mood-interior / update-mood-exterior / copy-mood-exterior-ambi / init-weather! (m9) are live (fog audit Q4 item 1, docs/2026-08-12-fog-state-audit.md); its pump call site is armed at time-of-day.gc. The movie setters (set-movie-time! / set-movie-fog! / set-movie-color!) landed for real once the extern-signature wave proved their register signatures (int int time-of-day-palette-id / vector float float float float / vector vector, all none-returning); intro-scenes and intro-scenes3 call them directly.
 
 ;; DECOMP BEGINS
 
@@ -23,13 +23,50 @@
 (define-extern update-mood-direction (function mood-context-core3 mood-table float float)) ;; landed below (forge #82)
 
 ;; definition for function set-movie-time!
-;; ERROR: function has no type analysis. Cannot decompile.
+;; WARN: Return type mismatch int vs none.
+(defun set-movie-time! ((arg0 int) (arg1 int) (arg2 time-of-day-palette-id))
+  (set! (-> *time-of-day-context* mode) arg2)
+  (send-event (ppointer->process *time-of-day*) 'change 'ratio 0.0)
+  (send-event (ppointer->process *time-of-day*) 'change 'hour arg0)
+  (send-event (ppointer->process *time-of-day*) 'change 'minutes arg1)
+  (send-event (ppointer->process *time-of-day*) 'change 'seconds 0)
+  (send-event (ppointer->process *time-of-day*) 'change 'frames 0)
+  0
+  (none)
+  )
 
 ;; definition for function set-movie-fog!
-;; ERROR: function has no type analysis. Cannot decompile.
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defun set-movie-fog! ((arg0 vector) (arg1 float) (arg2 float) (arg3 float) (arg4 float))
+  (set! (-> *time-of-day-context* override-enable) (the-as basic #t))
+  (dotimes (v1-1 8)
+    (let ((t1-4 (-> *override-mood-fog-table* data v1-1)))
+      (set! (-> t1-4 fog-color quad) (-> arg0 quad))
+      (set! (-> t1-4 fog-dists x) arg1)
+      (set! (-> t1-4 fog-dists y) arg2)
+      (set! (-> t1-4 fog-dists w) arg3)
+      (set! (-> t1-4 fog-dists z) arg4)
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition for function set-movie-color!
-;; ERROR: function has no type analysis. Cannot decompile.
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defun set-movie-color! ((arg0 vector) (arg1 vector))
+  (set! (-> *time-of-day-context* override-enable) (the-as basic #t))
+  (dotimes (v1-1 8)
+    (let ((a2-3 (-> *override-mood-color-table* data v1-1)))
+      (set! (-> a2-3 lgt-color quad) (-> arg0 quad))
+      (set! (-> a2-3 amb-color quad) (-> arg1 quad))
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition for function palette-select-special
 ;; INFO: Used lq/sq
