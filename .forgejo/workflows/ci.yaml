@@ -78,10 +78,12 @@ on:
   # test is the code being proposed. That means untrusted code runs with that context.
   # Since 2026-08-07 the repository has a second collaborator, so the original "exactly
   # one collaborator" justification no longer holds. What contains the exposure today:
-  # the Actions secret store is empty, and the automatic token's identity is not on
-  # develop's or master's push or merge whitelists, so a hostile PR cannot reach a
-  # protected branch or steal a credential. Retire this trigger for plain pull_request
-  # if contributor branches ever consistently carry this file.
+  # the Actions secret store carries exactly two least-privilege tokens (the ntfy
+  # publish token, scoped to one topic, and a read-only upstream token for reconcile),
+  # and the automatic token's identity is not on develop's or master's push or merge
+  # whitelists, so a hostile PR cannot reach a protected branch, and what a leak could
+  # cost is bounded to those two tokens' narrow scopes. Retire this trigger for plain
+  # pull_request if contributor branches ever consistently carry this file.
   pull_request_target:
 
 jobs:
@@ -226,6 +228,16 @@ jobs:
   build-and-test:
     name: Linux clang build and unit tests
     runs-on: ubuntu-22.04
+    # Staged behind lint, as is the MSVC job below. Lint finishes in about a minute
+    # and catches the commonest reds (formatting, the deferral ratchet, the inert
+    # ledger); the builds cost fifteen runner-minutes between them, most of it on
+    # the serial Windows runner. Gating them means a doomed run stops at the cheap
+    # verdict instead of burning the queue, which is what a stacked afternoon of
+    # pull requests actually contends for. The price is about one minute of added
+    # latency on a green run. A build failing while its sibling still runs is NOT
+    # covered: cancelling a running sibling needs watchdog machinery that costs
+    # more than the minutes it saves.
+    needs: lint
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -289,6 +301,8 @@ jobs:
   windows-msvc:
     name: Windows MSVC
     runs-on: windows-2022
+    # Staged behind lint; see the rationale on build-and-test.
+    needs: lint
     timeout-minutes: 60
 
     # sccache is configured here rather than by hendrikmuhs/ccache-action, which this
@@ -428,15 +442,26 @@ jobs:
         run: |
           ./build/bin/goalc-test.exe --gtest_color=yes --gtest_brief=0 --gtest_filter="-*MANUAL_TEST*"
 
-  # Reports the run once, rather than a notification per job. This job's own job.status
-  # is its own success, not the run's, so the aggregate is passed in explicitly.
+  # Reports the run once, as the aggregate of every job above. This job's own
+  # job.status is its own success, not the run's, so the aggregate is passed in
+  # explicitly. With the builds staged behind lint, a lint failure arrives here as
+  # "failure skipped skipped", which the action's substring matching (failure
+  # outranks cancelled outranks success) already reports as failure; a green run
+  # is "success success success". Skipped never appears alone: a run where
+  # everything was skipped does not schedule this job at all.
   #
-  # if: always() so a failed build still reports. A notification that only ever fires on
-  # green is indistinguishable from a dead channel, which is the case worth covering.
+  # if: always() so a failed or partly-skipped run still reports. A notification
+  # that only ever fires on green is indistinguishable from a dead channel, which
+  # is the case worth covering.
   #
-  # Runs on the Linux runner: it needs curl and nothing else, and pinning it to the
-  # Windows host would make notification depend on the scarcer runner.
-  notify:
+  # Runs on the Linux runner: it needs curl and nothing else, and pinning it to
+  # the Windows host would make notification depend on the scarcer runner. Under
+  # queue pressure the event can lag the last real job by minutes; that is
+  # accepted, because the event is a wake-up signal, not a gate, and the commit
+  # statuses are current the moment each job ends for anything that needs the
+  # verdict immediately.
+  results:
+    name: Results
     runs-on: ubuntu-22.04
     needs: [lint, build-and-test, windows-msvc]
     if: always()
