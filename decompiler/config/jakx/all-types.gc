@@ -45188,6 +45188,42 @@
     )
   )
 |#
+;; resurrected from the dead block above (dead-type sweep), with two
+;; corrections matched against jak3's twin (decompiler/config/jak3/all-types.gc:33861):
+;; vol-flags did not exist in jakx (ported verbatim below; without it the type
+;; system errors "Type vol-flags is unknown"), and both plane-volume 32-arrays
+;; need :inline restored (16 + 32*24 = 784, the neg-vol-count offset-assert,
+;; only holds if plane-volume's own 24-byte :pack-me size is used inline
+;; rather than a pointer array). Methods 0/9/10/11 adopt jak3's real
+;; signatures and names, which this dead block already carried as trailing
+;; comments.
+(defenum vol-flags
+  :bitfield #t
+  :type uint32
+  (display?)
+  (vol-flags-1)
+  )
+
+(deftype vol-control (basic)
+  ((flags         vol-flags           :offset-assert 4) ;; guessed by decompiler
+   (process       process-drawable    :offset-assert 8) ;; guessed by decompiler
+   (pos-vol-count int32               :offset-assert 12)
+   (pos-vol       plane-volume     32 :inline :offset-assert 16) ;; guessed by decompiler
+   (neg-vol-count int32               :offset-assert 784)
+   (neg-vol       plane-volume     32 :inline :offset-assert 788) ;; guessed by decompiler
+   (debug-point   vector-array        :offset-assert 1556) ;; guessed by decompiler
+   (debug-normal  vector-array        :offset-assert 1560) ;; guessed by decompiler
+   )
+  :method-count-assert 12
+  :size-assert         #x61c
+  :flag-assert         #xc0000061c
+  (:methods
+    (new (symbol type process-drawable) _type_) ;; 0
+    (debug-draw (_type_) none) ;; 9
+    (vol-control-method-10 (_type_ plane) symbol) ;; 10
+    (should-display? (_type_) symbol) ;; 11
+    )
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
