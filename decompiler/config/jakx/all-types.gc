@@ -44697,10 +44697,10 @@
 ;; collide-planes                 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern collide-planes-intersect function)
-;; (define-extern collide-planes-test0 function)
-;; (define-extern collide-planes-test1 function)
-;; (define-extern collide-planes function)
+(define-extern collide-planes-intersect (function vector (inline-array bounding-box) vector float))
+(define-extern collide-planes-test0 (function vector float float vector vector bounding-box vector float))
+(define-extern collide-planes-test1 (function vector float vector (inline-array vector) vector float))
+(define-extern collide-planes (function (inline-array vector) int vector (inline-array vector) symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; spatial-hash                   ;;
@@ -45795,12 +45795,12 @@
 ;; (define-extern camera-plot-float-func function) ;; (function float float float float (function float float) vector4w none)
 ;; (define-extern camera-line-setup function) ;; (function vector4w none)
 ;; (define-extern camera-line-draw function) ;; (function vector vector none)
-;; (define-extern camera-line function) ;; (function vector vector vector4w none)
+(define-extern camera-line (function vector vector vector4w none))
 ;; (define-extern camera-line-rel function) ;; (function vector vector vector4w none)
 (define-extern camera-line-rel-len (function vector vector float vector4w none))
 ;; (define-extern camera-sphere function) ;; (function vector float vector4w none)
-;; (define-extern camera-cross function) ;; (function vector vector vector vector4w meters none)
-;; (define-extern camera-bounding-box-draw function) ;; (function bounding-box basic rgba none)
+(define-extern camera-cross (function vector vector vector vector4w meters none))
+(define-extern camera-bounding-box-draw (function bounding-box basic rgba none))
 ;; (define-extern *cam-debug-los-tri-current* object) ;; int
 ;; (define-extern *cam-debug-los-tri* object) ;; (inline-array cam-debug-tri)
 ;; (define-extern *cam-debug-coll-tri-current* object) ;; int
@@ -46994,9 +46994,9 @@
   )
 
 
-;; (define-extern light-trail-tracker-init-by-other function) ;; (function light-trail-tracker-spawn-params object :behavior light-trail-tracker)
-;; (define-extern weapon-trail-tracker-init-by-other function) ;; (function weapon-trail-tracker-spawn-params object :behavior weapon-trail-tracker)
-;; (define-extern tread-trail-tracker-init-by-other function) ;; (function light-trail-tracker-spawn-params object :behavior tread-trail-tracker)
+(define-extern light-trail-tracker-init-by-other (function light-trail-tracker-spawn-params object :behavior light-trail-tracker))
+(define-extern weapon-trail-tracker-init-by-other (function weapon-trail-tracker-spawn-params object :behavior weapon-trail-tracker))
+(define-extern tread-trail-tracker-init-by-other (function light-trail-tracker-spawn-params object :behavior tread-trail-tracker))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lightning-new-h                ;;
@@ -48439,9 +48439,9 @@
 ;; main-collide                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern drawable-sphere-box-intersect? function) ;; (function drawable bounding-box4w symbol)
-;; (define-extern instance-sphere-box-intersect? function) ;; (function drawable instance-tie bounding-box4w symbol)
-;; (define-extern instance-tfragment-add-debug-sphere function) ;; (function drawable instance-tie symbol)
+(define-extern drawable-sphere-box-intersect? (function drawable bounding-box4w symbol))
+(define-extern instance-sphere-box-intersect? (function drawable instance-tie bounding-box4w symbol))
+(define-extern instance-tfragment-add-debug-sphere (function drawable instance-tie symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; video                          ;;
@@ -54596,12 +54596,12 @@
   )
 
 
-;; (define-extern *powerup-static-hash* object)
-;; (define-extern *powerup-dynamic-hash* object)
-;; (define-extern net-powerup-init-remote function)
-;; (define-extern *msg-map-net-powerup* array)
-;; (define-extern *net-process-class-info-net-powerup* object)
-;; (define-extern powerup-draw-init-by-other function)
+(define-extern *powerup-static-hash* spatial-hash)
+(define-extern *powerup-dynamic-hash* spatial-hash)
+(define-extern net-powerup-init-remote (function int none :behavior net-powerup))
+(define-extern *msg-map-net-powerup* (array symbol))
+(define-extern *net-process-class-info-net-powerup* net-process-class-info)
+(define-extern powerup-draw-init-by-other (function net-powerup vector entity-actor object :behavior powerup-draw))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-game-mgr-h                 ;;
@@ -63288,13 +63288,13 @@
 ;; sampler                        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern *sampler-mem* object) ;; pointer
-;; (define-extern *sampler-compare* object) ;; uint
-;; (define-extern *sampler-count* object) ;; int
-;; (define-extern *sampler-above-range-count* object)
-;; (define-extern timer0-handler function) ;; (function none)
-;; (define-extern sampler-start function) ;; (function none)
-;; (define-extern sampler-stop function) ;; (function none)
+(define-extern *sampler-mem* pointer)
+(define-extern *sampler-compare* uint)
+(define-extern *sampler-count* int)
+(define-extern *sampler-above-range-count* int)
+(define-extern timer0-handler (function none))
+(define-extern sampler-start (function none))
+(define-extern sampler-stop (function none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; default-menu                   ;;
@@ -81689,7 +81689,7 @@
 (define-extern *msg-map-net-player-ctf* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-player-deathmatch* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-player-race* object) ;; provisional: call-site evidence only
-(define-extern *msg-map-net-powerup* object) ;; provisional: call-site evidence only
+(define-extern *msg-map-net-powerup* (array symbol)) ;; proven: net-process-class-info's msg-map field type, matching *msg-map-net-world*
 (define-extern *msg-map-net-projectile* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-test* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-peak-snowball* object) ;; provisional: call-site evidence only
@@ -81738,7 +81738,7 @@
 (define-extern *net-process-class-info-net-player-rushhour* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-time-box* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-time-trial* object) ;; provisional: call-site evidence only
-(define-extern *net-process-class-info-net-powerup* object) ;; provisional: call-site evidence only
+(define-extern *net-process-class-info-net-powerup* net-process-class-info) ;; proven: matches *net-process-class-info-net-world*, net-powerup-h top-level-login type-new
 (define-extern *net-process-class-info-net-projectile* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-test* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-peak-snowball* object) ;; provisional: call-site evidence only
@@ -81792,7 +81792,7 @@
 (define-extern *power-slide-hud-single* object) ;; provisional: call-site evidence only
 (define-extern *power-slide-hud-single-proc* power-slide-hud-single)
 (define-extern *powercell-footie-constants* object) ;; provisional: call-site evidence only
-(define-extern *powerup-static-hash* object) ;; provisional: call-site evidence only
+(define-extern *powerup-static-hash* spatial-hash) ;; proven: net-powerup-h top-level-login constructs it via (new 'global 'spatial-hash 8192 512)
 (define-extern *prev-create-menu-state-name* object) ;; provisional: call-site evidence only
 (define-extern *prev-room-before-clan* object) ;; provisional: call-site evidence only
 (define-extern *prev-time-of-day-time* object) ;; provisional: call-site evidence only
@@ -81816,7 +81816,7 @@
 (define-extern *rigid-body-queue* object) ;; provisional: call-site evidence only
 (define-extern *rigid-body-queue-manager* object) ;; provisional: call-site evidence only
 (define-extern *rushhour-drone-colors* object) ;; provisional: call-site evidence only
-(define-extern *sampler-mem* object) ;; provisional: call-site evidence only
+(define-extern *sampler-mem* pointer) ;; proven: matches jak3's *sampler-mem*, sampler.gc register usage
 (define-extern *scert-extra-params* object) ;; provisional: call-site evidence only
 (define-extern *scrap-book-3* object) ;; provisional: call-site evidence only
 (define-extern *scratch-top* pointer)
