@@ -4692,9 +4692,30 @@
     (update-actor-hash)
     (hud-string-init)
     (blerc-init)
-    ;; og:preserve-this PC port, matching jak3: the collide VU0 microcode upload is
-    ;; dropped (*collide-vif0-init* home not landed; VU0 does not exist on PC anyway)
-    (when (nonzero? *collide-vif0-init*)
+    ;; og:preserve-this PC port, matching jak2 and jak3: the collide VU0 microcode
+    ;; upload is dropped. VU0 does not exist on the PC port, and dma-send is a
+    ;; deliberate (crash!) stub here exactly as it is in jak3 (dma.gc:27-35 here,
+    ;; jak3/engine/dma/dma.gc:28-36), so this call faults the instant it runs:
+    ;; (crash!) expands to (-> (the (pointer uint8) 0)) (goal-lib.gc:210-213), a read
+    ;; of GOAL address 0. jak2 (engine/game/main.gc:1046-1050) and jak3
+    ;; (engine/game/main.gc:1610-1615) both comment the call out outright.
+    ;;
+    ;; jakx instead carried it behind (when (nonzero? *collide-vif0-init*) ...),
+    ;; written at b67f8f997 ("run the display loop headless", 2026-07-23) when
+    ;; collide.gc had not landed and that symbol still read 0, so the guard was false
+    ;; and the call inert. 9ada081d3 ("land collide", 2026-08-13) landed
+    ;; *collide-vif0-init* as a real static boxed-array (collide.gc:11), which made
+    ;; the guard true and armed the call. That is forge #219's SIG-E: "GOAL code:
+    ;; dma+0x27 ... (reading <goal 0>)" in the "display" process (this defbehavior,
+    ;; spawned :name "display" at main.gc:4770), landing right after
+    ;; "(game-info::reset) boot".
+    ;;
+    ;; #unless PC_PORT rather than another value guard: PC_PORT is a compile-time
+    ;; constant (#t, kernel/gcommon.gc:13), so the call is unreachable by
+    ;; construction and no future landing can re-arm it the way a guard on a data
+    ;; symbol's presence did. Same reader-conditional idiom this subsystem already
+    ;; uses for the VU/VIF class (dma.gc:87 and dma.gc:126).
+    (#unless PC_PORT
       (dma-send
         (the-as dma-bank #x10008000)
         (the-as uint (-> *collide-vif0-init* data))
