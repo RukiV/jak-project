@@ -7,6 +7,17 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this runtime-link guard (forge #219, class sweep alongside 693f31412):
+;; every set! below writes through *speech-control* unconditionally at top level the
+;; instant this file links. *speech-control* is (the-as speech-control #f) until
+;; something allocates a real instance (speech-h.gc:185), so each set! computes a
+;; field address from a null base and writes through it, silently corrupting memory
+;; near address 0 rather than faulting immediately; this is the SIG-A mechanism, not
+;; SIG-B's immediate null jump. One guard covers the whole block since every form here
+;; targets the same global. Retires when *speech-control* is landed as a real instance
+;; before this file's DGO links.
+(if *speech-control*
+    (begin
 ;; failed to figure out what this is:
 (set! (-> *speech-control* channels 15 speeches 0)
       (the-as speech-info-item (new 'static 'speech-info :list (new 'static 'boxed-array :type speech-info-item
@@ -350,3 +361,5 @@
                                                          )
               )
       )
+    )
+    )
