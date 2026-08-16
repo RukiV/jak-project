@@ -1338,6 +1338,36 @@
   // s4 is forced to a raw quadword pointer instead of the struct field path;
   // same slot and range jak3 hints
   "texture-anim-layer-draw": [[[24, 182], "s4", "(pointer uint128)"]],
+  // texture-anim leg: the gs-tex0/gs-tex1/gs-test/gs-clamp/gs-alpha reg-list
+  // writes at &-> a3/a1 <n> only resolve once those slots are forced to their
+  // gs-register pointer types; same slots and range jak3 hints (op numbers
+  // match jakx's own disassembly exactly, no register drift here)
+  "texture-anim-layer-add-clut-shader": [
+    [[23, 30], "a3", "dma-packet"],
+    [[32, 39], "a3", "gs-gif-tag"],
+    [49, "a1", "(pointer gs-tex0)"],
+    [51, "a1", "(pointer gs-reg64)"],
+    [52, "a1", "(pointer gs-tex1)"],
+    [54, "a1", "(pointer gs-reg64)"],
+    [56, "a1", "(pointer gs-test)"],
+    [58, "a1", "(pointer gs-reg64)"],
+    [60, "a1", "(pointer gs-clamp)"],
+    [62, "a1", "(pointer gs-reg64)"],
+    [64, "a1", "(pointer gs-alpha)"],
+    [66, "a1", "(pointer gs-reg64)"]
+  ],
+  // texture-anim leg: the two adgif-color-write sub-pointers (t0 walking
+  // *texture-anim-work* color at v1+32/v1+48) and the third at v1+64 only
+  // resolve once forced to vector4w; jak3's hint uses ops 213-247 for the
+  // same three regions but jakx's op numbering runs 6-15 ops earlier (no
+  // early get-menu-mode check ahead of this point), so the ranges below are
+  // jakx's own, derived from the disassembly rather than transplanted blind
+  "update-texture-anim": [
+    [[195, 232], "v1", "(pointer uint128)"],
+    [[208, 224], "t0", "vector4w"],
+    [[224, 232], "t0", "vector4w"],
+    [[233, 240], "v1", "vector4w"]
+  ],
   // texture-anim leg: jakx's compile puts the tex-pad clut-color-table pointer
   // (jak3's s2-0, arg1 tex pad 1) in a1 instead of s2, register drift from the
   // added viewport-array split-screen check earlier in the same function; range
