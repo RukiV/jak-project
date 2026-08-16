@@ -52728,6 +52728,37 @@
     )
   )
 |#
+;; resurrected from the dead block above (dead-type sweep); declared basic
+;; below when it was actually killed, but wvehicle-h.gc's race-control uses
+;; it only as a plain non-inline pointer field, so the parent correction is
+;; safe (declare-type-audit, census2/declare-type-audit.json)
+(deftype race-line (structure)
+  ((scale            vector :inline :offset-assert 0)
+   (offset           vector :inline :offset-assert 16)
+   (length           float          :offset-assert 32)
+   (flags            uint16         :offset-assert 36)
+   (points-per-slice int16          :offset-assert 38)
+   (point-count      int16          :offset-assert 40)
+   (gap-index-count  int16          :offset-assert 42)
+   (slice-count      int16          :offset-assert 44)
+   (extra-points     int16          :offset-assert 46)
+   (points           uint32         :offset-assert 48)
+   (gap-indices      uint32         :offset-assert 52)
+   (slices           uint32         :offset-assert 56)
+   (pad              uint32         :offset-assert 60)
+   )
+  :method-count-assert 15
+  :size-assert         #x40
+  :flag-assert         #xf00000040
+  (:methods
+    (race-line-method-9 () none) ;; 9
+    (race-line-method-10 () none) ;; 10
+    (race-line-method-11 () none) ;; 11
+    (race-line-method-12 () none) ;; 12
+    (race-line-method-13 () none) ;; 13
+    (race-line-method-14 () none) ;; 14
+    )
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -52764,6 +52795,38 @@
     )
   )
 |#
+;; resurrected from the dead block above (dead-type sweep); declared basic
+;; below when it was actually killed, but wvehicle-h.gc's race-control uses
+;; it only as a plain non-inline pointer field, so the parent correction is
+;; safe (declare-type-audit, census2/declare-type-audit.json)
+(deftype racer-state (structure)
+  ((position                vector    :inline :offset-assert 0)
+   (start-position          vector    :inline :offset-assert 16)
+   (last-race-mesh-position vector    :inline :offset-assert 32)
+   (racer                   uint64            :offset-assert 48) ;; handle
+   (lap-distance            float             :offset-assert 56)
+   (lap                     float             :offset-assert 60)
+   (prev-racer-lap          float             :offset-assert 64)
+   (next-racer-lap          float             :offset-assert 68)
+   (end-of-race-dist        float             :offset-assert 72)
+   (max-speed               float             :offset-assert 76)
+   (last-race-line          race-line         :offset-assert 80)
+   (last-slice              int16             :offset-assert 84)
+   (flags                   uint16            :offset-assert 86) ;; racer-state-flags
+   (rank                    int8              :offset-assert 88)
+   (ai-rank                 int8              :offset-assert 89)
+   (lap-count               int8              :offset-assert 90)
+   (lap-quadrant            int8              :offset-assert 91)
+   )
+  :method-count-assert 12
+  :size-assert         #x5c
+  :flag-assert         #xc0000005c
+  (:methods
+    (racer-state-method-9 () none) ;; 9 ;; (update-lap-distance (_type_ race-state) none)
+    (racer-state-method-10 () none) ;; 10 ;; (begin-lap (_type_ race-state) none)
+    (racer-state-method-11 () none) ;; 11 ;; (end-lap (_type_ race-state) none)
+    )
+  )
 
 #|
 (deftype race-state (structure)
@@ -52796,6 +52859,43 @@
     )
   )
 |#
+;; resurrected from the dead block above (dead-type sweep); declared basic
+;; below when it was actually killed, but wvehicle-h.gc's race-control uses
+;; it only as a plain non-inline pointer field, so the parent correction is
+;; safe (declare-type-audit, census2/declare-type-audit.json). racer-array
+;; also needs :inline restored: without it the type system errors "Field
+;; racer-array was placed at 108 but offset-assert was set to 112" (10
+;; racer-state elements inline, not a pointer array; the census proved the
+;; placement arithmetic against the 112 offset-assert already on the field).
+(deftype race-state (structure)
+  ((start-sphere           sphere      :inline :offset-assert 0)
+   (start-dir              vector      :inline :offset-assert 16)
+   (finish-sphere          sphere      :inline :offset-assert 32)
+   (finish-dir             vector      :inline :offset-assert 48)
+   (race-state             uint8               :offset-assert 64)
+   (racer-count            int8                :offset-assert 65)
+   (lap-count              int8                :offset-assert 66)
+   (start-time             int32               :offset-assert 68)
+   (min-player-lap         float               :offset-assert 72)
+   (max-player-lap         float               :offset-assert 76)
+   (ai-tuning-indices      basic               :offset-assert 80)
+   (first-place-human-id   int32               :offset-assert 84)
+   (rubberband-ref-lap     float               :offset-assert 88)
+   (mesh                   basic               :offset-assert 92)
+   (race-ai-tuning         basic               :offset-assert 96)
+   (race-ai-tuning-indices basic               :offset-assert 100)
+   (longest-race-line-dist float               :offset-assert 104)
+   (racer-array            racer-state 10 :inline :offset-assert 112) ;; guessed by decompiler
+   )
+  :method-count-assert 12
+  :size-assert         #x430
+  :flag-assert         #xc00000430
+  (:methods
+    (race-state-method-9 () none) ;; 9 ;; (init-racers! (_type_ process-drawable int) none)
+    (race-state-method-10 () none) ;; 10 ;; (begin-race (_type_) none)
+    (race-state-method-11 () none) ;; 11 ;; (update (_type_) none)
+    )
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -53035,15 +53135,14 @@
 ;; race-control                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; og:preserve-this see goal_src/jakx/engine/vehicle/wvehicle-h.gc: forced
-;; dependency outside the brief's M1 header list, forward-declared minimally
-;; (race-control's own fields are plain pointers; race-state alone is on
-;; the §2.5 punch list at +920, a reconciliation out of this rung's scope).
+;; og:preserve-this see goal_src/jakx/engine/vehicle/wvehicle-h.gc: race-state,
+;; racer-state and race-line are resurrected above with the basic-to-structure
+;; parent correction (declare-type-audit, census2/declare-type-audit.json), so
+;; only race-mesh still needs a forward declare here; it stays outside the
+;; brief's M1 header list and race-control's own fields are plain pointers, so
+;; the pointee's own layout is not on this rung's critical path.
 ;; :pack-me: wvehicle's own race field lands at 2168, not 16-byte aligned.
-(declare-type race-state basic)
-(declare-type racer-state basic)
 (declare-type race-mesh basic)
-(declare-type race-line basic)
 
 (deftype race-control (structure)
   ((state       race-state   :offset-assert 0)
