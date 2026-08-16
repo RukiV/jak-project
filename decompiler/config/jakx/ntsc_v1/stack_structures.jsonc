@@ -407,5 +407,20 @@
     [80, "matrix"],
     [144, "matrix"],
     [208, "matrix"]
+  ],
+  // mem-buffer's level-bounding-box-method-9 builds a min/max corner pair on the
+  // stack (s4-0 = sp+16) before feeding both halves to vector-min!/vector-max!; the
+  // stores write x/y/z at s4-0+0/4/8 then s4-0+16/20/24, two adjacent 16-byte
+  // vectors. A pair of separate [16,"vector"]/[32,"vector"] entries resolves the
+  // reads (vector-min!/vector-max! take typed pointers fine) but leaves the second
+  // half's stores unresolved: (s.f! (+ s4-0 16) ...) computes its address relative
+  // to the named s4-0 local, 16 bytes past a type the decompiler declared exactly
+  // 16 bytes wide, so it never matches the second absolute-offset hint. Declaring
+  // the whole 32-byte span as one inline-array of 2 vectors fixes both: s4-0
+  // becomes array-typed, the second half's stores render as (-> s4-0 1 x/y/z), and
+  // this resolves the object's last marker (a stack-use guess failure at op 37);
+  // scoped decode is zero-error.
+  "(method 9 level-bounding-box)": [
+    [16, ["inline-array", "vector", 2]]
   ]
 }

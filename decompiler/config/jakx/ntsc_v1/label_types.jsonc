@@ -280,20 +280,47 @@
   // level-bounding-box init: a min/max sentinel pair at offset 0/16 of a freshly
   // allocated level-bounding-box (l.q/s.q!, not lqc2, but 4-word with a trailing
   // 1.0 like every other vector literal here); L10 is the census marker, L9 is
-  // the neighboring min half of the same pair. Resolves both label-use markers,
-  // but (method 9 level-bounding-box) still fails a separate stack-use marker
-  // (op 37) this rung does not touch, so mem-buffer.gc is not landed.
+  // the neighboring min half of the same pair. Resolves both label-use markers;
+  // (method 9 level-bounding-box)'s separate stack-use marker (op 37) is now
+  // fixed too (see stack_structures.jsonc's inline-array-of-2-vectors entry for
+  // that method), so mem-buffer's scoped decode is zero-error. mem-buffer.gc is
+  // still not landed: its sole content, level-bounding-box-method-9, needs the
+  // level-bounding-box deftype in scope first, and the decompiler attributes
+  // that deftype (plus methods 3/10/11) to mem-buffer-h, not mem-buffer -- a
+  // real compile with (mi) fails "Type level-bounding-box is unknown" because
+  // mem-buffer-h.gc is its own much larger stub (dozens of pre-existing type-
+  // prop errors, out of scope for a single-marker fix) and has never landed
+  // that deftype into goal_src. Signature-only for this rung.
   "mem-buffer": [["L10", "vector"], ["L9", "vector"]],
   // klever-skirtlight cloth-params: 22 words (0x58 bytes) matching cloth-params'
   // own size-assert exactly, stored as one element of the (array cloth-params)
   // at skeleton-group+112 alongside the identically-shaped L126/L124/L123/L122,
-  // which the decompiler resolves on its own once the array's element type is
-  // known. Clears the label-use marker the census named, but the surrounding
-  // top-level-login stores dozens of sibling skeleton-group/clothing labels
-  // (L174 downward) the same way; offline-test's actual compile still fails on
-  // the first of those still-unresolved raw label references, so scene-actor.gc
-  // is not landed.
-  "scene-actor": [["L127", "cloth-params"]],
+  // added here on the same evidence: each is 24 raw words between labels (96
+  // bytes, cloth-params' 88-byte size-assert plus 8 bytes of the static
+  // 16-byte alignment pad), field-for-field byte match against cloth-params
+  // (mesh/gravity-constant/wind-constant/cloth-width/flags/tex-name x3/
+  // cloth-thickness/initial-xform/drag/num-iterations+timestep-frequency),
+  // and every one is stored into the same (array cloth-params) at
+  // skeleton-group+112 (L126 at element offset 16, L124 at 20, L123 at 24,
+  // L122 at 28, machine-adjacent to L127's element 0). L126 was the label-use
+  // marker the census named; L124/L123/L122 are its siblings in the same
+  // store sequence, same evidence class. Fixing all four lets the decompiler
+  // reconstruct the whole thing as a real (static-cloth-params ...) macro call
+  // rather than raw label stores, and the scoped decode is zero-error (the
+  // remaining "failed to figure out what this is" comments in the file are all
+  // defskelgroup top-level forms, the documented benign pattern). A real (mi)
+  // build still fails, though, on a different and later blocker: the macro
+  // expansion references klever-highres-ag, an art-group symbol nothing in
+  // this compile provides (the same class of gap as an unarmed level's DGO
+  // group, not a decompiler-config problem), so scene-actor.gc stays
+  // signature-only this rung.
+  "scene-actor": [
+    ["L127", "cloth-params"],
+    ["L126", "cloth-params"],
+    ["L124", "cloth-params"],
+    ["L123", "cloth-params"],
+    ["L122", "cloth-params"]
+  ],
   // *inv-init-table*: 8-element invinitdata array, matching jak3's own L178 entry
   // (decompiler/config/jak3/ntsc_v1/label_types.jsonc) and the landed hand-carry's
   // element count (goal_src/jakx/engine/gfx/generic/generic-merc.gc)
