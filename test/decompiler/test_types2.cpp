@@ -1,6 +1,8 @@
+#include <optional>
 #include <string>
 
 #include "decompiler/Function/Function.h"
+#include "decompiler/IR2/Env.h"
 #include "decompiler/types2/types2.h"
 #include "decompiler/util/DecompilerTypeSystem.h"
 #include "gtest/gtest.h"
@@ -237,4 +239,88 @@ TEST_F(Types2FlipCapTest, RegressionTwoConsumersDisagreeingOnOneStackSlotTermina
   EXPECT_NE(text.find("vector"), std::string::npos);
   EXPECT_NE(text.find("nav-poly"), std::string::npos);
   EXPECT_EQ(count_occurrences(text, "contested stack guess at sp+16"), 1u);
+}
+
+// --- Symbol typing for forward-declared types ----------------------------------------------
+//
+// Only deftype registers a symbol for a type name (DecompilerTypeSystem::parse_type_defs calls
+// add_symbol(name, "type") in its deftype branch but not in its declare-type branch), so a type
+// that all-types.gc merely forward-declares has no symbol_types entry. Loading such a symbol as
+// a value, which every auto-generated top-level-login does when it hands the type object to
+// method-set!, used to fail type prop with "Unknown symbol: <type-name>". try_get_type_symbol_val
+// now falls back to the type system's forward declarations. See decompiler/types2/ForwardProp.cpp.
+
+// try_get_type_symbol_val has external linkage but no header of its own (ForwardProp.cpp is the
+// only translation unit that declares it), so it is declared here rather than widening the
+// production API purely for a test.
+namespace decompiler {
+std::optional<TP_Type> try_get_type_symbol_val(const std::string& name,
+                                               const DecompilerTypeSystem& dts,
+                                               const Env& env);
+}
+
+class Types2SymbolTypeTest : public ::testing::Test {
+ protected:
+  // try_get_type_symbol_val reads env only in its "set-to-run" special case, and none of the
+  // names below take that branch, so a default Env is enough.
+  DecompilerTypeSystem dts{GameVersion::JakX};
+  Env env;
+};
+
+TEST_F(Types2SymbolTypeTest, FullyDefinedTypeSymbolTypesAsThatType) {
+  // The control: what deftype does, and what already worked before the fix.
+  dts.add_symbol("race-line-slice-mapping", "type", DefinitionMetadata());
+  ASSERT_EQ(dts.symbol_types.count("race-line-slice-mapping"), 1u);
+
+  auto result = try_get_type_symbol_val("race-line-slice-mapping", dts, env);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->kind, TP_Type::Kind::TYPE_OF_TYPE_NO_VIRTUAL);
+  EXPECT_EQ(result->get_type_objects_typespec().print(), "race-line-slice-mapping");
+}
+
+TEST_F(Types2SymbolTypeTest, ForwardDeclaredTypeSymbolTypesAsThatType) {
+  // What declare-type does: the type system knows the type, but no symbol is registered.
+  dts.ts.forward_declare_type_as("race-line", "basic");
+  ASSERT_EQ(dts.symbol_types.count("race-line"), 0u);
+  ASSERT_TRUE(dts.ts.partially_defined_type_exists("race-line"));
+
+  // Pre-fix this returned nullopt, which get_type_symbol_val turned into
+  // "Unknown symbol: race-line" and types2 recorded as a failed type prop.
+  auto result = try_get_type_symbol_val("race-line", dts, env);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result->kind, TP_Type::Kind::TYPE_OF_TYPE_NO_VIRTUAL);
+  EXPECT_EQ(result->get_type_objects_typespec().print(), "race-line");
+}
+
+TEST_F(Types2SymbolTypeTest, ForwardDeclaredTypeMatchesAFullyDefinedOneExactly) {
+  // The fix's whole claim is that the two cases are indistinguishable to a symbol load, so pin
+  // that rather than just the shape of each result.
+  dts.ts.forward_declare_type_as("vol-control", "basic");
+  dts.add_symbol("plane-volume", "type", DefinitionMetadata());
+
+  auto declared = try_get_type_symbol_val("vol-control", dts, env);
+  auto defined = try_get_type_symbol_val("plane-volume", dts, env);
+  ASSERT_TRUE(declared.has_value());
+  ASSERT_TRUE(defined.has_value());
+  EXPECT_EQ(declared->kind, defined->kind);
+  EXPECT_EQ(declared->typespec().print(), defined->typespec().print());
+}
+
+TEST_F(Types2SymbolTypeTest, GenuinelyUnknownSymbolStillFails) {
+  // The fallback must not invent types for names the type system has never heard of, or a
+  // missing all-types entry would decode as a silently wrong type instead of a loud marker.
+  // race-line-get-points is exactly this case in jakx: its deftype is commented out and it has
+  // no declare-type, so it must keep failing.
+  ASSERT_FALSE(dts.ts.partially_defined_type_exists("race-line-get-points"));
+  EXPECT_FALSE(try_get_type_symbol_val("race-line-get-points", dts, env).has_value());
+}
+
+TEST_F(Types2SymbolTypeTest, FullyDefinedTypeWithNoSymbolIsNotTreatedAsForwardDeclared) {
+  // forward_declare_type_as is a no-op once a type is fully defined, so a deftype'd type that
+  // deliberately has no runtime symbol (:no-runtime-type) must not pick up the fallback.
+  // kheap is a builtin, so it is fully defined here without any all-types.gc being parsed.
+  ASSERT_TRUE(dts.ts.fully_defined_type_exists("kheap"));
+  ASSERT_EQ(dts.symbol_types.count("kheap"), 0u);
+  ASSERT_FALSE(dts.ts.partially_defined_type_exists("kheap"));
+  EXPECT_FALSE(try_get_type_symbol_val("kheap", dts, env).has_value());
 }

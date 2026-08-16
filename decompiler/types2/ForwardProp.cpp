@@ -145,6 +145,12 @@ std::optional<TP_Type> try_get_type_symbol_val(const std::string& name,
   // look up the type of the symbol
   auto type = dts.symbol_types.find(name);
   if (type == dts.symbol_types.end()) {
+    // Only deftype registers a symbol for the type name, so a type that all-types.gc merely
+    // forward-declares with declare-type has no entry here. The runtime symbol still holds the
+    // type object either way, so type the load exactly as a fully-defined type's would be.
+    if (dts.ts.partially_defined_type_exists(name)) {
+      return TP_Type::make_type_no_virtual_object(TypeSpec(name));
+    }
     // we don't know it, failed.
     return {};
   }
