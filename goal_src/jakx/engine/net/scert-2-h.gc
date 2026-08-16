@@ -85,3 +85,95 @@
   :size-assert         #x8c
   :flag-assert         #x90000008c
   )
+
+;; og:preserve-this bring-up: rsa-keypair relocates here for the same reason
+;; as the five above: scert-9-h needs it (medius-initialize-in-params and
+;; medius-initialize-bare-in-params reference it as a plain, non-:inline
+;; field), and it has no registered home anywhere in the corpus (confirmed by
+;; decode: nothing else in goal_src mentions it). Transcribed verbatim from
+;; decompiler/config/jakx/all-types.gc, a single live declaration with no
+;; dead block to resurrect. No :pack-me in the source and none needed: it
+;; embeds two rsa-key :inline (already available above) back to back with no
+;; gap either way (0 and 64, rsa-key's own size is exactly 0x40).
+
+(deftype rsa-keypair (structure)
+  ((public-key  rsa-key :inline :offset-assert 0)
+   (private-key rsa-key :inline :offset-assert 64)
+   )
+  :method-count-assert 9
+  :size-assert         #x80
+  :flag-assert         #x900000080
+  )
+
+;; og:preserve-this bring-up: net-audio-data-characteristics, net-video-data-
+;; characteristics and net-stream-media-params duplicate here from their
+;; genuine home, stream-media-h.gc (game.gd slot 357), for the same build-
+;; order reason as the five above: scert-9-h needs net-stream-media-params
+;; :inline (via medius-connect-in-params, itself genuinely registered to
+;; scert-9-h, slot 126), which compiles long before stream-media-h.gc. Unlike
+;; the five above, these three are not homeless: stream-media-h.gc already
+;; carries a real landed copy for stream-media.gc's own extern (game.gd slot
+;; 430). A second copy this early is a build-order duplication, not a
+;; relocation: moving the originals out of stream-media-h.gc would touch a
+;; file outside this wave and outside the scert family. GOAL rejects a type
+;; redefined with a different :pack-me setting, so this copy stays byte-
+;; identical to stream-media-h.gc's, which now also carries :pack-me on
+;; net-audio-data-characteristics for the same reason medius-connect-in-
+;; params needs it below: net-stream-media-params must embed at offset 156,
+;; not the 160 default packing produces, proven by scoped decode against
+;; scert-9-h's own compiled method 3 (see stream-media-h.gc's comment).
+
+(deftype net-audio-data-characteristics (structure)
+  ((n-channels-in         int32  :offset-assert 0)
+   (n-bits-per-sample-in  int32  :offset-assert 4)
+   (n-sample-rate-in      int32  :offset-assert 8)
+   (n-channels-out        int32  :offset-assert 12)
+   (n-bits-per-sample-out int32  :offset-assert 16)
+   (n-sample-rate-out     int32  :offset-assert 20)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x18
+  :flag-assert         #x900000018
+  )
+
+(deftype net-video-data-characteristics (structure)
+  ((xsize int32  :offset-assert 0)
+   (ysize int32  :offset-assert 4)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x8
+  :flag-assert         #x900000008
+  )
+
+(deftype net-stream-media-params (structure)
+  ((b-default-set                       int32                                  :offset-assert 0)
+   (b-use-stream-media                  int32                                  :offset-assert 4)
+   (num-channels                        uint32                                 :offset-assert 8)
+   (max-incoming-audio-streams          uint32                                 :offset-assert 12)
+   (record-no-data-timeout              uint32                                 :offset-assert 16)
+   (send-buffer-size                    uint32                                 :offset-assert 20)
+   (recv-buffer-size                    uint32                                 :offset-assert 24)
+   (grid-type                           int32                                  :offset-assert 28)
+   (audio-data-characteristics          net-audio-data-characteristics :inline :offset-assert 32)
+   (pf-audio-record-callback            basic                                  :offset-assert 56)
+   (p-audio-record-callback-data        basic                                  :offset-assert 60)
+   (pf-audio-play-callback              basic                                  :offset-assert 64)
+   (p-audio-play-callback-data          basic                                  :offset-assert 68)
+   (video-data-characteristics          net-video-data-characteristics :inline :offset-assert 72)
+   (pf-video-record-callback            basic                                  :offset-assert 80)
+   (p-video-record-callback-data        basic                                  :offset-assert 84)
+   (pf-video-play-callback              basic                                  :offset-assert 88)
+   (p-video-play-callback-data          basic                                  :offset-assert 92)
+   (pf-custom-video-record-callback     basic                                  :offset-assert 96)
+   (p-custom-video-record-callback-data basic                                  :offset-assert 100)
+   (pf-custom-video-play-callback       basic                                  :offset-assert 104)
+   (p-custom-video-play-callback-data   basic                                  :offset-assert 108)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x70
+  :flag-assert         #x900000070
+  ;; field p-audio-record-callback-data uses ~A with a signed load. field p-audio-play-callback-data uses ~A with a signed load. field p-video-record-callback-data uses ~A with a signed load. field p-video-play-callback-data uses ~A with a signed load. field p-custom-video-record-callback-data uses ~A with a signed load. field p-custom-video-play-callback-data uses ~A with a signed load.
+  )

@@ -14,6 +14,18 @@
 ;; stream-media-h.o ahead of stream-media.o). Transcribed verbatim from
 ;; decompiler/config/jakx/all-types.gc to satisfy the two-file consistency rule.
 
+;; og:preserve-this bring-up: :pack-me added to net-audio-data-characteristics.
+;; The scert-tail wave's medius-connect-in-params (scert-9-h.gc), a consumer
+;; of net-stream-media-params added later than this file, needs it embedded
+;; at offset 156, which needs net-stream-media-params packed, which in turn
+;; needs its own audio-data-characteristics field packed (a GOAL structure's
+;; :inline embedding alignment is a property of the embedded type, not the
+;; container). Proven by scoped decode: a loose attempt for medius-connect-
+;; in-params computed offset 160 and broke scert-9-h's own compiled method 3
+;; with "add failed: medius-connect-in-params <integer 156>", the original
+;; binary's own evidence that 156 is correct. Neither type's own field
+;; offsets change: every field here is already naturally aligned with no
+;; gaps, packed or not.
 (deftype net-audio-data-characteristics (structure)
   ((n-channels-in         int32  :offset-assert 0)
    (n-bits-per-sample-in  int32  :offset-assert 4)
@@ -22,6 +34,7 @@
    (n-bits-per-sample-out int32  :offset-assert 16)
    (n-sample-rate-out     int32  :offset-assert 20)
    )
+  :pack-me
   :method-count-assert 9
   :size-assert         #x18
   :flag-assert         #x900000018
@@ -61,6 +74,7 @@
    (pf-custom-video-play-callback       basic                                  :offset-assert 104)
    (p-custom-video-play-callback-data   basic                                  :offset-assert 108)
    )
+  :pack-me
   :method-count-assert 9
   :size-assert         #x70
   :flag-assert         #x900000070

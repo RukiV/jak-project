@@ -23588,6 +23588,7 @@
    (n-bits-per-sample-out int32  :offset-assert 16)
    (n-sample-rate-out     int32  :offset-assert 20)
    )
+  :pack-me
   :method-count-assert 9
   :size-assert         #x18
   :flag-assert         #x900000018
@@ -23702,6 +23703,7 @@
    (pf-custom-video-play-callback       basic                                  :offset-assert 104)
    (p-custom-video-play-callback-data   basic                                  :offset-assert 108)
    )
+  :pack-me
   :method-count-assert 9
   :size-assert         #x70
   :flag-assert         #x900000070
@@ -30806,6 +30808,32 @@
   :flag-assert         #x90000011c
   )
 |#
+;; resurrected from the dead block above (scert-9-h landing): scert-9-h's own
+;; top-level-login references the symbol directly and compiles a real method 3
+;; for this type, confirming scert-9-h is its registered home rather than an
+;; all-types-only layout type. Full asserts kept (not the loose, no-assert
+;; style scert-9-h's message-struct siblings decode to): a loose first
+;; attempt here, computing stream-media-params at offset 160, broke scoped
+;; decode of scert-9-h's own compiled method 3 with "add failed: medius-
+;; connect-in-params <integer 156>", proof from the original binary itself
+;; that offset 156 (the dead block's own number) is the true layout. Getting
+;; 156 needs :pack-me on net-audio-data-characteristics and net-stream-
+;; media-params too (both added here and in their genuine home,
+;; stream-media-h.gc, plus scert-2-h.gc's early duplicate of both, to keep
+;; the JakXTypeConsistency gate's goal_src/all-types agreement).
+(deftype medius-connect-in-params (structure)
+  ((connect-info                         net-connection-info     :inline :offset-assert 0)
+   (stream-media-params                  net-stream-media-params :inline :offset-assert 156)
+   (max-clients-per-connection           uint32                          :offset-assert 268)
+   (my-connect-callback                  basic                           :offset-assert 272)
+   (pf-remote-client-connect-callback    basic                           :offset-assert 276)
+   (pf-remote-client-disconnect-callback basic                           :offset-assert 280)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x11c
+  :flag-assert         #x90000011c
+  )
 
 #|
 (deftype medius-connect-out-params (structure)
