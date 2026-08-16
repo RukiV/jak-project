@@ -217,6 +217,39 @@ jobs:
           git show "origin/$BASE:scripts/find_unarmed_levers.py" > "$GUARDS/find_unarmed_levers.py"
           python3 "$GUARDS/gen_inert_ledger.py" --check
 
+      # decompiler/config/jakx/all-types.gc loads top to bottom, and a LATER
+      # declaration of a name silently wins over an earlier one. The recurring
+      # shape: an early, evidence-backed define-extern (or a full deftype) gets
+      # overridden by a later, weaker bulk "provisional: call-site evidence
+      # only" entry, and the earlier declaration keeps reading as though it is
+      # in effect while the compiler quietly uses the weaker one. This is a
+      # RATCHET on the diff, the same shape as the deferral gate above: the
+      # tree carries a large pre-existing backlog (the audit that added this
+      # step found dozens of conflicting duplicates already committed), and
+      # failing on that backlog would make every branch unlandable until a
+      # dedicated sweep clears it. Only shadowing NEWLY introduced by this
+      # change fails here. Flip check_alltypes_shadowing.py's own --mode to
+      # absolute once that sweep lands and the backlog is zero, the same way
+      # phase B for #176 is expected to retire this ratchet's counterpart.
+      - name: No new all-types.gc shadowing duplicates
+        run: |
+          set -eu
+          BASE="${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags --depth=200 origin "$BASE"
+          # Same split as the deferral gate: TOOLING from the base ref, CONTENT
+          # from the head, so the gate cannot be evaded by editing or deleting
+          # the checker on the branch under test. A base predating the script
+          # has nothing to fetch, so skip with a notice rather than fail; the
+          # ratchet starts protecting the tree from the first PR merged after
+          # this one, not before.
+          if ! git show "origin/$BASE:scripts/check_alltypes_shadowing.py" > /dev/null 2>&1; then
+            echo "::notice::This branch's base predates scripts/check_alltypes_shadowing.py, so the all-types shadowing ratchet is skipped."
+            exit 0
+          fi
+          GUARDS="$(mktemp -d)"
+          git show "origin/$BASE:scripts/check_alltypes_shadowing.py" > "$GUARDS/check_alltypes_shadowing.py"
+          python3 "$GUARDS/check_alltypes_shadowing.py" --mode diff --base "origin/$BASE"
+
       - name: Required checks
         run: |
           python3 ./scripts/ci/lint-trailing-whitespace.py
