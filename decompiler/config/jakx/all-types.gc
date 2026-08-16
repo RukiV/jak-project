@@ -51844,21 +51844,33 @@
 ;; does not explain jakx's gap; the ten inspect-attested fields close at 28 while the
 ;; game registration oracle says 32, and deftype.cpp:553 takes the size straight from
 ;; the field cursor with no rounding, so exactly four unattributed bytes live at offset
-;; 28; named pad-tail rather than guessed -- jak3 carries an (inline-array vector)
-;; "color" field in the same relative slot, which is the leading hypothesis but is not
-;; evidenced in jakx; asserts verified against the game registration oracle)
+;; 28; asserts verified against the game registration oracle)
+;; og:preserve-this those four bytes are not padding. In all sixteen
+;; *v-<car>-constants* statics the word at +28 is a reloc, which is why every
+;; rigid-body-vehicle-constants static failed here with "unknown data" as soon as the
+;; sound block above it was fixed. It is jak2's color-option-array: jak2 names the
+;; field that way, types it (inline-array vector), and places it immediately after its
+;; own color-option-count and color-option-select
+;; (decompiler/config/jak2/all-types.gc:51850-51852), and jak2's landed statics write
+;; exactly what jakx's data holds, a single unit-white vector
+;; (goal_src/jak2/levels/city/ctyport-obs.gc:117). In jakx the target label is 16 bytes
+;; of 1.0 in every car and color-option-count is 1 in every car, so span and count
+;; agree at stride 16. The element type and the count are proven by that agreement;
+;; the NAME is transplanted from jak2 rather than proven, because jakx's own
+;; (method 3 vehicle-setup-info) stops printing at color-option-select and never names
+;; this field.
 (deftype vehicle-setup-info (structure)
-  ((settle-height       float  :offset-assert 0)
-   (settle-rot-x        float  :offset-assert 4)
-   (idle-settle-height  float  :offset-assert 8)
-   (idle-settle-rot-x   float  :offset-assert 12)
-   (shadow-bot-clip     float  :offset-assert 16)
-   (shadow-locus-dist   float  :offset-assert 20)
-   (look-select         uint8  :offset-assert 24)
-   (rp-node-count       int8   :offset-assert 25)
-   (color-option-count  int8   :offset-assert 26)
-   (color-option-select int8   :offset-assert 27)
-   (pad-tail            uint32 :offset-assert 28) ;; pad-only: 4 unattributed bytes, see blocks-batch2.md
+  ((settle-height       float                 :offset-assert 0)
+   (settle-rot-x        float                 :offset-assert 4)
+   (idle-settle-height  float                 :offset-assert 8)
+   (idle-settle-rot-x   float                 :offset-assert 12)
+   (shadow-bot-clip     float                 :offset-assert 16)
+   (shadow-locus-dist   float                 :offset-assert 20)
+   (look-select         uint8                 :offset-assert 24)
+   (rp-node-count       int8                  :offset-assert 25)
+   (color-option-count  int8                  :offset-assert 26)
+   (color-option-select int8                  :offset-assert 27)
+   (color-option-array  (inline-array vector) :offset-assert 28)
    )
   :method-count-assert 9
   :size-assert         #x20
@@ -51973,15 +51985,25 @@
 ;;             12/13/14) are each printed with `lb`, so int8.
 ;; The named fields become :offset overlays, matching the jak3 vehicle-seat-info
 ;; pattern for an inspect that prints both the raw array and its union members.
+;; og:preserve-this the three data words are seat-array pointers, not integers, so
+;; data[3] carries :do-not-decompile and the three named overlays carry the decode.
+;; An array-of-values field can never hold a reloc: decompile_value_array throws
+;; "expecting array of uint32's, got a 1", and the special-case map is only consulted
+;; for non-array fields, so suppressing data[3] is the only way to reach the overlays.
+;; The field stays declared because the game's own (method 3) prints it. Element type
+;; and count are proven together across all sixteen *v-<car>-constants*: every non-#f
+;; pointer's label spans exactly count * 16 bytes against the matching byte of
+;; counts[3] (1/16B, 2/32B, 3/48B, 4/64B, 5/80B, no exceptions), 16 being
+;; vehicle-seat-info's registered size, and every zero count is a #f pointer.
 (deftype vehicle-daxter-info (structure)
-  ((data               uint32 3 :offset-assert 0)
-   (counts             int8   3 :offset-assert 12)
-   (chassis-seats      uint32   :offset 0)
-   (trunk-seats        uint32   :offset 4)
-   (roof-seats         uint32   :offset 8)
-   (chassis-seat-count int8     :offset 12)
-   (trunk-seat-count   int8     :offset 13)
-   (roof-seat-count    int8     :offset 14)
+  ((data               uint32 3                        :offset-assert 0 :do-not-decompile)
+   (counts             int8   3                        :offset-assert 12)
+   (chassis-seats      (inline-array vehicle-seat-info) :offset 0)
+   (trunk-seats        (inline-array vehicle-seat-info) :offset 4)
+   (roof-seats         (inline-array vehicle-seat-info) :offset 8)
+   (chassis-seat-count int8                            :offset 12)
+   (trunk-seat-count   int8                            :offset 13)
+   (roof-seat-count    int8                            :offset 14)
    )
   :method-count-assert 9
   :size-assert         #xf
@@ -52022,13 +52044,22 @@
 ;; element whose byte 48 is a vector is a matrix and its trans row. No type named
 ;; vehicle-attach-point is registered, inspected, or named anywhere in the jakx
 ;; corpus, so there is nothing to transplant here.
+;; og:preserve-this attach-node-array holds signed bytes, not a word.
+;; (method 66 vehicle) in vehicle_ir2.asm loads the pointer with `lwu v1, 3124(s5)`,
+;; adds the loop index with no shift at all, and reads the element with `lb`, then
+;; uses it as a joint index (`dsll v1, v1, 5`). The static data agrees: the target
+;; label is 16 bytes holding twelve consecutive small values followed by four zero
+;; bytes, and attach-point-count is 12 in every car that has one, with the drone's
+;; count 0 paired with a #f pointer. Stride 1 means the guesser consumes the four
+;; zero pad bytes too, so the decode emits 16 elements for a 12-element array; that
+;; is the label span, not a miscount.
 (deftype vehicle-rider-info (structure)
   ((seat-count         int8                          :offset-assert 0)
    (attach-point-count int8                          :offset-assert 1)
    (seat-array         vehicle-seat-info   2 :inline :offset-assert 16)
    (rider-hand-offset  vector              2 :inline :offset-assert 48)
    (attach-point-array (inline-array matrix)         :offset-assert 80)
-   (attach-node-array  uint32                        :offset-assert 84)
+   (attach-node-array  (pointer int8)                :offset-assert 84)
    )
   :method-count-assert 9
   :size-assert         #x58
@@ -52071,17 +52102,25 @@
 ;;            plus these three then account for all seven nodes exactly. No code
 ;;            in the corpus reads 3188-3190 directly, so this one is inferred
 ;;            from containment rather than load-proven.
+;; og:preserve-this local-pos-array is an inline array of vectors, proven by live
+;; code rather than by its contents, which are 112 zero bytes in all sixteen cars.
+;; (method 150 vehicle) in vehicle-util_ir2.asm loads it with `lwu a1, 3136(a1)`,
+;; scales the index with `dsll a2, a2, 4` and passes the element straight to
+;; vector-matrix*! in its (function vector vector matrix vector) source-vector slot;
+;; wvehicle-weapons reads element 2 with `daddiu a0, a0, 32` plus `lq`. Stride 16,
+;; element type vector. The count is 7, from the 112-byte label span, which is also
+;; the width of the sibling nodes[7].
 (deftype vehicle-hardpoint-info (structure)
-  ((local-pos-array    uint32          :offset-assert 0)
-   (flag-attach        vector  :inline :offset-assert 16)
-   (antenna-attach     vector  :inline :offset-assert 32)
-   (nodes              int8    7       :offset-assert 48)
-   (shield-anim        int16           :offset-assert 56)
-   (left-gun           int8            :offset 48)
-   (right-gun          int8            :offset 49)
-   (mine-launcher      int8            :offset 50)
-   (trunk              int8            :offset 51)
-   (super-turbo-attach int8    3       :offset 52)
+  ((local-pos-array    (inline-array vector) :offset-assert 0)
+   (flag-attach        vector        :inline :offset-assert 16)
+   (antenna-attach     vector        :inline :offset-assert 32)
+   (nodes              int8    7             :offset-assert 48)
+   (shield-anim        int16                 :offset-assert 56)
+   (left-gun           int8                  :offset 48)
+   (right-gun          int8                  :offset 49)
+   (mine-launcher      int8                  :offset 50)
+   (trunk              int8                  :offset 51)
+   (super-turbo-attach int8    3             :offset 52)
    )
   :method-count-assert 9
   :size-assert         #x3a
