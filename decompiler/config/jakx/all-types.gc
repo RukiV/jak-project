@@ -51531,6 +51531,21 @@
   :flag-assert         #x900000018
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype vehicle-sound-engine-loop-info (structure)
+  ((sound-array  uint8  3 :offset-assert 0)
+   (base-sound   uint16 :offset-assert 0 :overlay-at (-> sound-array 0))
+   (load-sound   uint16 :offset-assert 2 :overlay-at (-> sound-array 2))
+   (ai-sound     uint16 :offset-assert 4)
+   (original-rpm float  :offset-assert 8)
+   (min-rpm      float  :offset-assert 12)
+   (max-rpm      float  :offset-assert 16)
+   (pitch-scale  float  :offset-assert 20)
+   )
+  :method-count-assert 9
+  :size-assert         #x18
+  :flag-assert         #x900000018
+  )
 
 #|
 (deftype vehicle-sound-info (structure)
@@ -69930,6 +69945,17 @@
   :flag-assert         #x900000010
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype update-engine-loop-state-work (structure)
+  ((i-loop int8                           :offset-assert 0)
+   (info   vehicle-sound-engine-loop-info :offset-assert 4)
+   (volume float                          :offset-assert 8)
+   (pitch  float                          :offset-assert 12)
+   )
+  :method-count-assert 9
+  :size-assert         #x10
+  :flag-assert         #x900000010
+  )
 
 #|
 (deftype update-engine-mix-state-work (structure)
@@ -69947,6 +69973,21 @@
   :flag-assert         #x900000033
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype update-engine-mix-state-work (structure)
+  ((loops             update-engine-loop-state-work 2 :inline :offset-assert 0)
+   (xover1            float                         :offset-assert 32)
+   (xover2            float                         :offset-assert 36)
+   (crossover         float                         :offset-assert 40)
+   (ups               float                         :offset-assert 44)
+   (active-loop-count int8                          :offset-assert 48)
+   (i-min             int8                          :offset-assert 49)
+   (i-max             int8                          :offset-assert 50)
+   )
+  :method-count-assert 9
+  :size-assert         #x33
+  :flag-assert         #x900000033
+  )
 
 ;; (define-extern update-engine-mix-state function)
 ;; (define-extern *debug-engine-sound-work* object)
@@ -70051,6 +70092,31 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype vehicle-reticle-on-me (vehicle-reticle-base)
+  ((targeted-by                  uint64     :offset-assert 160)
+   (hsprites-base                hud-sprite 3 :inline :offset-assert 176)
+   (hsprites-missinc-static      hud-sprite 2 :inline :offset-assert 368)
+   (hsprites-missinc-spinner     hud-sprite 1 :inline :offset-assert 496)
+   (hsprites-missinc-converge    hud-sprite 2 :inline :offset-assert 560)
+   (hsprites-peacemaker-converge hud-sprite 4 :inline :offset-assert 688)
+   (side-parts-kickout           float      :offset-assert 944)
+   (missile-by                   uint64     :offset-assert 952)
+   (missile-by-last-seen         uint64     :offset-assert 960)
+   (missile-closest-dist         float      :offset-assert 968)
+   (lockon-sound                 uint32     :offset-assert 972)
+   )
+  :method-count-assert 26
+  :size-assert         #x3d0
+  :flag-assert         #x1a034003d0
+  (:state-methods
+    idle ;; 15
+    missile-incoming ;; 16
+    missile-incoming-abort ;; 17
+    peacemaker-incoming ;; 18
+    peacemaker-incoming-abort ;; 19
+    )
+  )
 
 #|
 (deftype vehicle-reticle-on-them (vehicle-reticle-base)
@@ -70067,6 +70133,20 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype vehicle-reticle-on-them (vehicle-reticle-base)
+  ((hsprites     hud-sprite 11 :inline :offset-assert 160)
+   (spinner-rate uint64     :offset-assert 864)
+   (lockon-sound uint32     :offset-assert 872)
+   )
+  :method-count-assert 23
+  :size-assert         #x36c
+  :flag-assert         #x1702e0036c
+  (:state-methods
+    idle ;; 15
+    vehicle-target ;; 16
+    )
+  )
 
 ;; (define-extern reticle-wad-on-me-base array)
 ;; (define-extern reticle-wad-on-me-missile-static array)
@@ -70318,6 +70398,48 @@
   :flag-assert         #x900000220
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype wvehicle-physics-work (structure)
+  ((wheel-work-array      wvehicle-wheel-work 4 :inline :offset-assert 0)
+   (mat                   matrix              :inline :offset-assert 192)
+   (force                 vector              :inline :offset-assert 256)
+   (velocity              vector              :inline :offset-assert 272)
+   (vel-dir               vector              :inline :offset-assert 288)
+   (world-pos             vector              :inline :offset-assert 304)
+   (local-pos             vector              :inline :offset-assert 320)
+   (tmp                   vector              :inline :offset-assert 336)
+   (p-body                vector              :inline :offset-assert 352)
+   (axis                  vector              :inline :offset-assert 368)
+   (ground-pos            vector              :inline :offset-assert 384)
+   (forward-dir           vector              :inline :offset-assert 400)
+   (side-dir              vector              :inline :offset-assert 416)
+   (wheel-axis            vector              :inline :offset-assert 432)
+   (wsphere               sphere              :inline :offset-assert 448)
+   (vel-len               float               :offset-assert 464)
+   (forward-vel           float               :offset-assert 468)
+   (friction-coef         float               :offset-assert 472)
+   (wheel-radius          float               :offset-assert 476)
+   (gravity-mag           float               :offset-assert 480)
+   (downforce             float               :offset-assert 484)
+   (side-force            float               :offset-assert 488)
+   (forward-force         float               :offset-assert 492)
+   (max-forward-tire-grip float               :offset-assert 496)
+   (max-side-tire-grip    float               :offset-assert 500)
+   (inertia-eff           float               :offset-assert 504)
+   (ground-torque         float               :offset-assert 508)
+   (braking-torque        float               :offset-assert 512)
+   (total-torque          float               :offset-assert 516)
+   (limit-braking-torque  float               :offset-assert 520)
+   (max-braking-torque    float               :offset-assert 524)
+   (traction-factor       float               :offset-assert 528)
+   (tire-traction         float               :offset-assert 532)
+   (surface-drag          float               :offset-assert 536)
+   (cur-time              uint32              :offset-assert 540)
+   )
+  :method-count-assert 9
+  :size-assert         #x220
+  :flag-assert         #x900000220
+  )
 
 #|
 (deftype wvehicle-probe-work (structure)
@@ -71845,6 +71967,14 @@
   :flag-assert         #x900000060
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype vehicle-antenna-state (structure)
+  ((data uint128 6 :offset-assert 0)
+   )
+  :method-count-assert 9
+  :size-assert         #x60
+  :flag-assert         #x900000060
+  )
 
 #|
 (deftype vehicle-antenna (process-drawable)
