@@ -5,54 +5,18 @@
 ;; name in dgo: net-mgr-h
 ;; dgos: ENGINE, GAME
 
-;; the six medius-lobby address/connection types net-mgr-medius-games-h needs;
-;; transcribed verbatim from all-types.gc (in-list dependency order: rsa-key
-;; and net-address have no deps, net-address-list inlines net-address,
-;; net-connection-info inlines rsa-key + net-address-list, net-available-game
-;; inlines net-available-game-info + net-connection-info).
-
-(deftype rsa-key (structure)
-  ((key uint32 16 :offset-assert 0)
-   )
-  :pack-me
-  :method-count-assert 9
-  :size-assert         #x40
-  :flag-assert         #x900000040
-  )
-
-(deftype net-address (structure)
-  ((address-type int32      :offset-assert 0)
-   (address      int8   16 :offset-assert 4)
-   (port         uint32     :offset-assert 20)
-   )
-  :pack-me
-  :method-count-assert 9
-  :size-assert         #x18
-  :flag-assert         #x900000018
-  )
-
-(deftype net-address-list (structure)
-  ((a-address-list net-address 2 :inline :offset-assert 0)
-   )
-  :pack-me
-  :method-count-assert 9
-  :size-assert         #x30
-  :flag-assert         #x900000030
-  )
-
-(deftype net-connection-info (structure)
-  ((e-type        int32                    :offset-assert 0)
-   (address-list  net-address-list :inline :offset-assert 4)
-   (world-id      int32                    :offset-assert 52)
-   (server-key    rsa-key          :inline :offset-assert 56)
-   (a-session-key uint8          17      :offset-assert 120)
-   (a-access-key  uint8          17      :offset-assert 137)
-   )
-  :pack-me
-  :method-count-assert 9
-  :size-assert         #x9a
-  :flag-assert         #x90000009a
-  )
+;; net-available-game-info and net-available-game below are this object's own
+;; genuine registration: its clean decode defines both directly, confirming
+;; game.gd slot 131 is their natural home.
+;;
+;; og:preserve-this bring-up: rsa-key, net-address, net-address-list and
+;; net-connection-info used to live here too (transcribed verbatim from
+;; all-types.gc, in-list dependency order), but scert-5-h through scert-8-h
+;; need them :inline and those objects compile before this one (game.gd slot
+;; 131 is after scert-5-h's slot 122), so the four moved to scert-2-h.gc,
+;; which precedes every consumer. net-available-game below still inlines
+;; net-connection-info; that is safe because scert-2-h.o compiles first and
+;; the type is fully defined by the time this file's forms run.
 
 (deftype net-available-game-info (structure)
   ((game-name    uint8   64 :offset-assert 0)

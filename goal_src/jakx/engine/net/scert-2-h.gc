@@ -6,3 +6,82 @@
 ;; dgos: ENGINE, GAME
 
 ;; DECOMP BEGINS
+
+;; og:preserve-this bring-up: this object's own decode is genuinely empty (its
+;; _REF.gc is the standard "failed to figure out what this is: 0" no-op marker),
+;; so it hosts a build-order relocation instead. rsa-key, net-address,
+;; net-address-list and net-connection-info moved here from net-mgr-h.gc:
+;; scert-5-h through scert-8-h need them :inline, and net-mgr-h.o (game.gd slot
+;; 131) compiles after scert-5-h (slot 122), so the four had to move earlier.
+;; medius-player-online-state lands here for the first time for the same
+;; reason, needed :inline by scert-6-h through scert-8-h. All five are
+;; all-types-only layout types with no game-registered home anywhere in the
+;; corpus (confirmed by decode: no object other than net-mgr-h ever defined the
+;; first four, and no object at all defines medius-player-online-state).
+;; scert-2-h.gc is the latest already-landed scert-family header that still
+;; precedes every consumer, chosen over scert-3-h/scert-4-h specifically
+;; because those two objects have their own real decoded bodies still unlanded
+;; (out of scope for this wave); appending here instead of there avoids a
+;; future scert-3-h/scert-4-h landing overwriting this block when it copies a
+;; fresh decode dump below its own DECOMP BEGINS marker. Transcribed verbatim
+;; from decompiler/config/jakx/all-types.gc (the first four by way of
+;; net-mgr-h.gc's own prior verbatim transcription), ordered so every :inline
+;; field type is defined above its user: rsa-key and net-address have no deps,
+;; net-address-list inlines net-address, net-connection-info inlines rsa-key +
+;; net-address-list; medius-player-online-state has no deps of its own.
+
+(deftype rsa-key (structure)
+  ((key uint32 16 :offset-assert 0)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x40
+  :flag-assert         #x900000040
+  )
+
+(deftype net-address (structure)
+  ((address-type int32      :offset-assert 0)
+   (address      int8   16 :offset-assert 4)
+   (port         uint32     :offset-assert 20)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x18
+  :flag-assert         #x900000018
+  )
+
+(deftype net-address-list (structure)
+  ((a-address-list net-address 2 :inline :offset-assert 0)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x30
+  :flag-assert         #x900000030
+  )
+
+(deftype net-connection-info (structure)
+  ((e-type        int32                    :offset-assert 0)
+   (address-list  net-address-list :inline :offset-assert 4)
+   (world-id      int32                    :offset-assert 52)
+   (server-key    rsa-key          :inline :offset-assert 56)
+   (a-session-key uint8          17      :offset-assert 120)
+   (a-access-key  uint8          17      :offset-assert 137)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x9a
+  :flag-assert         #x90000009a
+  )
+
+(deftype medius-player-online-state (structure)
+  ((connect-status        int32      :offset-assert 0)
+   (medius-lobby-world-id int32      :offset-assert 4)
+   (medius-game-world-id  int32      :offset-assert 8)
+   (lobby-name            uint8 64 :offset-assert 12)
+   (game-name             uint8 64 :offset-assert 76)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x8c
+  :flag-assert         #x90000008c
+  )
