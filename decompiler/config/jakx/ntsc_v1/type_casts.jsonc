@@ -2314,5 +2314,226 @@
   // consuming store (op 30) is not, so the second branch stays raw:
   // (-> (+ (* a0-2 4) (the-as int v1-3)) 5). 10 to 30 collapses both branches
   // to (-> v1-3 target-values a0-2).
-  "set-menumap-target!": [[[10, 30], "v1", "menumap-states"]]
+  "set-menumap-target!": [[[10, 30], "v1", "menumap-states"]],
+  // Debug-line scratchpad casts, the follow-up the cam-debug placement commit
+  // flagged: cam-debug's remaining residue is almost entirely the raw
+  // #x70000000 hardware/VU debug-line scratchpad address, built with
+  // lui/ori and never typed, across camera-bounding-box-draw, camera-cross,
+  // camera-line-rel(-len), camera-line-draw, camera-line-setup,
+  // camera-plot-float-func, camera-sphere, camera-line2d, cam-debug-draw-tris
+  // and cam-line-dma. jak3's ntsc_v1/type_casts.jsonc carries a full set of
+  // per-op hints for this exact class, typing the constant as cam-dbg-scratch
+  // (already live and correctly declared in jakx's own all-types.gc).
+  // cam-layout was checked too (scoped decode, allowed_objects: [cam-debug,
+  // cam-layout] against this worktree's config): it carries no #x70000000
+  // reference anywhere in cam-layout_ir2.asm; its own residue is the
+  // unrelated cam-layout-save-* stack-use-guessing class the cam-debug
+  // commit already documented, so cam-layout is untouched here.
+  //
+  // Every function below was checked op by op against jak3's hint list using
+  // this worktree's own cam-debug_ir2.asm (never jak3's numbering blind):
+  // for each site, the raw disasm's "lui REG, 28672" load and the exact op
+  // where that register is next consumed (a store, a load, or the add that
+  // folds it into a computed pointer) were read directly, then matched
+  // against jak3's op and register at that site.
+  //
+  // camera-bounding-box-draw, camera-line-draw, camera-line-setup,
+  // camera-sphere, camera-line2d, cam-debug-draw-tris and cam-line-dma
+  // transplant with zero drift: every op number and register jak3 declares
+  // matches this worktree's own disasm exactly (camera-line2d and
+  // cam-line-dma keep only the subset of jak3's hints that correspond to a
+  // real site in jakx's shorter body; jak3's extra ops 6/14/20 for
+  // camera-line2d have no counterpart here and were dropped rather than
+  // carried over unused). cam-line-dma's own type is "vector", not
+  // cam-dbg-scratch, matching jak3's choice for that function's t0 register.
+  //
+  // camera-cross drifts: the register sequence at every scratch site is
+  // identical to jak3's (a0, a0, a2, a0, a2, a0, a1, ... 25 sites, same
+  // order), proving it is the same code, but the op numbers grow apart
+  // through the function (+0 for the first three sites, +4 through the
+  // middle third, +8 through the next third, +12 for the last four),
+  // consistent with a handful of extra instructions jakx has that jak3
+  // does not. Re-derived from jakx's own disasm rather than transplanted.
+  //
+  // camera-line-rel-len and camera-line-rel each transplant three of four
+  // and one of two sites verbatim; their last site drifts by a small,
+  // non-constant amount (camera-line-rel-len's op 18 in jak3 is op 22 here;
+  // camera-line-rel's op 8 in jak3 is op 12 here), same register both
+  // sides, re-derived from the disasm rather than guessed from the offset
+  // of the earlier sites.
+  //
+  // camera-plot-float-func transplants jak3's full 50-op hint list verbatim
+  // (54 raw entries with four duplicates collapse to 50 unique ops, all
+  // present in jakx at the same op and register) and needs one more site
+  // jak3's own hint list does not carry at all: op 71, register a1, a
+  // "daddu a1, v1, a1" folding the just-loaded scratch address into the
+  // pointer used two ops earlier at op 68's sibling site. Verified directly
+  // against the disasm; not inferred from the surrounding pattern.
+  "camera-bounding-box-draw": [
+    [6, "a0", "cam-dbg-scratch"],
+    [12, "v1", "cam-dbg-scratch"],
+    [15, "a0", "cam-dbg-scratch"],
+    [21, "v1", "cam-dbg-scratch"],
+    [24, "a0", "cam-dbg-scratch"],
+    [30, "v1", "cam-dbg-scratch"],
+    [33, "a0", "cam-dbg-scratch"],
+    [39, "v1", "cam-dbg-scratch"],
+    [42, "a0", "cam-dbg-scratch"],
+    [48, "v1", "cam-dbg-scratch"],
+    [51, "a0", "cam-dbg-scratch"],
+    [57, "v1", "cam-dbg-scratch"],
+    [62, "a1", "cam-dbg-scratch"],
+    [68, "a1", "cam-dbg-scratch"],
+    [74, "a1", "cam-dbg-scratch"],
+    [80, "a1", "cam-dbg-scratch"],
+    [86, "a1", "cam-dbg-scratch"],
+    [92, "a1", "cam-dbg-scratch"],
+    [97, "a0", "cam-dbg-scratch"],
+    [100, "a1", "cam-dbg-scratch"],
+    [105, "a0", "cam-dbg-scratch"],
+    [108, "a1", "cam-dbg-scratch"],
+    [113, "a0", "cam-dbg-scratch"],
+    [116, "a1", "cam-dbg-scratch"],
+    [121, "a0", "cam-dbg-scratch"],
+    [124, "a1", "cam-dbg-scratch"],
+    [129, "a0", "cam-dbg-scratch"],
+    [132, "a1", "cam-dbg-scratch"],
+    [137, "a0", "cam-dbg-scratch"],
+    [140, "a1", "cam-dbg-scratch"]
+  ],
+  "camera-cross": [
+    [8, "a0", "cam-dbg-scratch"],
+    [14, "a0", "cam-dbg-scratch"],
+    [18, "a2", "cam-dbg-scratch"],
+    [26, "a0", "cam-dbg-scratch"],
+    [30, "a2", "cam-dbg-scratch"],
+    [35, "a0", "cam-dbg-scratch"],
+    [38, "a1", "cam-dbg-scratch"],
+    [43, "a0", "cam-dbg-scratch"],
+    [46, "a1", "cam-dbg-scratch"],
+    [51, "a0", "cam-dbg-scratch"],
+    [56, "a0", "cam-dbg-scratch"],
+    [60, "a2", "cam-dbg-scratch"],
+    [68, "a0", "cam-dbg-scratch"],
+    [72, "a2", "cam-dbg-scratch"],
+    [77, "a0", "cam-dbg-scratch"],
+    [80, "a1", "cam-dbg-scratch"],
+    [85, "a0", "cam-dbg-scratch"],
+    [88, "a1", "cam-dbg-scratch"],
+    [93, "a0", "cam-dbg-scratch"],
+    [98, "a0", "cam-dbg-scratch"],
+    [102, "a2", "cam-dbg-scratch"],
+    [110, "a0", "cam-dbg-scratch"],
+    [113, "a1", "cam-dbg-scratch"],
+    [118, "a0", "cam-dbg-scratch"],
+    [121, "a1", "cam-dbg-scratch"]
+  ],
+  "camera-line-rel-len": [
+    [5, "a0", "cam-dbg-scratch"],
+    [9, "a0", "cam-dbg-scratch"],
+    [12, "a1", "cam-dbg-scratch"],
+    [22, "a0", "cam-dbg-scratch"]
+  ],
+  "camera-line-rel": [
+    [2, "a3", "cam-dbg-scratch"],
+    [12, "a1", "cam-dbg-scratch"]
+  ],
+  "camera-line-draw": [
+    [2, "a2", "cam-dbg-scratch"],
+    [7, "a0", "cam-dbg-scratch"],
+    [14, "v1", "cam-dbg-scratch"],
+    [18, "v1", "cam-dbg-scratch"],
+    [22, "a0", "cam-dbg-scratch"],
+    [24, "v1", "cam-dbg-scratch"],
+    [29, "a0", "cam-dbg-scratch"],
+    [32, "a1", "cam-dbg-scratch"],
+    [36, "a0", "cam-dbg-scratch"],
+    [44, "a0", "cam-dbg-scratch"]
+  ],
+  "camera-line-setup": [[2, "a0", "cam-dbg-scratch"]],
+  "camera-plot-float-func": [
+    [21, "a0", "cam-dbg-scratch"],
+    [24, "a0", "cam-dbg-scratch"],
+    [27, "a0", "cam-dbg-scratch"],
+    [30, "a0", "cam-dbg-scratch"],
+    [51, "a0", "cam-dbg-scratch"],
+    [54, "a0", "cam-dbg-scratch"],
+    [56, "v1", "cam-dbg-scratch"],
+    [58, "a0", "cam-dbg-scratch"],
+    [64, "a0", "cam-dbg-scratch"],
+    [68, "a0", "cam-dbg-scratch"],
+    [71, "a1", "cam-dbg-scratch"],
+    [87, "a0", "cam-dbg-scratch"],
+    [97, "a0", "cam-dbg-scratch"],
+    [103, "a0", "cam-dbg-scratch"],
+    [105, "v1", "cam-dbg-scratch"],
+    [107, "a0", "cam-dbg-scratch"],
+    [111, "a0", "cam-dbg-scratch"],
+    [114, "a1", "cam-dbg-scratch"],
+    [119, "a0", "cam-dbg-scratch"],
+    [122, "a0", "cam-dbg-scratch"],
+    [128, "a0", "cam-dbg-scratch"],
+    [131, "a0", "cam-dbg-scratch"],
+    [135, "a0", "cam-dbg-scratch"],
+    [138, "a1", "cam-dbg-scratch"],
+    [142, "a0", "cam-dbg-scratch"],
+    [148, "a0", "cam-dbg-scratch"],
+    [154, "a0", "cam-dbg-scratch"],
+    [160, "a0", "cam-dbg-scratch"],
+    [164, "a0", "cam-dbg-scratch"],
+    [167, "a1", "cam-dbg-scratch"],
+    [171, "a0", "cam-dbg-scratch"],
+    [174, "a0", "cam-dbg-scratch"],
+    [177, "a0", "cam-dbg-scratch"],
+    [183, "a0", "cam-dbg-scratch"],
+    [187, "a0", "cam-dbg-scratch"],
+    [190, "a1", "cam-dbg-scratch"],
+    [197, "a0", "cam-dbg-scratch"],
+    [200, "a0", "cam-dbg-scratch"],
+    [206, "a0", "cam-dbg-scratch"],
+    [212, "a0", "cam-dbg-scratch"],
+    [216, "a0", "cam-dbg-scratch"],
+    [219, "a1", "cam-dbg-scratch"],
+    [223, "a0", "cam-dbg-scratch"],
+    [226, "a0", "cam-dbg-scratch"],
+    [238, "a0", "cam-dbg-scratch"],
+    [242, "v1", "cam-dbg-scratch"],
+    [244, "a0", "cam-dbg-scratch"],
+    [247, "a0", "cam-dbg-scratch"],
+    [266, "a0", "cam-dbg-scratch"],
+    [270, "a0", "cam-dbg-scratch"],
+    [273, "a1", "cam-dbg-scratch"]
+  ],
+  "camera-sphere": [
+    [[43, 49], "v1", "cam-dbg-scratch"],
+    [64, "v1", "cam-dbg-scratch"],
+    [80, "v1", "cam-dbg-scratch"],
+    [94, "v1", "cam-dbg-scratch"],
+    [109, "v1", "cam-dbg-scratch"],
+    [124, "v1", "cam-dbg-scratch"],
+    [138, "v1", "cam-dbg-scratch"],
+    [152, "v1", "cam-dbg-scratch"],
+    [156, "a0", "cam-dbg-scratch"],
+    [159, "a1", "cam-dbg-scratch"],
+    [164, "a0", "cam-dbg-scratch"],
+    [167, "a1", "cam-dbg-scratch"]
+  ],
+  "camera-line2d": [
+    [4, "a2", "cam-dbg-scratch"],
+    [10, "a0", "cam-dbg-scratch"],
+    [13, "a0", "cam-dbg-scratch"],
+    [18, "a0", "cam-dbg-scratch"],
+    [24, "a0", "cam-dbg-scratch"],
+    [27, "a0", "cam-dbg-scratch"]
+  ],
+  "cam-debug-draw-tris": [
+    [20, "a0", "cam-dbg-scratch"],
+    [88, "a0", "cam-dbg-scratch"]
+  ],
+  "cam-line-dma": [
+    [32, "t0", "vector"],
+    [36, "t0", "vector"],
+    [45, "t0", "vector"],
+    [50, "t0", "vector"]
+  ]
 }
