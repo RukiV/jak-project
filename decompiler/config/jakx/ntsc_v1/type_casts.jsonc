@@ -2210,5 +2210,37 @@
     [46, "v1", "float"],
     [75, "v1", "float"]
   ],
-  "sparticle-sparks-birth": [[30, "v1", "float"]]
+  "sparticle-sparks-birth": [[30, "v1", "float"]],
+
+  ////////////////////////////////////////////////////////////////////////////
+  // menumap-effects: the mood-context scratch overlay
+  ////////////////////////////////////////////////////////////////////////////
+  // mood-context's field at 1840 is declared "(state uint32 32)", a generic
+  // 128 byte scratch area each mood updater reinterprets as its own struct, so
+  // (+ arg0 1840) resolves to (pointer uint32) and every lwc1 off it comes back
+  // typed uint. update-mood-menumap then hits "FPR -> GPR applied to a uint in
+  // (fpr->gpr f0-16) at 64" in update_from_stack_fpr_to_gpr
+  // (IR2/FormExpressionAnalysis.cpp:965) at the mfc1 that passes the value to
+  // seek!. This is NOT the rand-float-gen defect above: no mtc1 and no logior
+  // are involved, the wrong type arrives through a mis-typed pointer.
+  // Same fix and same shape as jakx's own update-mood-garage-brdroom /
+  // update-mood-hiphog / update-mood-rustyh, and as jak3's whole
+  // update-mood-<level> family. s5 is read at ops 40 to 75; the range runs to
+  // 76 so it also covers the store that consumes the last derived address.
+  // Measured: ending the range at 75 still clears the error but degrades the
+  // loop body to (set! (-> (the-as (pointer uint32) s5-0) gp-1) (the-as uint
+  // (seek ...))), while 76 gives the intended
+  // (seek! (-> s5-0 current-values gp-1) (-> s5-0 target-values gp-1)
+  //        (seconds-per-frame)),
+  // which matches menumap-states' own (current-values float 5)
+  // (target-values float 5).
+  //
+  // This entry is inert until the three menumap-effects externs in all-types.gc
+  // are promoted out of comments; without them the object has no type analysis
+  // at all. Verified under a scratch decode with
+  // (define-extern update-mood-menumap
+  //   (function mood-context float int none :behavior time-of-day-proc))
+  // uncommented, which is the derived signature already sitting commented in
+  // all-types.gc. Promoting it belongs to the menumap-effects landing.
+  "update-mood-menumap": [[[40, 76], "s5", "menumap-states"]]
 }
