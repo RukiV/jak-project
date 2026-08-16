@@ -2223,7 +2223,19 @@ std::optional<std::string> find_best_field_in_structure(const TypeSystem& ts,
               "In type {}, type size was 0 for array field {} of type {}, check that the type "
               "is fully defined.",
               st->get_name(), field.name(), field.type().print()));
-      int array_idx = rel_offset / type->get_size_in_memory();
+      // An INLINE array's element-to-element step is its stride (get_size_in_memory()
+      // rounded up to get_inline_array_stride_alignment()), not its tight
+      // get_size_in_memory(): the same padding TypeSystem::get_deref_info accounts for
+      // when it places an inline array's elements. Indexing by the tight size instead of
+      // the stride is only wrong when an offset happens to be an exact multiple of both
+      // (their lcm), which is rare enough that it looked like a correct index for every
+      // struct without inline-array padding; hud-sprite (tight 52, stride 64) is the
+      // first inline-array element type this function saw that has any.
+      int inline_array_stride =
+          type->is_reference()
+              ? align(type->get_size_in_memory(), type->get_inline_array_stride_alignment())
+              : type->get_size_in_memory();
+      int array_idx = rel_offset / inline_array_stride;
       if (!field.is_inline() &&
           field.offset() + field.array_size() * type->get_load_size() > offset) {
         if (rel_offset % type->get_load_size() == 0) {
@@ -2235,13 +2247,12 @@ std::optional<std::string> find_best_field_in_structure(const TypeSystem& ts,
           }
         }
       } else if (field.is_inline() &&
-                 field.offset() + field.array_size() * type->get_size_in_memory() > offset) {
-        if (field.type() == requesting_field.type() &&
-            rel_offset % type->get_size_in_memory() == 0) {
+                 field.offset() + field.array_size() * inline_array_stride > offset) {
+        if (field.type() == requesting_field.type() && rel_offset % inline_array_stride == 0) {
           // same type
           best_exact_arr.first = &field;
           best_exact_arr.second = array_idx;
-        } else if (requesting_field.is_array() && rel_offset % type->get_size_in_memory() == 0 &&
+        } else if (requesting_field.is_array() && rel_offset % inline_array_stride == 0 &&
                    array_idx == 0) {
           // starts at the same offset as another array. just use the field with nothing extra
           best_exact = &field;
@@ -2250,9 +2261,8 @@ std::optional<std::string> find_best_field_in_structure(const TypeSystem& ts,
           if (f_type && field.offset() + f_type->get_size_in_memory() > offset) {
             // struct that encompasses this field
             // simply search that structure for the field we want, offset by the field's offset
-            auto best_field_in_struct =
-                find_best_field_in_structure(ts, f_type, rel_offset % type->get_size_in_memory(),
-                                             requesting_field, want_fixed, 0);
+            auto best_field_in_struct = find_best_field_in_structure(
+                ts, f_type, rel_offset % inline_array_stride, requesting_field, want_fixed, 0);
             if (best_field_in_struct) {
               best_struct_field_deref = best_field_in_struct;
               best_struct_arr.first = &field;

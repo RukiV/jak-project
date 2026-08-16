@@ -106,6 +106,48 @@ TEST(TypeSystemReverse, NestedInlineWeird) {
   EXPECT_EQ(result.tokens.at(3).kind, FieldReverseLookupOutput::Token::Kind::VAR_IDX);
 }
 
+TEST(TypeSystemReverse, InlineArrayOverlayUsesStrideNotTightSize) {
+  // A user-placed field that overlays an inline array of a PADDED element (tight size
+  // different from its inline-array stride) must be reprinted with the stride-based
+  // array index. find_best_field_in_structure used to divide by the element's tight
+  // get_size_in_memory() instead of its stride, which only differs from the correct
+  // index when the requested offset is an exact multiple of both the tight size and
+  // the stride (their lcm) - here, padded-elem is tight 12 / stride 16, so offset 48 is
+  // index 4 by the (wrong) tight size and index 3 by the (correct) stride.
+  TypeSystem ts;
+  ts.add_builtin_types(GameVersion::Jak1);
+  goos::Reader reader;
+  auto add_type = [&](const std::string& str) {
+    auto& in = reader.read_from_string(str).as_pair()->cdr.as_pair()->car.as_pair()->cdr;
+    parse_deftype(in, &ts);
+  };
+
+  add_type(
+      "(deftype padded-elem (structure)\n"
+      "  ((x uint32 :offset-assert 0)\n"
+      "   (y uint32 :offset-assert 4)\n"
+      "   (z uint32 :offset-assert 8)\n"
+      "   )\n"
+      "  :method-count-assert 9\n"
+      "  :size-assert         #xc\n"
+      "  :flag-assert         #x90000000c\n"
+      "  )");
+
+  add_type(
+      "(deftype padded-holder (structure)\n"
+      "  ((items padded-elem 10 :inline :offset-assert 0)\n"
+      "   (alias padded-elem :inline :overlay-at (-> items 3) :offset-assert 48)\n"
+      "   )\n"
+      "  :method-count-assert 9\n"
+      "  :size-assert         #xa0\n"
+      "  :flag-assert         #x9000000a0\n"
+      "  )");
+
+  auto printed = ts.generate_deftype(ts.lookup_type("padded-holder"));
+  EXPECT_NE(printed.find("(-> items 3)"), std::string::npos);
+  EXPECT_EQ(printed.find("(-> items 4)"), std::string::npos);
+}
+
 TEST(TypeSystem, TypeSpec) {
   TypeSystem ts;
   ts.add_builtin_types(GameVersion::Jak1);
