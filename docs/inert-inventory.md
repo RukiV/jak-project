@@ -38,7 +38,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (188)
+### Never written (189)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -157,6 +157,7 @@ written is read-only by design and not a finding.
 | `*generate-actor-vis-output*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
 | `*generate-actor-vis-start*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
 | `*generic-effect-mode*` | 1 | `goal_src/jakx/engine/draw/drawable.gc` |
+| `*generic-tie*` | 1 | `goal_src/jakx/engine/gfx/generic/generic-tie.gc` |
 | `*gun-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*headset-cmp-out-frames*` | 1 | `goal_src/jakx/engine/ps2/headset-h.gc` |
 | `*headset-input-bytes*` | 1 | `goal_src/jakx/engine/ps2/headset-h.gc` |
