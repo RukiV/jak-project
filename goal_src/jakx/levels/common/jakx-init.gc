@@ -5,12 +5,20 @@
 ;; name in dgo: jakx-init
 ;; dgos: COMMON, GAME
 
-(define-extern vehicle-manager-start (function process none)) ;; home vehicle-manager.o is a stub, not landed; this call is LIVE inside jakx-activate, not (on #f)-gated: compiles, but unsafe if jakx-activate runs before vehicle-manager lands
+(define-extern vehicle-manager-start (function process none)) ;; home vehicle-manager.o is a stub, not landed; the CALL below carries the runtime-link guard, not this declaration
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this runtime-link guard (forge #219, bisect-proven guilty commit 693f31412):
+;; vehicle-manager-start's home vehicle-manager.gc is still an empty stub, so the symbol
+;; links as 0. This call is a bare top-level form, executed unconditionally the moment
+;; jakx-init links, not gated inside jakx-activate as this file's original landing note
+;; claimed, so the unguarded call jumped through zero on every boot and corrupted the heap.
+;; Retires when vehicle-manager.gc lands a real vehicle-manager-start.
 ;; failed to figure out what this is:
-(vehicle-manager-start (the-as process *entity-pool*))
+(if (nonzero? vehicle-manager-start)
+    (vehicle-manager-start (the-as process *entity-pool*))
+    )
 
 ;; definition for function jakx-login
 (defun jakx-login ()
