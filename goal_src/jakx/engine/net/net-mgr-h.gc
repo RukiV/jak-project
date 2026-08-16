@@ -5,7 +5,100 @@
 ;; name in dgo: net-mgr-h
 ;; dgos: ENGINE, GAME
 
-;; DECOMP BEGINS
+;; the six medius-lobby address/connection types net-mgr-medius-games-h needs;
+;; transcribed verbatim from all-types.gc (in-list dependency order: rsa-key
+;; and net-address have no deps, net-address-list inlines net-address,
+;; net-connection-info inlines rsa-key + net-address-list, net-available-game
+;; inlines net-available-game-info + net-connection-info).
+
+(deftype rsa-key (structure)
+  ((key uint32 16 :offset-assert 0)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x40
+  :flag-assert         #x900000040
+  )
+
+(deftype net-address (structure)
+  ((address-type int32      :offset-assert 0)
+   (address      int8   16 :offset-assert 4)
+   (port         uint32     :offset-assert 20)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x18
+  :flag-assert         #x900000018
+  )
+
+(deftype net-address-list (structure)
+  ((a-address-list net-address 2 :inline :offset-assert 0)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x30
+  :flag-assert         #x900000030
+  )
+
+(deftype net-connection-info (structure)
+  ((e-type        int32                    :offset-assert 0)
+   (address-list  net-address-list :inline :offset-assert 4)
+   (world-id      int32                    :offset-assert 52)
+   (server-key    rsa-key          :inline :offset-assert 56)
+   (a-session-key uint8          17      :offset-assert 120)
+   (a-access-key  uint8          17      :offset-assert 137)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x9a
+  :flag-assert         #x90000009a
+  )
+
+(deftype net-available-game-info (structure)
+  ((game-name    uint8   64 :offset-assert 0)
+   (player-count uint8      :offset-assert 64)
+   (min-players  uint8      :offset-assert 65)
+   (max-players  uint8      :offset-assert 66)
+   (in-staging   basic      :offset-assert 68)
+   (event        uint8      :offset-assert 72)
+   (location     uint8      :offset-assert 73)
+   (task-node    uint8      :offset-assert 74)
+   (generic-1    int32      :offset-assert 76)
+   (generic-2    int32      :offset-assert 80)
+   (generic-3    int32      :offset-assert 84)
+   (burn-version uint32     :offset 76)
+   (lobby-world  int32      :offset 80)
+   (class-type   int32      :offset 84)
+   (clan-1       int32      :offset-assert 88)
+   (clan-2       int32      :offset-assert 92)
+   (skill-level  int32      :offset-assert 96)
+   (avg-ping     int32      :offset-assert 100)
+   )
+  :allow-misaligned
+  :method-count-assert 9
+  :size-assert         #x68
+  :flag-assert         #x900000068
+  )
+
+(deftype net-available-game (structure)
+  ((info             net-available-game-info :inline :offset-assert 0)
+   (connect-info     net-connection-info     :inline :offset-assert 104)
+   (medius-world-id  int32                           :offset-assert 260)
+   (format-game-name uint8                  64      :offset-assert 264)
+   )
+  :allow-misaligned
+  :method-count-assert 15
+  :size-assert         #x148
+  :flag-assert         #xf00000148
+  (:methods
+    (net-available-game-method-9 (_type_ object) none) ;; 9
+    (net-available-game-method-10 (_type_ object) none) ;; 10
+    (net-available-game-method-11 (_type_ object) none) ;; 11
+    (net-available-game-method-12 (_type_) none) ;; 12
+    (net-available-game-method-13 (_type_) none) ;; 13
+    (net-available-game-method-14 (_type_) none) ;; 14
+    )
+  )
 
 ;; og:preserve-this bring-up: pause-callback anon functions in main.o read *net-mgr*
 ;; repeatedly; an undefined symbol reads 0 = truthy = deref crash. #f until net-mgr lands.
