@@ -33008,6 +33008,7 @@
    (skill-level  int32      :offset-assert 96)
    (avg-ping     int32      :offset-assert 100)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x68
   :flag-assert         #x900000068
@@ -33019,6 +33020,7 @@
    (medius-world-id  int32                           :offset-assert 260)
    (format-game-name uint8                  64      :offset-assert 264)
    )
+  :allow-misaligned
   :method-count-assert 15
   :size-assert         #x148
   :flag-assert         #xf00000148
@@ -50626,7 +50628,7 @@
   )
 
 (deftype medius-cache (basic)
-  ((objects medius-cached-info  :offset-assert 4)
+  ((objects (array medius-cached-info)  :offset-assert 4)
    )
   :method-count-assert 15
   :size-assert         #x8
@@ -51009,7 +51011,7 @@
   )
 
 
-;; (define-extern *medius-game-status-cache* medius-cache)
+(define-extern *medius-game-status-cache* medius-cache)
 ;; (define-extern *medius-games* object)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -80609,7 +80611,12 @@
 (define-extern *medius-clan-cache* object) ;; provisional: call-site evidence only
 (define-extern *medius-connect-in-params* object) ;; provisional: call-site evidence only
 (define-extern *medius-filters* object) ;; provisional: call-site evidence only
-(define-extern *medius-game-status-cache* object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: mistyped *medius-game-status-cache* as
+;; object, which made (top-level-login net-mgr-medius-games-h) fail type prop on its
+;; method-12 call (net-mgr-medius-games-h_ir2.asm op 15, `lwu t9, 64(v1)` against a v1
+;; typed <the type object>); the correct type medius-cache is now active near
+;; medius-cache's own section, uncommented from the pre-existing candidate declaration
+;; the typing program had already recorded there
 (define-extern *medius-games* object) ;; provisional: call-site evidence only
 (define-extern *medius-ignores* object) ;; provisional: call-site evidence only
 (define-extern *medius-incoming-clan-invites* object) ;; provisional: call-site evidence only
