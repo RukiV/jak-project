@@ -1095,6 +1095,16 @@ const std::unordered_map<
              {"vehicle-sound-info",
               {{"engine-loop-array",
                 ArrayFieldDecompMeta(TypeSpec("vehicle-sound-engine-loop-info"), 24)}}},
+             {"attackable-hash",
+              {{"procs", ArrayFieldDecompMeta(TypeSpec("handle"),
+                                              8,
+                                              ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)},
+               {"trans", ArrayFieldDecompMeta(TypeSpec("vector"), 16)},
+               {"masks", ArrayFieldDecompMeta(TypeSpec("int32"),
+                                              4,
+                                              ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)}}},
+             {"simple-sprite-system",
+              {{"data", ArrayFieldDecompMeta(TypeSpec("sprite-glow-data"), 64)}}},
          }}};
 
 goos::Object decompile_structure(const TypeSpec& type,

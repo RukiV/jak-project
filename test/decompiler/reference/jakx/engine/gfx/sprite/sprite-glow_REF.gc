@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: sprite-glow.gc
-;; name in dgo: sprite-glow
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
 ;; definition of type sprite-glow-template
 (deftype sprite-glow-template (structure)
   ((clear-init-giftag    gs-gif-tag      :inline)
@@ -474,14 +468,12 @@
   )
 
 ;; definition for symbol sprite-glow-vu1-block, type vu-function
-;; og:preserve-this the vu function stays empty so the PC upload is zero-size (jak3 parity)
-(define sprite-glow-vu1-block (new 'static 'vu-function #|:length #x86 :qlength 67|#))
+(define sprite-glow-vu1-block (new 'static 'vu-function :length #x86 :qlength 67))
 
 ;; definition for function sprite-glow-init-consts
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch vector vs none.
 (defun sprite-glow-init-consts ((arg0 sprite-glow-consts) (arg1 viewport))
-  "Fill out sprite-glow-consts to be sent to VU1."
   (let ((v1-0 (-> arg1 math-camera)))
     (matrix-copy! (-> arg0 camera) (-> v1-0 camera-rot))
     (matrix-copy! (-> arg0 perspective) (-> v1-0 perspective))
@@ -534,7 +526,6 @@
 ;; definition for function sprite-glow-init-engine
 ;; WARN: Return type mismatch int vs none.
 (defun sprite-glow-init-engine ((arg0 dma-buffer) (arg1 viewport))
-  "Generate DMA to initialize sprite-glow VU1."
   (let ((s5-0 (-> *sprite-glow-templates* (-> arg1 index))))
     (set! (-> s5-0 clear-init-adcmds 0 data) (-> arg1 glow-frame-1))
     (set! (-> s5-0 clear-init-adcmds 1 data) (-> arg1 zbuf-off))
@@ -623,9 +614,7 @@
   )
 
 ;; definition of type sprite-glow-cnt-template
-;; og:preserve-this docstring and quads overlay carried from jak3, so the raw quad stores in sprite-glow-add-sprite can be expressed
 (deftype sprite-glow-cnt-template (structure)
-  "DMA layout for sending a sprite to VU1, with inline shader."
   ((control-packet  dma-packet        :inline)
    (num-sprites     uint32)
    (dummys          uint32            3)
@@ -658,9 +647,7 @@
   )
 
 ;; definition of type sprite-glow-ref-template
-;; og:preserve-this docstring and the num-sprites-quad / shader-packet-ptr overlays carried from jak3, so the raw stores in sprite-glow-add-simple-sprite can be expressed
 (deftype sprite-glow-ref-template (structure)
-  "DMA layout for sending a sprite to VU1, with reference to shader."
   ((control-packet     dma-packet        :inline)
    (num-sprites        uint32)
    (dummys             uint32            3)
@@ -730,7 +717,6 @@
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch sprite-glow-cnt-template vs none.
 (defun sprite-glow-add-sprite ((arg0 dma-buffer) (arg1 sprite-vec-data-2d) (arg2 float) (arg3 float) (arg4 float) (arg5 adgif-shader))
-  "Generate DMA to draw a single sprite from the aux-list."
   (let ((v1-0 (the-as sprite-glow-cnt-template (-> arg0 base))))
     (let* ((t5-0 *sprite-glow-dma-packet-data*)
            (t2-0 (-> t5-0 control-packet quad))
@@ -739,7 +725,6 @@
            (t5-1 (-> t5-0 mscal-packet quad))
            )
       (set! (-> v1-0 control-packet quad) t2-0)
-      ;; og:preserve-this the failed raw s.q! store, expressed through the quads overlay (jak3 parity)
       (set! (-> v1-0 quads 1 quad) (the-as uint128 0))
       (set! (-> v1-0 vecdata-packet quad) t3-0)
       (set! (-> v1-0 shader-packet quad) t4-0)
@@ -765,7 +750,6 @@
           (t0-1 (-> arg5 quad 3 quad))
           (t1-1 (-> arg5 quad 4 quad))
           )
-      ;; og:preserve-this raw stores through the quads overlay (jak3 parity)
       (set! (-> v1-0 quads 8 quad) a1-3)
       (set! (-> v1-0 quads 9 quad) a2-1)
       (set! (-> v1-0 shader quad 2 quad) a3-1)
@@ -781,7 +765,6 @@
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch sprite-glow-ref-template vs none.
 (defun sprite-glow-add-simple-sprite ((arg0 dma-buffer) (arg1 sprite-glow-dma-packet-data) (arg2 sprite-glow-data) (arg3 pointer))
-  "Generate DMA to draw a single sprite from the simple sprite system."
   (let ((v1-0 (the-as sprite-glow-ref-template (-> arg0 base))))
     (let ((t0-0 (-> arg1 control-packet quad))
           (t1-0 (-> arg1 vecdata-packet quad))
@@ -789,7 +772,6 @@
           (a1-1 (-> arg1 mscal-packet quad))
           )
       (set! (-> v1-0 control-packet quad) t0-0)
-      ;; og:preserve-this the failed raw s.q! store, expressed through the num-sprites-quad overlay (jak3 parity)
       (set! (-> v1-0 num-sprites-quad) (the-as uint128 0))
       (set! (-> v1-0 vecdata-packet quad) t1-0)
       (set! (-> v1-0 shader-packet quad) t2-0)
@@ -807,7 +789,6 @@
       (set! (-> v1-0 vecdata quads 3 quad) a2-1)
       (set! (-> v1-0 num-sprites) (the-as uint t2-1))
       )
-    ;; og:preserve-this the failed raw s.w! store, expressed through the shader-packet-ptr overlay (jak3 parity)
     (set! (-> v1-0 shader-packet-ptr) arg3)
     (set! (-> arg0 base) (the-as pointer (&+ v1-0 144)))
     )
@@ -817,7 +798,6 @@
 ;; definition for function sprite-glow-draw
 ;; WARN: Return type mismatch int vs none.
 (defun sprite-glow-draw ((arg0 dma-buffer))
-  "Generate DMA for all glow sprites in the aux-list (from sparticle system)"
   (local-vars (a2-0 float))
   (let* ((s5-0 *sprite-aux-list*)
          (s4-0 (-> s5-0 entry))
@@ -946,8 +926,6 @@
   )
 
 ;; definition for symbol *simple-sprite-system*, type simple-sprite-system
-;; This define must stay after the three defmethods above: drawable.gc's runtime-link guards dispatch
-;; clear! the frame after this symbol binds.
 (define *simple-sprite-system*
   (new 'static 'simple-sprite-system :max-count #x80 :data (new 'static 'inline-array sprite-glow-data 128
                                                              (new 'static 'sprite-glow-data)
