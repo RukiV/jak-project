@@ -233,6 +233,13 @@ goos::Object decompile_at_label(const TypeSpec& type,
                     type.print(), ex.what()));
   }
 
+  if (type.base_type() == "pointer" || type.base_type() == "inline-array") {
+    throw std::runtime_error(fmt::format(
+        "Unimplemented decompile_at_label for Label: {} and Type: {}: this label needs a "
+        "label_types.jsonc entry with an integer size to decompile a {} static.",
+        label.name, type.print(), type.base_type()));
+  }
+
   throw std::runtime_error(fmt::format(
       "Unimplemented decompile_at_label for Label: {} and Type: {}", label.name, type.print()));
 }

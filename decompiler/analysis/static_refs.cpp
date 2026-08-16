@@ -62,7 +62,7 @@ bool try_convert_lambda(const Function& parent_function,
 
 int insert_static_refs(Form* top_level_form,
                        FormPool& pool,
-                       const Function& function,
+                       Function& function,
                        const DecompilerTypeSystem& dts) {
   int replaced = 0;
 
@@ -90,7 +90,17 @@ int insert_static_refs(Form* top_level_form,
   top_level_form->apply([&](FormElement* fe) {
     auto as_static_data = dynamic_cast<DecompiledDataElement*>(fe);
     if (as_static_data) {
-      as_static_data->do_decomp(function.ir2.env, function.ir2.env.file);
+      try {
+        as_static_data->do_decomp(function.ir2.env, function.ir2.env.file);
+      } catch (std::exception& e) {
+        // isolate this element's failure so one bad static does not suppress every later
+        // static ref in the same top-level function (they were all silently dropped before,
+        // since the exception used to escape this apply() and abort the whole pass).
+        function.warnings.warning("Failed static ref for label {}: {}",
+                                  as_static_data->label().name, e.what());
+        lg::warn("Function {} failed static ref for label {}: {}", function.name(),
+                 as_static_data->label().name, e.what());
+      }
     }
   });
   return replaced;

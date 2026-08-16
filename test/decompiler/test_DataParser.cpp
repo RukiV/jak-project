@@ -351,6 +351,65 @@ TEST_F(DataDecompTest, FloatArray) {
                     "1.0 0.0 1.0 0.0 1.0 0.0 1.0)");
 }
 
+TEST_F(DataDecompTest, FloatArrayNoSizeThrows) {
+  // same input as FloatArray, but without an array_size hint. pointer/inline-array types
+  // cannot be decompiled without a label_types.jsonc entry giving an integer size, and the
+  // thrown message must name the label and the type so the fix is discoverable.
+  std::string input =
+      "    .type continue-point\n"
+      "L63:\n"
+      "    .word 0x3f800000\n"
+      "    .word 0x0\n"
+      "    .word 0x3f800000\n"
+      "    .word 0x0\n"
+      "    .word 0x3f800000\n"
+      "    .word 0x0\n"
+      "    .word 0x3f800000\n\n";
+  auto parsed = parse_data(input);
+  LabelInfo info;
+  info.result_type = TypeSpec("pointer", {TypeSpec("float")});
+  info.is_value = false;
+  // array_size intentionally left unset.
+  bool threw = false;
+  try {
+    decompile_at_label_with_hint(info, parsed.label("L63"), parsed.labels, {parsed.words}, dts->ts,
+                                 nullptr, GameVersion::Jak1);
+  } catch (const std::runtime_error& e) {
+    threw = true;
+    std::string msg = e.what();
+    EXPECT_NE(msg.find("L63"), std::string::npos);
+    EXPECT_NE(msg.find("(pointer float)"), std::string::npos);
+  }
+  EXPECT_TRUE(threw);
+}
+
+TEST_F(DataDecompTest, InlineArray) {
+  // an (inline-array vector) with two elements. the suite previously had no positive test
+  // for the inline-array path of decompile_at_label_with_hint.
+  std::string input =
+      "L70:\n"
+      "    .word 0x3f800000\n"
+      "    .word 0x40000000\n"
+      "    .word 0x40400000\n"
+      "    .word 0x40800000\n"
+      "    .word 0x40a00000\n"
+      "    .word 0x40c00000\n"
+      "    .word 0x40e00000\n"
+      "    .word 0x41000000\n";
+  auto parsed = parse_data(input);
+  LabelInfo info;
+  info.result_type = TypeSpec("inline-array", {TypeSpec("vector")});
+  info.array_size = 2;
+  info.is_value = false;
+  auto decomp = decompile_at_label_with_hint(info, parsed.label("L70"), parsed.labels,
+                                             {parsed.words}, dts->ts, nullptr, GameVersion::Jak1);
+  check_forms_equal(decomp.print(),
+                    "(new 'static 'inline-array vector 2\n"
+                    "     (new 'static 'vector :x 1.0 :y 2.0 :z 3.0 :w 4.0)\n"
+                    "     (new 'static 'vector :x 5.0 :y 6.0 :z 7.0 :w 8.0)\n"
+                    "     )");
+}
+
 TEST_F(DataDecompTest, Bitfield) {
   // this is for testing bitfields from a 64-bit static constant.
   std::string input =
