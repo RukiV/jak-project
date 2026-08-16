@@ -692,6 +692,22 @@
   :flag-assert         #x900000020
   )
 
+(deftype vehicle-sound-engine-loop-info (structure)
+  ((sound-array  uint16 3 :offset-assert 0)
+   (base-sound   uint16   :offset 0) ;; sound-name
+   (load-sound   uint16   :offset 2) ;; sound-name
+   (ai-sound     uint16   :offset 4) ;; sound-name
+   (original-rpm float    :offset-assert 8)
+   (min-rpm      float    :offset-assert 12)
+   (max-rpm      float    :offset-assert 16)
+   (pitch-scale  float    :offset-assert 20)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x18
+  :flag-assert         #x900000018
+  )
+
 (deftype vehicle-sound-info (structure)
   ((water-sound            uint16                          :offset-assert 0) ;; sound-name
    (jump-sound             uint16                          :offset-assert 2) ;; sound-name
@@ -701,7 +717,7 @@
    (susp-speed-threshold   float                           :offset-assert 12)
    (rpm-scale              float                           :offset-assert 16)
    (engine-loop-count      int8                            :offset-assert 20)
-   (engine-loop-array      uint32                          :offset-assert 24)
+   (engine-loop-array      (inline-array vehicle-sound-engine-loop-info) :offset-assert 24)
    (tire-roll-sounds       vehicle-sound-loop-info 6 :inline :offset-assert 28) ;; guessed by decompiler
    (tire-slide-sounds      vehicle-sound-loop-info 2 :inline :offset-assert 220) ;; guessed by decompiler
    (tire-roll-hum-sound    vehicle-sound-loop-info :inline :offset 28)

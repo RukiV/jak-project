@@ -51577,16 +51577,34 @@
   )
 |#
 ;; resurrected from the dead block above (medius bulk field wave)
+;; og:preserve-this the dead block's UNKNOWN placeholder is two bytes wide, not one.
+;; The game's own (method 3 vehicle-sound-engine-loop-info) in vehicle-h prints
+;; "~1Tsound-array[3] @ #x~X~%", so three elements, and the three overlays it prints
+;; next all load with lhu, at 0, 2 and 4, so the three elements are exactly
+;; base-sound, load-sound and ai-sound at two bytes each. The static data agrees:
+;; each engine-loop element starts with one word packing two 16-bit sound ids and a
+;; second word holding the third, padded to the float at 8. The overlays move from
+;; :overlay-at to :offset because the element index they named was a byte index.
+;; :pack-me is arithmetically required and placement-neutral. Nothing embeds this
+;; type :inline and nothing declares an inline-array field of it, so packing cannot
+;; move a field anywhere; what it does is drop the inline-array stride alignment from
+;; STRUCTURE_ALIGNMENT to the widest field alignment (Type.cpp:872), taking
+;; align(24, 16) = 32 down to align(24, 4) = 24. 24 is the stride the game's own data
+;; uses: vehicle-sound-info's engine-loop-array holds engine-loop-count elements of 24
+;; bytes each in all sixteen *v-<car>-constants* statics, and
+;; decomp_ref_to_inline_array_guess_size asserts the registered stride equals the one
+;; its caller passes (data_decompile.cpp:562-564).
 (deftype vehicle-sound-engine-loop-info (structure)
-  ((sound-array  uint8  3 :offset-assert 0)
-   (base-sound   uint16 :offset-assert 0 :overlay-at (-> sound-array 0))
-   (load-sound   uint16 :offset-assert 2 :overlay-at (-> sound-array 2))
-   (ai-sound     uint16 :offset-assert 4)
-   (original-rpm float  :offset-assert 8)
-   (min-rpm      float  :offset-assert 12)
-   (max-rpm      float  :offset-assert 16)
-   (pitch-scale  float  :offset-assert 20)
+  ((sound-array  uint16 3 :offset-assert 0)
+   (base-sound   uint16   :offset 0) ;; sound-name
+   (load-sound   uint16   :offset 2) ;; sound-name
+   (ai-sound     uint16   :offset 4) ;; sound-name
+   (original-rpm float    :offset-assert 8)
+   (min-rpm      float    :offset-assert 12)
+   (max-rpm      float    :offset-assert 16)
+   (pitch-scale  float    :offset-assert 20)
    )
+  :pack-me
   :method-count-assert 9
   :size-assert         #x18
   :flag-assert         #x900000018
@@ -51637,7 +51655,7 @@
    (susp-speed-threshold   float                           :offset-assert 12)
    (rpm-scale              float                           :offset-assert 16)
    (engine-loop-count      int8                            :offset-assert 20)
-   (engine-loop-array      uint32                          :offset-assert 24)
+   (engine-loop-array      (inline-array vehicle-sound-engine-loop-info) :offset-assert 24)
    (tire-roll-sounds       vehicle-sound-loop-info 6 :inline :offset-assert 28) ;; guessed by decompiler
    (tire-slide-sounds      vehicle-sound-loop-info 2 :inline :offset-assert 220) ;; guessed by decompiler
    (tire-roll-hum-sound    vehicle-sound-loop-info :inline :offset 28)
