@@ -121,8 +121,6 @@
 (define-extern flush-cache (function int none))
 (define-extern gs-store-image (function object object object))
 (define-extern sync-path (function int int int))
-(define-extern file-stream-write (function file-stream pointer uint uint))
-(define-extern file-stream-close (function file-stream file-stream))
 (define-extern new-dynamic-structure (function symbol type int structure))
 (define-extern kernel-shutdown (function int none))
 (define-extern scf-get-timeout (function int))
@@ -1176,7 +1174,6 @@
 (define-extern *stdcon0* string)
 (define-extern *stdcon1* string)
 (define-extern *null* string)
-(define-extern *stdcon* string)
 (define-extern *stdebug* string)
 (define-extern *temp-string* string)
 
@@ -6190,7 +6187,6 @@
 (define-extern vector-orient-by-quat!
   "Rotate a vector by a quaternion."
   (function vector vector quaternion vector))
-(define-extern vector-orient-by-quat! (function vector vector quaternion vector))
 (define-extern vector-inv-orient-by-quat! (function vector vector quaternion vector)) ;; 
 (define-extern vector-cap-rotation! (function vector vector vector float vector))
 (define-extern vector-interp-angle! (function vector vector vector float vector))
@@ -23060,7 +23056,6 @@
   )
 ;; ---fact-h:actor-option
 
-(define-extern process-drawable-art-error (state string process-drawable))
 (deftype fact-info (basic)
   ((process             process       :offset-assert 4) ;; guessed by decompiler
    (pickup-type         pickup-type   :offset-assert 8)
@@ -41108,7 +41103,6 @@
 (define-extern mem-usage-bsp-tree (function bsp-header (inline-array bsp-node) memory-usage-block int32 none))
 ;; (define-extern *test-shrub* object) ;; int
 (define-extern bsp-camera-asm (function bsp-header vector int none)) ;; jakx adds a vis-index arg
-(define-extern level-remap-texture (function texture-id texture-id))
 ;; (define-extern print-collide-stats function) ;; (function none)
 ;; (define-extern level-remap-texture function) ;; (function texture-id texture-id)
 (define-extern build-masks (function bsp-header none))
@@ -42256,7 +42250,6 @@
 (define-extern clear-texture-ids (function texture none)) ;; activated, texture-anim leg
 (define-extern texture-anim-draw-mips (function dma-buffer texture none)) ;; activated, texture-anim leg
 (define-extern texture-anim-draw-ocean-mips (function dma-buffer texture none)) ;; activated, texture-anim leg
-(define-extern update-texture-anim (function bucket-id texture-anim-array none)) ;; activated, texture-anim leg
 (define-extern no-alpha-texture-anim-layer-func (function dma-buffer uint int int texture-anim-layer float int)) ;; activated, texture-anim leg
 (define-extern copy-alpha-texture-anim-layer-func (function dma-buffer uint int int texture-anim-layer float int)) ;; activated, texture-anim leg
 (define-extern copy-clut-alpha-texture-anim-layer-func (function dma-buffer uint int int texture-anim-layer float int)) ;; activated, texture-anim leg
@@ -42308,11 +42301,8 @@
 (define-extern *default-pris-texture-anim-array* (texture-anim-array texture-anim))
 (define-extern *car-texture-anim-array-work* car-texture-anim-array-work) ;; activated, texture-anim leg
 (define-extern car-texture-anim-layer-func (function dma-buffer uint int int texture-anim-layer float int)) ;; activated, texture-anim leg
-(define-extern *default-car-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
 (define-extern set-car-highlight! (function object object object none)) ;; activated; reads 3 args
 (define-extern update-car-texture-anim-array (function int)) ;; jakx-new
-(define-extern *default-water-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
-(define-extern *default-hud-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
 (define-extern *ctf-pris-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
 (define-extern *ctf-water-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
 (define-extern *fcshield-water-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
@@ -48708,14 +48698,12 @@
 (define-extern add-process-drawable (function process-drawable draw-control symbol dma-buffer none))
 (define-extern foreground-engine-execute (function engine none))
 (define-extern main-debug-hook (function none))
-(define-extern *debug-hook* pair)
 (define-extern *add-sphere* symbol)
 (define-extern *generic-effect-mode* int)
 (define-extern foreground-initialize-engines (function none))
 (define-extern foreground-execute-cpu-vu0-engines (function none))
 (define-extern real-main-draw-hook (function none))
 (define-extern main-draw-hook (function none))
-(define-extern *draw-hook* (function none))
 (define-extern init-init-buffer (function dma-buffer viewport uint int none)) ;; fills the prebuilt per-bucket GS-init call target
 (define-extern init-end-buffer (function dma-buffer viewport uint int none)) ;; fills the prebuilt end-of-bucket call target
 (define-extern screen-shot-scale (function int string none))
@@ -48802,7 +48790,6 @@
 (define-extern *screen-filter* screen-filter)
 (define-extern *master-exit* symbol)
 (define-extern *progress-cheat* symbol)
-(define-extern *first-boot* symbol)
 (define-extern main-timeouts (function none))
 (define-extern main-cheats (function none))
 (define-extern end-display (function display none))
@@ -49014,7 +49001,6 @@
 (define-extern debug-actor-process (function process none))
 (define-extern draw-actor-marks (function process none))
 (define-extern init-entity (function process entity-actor type none))
-(define-extern entity-deactivate-handler (function process entity-actor none))
 (define-extern check-for-rougue-process (function process int int level none))
 (define-extern process-drawable-scale-from-entity! (function process-drawable entity none))
 (define-extern process-drawable-from-entity! (function process-drawable entity-actor none))
@@ -54994,11 +54980,11 @@
   )
 
 
-(define-extern *powerup-static-hash* spatial-hash)
+(define-extern *powerup-static-hash* spatial-hash) ;; proven: net-powerup-h top-level-login constructs it via (new 'global 'spatial-hash 8192 512)
 (define-extern *powerup-dynamic-hash* spatial-hash)
 (define-extern net-powerup-init-remote (function int none :behavior net-powerup))
-(define-extern *msg-map-net-powerup* (array symbol))
-(define-extern *net-process-class-info-net-powerup* net-process-class-info)
+(define-extern *msg-map-net-powerup* (array symbol)) ;; proven: net-process-class-info's msg-map field type, matching *msg-map-net-world*
+(define-extern *net-process-class-info-net-powerup* net-process-class-info) ;; proven: matches *net-process-class-info-net-world*, net-powerup-h top-level-login type-new
 (define-extern powerup-draw-init-by-other (function net-powerup vector entity-actor object :behavior powerup-draw))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -58032,7 +58018,7 @@
 
 ;; (define-extern *medius-last-response* object)
 ;; (define-extern *mgcl-last-response* object)
-(define-extern *async-request-ct* int)
+(define-extern *async-request-ct* int) ;; proven: plain increment-and-store counter (retrieve-player-lists and siblings)
 ;; (define-extern *medius-session-key-valid* object)
 ;; (define-extern *medius-session-key* object)
 ;; (define-extern *mgcl-session-key-valid* object)
@@ -63960,7 +63946,7 @@
 ;; sampler                        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-extern *sampler-mem* pointer)
+(define-extern *sampler-mem* pointer) ;; proven: matches jak3's *sampler-mem*, sampler.gc register usage
 (define-extern *sampler-compare* uint)
 (define-extern *sampler-count* int)
 (define-extern *sampler-above-range-count* int)
@@ -70479,13 +70465,6 @@
 (define-extern birth-func-set-pos-vel (function sparticle-system sparticle-cpuinfo sparticle-launchinfo object object none))
 (define-extern birth-func-adopt-velocity-vehicle (function sparticle-system sparticle-cpuinfo sparticle-launchinfo sparticle-launcher sparticle-launch-state none))
 (define-extern sparticle-adopt-accel-vehicle (function sparticle-system sparticle-cpuinfo sparticle-launchinfo none))
-(define-extern *range-carexplo-dust-color* curve-color-fast)
-(define-extern *range-carexplo-dust-alpha* curve2d-fast)
-(define-extern *range-carexplo-dust-scale-x* curve2d-fast)
-(define-extern *range-carexplo-dust-scale-y* curve2d-fast)
-(define-extern *curve-carexplo-dust-alpha* curve2d-fast)
-(define-extern *curve-carexplo-dust-scale-x* curve2d-fast)
-(define-extern *curve-carexplo-dust-scale-y* curve2d-fast)
 (define-extern *part-car-explosion-dust-in-curve-settings* particle-curve-settings)
 (define-extern *range-carexplo-color* curve-color-fast)
 (define-extern *range-carexplo-alpha* curve2d-fast)
@@ -79272,7 +79251,7 @@
   )
 
 
-(define-extern lobby-awards-table-adv-score->car-type (array lobby-awards-score->car-type-row))
+(define-extern lobby-awards-table-adv-score->car-type (array lobby-awards-score->car-type-row)) ;; proven: boxed-array indexing confirmed against lobby-awards-table-adv-score->driver-type's identical layout
 (define-extern lobby-awards-table-adv-score->driver-type (array lobby-awards-score->driver-type-row))
 (define-extern *lobby-awards-first-new-vehicle* object)
 (define-extern *lobby-awards-new-vehicle* object)
@@ -81998,7 +81977,6 @@
 (define-extern *ai-num-players-info* object) ;; provisional: call-site evidence only
 (define-extern *anim-tester* object) ;; provisional: call-site evidence only
 (define-extern *aspect-ratio* object) ;; provisional: call-site evidence only
-(define-extern *async-request-ct* int) ;; proven: plain increment-and-store counter (retrieve-player-lists and siblings)
 (define-extern *auto-continue* object) ;; provisional: call-site evidence only
 (define-extern *auto-save-info* object) ;; provisional: call-site evidence only
 (define-extern *aux-voice-got-callback* object) ;; provisional: call-site evidence only
@@ -82391,7 +82369,6 @@
 (define-extern *lobby-adv-grand-prix* object) ;; provisional: call-site evidence only
 (define-extern *lobby-adv-previous-score* object) ;; provisional: call-site evidence only
 (define-extern *lobby-adv-selected-venue* object) ;; provisional: call-site evidence only
-(define-extern *lobby-awards-new-vehicle* object) ;; provisional: call-site evidence only
 (define-extern *lobby-body-parts-return-state-name* object) ;; provisional: call-site evidence only
 (define-extern *lobby-error-accept* object) ;; provisional: call-site evidence only
 (define-extern *lobby-error-action* (function object object)) ;; provisional: call-site evidence only
@@ -82465,7 +82442,6 @@
 (define-extern *msg-map-net-player-ctf* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-player-deathmatch* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-player-race* object) ;; provisional: call-site evidence only
-(define-extern *msg-map-net-powerup* (array symbol)) ;; proven: net-process-class-info's msg-map field type, matching *msg-map-net-world*
 (define-extern *msg-map-net-projectile* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-test* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-peak-snowball* object) ;; provisional: call-site evidence only
@@ -82514,7 +82490,6 @@
 (define-extern *net-process-class-info-net-player-rushhour* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-time-box* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-time-trial* object) ;; provisional: call-site evidence only
-(define-extern *net-process-class-info-net-powerup* net-process-class-info) ;; proven: matches *net-process-class-info-net-world*, net-powerup-h top-level-login type-new
 (define-extern *net-process-class-info-net-projectile* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-test* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-peak-snowball* object) ;; provisional: call-site evidence only
@@ -82568,7 +82543,6 @@
 (define-extern *power-slide-hud-single* object) ;; provisional: call-site evidence only
 (define-extern *power-slide-hud-single-proc* power-slide-hud-single)
 (define-extern *powercell-footie-constants* object) ;; provisional: call-site evidence only
-(define-extern *powerup-static-hash* spatial-hash) ;; proven: net-powerup-h top-level-login constructs it via (new 'global 'spatial-hash 8192 512)
 (define-extern *prev-create-menu-state-name* object) ;; provisional: call-site evidence only
 (define-extern *prev-room-before-clan* object) ;; provisional: call-site evidence only
 (define-extern *prev-time-of-day-time* object) ;; provisional: call-site evidence only
@@ -82592,7 +82566,6 @@
 (define-extern *rigid-body-queue* object) ;; provisional: call-site evidence only
 (define-extern *rigid-body-queue-manager* object) ;; provisional: call-site evidence only
 (define-extern *rushhour-drone-colors* object) ;; provisional: call-site evidence only
-(define-extern *sampler-mem* pointer) ;; proven: matches jak3's *sampler-mem*, sampler.gc register usage
 (define-extern *scert-extra-params* object) ;; provisional: call-site evidence only
 (define-extern *scrap-book-3* object) ;; provisional: call-site evidence only
 (define-extern *scratch-top* pointer)
@@ -82728,7 +82701,6 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier lightning-spans-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern link function) ;; runtime-typed from savestate
 (define-extern loader-test-command (function object object object)) ;; provisional: call-site evidence only
-(define-extern lobby-awards-table-adv-score->car-type (array lobby-awards-score->car-type-row)) ;; proven: boxed-array indexing confirmed against lobby-awards-table-adv-score->driver-type's identical layout
 ;; og:preserve-this provisional extern removed: shadowed the earlier medius-account-login-request deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier medius-add-to-buddy-list-confirmation-response deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier medius-create-game-request0 deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
