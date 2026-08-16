@@ -46433,7 +46433,9 @@
 (define-extern process-drawable-slow-mo-cloth (function process-drawable symbol none))
 (define-extern process-drawable-cloth-command (function process-drawable pair none))
 ;; (define-extern process-drawable-local-transq-for-joint! function)
-;; (define-extern process-drawable-local-trans-for-joint! function)
+;; activated: wvehicle-weapons-proj top-level-login reads it directly (op 0);
+;; function is the placeholder's own already-given type, unchanged.
+(define-extern process-drawable-local-trans-for-joint! function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; curves                         ;;
@@ -50529,8 +50531,12 @@
 ;; (define-extern get-shared-level function)
 ;; (define-extern nos function)
 ;; (define-extern write-process-as-handle function)
-;; (define-extern write-handle function)
-;; (define-extern read-handle function)
+;; activated: wvehicle-weapons-chicken-drone and wvehicle-weapons-proj both
+;; read it directly as a plain global function reference; function is the
+;; placeholder's own already-given type, unchanged.
+(define-extern write-handle function)
+;; activated: same evidence as write-handle above, same two callers.
+(define-extern read-handle function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; statistics                     ;;
@@ -53942,14 +53948,35 @@
   )
 
 
-;; v-wpn-net-info is already defined!
+;; v-wpn-net-info: 4 byte fields, derived from its own (method 3 v-wpn-net-info)
+;; inspect body, which format!s "left-type: ~D" / "right-type: ~D" /
+;; "left-power: ~D" / "right-power: ~D" reading raw bytes at offsets 0/1/2/3 of
+;; the instance. Size 4 and method-count 9 read directly off the type's own
+;; construction site in wvehicle-weapons-h's top-level-login (a plain (new
+;; 'global 'structure ...) call whose size/flags doubleword is 0x4 / 0x9);
+;; flag-assert follows the same (method-count<<32)|size packing as this file's
+;; own v-wpn-ptable sibling three types up.
+(deftype v-wpn-net-info (structure)
+  ((left-type    uint8 :offset-assert 0)
+   (right-type   uint8 :offset-assert 1)
+   (left-power   uint8 :offset-assert 2)
+   (right-power  uint8 :offset-assert 3)
+   )
+  :method-count-assert 9
+  :size-assert         #x4
+  :flag-assert         #x900000004
+  )
 
 ;; (define-extern V_R_MINE1_ARMED? object)
 ;; (define-extern weapon-mask->type function)
-;; (define-extern *weapon-suppression-table* object)
+;; activated: wvehicle-weapons-h top-level-login reads it directly; object is
+;; the placeholder's own already-given type, unchanged.
+(define-extern *weapon-suppression-table* object)
 ;; (define-extern v-wpn-base-common-trans function)
 ;; (define-extern v-wpn-event-base function)
-;; (define-extern *cheat-defaultgun-in-race* object)
+;; activated: wvehicle-weapons-h top-level-login reads it directly; object is
+;; the placeholder's own already-given type, unchanged.
+(define-extern *cheat-defaultgun-in-race* object)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wvehicle-h                     ;;
@@ -65768,8 +65795,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern V_YELLOW_GUIDED_MISSILE_STANDOFF_TIME object)
-;; (define-extern V_WPN_SHIELD_COLOR_LEVEL_I object)
-;; (define-extern V_WPN_SHIELD_COLOR_LEVEL_II object)
+;; activated: wvehicle-weapons-data top-level-login reads it directly; object
+;; is the placeholder's own already-given type, unchanged.
+(define-extern V_WPN_SHIELD_COLOR_LEVEL_I object)
+;; activated: wvehicle-weapons-data top-level-login reads it directly, same
+;; evidence class as its sibling above.
+(define-extern V_WPN_SHIELD_COLOR_LEVEL_II object)
 ;; (define-extern *v-wpn-available-yellow* array)
 ;; (define-extern *v-wpn-available-red* array)
 ;; (define-extern *v-wpn-available-purple* array)
@@ -65782,8 +65813,14 @@
 ;; (define-extern *weapon-select-table-red-deathrace* object)
 ;; (define-extern *weapon-select-table-yellow-deathrace* object)
 ;; (define-extern *weapon-select-table-yellow-race-first* object)
-;; (define-extern *weapon-select-table-red-race-first* object)
-;; (define-extern *weapon-select-table-yellow-race-second* object)
+;; activated: wvehicle-weapons-data top-level-login reads it directly (op 45,
+;; also the L69 label-use failure at the same call site); object is the
+;; placeholder's own already-given type, unchanged.
+(define-extern *weapon-select-table-red-race-first* object)
+;; activated: wvehicle-weapons-data top-level-login reads it directly (op 56,
+;; also the L68 label-use failure at the same call site), same evidence class
+;; as *weapon-select-table-red-race-first* above.
+(define-extern *weapon-select-table-yellow-race-second* object)
 ;; (define-extern *weapon-select-table-red-race-second* object)
 ;; (define-extern *weapon-select-table-yellow-race-middle* object)
 ;; (define-extern *weapon-select-table-red-race-middle* object)
@@ -70524,14 +70561,22 @@
 ;; (define-extern *curve-mine-width* object)
 ;; (define-extern *trail-color-purple-mine* curve-color-fast)
 ;; (define-extern *trail-color-red-mine* curve-color-fast)
-;; (define-extern *mine-trail-red* object)
-;; (define-extern *mine-trail-purple* object)
+;; activated: wvehicle-weapons-proj top-level-login reads it directly (op 39);
+;; object is the placeholder's own already-given type, unchanged.
+(define-extern *mine-trail-red* object)
+;; activated: wvehicle-weapons-proj top-level-login reads it directly (op 39),
+;; same evidence class as its red sibling above.
+(define-extern *mine-trail-purple* object)
 ;; (define-extern shield-flash-part-callback function)
 ;; (define-extern *weapon-drone-glow-template* object)
 ;; (define-extern *weapon-drone-visor-template* object)
-;; (define-extern *wasted-missile-colors* object)
+;; activated: wvehicle-weapons-part top-level-login reads it directly (op 7);
+;; object is the placeholder's own already-given type, unchanged.
+(define-extern *wasted-missile-colors* object)
 ;; (define-extern *wasted-missile-vec* object)
-;; (define-extern *wasted-missile-origin?* object)
+;; activated: wvehicle-weapons-part top-level-login reads it directly, same
+;; evidence class as *wasted-missile-colors* above.
+(define-extern *wasted-missile-origin?* object)
 (define-extern birth-func-wasted-missile (function sparticle-system sparticle-cpuinfo sparticle-launchinfo none))
 (define-extern birth-func-copy-rotate-z-to-rot-z (function sparticle-system sparticle-cpuinfo sparticle-launchinfo float))
 (define-extern spt-birth-func-b-part-turbo-suppressed (function sparticle-system sparticle-cpuinfo sparticle-launchinfo object object none))
@@ -71741,7 +71786,10 @@
 
 ;; (define-extern v-toad-shot-init-remote function)
 ;; (define-extern *msg-map-v-toad-shot* array)
-;; (define-extern *net-process-class-info-v-toad-shot* object)
+;; activated: wcar-projectiles top-level-login reads it in a type-new call
+;; (same shape as *net-process-class-info-net-world*); net-process-class-info
+;; matches every other active sibling of this name pattern, not bare object.
+(define-extern *net-process-class-info-v-toad-shot* net-process-class-info)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wvehicle-weapons-proj          ;;
@@ -71946,20 +71994,32 @@
 ;; (define-extern *net-process-class-info-mine-a* object)
 ;; (define-extern mine-a-init-by-other function)
 ;; (define-extern mine-b-init-remote function)
-;; (define-extern *msg-map-mine-b* array)
+;; activated: wvehicle-weapons-proj top-level-login reads it directly (op 185,
+;; also the L770 label-use failure at the same call site); array is the
+;; placeholder's own already-given type, unchanged.
+(define-extern *msg-map-mine-b* array)
 ;; (define-extern *net-process-class-info-mine-b* object)
 ;; (define-extern mine-b-common-trans function)
 ;; (define-extern *mine-b-hack* object)
 ;; (define-extern mine-b-init-by-other function)
 ;; (define-extern v-yellow-guided-missile-init-remote function)
-;; (define-extern *msg-map-v-yellow-guided-missile* array)
+;; activated: wvehicle-weapons-proj top-level-login reads it directly (op
+;; 429, also the L770 label-use failure at the same call site); array is the
+;; placeholder's own already-given type, unchanged.
+(define-extern *msg-map-v-yellow-guided-missile* array)
 ;; (define-extern *net-process-class-info-v-yellow-guided-missile* object)
 ;; (define-extern guided-missile-moving-event-handler function)
 ;; (define-extern guided-missile-base-trans function)
 ;; (define-extern v-yellow-defaultgun-hitspang-params object)
 ;; (define-extern v-wpn-yellow-chaingun-1-hitspang-params object)
-;; (define-extern v-wpn-yellow-chaingun-2-hitspang-params object)
-;; (define-extern v-wpn-bulldog-hitspang-params object)
+;; activated: wvehicle-weapons top-level-login reads it directly (op 240) as a
+;; hitspang-params argument, same call shape as the already-active chaingun-1
+;; sibling at this file's provisional-batch section; object matches that sibling.
+(define-extern v-wpn-yellow-chaingun-2-hitspang-params object)
+;; activated: wvehicle-weapons-aux and wvehicle-weapons-chicken-drone both
+;; read it directly as a hitspang-params argument, same evidence class as
+;; the chaingun siblings above.
+(define-extern v-wpn-bulldog-hitspang-params object)
 ;; (define-extern rapid-fire-callback-gun-hitspang function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -72613,11 +72673,18 @@
 ;; (define-extern gunmount-get-change-anim function)
 ;; (define-extern gunmount-generic-event-handler function)
 ;; (define-extern v-wpn-yellow-chain-gun-I-rapid-fire-control-params object)
-;; (define-extern v-wpn-yellow-chain-gun-II-rapid-fire-control-params object)
+;; activated: wvehicle-weapons top-level-login reads it directly (the decompiler
+;; type system reports it unknown by exact this name); object matches every
+;; other rapid-fire-control-params sibling already active in this file.
+(define-extern v-wpn-yellow-chain-gun-II-rapid-fire-control-params object)
 ;; (define-extern hack-sparticle-track-gun function)
-;; (define-extern v-wpn-yellow-default-gun-rapid-fire-control-params object)
+;; activated: wvehicle-weapons top-level-login reads it directly; object
+;; matches every other rapid-fire-control-params sibling already active.
+(define-extern v-wpn-yellow-default-gun-rapid-fire-control-params object)
 ;; (define-extern v-wpn-yellow-guided-missile-init-remote function)
-;; (define-extern *msg-map-v-wpn-yellow-guided-missile* array)
+;; activated: wvehicle-weapons top-level-login reads it directly; array is
+;; the placeholder's own already-given type, unchanged.
+(define-extern *msg-map-v-wpn-yellow-guided-missile* array)
 ;; (define-extern *net-process-class-info-v-wpn-yellow-guided-missile* object)
 ;; (define-extern guided-missile-gen-proj-no-targ-helper function)
 ;; (define-extern guided-missile-gen-proj-targ-helper function)
@@ -72669,8 +72736,12 @@
 
 ;; (define-extern red-sentry-bot-init-remote function)
 ;; (define-extern *msg-map-red-sentry-bot* array)
-;; (define-extern *net-process-class-info-red-sentry-bot* object)
-;; (define-extern v-wpn-sentrybot-rapid-fire-control-params object)
+;; activated: wvehicle-weapons-aux top-level-login reads it in a type-new call,
+;; same shape and same fix as *net-process-class-info-v-toad-shot* above.
+(define-extern *net-process-class-info-red-sentry-bot* net-process-class-info)
+;; activated: wvehicle-weapons-aux top-level-login reads it directly; object
+;; matches every other rapid-fire-control-params sibling already active.
+(define-extern v-wpn-sentrybot-rapid-fire-control-params object)
 ;; (define-extern sentrybot-poke-yaw! function)
 ;; (define-extern sentrybot-poke-pitch! function)
 ;; (define-extern red-sentry-bot-init-by-other function)
@@ -72889,7 +72960,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern v-wpn-base-init-by-other function)
-;; (define-extern warning-hud-draw function)
+;; activated: wvehicle-weapons-proj top-level-login reads it directly (five
+;; call sites); function is the placeholder's own already-given type,
+;; unchanged.
+(define-extern warning-hud-draw function)
 ;; (define-extern v-wpn-type->color function)
 ;; (define-extern v-wpn-type->gunmount-config function)
 ;; (define-extern v-wpn-missile-init-by-other function)
@@ -74492,17 +74566,30 @@
 
 ;; (define-extern chicken-drone-init-remote function)
 ;; (define-extern *msg-map-chicken-drone* array)
-;; (define-extern *net-process-class-info-chicken-drone* object)
-;; (define-extern v-wpn-chicken-drone-rapid-fire-control-params object)
+;; activated: wvehicle-weapons-chicken-drone top-level-login reads it in a
+;; type-new call, same shape and fix as the other net-process-class-info-*
+;; siblings activated alongside it this rung.
+(define-extern *net-process-class-info-chicken-drone* net-process-class-info)
+;; activated: wvehicle-weapons-chicken-drone top-level-login reads it directly
+;; (op 9); object matches every other rapid-fire-control-params sibling
+;; already active in this file (v-wpn-yellow-chain-gun-I, chaingun-1's own
+;; hitspang-params sibling).
+(define-extern v-wpn-chicken-drone-rapid-fire-control-params object)
 ;; (define-extern chicken-drone-spawn function)
 ;; (define-extern chicken-drone-local-space function)
 ;; (define-extern chicken-drone-2-init-remote function)
 ;; (define-extern *msg-map-chicken-drone-2* array)
-;; (define-extern *net-process-class-info-chicken-drone-2* object)
+;; activated: wvehicle-weapons-chicken-drone top-level-login reads it in a
+;; type-new call, same shape and fix as the other net-process-class-info-*
+;; siblings activated alongside it this rung; net-process-class-info matches
+;; every other active sibling of this name pattern, not bare object.
+(define-extern *net-process-class-info-chicken-drone-2* net-process-class-info)
 ;; (define-extern chicken-drone-2-spawn function)
 ;; (define-extern seeker-init-remote function)
 ;; (define-extern *msg-map-seeker* array)
-;; (define-extern *net-process-class-info-seeker* object)
+;; activated: wvehicle-weapons-proj top-level-login reads it in a type-new
+;; call, same shape and fix as the net-process-class-info-* siblings above.
+(define-extern *net-process-class-info-seeker* net-process-class-info)
 ;; (define-extern success-seeker-init-remote function)
 ;; (define-extern *msg-map-success-seeker* array)
 ;; (define-extern *net-process-class-info-success-seeker* object)
@@ -74514,7 +74601,9 @@
 ;; (define-extern success-seeker-2-spawn function)
 ;; (define-extern turbodash-seeker-init-remote function)
 ;; (define-extern *msg-map-turbodash-seeker* array)
-;; (define-extern *net-process-class-info-turbodash-seeker* object)
+;; activated: wvehicle-weapons-proj top-level-login reads it in a type-new
+;; call, same shape and fix as the net-process-class-info-* siblings above.
+(define-extern *net-process-class-info-turbodash-seeker* net-process-class-info)
 ;; (define-extern turbodash-seeker-spawn function)
 ;; (define-extern fire-seeker function)
 ;; (define-extern fire-drone function)
