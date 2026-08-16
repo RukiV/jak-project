@@ -63272,6 +63272,228 @@
 ;; (define-extern update-width function) ;; (function string symbol)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; nav-graph-h                    ;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; jak3-verbatim transplant (nav cluster): entity-table's *entity-info* static array
+;; embeds a raw type pointer at :ptype (type-ref nav-graph :method-count 45) in jak3's
+;; own landed source; decoding jakx's own entity-table against jakx's binary without
+;; this type fails with "Tried to find the number of methods on type nav-graph, but it
+;; is not defined." (scoped decode, decompiler.exe, entity-table only), proving the
+;; type pointer is live jakx binary data, not a jak3-only artifact. jakx carries no
+;; other trace of the family: no nav-graph/nav-graph-h object in all_objs.json, no
+;; goal_src file, no dead block to resurrect; the sole pre-existing trace is the unused
+;; (declare-type nav-branch structure) forward declare left over in traffic-h above
+;; (never referenced as a field type anywhere in this file). There is therefore no
+;; jakx-specific call-site evidence for the method layout beyond "the type exists and
+;; is named nav-graph"; the family is ported verbatim from jak3. nav-graph parents
+;; basic directly (not process), so it sits outside the +1 process-ancestor id-drift
+;; class documented on nav-mesh-editor and nav-graph-editor in this same file; the
+;; closest available control is the basic-derived sibling mysql-nav-graph, landed
+;; elsewhere in this file with its full jak3-matching method count and zero
+;; shift-corrections. Every field type below is checked live against jakx: vector,
+;; symbol, string, basic, uint8/16/32, int8/16/32, float and uint are universal, and
+;; mysql-nav-graph is jakx's own landed type (mysql-nav-graph section, above). jak3
+;; twin: all-types.gc:48467-48665.
+
+;; +++nav-graph-h:nav-branch-clock-type
+(defenum nav-branch-clock-type
+  :type uint8
+  (no-clock 0)
+  (clock2 1)
+  (clock3 2)
+  (clock4 3)
+  )
+;; ---nav-graph-h:nav-branch-clock-type
+
+;; +++nav-graph-h:nav-branch-clock-mask
+(defenum nav-branch-clock-mask
+  :type uint8
+  :bitfield #t
+  (phase-1 0)
+  (phase-1a 1)
+  (phase-2 2)
+  (phase-2a 3)
+  (phase-3 4)
+  (phase-3a 5)
+  (phase-4 6)
+  (phase-4a 7)
+  )
+;; ---nav-graph-h:nav-branch-clock-mask
+
+;; +++nav-graph-h:nav-branch-flags
+(defenum nav-branch-flags
+  :bitfield #t
+  :type uint8
+  (nabflags-0)
+  (nabflags-1)
+  (nabflags-2)
+  (nabflags-3)
+  (nabflags-4)
+  (nabflags-5)
+  (nabflags-6)
+  (nabflags-7)
+  )
+;; ---nav-graph-h:nav-branch-flags
+
+(declare-type nav-node structure)
+(deftype nav-branch (structure)
+  ((node                nav-node 2 :offset-assert 0) ;; guessed by decompiler
+   (src-node            nav-node   :offset 0) ;; guessed by decompiler
+   (dest-node           nav-node   :offset 4) ;; guessed by decompiler
+   (temp-dest-node-id   int32      :offset 4)
+   (speed-limit         uint8      :offset-assert 8)
+   (density             uint8      :offset-assert 9)
+   (clock-type          nav-branch-clock-type :offset-assert 10)
+   (clock-mask          nav-branch-clock-mask :offset-assert 11)
+   (territory           uint8      :offset 10)
+   (exclusive-branch-id uint8      :offset 11)
+   (max-user-count      uint8      :offset-assert 12)
+   (user-count          uint8      :offset-assert 13)
+   (width               uint8      :offset-assert 14)
+   (flags               nav-branch-flags :offset-assert 15) ;; nav-branch-flags
+   )
+  :method-count-assert 21
+  :size-assert         #x10
+  :flag-assert         #x1500000010
+  (:methods
+    (set-default-density-speed-and-width (_type_) none) ;; 9
+    (debug-print (_type_ object int) none) ;; 10
+    (get-density (_type_) float) ;; 11
+    (get-speed-limit (_type_) float) ;; 12
+    (get-width (_type_) float) ;; 13
+    (user-limit-reached? (_type_) symbol) ;; 14
+    (dest-node-id-at-max? (_type_) symbol) ;; 15
+    (set-density (_type_ float) none) ;; 16
+    (set-speed-limit (_type_ float) none) ;; 17
+    (set-width (_type_ float) none) ;; 18
+    (set-src-node (_type_ nav-node) none) ;; 19
+    (set-dst-node (_type_ nav-node) none) ;; 20
+    )
+  )
+
+;; +++nav-graph-h:nav-node-flag-byte
+(defenum nav-node-flag-byte
+  "The same as [[nav-node-flag]] but more compact"
+  :type uint8
+  :bitfield #t
+  (visited 0)
+  (blocked 1)
+  (pedestrian 2)
+  (selected 3)
+  (hidden 4)
+  )
+;; ---nav-graph-h:nav-node-flag-byte
+
+(deftype nav-node (structure)
+  ((data         uint32                    8       :offset-assert 0 :score -1) ;; guessed by decompiler
+   (position     vector                    :inline :offset 0)
+   (pos-x        float                             :offset 0)
+   (pos-y        float                             :offset 4)
+   (pos-z        float                             :offset 8)
+   (angle        uint16                            :offset 12)
+   (id           uint16                            :offset 14)
+   (radius       uint8                             :offset 16)
+   (branch-count int8                              :offset 17)
+   (flags        nav-node-flag-byte                :offset 18) ;; nav-node-flag-byte
+   (pad0         int8                      1       :offset 19) ;; guessed by decompiler
+   (branch-array (inline-array nav-branch)         :offset 20) ;; guessed by decompiler
+   (nav-mesh-id  uint32                            :offset 24)
+   (level        symbol                            :offset 28) ;; guessed by decompiler
+   )
+  :method-count-assert 22
+  :size-assert         #x20
+  :flag-assert         #x1600000020
+  ;; field nav-node-flag is likely a value type.
+  (:methods
+    (debug-draw (_type_) none) ;; 9
+    (debug-print (_type_ symbol string) none) ;; 10
+    (remove-branch-by-idx (_type_ int) none) ;; 11
+    (init-from-pt-and-heading (_type_ vector vector) none) ;; 12
+    (set-pos-xyz (_type_ vector) none) ;; 13
+    (set-angle-from-heading (_type_ vector) none) ;; 14
+    (set-id-and-link-branches-back (_type_ uint) none) ;; 15
+    (set-radius (_type_ float) none) ;; 16
+    (set-angle (_type_ float) none) ;; 17
+    (get-position (_type_ vector) vector) ;; 18
+    (calc-sine-and-cosine! (_type_ vector) vector) ;; 19
+    (get-angle (_type_) float) ;; 20
+    (get-radius (_type_) float) ;; 21
+    )
+  )
+
+(deftype nav-graph-link (structure)
+  ((id            uint32           :offset-assert 0)
+   (dest-graph-id uint32           :offset-assert 4)
+   (src-branch-id uint16           :offset-assert 8)
+   (dest-node-id  uint16           :offset-assert 10)
+   (dest-graph    basic            :offset-assert 12)
+   (dummy-node    nav-node :inline :offset-assert 16)
+   )
+  :method-count-assert 9
+  :size-assert         #x30
+  :flag-assert         #x900000030
+  )
+
+(deftype nav-graph (basic)
+  ((node-count   int16                           :offset-assert 4)
+   (branch-count int16                           :offset-assert 6)
+   (node-array   (inline-array nav-node)         :offset-assert 8) ;; guessed by decompiler
+   (branch-array (inline-array nav-branch)       :offset-assert 12) ;; guessed by decompiler
+   (link-count   int16                           :offset-assert 16)
+   (pad2         uint16                          :offset-assert 18)
+   (link-array   (inline-array nav-graph-link)   :offset-assert 20) ;; guessed by decompiler
+   (first-node   int16                           :offset-assert 24)
+   (pad0         uint16                          :offset-assert 26)
+   (patched      symbol                          :offset-assert 28) ;; guessed by decompiler
+   (id           uint32                          :offset-assert 32)
+   (pad1         uint32                        6 :offset-assert 36) ;; guessed by decompiler
+   )
+  :method-count-assert 45
+  :size-assert         #x3c
+  :flag-assert         #x2d0000003c
+  (:methods
+    (new (symbol type int int int uint) _type_) ;; 0
+    (debug-draw-nodes (_type_) none) ;; 9
+    (find-nearest-nav-node (_type_ vector symbol) nav-node) ;; 10
+    (print-nav-graph (_type_) none) ;; 11
+    (set-first-node (_type_) none) ;; 12
+    (nav-graph-method-13 (_type_ int int) none) ;; 13
+    (nav-graph-method-14 (_type_ int int) none) ;; 14
+    (reset! (_type_) none) ;; 15
+    (add-node (_type_ int) nav-node) ;; 16
+    (link-node-to-graph (_type_ nav-node) none) ;; 17
+    (reset-branch-array (_type_ nav-node int) none) ;; 18
+    (nav-graph-method-19 (_type_ int int int int int int) none) ;; 19
+    (nav-graph-method-20 (_type_ int int) none) ;; 20
+    (move-selected-to-height-map-height (_type_) none) ;; 21
+    (select-nodes-in-range (_type_ int int) none) ;; 22
+    (deselect-nodes-in-range (_type_ int int) none) ;; 23
+    (toggle-select-nodes-in-range (_type_ int int) none) ;; 24
+    (select-nodes-in-level (_type_ symbol symbol) none) ;; 25
+    (select-nodes-by-nav-mesh-id (_type_ int symbol) none) ;; 26
+    (select-nodes-by-flags (_type_ nav-node-flag-byte nav-node-flag-byte symbol) none) ;; 27
+    (print-selected-nodes (_type_) none) ;; 28
+    (assign-selected-nodes-to-level (_type_ symbol) none) ;; 29
+    (assign-selected-nodes-to-nav-mesh (_type_ uint) none) ;; 30
+    (set-radius-of-selected-nodes (_type_ float) none) ;; 31
+    (set-speed-limit-of-selected (_type_ float) none) ;; 32
+    (set-density-of-selected (_type_ float) none) ;; 33
+    (set-width-of-selected (_type_ float) none) ;; 34
+    (or-flags-of-selected-nodes (_type_ nav-node-flag-byte) none) ;; 35
+    (and-flags-of-selected-nodes (_type_ nav-node-flag-byte) none) ;; 36
+    (offset-pos-of-selected (_type_ vector) none) ;; 37
+    (nav-graph-method-38 (_type_) none) ;; 38
+    (nav-graph-method-39 (_type_) none) ;; 39
+    (nav-graph-method-40 (_type_ int) int) ;; 40
+    (node-at-idx (_type_ int) nav-node) ;; 41
+    (patch-nodes (_type_) none) ;; 42
+    (copy-to-mysql-graph (_type_ mysql-nav-graph string) none) ;; 43
+    (from-editor (_type_ mysql-nav-graph symbol) none) ;; 44
+    )
+  )
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; nav-mesh-editor-h              ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
