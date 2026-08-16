@@ -128,3 +128,39 @@
     (shut-down "Disable the joint mod, possibly blending out depending on the type" (_type_) none) ;; 15
     )
   )
+
+;; joint-mod-base and joint-mod-set-world landed early: menu2-h's base-menu deftype
+;; has an :inline (j-mod joint-mod-set-world) field, which needs the full type defined
+;; before use in build order (game.gd puts joint-mod-h.o ahead of menu2-h.o). Transcribed
+;; verbatim from decompiler/config/jakx/all-types.gc to satisfy the two-file consistency
+;; rule; the rest of the joint-mod-base family is not landed here.
+
+(deftype joint-mod-base (structure)
+  "Base type for most joint-mods"
+  ((flags      joint-mod-base-flags  :offset-assert 0)
+   (node-index int16   :offset-assert 2)
+   (proc       (pointer process-drawable)  :offset-assert 4)
+   (callback   (function cspace transformq none)   :offset-assert 8)
+   )
+  :method-count-assert 12
+  :size-assert         #xc
+  :flag-assert         #xc0000000c
+  (:methods
+    (init "Set up this joint-mod to modify the given joint of the given process. Will attach automatically if attached flag is set." (_type_ process-drawable uint joint-mod-base-flags) none) ;; 9
+    (attach-callback "Take control of the specified joint by modifying the cspace callback." (_type_) none) ;; 10
+    (remove-callback "Remove this callback and set param0 to #f to use the default (animated joint)" (_type_) none) ;; 11
+    )
+  )
+
+(deftype joint-mod-set-world (joint-mod-base)
+  "Directly overwrite the _bone_ transform (ignoring the parent entirely).
+   This does not pay attention to the flags."
+  ((transform transformq :inline :offset-assert 16)
+   )
+  :method-count-assert 12
+  :size-assert         #x40
+  :flag-assert         #xc00000040
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type process-drawable int symbol) _type_)
+    )
+  )

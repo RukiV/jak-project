@@ -7,3 +7,62 @@
 
 ;; DECOMP BEGINS
 
+;; net-audio-data-characteristics, net-video-data-characteristics and
+;; net-stream-media-params landed early: stream-media.gc's init-stream-media-params
+;; extern takes net-stream-media-params by value, which needs the full type (and its
+;; two :inline field types) defined before use in build order (game.gd puts
+;; stream-media-h.o ahead of stream-media.o). Transcribed verbatim from
+;; decompiler/config/jakx/all-types.gc to satisfy the two-file consistency rule.
+
+(deftype net-audio-data-characteristics (structure)
+  ((n-channels-in         int32  :offset-assert 0)
+   (n-bits-per-sample-in  int32  :offset-assert 4)
+   (n-sample-rate-in      int32  :offset-assert 8)
+   (n-channels-out        int32  :offset-assert 12)
+   (n-bits-per-sample-out int32  :offset-assert 16)
+   (n-sample-rate-out     int32  :offset-assert 20)
+   )
+  :method-count-assert 9
+  :size-assert         #x18
+  :flag-assert         #x900000018
+  )
+
+(deftype net-video-data-characteristics (structure)
+  ((xsize int32  :offset-assert 0)
+   (ysize int32  :offset-assert 4)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #x8
+  :flag-assert         #x900000008
+  )
+
+(deftype net-stream-media-params (structure)
+  ((b-default-set                       int32                                  :offset-assert 0)
+   (b-use-stream-media                  int32                                  :offset-assert 4)
+   (num-channels                        uint32                                 :offset-assert 8)
+   (max-incoming-audio-streams          uint32                                 :offset-assert 12)
+   (record-no-data-timeout              uint32                                 :offset-assert 16)
+   (send-buffer-size                    uint32                                 :offset-assert 20)
+   (recv-buffer-size                    uint32                                 :offset-assert 24)
+   (grid-type                           int32                                  :offset-assert 28)
+   (audio-data-characteristics          net-audio-data-characteristics :inline :offset-assert 32)
+   (pf-audio-record-callback            basic                                  :offset-assert 56)
+   (p-audio-record-callback-data        basic                                  :offset-assert 60)
+   (pf-audio-play-callback              basic                                  :offset-assert 64)
+   (p-audio-play-callback-data          basic                                  :offset-assert 68)
+   (video-data-characteristics          net-video-data-characteristics :inline :offset-assert 72)
+   (pf-video-record-callback            basic                                  :offset-assert 80)
+   (p-video-record-callback-data        basic                                  :offset-assert 84)
+   (pf-video-play-callback              basic                                  :offset-assert 88)
+   (p-video-play-callback-data          basic                                  :offset-assert 92)
+   (pf-custom-video-record-callback     basic                                  :offset-assert 96)
+   (p-custom-video-record-callback-data basic                                  :offset-assert 100)
+   (pf-custom-video-play-callback       basic                                  :offset-assert 104)
+   (p-custom-video-play-callback-data   basic                                  :offset-assert 108)
+   )
+  :method-count-assert 9
+  :size-assert         #x70
+  :flag-assert         #x900000070
+  ;; field p-audio-record-callback-data uses ~A with a signed load. field p-audio-play-callback-data uses ~A with a signed load. field p-video-record-callback-data uses ~A with a signed load. field p-video-play-callback-data uses ~A with a signed load. field p-custom-video-record-callback-data uses ~A with a signed load. field p-custom-video-play-callback-data uses ~A with a signed load.
+  )
