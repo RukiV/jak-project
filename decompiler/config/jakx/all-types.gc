@@ -43179,6 +43179,9 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; medius bulk field wave: dma-block-list.blocks is inline at offset 8, not
+;; 16-aligned; :allow-misaligned relaxes the inline-array start alignment (own-field
+;; alignment 4, stride stays the normal 16-rounded align(24,16)=32)
 (deftype dma-block (structure)
   ((tp           basic  :offset-assert 0)
    (offset       int32  :offset-assert 4)
@@ -43187,6 +43190,7 @@
    (order        int32  :offset-assert 16)
    (buffer-id    int32  :offset-assert 20)
    )
+  :allow-misaligned
   :method-count-assert 11
   :size-assert         #x18
   :flag-assert         #xb00000018
@@ -43211,6 +43215,19 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype dma-block-list (structure)
+  ((total-length int32     :offset-assert 0)
+   (min-offset   int32     :offset-assert 4)
+   (blocks       dma-block 4 :inline :offset-assert 8)
+   )
+  :method-count-assert 10
+  :size-assert         #x88
+  :flag-assert         #xa00000088
+  (:methods
+    (dma-block-list-method-9 () none) ;; 9
+    )
+  )
 
 ;; (define-extern *dma-block-lists* array)
 ;; (define-extern can-place-block? function)
@@ -44709,6 +44726,23 @@
   :flag-assert         #x900000098
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype grid-hash-work (basic)
+  ((result-qwords     uint128 4 :offset-assert 16)
+   (object-id         int32   :offset-assert 80)
+   (temp-box-min      vector  :inline :offset-assert 96)
+   (temp-box-max      vector  :inline :offset-assert 112)
+   (visit-count       int32   :offset-assert 128)
+   (temp-time         uint32  :offset-assert 132)
+   (queue-object-time uint32  :offset-assert 136)
+   (make-hash-time    uint32  :offset-assert 140)
+   (search-time       uint32  :offset-assert 144)
+   (add-object-time   uint32  :offset-assert 148)
+   )
+  :method-count-assert 9
+  :size-assert         #x98
+  :flag-assert         #x900000098
+  )
 
 ;; (define-extern *grid-hash-work* grid-hash-work) ;; grid-hash-work
 ;; (define-extern validate-bucket-bits function) ;; (function grid-hash (pointer grid-hash-word) symbol)
@@ -59587,6 +59621,15 @@
   :flag-assert         #x900000020
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype hack-line-sphere (structure)
+  ((spheres sphere 2 :inline :offset-assert 0)
+   (prim    basic  :offset-assert 28 :overlay-at (-> spheres 1 w))
+   )
+  :method-count-assert 9
+  :size-assert         #x20
+  :flag-assert         #x900000020
+  )
 
 #|
 (deftype check-line-spheres-hack-work (structure)
@@ -59608,6 +59651,25 @@
   :flag-assert         #x9000000ec
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype check-line-spheres-hack-work (structure)
+  ((fill-sphere         sphere           :inline :offset-assert 0)
+   (fill-delta          vector           :inline :offset-assert 16)
+   (delta               vector           :inline :offset-assert 32)
+   (line-spheres        hack-line-sphere 4 :inline :offset-assert 48)
+   (cshape              basic            :offset-assert 176)
+   (collide-with        uint32           :offset-assert 180)
+   (group-collide-with  uint32           :offset-assert 184)
+   (group-collide-as    uint32           :offset-assert 188)
+   (actor-count         int8             :offset-assert 192)
+   (prim-count          int8             :offset-assert 193)
+   (lsphere-count       int8             :offset-assert 194)
+   (search-result-array uint32           10 :offset-assert 196)
+   )
+  :method-count-assert 9
+  :size-assert         #xec
+  :flag-assert         #x9000000ec
+  )
 
 #|
 (deftype ray-tube-intersect-params (structure)
@@ -64648,6 +64710,24 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+;; the dead block's full field list is process-tree's and process's own
+;; fields re-listed at raw MIPS displacement (-4 from the real offset,
+;; the BASIC_OFFSET); this type adds zero own fields, size-assert equals
+;; live process's size-assert exactly, so the added-field list is empty
+;; (precedent: dead-pool (process-tree) () at all-types.gc:717). Same
+;; category for the dead block's (:methods ...) tail: method-count-assert
+;; (15) equals process's own method count exactly (confirmed live by the
+;; compiler: transcribing the tail's six placeholder slots verbatim made
+;; it compute 21 methods against an asserted 15), so those are inherited
+;; virtual dispatch stubs the decompiler could not name, not new methods;
+;; dropped along with the fields, not transcribed.
+(deftype eco-light (process)
+  ()
+  :method-count-assert 15
+  :size-assert         #x90
+  :flag-assert         #xf00000090
+  )
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -66761,12 +66841,17 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; medius bulk field wave: hud-manager-death-indicator.death-indicators-queue is
+;; inline at offset 8, not 16-aligned; :allow-misaligned relaxes the inline-array
+;; start alignment (own-field alignment 8 from handle's uint64, stride stays the
+;; normal 16-rounded align(24,16)=32)
 (deftype death-indicator-record (structure)
   ((on            basic   :offset-assert 0)
    (handle        uint64  :offset-assert 8)
    (spawn-time    int32   :offset-assert 16)
    (previous-time int32   :offset-assert 20)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #x18
   :flag-assert         #x900000018
@@ -66788,6 +66873,20 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype hud-manager-death-indicator (hud-manager)
+  ((death-indicators-queue      death-indicator-record 20 :inline :offset-assert 8)
+   (death-indicators-queue-size int8                   :offset-assert 648)
+   )
+  :method-count-assert 15
+  :size-assert         #x289
+  :flag-assert         #xf00000289
+  (:methods
+    (hud-manager-death-indicator-method-12 () none) ;; 12
+    (hud-manager-death-indicator-method-13 () none) ;; 13
+    (hud-manager-death-indicator-method-14 () none) ;; 14
+    )
+  )
 
 #|
 (deftype death-indicator-single0 (in-game-hud)
@@ -68090,11 +68189,15 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; medius bulk field wave: hud-player-positions.damage-records is inline at offset
+;; 124, not 16-aligned; :allow-misaligned relaxes the inline-array start alignment
+;; (own-field alignment 4, stride stays the normal 16-rounded align(12,16)=16)
 (deftype damage-record (structure)
   ((player-id  int32  :offset-assert 0)
    (part       basic  :offset-assert 4)
    (start-time int32  :offset-assert 8)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #xc
   :flag-assert         #x90000000c
@@ -68113,11 +68216,15 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; medius bulk field wave: hud-player-positions.rotations is inline at offset 72,
+;; not 16-aligned; :allow-misaligned relaxes the inline-array start alignment
+;; (own-field alignment 4, stride stays the normal 16-rounded align(12,16)=16)
 (deftype rotation-record (structure)
   ((index1     int32  :offset-assert 0)
    (index2     int32  :offset-assert 4)
    (start-time int32  :offset-assert 8)
    )
+  :allow-misaligned
   :method-count-assert 9
   :size-assert         #xc
   :flag-assert         #x90000000c
@@ -68153,6 +68260,34 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+(deftype hud-player-positions (hud-item-group)
+  ((player-position-list uint32          6 :offset-assert 44)
+   (player-count         int32           :offset-assert 68)
+   (rotations            rotation-record 3 :inline :offset-assert 72)
+   (used-rotations       int32           :offset-assert 120)
+   (damage-records       damage-record   6 :inline :offset-assert 124)
+   (used-damage-records  int32           :offset-assert 220)
+   (horizontal           basic           :offset-assert 224)
+   )
+  :method-count-assert 36
+  :size-assert         #xe4
+  :flag-assert         #x24000000e4
+  (:methods
+    (hud-player-positions-method-24 () none) ;; 24
+    (hud-player-positions-method-25 () none) ;; 25
+    (hud-player-positions-method-26 () none) ;; 26
+    (hud-player-positions-method-27 () none) ;; 27
+    (hud-player-positions-method-28 () none) ;; 28
+    (hud-player-positions-method-29 () none) ;; 29
+    (hud-player-positions-method-30 () none) ;; 30
+    (hud-player-positions-method-31 () none) ;; 31
+    (hud-player-positions-method-32 () none) ;; 32
+    (hud-player-positions-method-33 () none) ;; 33
+    (hud-player-positions-method-34 () none) ;; 34
+    (hud-player-positions-method-35 () none) ;; 35
+    )
+  )
 
 #|
 (deftype hud-player-progress (hud-item-group)
@@ -68643,6 +68778,24 @@
     )
   )
 |#
+;; resurrected from the dead block above (medius bulk field wave)
+;; the dead block's full field list is process-tree's and process's own
+;; fields re-listed at raw MIPS displacement (-4 from the real offset,
+;; the BASIC_OFFSET); this type adds zero own fields, size-assert equals
+;; live process's size-assert exactly, so the added-field list is empty
+;; (precedent: dead-pool (process-tree) () at all-types.gc:717). Same
+;; category for the dead block's (:methods ...) tail: method-count-assert
+;; (15) equals process's own method count exactly (confirmed live by the
+;; compiler: transcribing the tail's six placeholder slots verbatim made
+;; it compute 21 methods against an asserted 15), so those are inherited
+;; virtual dispatch stubs the decompiler could not name, not new methods;
+;; dropped along with the fields, not transcribed.
+(deftype spawn-point (process)
+  ()
+  :method-count-assert 15
+  :size-assert         #x90
+  :flag-assert         #xf00000090
+  )
 
 #|
 (deftype hud-deathmatch-single (in-game-hud)
