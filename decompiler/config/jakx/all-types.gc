@@ -15806,6 +15806,19 @@
 ;; car-info-h                     ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; Tried and reverted: typing every field below `texture` (evidenced by
+;; car-info-full-method-15/16 reading them for width/height-shaped halfword
+;; fields, and by every one of them feeding adgif-shader<-texture-simple!)
+;; clears method 15/16's "could not figure out load" errors, but the SAME
+;; fields are also read in car-info-full-method-20/21 as a growing raw write
+;; cursor (incremented by 112 bytes per call, building adgif-shader-sized
+;; blocks), and `texture` does not support that pointer math any more than
+;; car-tables' car-upgrade-info-array pointer walk does (label_types.jsonc).
+;; Net effect measured both ways: texture-typing trades 2 load errors for 21
+;; new store errors across methods 20/21; left as `basic` keeps method 15/16
+;; at their original 2 load errors instead. `basic` stays the honest choice
+;; until the two call shapes are disambiguated (car-textures_ir2.asm, this
+;; worktree's config).
 (deftype car-layer-textures (structure)
   ((data       basic 6 :offset-assert 0)
    (dest       basic     :offset 0)
@@ -15834,6 +15847,11 @@
   :flag-assert         #x900000150
   )
 
+;; forward declared: car-rgb-color-method-9 below takes a car-hsv-color, and
+;; car-hsv-color-method-9 (defined after car-rgb-color) takes a car-rgb-color
+;; back, a genuine mutual reference between the two color-conversion methods.
+(declare-type car-hsv-color structure)
+
 (deftype car-rgb-color (vector4w)
   ((red   int32  :offset 0)
    (green int32  :offset 4)
@@ -15844,9 +15862,16 @@
   :size-assert         #x10
   :flag-assert         #xc00000010
   (:methods
-    (car-rgb-color-method-9 (_type_ object) none) ;; 9
+    ;; method 9 reads arg1 at offsets 0/4/8 as floats (lwc1), exactly
+    ;; car-hsv-color's hue/saturation/value layout, converting hsv to rgb
+    ;; into self (car-textures_ir2.asm, this worktree's config).
+    (car-rgb-color-method-9 (_type_ car-hsv-color) none) ;; 9
     (car-rgb-color-method-10 (_type_) none) ;; 10
-    (car-rgb-color-method-11 (_type_ object) none) ;; 11
+    ;; method 11 extracts four packed bytes from arg1 via shift pairs, the
+    ;; last one a bare 32-bit srl the decompiler cannot pattern-match against
+    ;; a generic `object` (unsupported inline assembly instruction), but
+    ;; resolves cleanly once arg1 is the packed rgba word it actually is.
+    (car-rgb-color-method-11 (_type_ uint) none) ;; 11
     )
   )
 
@@ -15859,7 +15884,12 @@
   :size-assert         #x10
   :flag-assert         #xa00000010
   (:methods
-    (car-hsv-color-method-9 (_type_ pointer) none) ;; 9
+    ;; method 9's arg1 is read at offsets 0/4/8 as int32 (lw, not lwc1),
+    ;; converted to float and scaled, the same rgb layout car-info-full's
+    ;; own method 9/10 pass through from base-color/stripe-color (both
+    ;; car-rgb-color). Bare `pointer` had no field to resolve those loads
+    ;; against ("Failed load", car-textures_ir2.asm, this worktree's config).
+    (car-hsv-color-method-9 (_type_ car-rgb-color) none) ;; 9
     )
   )
 
@@ -15953,19 +15983,43 @@
   :size-assert         #x200
   :flag-assert         #x1600000200
   (:methods
-    (car-info-full-method-9 (_type_) none) ;; 9
-    (car-info-full-method-10 (_type_) none) ;; 10
+    ;; methods 9/10: self-only stubs forwarded no arg1 at all, but both bodies
+    ;; call car-rgb-color-method-9 with an untouched, never-assigned a1 local
+    ;; (car-textures_ir2.asm, this worktree's config); the real arg1 is
+    ;; forwarded straight through to that call, whose own arg1 is `object`.
+    (car-info-full-method-9 (_type_ object) none) ;; 9
+    (car-info-full-method-10 (_type_ object) none) ;; 10
     (car-info-full-method-11 (_type_ object) none) ;; 11
     (car-info-full-method-12 (_type_ object) none) ;; 12
     (car-info-full-method-13 (_type_) none) ;; 13
-    (car-info-full-method-14 (_type_ object) none) ;; 14
+    ;; method 14: arg1 (declared `object`) is added directly to self and used
+    ;; as a raw byte offset into `damage`, the same shape method 13's already-
+    ;; clean dotimes over 0-13 (-> this damage i) writes; goalc rejects math
+    ;; on `object` the same way it rejects it on car-tables' upgrade-info
+    ;; pointer walk, so this is a damage-array index, not an object reference.
+    (car-info-full-method-14 (_type_ int) none) ;; 14
     (car-info-full-method-15 (_type_) none) ;; 15
     (car-info-full-method-16 (_type_ object) none) ;; 16
     (car-info-full-method-17 (_type_) none) ;; 17
     (car-info-full-method-18 (_type_ vector) none) ;; 18
     (car-info-full-method-19 (_type_ vector vector) none) ;; 19
-    (car-info-full-method-20 (_type_ object texture object) none) ;; 20
-    (car-info-full-method-21 () none) ;; 21
+    ;; methods 20/21: both bodies build one adgif-shader-sized (112-byte)
+    ;; texture-layer template into a growing pointer read from arg1's own
+    ;; offset 4 (car-textures_ir2.asm). arg2 (texture) is proven at the
+    ;; adgif-shader<-texture-simple! call site (all-types.gc, already typed).
+    ;; arg3 is compared against integer constants 1 and 4, never dereferenced,
+    ;; so it is int, not object. t0/t1 are shifted left 4 and stored as raw
+    ;; words (texture-page-scaled indices); both methods read them but
+    ;; neither had them in the declared arg list at all, hence "may read a
+    ;; register that is not set". arg1 stays `object`: it looks like a
+    ;; car-layer-textures element by its offset-4 field read, but typing it
+    ;; that way was tried and reverted (see car-layer-textures above) because
+    ;; the SAME field is read here as a raw, growable write cursor, and no
+    ;; structure type both resolves the field lookup and survives the
+    ;; subsequent pointer math. The offset-4 load itself stays an open
+    ;; "could not figure out load" defect on arg1 pending disambiguation.
+    (car-info-full-method-20 (_type_ object texture int int int) none) ;; 20
+    (car-info-full-method-21 (_type_ object texture int int int) none) ;; 21
     )
   )
 
