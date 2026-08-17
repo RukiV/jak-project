@@ -53574,13 +53574,23 @@
   )
 
 
-#|
+;; resurrected from the dead block above (missing :inline defect: slice-corners
+;; is a plain vector-4 array with no :inline, jakx's own basic-pointer-bias
+;; class from jakx-alltypes-offset-convention; the jak3 twin at
+;; decompiler/config/jak3/all-types.gc:56521 carries the same field :inline.
+;; jakx's own version adds slice-range and race-line ahead of pt-on-slice,
+;; which jak3's twin does not have (a genuinely larger, jakx-only query
+;; struct, not a byte-for-byte transplant), so only the :inline flag is
+;; adopted from the twin, not its layout. Confirmed against the assert
+;; oracle: without :inline the parser reported lap-dist placed at 64 against
+;; its own offset-assert of 112; with :inline the offsets resolve exactly as
+;; declared.)
 (deftype race-mesh-slice-query (structure)
   ((search-sphere sphere    :inline :offset-assert 0)
    (slice-range   uint16   2       :offset-assert 16)
    (race-line     race-line         :offset-assert 20)
    (pt-on-slice   vector    :inline :offset-assert 32)
-   (slice-corners vector    4       :offset-assert 48) ;; guessed by decompiler
+   (slice-corners vector    4 :inline :offset-assert 48) ;; guessed by decompiler
    (lap-dist      float             :offset-assert 112)
    (slice-id      int16             :offset-assert 116)
    )
@@ -53588,7 +53598,6 @@
   :size-assert         #x76
   :flag-assert         #x900000076
   )
-|#
 
 #|
 (deftype race-mesh-edge (structure)
@@ -53792,7 +53801,30 @@
     )
   )
 
-;; (define-extern output-race-mesh function)
+;; output-race-mesh: debug-prints a race-mesh's edges (format strings "~d ~f
+;; ~m ~m ~m  " and "~m ~m ~m~%" per edge, matching race-mesh-edge's own
+;; left/lap-dist/right fields one component at a time). Takes one argument;
+;; its body guards on the arg being truthy, loads a pointer from the arg's
+;; own offset 52, and only proceeds if that is also non-nil, so the argument
+;; is not race-mesh itself (too small at offset 52 for any of race-control's
+;; own 16-byte struct either). No call site exists anywhere in the decoded
+;; corpus to corroborate a narrower container type, so the arg stays
+;; provisional `object`; return is `symbol` (the body always sets v0 to #f on
+;; both exits, matching a validity-check idiom, not `none`).
+;; provisional: call-site evidence only
+;; This activation is enough for race-control's top-level and every other
+;; form in the file to build; the function body itself still does not decode
+;; ("failed type prop... Could not figure out load: (l.wu (+ a0 52))"),
+;; because `object` carries no field information for the analyzer to resolve
+;; a raw offset load against. Tried and reverted: a type_casts.jsonc entry
+;; casting a0 to uint at op 0 and at the failing op both, on the theory that
+;; goalc's own math restriction applied here too (see car-tables' identical
+;; class in label_types.jsonc); neither changed the error, so this is type
+;; ANALYSIS failing to resolve the load in the first place, earlier than the
+;; math-on-a-pointer compile error car-tables hits. Needs either the real
+;; container type (no call site to derive it from) or decompiler work; out
+;; of scope for a config-only rung.
+(define-extern output-race-mesh (function object symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wvehicle-weapons-h             ;;
