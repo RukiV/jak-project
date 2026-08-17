@@ -478,6 +478,8 @@ namespace method_14_collide_mesh { extern void link(); }
 namespace method_9_collide_cache_prim { extern void link(); }
 namespace method_10_collide_cache_prim { extern void link(); }
 namespace method_17_collide_cache { extern void link(); }
+namespace collide_probe_node { extern void link(); }
+namespace collide_probe_instance_tie { extern void link(); }
 namespace adgif_shader_texture_with_update { extern void link(); }
 }
 // clang-format on
@@ -772,6 +774,7 @@ PerGameVersion<std::unordered_map<std::string, std::vector<void (*)()>>> gMips2C
      {"collide-cache",
       {jakx::method_9_collide_cache_prim::link, jakx::method_10_collide_cache_prim::link,
        jakx::method_17_collide_cache::link}},
+     {"collide-probe", {jakx::collide_probe_node::link, jakx::collide_probe_instance_tie::link}},
      {"joint", {jakx::cspace_parented_transformq_joint::link}},
      {"foreground",
       {jakx::foreground_check_longest_edge_asm::link, jakx::foreground_generic_merc::link,
