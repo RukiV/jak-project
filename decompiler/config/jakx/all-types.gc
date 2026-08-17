@@ -48040,6 +48040,88 @@
     )
   )
 |#
+;; force-callback below references rigid-body-object in a function type
+;; signature, but rigid-body-object's own deftype comes later in this
+;; file; forward-declared so the reference resolves, the same pattern
+;; this file already uses for process/process-tree near its top.
+(declare-type rigid-body-object process-focusable)
+;; resurrected from the dead block above, two fixes the TypeConsistency
+;; gate caught rather than the dead block predicting: rigid-body-flag was
+;; referenced as the flags field's type but never defined anywhere as a
+;; deftype or defenum (its own dead-block comment calls it "likely a
+;; value type", unconfirmed); retyped to uint16, the exact 2-byte gap to
+;; the next field (debug-id at 6), rather than inventing an enum the
+;; evidence does not support. rot (vector) and rotation (quaternion) both
+;; start at offset 64, the same union shape as tie-near-consts' atest-tra
+;; elsewhere in this file; rotation needed :offset instead of
+;; :offset-assert since a vector's natural placement (80, right after
+;; rot) does not match the overlay.
+(deftype rigid-body-control (basic)
+  ((flags              uint16                                          :offset-assert 4) ;; og:preserve-this rigid-body-flag referenced but never defined; raw uint16 matches the 2-byte gap, no enum invented (provisional extern hygiene sweep, 2026-08-16)
+   (debug-id           int8                                            :offset-assert 6)
+   (debugger-step      int8                                            :offset-assert 7)
+   (info               rigid-body-info                                 :offset-assert 8)
+   (force-callback     (function rigid-body-object float none)         :offset-assert 12) ;; guessed by decompiler
+   (post-move-callback basic                                           :offset-assert 16)
+   (process            process                                         :offset-assert 20) ;; guessed by decompiler
+   (time-remaining     float                                           :offset-assert 24)
+   (max-ang-momentum   float                                           :offset-assert 28)
+   (linear-damping     float                                           :offset-assert 32)
+   (angular-damping    float                                           :offset-assert 36)
+   (bounce-factor      float                                           :offset-assert 40)
+   (friction-factor    float                                           :offset-assert 44)
+   (position           vector                                  :inline :offset-assert 48)
+   (rot                vector                                  :inline :offset-assert 64)
+   (rotation           quaternion                              :inline :offset 64)
+   (lin-momentum       vector                                  :inline :offset-assert 80)
+   (ang-momentum       vector                                  :inline :offset-assert 96)
+   (force              vector                                  :inline :offset-assert 112)
+   (torque             vector                                  :inline :offset-assert 128)
+   (lin-velocity       vector                                  :inline :offset-assert 144)
+   (ang-velocity       vector                                  :inline :offset-assert 160)
+   (matrix             matrix                                  :inline :offset-assert 176)
+   (inv-i-world        matrix                                  :inline :offset-assert 240)
+   )
+  :method-count-assert 41
+  :size-assert         #x130
+  :flag-assert         #x2900000130
+  ;; field rigid-body-flag is likely a value type.
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type process) _type_)
+    (rigid-body-control-method-9 () none) ;; 9 ;; (rigid-body-control-method-9 (_type_ collide-shape-moving float) none)
+    (rigid-body-control-method-10 () none) ;; 10 ;; (rigid-body-control-method-10 (_type_ rigid-body-object float float) object)
+    (rigid-body-control-method-11 () none) ;; 11 ;; (update-rbody-transform! (_type_ collide-shape-moving) none)
+    (rigid-body-control-method-12 () none) ;; 12 ;; (rigid-body-control-method-12 (_type_ float) none)
+    (rigid-body-control-method-13 () none) ;; 13 ;; (init-velocities! (_type_) none)
+    (rigid-body-control-method-14 () none) ;; 14 ;; (rigid-body-control-method-14 (_type_ float) none)
+    (rigid-body-control-method-15 () none) ;; 15 ;; (rigid-body-control-method-15 (_type_) none)
+    (rigid-body-control-method-16 () none) ;; 16 ;; (reset-force-and-torque! (_type_) none)
+    (rigid-body-control-method-17 () none) ;; 17 ;; (reset-momentum! (_type_) none)
+    (rigid-body-control-method-18 () none) ;; 18 ;; (apply-impact! (_type_ vector vector) none)
+    (rigid-body-control-method-19 () none) ;; 19 ;; (rigid-body-control-method-19 (_type_ vector vector) none)
+    (rigid-body-control-method-20 () none) ;; 20 ;; (add-force! (_type_ vector) none)
+    (rigid-body-control-method-21 () none) ;; 21 ;; (rigid-body-control-method-21 (_type_ vector vector float) none)
+    (rigid-body-control-method-22 () none) ;; 22 ;; (rigid-body-control-method-22 (_type_ vector vector) none)
+    (rigid-body-control-method-23 () none) ;; 23 ;; (rigid-body-control-method-23 (_type_ vector vector) none)
+    (rigid-body-control-method-24 () none) ;; 24 ;; (rigid-body-control-method-24 (_type_ vector vector) none)
+    (rigid-body-control-method-25 () none) ;; 25 ;; (rigid-body-control-method-25 (_type_ vector) vector)
+    (rigid-body-control-method-26 () none) ;; 26 ;; (rigid-body-control-method-26 (_type_) none)
+    (rigid-body-control-method-27 () none) ;; 27 ;; (init! (_type_ rigid-body-info vector quaternion (function rigid-body-object float)) none)
+    (rigid-body-control-method-28 () none) ;; 28 ;; (rigid-body-control-method-28 (_type_ vector quaternion) none)
+    (rigid-body-control-method-29 () none) ;; 29 ;; (debug-print-info (_type_ object) none)
+    (rigid-body-control-method-30 () none) ;; 30 ;; (debug-print-force-torque (_type_ object) none)
+    (rigid-body-control-method-31 () none) ;; 31 ;; (debug-print-pos-rot (_type_ object) none)
+    (rigid-body-control-method-32 () none) ;; 32 ;; (debug-print-momentum (_type_ object) none)
+    (rigid-body-control-method-33 () none) ;; 33 ;; (debug-print-velocity (_type_ object) none)
+    (rigid-body-control-method-34 () none) ;; 34
+    (rigid-body-control-method-35 () none) ;; 35
+    (rigid-body-control-method-36 () none) ;; 36
+    (rigid-body-control-method-37 () none) ;; 37
+    (rigid-body-control-method-38 () none) ;; 38
+    (rigid-body-control-method-39 () none) ;; 39
+    (rigid-body-control-method-40 () none) ;; 40
+    )
+  )
 
 (deftype rb-perf-data (structure)
   ((process           uint64     :offset-assert 0)
@@ -53978,6 +54060,46 @@
     )
   )
 |#
+;; resurrected from the dead block above: this file's earlier
+;; weapon-suppression-table fix unblocked wvehicle-weapons-h's top-level,
+;; which is where (method 3 vehicle-weapon-drone) is actually attributed
+;; (its own gap, masked while the top-level fell back to local-vars).
+;; method-count 67 extends process-focusable's own 59-slot count with
+;; eight new regular methods (59-66), no states.
+(deftype vehicle-weapon-drone (process-focusable)
+  ((owning-vehicle    uint64             :offset-assert 256)
+   (owning-slot       uint64             :offset-assert 264)
+   (target            uint64             :offset-assert 272)
+   (orbit-height      float              :offset-assert 280)
+   (orbit-radius      float              :offset-assert 284)
+   (orbit-period      uint32             :offset-assert 288)
+   (orbit-phase       uint32             :offset-assert 292)
+   (scaled-last-frame basic              :offset-assert 296)
+   (ammunition        uint32             :offset-assert 300)
+   (next-gaze         quaternion :inline :offset-assert 304)
+   (next-gaze-time    uint64             :offset-assert 320)
+   (last-gaze-time    uint64             :offset-assert 328)
+   (pitch-bend        float              :offset-assert 336)
+   (sweep-loop        uint32             :offset-assert 340)
+   (muzzle-flashes    uint64    4       :offset-assert 344)
+   (next-target-poll  uint64             :offset-assert 376)
+   (firecontrol       basic              :offset-assert 384)
+   (blam              uint32             :offset-assert 388)
+   )
+  :method-count-assert 67
+  :size-assert         #x188
+  :flag-assert         #x4301000188
+  (:methods
+    (vehicle-weapon-drone-method-59 () none) ;; 59
+    (vehicle-weapon-drone-method-60 () none) ;; 60
+    (vehicle-weapon-drone-method-61 () none) ;; 61
+    (vehicle-weapon-drone-method-62 () none) ;; 62
+    (vehicle-weapon-drone-method-63 () none) ;; 63
+    (vehicle-weapon-drone-method-64 () none) ;; 64
+    (vehicle-weapon-drone-method-65 () none) ;; 65
+    (vehicle-weapon-drone-method-66 () none) ;; 66
+    )
+  )
 
 #|
 (deftype v-wpn-ptable-entry (structure)
@@ -65382,6 +65504,35 @@
     )
   )
 |#
+;; resurrected from the dead block above, reordered: banner-countdown and
+;; banner-go are new slots (50, 51) extending process-drawable's own
+;; 50-slot count, the same shape as krasfemale and wrong-way-linebot
+;; elsewhere in this file. The dead block listed :methods before
+;; :state-methods, the exact ordering that crashed the decompiler for
+;; wrong-way-linebot (file-position slot assignment would put
+;; race-banner-method-52 at 50 and banner-go at 52, not 50/51/52 as the
+;; comments claim); states listed first here so file position matches.
+(deftype race-banner (process-drawable)
+  ((mat             matrix  :inline :offset-assert 256)
+   (end-pos         vector  :inline :offset-assert 320)
+   (explode-sound   uint32          :offset-assert 336)
+   (base-y          float           :offset-assert 340)
+   (banner          uint32 5       :offset-assert 344)
+   (blend-up-height float           :offset-assert 364)
+   (last-index      int8            :offset-assert 368)
+   (index           int8            :offset-assert 369)
+   )
+  :method-count-assert 53
+  :size-assert         #x172
+  :flag-assert         #x3500f00172
+  (:state-methods
+    banner-countdown ;; 50
+    banner-go ;; 51
+    )
+  (:methods
+    (race-banner-method-52 () none) ;; 52
+    )
+  )
 
 #|
 (deftype finish-banner (race-banner)
@@ -65394,6 +65545,17 @@
     )
   )
 |#
+;; resurrected from the dead block above: banner-finish is the one new
+;; slot (53) extending race-banner's own 53-slot count.
+(deftype finish-banner (race-banner)
+  ()
+  :method-count-assert 54
+  :size-assert         #x172
+  :flag-assert         #x3600f00172
+  (:state-methods
+    banner-finish ;; 53
+    )
+  )
 
 ;; (define-extern wrong-way-linebot-init-by-other function)
 ;; (define-extern wrong-way-linebot-spawn function)
@@ -65871,6 +66033,21 @@
     )
   )
 |#
+;; resurrected from the dead block above, :state-methods dropped: running
+;; is eco's own state at slot 50 (eco itself, two types up in this file,
+;; already declares running at 50 and eco-state-51 at 51), and
+;; method-count-assert 56 here is identical to eco's own count, so
+;; eco-blue adds zero new methods or states, only its own data fields;
+;; keeping the redundant clause would misallocate a slot this type does
+;; not own.
+(deftype eco-blue (eco)
+  ((launcher    uint32 5 :offset-assert 248) ;; offset basis: ancestry fallback, unconfirmed
+   (birth-accum uint32 5 :offset-assert 268) ;; offset basis: ancestry fallback, unconfirmed
+   )
+  :method-count-assert 56
+  :size-assert         #x120
+  :flag-assert         #x3800900120
+  )
 
 #|
 (deftype eco-yellow (eco)
@@ -81758,6 +81935,39 @@
     )
   )
 |#
+;; resurrected from the dead block above, corrected: goalc has no UNKNOWN
+;; type. elbow-quat spans 464 to 528 (64 bytes over 4 elements, 16 bytes
+;; each), exactly quaternion's size, so retyped with real confidence.
+;; elbow spans 288 to 416 (128 bytes over the declared 4 elements, 32
+;; bytes each); no confirmed 32-byte type identifies here, so kept as a
+;; byte-accurate raw uint32 32 (128 bytes) rather than asserting a
+;; semantic type the evidence does not support; the declared element
+;; count of 4 in the dead block does not match this byte span under any
+;; single 32-byte-sized real type, so this field is classified, not fully
+;; typed. States and ordering: idle is a new slot (50) extending
+;; process-drawable's own 50-slot count; state-methods listed before
+;; methods so file position matches the comments, the same fix
+;; wrong-way-linebot and race-banner needed.
+(deftype garage-tool-arm (process-drawable)
+  ((track        joint-mod-rotate-world :inline :offset-assert 256)
+   (elbow        uint32                32      :offset-assert 288) ;; og:preserve-this raw 128-byte span, true element shape unconfirmed (provisional extern hygiene sweep, 2026-08-16)
+   (dest         vector                 :inline :offset-assert 416)
+   (arm-lengths  uint32                4       :offset-assert 432)
+   (dest-angles  uint32                4       :offset-assert 448)
+   (elbow-quat   quaternion    4       :inline :offset-assert 464)
+   (total-length float                          :offset-assert 528)
+   (flags        uint64                         :offset-assert 536)
+   )
+  :method-count-assert 52
+  :size-assert         #x220
+  :flag-assert         #x3401900220
+  (:state-methods
+    idle ;; 50
+    )
+  (:methods
+    (garage-tool-arm-method-51 () none) ;; 51
+    )
+  )
 
 #|
 (deftype garage-turntable (process-drawable)
@@ -83180,7 +83390,6 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier vehicle-antenna-state deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier vehicle-handling-info deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier vehicle-reticle-on-me deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
-(define-extern vehicle-weapon-drone object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the vol-control deftype and broke goal_src's (declare-type vol-control ...) in JakXTypeConsistency
 ;; og:preserve-this provisional extern removed: shadowed the earlier volume-descriptor-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the water-control declare-type and broke goal_src's (declare-type water-control ...) in JakXTypeConsistency
