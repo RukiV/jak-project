@@ -54,9 +54,16 @@
 ;; 'object-destroyed and returns a buffer handle, method-29 takes that handle plus
 ;; -2 and 208, method-28 takes the handle alone); jungle-obs.gc's own call site needs
 ;; the same re-derivation once these carry real signatures.
+;; method-27's declared return retyped none -> mem-buffer (offline suite rung): peak-obs,
+;; jungle-obs and net-simple-destruct's own og:preserve-this comments all agree the retail
+;; call returns the mem-buffer to fill. The stub still does not build a real one, so it
+;; hand-casts a null return to the declared type rather than reading (none) again, which
+;; would now be a type error against the new signature. mem-buffer itself gained a
+;; type-only landing (mem-buffer-h.gc) in the same rung so this cast has a real type to
+;; target; it compiles earlier in dgos/game.gd (mem-buffer-h.o at 130, process-nettable.o
+;; at 424), so the type is already known here.
 (defmethod process-nettable-method-27 ((this process-nettable) (arg0 object))
-  0
-  (none)
+  (the-as mem-buffer 0)
   )
 
 (defmethod process-nettable-method-28 process-nettable ()
