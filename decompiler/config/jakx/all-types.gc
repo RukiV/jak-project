@@ -61028,7 +61028,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-extern spartacus-birth-func-set-color (function sparticle-system sparticle-cpuinfo sprite-vec-data-3d sparticle-launcher sparticle-launch-state none)) ;; derived: matches the established 5-arg birth-func family (birth-func-clean etc), arg2/arg4 usage (color floats at +32/36/40/44, deref at +32 of arg4) fits sprite-vec-data-3d/sparticle-launch-state exactly
-(define-extern spt-birth-func-spartacus-part-steam (function sparticle-system sparticle-cpuinfo sparticle-launchinfo none))
+;; jakx eng-util wave: this forwards its own a3/t0 straight through to
+;; spartacus-birth-func-set-color's launcher/launch-state args unmodified
+;; (saved to s3/s2 across the first call, then restored), so it carries the
+;; standard 5-arg birth-func shape like every sibling in this family, not the
+;; 3-arg shape its old declaration guessed
+(define-extern spt-birth-func-spartacus-part-steam (function sparticle-system sparticle-cpuinfo sprite-vec-data-3d sparticle-launcher sparticle-launch-state none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; driver                         ;;
@@ -65217,9 +65222,14 @@
     )
   (:methods
     (spartacus-editor-method-16 (_type_) none) ;; 16
-    (spartacus-editor-method-17 () none) ;; 17
+    ;; jakx eng-util wave: 17 and 19 were bulk-synced as zero-arg like their
+    ;; siblings that genuinely take no extra args, but their decode reads gp/s5
+    ;; as this's own fields (+148, and further field chains), which only
+    ;; type-checks with _type_ present; every other sibling in this block
+    ;; already carries it
+    (spartacus-editor-method-17 (_type_) none) ;; 17
     (spartacus-editor-method-18 (_type_ object object) none) ;; 18
-    (spartacus-editor-method-19 () none) ;; 19
+    (spartacus-editor-method-19 (_type_) none) ;; 19
     (spartacus-editor-method-20 (_type_) none) ;; 20
     (spartacus-editor-method-21 (_type_) none) ;; 21
     (spartacus-editor-method-22 (_type_) none) ;; 22
@@ -65250,6 +65260,15 @@
 ;; (define-extern init-spartacus-library function)
 ;; (define-extern *spartacus-file-path* object)
 ;; (define-extern spartacus-editor-init function)
+;; jakx eng-util wave: retyping this to spartacus-editor broke the real (mi)
+;; build. goal_src/jakx/engine/common-obs/generic-obs.gc (common-obs band,
+;; compiles first at game.gd slot 299 vs spartacus.o's 443) already declares
+;; this extern as object with the same cast-at-use-site workaround spartacus
+;; needs; a second, differently-typed declaration is a define-extern
+;; redefinition error under the real build. Left as the decompiler's best
+;; local read (a spartacus-editor deftype does exist), but the compile-time
+;; source of truth is common-obs's object declaration until spartacus-editor
+;; itself lands.
 (define-extern *spartacus-editor* object)
 ;; (define-extern spartacus-start function)
 ;; (define-extern spartacus-stop function)
