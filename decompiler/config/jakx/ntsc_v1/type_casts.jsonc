@@ -272,7 +272,19 @@
   "(method 24 hud-map)": [
     [[102, 151], "s5", "race-map-info"]
   ],
-  // pull-riders! (method 44 collide-shape): the rider handle's process is
+  // play-idle-frames! (method 10 idle-control): the second command-get-float call
+  // reads (car (cdr (-> s4-0 param2))); a plain cdr access resolves generically as
+  // object (correct, a pair's cdr can hold anything), but the code then takes its
+  // own car via the same -2 offset. jak3's twin
+  // (goal_src/jak3/engine/game/idle-control.gc:78) casts the cdr result to pair
+  // explicitly before that access.
+  "(method 10 idle-control)": [
+    [35, "v1", "pair"]
+  ],
+  // pull-riders!, keyed by its canonical (method 44 collide-shape) form since
+  // type_casts matches methods by that form, not their decompiled display name
+  // (tried the display name first; it parsed without error but matched nothing).
+  // The rider handle's process is
   // dereferenced generically as process (via the standard handle->process
   // sllv/lwu pair), then read at raw offset 184, which is process-drawable's own
   // root field (placed offset 188, +4 basic-tag adjusted), matching jak3's twin

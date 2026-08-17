@@ -7,3 +7,107 @@
 
 ;; DECOMP BEGINS
 
+;; definition of type idle-control-frame
+(deftype idle-control-frame (structure)
+  ((command  uint8)
+   (anim     uint32)
+   (param0   int32)
+   (param1   int32)
+   (param2   pair)
+   )
+  )
+
+;; definition for method 3 of type idle-control-frame
+(defmethod inspect ((this idle-control-frame))
+  (when (not this)
+    (set! this this)
+    (goto cfg-11)
+    )
+  (format #t "[~8x] ~A~%" this 'idle-control-frame)
+  (let ((t9-1 format)
+        (a0-2 #t)
+        (a1-1 "~1Tcommand: #x~X : ~S~%")
+        (a2-1 (-> this command))
+        (v1-2 (-> this command))
+        )
+    (t9-1 a0-2 a1-1 a2-1 (cond
+                           ((= v1-2 1)
+                            "play"
+                            )
+                           ((= v1-2 2)
+                            "push"
+                            )
+                           ((zero? v1-2)
+                            "restart"
+                            )
+                           (else
+                             "*unknown*"
+                             )
+                           )
+          )
+    )
+  (format #t "~1Tanim: ~D~%" (-> this anim))
+  (format #t "~1Tparam0: ~D~%" (-> this param0))
+  (format #t "~1Tparam1: ~D~%" (-> this param1))
+  (format #t "~1Tparam2: ~A~%" (-> this param2))
+  (label cfg-11)
+  this
+  )
+
+;; definition of type idle-control
+(deftype idle-control (structure)
+  ((anim           (inline-array idle-control-frame))
+   (anim-speed     float)
+   (current-index  int32)
+   (counter        int32)
+   (target         int32)
+   )
+  (:methods
+    (init! (_type_ (inline-array idle-control-frame)) none)
+    (play-idle-frames! (_type_ process-drawable) none :behavior process-drawable)
+    )
+  )
+
+;; definition for method 3 of type idle-control
+(defmethod inspect ((this idle-control))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'idle-control)
+  (format #t "~1Tanim: #x~X~%" (-> this anim))
+  (format #t "~1Tanim-speed: ~f~%" (-> this anim-speed))
+  (format #t "~1Tcurrent-index: ~D~%" (-> this current-index))
+  (format #t "~1Tcounter: ~D~%" (-> this counter))
+  (format #t "~1Ttarget: ~D~%" (-> this target))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 9 of type idle-control
+;; WARN: Return type mismatch idle-control vs none.
+(defmethod init! ((this idle-control) (arg0 (inline-array idle-control-frame)))
+  (set! (-> this anim) arg0)
+  (set! (-> this anim-speed) 0.0)
+  (set! (-> this current-index) 0)
+  (set! (-> this counter) 0)
+  (set! (-> this target) 0)
+  (none)
+  )
+
+;; og:preserve-this method 10 of type idle-control (play-idle-frames!) is deferred,
+;; not landed. Its own decompiler fallback body is not valid GOAL (local-vars typed
+;; none throughout past op 79, the same non-compiling shape as output-race-mesh's
+;; deferred body). The blocker: two reads into an art-group's element array resolve
+;; to art-element (offset 28, both clean), but the second one is then read one level
+;; further at offset 32, which falls in art-element's own undocumented padding
+;; region (offset-assert only covers 20/24, size 0x30). jak3's twin
+;; (goal_src/jak3/engine/game/idle-control.gc) implements this method entirely
+;; through the high-level `ja` joint-animation macro instead of raw channel
+;; manipulation, so it carries no corresponding raw access to corroborate a specific
+;; art-element subtype or field here. Nothing else in this file calls this method.
+;; Retire this note once the real subtype and field are evidenced.
+;;   (defmethod play-idle-frames! ((this idle-control) (arg0 process-drawable))
+;;     ...
+;;     )
+
