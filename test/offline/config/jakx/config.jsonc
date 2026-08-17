@@ -405,7 +405,20 @@
     // the REF records the parked gui-control/spooler/external-art surface, which
     // still carries CFG and type-prop errors; goal_src lands the art slice and
     // the decomp-vs-REF diff still gates the whole object
-    "loader"
+    "loader",
+    // credits-obs: *credits-chars* is a raw <static-data L157> blob, a top-level
+    // define the compiler tokenizes as three arguments instead of a value; not a
+    // function or a state, so neither skip mechanism below can reach it, and
+    // goal_src carries the same raw marker verbatim (this landing never compiled).
+    // Same shape as gsound/joint/process-drawable above: whole file, not a function.
+    "credits-obs",
+    // title-obs: same class as credits-obs above, *end-credits-proc* is a raw
+    // <static-data L226> blob in a top-level define; goal_src carries the same
+    // raw marker verbatim. (Its five defstate handlers with raw-label-leak
+    // :post/:code/:enter slots would each need their own skip_compile_states
+    // entry too, but this file-level skip already makes those moot, so they are
+    // not added.)
+    "title-obs"
     // "tie-methods",
     // "scene-actor" // top level lambda that defines a type
   ],
@@ -495,11 +508,87 @@
     // leaves the function undefined (deferred, not landed) rather than carry the
     // decompiler's non-compiling fallback body; the decomp-vs-REF diff still gates
     // the rest of the object.
-    "output-race-mesh"
+    "output-race-mesh",
+    // peak-obs: (method 80 peak-snowball) fails compiling its own decode,
+    // "get_preferred_reg_class called on NullType" on the let-bound result of
+    // (method-of-object this process-nettable-method-27); goal_src carries the
+    // full analysis and the decomp-vs-REF diff still gates the rest of the file.
+    "(method 80 peak-snowball)",
+    // peak-obs: (method 71 peak-snowball) calls rbody-collision, the same
+    // never-declared function train-obs's own method 71 override hits below;
+    // goal_src carries the full analysis.
+    "(method 71 peak-snowball)",
+    // peak-obs: (method 17 peak-snowball) (process-nettable's own method 17)
+    // fails a real typecheck, matrix-copy!'s first argument decoding as
+    // quaternion instead of matrix; goal_src carries the full analysis.
+    "(method 17 peak-snowball)",
+    // kras-obs: (method 44 kras-pump-break) does pointer arithmetic on a
+    // process-focusable-typed value ((+ v1-2 292) feeding s.d!), which the
+    // compiler rejects even though the raw offset math is fine; goal_src
+    // carries the full analysis.
+    "(method 44 kras-pump-break)",
+    // train-obs: (method 71 train-object) calls rbody-collision, a function no
+    // landed file declares or defines anywhere in the corpus (not even an
+    // extern); goal_src carries the full analysis and the decomp-vs-REF diff
+    // still gates the rest of the file.
+    "(method 71 train-object)",
+    // time-box-obs: (method 55 time-freeze-short) (net-powerup's own method 55)
+    // decodes with an empty arg list instead of ((this time-freeze-short)), the
+    // same class of malformed-signature decode failure as the pre-fix
+    // rigid-body-object-method-70; goal_src carries the full analysis.
+    "(method 55 time-freeze-short)"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the
     // landed goal_src carries hand-folded handle->process at these sites
-    "(idle manipy)": ["event", "code"]
+    "(idle manipy)": ["event", "code"],
+    // kras-obs: (defstate idle (kras-fireworks-ship-a) ...)'s :exit and :post
+    // handlers both decode as raw label references (L122, L114); goal_src
+    // carries the full analysis for the other three handlers.
+    "(idle kras-fireworks-ship-a)": ["exit", "post"],
+    // kras-obs: (defstate idle (kras-flag) ...)'s :code handler decodes as a
+    // raw label reference (L107); goal_src carries the full analysis for the
+    // other four handlers.
+    "(idle kras-flag)": ["code"],
+    // desarena-obs: (defstate idle (palm-tree) ...)'s :event handler decodes as
+    // a raw label reference (L39); goal_src carries the full analysis for the
+    // other four handlers.
+    "(idle palm-tree)": ["event"],
+    // desarena-obs: (defstate vibrate (palm-tree) ...)'s :event handler also
+    // decodes as a raw label reference (L31); goal_src carries the full
+    // analysis for the other four handlers.
+    "(vibrate palm-tree)": ["event"],
+    // train-obs: (defstate idle (train-car) :virtual #t ...)'s :event handler
+    // decodes a manual find-parent-method fallback whose result the compiler
+    // types as plain `function`, which has no `event` field to read; goal_src
+    // carries the full analysis for the other (inherited) :post handler.
+    "(idle train-car)": ["event"],
+    // train-obs: (defstate idle (train) :virtual #t ...)'s :post handler
+    // decodes as a raw label reference (L10); goal_src carries the full
+    // analysis for the other four handlers.
+    "(idle train)": ["post"],
+    // kras-obs: (defstate idle (kras-windsock) ...)'s :code handler decodes as
+    // a raw label reference (L100); goal_src carries the full analysis for the
+    // other four handlers.
+    "(idle kras-windsock)": ["code"],
+    // title-obs: (defstate target-title (target) ...)'s :enter handler decodes
+    // as a raw label reference (L40); goal_src carries the full analysis for
+    // the other three handlers.
+    // peak-obs: (defstate idle (peak-snowball) :virtual #t ...)'s :post
+    // handler fails the same matrix-copy! typecheck as (method 17
+    // peak-snowball) above (the decoded arg1 casts through quaternion instead
+    // of matrix); goal_src carries the full analysis.
+    "(idle peak-snowball)": ["post"],
+    // kras-obs: (defstate idle (kras-pump-break) :virtual #t ...)'s :event
+    // handler fails the same NullType reg-class failure as peak-obs's own
+    // (method 80 peak-snowball) above, on the same
+    // process-nettable-method-27/-29 pair; goal_src carries the full analysis.
+    "(idle kras-pump-break)": ["event"],
+    // kras-obs: (defstate explode (kras-pump-break-draw) ...)'s :event handler
+    // decodes as a raw label reference (L11), and its :enter handler does
+    // pointer arithmetic on a collide-shape-prim-typed value ((+ v1-9 108)
+    // feeding s.w!) the compiler rejects; goal_src carries the full analysis
+    // for the other handlers.
+    "(explode kras-pump-break-draw)": ["event", "enter"]
   }
 }
