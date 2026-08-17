@@ -714,4 +714,20 @@
   // event-message-block shape as (method 10 race-state) above ("Failed to
   // guess stack use for 16").
   "test-vehicle-weapon": [[16, "event-message-block"]]
+  // (method 61 v-drone), left UNFIXED (tried and reverted): sp+16 (s5) is a
+  // headlight-glow scratch block used in 16-byte quadword units throughout
+  // (raw lq/sq copies at s5+80 from a bone matrix, quad-copy! into s5+144
+  // from *v-drone-headlight-glow-template* with a count of 4). A bare
+  // "matrix" declared at the s5+144 offset (sp+160) did not resolve: s5
+  // itself carried no type at all, so "(+ s5 144)" had nothing to resolve
+  // against ("add failed: <uninitialized> <integer 144>"), and matrix's own
+  // 64-byte stride does not evenly divide 144 for an array-style read
+  // starting at s5 either. An inline-array of uint128 (both offsets in use,
+  // 80 and 144, land on 16-byte boundaries) covering the whole scratch
+  // region at s5's own base crashes the decompiler outright with no
+  // diagnostic (exit 127, no assertion text, immediately after this
+  // object's own function-count summary prints); reproduced twice.
+  // Left as three open errors: the add failure itself, "Failed to guess
+  // stack use for 16", and "Function may read a register that is not set:
+  // a0" (a consequence of the same untyped stack region).
 }

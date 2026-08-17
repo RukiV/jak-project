@@ -3012,6 +3012,41 @@
     [5, "a0", "(pointer process)"],
     [[14, 52], "gp", "vehicle"]
   ],
+  // (method 66 v-drone): the same handle->process shape a fourth time; the
+  // resolved handle target then reads its own draw field at op 64 (raw
+  // offset 192, declared 196 with the usual -4 correction, process-drawable's
+  // own draw-control field), so process-drawable is the evidenced type for
+  // that op, not a guess: the handle is a per-wheel array element (stride
+  // 288, matching vehicle-wheel-state), likely a wheel effect process, and
+  // process-drawable is the common ancestor that actually owns the field.
+  "(method 66 v-drone)": [
+    [57, "a1", "(pointer process)"],
+    [64, "a0", "process-drawable"]
+  ],
+  // (method 61 v-drone): self (gp) is v-drone at op 0, then an opaque call
+  // through find-parent-method's generic (function none) result (op 7,
+  // calling the overridden parent implementation of this same method) resets
+  // its tracked type to uninitialized even though gp is callee-saved and its
+  // value survives the call untouched. Every later read of gp (ops 10, 32,
+  // 55, 81) needed the type re-asserted.
+  "(method 61 v-drone)": [[[10, 82], "gp", "v-drone"]],
+  // (method 80 v-drone): gp is the impact's own process pointer (raw offset
+  // 56 of rigid-body-impact), explicitly type-checked against vehicle
+  // ("(type? gp vehicle)") before the byte read at op 11 (raw offset 2116,
+  // declared 2120 with the usual -4 correction, vehicle's own player-id
+  // field, a signed int8 matching the lb instruction's own sign-extending
+  // kind); the type-check narrows nothing statically, so the read still
+  // needed the explicit cast. Range covers every read after the check
+  // through gp's last use (op 37).
+  // op 21 reads a byte off *net-world*'s own task-info field (declared
+  // :offset-assert 1108 on net-world, still typed a generic basic
+  // placeholder with no known substructure); that struct-level typing is
+  // outside this rung's scope (net-world, not any wvehicle-band type), so
+  // this is scoped to the one raw byte read rather than shaping task-info.
+  "(method 80 v-drone)": [
+    [[11, 38], "gp", "vehicle"],
+    [21, "v1", "(pointer uint8)"]
+  ],
   // test-vehicle-weapon op 31 and set-veh-weapon op 24, left UNFIXED (tried
   // and reverted): the load feeding the handle->process chain above, one
   // level up. "ld v1, 4500(v1)" reads the vehicle's own wpn-left field
