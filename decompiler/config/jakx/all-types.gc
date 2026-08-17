@@ -53839,6 +53839,9 @@
 ;; the pointee's own layout is not on this rung's critical path.
 ;; :pack-me: wvehicle's own race field lands at 2168, not 16-byte aligned.
 (declare-type race-mesh basic)
+;; method 9's arg1 is a wvehicle (proven at its own call site below); wvehicle
+;; is declared later in this file, in the wvehicle-h section.
+(declare-type wvehicle basic)
 
 (deftype race-control (structure)
   ((state       race-state   :offset-assert 0)
@@ -53850,8 +53853,15 @@
   :size-assert         #x10
   :flag-assert         #xa00000010
   :pack-me
+  ;; method 9: the only call site, wvehicle-method-262 (this worktree's
+  ;; corpus), proves all three args. self is (-> wvehicle race), arg1 is the
+  ;; calling wvehicle-method-262's own `this` (a wvehicle, passed straight
+  ;; through, not a copy), arg2 is *race-state* itself (matching the body's
+  ;; own (set! (-> self state) (the-as race-state arg2))), and arg3 is a
+  ;; pointer computed via *race-state* + 96*idx + 112, the racer-array
+  ;; element stride, matching the body's own (the-as racer-state arg3).
   (:methods
-    (race-control-method-9 (_type_ object object object) none) ;; 9 ;; (race-control-method-9 (_type_ object object object) none)
+    (race-control-method-9 (_type_ wvehicle race-state racer-state) none) ;; 9
     )
   )
 

@@ -117,6 +117,11 @@
 ;; minimum-and-flag guidance.
 (declare-type race-mesh basic)
 
+;; method 9's arg1 is a wvehicle, proven at its only call site,
+;; wvehicle-method-262 (car-textures corpus, this worktree's config);
+;; wvehicle itself is declared later in this same file.
+(declare-type wvehicle basic)
+
 ;; og:preserve-this :pack-me: wvehicle's own race field lands at the
 ;; confirmed offset 2168, not 16-byte aligned; see wvehicle-net-extra above
 ;; for why plain pointer-only structures need this to place correctly.
@@ -130,8 +135,12 @@
   :size-assert         #x10
   :flag-assert         #xa00000010
   :pack-me
+  ;; method 9's own call site (wvehicle-method-262) proves self.state = arg1
+  ;; (a race-state, in fact *race-state* itself) and self.racer-state = arg2
+  ;; (a racer-state, indexed out of *race-state*'s own racer-array), matching
+  ;; the body's own (the-as race-state arg1) / (the-as racer-state arg2).
   (:methods
-    (race-control-method-9 (_type_ object object object) none) ;; 9 ;; (race-control-method-9 (_type_ int vector) none)
+    (race-control-method-9 (_type_ wvehicle race-state racer-state) none) ;; 9
     )
   )
 
