@@ -7,3 +7,35 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this partial landing (boot fix): only the event handler and the two
+;; virtual states are landed here. construction-object's virtual idle/active states
+;; (construction-obs-h) inherit these method slots at kernel link time via
+;; inherit-state, so a stub here is a null dereference at boot. The methods await
+;; the rigid-body-object rung; until method 81 lands, an event delivered to one of
+;; these processes dispatches through an empty slot, exactly as the undefined handler
+;; symbol did before.
+
+;; definition for function rigid-body-object-event-handler
+(defbehavior rigid-body-object-event-handler rigid-body-object ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  (rigid-body-object-method-81 self arg0 arg1 arg2 arg3)
+  )
+
+;; failed to figure out what this is:
+(defstate idle (rigid-body-object)
+  :virtual #t
+  :event rigid-body-object-event-handler
+  :code sleep-code
+  )
+
+;; failed to figure out what this is:
+(defstate active (rigid-body-object)
+  :virtual #t
+  :event rigid-body-object-event-handler
+  :enter (behavior ()
+    (logior! (-> self rbody flags) 16)
+    )
+  :code sleep-code
+  :post (behavior ()
+    (rigid-body-object-method-71 self)
+    )
+  )
