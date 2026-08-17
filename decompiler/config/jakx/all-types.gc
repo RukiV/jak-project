@@ -14380,7 +14380,18 @@
   (:methods
     ;; og:preserve-this net-hud rung: see the matching comment in goal_src's text-h.gc
     (game-text-info-method-9 (_type_ object object) string) ;; 9 ;; (lookup-text! (_type_ object object) string)
-    (game-text-info-method-10 (_type_ object object) none) ;; 10
+    ;; hud-and-levels-misc rung: return type retyped none -> string, arg0
+    ;; retyped object -> int. Basic-type method dispatch uses a 16-byte
+    ;; method-table base plus 4 bytes per id (confirmed against method 7,
+    ;; relocate, dispatched at raw offset 44 = 16 + 7*4, elsewhere in this
+    ;; band), so method 10's own vtable slot is raw offset 56 = 16 + 10*4.
+    ;; (method 14 hud-text-effect-sound) dispatches exactly that slot with
+    ;; an int id (4276) and a boolean flag (#f), then adds 2 to the returned
+    ;; value (hud-effects_ir2.asm op 68, "add failed: none <integer 2>") to
+    ;; reach char data, the same shape method 9's own already-landed
+    ;; (_type_ object object) string signature uses for +2 string-data
+    ;; arithmetic elsewhere in this corpus.
+    (game-text-info-method-10 (_type_ int object) string) ;; 10
     (game-text-info-method-11 (_type_ object) none) ;; 11
     (game-text-info-method-12 (_type_ object object) none) ;; 12
     )
@@ -69464,7 +69475,12 @@
 (define-extern spawn-hud-points-icon-display4 (function object))
 (define-extern spawn-unused-hud-points-icon-display (function object))
 ;; (define-extern set-to-upper-right function)
-;; (define-extern create-points-icon-from-screen-pos function)
+;; hud-and-levels-misc rung: activated from provisional comment. (method 14
+;; hud-effect-emit-score-icon) builds a stack-scratch vector2 (two floats,
+;; sp+16, stack_structures.jsonc) from an item's own position-x/position-y
+;; fields, passes it as arg0, a signed halfword field as arg1 (int), and #f
+;; as arg2; the return value is unused (no evidence beyond object for it).
+(define-extern create-points-icon-from-screen-pos (function vector2 int object object))
 ;; (define-extern create-points-icon function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -83668,7 +83684,13 @@
 (define-extern *net-clan-ladder-stats-info-array* object) ;; provisional: call-site evidence only
 (define-extern *net-colarb-last-reqs* object) ;; provisional: call-site evidence only
 (define-extern *net-drivers* object) ;; provisional: call-site evidence only
-(define-extern *net-game-mgr* object) ;; provisional: call-site evidence only
+;; hud-and-levels-misc rung: retyped from object to net-game-mgr, matching
+;; the already-declared deftype (net-game-mgr, 80 methods). (method 14
+;; hud-text-effect-sound) dispatches virtual method 45 on it
+;; (hud-effects_ir2.asm op 32), which object cannot support ("The method
+;; with id 45 of type object could not be found"); a weaker, later-in-file
+;; object typing shadowed what the type system already knew.
+(define-extern *net-game-mgr* net-game-mgr)
 (define-extern *net-hw-config-id* object) ;; provisional: call-site evidence only
 (define-extern *net-keypair-valid* object) ;; provisional: call-site evidence only
 (define-extern *net-log-buf* object) ;; provisional: call-site evidence only

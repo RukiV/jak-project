@@ -28,6 +28,68 @@
   "spawn-hud-headset-talker": [
     [22, "v1", "game-task-node-info"]
   ],
+  // (method 14 hud-effect-trigger-score-sound): identical shape to
+  // spawn-hud-headset-talker above (net-world's task-info field, byte read
+  // at machine offset 5, declared offset 9 via the +4 basic-tag trap,
+  // game-task-node-info's own net-play-mode).
+  "(method 14 hud-effect-trigger-score-sound)": [
+    [6, "v1", "game-task-node-info"]
+  ],
+  // (method 13 hud-effect-emit-score-icon): same event-message-block param
+  // shape as the hang-time/power-slide method 23 overrides above; here the
+  // loaded param is stored straight through as a halfword with no
+  // arithmetic, so no follow-up float cast is needed.
+  "(method 13 hud-effect-emit-score-icon)": [
+    [2, "t0", "event-message-block"]
+  ],
+  // (method 10 hud-effect-throb): s5 is this's own item field (hud-item).
+  // Op 31 reads raw offset 48 (declared 52, +4 basic-tag trap), matching
+  // hud-item-string's own font-flags field (uint16) exactly, then op 32
+  // bit-tests it (andi ... 4). Op 35 immediately after reads raw offset 36
+  // (declared 40), the same items-field shape used throughout this band, so
+  // it needs hud-item-group instead.
+  // (method 10 hud-effect-throb): s5 is this's own item field (hud-item).
+  // Op 31 reads raw offset 48 (declared 52, +4 basic-tag trap), matching
+  // hud-item-string's own font-flags field (uint16) exactly, then op 32
+  // bit-tests it (andi ... 4). Op 35 reads raw offset 36 (declared 40),
+  // giving s4 a pointer that ops 48/52/58 then read at raw offsets 0/48/32
+  // respectively, matching hud-string's own text (offset-assert 0), alpha
+  // (offset-assert 48, float) and pos (offset-assert 32, vector4w) fields
+  // directly (hud-string is a plain structure, no +4 trap on its own
+  // fields) -- so op 35 is hud-item-string's own string field too, not
+  // hud-item-group's items.
+  "(method 10 hud-effect-throb)": [
+    [31, "s5", "hud-item-string"],
+    [35, "s5", "hud-item-string"]
+  ],
+  // (method 9 hud-effect-throb): v1 (this's item field, aliased from s4)
+  // reads and writes raw offset 40 (declared 44, +4 basic-tag trap) at ops
+  // 115 and 121, matching hud-item-sprite's own real-scale-y (int16) field
+  // exactly (the adjudicated proof for hud-item-sprite's own layout already
+  // establishes this +4 shift for fields accessed through this narrower
+  // type, not just its own newly declared ones).
+  "(method 9 hud-effect-throb)": [
+    [[115, 122], "v1", "hud-item-sprite"]
+  ],
+  // (method 14 hud-effect-font-effect): v1 is this's own item field
+  // (hud-item). Ops 2 and 5 both read raw offset 36 (declared 40, +4
+  // basic-tag trap), which coincides with hud-item-group's items field, but
+  // the store shapes that follow (a2+56 a byte, v1+52 a float) only match
+  // hud-string's own effect (declared 56, uint8) and time (declared 52,
+  // float) fields, reached through hud-item-string's string field (also
+  // declared 40, since both subtypes place their first added field right
+  // after hud-item's own 40-byte span) rather than hud-item-group's items.
+  "(method 14 hud-effect-font-effect)": [
+    [2, "v1", "hud-item-string"],
+    [5, "v1", "hud-item-string"]
+  ],
+  // (method 12 hud-effect-font-effect): v1 (aliased from a1, the function's
+  // second arg) reads and writes raw offset 44 (declared 48, +4 basic-tag
+  // trap) at ops 1 and 4, matching hud-item-string's own font-effect field
+  // (uint8) exactly.
+  "(method 12 hud-effect-font-effect)": [
+    [[1, 5], "v1", "hud-item-string"]
+  ],
   // (method 19 hud-headset-talker): this's own items array (gp+36) holds a
   // hud-item-group at index 0 (a0-10, read at op 37); casting a0 to
   // hud-item-group lets both op 38 and op 40 resolve raw offset 36 (declared
@@ -46,6 +108,22 @@
   // s1's range starts at op 40 (one past its own compute at op 39) through
   // 120 to cover both offset-36 reads (71, 89) and the type-tag/passthrough
   // uses (117, 119), which do not care about the concrete subtype.
+  // (method 14 hud-text-effect-sound): s5 is a hud-item (this's own item
+  // field); op 17 reads raw offset 36 (declared 40, +4 basic-tag trap),
+  // which is hud-item-group's items field on that type, but the immediate
+  // next op reads raw offset 56 directly (no further shift) off the result,
+  // matching hud-string's own :offset-assert 56 effect field exactly
+  // (hud-string is a plain structure, no +4 trap on its own fields). That
+  // only fits hud-item-string's own string field (declared 40, a pointer to
+  // hud-string since the field is not :inline), not hud-item-group's items.
+  // (method 14 hud-text-effect-sound): v1 is game-text-info-method-10's own
+  // string return; op 68 adds 2 to it directly (skipping the length prefix
+  // to reach char data, the standard GOAL string-data idiom), which needs a
+  // pointer-arithmetic-compatible type rather than the bare string typespec.
+  "(method 14 hud-text-effect-sound)": [
+    [[17, 95], "s5", "hud-item-string"],
+    [68, "v1", "(pointer uint8)"]
+  ],
   "(method 19 hud-headset-talker)": [
     [[38, 41], "a0", "hud-item-group"],
     [[40, 120], "s1", "hud-item-string"]
