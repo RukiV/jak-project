@@ -2940,6 +2940,36 @@
   // quaternion-copy! call argument resolves on its own, so this is the one op
   // (the swc1 float store) that needed the explicit cast.
   "(method 115 v-tiger)": [[75, "v1", "(pointer float)"]],
+  // (enter restart vehicle) (internal name anon-function 9 vehicle-states,
+  // renamed once the state fix above gave it a state to attach to): a
+  // network-timing reset resets three adjacent vehicle fields (player-id,
+  // killed-by, killed-with, all uint8 at 2120/2121/2122) plus one byte of
+  // trailing pad in a single word store; each field's own name is proven
+  // separately by vehicle-h.gc's inspect method (its
+  // "~2Tplayer-id/killed-by/killed-with" prints resolve those exact offsets
+  // one byte at a time), so the layout is not in question, only that the
+  // decompiler cannot resolve one word-store spanning three differently
+  // named fields to any single one of them ("Failed store: (s.w! (+ self
+  // 2120) v1-10) at op 33").
+  "(enter restart vehicle)": [[33, "s6", "(pointer int32)"]],
+  // (enter player-control vehicle), op 24, left UNFIXED (tried and reverted):
+  // a flags read-modify-write at offset 460 falls inside the eight bytes the
+  // current layout splits between camera-pos's own w component
+  // (:offset-assert 448, so byte 12 is offset 460) and pad-post-camera-pos
+  // (:offset-assert 464). A corpus grep for other 460(reg) accesses on a
+  // vehicle/wvehicle base found this same offset read and written as a full
+  // 8-byte quantity (ld/sd) repeatedly in both vehicle.gc and wvehicle.gc
+  // (both still unlanded stubs), so the true field is wider than camera-pos's
+  // trailing pad accounts for, but no type_casts fix reaches it: a concrete
+  // (pointer uint64) cast fails type propagation outright (460 is not a
+  // multiple of 8, and TypeFieldLookup.cpp's array-style reverse lookup
+  // requires the offset to land on an element boundary), and the bare
+  // untyped "pointer" cast gets past propagation (its plain-integer fallback
+  // ignores the offset) but then fails expression-building instead
+  // (AtomicOpForm.cpp only takes that same fallback path when offset == 0);
+  // tried and confirmed both ways against this rung's own scoped decode.
+  // Leaving the real field-table fix for whichever rung lands vehicle.gc or
+  // wvehicle.gc, where the full extent of the true field can be seen.
 
   ////////////////////////////////////////////////////////////////////////////
   // Inlined (rand-float-gen): mtc1 of a raw IEEE-754 bit pattern
