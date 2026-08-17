@@ -461,6 +461,23 @@
   // cloth-thickness/initial-xform/drag/ball-collision-radius/
   // num-iterations+timestep-frequency/pad/secret-disable), and 22 words is
   // exactly cloth-params' own size-assert #x58.
+  // peak-obs top-level: *snowball-constants* points at a 51-word data
+  // blob (mostly zero, a handful of nonzero floats scattered through it,
+  // e.g. words 0-2 and 44-48), passed whole to rigid-body-object-method-64
+  // (_type_ object), which takes it generically and never dereferences a
+  // specific field in this object; typed as a raw float pointer rather
+  // than inventing a field-by-field struct with no dereference evidence.
+  // (method 80 peak-snowball) builds an attack-info in place at L90: id
+  // (offset 128, uint32), damage/vehicle-damage-factor/vehicle-impulse-
+  // factor (144/152/156, float) and attacker (64, handle via the
+  // canonical ppointer->handle idiom) all match attack-info's own field
+  // layout exactly.
+  // L91's 51-word raw span has a relocated symbol pointer to
+  // *snowball-constants* itself at word 48 (offset 192), not a float bit
+  // pattern, so the array declaration only covers the confirmed-float
+  // run before it (48 words); the trailing 3 words are not separately
+  // referenced by anything and need no declaration of their own.
+  "peak-obs": [["L91", "(pointer float)", 48], ["L90", "attack-info"]],
   "credits-obs": [
     ["L189", "cloth-params"],
     ["L190", "cloth-params"],

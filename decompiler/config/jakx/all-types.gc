@@ -33002,7 +33002,11 @@
     (mem-buffer-method-37 (_type_) none) ;; 37
     (mem-buffer-method-38 (_type_) none) ;; 38
     (mem-buffer-method-39 (_type_) uint) ;; 39
-    (mem-buffer-method-40 (_type_) none) ;; 40
+    ;; return retyped none -> float: (method 17 peak-snowball) feeds the
+    ;; result straight into path-control methods that take a float
+    ;; (interp), via mtc1/mfc1 reinterpretation, which only makes sense
+    ;; for a real float return.
+    (mem-buffer-method-40 (_type_) float) ;; 40
     (mem-buffer-method-41 (_type_ object) none) ;; 41
     (mem-buffer-method-42 (_type_ object object) none) ;; 42
     (mem-buffer-method-43 (_type_ object) none) ;; 43
@@ -39822,7 +39826,10 @@
     (path-control-method-23 (_type_ vector) float) ;; 23
     (path-control-method-24 (_type_ vector) float) ;; 24
     (path-control-method-25 (_type_ vector) float) ;; 25
-    (path-control-method-26 (_type_ object object) none) ;; 26 ;; (path-control-method-26 (_type_ object object) float)
+    ;; synced to its own trailing hint: (post idle peak-snowball) feeds
+    ;; the result straight into an mtc1/swc1 float store (peak-snowball's
+    ;; own last-u field), confirming float, not none.
+    (path-control-method-26 (_type_ object object) float) ;; 26
     (path-control-method-27 (_type_ object) none) ;; 27 ;; (path-control-method-27 (_type_ object) vector)
     (path-control-method-28 (_type_ object object object) none) ;; 28 ;; (path-control-method-28 (_type_ object object object) float)
     (path-control-method-29 (_type_ vector int float) float) ;; 29
@@ -79785,7 +79792,15 @@
    (impact-direction vector :inline :offset-assert 304)
    (particle-matrix  matrix :inline :offset-assert 320)
    (path-length      float          :offset-assert 384)
-   (pad-pre-last-u   uint8  8       :offset-assert 388)
+   ;; pad-pre-last-u split into two real pointer fields: (method 66)
+   ;; stores two sp-field-init-spec pointers here (particle-system table
+   ;; lookups: *part-id-table* element 5708/4, offset by 288 and 160), and
+   ;; (method 80)/(code explode) both read the same two slots back and
+   ;; dereference offsets 4 and 8 of each, the same shape as
+   ;; sp-field-init-spec's own field layout (both fields agree, proving
+   ;; the split the earlier adjudication only guessed at).
+   (part-spec-a      sp-field-init-spec  :offset-assert 388)
+   (part-spec-b      sp-field-init-spec  :offset-assert 392)
    (last-u           float          :offset-assert 396)
    (roll-sound       uint32         :offset-assert 400)
    (offset           float          :offset-assert 404)
@@ -79814,10 +79829,22 @@
   )
 
 
-;; (define-extern peak-snowball-init-remote function)
+;; the top-level's own method-set! call for slot 41 types this as
+;; (function peak-snowball int process); the body itself calls through
+;; self's (s6) own vtable at method id 34, which only exists on a real
+;; process-drawable-derived type with enough methods (peak-snowball has
+;; 90), not plain process, so self needs :behavior peak-snowball too.
+(define-extern peak-snowball-init-remote (function peak-snowball int process :behavior peak-snowball))
 ;; (define-extern *msg-map-peak-snowball* array)
-;; (define-extern *net-process-class-info-peak-snowball* object)
-;; (define-extern *snowball-constants* object)
+;; passed directly to net-process-class-register (function
+;; net-process-class-info none).
+(define-extern *net-process-class-info-peak-snowball* net-process-class-info)
+;; *snowball-constants* points at a 51-element float array (L91,
+;; label_types.jsonc); the "object" typing was enough for method 64's
+;; call to type-check, but left the static initializer as an
+;; unexpandable <static-data L91> placeholder in the landed text, so
+;; retyped to match the label for real.
+(define-extern *snowball-constants* (pointer float))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ice-obs                        ;;
@@ -83982,7 +84009,11 @@
 (define-extern *net-process-class-info-net-player-time-trial* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-projectile* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-test* object) ;; provisional: call-site evidence only
-(define-extern *net-process-class-info-peak-snowball* object) ;; provisional: call-site evidence only
+;; later-duplicate-wins: superseded by the correctly-typed define-extern
+;; near peak-snowball-init-remote (net-process-class-info, not the generic
+;; provisional-sweep object typing); commented out so the earlier, stronger
+;; entry wins per check_alltypes_shadowing.py.
+;; (define-extern *net-process-class-info-peak-snowball* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-plow* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-powercell-dispenser* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-powercell-dispenser-draw* object) ;; provisional: call-site evidence only

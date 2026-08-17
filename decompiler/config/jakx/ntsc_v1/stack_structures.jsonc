@@ -637,5 +637,44 @@
   // (code running end-credits-character-viewer) is parked as asm
   // (hacks.jsonc), so its own two entries are omitted here.
   "(code running end-credits-proc)": [[16, "event-message-block"]],
-  "update-stuff": [[16, "event-message-block"]]
+  "update-stuff": [[16, "event-message-block"]],
+  // peak-obs: (post idle peak-snowball) computes s4 = sp+48 and passes it
+  // straight to quaternion-look-at! (a quaternion out-param, 16 bytes),
+  // then reads four consecutive quadwords starting at s4+16 (sp+64) into
+  // a matrix (the last quadword, s4+64 = sp+112, is itself written just
+  // before via a plain 16-byte quad copy, consistent with a matrix's
+  // fourth row).
+  "(post idle peak-snowball)": [
+    [48, "quaternion"],
+    [64, "matrix"],
+    // sp+128 is two adjacent vectors: a quad-copy target, then a
+    // veccross result immediately after it (offset 16), whose x/y
+    // components are read back at offsets 16 and 20.
+    [128, ["inline-array", "vector", 2]]
+  ],
+  // peak-obs: (code explode peak-snowball) computes gp = sp+16 (a plain
+  // 16-byte quad copy target) and s5 = sp+32, passed straight to
+  // quaternion-look-at! as its quaternion out-param.
+  "(code explode peak-snowball)": [
+    [16, "vector"],
+    [32, "quaternion"]
+  ],
+  // peak-snowball: (method 17) has the identical s5 = sp+48
+  // quaternion(0)+matrix(16-79) shape as (post idle peak-snowball)
+  // above (quaternion->matrix writes s5+16 from s5+0, and s5+64 is the
+  // matrix's fourth row).
+  "(method 17 peak-snowball)": [
+    [48, "quaternion"],
+    [64, "matrix"]
+  ],
+  // peak-snowball (method 71): sp+16 is a plain vector subtraction
+  // scratch target (sqc2 writes the vsub.xyz result straight into it).
+  // (method 71 peak-snowball): the shared rigid-body-object body; sp+32
+  // is the same collide-query shape (method 71 construction-object)
+  // above uses at its own sp+80, evidenced here by the matching +208/
+  // +224 offset accesses.
+  "(method 71 peak-snowball)": [
+    [16, "vector"],
+    [32, "collide-query"]
+  ]
 }

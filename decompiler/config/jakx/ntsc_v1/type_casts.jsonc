@@ -3447,6 +3447,53 @@
   // lobby-menu-manager and *net-drivers*/*credits-chars* type fixes it
   // needed on the way there are still live in all-types.gc and may help
   // other objects in the corpus.
+  // (post idle peak-snowball): s4 is the quaternion+matrix compound stack
+  // local (stack_structures.jsonc, quaternion at its own base, matrix 16
+  // bytes further in); computing s4+64 to reach the matrix's fourth row
+  // for a plain 16-byte quad write fails against the quaternion type's
+  // own 16-byte bound, so cast the address arithmetic to a byte pointer
+  // and the destination to vector for the write that follows.
+  "(post idle peak-snowball)": [
+    [197, "s4", "(pointer uint8)"],
+    [[197, 202], "v1", "vector"],
+    [190, "a0", "matrix"],
+    [[203, 208], "a3", "matrix"],
+    [213, "s4", "(pointer uint8)"],
+    [[213, 215], "a0", "vector"],
+    [219, "s4", "(pointer uint8)"],
+    [219, "a1", "matrix"],
+    [224, "s4", "(pointer uint8)"],
+    [224, "a1", "(pointer uint8)"]
+  ],
+  // (method 17 peak-snowball): same s5+64 matrix-fourth-row shape as
+  // (post idle peak-snowball) above.
+  "(method 17 peak-snowball)": [
+    [49, "s5", "(pointer uint8)"],
+    [[49, 53], "v1", "vector"],
+    [42, "a0", "matrix"],
+    [[62, 67], "a3", "matrix"],
+    [72, "s5", "(pointer uint8)"],
+    [[72, 74], "a0", "vector"]
+  ],
+  // (method 71 peak-snowball): the same "a0 reloaded as best-other-tri
+  // (collide-tri-result, offset 0's own narrowest alias) rather than the
+  // outer collide-query" defect (method 71 construction-object) already
+  // hits; cast a0 back to collide-query at each failing store op.
+  "(method 71 peak-snowball)": [
+    [47, "a0", "collide-query"],
+    [49, "a0", "collide-query"],
+    [50, "a0", "collide-query"],
+    [51, "a0", "collide-query"],
+    [53, "a0", "collide-query"],
+    [55, "a0", "collide-query"],
+    [56, "a0", "collide-query"],
+    // rigid-body-object's own collide-shape field is declared the
+    // generic collide-shape, but the call two ops later reaches for
+    // method 62 (rbody-collision), only declared on the collide-shape-
+    // moving subtype (collide-shape's own method-count-assert is 55,
+    // well short of 62).
+    [[68, 70], "a0", "collide-shape-moving"]
+  ],
   "(code idle hirez-viewer)": [
     [[11, 13], "v1", "art-joint-anim"],
     [[32, 34], "v1", "art-joint-anim"]
