@@ -16291,8 +16291,8 @@
    (tex0-24             uint64               :offset-assert 240)
    (copy-frame          uint64               :offset-assert 248)
    (copy-tex0           uint64               :offset-assert 256)
-   (copy-dma            basic                :offset-assert 264)
-   (hflip-zbuf-dma      basic                :offset-assert 268)
+   (copy-dma            dma-buffer           :offset-assert 264) ;; +28 reads = (-> it data)
+   (hflip-zbuf-dma      dma-buffer           :offset-assert 268) ;; +28 reads = (-> it data)
    (glow-frame-1        uint64               :offset-assert 272)
    (glow-tex0-1         uint64               :offset-assert 280)
    (glow-frame-2        uint64               :offset-assert 288)
@@ -16302,7 +16302,7 @@
    (shadow-invert-frame uint64               :offset-assert 336)
    (shadow-dma-frame    uint64               :offset-assert 344)
    (shadow-dma-tex0     uint64               :offset-assert 352)
-   (shadow-dma          basic                :offset-assert 360)
+   (shadow-dma          dma-buffer           :offset-assert 360) ;; +28 reads = (-> it data)
    (warp-shader         adgif-shader :inline :offset-assert 368)
    (blur-forward-dma    dma-buffer           :offset-assert 448) ;; +28 reads = (-> it data)
    (blur-reverse-dma    dma-buffer           :offset-assert 452) ;; +28 reads = (-> it data)
@@ -42004,10 +42004,10 @@
 ;; debug-foreground               ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern diag-frag-print function) ;; (function merc-effect int none)
-;; (define-extern debug-merc-highres-runtime function)
-;; (define-extern debug-merc-size-runtime function)
-;; (define-extern debug-merc-fade-runtime function)
+(define-extern diag-frag-print (function merc-ctrl int none))
+(define-extern debug-merc-highres-runtime (function merc-ctrl none))
+(define-extern debug-merc-size-runtime (function merc-ctrl none))
+(define-extern debug-merc-fade-runtime (function merc-ctrl none))
 (define-extern foreground-check-longest-edge (function int))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -42317,8 +42317,8 @@
 ;; warp                           ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern fx-copy-init function)
-;; (define-extern warp-shader-init function)
+(define-extern fx-copy-init (function dma-buffer viewport none))
+(define-extern warp-shader-init (function viewport none))
 (define-extern fx-copy-buf (function dma-buffer viewport none)) ;; jakx adds the viewport arg (jak3: dma-buffer only)
 (define-extern init-warp (function none))
 
@@ -42326,7 +42326,7 @@
 ;; hflip                          ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern hflip-zbuf-init function)
+(define-extern hflip-zbuf-init (function dma-buffer viewport none))
 (define-extern hflip-z-buf (function dma-buffer viewport none)) ;; jakx adds the viewport arg
 (define-extern init-hflip-zbuf (function none))
 
