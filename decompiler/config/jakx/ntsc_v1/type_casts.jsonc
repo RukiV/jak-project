@@ -4037,5 +4037,58 @@
     [134, "a0", "merc-fragment"],
     [136, "v1", "merc-fragment"],
     [139, "v1", "merc-fragment"]
+  ],
+  // shadow-vu1-init-buffer: a0 is the dma-buffer's own data pointer
+  // (l.wu offset 4, generic pointer with no element type), so the
+  // zero-offset raw DMA tag store (op 20) resolves trivially but the
+  // +8/+12 stores (ops 26/28, the second half of the same GIF tag pair)
+  // cannot without a concrete element type. Same base-address idiom
+  // (method 8 collide-hash) already carries for VU0 scratchpad.
+  "shadow-vu1-init-buffer": [
+    [26, "a0", "(pointer uint32)"],
+    [28, "a0", "(pointer uint32)"]
+  ],
+  // shadow-vu1-patch-consts: v1 indexes *shadow-globals* by a two-level
+  // shift (bucket-view index times 64, shadow-bucket-views' own
+  // :size-assert; bucket index times 32, shadow-bucket's own 20-byte
+  // :size-assert rounded up to a 16-byte-aligned stride), then reads a
+  // word at +24 that the rest of the function (ops 9/14, floats at +72/
+  // +92 off that same loaded value) uses as a pointer into a float-field
+  // structure, not as a plain word itself. No field in shadow-bucket's
+  // own table (all four "guessed by decompiler") lands on offset 24,
+  // which falls in the aligned padding past its own declared extent
+  // (ends at 20), so this casts the loaded value to a raw float pointer
+  // (matching the +72/+92 float accesses that consume it) rather than
+  // guessing a field name for the intermediate offset-24 read itself.
+  "shadow-vu1-patch-consts": [
+    [5, "v1", "(pointer (pointer float))"]
+  ],
+  // shadow-vu1-add-constants: t0 is math-camera's own perspective.uvec.x
+  // (l.wu offset 176, a real float field per math-camera's own table),
+  // but this function does not use it as a float value; it is
+  // reinterpreted as a raw base address and walked by four large literal
+  // byte offsets (780/796/812/908) that land well outside math-camera's
+  // own extent, each read back as a full quadword (ops 22/26/30) or a
+  // float (op 32) in its own right. shadow-vu1-init-buffer's own read of
+  // the identical offset 176 (its own op 15) shows the same shape,
+  // passed on as if it were itself a math-camera argument to
+  // shadow-vu1-add-matrix; both functions treat this field as a raw
+  // pointer rather than a float value. Cast to (pointer uint128) at the
+  // point where the first literal offset is added, matching the quad
+  // loads that consume the result, rather than guessing what structure
+  // the four offsets index into.
+  "shadow-vu1-add-constants": [
+    [21, "t0", "(pointer uint128)"],
+    [25, "t0", "(pointer uint128)"],
+    [29, "t0", "(pointer uint128)"],
+    [32, "t0", "(pointer float)"],
+    // t1 (op 39, math-camera plus 304, landing on isometric.uvec, a real
+    // float field) is quad-copied whole (op 40) rather than read as a
+    // scalar float; the quad load needs (pointer uint128) the same as
+    // the t0 walk above, not the field's own scalar float type.
+    [40, "t1", "(pointer uint128)"],
+    // Same shape again at op 73: t1 (op 72, math-camera plus 320, landing
+    // on isometric.trans) quad-copied whole.
+    [73, "t1", "(pointer uint128)"]
   ]
 }
