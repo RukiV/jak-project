@@ -38,11 +38,11 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (190)
+### Never written (189)
 
 | symbol | reading files | defined in |
 |---|---:|---|
-| `*display-capture-mode*` | 9 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*display-capture-mode*` | 10 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-reverb*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -56,7 +56,6 @@ written is read-only by design and not a finding.
 | `*settings-sfx-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
 | `*HACK-find-nearest-focusable-ignore*` | 1 | `goal_src/jakx/engine/collide/find-nearest-h.gc` |
 | `*add-sphere*` | 1 | `goal_src/jakx/engine/draw/drawable.gc` |
-| `*already-printed-exeeded-max-cache-tris*` | 1 | `goal_src/jakx/engine/spatial-hash/collide-hash-h.gc` |
 | `*amy-cam*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-error-spheres*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-fix-frustum*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
