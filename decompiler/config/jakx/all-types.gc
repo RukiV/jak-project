@@ -49583,18 +49583,18 @@
 ;; (define-extern nav-control-validate function) ;; (function process-drawable none)
 (define-extern debug-validate-nav-poly (function nav-mesh-link nav-poly none)) ;; 
 ;; (define-extern vu-point-triangle-intersection? function) ;; (function vector vector vector vector symbol)
-;; (define-extern poly-in-height-range? function) ;; (function nav-poly float float symbol)
-;; (define-extern nav-ray-test function) ;; (function nav-mesh nav-poly vector vector meters)
-;; (define-extern point-poly-distance-min function) ;; (function nav-mesh-work nav-poly float nav-poly float)
-;; (define-extern nav-mesh-route-table-bit-index function) ;; (function nav-mesh uint int int)
-;; (define-extern ray-ccw-line-segment-intersection? function) ;; (function vector vector vector vector symbol)
-;; (define-extern ray-line-segment-intersection? function) ;; (function vector vector vector vector symbol)
-;; (define-extern plane-height-at-xz-point function) ;; (function plane vector float)
-;; (define-extern nav-normal-from-3-points function) ;; (function vector vector vector vector none)
-;; (define-extern get-nav-mesh function) ;; (function actor-id nav-mesh)
-;; (define-extern find-nearest-nav-mesh function) ;; (function vector float nav-mesh)
-;; (define-extern point-to-poly-boundary function) ;; (function nav-poly vector vector float)
-;; (define-extern find-first-containing-nav-mesh function)
+(define-extern poly-in-height-range? (function nav-poly float float symbol))
+(define-extern nav-ray-test (function nav-mesh nav-poly vector vector meters))
+(define-extern point-poly-distance-min (function nav-mesh-work nav-poly float nav-poly float))
+(define-extern nav-mesh-route-table-bit-index (function nav-mesh uint int int))
+(define-extern ray-ccw-line-segment-intersection? (function vector vector vector vector symbol))
+(define-extern ray-line-segment-intersection? (function vector vector vector vector symbol))
+(define-extern plane-height-at-xz-point (function plane vector float))
+(define-extern nav-normal-from-3-points (function vector vector vector vector none))
+(define-extern get-nav-mesh (function actor-id nav-mesh))
+(define-extern find-nearest-nav-mesh (function vector float nav-mesh))
+(define-extern point-to-poly-boundary (function nav-poly vector vector float))
+;; (define-extern find-first-containing-nav-mesh function) ;; no hint, needs its own register-level signature
 (define-extern find-nav-mesh (function object vector float float float collide-cache object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -49705,23 +49705,23 @@
   :flag-assert         #x9000000c0
   )
 
-;; (define-extern *nav-triangle-test-count* object) ;; int
-;; (define-extern *nav-last-triangle-test-count* object) ;; int
-;; (define-extern debug-nav-validate-current-poly function) ;; (function nav-mesh nav-poly vector symbol)
-;; (define-extern debug-report-nav-stats function) ;; (function none)
-;; (define-extern get-nav-control function) ;; (function process-drawable nav-mesh none)
-;; (define-extern get-pos-from-node function)
-;; (define-extern add-nav-sphere function) ;; (function nav-control sphere int none)
-;; (define-extern add-collide-shape-spheres function) ;; (function nav-control collide-shape sphere none)
-;; (define-extern circle-tangent-directions function) ;; (function vector vector vector vector vector)
-;; (define-extern circle-ray-intersection? function) ;; (function vector vector float vector symbol)
-;; (define-extern find-closest-circle-ray-intersection function) ;; (function vector vector float int (inline-array vector) int int)
-;; (define-extern compute-dir-parm function) ;; (function vector vector vector float)
-;; (define-extern vector-rotate-y-sincos! function) ;; (function vector vector float float float)
-;; (define-extern test-xz-point-on-line-segment? function) ;; (function vector vector vector float symbol)
-;; (define-extern *null-nav-callback-info* object) ;; nav-callback-info
-;; (define-extern *default-nav-callback-info* object) ;; nav-callback-info
-;; (define-extern *physics-nav-callback-info* object) ;; nav-callback-info
+(define-extern *nav-triangle-test-count* int)
+(define-extern *nav-last-triangle-test-count* int)
+(define-extern debug-nav-validate-current-poly (function nav-mesh nav-poly vector symbol))
+(define-extern debug-report-nav-stats (function none))
+(define-extern get-nav-control (function process-drawable nav-mesh none))
+;; (define-extern get-pos-from-node function) ;; no hint, needs its own register-level signature
+(define-extern add-nav-sphere (function nav-control sphere int none))
+(define-extern add-collide-shape-spheres (function nav-control collide-shape sphere none))
+(define-extern circle-tangent-directions (function vector vector vector vector vector))
+(define-extern circle-ray-intersection? (function vector vector float vector symbol))
+(define-extern find-closest-circle-ray-intersection (function vector vector float int (inline-array vector) int int))
+(define-extern compute-dir-parm (function vector vector vector float))
+(define-extern vector-rotate-y-sincos! (function vector vector float float float))
+(define-extern test-xz-point-on-line-segment? (function vector vector vector float symbol))
+(define-extern *null-nav-callback-info* nav-callback-info)
+(define-extern *default-nav-callback-info* nav-callback-info)
+(define-extern *physics-nav-callback-info* nav-callback-info)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; effect-control                 ;;
@@ -83612,7 +83612,8 @@
 (define-extern *nav-graph-editor* object) ;; provisional: call-site evidence only
 (define-extern *nav-mesh-editor* nav-mesh-editor) ;; nav rung: retyped from object, the singleton the debug editor commands (nav-set-flag, nav-mesh-editor-new, etc.) all read directly as a nav-mesh-editor pointer
 (define-extern *nav-mesh-work* nav-mesh-work)
-(define-extern *nav-triangle-test-count* object) ;; provisional: call-site evidence only
+;; *nav-triangle-test-count* moved: real extern now declared with its own
+;; nav-control siblings (nav rung), fixing the later-weaker duplicate here.
 (define-extern *net-clan-ladder-stats-info-array* object) ;; provisional: call-site evidence only
 (define-extern *net-colarb-last-reqs* object) ;; provisional: call-site evidence only
 (define-extern *net-drivers* object) ;; provisional: call-site evidence only
