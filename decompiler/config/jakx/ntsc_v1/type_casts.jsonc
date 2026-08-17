@@ -2894,5 +2894,40 @@
   // down to collide-shape-moving before the following virtual call resolves;
   // matches jak3's own hint for the same load ([211, "v1", "collide-shape-moving"]
   // in its config) but jakx's op number drifts from jak3's 211 to 206
-  "(anon-function 2 memory-usage)": [[206, "v1", "collide-shape-moving"]]
+  "(anon-function 2 memory-usage)": [[206, "v1", "collide-shape-moving"]],
+  // debug leg: collision-edit-get-max-prim and collision-edit-get-prim both read
+  // a process-drawable's root (typed trsqv, too generic for an offset-156 field)
+  // and need it forced to collide-shape; matches jak3's own hints for both
+  // functions exactly ([11, "v1", "collide-shape"] in its config for each, same
+  // op number, no drift)
+  "collision-edit-get-max-prim": [[11, "v1", "collide-shape"]],
+  "collision-edit-get-prim": [[11, "v1", "collide-shape"]],
+  // debug leg: print-actual-collision hits the identical root-typed-as-trsqv
+  // load twice, once at op 12 and again at op 182 in a second, separate branch
+  // reaching the same field; jak3's config carries no hint for this function,
+  // but the fix is the same class as its two siblings above, applied at both
+  // sites
+  "print-actual-collision": [
+    [12, "v1", "collide-shape"],
+    [182, "v1", "collide-shape"]
+  ],
+  // debug leg: print-default-collision walks a raw (pointer process) list and
+  // dereferences each entry to read offset 192, which is process-drawable's
+  // node-list field (all-types.gc), not anything process itself declares; the
+  // function repeats this same walk twice (a primary check at op 23 and a
+  // near-identical fallback branch at op 27), each needing v1 forced to
+  // process-drawable at its own op. No jak3 hint for this one either;
+  // jakx-only, evidence is the field table
+  "print-default-collision": [
+    [23, "v1", "process-drawable"],
+    [27, "v1", "process-drawable"]
+  ],
+  // debug leg: (method 10 collision-edit-info)'s arg1 is declared object (the
+  // method's own real signature, shared with draw-menu-shaped callers), but the
+  // body immediately treats it as a process-drawable to read its root field
+  // (offset 188) five separate times across the function body; gp holds this
+  // value unchanged from op 1 (where it is first copied from a1) through its
+  // last use at op 411, so one range cast covers all five reads instead of five
+  // separate point casts
+  "(method 10 collision-edit-info)": [[[1, 411], "gp", "process-drawable"]]
 }

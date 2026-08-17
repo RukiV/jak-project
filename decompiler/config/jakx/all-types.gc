@@ -64947,6 +64947,14 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced 16->22)
+;; debug leg: tried dropping collision-editor-method-14 as a suspected state-slot
+;; alias (own trailing comment reads "(idle () _type_ :state)"), matching the
+;; visvol-edit rung's recipe; empirically wrong here, reverted. Removing it just
+;; shifted the compiler's own slot assignment for :state-methods idle down by
+;; one instead of resolving anything (the ";; 15" comment is documentation, not
+;; a compiler directive; slot numbers are assigned by declaration order), and
+;; the collision-editor-init-by-other enter-state failure persisted unchanged.
+;; Left as a genuine unresolved defect; see the commit message
 (deftype collision-editor (process)
   ((proc uint64  :offset-assert 144) ;; handle
    )
@@ -65002,19 +65010,25 @@
   )
 
 
-;; (define-extern collision-editor-default-proc-init-by-other function) ;; (function object :behavior collision-editor-default-proc)
-;; (define-extern collision-editor-edited-proc-init-by-other function) ;; (function object :behavior collision-editor-edited-proc)
-;; (define-extern *collision-editor-mesh-names* array) ;; (array string)
-;; (define-extern *collision-editor-art-group-name* string) ;; string
-;; (define-extern collision-editor-add-mesh-to-ccache function) ;; (function collide-shape-prim-group collide-cache none)
-;; (define-extern print-default-collision function) ;; (function none)
-;; (define-extern print-actual-collision function) ;; (function process-drawable none)
-;; (define-extern collision-edit-get-max-prim function) ;; (function process-drawable int)
-;; (define-extern collision-edit-get-prim function) ;; (function process-drawable int collide-shape-prim)
-;; (define-extern *collision-edit-info* object) ;; collision-edit-info
-;; (define-extern collision-editor-init-by-other function) ;; (function handle object :behavior collision-editor)
-;; (define-extern stop-collision-edit function) ;; (function none)
-;; (define-extern collision-edit function) ;; (function process (pointer process))
+;; debug leg: absent everywhere in jakx (not even a commented stub); collision-edit-info-method-10
+;; calls it directly (2 call sites, 3-arg shape: process-drawable, byte value, a raw float-bits
+;; constant used as an int). jak3 declares it in its ragdoll-edit section
+;; (decompiler/config/jak3/all-types.gc) with the identical signature; jakx has no ragdoll-edit
+;; section of its own yet, so this is placed with its only current jakx caller instead
+(define-extern show-maya-skeleton (function process-drawable int int none))
+(define-extern collision-editor-default-proc-init-by-other (function object :behavior collision-editor-default-proc))
+(define-extern collision-editor-edited-proc-init-by-other (function object :behavior collision-editor-edited-proc))
+(define-extern *collision-editor-mesh-names* (array string))
+(define-extern *collision-editor-art-group-name* string)
+(define-extern collision-editor-add-mesh-to-ccache (function collide-shape-prim-group collide-cache none))
+(define-extern print-default-collision (function none))
+(define-extern print-actual-collision (function process-drawable none))
+(define-extern collision-edit-get-max-prim (function process-drawable int))
+(define-extern collision-edit-get-prim (function process-drawable int collide-shape-prim))
+(define-extern *collision-edit-info* collision-edit-info)
+(define-extern collision-editor-init-by-other (function handle object :behavior collision-editor))
+(define-extern stop-collision-edit (function none))
+(define-extern collision-edit (function process (pointer process)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; construction-obs-h             ;;
@@ -82968,8 +82982,6 @@
 (define-extern *coli-stands-rail-c-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *collapse-quote* symbol)
 (define-extern *collide-probe-stack* object) ;; provisional: call-site evidence only
-(define-extern *collision-edit-info* object) ;; provisional: call-site evidence only
-(define-extern *collision-editor-mesh-names* object) ;; provisional: call-site evidence only
 (define-extern *confirm-prev-state-name* object) ;; provisional: call-site evidence only
 (define-extern *construction-cone-constants* rigid-body-object-constants)
 ;; og:preserve-this typed from object (2026-08-16 construction-obs-h rung): (method 92
