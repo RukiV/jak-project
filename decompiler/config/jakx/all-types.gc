@@ -41644,7 +41644,7 @@
 (define-extern *debug-text-3ds* (inline-array debug-text-3d))
 (define-extern *debug-text-3d-trk* debug-tracking-thang) ;; 
 (define-extern *debug-prims* int)
-;; (define-extern debug-reset-prim-buffer function)
+(define-extern debug-reset-prim-buffer (function none)) ;; nav rung: call site in (anon-function 18 nav-mesh-editor) passes no args and never reads v0
 (define-extern add-debug-flat-triangle (function symbol bucket-id vector vector vector rgba symbol))
 ;; (define-extern get-debug-line function) ;; (function debug-line)
 ;; (define-extern get-debug-text-3d function) ;; (function debug-text-3d)
@@ -64547,7 +64547,9 @@
     )
   )
 
-;; (define-extern *nav-mesh-editor* object) ;; (pointer nav-mesh-editor)
+;; *nav-mesh-editor* moved: real extern now declared with nav-mesh-editor
+;; itself (nav rung); the later-weaker object-typed duplicate the shadowing
+;; check would otherwise still win against is fixed at its own declaration.
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; nav-mesh-editor                ;;
@@ -64576,29 +64578,29 @@
   )
 
 
-;; (define-extern snap-level-navmesh function) ;; (function vector vector symbol)
-;; (define-extern mouse-intersect-triangle function) ;; (function vector vector vector vector float)
-;; (define-extern *clean-vertex-array* object) ;; (inline-array vector)
-;; (define-extern *clean-index-array* object) ;; (pointer int32)
-;; (define-extern poly-flag-to-string function) ;; (function object nav-mesh-poly-flag object)
-;; (define-extern point-in-cone function) ;; (function vector vector vector vector symbol)
-;; (define-extern segment-in-cone function) ;; (function vector vector vector vector symbol)
-;; (define-extern point-in-triangle function) ;; (function vector vector vector vector symbol)
-;; (define-extern segments-intersect function) ;; (function vector vector vector vector symbol)
-;; (define-extern is-diagonal function) ;; (function int (inline-array triangulation-vert) vector-array int int int symbol)
-;; (define-extern *verts-buf-1* object) ;; (inline-array triangulation-vert)
-;; (define-extern *verts-buf-2* object) ;; (inline-array triangulation-vert)
-;; (define-extern draw-square-point function) ;; (function vector object)
-;; (define-extern get-level-id function) ;; (function string int)
-;; (define-extern nav-mesh-editor-new function) ;; (function object)
-;; (define-extern nav-delete function) ;; (function int object)
-;; (define-extern nav-mesh-editor-translate function) ;; (function int float float float object)
-;; (define-extern nav-mesh-editor-rotate-y function) ;; (function float object)
-;; (define-extern nav-mesh-editor-load function) ;; (function string object)
-;; (define-extern nav-mesh-editor-set-level function) ;; (function symbol object)
-;; (define-extern nav-set-lev function) ;; (function string object)
-;; (define-extern nav-set-flag function) ;; (function nav-mesh-poly-flag object)
-;; (define-extern nav-mesh-editor-init function) ;; (function symbol object :behavior nav-mesh-editor)
+(define-extern snap-level-navmesh (function vector vector symbol))
+(define-extern mouse-intersect-triangle (function vector vector vector vector float))
+(define-extern *clean-vertex-array* (inline-array vector))
+(define-extern *clean-index-array* (pointer int32))
+(define-extern poly-flag-to-string (function object nav-mesh-poly-flag object))
+(define-extern point-in-cone (function vector vector vector vector symbol))
+(define-extern segment-in-cone (function vector vector vector vector symbol))
+(define-extern point-in-triangle (function vector vector vector vector symbol))
+(define-extern segments-intersect (function vector vector vector vector symbol))
+(define-extern is-diagonal (function int (inline-array triangulation-vert) vector-array int int int symbol))
+(define-extern *verts-buf-1* (inline-array triangulation-vert))
+(define-extern *verts-buf-2* (inline-array triangulation-vert))
+(define-extern draw-square-point (function vector object))
+(define-extern get-level-id (function string int))
+(define-extern nav-mesh-editor-new (function object))
+(define-extern nav-delete (function int object))
+(define-extern nav-mesh-editor-translate (function int float float float object))
+(define-extern nav-mesh-editor-rotate-y (function float object))
+(define-extern nav-mesh-editor-load (function string object))
+(define-extern nav-mesh-editor-set-level (function symbol object))
+(define-extern nav-set-lev (function string object))
+(define-extern nav-set-flag (function nav-mesh-poly-flag object))
+(define-extern nav-mesh-editor-init (function symbol object :behavior nav-mesh-editor))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; sampler                        ;;
@@ -83113,7 +83115,8 @@
 (define-extern *clan-info-id* object) ;; provisional: call-site evidence only
 (define-extern *clan-pending-deltas-valid* object) ;; provisional: call-site evidence only
 (define-extern *clan-room-name* object) ;; provisional: call-site evidence only
-(define-extern *clean-vertex-array* object) ;; provisional: call-site evidence only
+;; *clean-vertex-array* moved: real extern now declared with its own triangulation
+;; scratch-global siblings (nav rung), fixing the later-weaker duplicate here.
 (define-extern *clear-stats-text-ids* object) ;; provisional: call-site evidence only
 (define-extern *cliffs-wood-fence-a-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *cliffs-wood-fence-b-debris-params* object) ;; provisional: call-site evidence only
@@ -83607,7 +83610,7 @@
 (define-extern *msg-map-v-toad-shot* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-vehicle* object) ;; provisional: call-site evidence only
 (define-extern *nav-graph-editor* object) ;; provisional: call-site evidence only
-(define-extern *nav-mesh-editor* object) ;; provisional: call-site evidence only
+(define-extern *nav-mesh-editor* nav-mesh-editor) ;; nav rung: retyped from object, the singleton the debug editor commands (nav-set-flag, nav-mesh-editor-new, etc.) all read directly as a nav-mesh-editor pointer
 (define-extern *nav-mesh-work* nav-mesh-work)
 (define-extern *nav-triangle-test-count* object) ;; provisional: call-site evidence only
 (define-extern *net-clan-ladder-stats-info-array* object) ;; provisional: call-site evidence only
@@ -83805,7 +83808,8 @@
 (define-extern *vehicle-remote-spawn-data* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-selection-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-wheel-constants* object) ;; provisional: call-site evidence only
-(define-extern *verts-buf-1* object) ;; provisional: call-site evidence only
+;; *verts-buf-1* moved: real extern now declared with its own triangulation
+;; scratch-global siblings (nav rung), fixing the later-weaker duplicate here.
 (define-extern *vibration-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *video-change* object) ;; provisional: call-site evidence only
 (define-extern *waiting-for-lock* object) ;; provisional: call-site evidence only
