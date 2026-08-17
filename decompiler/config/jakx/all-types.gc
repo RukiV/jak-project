@@ -82122,7 +82122,14 @@
 (define-extern *car-part-art-group-names* object) ;; provisional: call-site evidence only
 (define-extern *car-part-info-arrays* object) ;; provisional: call-site evidence only
 (define-extern *car-texture-work* car-texture-work)
-(define-extern *car-upgrade-info* object) ;; provisional: call-site evidence only
+;; *car-upgrade-info*: car-tables top-level-login writes fields at offset 0
+;; (float cost), +4/+5/+6/+7 (uint8 base/max/rookie/pro) and +8 (float
+;; cost-increment) into the base, then rebases +16 for the next record: the
+;; exact placement layout of upgrade-info (0,4,5,6,7,8, size 0xc padded to a
+;; 16-byte inline stride), which the existing car-upgrade-info-array
+;; structure already wraps 15x4 of. (pointer car-upgrade-info-array) matches
+;; the write pattern (scoped decode, this worktree's config, car-tables).
+(define-extern *car-upgrade-info* (pointer car-upgrade-info-array))
 (define-extern *chat-msg-buffer* object) ;; provisional: call-site evidence only
 (define-extern *chat-room-select* object) ;; provisional: call-site evidence only
 (define-extern *choose-network-config* object) ;; provisional: call-site evidence only
@@ -82159,7 +82166,12 @@
 (define-extern *current-game-list-anim* object) ;; provisional: call-site evidence only
 (define-extern *current-hud* basic)
 (define-extern *current-room-name* object) ;; provisional: call-site evidence only
-(define-extern *curve-toad-linear-up-red* object) ;; provisional: call-site evidence only
+;; *curve-toad-linear-up-red*: wvehicle-weapons-part top-level-login stores
+;; a curve2d-piecewise-typed call result into it, then immediately reads it
+;; back typed object and calls method 10 (offset 56, allocate!) off its
+;; type tag, the same shape as *water-simple-alpha-curve-in* below (scoped
+;; decode, this worktree's config, matches the type's own commented hint).
+(define-extern *curve-toad-linear-up-red* curve2d-piecewise)
 (define-extern *customize-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *customize-menu-text-ids* object) ;; provisional: call-site evidence only
 (define-extern *customize-paintjob-text-ids* object) ;; provisional: call-site evidence only
@@ -82215,6 +82227,11 @@
 (define-extern *dnas-error-code* object) ;; provisional: call-site evidence only
 (define-extern *dnas-errors-usa* object) ;; provisional: call-site evidence only
 (define-extern *dnas-mode* object) ;; provisional: call-site evidence only
+;; *dnas-on-success*: lobby-net-h top-level-login only ever stores #f into
+;; it (scoped decode, this worktree's config); activated as symbol, the
+;; type-prop failure it flagged was the type system not knowing the symbol
+;; existed at all, not an arithmetic use.
+(define-extern *dnas-on-success* symbol)
 (define-extern *drift-file-stream* object) ;; provisional: call-site evidence only
 (define-extern *dynamic-alloc-pool* object) ;; provisional: call-site evidence only
 (define-extern *dynamic-patches* object) ;; provisional: call-site evidence only
@@ -82510,7 +82527,12 @@
 (define-extern *mc-ghost-idx* object) ;; provisional: call-site evidence only
 (define-extern *medius-account-name* object) ;; provisional: call-site evidence only
 (define-extern *medius-buddies* object) ;; provisional: call-site evidence only
-(define-extern *medius-clan-cache* object) ;; provisional: call-site evidence only
+;; *medius-clan-cache*: net-mgr-medius-clans-h top-level-login stores a
+;; medius-cache-typed static into it, then immediately reads it back typed
+;; object and calls method 12 off its type tag, the same shape as
+;; *medius-player-cache* (scoped decode, this worktree's config, matches the
+;; type's own commented hint above).
+(define-extern *medius-clan-cache* medius-cache)
 (define-extern *medius-connect-in-params* object) ;; provisional: call-site evidence only
 (define-extern *medius-filters* object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: mistyped *medius-game-status-cache* as
@@ -82536,9 +82558,20 @@
 (define-extern *medius-my-clan* object) ;; provisional: call-site evidence only
 (define-extern *medius-my-player* object) ;; provisional: call-site evidence only
 (define-extern *medius-new-account-password* object) ;; provisional: call-site evidence only
-(define-extern *medius-player-cache* object) ;; provisional: call-site evidence only
+;; *medius-player-cache*: net-mgr-medius-players-h top-level-login stores a
+;; medius-cache-typed static into it, then immediately reads it back typed
+;; object and calls method 12 (offset 64, (64-16)/4) off its type tag, which
+;; only exists on medius-cache (scoped decode, this worktree's config,
+;; matches the type's own commented hint above).
+(define-extern *medius-player-cache* medius-cache)
 (define-extern *medius-policy-buffer* object) ;; provisional: call-site evidence only
-(define-extern *medius-policy-formatted-buffer* object) ;; provisional: call-site evidence only
+;; *medius-policy-formatted-buffer*: lobby-net-h top-level-login does
+;; (+ *medius-policy-formatted-buffer* 4) and stores the result into
+;; *medius-policy-string*, which then gets a string type-tag written 4
+;; bytes before it (constructing a string in place inside the buffer);
+;; typed as a raw byte pointer for that arithmetic (scoped decode, this
+;; worktree's config, lobby-net-h).
+(define-extern *medius-policy-formatted-buffer* (pointer uint8))
 (define-extern *medius-policy-length* object) ;; provisional: call-site evidence only
 (define-extern *medius-policy-string* object) ;; provisional: call-site evidence only
 (define-extern *medius-room-players* object) ;; provisional: call-site evidence only
@@ -82593,7 +82626,15 @@
 (define-extern *net-mgr-pending-behavior-result* object) ;; provisional: call-site evidence only
 (define-extern *net-mgr-pending-behavior-valid* object) ;; provisional: call-site evidence only
 (define-extern *net-patch-url* object) ;; provisional: call-site evidence only
-(define-extern *net-player-ladder-stats-info-array* object) ;; provisional: call-site evidence only
+;; *net-player-ladder-stats-info-array*: statistics top-level-login stores a
+;; static label into it whose own content-type relocation reads stat-info
+;; directly (scoped decode, this worktree's config: [v1: (array stat-info)]),
+;; and *net-player-ladder-stats-info* = this + 12 is exactly the array's data
+;; start past the 12-byte length/allocated-length/content-type header.
+(define-extern *net-player-ladder-stats-info-array* (array stat-info))
+;; *net-player-ladder-stats-info*: see *net-player-ladder-stats-info-array*
+;; above, its data pointer.
+(define-extern *net-player-ladder-stats-info* (pointer stat-info))
 (define-extern *net-process-class-info-artifact* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-artifact-draw* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-coli-statue* object) ;; provisional: call-site evidence only
@@ -82771,10 +82812,20 @@
 (define-extern *visvol-edit-info* object) ;; provisional: call-site evidence only
 (define-extern *waiting-for-lock* object) ;; provisional: call-site evidence only
 (define-extern *water-anim-look* object) ;; provisional: call-site evidence only
-(define-extern *water-simple-alpha-curve-in* object) ;; provisional: call-site evidence only
+;; *water-simple-alpha-curve-in*: water top-level-login stores a
+;; curve2d-piecewise-typed call result into it, then immediately reads it
+;; back typed object and calls method 10 (offset 56, allocate!, args
+;; matching (_type_ int symbol symbol)) off its type tag (scoped decode,
+;; this worktree's config, matches the type's own commented hint).
+(define-extern *water-simple-alpha-curve-in* curve2d-piecewise)
 (define-extern *wcar-explosion-info* object) ;; provisional: call-site evidence only
 (define-extern *weapon-select-table-yellow-race-first* object) ;; provisional: call-site evidence only
-(define-extern *wheel-trail-info* object) ;; provisional: call-site evidence only
+;; *wheel-trail-info*: wvehicle-effects top-level-login writes fields at
+;; offsets 36, 40, 128 and loads/stores a quadword at offset 112, an exact
+;; match for light-trail-composition's alpha-curve-1 (36), alpha-curve-2
+;; (40), zbuffer? (128) and inline lie-vector (112) (scoped decode, this
+;; worktree's config, matches the type's own commented hint above).
+(define-extern *wheel-trail-info* (pointer light-trail-composition))
 (define-extern *world-map-kras-mesh-proc* object) ;; provisional: call-site evidence only
 (define-extern *world-map-spargus-mesh-proc* object) ;; provisional: call-site evidence only
 (define-extern *wvehicle-ai-steering-params* (array vector))
