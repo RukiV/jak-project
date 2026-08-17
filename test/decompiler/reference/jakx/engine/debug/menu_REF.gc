@@ -1,55 +1,8 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: menu.gc
-;; name in dgo: menu
-;; dgos: ENGINE, GAME
-
 ;; this file is debug only
 (declare-file (debug))
-
-;; og:preserve-this hand-added: enum constants and inter-type references are
-;; compile-time-only and leave no trace in the compiled binary, so the decompiler
-;; cannot recover them. debug-menu-msg and debug-menu-dest match all-types.gc's
-;; own +++menu:debug-menu-msg / +++menu:debug-menu-dest copies and jak3's landed
-;; twin exactly (same values). debug-menu-context, debug-menu-node, debug-menu
-;; and debug-menu-item reference each other before each is itself defined later
-;; in this same file; jak3's landed twin needs the identical four forward
-;; declarations for the same reason.
-
-;; +++debug-menu-msg
-(defenum debug-menu-msg
-  :type int32
-  (activate 1)
-  (deactivate 2)
-  (update 3)
-  (press 4)
-  )
-;; ---debug-menu-msg
-
-;; +++debug-menu-dest
-(defenum debug-menu-dest
-  :type int32
-  (activation 0)
-  (root 1)
-  (open-menus 2)
-  (current-selection 3)
-  )
-;; ---debug-menu-dest
-
-(declare-type debug-menu-node basic)
-(declare-type debug-menu-context basic)
-(declare-type debug-menu debug-menu-node)
-(declare-type debug-menu-item debug-menu-node)
-
-;; og:preserve-this hand-added: these four functions are called earlier in file
-;; order than they are defined (a mutual-reference group), matching jak3's
-;; landed twin exactly, including its identical four define-externs at this
-;; same position.
-(define-extern debug-menu-context-send-msg (function debug-menu-context debug-menu-msg debug-menu-dest debug-menu-context))
-(define-extern debug-menu-make-from-template (function debug-menu-context pair debug-menu-node))
-(define-extern debug-menu-item-send-msg (function debug-menu-item debug-menu-msg debug-menu-item))
-(define-extern debug-menu-send-msg (function debug-menu debug-menu-msg symbol debug-menu))
 
 ;; definition of type debug-menu-context
 (deftype debug-menu-context (basic)
