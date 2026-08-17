@@ -50510,10 +50510,16 @@
   ;; being freed. 12: arg1 is stored straight into this's own pool field
   ;; (memblock) and arg2 is shifted right 4 and stored into pool-sz (the same
   ;; size-to-blocks idiom as 9), matching an init(pool, size) shape.
+  ;; 11: reads three args past _type_ ("Function may read a register that is
+  ;; not set: a1/a2/a3" against the old zero-arg declaration): arg1 is passed
+  ;; straight through to method 10 (pointer, the block being freed), arg2/
+  ;; arg3 straight through to method 9's own (int int) params, and its result
+  ;; (a fresh block, method 9's own pointer return) flows to this method's
+  ;; own return value; a realloc(old, paras, tag) shape.
   (:methods
     (mem-manager-method-9 (_type_ int int) pointer) ;; 9
     (mem-manager-method-10 (_type_ pointer) none) ;; 10
-    (mem-manager-method-11 (_type_) none) ;; 11
+    (mem-manager-method-11 (_type_ pointer int int) pointer) ;; 11
     (mem-manager-method-12 (_type_ memblock int) none) ;; 12
     (mem-manager-method-13 (_type_) none) ;; 13
     (mem-manager-method-14 (_type_) none) ;; 14
@@ -83382,6 +83388,13 @@
 ;; existed at all, not an arithmetic use.
 (define-extern *dnas-on-success* symbol)
 (define-extern *drift-file-stream* object) ;; provisional: call-site evidence only
+;; Tried and reverted: retyping object -> (pointer uint8) plus a
+;; label_types.jsonc size entry does let the decompiler resolve L98 (a
+;; 0x4b000-byte all-zero static block, "Unimplemented decompile_at_label for
+;; Label: L98 and Type: object" otherwise), but the result is a 307200-entry
+;; #x0 array literal, impractical to land as source. This is a WARN
+;; ("Failed static ref for label L98"), not an ERROR, so it does not block
+;; landing dynamic-mem's real code; left as object.
 (define-extern *dynamic-alloc-pool* object) ;; provisional: call-site evidence only
 (define-extern *dynamic-patches* object) ;; provisional: call-site evidence only
 (define-extern *dynamic-powerups* object) ;; provisional: call-site evidence only

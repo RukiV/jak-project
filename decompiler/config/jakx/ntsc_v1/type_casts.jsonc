@@ -3371,5 +3371,19 @@
   // last use at op 702, so one range cast covers the whole span. The range
   // upper bound is exclusive (verified empirically: [1, 702] still left op
   // 702 itself unresolved), hence 703 here
-  "(method 10 visvol-edit-info)": [[[1, 703], "gp", "process-drawable"]]
+  "(method 10 visvol-edit-info)": [[[1, 703], "gp", "process-drawable"]],
+  // (method 10 mem-manager): v1 is (+ arg1 -16), the block header immediately
+  // before the freed user pointer (the standard free() layout). The decoder
+  // cannot guess this on its own ("Could not figure out load: (l.bu v1)");
+  // once cast, every subsequent v1 use (prev/next/tp/flavor/paras) resolves
+  // against memblock's own real fields.
+  "(method 10 mem-manager)": [[[1, 48], "v1", "memblock"]],
+  // (method 9 mem-manager): a0 and s5 both carry the best-fit block found by
+  // the search loop, seeded #f (op 5, s5 copied from a0 at op 23) and
+  // reassigned to a real memblock inside the loop (op 18); the truthy branch
+  // that rules out the #f case (op 24) narrows neither register's own type,
+  // so both keep the '#f/memblock merge into the found-block path and fail
+  // there ("add failed: '#f <value x 16>" on a0's own pointer arithmetic,
+  // "Could not figure out load" on s5's own field read).
+  "(method 9 mem-manager)": [[[46, 72], "s5", "memblock"], [[50, 64], "a0", "memblock"]]
 }
