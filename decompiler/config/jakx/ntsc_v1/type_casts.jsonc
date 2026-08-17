@@ -4446,5 +4446,72 @@
   // signature change, since arg0's real callers are not proven uniform).
   "(method 68 rigid-body-object)": [
     [1, "a1", "rigid-body-object-constants"]
+  ],
+  // (method 0 rb-debugger): new-dynamic-structure returns the base
+  // "structure" type, so the three field stores right after the allocation
+  // (buffer-len at 348, buffer-size at 352, total-size at 356) fail against
+  // that generic return type; the decoded body itself casts the same value
+  // to rb-debugger for the method-10 dispatch and the final return two ops
+  // later, so this is the same value under the same real type, just before
+  // the decompiler's own cast picks it up.
+  "(method 0 rb-debugger)": [
+    [[9, 14], "s5", "rb-debugger"]
+  ],
+  // (method 20 rb-debugger), (method 19 rb-debugger), (method 18
+  // rb-debugger) and (method 17 rb-debugger, twice): the handle->process
+  // idiom inlined by hand (same class as test-vehicle-weapon and
+  // set-veh-weapon above): extract the low word of a target-array uint64
+  // slot via a zero-shift, then dereference it once more and read the
+  // resulting process's own pid at offset 48 to validate the handle. A bare
+  // "process" cast on the extracted low word resolves that one load but not
+  // the pid read after it, because the handle's own "process" field is
+  // declared (pointer process), not process directly (same finding as
+  // test-vehicle-weapon's own note): casting to (pointer process) instead
+  // lets both the dereference and the chained pid read resolve on their own.
+  "(method 20 rb-debugger)": [
+    [18, "a0", "(pointer process)"]
+  ],
+  // (method 19 rb-debugger): the handle->process cast at op 20, plus a
+  // second, unrelated cast at op 48 (see the comment below the four
+  // handle->process entries for what that one is).
+  "(method 19 rb-debugger)": [
+    [20, "a1", "(pointer process)"],
+    [48, "a1", "vector"],
+    [54, "v1", "vector"],
+    // (method 19 rb-debugger) also carries the reverse copy (rigid-body-control's
+    // force/torque into the rb-debug-state-record history slot, the save
+    // direction, as opposed to the restore direction just above): same
+    // 16-byte quadword width, same "no declared field on the computed
+    // destination" gap.
+    [64, "a0", "vector"],
+    [70, "a0", "vector"]
+  ],
+  // (method 18 rb-debugger): the handle->process cast at op 19; the
+  // force/torque copy cast at op 42 (see the comment below); and a third,
+  // unrelated cast at op 57, where s4 (method 12's own return value, the
+  // same raw address the force/torque copy at op 42 already walks) is read
+  // as a bare float at +4, matching rb-debug-state-record's own
+  // time-remaining field exactly (offset-assert 4, no basic-tag bias since
+  // it is a structure) and written straight into rigid-body-control's own
+  // time-remaining (raw offset 20, declared 24 with the usual -4 bias).
+  "(method 18 rb-debugger)": [
+    [19, "a2", "(pointer process)"],
+    [42, "a0", "vector"],
+    [57, "s4", "rb-debug-state-record"]
+  ],
+  // (method 19 rb-debugger) and (method 18 rb-debugger), op 48 and 42
+  // above: both copy a recorded force/torque sample (a3-indexed, 16-byte
+  // stride) out of rb-debug-state-record's own history region into
+  // rigid-body-control's force/torque fields via a raw quadword load and
+  // store; the store side already resolves to vector on its own
+  // (rigid-body-control's declared field), but the load's source address is
+  // a raw computed offset with no declared field of its own to resolve
+  // against. Cast to vector at the load, matching the store it feeds and
+  // the 16-byte quadword width the machine code actually moves; this does
+  // not assert anything about rb-debug-state-record's own internal layout
+  // past that same 16-byte slice, which is a real gap this rung is not
+  // fully deriving (see the report).
+  "(method 17 rb-debugger)": [
+    [223, "a0", "(pointer process)"]
   ]
 }

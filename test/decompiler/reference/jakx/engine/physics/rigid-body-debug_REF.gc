@@ -1,156 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: rigid-body-debug.gc
-;; name in dgo: rigid-body-debug
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
-;; adjudicated: ASSERTS RIGHT (proven), FIELD LIST missing one union
-;; declaration and two large holes.
-;; This is a structure, so inspect offsets are all-types offsets directly.
-;; (method 3 rb-debug-state-record) in rigid-body-h_ir2.asm loads
-;; 0/4/8/12/16/20/24/28 and computes +32, +48, +48, +64, +80, +96, +224 --
-;; every offset in the dead block verbatim, INCLUDING torque at 224
-;; (rigid-body-h_ir2.asm, "~1Ttorque: ~`vector`P~%" preceded by
-;; `daddiu a2, gp, 224`; read the raw line, not a summary, the neighbouring
-;; rigid-body inspect in the same file puts torque at 124 and is a different
-;; type).
-;;   * rot and rotation share address +48: a vector/quaternion union, which is
-;;     what the parser rejected (it auto-placed rotation at 64).
-;;   * 112..223 and 240..351 are never printed. The two boundaries are proven
-;;     (force ends at 112, torque is at 224, size-assert 0x160 = 352), the
-;;     contents are not.
-;; ALTERNATIVE READING, not chosen, worth a look before this lands: 96 + 128 =
-;; 224 and 224 + 128 = 352 exactly, so `force` and `torque` may each be an
-;; INLINE ARRAY of 8 vectors whose first element is all inspect prints -- a
-;; plausible shape for a debug state RECORD holding history. Nothing in the
-;; inspect distinguishes the two readings; both close on the size-assert.
-;; The pads chosen here are layout-equivalent and make no claim either way.
-;; og:preserve-this rigid-body-small-tier rung: this rung's own decode of
-;; (method 19 rb-debugger) proves the ALTERNATIVE READING above: force and
-;; torque are each read and written with a 16-byte stride indexed by a
-;; runtime counter (0 to 7), not as single vectors, confirming the 8-vector
-;; array shape the note above only speculated about. Not re-declaring the
-;; fields here (the pads stay honest padding, matching the note's own "make
-;; no claim either way"); the type_casts.jsonc entries for those two methods
-;; carry the evidence instead, since resolving it here reaches past this
-;; rung's own scoped decode into force/torque's full extent.
-(deftype rb-debug-state-record (structure)
-  ((flags            uint16                       :offset-assert 0)
-   (time-remaining   float                        :offset-assert 4)
-   (current-time     uint32                       :offset-assert 8)
-   (debug-id         int8                         :offset-assert 12)
-   (linear-damping   float                        :offset-assert 16)
-   (angular-damping  float                        :offset-assert 20)
-   (bounce-factor    float                        :offset-assert 24)
-   (friction-factor  float                        :offset-assert 28)
-   (position         vector     :inline           :offset-assert 32)
-   (rot              vector     :inline           :offset-assert 48)
-   (rotation         quaternion :inline :overlay-at rot :offset-assert 48)
-   (lin-momentum     vector     :inline           :offset-assert 64)
-   (ang-momentum     vector     :inline           :offset-assert 80)
-   (force            vector     :inline           :offset-assert 96)
-   (pad-pre-torque   uint8      112               :offset-assert 112)
-   (torque           vector     :inline           :offset-assert 224)
-   (pad-tail         uint8      112               :offset-assert 240)
-   )
-  :method-count-assert 11
-  :size-assert         #x160
-  :flag-assert         #xb00000160
-  (:methods
-    ;; og:preserve-this rigid-body-small-tier rung: arg1 retyped from object
-    ;; to rigid-body-control. Every offset read (method 9) or written
-    ;; (method 10) on arg1 matches a rigid-body-control field exactly once
-    ;; the +4 basic-tag bias is applied (flags 4-4=0, debug-id 6-4=2,
-    ;; time-remaining 24-4=20, linear-damping 32-4=28, angular-damping
-    ;; 36-4=32, bounce-factor 40-4=36, friction-factor 44-4=40, position
-    ;; 48-4=44, rot 64-4=60, lin-momentum 80-4=76, ang-momentum 96-4=92),
-    ;; all eleven fields, no exceptions. Matches the file's own purpose: a
-    ;; playback/rewind snapshot of a live rigid-body-control's state.
-    (rb-debug-state-record-method-9 (_type_ rigid-body-control) none) ;; 9
-    (rb-debug-state-record-method-10 (_type_ rigid-body-control) none) ;; 10
-    )
-  )
-
-;; resurrected from the dead block above: rigid-body-h's top-level type-new
-;; flag 0x1500000170 matches this deftype's own header exactly, method-count
-;; 21 size 0x170 (scoped decode, this worktree's config, rigid-body-h).
-(deftype rb-debugger (structure)
-  ((user-mode      uint8            :offset-assert 0)
-   (hook-control   uint8            :offset-assert 1)
-   (flags          uint8            :offset-assert 2)
-   (target-count   int8             :offset-assert 3)
-   (target-array   uint64 8        :offset-assert 8)
-   (pad0           uint8 256      :offset-assert 72)
-   (playback-index int32            :offset-assert 328)
-   (recorder-index int32            :offset-assert 332)
-   (begin-index    int32            :offset-assert 336)
-   (end-index      int32            :offset-assert 340)
-   (record-count   int32            :offset-assert 344)
-   (buffer-len     int32            :offset-assert 348)
-   (buffer-size    int32            :offset-assert 352)
-   (total-size     int32            :offset-assert 356)
-   ;; UNKNOWN corrected to uint8: a raw dynamic trailing buffer, matching
-   ;; the same "data uint8 :dynamic" convention the built-in array type
-   ;; uses for its own trailing payload; goalc has no UNKNOWN type and the
-   ;; dead block's guess does not compile. :offset, not :offset-assert: a
-   ;; uint8 field naturally places at 360 (right after total-size), but the
-   ;; dead block's own evidence-derived offset is 368, an 8-byte gap this
-   ;; rung is not re-deriving; pin it rather than let auto-layout override it.
-   (buffer-start   uint8   :dynamic :offset 368)
-   )
-  :method-count-assert 21
-  :size-assert         #x170
-  :flag-assert         #x1500000170
-  ;; og:preserve-this methods 9-20 promoted from bare () to their real arity
-  ;; (rigid-vehicle rung): rb-debugger has no jak3 twin, so every arg count
-  ;; below is read directly off this method's own prologue in a scoped
-  ;; decode of rigid-body-debug.gc (which register the body reads before it
-  ;; is set, per the decompiler's own "may read a register that is not set"
-  ;; diagnostic) rather than ported from a trailing comment. Methods 15, 18,
-  ;; 19 and 20 each read their second arg at +228, the exact offset
-  ;; vehicle-method-137 (this same rung) reads as (-> vehicle rbody), and
-  ;; retyping to vehicle cleared that specific error in a fresh scoped
-  ;; decode; 14 and 16 are left as the generic object where the body only
-  ;; proves the register is read, not its exact type.
-  (:methods
-    ;; og:preserve-this rigid-body-small-tier rung: rb-debugger has a
-    ;; :dynamic trailing buffer (buffer-start), and (method 0 rb-debugger)'s
-    ;; own body multiplies a third argument by 352 and adds it to (-> type
-    ;; size) before allocating, the standard dynamically-sized-structure
-    ;; shape (same class as the built-in array type's own three-arg new).
-    ;; The multiplier register is read before any explicit two-arg new sets
-    ;; it ("Function may read a register that is not set: a2" against the
-    ;; bare two-arg signature), proving the third arg.
-    (new (symbol type int) _type_) ;; 0
-    (rb-debugger-method-9 (_type_) none) ;; 9
-    (rb-debugger-method-10 (_type_) none) ;; 10
-    (rb-debugger-method-11 (_type_ int) none) ;; 11
-    ;; og:preserve-this rigid-body-small-tier rung: return type retyped from
-    ;; none to int. (method 19 rb-debugger)'s own body is the evidence: the
-    ;; call's result is carried in a register across an unrelated branch and
-    ;; then added directly into a computed address (gp+108, or gp+124 on the
-    ;; other arm, offset by a3*16+96/224) as an index term, which fails
-    ;; ("add failed") under a none return. This rung's own clean decode of
-    ;; this method proves the return is in fact a raw byte address (this
-    ;; cast to int, plus a computed offset into buffer-start), not a plain
-    ;; index; "int" still typechecks the observed uses (pointer arithmetic
-    ;; and address comparisons), and no caller dereferences it as a typed
-    ;; pointer directly, so this rung is not re-widening it further.
-    (rb-debugger-method-12 (_type_ int) int) ;; 12
-    (rb-debugger-method-13 (_type_) int) ;; 13
-    (rb-debugger-method-14 (_type_ object) none) ;; 14
-    (rb-debugger-method-15 (_type_ int vehicle) none) ;; 15
-    (rb-debugger-method-16 (_type_ object) none) ;; 16
-    (rb-debugger-method-17 (_type_) none) ;; 17
-    (rb-debugger-method-18 (_type_ vehicle) none) ;; 18
-    (rb-debugger-method-19 (_type_ vehicle) none) ;; 19
-    (rb-debugger-method-20 (_type_ vehicle) none) ;; 20
-    )
-  )
-
 ;; definition for method 9 of type rb-debug-state-record
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch int vs none.
@@ -395,16 +245,14 @@
          )
      (dotimes (s5-1 (-> this target-count))
        (let* ((v1-95 (-> this target-array s5-1))
-              ;; og:preserve-this rigid-body-small-tier rung: the raw decode
-              ;; inlines the handle->process check by hand (subu-s7 against
-              ;; #f, sllv ... r0 to reinterpret the low word as a pointer,
-              ;; dsra32 ... 0 to extract the pid), the same shape
-              ;; type_casts.jsonc's test-vehicle-weapon/set-veh-weapon notes
-              ;; already documented; landed as the real macro (kernel/
-              ;; gkernel-h.gc) rather than the decompiler's own pseudo-op
-              ;; names (l32-false-check, .asm.sllv.r0), which are not valid
-              ;; GOAL and do not compile as written.
-              (a3-1 (handle->process v1-95))
+              (a3-1
+                (and (nonzero? (l32-false-check v1-95)) (let ((a0-38 (-> (the-as (pointer process) (.asm.sllv.r0 v1-95)) 0)))
+                                                          (if (= (sar v1-95 32) (-> a0-38 pid))
+                                                              a0-38
+                                                              )
+                                                          )
+                     )
+                )
               )
          (if a3-1
              (format *stdcon0* "  pid ~d ~s~%" (-> a3-1 pid) a3-1)
@@ -429,10 +277,14 @@
         (let ((v1-2 (-> gp-0 debug-id)))
           (when (and (>= v1-2 0) (< v1-2 (-> this target-count)))
             (let ((a0-7 (-> this target-array v1-2)))
-              ;; og:preserve-this rigid-body-small-tier rung: same
-              ;; hand-inlined handle->process check as (method 17
-              ;; rb-debugger) above, landed as the real macro.
-              (when (= (handle->process a0-7) arg0)
+              (when (= (and (nonzero? (l32-false-check a0-7)) (let ((a2-3 (-> (the-as (pointer process) (.asm.sllv.r0 a0-7)) 0)))
+                                                                (if (= (sar a0-7 32) (-> a2-3 pid))
+                                                                    a2-3
+                                                                    )
+                                                                )
+                            )
+                       arg0
+                       )
                 (set! (-> gp-0 debugger-step) 0)
                 (let ((s4-0 (the-as object (rb-debugger-method-12 this (+ (-> this playback-index) v1-2)))))
                   (when (the-as int s4-0)
@@ -492,10 +344,14 @@
         (let ((v1-2 (-> gp-0 debug-id)))
           (when (and (>= v1-2 0) (< v1-2 (-> this target-count)))
             (let ((a0-7 (-> this target-array v1-2)))
-              ;; og:preserve-this rigid-body-small-tier rung: same
-              ;; hand-inlined handle->process check as (method 17
-              ;; rb-debugger) above, landed as the real macro.
-              (when (= (handle->process a0-7) arg0)
+              (when (= (and (nonzero? (l32-false-check a0-7)) (let ((a1-4 (-> (the-as (pointer process) (.asm.sllv.r0 a0-7)) 0)))
+                                                                (if (= (sar a0-7 32) (-> a1-4 pid))
+                                                                    a1-4
+                                                                    )
+                                                                )
+                            )
+                       arg0
+                       )
                 (let ((v1-3 (rb-debugger-method-12 this (+ (-> this playback-index) v1-2))))
                   (when v1-3
                     (let ((a3-0 (-> gp-0 debugger-step)))
@@ -548,10 +404,14 @@
         (let ((v1-2 (-> gp-0 debug-id)))
           (when (and (>= v1-2 0) (< v1-2 (-> this target-count)))
             (let ((v1-5 (-> this target-array v1-2)))
-              ;; og:preserve-this rigid-body-small-tier rung: same
-              ;; hand-inlined handle->process check as (method 17
-              ;; rb-debugger) above, landed as the real macro.
-              (when (= (handle->process v1-5) arg0)
+              (when (= (and (nonzero? (l32-false-check v1-5)) (let ((a0-3 (-> (the-as (pointer process) (.asm.sllv.r0 v1-5)) 0)))
+                                                                (if (= (sar v1-5 32) (-> a0-3 pid))
+                                                                    a0-3
+                                                                    )
+                                                                )
+                            )
+                       arg0
+                       )
                 (let ((s5-0 (new 'stack-no-clear 'matrix)))
                   (quaternion->matrix (the-as matrix (-> s5-0 rvec)) (the-as quaternion (-> gp-0 rot)))
                   (set! (-> s5-0 trans quad) (-> gp-0 position quad))
@@ -607,3 +467,7 @@
     (the-as rb-debugger s5-0)
     )
   )
+
+
+
+

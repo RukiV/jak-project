@@ -48599,8 +48599,17 @@
   :size-assert         #x160
   :flag-assert         #xb00000160
   (:methods
-    (rb-debug-state-record-method-9 (_type_ object) none) ;; 9
-    (rb-debug-state-record-method-10 (_type_ object) none) ;; 10
+    ;; og:preserve-this rigid-body-small-tier rung: arg1 retyped from object
+    ;; to rigid-body-control. Every offset read (method 9) or written
+    ;; (method 10) on arg1 matches a rigid-body-control field exactly once
+    ;; the +4 basic-tag bias is applied (flags 4-4=0, debug-id 6-4=2,
+    ;; time-remaining 24-4=20, linear-damping 32-4=28, angular-damping
+    ;; 36-4=32, bounce-factor 40-4=36, friction-factor 44-4=40, position
+    ;; 48-4=44, rot 64-4=60, lin-momentum 80-4=76, ang-momentum 96-4=92),
+    ;; all eleven fields, no exceptions. Matches the file's own purpose: a
+    ;; playback/rewind snapshot of a live rigid-body-control's state.
+    (rb-debug-state-record-method-9 (_type_ rigid-body-control) none) ;; 9
+    (rb-debug-state-record-method-10 (_type_ rigid-body-control) none) ;; 10
     )
   ;; adjudicated: ASSERTS RIGHT (proven), FIELD LIST missing one union
   ;; declaration and two large holes.
@@ -48710,10 +48719,25 @@
   ;; decode; 14 and 16 are left as the generic object where the body only
   ;; proves the register is read, not its exact type.
   (:methods
+    ;; og:preserve-this rigid-body-small-tier rung: rb-debugger has a
+    ;; :dynamic trailing buffer (buffer-start), and (method 0 rb-debugger)'s
+    ;; own body multiplies a third argument by 352 and adds it to (-> type
+    ;; size) before allocating, the standard dynamically-sized-structure
+    ;; shape (same class as the built-in array type's own three-arg new).
+    ;; The multiplier register is read before any explicit two-arg new sets
+    ;; it ("Function may read a register that is not set: a2" against the
+    ;; bare two-arg signature), proving the third arg.
+    (new (symbol type int) _type_) ;; 0
     (rb-debugger-method-9 (_type_) none) ;; 9
     (rb-debugger-method-10 (_type_) none) ;; 10
     (rb-debugger-method-11 (_type_ int) none) ;; 11
-    (rb-debugger-method-12 (_type_ int) none) ;; 12
+    ;; og:preserve-this rigid-body-small-tier rung: return type retyped from
+    ;; none to int. (method 19 rb-debugger)'s own body is the evidence: the
+    ;; call's result is carried in a register across an unrelated branch and
+    ;; then added directly into a computed address (gp+108, or gp+124 on the
+    ;; other arm, offset by a3*16+96/224) as an index term, which fails
+    ;; ("add failed") under a none return.
+    (rb-debugger-method-12 (_type_ int) int) ;; 12
     (rb-debugger-method-13 (_type_) int) ;; 13
     (rb-debugger-method-14 (_type_ object) none) ;; 14
     (rb-debugger-method-15 (_type_ int vehicle) none) ;; 15
@@ -61077,7 +61101,13 @@
 ;; rigid-body-debug               ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern adjust-playback-index function)
+;; og:preserve-this activated (rigid-body-small-tier rung): reads rb-debugger's
+;; own playback-index (328), target-count (3) and record-count (344) fields
+;; directly, and its own body lives in this same object (rigid-body-debug),
+;; landed alongside it in this rung. Call sites (methods 15/17) pass
+;; (rb-debugger int), and the return value is always a literal 0 with no
+;; caller reading it, hence none.
+(define-extern adjust-playback-index (function rb-debugger int none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; rigid-body-surface             ;;
