@@ -272,6 +272,39 @@
   "(method 24 hud-map)": [
     [[102, 151], "s5", "race-map-info"]
   ],
+  // pull-riders! (method 44 collide-shape): the rider handle's process is
+  // dereferenced generically as process (via the standard handle->process
+  // sllv/lwu pair), then read at raw offset 184, which is process-drawable's own
+  // root field (placed offset 188, +4 basic-tag adjusted), matching jak3's twin
+  // (goal_src/jak3/engine/collide/collide-shape-rider.gc:315), which casts the
+  // same handle's process to process-drawable before reading root.
+  "(method 44 collide-shape)": [
+    [25, "a0", "process-drawable"]
+  ],
+  // detect-riders! (method 35 collide-shape): the *collide-player-list* walk reads
+  // param1 off a connectable node at offset 20 (same class as relocate's own
+  // connection.param1 fix above), matching jak3's twin
+  // (goal_src/jak3/engine/collide/collide-shape-rider.gc:175-176), which casts the
+  // node to connection then the resulting param1 to collide-shape before reading
+  // root-prim.
+  // detect-riders! walks two separate connection lists with the same shape:
+  // *collide-player-list* (ops 27/28) and *collide-hit-by-player-list* (ops 76/77).
+  "(method 35 collide-shape)": [
+    [27, "a0", "connection"],
+    [28, "a0", "collide-shape"],
+    [76, "a0", "connection"],
+    [77, "a0", "collide-shape"]
+  ],
+  // on-platform-test (method 17 collide-shape-prim-mesh): a mesh-typed prim's own
+  // on-platform-test still recurses into a sibling group's children, matching
+  // jak3's collide-shape-prim-group overload (goal_src/jak3/engine/collide/
+  // collide-shape-rider.gc:46), not the mesh-against-mesh guess tried first (offset
+  // 64 also matches collide-shape-prim-mesh's own `mesh` field, but that type left
+  // the load unresolved; collide-shape-prim-group's `num-children` at the same
+  // offset is the one that actually resolves the whole function).
+  "(method 17 collide-shape-prim-mesh)": [
+    [7, "s2", "collide-shape-prim-group"]
+  ],
   // relocate (method 7 process): the connection-list walk reads next1/prev1 off
   // connectable (both declared on connectable itself, offsets 8/12, resolve fine), then
   // reads param1/param2/param3 off the same node at offsets 20/24/28, which only exist
