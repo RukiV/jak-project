@@ -580,6 +580,26 @@
   // holds a candidate drawn from an (array collide-shape), always focusable in
   // this search context.
   "find-nearest-focusable": [[[52, 55], "a0", "process-focusable"]],
+  // (method 24 nav-mesh), nav rung: op 22 loads the raw scratchpad address
+  // 0x70000000 into s4 (the SPR-resident nav-engine singleton is accessed by
+  // fixed hardware address rather than a symbol lookup); every read off s4
+  // afterward matches nav-engine's own field layout exactly (offset 8
+  // nav-mesh-addr, 24 buf-nav-control-count, 26 output-sphere-hash).
+  "(method 24 nav-mesh)": [[[22, 78], "s4", "nav-engine"]],
+  // (method 13 nav-engine), nav rung: nav-mesh's own next-nav-mesh field is
+  // declared basic (the type predates its own full definition), so after the
+  // linked-list walk's first hop at op 35 (already correct, basic matches the
+  // field decl) the loop's repeat read at op 44 needs s4 typed nav-mesh again
+  // to resolve; walked list is genuinely homogeneous nav-mesh, proven by the
+  // sibling read at op 1 (same offset-8/24 field shape).
+  "(method 13 nav-engine)": [[[36, 45], "s4", "nav-mesh"], [[21, 30], "s3", "nav-mesh"]],
+  // (method 12 nav-engine), nav rung: walks engine's alive-list (a connectable
+  // sentinel per its own field type), but every entry visited is read for
+  // param0-3 (offsets 16/20/24/28), which only exist on connection, the
+  // connectable subtype that owns them per connection's own deftype. v1 holds
+  // the current list entry at this op range on every iteration (op 122 resets
+  // it to the s3 cursor each pass, same static instruction).
+  "(method 12 nav-engine)": [[[25, 28], "v1", "connection"]],
   "(event cam-master-active)": [[[87, 89], "a0", "vector"], [87, "gp", "vector"], [[183, 185], "a0", "vector"], [183, "s5", "vector"], [[289, 292], "v1", "camera-slave"], [[356, 358], "a0", "camera-slave"], [[487, 489], "v1", "camera-slave"], [[560, 562], "v1", "camera-slave"], [[592, 594], "v1", "camera-slave"], [[664, 666], "a0", "vector"], [846, "gp", "vector"], [861, "v1", "float"]],
   "(method 17 camera-master)": [[[13, 17], "a2", "process-drawable"], [[14, 17], "v1", "collide-shape"]],
   // background: the shared-tfrag tree id reads as lhu (int16 field), and the
