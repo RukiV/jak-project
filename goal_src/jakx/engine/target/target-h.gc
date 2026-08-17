@@ -47,7 +47,13 @@
 ;; ---target-h:target-flags
 
 (deftype target (process-focusable)
-  ((vehicle                 uint64                                                                            :offset-assert 256)
+  ;; og:preserve-this vehicle is a handle, not a plain uint64: (code target-pilot-start)
+  ;; in pilot-states.gc validates a0 as a process handle (subu-s7/sllv/lwu/dsra32 dance)
+  ;; then does (sd a0, 252(s6)); target-pilot-post in target-pilot.gc reads it back with
+  ;; the same sllv/l.wu/dsra32 handle-to-process idiom. Raw machine offset 252 is 4 mod
+  ;; 8, the tell for the +4 basic-offset artifact (target is basic-derived); +4 lands on
+  ;; this field's own declared offset 256, confirmed by the existing offset-assert here.
+  ((vehicle                 handle                                                                            :offset-assert 256)
    (target-flags            target-flags                                                                      :offset 236) ;; guessed by decompiler
    (game                    game-info                                                                         :offset-assert 264) ;; guessed by decompiler
    (init-time               uint64                                                                            :offset-assert 272) ;; time-frame
@@ -137,13 +143,28 @@
     ;; unresolved past its own offset-52 load, stubbed below pending a future rung).
     (target-method-59 (_type_ basic symbol) none) ;; 59
     )
+  ;; og:preserve-this target-continue and target-pilot-start's :code behaviors read an
+  ;; a0 their bare state names left undeclared. (code target-continue) loads slot 0 of
+  ;; a0 (raw offset 0, a structure access, no +4 correction) and feeds it as the string
+  ;; arg to game-info's vmethod at +88; that slot is continue-point's own name field
+  ;; (offset-assert 4, +4 basic-offset correction applies to continue-point itself).
+  ;; (code target-pilot-start) validates a0 as a process handle before storing it to
+  ;; the vehicle field (see the deftype comment above). Both match the arg types this
+  ;; block's own stale "old:" comments already recorded from a prior decompiler guess.
+  ;; og:preserve-this target-load-wait was entirely absent from this block: not even a
+  ;; bare guess. target-standard-event-handler's 'loading branch dispatches (go
+  ;; target-load-wait) with no reported type mismatch beyond the missing symbol itself,
+  ;; and jak2/jak3 both declare it as a bare zero-arg state in the same twin position
+  ;; (goal_src/jak2/engine/target/target-h.gc:279, goal_src/jak3/engine/target/
+  ;; target-h.gc:507); added to match.
   (:states
-    target-continue ;; associated process guessed by decompiler, old: (state continue-point target)
+    (target-continue continue-point)
     target-float ;; associated process guessed by decompiler, old: (state target)
     target-introb
     target-intro
+    target-load-wait
     target-title ;; associated process guessed by decompiler, old: (state symbol target)
-    target-pilot-start ;; associated process guessed by decompiler, old: (state handle symbol symbol target)
+    (target-pilot-start handle symbol symbol)
     )
   )
 

@@ -36321,7 +36321,13 @@
 (define-extern target type)
 
 (deftype target (process-focusable)
-  ((vehicle                 uint64                                                                            :offset-assert 256)
+  ;; og:preserve-this vehicle is a handle, not a plain uint64: (code target-pilot-start)
+  ;; in pilot-states.gc validates a0 as a process handle (subu-s7/sllv/lwu/dsra32 dance)
+  ;; then does (sd a0, 252(s6)); target-pilot-post in target-pilot.gc reads it back with
+  ;; the same sllv/l.wu/dsra32 handle-to-process idiom. Raw machine offset 252 is 4 mod
+  ;; 8, the tell for the +4 basic-offset artifact (target is basic-derived); +4 lands on
+  ;; this field's own declared offset 256, confirmed by the existing offset-assert here.
+  ((vehicle                 handle                                                                            :offset-assert 256)
    (target-flags            target-flags                                                                      :offset 236) ;; guessed by decompiler
    (game                    game-info                                                                         :offset-assert 264) ;; guessed by decompiler
    (init-time               uint64                                                                            :offset-assert 272) ;; time-frame
@@ -36406,13 +36412,28 @@
     ;; target-init's dispatch passes two more live registers beyond self.
     (target-method-59 (_type_ basic symbol) none) ;; 59
     )
+  ;; og:preserve-this target-continue and target-pilot-start's :code behaviors read an
+  ;; a0 their bare state names left undeclared. (code target-continue) loads slot 0 of
+  ;; a0 (raw offset 0, a structure access, no +4 correction) and feeds it as the string
+  ;; arg to game-info's vmethod at +88; that slot is continue-point's own name field
+  ;; (offset-assert 4, +4 basic-offset correction applies to continue-point itself).
+  ;; (code target-pilot-start) validates a0 as a process handle before storing it to
+  ;; the vehicle field (see the deftype comment above). Both match the arg types this
+  ;; block's own stale "old:" comments already recorded from a prior decompiler guess.
+  ;; og:preserve-this target-load-wait was entirely absent from this block: not even a
+  ;; bare guess. target-standard-event-handler's 'loading branch dispatches (go
+  ;; target-load-wait) with no reported type mismatch beyond the missing symbol itself,
+  ;; and jak2/jak3 both declare it as a bare zero-arg state in the same twin position
+  ;; (goal_src/jak2/engine/target/target-h.gc:279, goal_src/jak3/engine/target/
+  ;; target-h.gc:507); added to match.
   (:states
-    target-continue ;; associated process guessed by decompiler, old: (state continue-point target)
+    (target-continue continue-point)
     target-float ;; associated process guessed by decompiler, old: (state target)
     target-introb
     target-intro
+    target-load-wait
     target-title ;; associated process guessed by decompiler, old: (state symbol target)
-    target-pilot-start ;; associated process guessed by decompiler, old: (state handle symbol symbol target)
+    (target-pilot-start handle symbol symbol)
     )
   )
 
@@ -46155,7 +46176,7 @@
 ;; cam-start                      ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern cam-stop function) ;; (function symbol)
+(define-extern cam-stop (function symbol)) ;; confirmed against jak2/jak3 twin (decompiler/config/jak2/all-types.gc:30292, decompiler/config/jak3/all-types.gc:34245); needed for (code target-continue)'s own clean decode
 (define-extern cam-start (function symbol none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -48464,21 +48485,21 @@
 ;; target-handler                 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern attack-mode-is-invinc function) ;; (function symbol symbol symbol)
+(define-extern attack-mode-is-invinc (function symbol symbol symbol)) ;; confirmed: body compares a1 against the attack-mode symbol set (dark-eco-pool, lava, crush, death, etc), a0 unused within the function itself, matching this R5a-era typespec
 ;; og:preserve-this type visibility fix, R5a (#122): uncommented so the decompiler can
 ;; see past target.o's top-level-login (which forward-references this for the state
 ;; table); target-handler.o itself is R5b, out of scope. Guarded at the call site the
 ;; same way, per the brief's own R5a instruction. Retires when target-handler.gc lands.
 (define-extern target-generic-event-handler (function process int symbol event-message-block object :behavior target))
-;; (define-extern target-standard-event-handler function) ;; (function process int symbol event-message-block object :behavior target)
-;; (define-extern target-jump-event-handler function) ;; (function process int symbol event-message-block object :behavior target)
+(define-extern target-standard-event-handler (function process int symbol event-message-block object :behavior target)) ;; confirmed: standard event-handler signature, matches jak2/jak3's own target-standard-event-handler
+(define-extern target-jump-event-handler (function process int symbol event-message-block object :behavior target)) ;; confirmed: standard event-handler signature, matches jak2/jak3's own target-jump-event-handler
 ;; og:preserve-this type visibility fix, R5a (#122): uncommented so the decompiler can
 ;; see past reset-target-state's call (logic-target.o); target-handler.o (its likely
 ;; owning object, per raw_obj link-table grep across all four referencing objects) is
 ;; R5b, out of scope. Guarded at the call site per the kill-current-talker precedent.
 (define-extern target-exit (function none :behavior target))
-;; (define-extern target-state-hook-exit function) ;; (function none :behavior target)
-;; (define-extern target-effect-exit function) ;; (function none :behavior target)
+(define-extern target-state-hook-exit (function none :behavior target)) ;; confirmed: matches target's own state-hook field typespec (function none :behavior target)
+(define-extern target-effect-exit (function none :behavior target)) ;; confirmed: matches target's own major-mode-exit-hook/sub-mode-exit-hook typespec (function none :behavior target)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; target                         ;;
@@ -48491,10 +48512,10 @@
 ;; target-death                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern *auto-continue* object) ;; symbol
-;; (define-extern next-continue function) ;; (function continue-point continue-point)
-;; (define-extern arrive-at-continue function) ;; (function continue-point none :behavior target)
-;; (define-extern target-continue-init-art function) ;; (function none :behavior target)
+;; (define-extern *auto-continue* object) ;; symbol; fixed at its one active declaration in the provisional-externs bucket below, confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:37010
+(define-extern next-continue (function continue-point continue-point)) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:37011
+(define-extern arrive-at-continue (function continue-point none :behavior target)) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:37012
+(define-extern target-continue-init-art (function none :behavior target)) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:37014
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; gun-util                       ;;
@@ -48519,9 +48540,9 @@
   )
 
 
-;; (define-extern *beam-info* object) ;; beam-info
-;; (define-extern birth-func-setup-beam function) ;; (function int sparticle-cpuinfo sparticle-launchinfo none)
-;; (define-extern draw-beam function) ;; (function sparticle-launcher vector vector symbol none)
+;; (define-extern *beam-info* object) ;; beam-info; fixed at its one active declaration in the provisional-externs bucket below
+(define-extern birth-func-setup-beam (function int sparticle-cpuinfo sparticle-launchinfo none)) ;; confirmed against jak3 twin at goal_src/jak3/engine/target/gun/gun-util.gc:121
+(define-extern draw-beam (function sparticle-launcher vector vector symbol none)) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:37111
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; menu                           ;;
@@ -48833,7 +48854,7 @@
 (define-extern sphere-cull (function vector symbol)) ;; activated for the ocean leg, jak3 sig
 (define-extern guard-band-cull (function vector symbol))
 (define-extern sphere-in-view-frustum? (function sphere symbol))
-;; (define-extern line-in-view-frustum? function) ;; (function vector vector symbol)
+(define-extern line-in-view-frustum? (function vector vector symbol)) ;; confirmed against jak2/jak3 twin (decompiler/config/jak2/all-types.gc:32130, decompiler/config/jak3/all-types.gc:38264); needed for gun-util's draw-beam clean decode
 (define-extern sphere-in-view-frustum-any? (function sphere symbol)) ;; jakx-new: any-of-4-views frustum test, proven from the drawable.gc asm (#53 slice 2)
 ;; (define-extern line-in-view-frustum-any? function)
 ;; (define-extern find-nearest-camera-distance function)
@@ -61722,6 +61743,13 @@
 ;; (define-extern vehicle-idx-from-level-name function)
 ;; (define-extern vehicle-in-level? function)
 ;; (define-extern vehicle-spawn function) ;; (function vehicle-type traffic-object-spawn-params process-drawable)
+;; og:preserve-this left commented rather than landed: target-standard-event-handler's
+;; own 'get-on branch needs this (confirmed against jak3 twin at decompiler/config/
+;; jak3/all-types.gc:54232), but its traffic-object-spawn-params argument type is
+;; entirely undeclared in jakx (Type Error: Type traffic-object-spawn-params is
+;; unknown), and that struct's own fields cascade into traffic-type/nav-mesh/
+;; nav-branch/entity/traffic-spawn-flags, the race/vehicle band's own typing
+;; territory, not this rung's. Cross-band blocker, not landed here.
 ;; (define-extern find-vehicle function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -82535,14 +82563,14 @@
 (define-extern *ai-num-players-info* object) ;; provisional: call-site evidence only
 (define-extern *anim-tester* object) ;; provisional: call-site evidence only
 (define-extern *aspect-ratio* object) ;; provisional: call-site evidence only
-(define-extern *auto-continue* object) ;; provisional: call-site evidence only
+(define-extern *auto-continue* symbol) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:37010 (was provisional: call-site evidence only; the target-death section's own dead comment for this symbol stays dead, this is its one active declaration)
 (define-extern *auto-save-info* object) ;; provisional: call-site evidence only
 (define-extern *aux-voice-got-callback* object) ;; provisional: call-site evidence only
 (define-extern *aux-voice-last-startup* object) ;; provisional: call-site evidence only
 (define-extern *aux-voice-last-update* object) ;; provisional: call-site evidence only
 (define-extern *aux-voice-mgr* object) ;; provisional: call-site evidence only
 (define-extern *background-menu-info* object) ;; provisional: call-site evidence only
-(define-extern *beam-info* object) ;; provisional: call-site evidence only
+(define-extern *beam-info* beam-info) ;; confirmed: gun-util's own top-level type-new evidence (#x900000004, method-count 9, size 4) and jak3's twin (goal_src/jak3/engine/target/gun/gun-util.gc:119, (new 'static 'beam-info)); was provisional: call-site evidence only; the gun-util section's own dead comment for this symbol stays dead, this is its one active declaration
 (define-extern *body-parts-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *boss-hud* (array hud-item))
 (define-extern *boss-hud-proc* (pointer boss-hud))

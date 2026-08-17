@@ -1,4 +1,48 @@
 {
+  // target-pilot-post: v1-1 is the vehicle process from (-> self vehicle)'s
+  // handle->process conversion (see the vehicle field's own og:preserve-this note in
+  // all-types.gc), which the decompiler can only type generically as process. Ops
+  // 14/20/27 each read root (raw offset 184, declared offset 188 via the process +4
+  // trap) off that process to sync target's own root transform to the vehicle's; jak3's
+  // vehicle-spawn returns a plain process-drawable, and the fields actually touched
+  // past root (trans/rot/transv, raw offsets 12/28/60) are declared on trsq/trsqv,
+  // inherited by process-drawable's own generic (root trsqv) with no narrowing needed.
+  "target-pilot-post": [
+    [14, "v1", "process-drawable"],
+    [20, "v1", "process-drawable"],
+    [27, "v1", "process-drawable"]
+  ],
+  // next-continue: mirrors jak3's own next-continue (goal_src/jak3/engine/target/
+  // target-death.gc:13). *level-load-list* is a pair of level-name symbols; op 4 reads
+  // the symbol's own value slot (raw offset -1, a plain symbol deref, not a pair op),
+  // op 5 reads the resulting level-load-info's continues field (raw offset 60, declared
+  // offset-assert 64 via the +4 basic-tag trap).
+  // target-generic-event-handler: the 'reset branch clears the status bits on target's
+  // own root, whose declared type (collide-shape, via process-focusable's override) is
+  // too narrow for the field actually touched. Raw offset 284 is 288 declared once cast
+  // (+4 basic-tag trap), collide-shape-moving's own status field; verified against jak3
+  // twin at decompiler/config/jak3/all-types.gc:21609, no drift, so the field itself
+  // needed no all-types.gc change, only this call-site cast.
+  "target-generic-event-handler": [
+    [253, "v1", "collide-shape-moving"],
+    [256, "v1", "collide-shape-moving"],
+    [10, "v1", "float"],
+    [298, "v1", "(state object object object object target)"],
+    [332, "a0", "process"]
+  ],
+  "target-standard-event-handler": [
+    [20, "v1", "vector"],
+    [96, "a0", "vector"]
+  ],
+  "next-continue": [
+    [4, "a2", "symbol"],
+    [5, "a2", "level-load-info"],
+    [12, "a3", "continue-point"],
+    [22, "a2", "pair"],
+    [23, "a2", "pair"],
+    [28, "a1", "pair"],
+    [29, "a1", "pair"]
+  ],
   // driver-gtblitz-method-64: op 4 loads *net-world*'s task-node-info field (declared
   // plain basic) then reads a byte at machine offset 5, which is declared offset 9
   // (+4 basic-tag trap) once cast to the real runtime type. net-world.gc's own

@@ -83,8 +83,16 @@
 ;; a real, correctly-typed, all-other-slots-#f state object stands in for the racing
 ;; continue-arrival behavior. Retirement condition: the real target-continue state
 ;; lands (movement, physics, camera-framing logic; a separate leg's scope).
+;; og:preserve-this arity widened to match target-h.gc's :states entry, (target-continue
+;; continue-point): (code target-continue)'s own decode evidence (target-death.gc, R5b)
+;; proves the real state reads a continue-point's name field, so target-h.gc's bare
+;; zero-arg guess was corrected. This stub's :code still wraps sleep-code verbatim,
+;; only now behind a (continue-point) arg to satisfy the widened typecheck; behavior is
+;; unchanged. Retirement condition unchanged from above.
 (defstate target-continue (target)
-  :code sleep-code
+  :code (behavior ((arg0 continue-point))
+    (sleep-code)
+    )
   )
 
 ;; og:preserve-this landed for real, R5a (#122): transcribed verbatim from the decode.
@@ -112,7 +120,11 @@
       )
   (set! (-> self event-hook) (-> target-continue event))
   (logior! (-> self focus-status) (focus-status teleporting))
-  (go target-continue)
+  ;; og:preserve-this arg widened to match target-continue's now-real arity
+  ;; ((target-continue continue-point), target-h.gc :states, R5b): reuses
+  ;; *jakx-want-driver-cp*, the same continue-point this function already seeds
+  ;; root trans from a few lines above, rather than inventing a second source.
+  (go target-continue *jakx-want-driver-cp*)
   (none)
   )
 
