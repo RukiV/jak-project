@@ -83234,9 +83234,17 @@
 ;; cost-increment) into the base, then rebases +16 for the next record: the
 ;; exact placement layout of upgrade-info (0,4,5,6,7,8, size 0xc padded to a
 ;; 16-byte inline stride), which the existing car-upgrade-info-array
-;; structure already wraps 15x4 of. (pointer car-upgrade-info-array) matches
-;; the write pattern (scoped decode, this worktree's config, car-tables).
-(define-extern *car-upgrade-info* (pointer car-upgrade-info-array))
+;; structure already wraps 15x4 of. Was (pointer car-upgrade-info-array),
+;; which matched the write pattern but forced every access through
+;; TypeFieldLookup's pointer-to-structure-field fallback and mistyped
+;; offsets 0 and 8 as array-of-arrays; label_types.jsonc's own L2 entry for
+;; car-tables already types the raw stored label as the plain structure
+;; car-upgrade-info-array, not a pointer to one, so the symbol itself IS the
+;; record, matching wvehicle-states' L166 vector treatment. The plain
+;; structure lets goalc's compile_deref walk straight into the nested
+;; inline arrays with a clean field walk, no fallback needed (scoped
+;; decode, this worktree's config, car-tables).
+(define-extern *car-upgrade-info* car-upgrade-info-array)
 (define-extern *chat-msg-buffer* object) ;; provisional: call-site evidence only
 (define-extern *chat-room-select* object) ;; provisional: call-site evidence only
 (define-extern *choose-network-config* object) ;; provisional: call-site evidence only
