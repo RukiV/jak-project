@@ -133,6 +133,24 @@
   )
 
 
+;; og:preserve-this static-cloth-params is a compile-time-only macro (it never appears
+;; in decompiled bytecode) so it cannot come from a scoped decode; jakx's own copy of
+;; this file never had it, even though art-h.gc's defskelgroup macro calls it whenever
+;; a skelgroup declares :clothing. Copied verbatim from jak3's cloth-art-h.gc, which
+;; carries the same macro for the same defskelgroup dependency.
+(defmacro static-cloth-params (ag-name args)
+  `(let ((parms (new 'static 'cloth-params)))
+     (false! (-> parms alt-tex-name))
+     (false! (-> parms alt-tex-name2))
+     (false! (-> parms alt-tex-name3))
+     ,@(apply (lambda (x) (if (and (eq? (car x) 'mesh) (not (integer? (cadr x))))
+                             `(set! (-> parms ,(car x)) ,(art-elt-index ag-name (cadr x)))
+                             `(set! (-> parms ,(car x)) ,(cadr x))
+                             )) args)
+     parms
+     )
+  )
+
 (deftype cloth-base (basic)
   ()
   (:methods
