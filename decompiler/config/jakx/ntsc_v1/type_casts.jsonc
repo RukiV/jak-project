@@ -4308,5 +4308,95 @@
     [[106, 109], "a0", "(pointer uint32)"],
     [[115, 118], "a0", "(pointer uint32)"],
     [[125, 138], "a0", "(pointer uint32)"]
+  ],
+  // spawn-hud-background-side-view-1, spawn-hud-background-side-view-0,
+  // spawn-hud-background-top-view-1, spawn-hud-background-top-view-0,
+  // spawn-hud-background, spawn-high-scores-list: the same spawned-process
+  // type-narrowing class already proved on spawn-hud-results-grand-prix and
+  // its two siblings above (same op numbers, same shape, confirmed op by op
+  // against this worktree's own hud-high-scores_ir2.asm).
+  "spawn-hud-background-side-view-1": [
+    [[30, 32], "v0", "hud-background-side-view-1"]
+  ],
+  "spawn-hud-background-side-view-0": [
+    [[30, 32], "v0", "hud-background-side-view-0"]
+  ],
+  "spawn-hud-background-top-view-1": [
+    [[30, 32], "v0", "hud-background-top-view-1"]
+  ],
+  "spawn-hud-background-top-view-0": [
+    [[30, 32], "v0", "hud-background-top-view-0"]
+  ],
+  "spawn-hud-background": [
+    [[30, 32], "v0", "hud-background"]
+  ],
+  "spawn-high-scores-list": [
+    [[30, 32], "v0", "high-scores-list"]
+  ],
+  // spawn-high-score-hud, (method 19 hud-high-scores), (method 19
+  // hud-high-score): the same net-world task-info byte-read class already
+  // documented on spawn-hud-headset-talker and (method 14
+  // hud-effect-trigger-score-sound) above (net-world's own basic-typed
+  // task-info field, byte read at machine offset 5, declared offset 9 via
+  // the +4 basic-tag trap, game-task-node-info's own net-play-mode). Each of
+  // these three functions hits the pattern twice (spawn-high-score-hud reads
+  // task-info once through its own early-out and once through the timed
+  // fallback branch; (method 19 hud-high-score) reads it once directly at
+  // the top and once inside the deferred-message branch), so each needs two
+  // op-indexed casts, not one.
+  "spawn-high-score-hud": [
+    [15, "v1", "game-task-node-info"],
+    [36, "v1", "game-task-node-info"]
+  ],
+  "(method 19 hud-high-scores)": [
+    [50, "v1", "game-task-node-info"],
+    // this's own items array (gp+36) holds a hud-item-string at index 1 (v1,
+    // ops 157-158, the array's own "+16 = data-start 12 + one 4-byte stride"
+    // convention); op 159 clears raw offset 40 (declared 44 via the +4
+    // basic-tag trap) on it, matching hud-item-string's own text-id field
+    // (uint32), not hud-item-group's items (declared 40, which raw 40
+    // without the +4 trap would wrongly reach, display-nice-shot-to-view's
+    // own precedent at the top of this file).
+    [159, "v1", "hud-item-string"]
+  ],
+  "(method 19 hud-high-score)": [
+    [16, "a1", "game-task-node-info"],
+    [33, "a0", "game-task-node-info"],
+    [44, "a0", "game-task-node-info"],
+    [66, "a0", "game-task-node-info"],
+    [77, "a0", "game-task-node-info"],
+    // v1 (the net-player pulled from *net-players* at op 5, untouched since)
+    // reads raw offset 436 here, past net-player's own :size-assert #x190
+    // (400 bytes); no evidence in this rung's own scope narrows what that
+    // trailing field actually is, so the read is cast to a raw int32 pointer
+    // (the abs()-then-float-compare idiom that follows only needs the raw
+    // signed value, not a named field) rather than guessing at net-player's
+    // true layout.
+    [101, "v1", "(pointer int32)"],
+    // this's own items array (gp+36) holds a hud-item-string at index 1
+    // (a0, ops 117-118, the array's own "+16 = data-start 12 + one 4-byte
+    // stride" convention); ops 119-122 dynamically dispatch method 27 on it,
+    // which does not exist on hud-item's own 24-slot vtable but does on
+    // hud-item-string's 29-slot one (hud-item-string-method-27
+    // (_type_ object) none, net-hud.gc), matching the constant arg (a1, 56)
+    // passed alongside it.
+    [[119, 123], "a0", "hud-item-string"],
+    // same items-index-1 hud-item-string, method 27 dispatch, repeated
+    // across this function's several near-identical branches (each computes
+    // its own fresh a0 from the same items-array read, so each occurrence
+    // needs its own op range): ops 126-131 (arg 5), ops 178-181 (arg 56),
+    // ops 187-189 (arg 5).
+    [[127, 131], "a0", "hud-item-string"],
+    [[178, 182], "a0", "hud-item-string"],
+    [[186, 190], "a0", "hud-item-string"],
+    // s5 (this's own items array, index 1, read once at op 11 and never
+    // reassigned) dynamically dispatches method 24 (ops 159-160) and method
+    // 26 (ops 192-193) later in the function, neither of which exists on
+    // hud-item's own 24-slot vtable but both of which do on hud-item-string
+    // (hud-item-string-method-24/-26 (_type_ object) none, net-hud.gc),
+    // matching the same nested widget already proved at index 1 above.
+    // Cast starts one op after s5 is computed (12) through the function's
+    // last op (220) to cover both dispatch sites.
+    [[12, 220], "s5", "hud-item-string"]
   ]
 }

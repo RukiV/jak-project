@@ -39696,8 +39696,8 @@
     (hud-method-19 () none) ;; 19 ;; (hud-method-19 (_type_) none)
     (hud-method-20 () none) ;; 20 ;; (hud-method-20 (_type_) none)
     (hud-method-21 () none) ;; 21 ;; (hud-method-21 (_type_) none)
-    (hud-method-22 () none) ;; 22 ;; (hud-method-22 (_type_) none)
-    (hud-method-23 () none) ;; 23 ;; (hud-method-23 (_type_) none)
+    (hud-method-22 (_type_) none) ;; 22 ;; og:preserve-this hud-static-literals rung: synced from this line's own trailing (hud-method-22 (_type_) none) comment. The bare () declaration made the decompiler pretty-print every override (hud-results-grand-prix and its two siblings) as a self-less (defmethod NAME () ...) form that GOALC's real defmethod macro rejects.
+    (hud-method-23 (_type_) none) ;; 23 ;; og:preserve-this hud-static-literals rung: synced from this line's own trailing (hud-method-23 (_type_) none) comment, same reason and evidence class as hud-method-22 above (hud-results-grand-prix-totals's own override).
     (hud-method-24 (_type_) none) ;; 24 ;; (check-ready-and-maybe-show (_type_) symbol)
     (hud-method-25 (_type_) none) ;; 25 ;; (update-value-callback (_type_) none)
     ;; og:preserve-this net-hud rung: see the matching comment in goal_src's hud-h.gc
@@ -67074,10 +67074,23 @@
 ;; hud-item-string's string/has-outline fields) and is the known offset-4
 ;; inline-16-align defect class, tracked separately rather than forced here. Scoped
 ;; decode, this rung.
+;; og:preserve-this hud-static-literals rung: message/active/pending retyped
+;; basic -> symbol. hud-results-grand-prix_ir2.asm's static hud-effect-
+;; font-effect instances (L859 and siblings) store a real symbol ('enter) in
+;; message, and jakx's own symbol type derives from object directly, not from
+;; basic (TypeSystem::add_builtin_types, JakX case), so decompile_structure's
+;; static-field decoder (its ts.tc(field.type(), symbol) check) cannot place a
+;; SYM_PTR other than #f into a basic-typed field; the bytes are silently
+;; skipped and the structure decode fails with "there was unknown data" at
+;; that field's offset. message/active/pending are all used exclusively as
+;; either #f/#t booleans or bare event-name symbols (hud-effect-method-11's
+;; own (not (-> this active)), the (= arg2 (-> this message)) comparison
+;; against send-event message symbols), never as a general basic instance, so
+;; symbol is the evidenced type, not a guess.
 (deftype hud-effect (basic)
-  ((message      basic     :offset-assert 4)
-   (active       basic     :offset-assert 8)
-   (pending      basic     :offset-assert 12)
+  ((message      symbol    :offset-assert 4)
+   (active       symbol    :offset-assert 8)
+   (pending      symbol    :offset-assert 12)
    (delay        int32     :offset-assert 16)
    (receive-time int32     :offset-assert 20)
    (item         hud-item  :offset-assert 24)
@@ -67204,6 +67217,12 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-static-literals rung: has-outline retyped basic ->
+;; symbol, same class and same reason as hud-effect's message/active/pending
+;; above: hud-medal-results's static hud-item-string instances (L169 and
+;; siblings) store a real symbol there, and net-hud.gc's own code only ever
+;; tests it truthy/falsy ((if (not (-> this has-outline)) ...)), never
+;; dereferences it as a general basic.
 (deftype hud-item-string (hud-item)
   ((string            hud-string  :offset-assert 40)
    (text-id           uint32      :offset-assert 44)
@@ -67211,7 +67230,7 @@
    (font-effect-color uint8       :offset-assert 49)
    (color             uint8       :offset-assert 50)
    (font-flags        uint16      :offset-assert 52)
-   (has-outline       basic       :offset-assert 56)
+   (has-outline       symbol      :offset-assert 56)
    )
   :method-count-assert 29
   :size-assert         #x3c
@@ -67414,11 +67433,16 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-static-literals rung: message-is-enter retyped basic
+;; -> symbol, same class and reason as hud-effect's message/active/pending
+;; above: hud-results-grand-prix's static hud-effect-slide instances (L811
+;; and siblings) store a real symbol there and the field name itself
+;; ("message-is-enter") names a boolean/tag role, never a general basic.
 (deftype hud-effect-slide (hud-effect)
   ((slide-type       uint64  :offset-assert 32)
    (slide-time       float   :offset-assert 40)
    (start-time       int32   :offset-assert 44)
-   (message-is-enter basic   :offset-assert 48)
+   (message-is-enter symbol  :offset-assert 48)
    )
   :method-count-assert 15
   :size-assert         #x34
@@ -68085,11 +68109,17 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-static-literals rung: grand-prix/grand-prix-totals
+;; retyped basic -> symbol. hud-rank-name-score's sibling fields at the same
+;; names (below) prove the value from raw static data: L773's grand-prix word
+;; holds #t and grand-prix-totals holds #f, the standard mode-flag boolean
+;; pair, not a back-pointer to the *hud-results-grand-prix*/*-totals* symbols
+;; despite the shared naming.
 (deftype hud-results-base (hud-item-group)
-  ((spawn-time        int32  :offset-assert 44)
-   (start-time        int32  :offset-assert 48)
-   (grand-prix        basic  :offset-assert 52)
-   (grand-prix-totals basic  :offset-assert 56)
+  ((spawn-time        int32   :offset-assert 44)
+   (start-time        int32   :offset-assert 48)
+   (grand-prix        symbol  :offset-assert 52)
+   (grand-prix-totals symbol  :offset-assert 56)
    )
   :method-count-assert 24
   :size-assert         #x3c
@@ -68112,10 +68142,14 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-static-literals rung: grand-prix/grand-prix-totals
+;; retyped basic -> symbol, same reason as hud-results-base above. L773's raw
+;; words prove it directly: grand-prix (offset 48) holds #t, grand-prix-totals
+;; (offset 52) holds #f, a boolean mode-flag pair.
 (deftype hud-rank-name-score (hud-item-group)
-  ((player-id         int32  :offset-assert 44)
-   (grand-prix        basic  :offset-assert 48)
-   (grand-prix-totals basic  :offset-assert 52)
+  ((player-id         int32   :offset-assert 44)
+   (grand-prix        symbol  :offset-assert 48)
+   (grand-prix-totals symbol  :offset-assert 52)
    )
   :method-count-assert 25
   :size-assert         #x38
@@ -83973,12 +84007,22 @@
 (define-extern *hud-race-stats-top-view-0-proc* (pointer basic))
 (define-extern *hud-race-stats-view-1* object) ;; provisional: call-site evidence only
 (define-extern *hud-race-stats-view-1-proc* (pointer basic))
-(define-extern *hud-results-grand-prix* object) ;; provisional: call-site evidence only
+;; og:preserve-this hud-static-literals rung: retyped from provisional object to
+;; the concrete type. The top-level stores a real static instance of the type
+;; into the symbol directly, (set! *hud-results-grand-prix* <L545 data>), the
+;; same single-instance-static shape as net-hud.gc's *default-box*; the
+;; corresponding -proc sibling holds (the-as object #f) instead and stays
+;; object, matching the code's own two different uses.
+(define-extern *hud-results-grand-prix* hud-results-grand-prix)
 (define-extern *hud-results-grand-prix-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-results-grand-prix-totals* object) ;; provisional: call-site evidence only
+;; og:preserve-this hud-static-literals rung: same retype as
+;; *hud-results-grand-prix* above, same evidence (L177 data).
+(define-extern *hud-results-grand-prix-totals* hud-results-grand-prix-totals)
 (define-extern *hud-results-grand-prix-totals-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-results-medal* object) ;; provisional: call-site evidence only
-(define-extern *hud-results-medal-1* object) ;; provisional: call-site evidence only
+;; og:preserve-this hud-static-literals rung: same retype as
+;; *hud-results-grand-prix* above, same evidence (L55 data).
+(define-extern *hud-results-medal-1* hud-results-medal-1)
 (define-extern *hud-results-medal-1-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-results-medal-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-results-team-view-0* object) ;; provisional: call-site evidence only

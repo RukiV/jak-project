@@ -123,11 +123,20 @@
   this
   )
 
+;; og:preserve-this hud-static-literals rung: message/active/pending retyped
+;; basic -> symbol, mirroring the same fix in decompiler/config/jakx/
+;; all-types.gc. hud-results-grand-prix's static hud-effect-font-effect
+;; instances store a real symbol ('enter) in message, and jakx's symbol type
+;; derives from object rather than basic, so a basic-typed field cannot hold
+;; a non-#f SYM_PTR through the static-data decoder. message/active/pending
+;; are used exclusively as #f/#t booleans or bare event-name symbols in this
+;; file's own code (hud-effect-method-11's (not (-> this active)), the
+;; (= arg2 (-> this message)) comparison against send-event symbols).
 ;; definition of type hud-effect
 (deftype hud-effect (basic)
-  ((message       basic)
-   (active        basic)
-   (pending       basic)
+  ((message       symbol)
+   (active        symbol)
+   (pending       symbol)
    (delay         int32)
    (receive-time  int32)
    (item          hud-item)
@@ -197,7 +206,7 @@
           (hud-item-method-13 (-> this item))
           )
       (when (>= s5-0 (+ (-> this receive-time) (-> this delay)))
-        (set! (-> this active) (the-as basic #t))
+        (set! (-> this active) #t)
         (set! (-> this receive-time) -1)
         (hud-effect-method-14 this)
         )
@@ -256,7 +265,7 @@
                                     )
           )
     (set! (-> this active) #f)
-    (set! (-> this pending) (the-as basic #t))
+    (set! (-> this pending) #t)
     (hud-item-method-13 (-> this item))
     )
   (none)
@@ -879,6 +888,10 @@
   (none)
   )
 
+;; og:preserve-this hud-static-literals rung: has-outline retyped basic ->
+;; symbol, mirroring decompiler/config/jakx/all-types.gc, same class and
+;; reason as hud-effect's message/active/pending above; this file's own code
+;; only ever tests it truthy/falsy, never dereferences it as a general basic.
 ;; definition of type hud-item-string
 (deftype hud-item-string (hud-item)
   ((string             hud-string)
@@ -887,7 +900,7 @@
    (font-effect-color  uint8)
    (color              uint8)
    (font-flags         uint16)
-   (has-outline        basic)
+   (has-outline        symbol)
    )
   (:methods
     (hud-item-string-method-24 (_type_ object) none)
