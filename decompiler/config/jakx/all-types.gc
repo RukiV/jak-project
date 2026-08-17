@@ -42932,16 +42932,28 @@
 
 
 ;; (define-extern etn-vu1-block object)
-;; (define-extern etn-magic function)
-;; (define-extern etn-init-consts function)
+;; etn-*: etie-near's own debug/init family, matching etie-vu1's own
+;; identical shapes exactly (etie-magic/etie-init-consts/etie-int-reg/
+;; etie-float-reg/etie-ints/etie-floats above): etn-magic call-site
+;; evidence matches etie-magic's own (int int); etn-init-consts writes
+;; a1 into etn-consts' own alpha field at op 26, the same gs-alpha 2nd
+;; arg etie-init-consts carries. etn-int-reg-draw/etn-float-reg-calc are
+;; two further register-name lookups this file carries that etie-vu1
+;; does not. arg0 is int (not int32): jak3's own twin tie-int-reg/
+;; tie-float-reg (goal_src/jak3/engine/gfx/background/tie/tie.gc:441,497)
+;; declare (arg0 int) and their dotimes callers pass the bare loop
+;; counter with no the-as; int32 does not type-check against a plain
+;; int dotimes counter at the call site (confirmed by compile error).
+(define-extern etn-magic (function int int))
+(define-extern etn-init-consts (function etn-consts gs-alpha none))
 (define-extern etn-init-engine (function dma-buffer gs-alpha gs-test none)) ;; activated, etie-parity sig
 (define-extern etn-end-buffer (function dma-buffer none)) ;; activated, etie-parity sig
-;; (define-extern etn-float-reg-calc function)
-;; (define-extern etn-float-reg function)
-;; (define-extern etn-floats function)
-;; (define-extern etn-int-reg-draw function)
-;; (define-extern etn-int-reg function)
-;; (define-extern etn-ints function)
+(define-extern etn-float-reg-calc (function int string))
+(define-extern etn-float-reg (function int string))
+(define-extern etn-floats (function symbol))
+(define-extern etn-int-reg-draw (function int string))
+(define-extern etn-int-reg (function int string))
+(define-extern etn-ints (function symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; tie-near                       ;;
