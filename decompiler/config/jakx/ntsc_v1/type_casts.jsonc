@@ -2970,6 +2970,48 @@
   // tried and confirmed both ways against this rung's own scoped decode.
   // Leaving the real field-table fix for whichever rung lands vehicle.gc or
   // wvehicle.gc, where the full extent of the true field can be seen.
+  // test-vehicle-weapon, set-veh-weapon: both read the vehicle's own
+  // wpn-left/wpn-right handle (uint64, declared :offset-assert 4504/4512,
+  // raw 4500/4508 with the usual -4 basic-tag correction) and inline the
+  // handle->process macro by hand (goal_src/jak3/kernel/gkernel-h.gc's own
+  // definition) rather than calling it, so the decompiler never sees the
+  // macro's own type annotations: subu-s7 tests the handle for #f, sllv ...
+  // r0 reinterprets the low 32 bits with no actual shift (the handle's own
+  // "process" field is declared (pointer process), not process directly, so
+  // the reinterpreted register needed that same cast, not a bare process
+  // cast, which resolved the next load to process-tree's name field instead
+  // of dereferencing the pointer), and dsra32 ... 0 extracts the high 32
+  // bits as pid. Once a0 is typed (pointer process), the load at offset 0
+  // dereferences it to the process itself, and the chained (-> proc pid)
+  // read at raw offset 48 (process's own pid field, declared offset-assert
+  // 52) resolves on its own.
+  "test-vehicle-weapon": [[36, "a0", "(pointer process)"]],
+  // set-veh-weapon inlines the same handle->process check twice: once for
+  // the remote-player branch (op 29, base is net-player-method-49's return)
+  // and once for the local wvehicle argument directly (op 43, same shape,
+  // one call deeper into the function).
+  "set-veh-weapon": [
+    [29, "a0", "(pointer process)"],
+    [43, "a0", "(pointer process)"]
+  ],
+  // test-vehicle-weapon op 31 and set-veh-weapon op 24, left UNFIXED (tried
+  // and reverted): the load feeding the handle->process chain above, one
+  // level up. "ld v1, 4500(v1)" reads the vehicle's own wpn-left field
+  // (declared 4504) when the preceding branch selected offset 0, or
+  // wpn-right (declared 4512) when it selected offset 8; the two fields are
+  // separately declared, 8 bytes apart, and the compiler folded the branch's
+  // 0-or-8 selector into the base pointer before one shared load rather than
+  // emitting two loads with their own fixed offsets, so the register's type
+  // at this op is a genuine runtime-variable offset, not a compile-time
+  // constant. No cast reaches it: a concrete (pointer uint64) fails type
+  // propagation outright for the same reason the vehicle-states rung's
+  // offset-460 case did (4500 is not a multiple of 8), and casting to
+  // vehicle or wvehicle directly hits TypeFieldLookup.cpp's own stride guard
+  // (common/type_system/TypeFieldLookup.cpp, try_reverse_lookup_other:
+  // scalar field matches require input.stride == 0, and the fold leaves it
+  // at 8), so it would misrepresent every wpn-right access as wpn-left
+  // regardless of which branch actually ran, which is worse than the
+  // decode error. Tried against this rung's own scoped decode and reverted.
 
   ////////////////////////////////////////////////////////////////////////////
   // Inlined (rand-float-gen): mtc1 of a raw IEEE-754 bit pattern

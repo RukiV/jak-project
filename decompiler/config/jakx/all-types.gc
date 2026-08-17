@@ -65516,7 +65516,14 @@
 
 (define-extern set-veh-weapon (function symbol int wvehicle object))
 (define-extern dm-set-veh-weapon (function symbol int32 none))
-(define-extern set-vehicle-light-eco (function float object float))
+;; og:preserve-this arg1 was object; the body stores the clamped float at raw
+;; offset 704, which is vehicle's own unknown-float-704 field once the -4
+;; basic-tag correction is applied (declared :offset 708, all-types.gc's own
+;; comment on that field: "raw capture 700/704, +4-corrected offsets
+;; 704/708"). The sole caller passes net-player-method-49's return (declared
+;; "returns the driven vehicle process"), so vehicle is the evidenced type,
+;; not a guess.
+(define-extern set-vehicle-light-eco (function float vehicle float))
 (define-extern dm-set-veh-leco (function int none))
 (define-extern test-vehicle-weapon (function symbol object :behavior wvehicle))
 
