@@ -1895,6 +1895,18 @@
   "update-rustyh-lights": [[[22, 101], "a0", "rustyh-states"]],
   "update-mood-default-interior": [[[14, 16], "v1", "(pointer float)"]],
   "update-mood-default-interior-ambient": [[[14, 16], "v1", "(pointer float)"]],
+  // sewer-effects: same mood-context state overlay at 1840, read as a single
+  // scalar (0(s5)) three times to feed the phase arg of three
+  // update-mood-caustics calls, one per light; no compound sub-fields like
+  // garage/hiphog/rustyh need, so cast straight to (pointer float) like
+  // update-mood-default-interior above rather than inventing a states type
+  // (sewer-states/sewerx-states already name real types this file type-news
+  // for its own inspect methods, so reusing that name here would collide).
+  "update-mood-sewer": [
+    [24, "s5", "(pointer float)"],
+    [33, "s5", "(pointer float)"],
+    [42, "s5", "(pointer float)"]
+  ],
   // tie leg: the 13 patch blocks each splice the category dma chain through a
   // next-pointer loaded from *prototype-tie-work*; cast it for the l.d/s.d pair
   // (jak3 uses the same 13-cast shape, one per block)
@@ -3391,5 +3403,23 @@
   // check already visible in the decode before reading raw offset 184 (the
   // typed-generically-as-process load fails, "Could not figure out load");
   // offset 184 raw is process-drawable's own root field (188 declared).
-  "(code part-tester-idle)": [[[16, 22], "s5", "process-drawable"]]
+  "(code part-tester-idle)": [[[16, 22], "s5", "process-drawable"]],
+
+  // task-scenes: (anon-function 10 task-scenes) has a "beq s7, s7" at op 10,
+  // an always-true branch (s7 compared to itself), so the block it skips
+  // (ops 11 to 14) is unreachable in this binary. The compiler still emitted
+  // it, and it calls t9 while t9 holds a literal #f ("or t9, s7, r0" at op
+  // 11), which fails type prop ("Called something that was not a function:
+  // symbol" at op 13) and, unresolved, leaves the function's other use site
+  // (a command-list data reference at the top level) printing the debug
+  // placeholder "<lambda at L11>" instead of a valid embedded lambda.
+  // task-scenes is declare-file (debug), so a debug-only branch collapsing
+  // to a #f callee in the retail ntsc_v1 build (its target stripped) is
+  // consistent with the file's own header; the a0 setup one op earlier
+  // (l.wu (+ gp 504), the same mood-context offset clear-mood-context reads
+  // at op 7) matches (function mood-context symbol)'s signature exactly, so
+  // casting t9 at the call op to that type lets expression building
+  // succeed without inventing a callee identity beyond what the dead code
+  // already provides.
+  "(anon-function 10 task-scenes)": [[13, "t9", "(function mood-context symbol)"]]
 }

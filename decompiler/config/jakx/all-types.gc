@@ -76167,9 +76167,16 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep)
+;; resurrected from the dead block above, part-tracker retyped from uint64 to
+;; handle: (exit idle spar-lighthouse-light) spawns a part-tracker process,
+;; packs its pid (high 32) and process pointer (low 32) into one value and
+;; stores it at self+244 (offset-assert 248 via the basic +4 load convention),
+;; and the same offset is later validity-checked with the pid-compare and
+;; process-extraction idiom before send-event 'die; both are the handle
+;; resolution pattern, not a raw uint64 (scoped decode, this worktree's
+;; config, spargus-obs).
 (deftype spar-lighthouse-light (process-drawable)
-  ((part-tracker uint64  :offset-assert 248)
+  ((part-tracker handle  :offset-assert 248)
    )
   :method-count-assert 51
   :size-assert         #x100
@@ -79569,7 +79576,7 @@
   :flag-assert         #x900000000
   )
 
-;; (define-extern update-mood-havsewx (function mood-context float int none :behavior time-of-day-proc))
+(define-extern update-mood-havsewx (function mood-context float int none :behavior time-of-day-proc))
 (define-extern *havsewx-water-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
 (define-extern *havsewy-alpha-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
 (define-extern *havsewy-water-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
@@ -79617,8 +79624,8 @@
   :flag-assert         #x900000000
   )
 
-;; (define-extern update-mood-sewer (function mood-context float int none :behavior time-of-day-proc))
-;; (define-extern update-mood-sewerx (function mood-context float int none :behavior time-of-day-proc))
+(define-extern update-mood-sewer (function mood-context float int none :behavior time-of-day-proc))
+(define-extern update-mood-sewerx (function mood-context float int none :behavior time-of-day-proc))
 (define-extern *sewb-water-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
 (define-extern *sewc-water-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
 (define-extern *sewd-water-texture-anim-array* (texture-anim-array texture-anim)) ;; activated, texture-anim leg
