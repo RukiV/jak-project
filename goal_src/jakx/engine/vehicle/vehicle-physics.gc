@@ -7,3 +7,93 @@
 
 ;; DECOMP BEGINS
 
+
+;; definition for method 136 of type vehicle
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-136 ((this vehicle) (arg0 vector) (arg1 float))
+  (let ((f0-1 (- (-> arg0 y) (-> arg0 w))))
+    (when (< f0-1 (-> this water-height))
+      (let ((s5-0 (new 'stack-no-clear 'inline-array 'vector 3)))
+        (set! (-> s5-0 0 quad) (-> arg0 quad))
+        (let ((s3-0 (-> this info))
+              (f1-3 (fmin (-> this water-height) (+ (-> arg0 y) (-> arg0 w))))
+              )
+          0.0
+          (let* ((f2-4 (fmax -1.0 (fmin 1.0 (/ (- (-> this water-height) (-> arg0 y)) (-> arg0 w)))))
+                 (f30-0 (+ 0.5 (* (/ f2-4 -4) f2-4 f2-4) (* 0.75 f2-4)))
+                 )
+            (set! (-> s5-0 0 y) (* 0.5 (+ f0-1 f1-3)))
+            (let ((t9-0 (method-of-object (-> this rbody) rigid-body-control-method-24)))
+              (-> s5-0 0)
+              (-> s5-0 2)
+              (t9-0)
+              )
+            (let* ((f0-9 (* 0.025132721
+                            (vector-length (-> s5-0 2))
+                            (-> s3-0 handling water-drag-factor)
+                            (-> s3-0 info mass)
+                            f30-0
+                            (square (-> arg0 w))
+                            )
+                         )
+                   (f1-10 68719480000.0)
+                   (f0-11 (fmin (* f0-9 (/ 1.0 f1-10)) (* 0.125 (/ 1.0 arg1) (-> s3-0 info mass))))
+                   )
+              (vector-float*! (-> s5-0 1) (-> s5-0 2) (* -1.0 f0-11))
+              )
+            (rigid-body-control-method-18 (-> this rbody) (-> s5-0 0) (-> s5-0 1))
+            (vector-reset! (-> s5-0 1))
+            (let ((f0-18 (* 514718.12 (-> s3-0 handling buoyancy-factor) f30-0 (-> arg0 w) (-> arg0 w) (-> arg0 w)))
+                  (f1-21 68719480000.0)
+                  )
+              (set! (-> s5-0 1 y) (* f0-18 (/ 1.0 f1-21)))
+              )
+            )
+          )
+        (rigid-body-control-method-18 (-> this rbody) (-> s5-0 0) (-> s5-0 1))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for method 137 of type vehicle
+;; ERROR: failed type prop at 14: Could not figure out load: (set! a0 (l.wu (+ v1 64)))
+;; og:preserve-this not landed: the raw decode gets partway through a real
+;; body (root-prim's local-sphere against water-height, then a prim-type-0
+;; child walk) but stalls on a word load at +64 off a collide-shape-prim
+;; ("Could not figure out load"), a decompiler-side gap (types2's forward
+;; field-reverse-lookup only matches a field whose size agrees with the
+;; access; +64 falls inside the generic sixteen-byte `specific` blob, sized
+;; uint8, so a 4-byte load there never resolves), out of this band's scope
+;; to fix. What is well evidenced from the raw asm past that point: the
+;; loop's sibling stride is 80 bytes (collide-shape-prim's own size); the
+;; inner branch reads a byte at +60 (local-sphere.w's low byte, an odd
+;; access this note does not have a confident story for) as the remaining
+;; loop count; and the one real call inside the loop is a self-recursive
+;; vehicle-method-136 (t9 loads the vtable's method 136 slot at a type
+;; offset of 560, and a2 is set from the untouched copy of this method's
+;; own arg0-0, matching method-136's float arg exactly), passed a raw
+;; pointer 12 bytes into the current prim as its vector arg (the same
+;; y-of-w-off-by-four pattern the pre-check computes inline first, so the
+;; two agree, but neither has a clean name). arg0-0 is retyped from object
+;; to float on this evidence (all-types.gc line 53237 and this file's
+;; vehicle-h.gc). Land the body once the +64 load has a real resolution.
+
+;; definition for method 158 of type vehicle
+(defmethod vehicle-method-158 ((this vehicle))
+  (rigid-body-object-method-62 this)
+  (none)
+  )
+
+;; definition for method 159 of type vehicle
+(defmethod vehicle-method-159 ((this vehicle))
+  (rigid-body-object-method-62 this)
+  (none)
+  )
+
+
+
+

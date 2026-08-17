@@ -15,6 +15,14 @@
   // hud-item-method-18 as its vector arg; the raw stack address's own type
   // never resolved on its own ("add failed: <uninitialized> <integer 0>").
   "(method 18 hud-item-group)": [[16, "vector"]],
+  // (method 136 vehicle), rigid-vehicle rung: sp+16 is a three-vector array.
+  // Slot 0 is filled by a quad load/store of arg1 (now typed vector) and is
+  // further written at +4; slot 2, reached by pointer arithmetic on the
+  // array base (s5 + 32), feeds a veclength (lqc2/vmul at that address).
+  // Slot 1 is never read or written. Neither the array's own type
+  // ("Failed to guess stack use for 16") nor the s5+32 walk ("add failed:
+  // vector <integer 32>") resolve without this hint.
+  "(method 136 vehicle)": [[16, ["inline-array", "vector", 3]]],
   // check-water-level-drop / check-water-level-drop-motion (water rung): both
   // build a scratch vector at sp+16, same shape as the sp-adjust-launch family.
   "check-water-level-drop": [[16, "vector"]],
