@@ -1,4 +1,69 @@
 {
+  // display-nice-shot-to-view: gp is a hud-item read out of
+  // *text-display-nice-shot* (an (array hud-item), offset 12, the same
+  // array-data-start shape used throughout this band), but the actual
+  // runtime object is a hud-item-string: ops 7, 15 and 22 all touch raw
+  // offset 40, declared offset 44 via the +4 basic-tag trap, which is
+  // hud-item-string's own text-id field (uint32), not hud-item-group's items
+  // (declared 40, which raw 40 without the +4 trap would wrongly reach).
+  // Confirmed by the comparison shape: op 10 reads a text-id out of the
+  // L119 lookup table (label_types.jsonc, values 0x1322-0x1329) and op 11
+  // compares it against this same offset-40 read, then both branches store
+  // the newly picked text-id back to it (ops 15, 22) -- a last-shown-text-id
+  // cache to avoid an immediate repeat, which only makes sense as text-id.
+  // Cast starts one op after gp is set (op 2) through the last use (22).
+  "display-nice-shot-to-view": [
+    [[3, 23], "gp", "hud-item-string"]
+  ],
+  // spawn-hud-headset-talker: same shape as (method 64 driver-gtblitz) below
+  // (net-world's own basic-typed field, byte read at machine offset 5,
+  // declared offset 9 via the +4 basic-tag trap), but off task-info (offset
+  // 1108) rather than task-node-info (offset 1112). Declared offset 9 is
+  // still game-task-node-info's net-play-mode (uint8); task-info and
+  // task-node-info read as the same concrete type at their respective call
+  // sites, so this follows (method 64 driver-gtblitz)'s own recipe (a
+  // per-callsite cast, not a deftype field retype, since net-world's own
+  // fields are not uniformly one concrete type across every reader) rather
+  // than introducing a second one.
+  "spawn-hud-headset-talker": [
+    [22, "v1", "game-task-node-info"]
+  ],
+  // (method 19 hud-headset-talker): this's own items array (gp+36) holds a
+  // hud-item-group at index 0 (a0-10, read at op 37); casting a0 to
+  // hud-item-group lets both op 38 and op 40 resolve raw offset 36 (declared
+  // 40 via the +4 basic-tag trap) as its own items field. That nested items
+  // array in turn holds two different concrete widgets: index 0 (s1, op 39,
+  // the array's own "+12 data start" convention) is a hud-item-string, not
+  // another hud-item-group -- ops 71 and 89 read raw offset 36 off it
+  // (declared 40, hud-item-string's own string field, hud-string), then
+  // dereference it and take +4 for the char data, matching
+  // copy-charp<-charp's own callsite at op 80. Index 1 (s0, op 41, offset 16
+  // = data-start 12 + one 4-byte stride) stays generic hud-item; nothing
+  // reads a field past hud-item's own bounds off it. a0's range starts at op
+  // 38 (the read itself; a0-10 is already fully computed by op 37, so
+  // casting the register only from its first read forward does not disturb
+  // op 37's own natural typing) through 41 to cover both reads (38 and 40).
+  // s1's range starts at op 40 (one past its own compute at op 39) through
+  // 120 to cover both offset-36 reads (71, 89) and the type-tag/passthrough
+  // uses (117, 119), which do not care about the concrete subtype.
+  "(method 19 hud-headset-talker)": [
+    [[38, 41], "a0", "hud-item-group"],
+    [[40, 120], "s1", "hud-item-string"]
+  ],
+  // spawn-hud-headset-talker-other, spawn-hud-headset-talker-race,
+  // spawn-text-display-nice-shot: the same spawned-process type-narrowing
+  // class proved on spawn-hud-results-medal-1 above, same op numbers (v0 set
+  // at op 29, failing store at op 31), applied unchanged after confirming
+  // each function's own ir2.asm shares that exact shape.
+  "spawn-hud-headset-talker-other": [
+    [[30, 32], "v0", "hud-headset-talker-other"]
+  ],
+  "spawn-hud-headset-talker-race": [
+    [[30, 32], "v0", "hud-headset-talker-race"]
+  ],
+  "spawn-text-display-nice-shot": [
+    [[30, 32], "v0", "text-display-nice-shot"]
+  ],
   // spawn-hud-results-medal-1, spawn-hud-results-grand-prix-totals,
   // spawn-hud-results-grand-prix: the spawned-process type-narrowing class the
   // hud-follow-through rung named but did not fix (0857cd5f7's commit body,

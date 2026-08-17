@@ -55337,7 +55337,17 @@
 (define-extern *msg-map-net-world* (array symbol))
 (define-extern *net-process-class-info-net-world* net-process-class-info)
 ;; (define-extern *net-world* object)
-;; (define-extern *net-player-names* object)
+;; hud-and-levels-misc rung: activated from provisional comment.
+;; (method 19 hud-headset-talker) op 78 reads this then adds a computed
+;; per-talker byte offset (192 * talker-index + 32, hud-widgets-4_ir2.asm ops
+;; 74-79) and passes the result to copy-charp<-charp as the source string,
+;; copying a player's name into the talker widget's own char buffer. No call
+;; site pins a concrete struct (the 192-byte stride suggests each per-player
+;; slot holds more than just a name), so typed as a raw byte pointer, matching
+;; the calc-grand-prix-score precedent for this exact "unknown struct,
+;; byte-offset read" shape rather than object, which cannot support offset
+;; arithmetic.
+(define-extern *net-player-names* (pointer uint8))
 (define-extern *prebuilt-ai-vehicles* (array prebuilt-ai-vehicle))
 (define-extern *net-vehicles* (array net-vehicle))
 (define-extern find-vehicle-info (function symbol net-vehicle))
@@ -69535,10 +69545,22 @@
   )
 
 
-;; (define-extern *text-display-nice-shot* array)
+;; hud-and-levels-misc rung: activated from provisional comment. Matches the
+;; (array hud-item) items-global convention already used for
+;; *hud-results-grand-prix* and its siblings (hud-method-26 assigns this
+;; symbol's own items field the same way); display-nice-shot-to-view reads it
+;; at offset 12 (hud-widgets-4_ir2.asm op 1/2), the array's own data-start
+;; offset for boxed-pointer arrays already established elsewhere in this
+;; band.
+(define-extern *text-display-nice-shot* (array hud-item))
 (define-extern *text-display-nice-shot-proc* process)
 (define-extern spawn-text-display-nice-shot (function object))
-;; (define-extern display-nice-shot-to-view function)
+;; hud-and-levels-misc rung: activated from provisional comment. Zero-arg
+;; (no a0-a3 read before first use, hud-widgets-4_ir2.asm op 0 onward) and
+;; its only return path threads spawn-text-display-nice-shot's own (function
+;; object) result straight through, matching this corpus's zero-arg
+;; convention.
+(define-extern display-nice-shot-to-view (function object))
 ;; (define-extern *hud-headset-talker-race* array)
 ;; (define-extern *hud-headset-talker-race-proc* object)
 (define-extern spawn-hud-headset-talker-race (function object))
