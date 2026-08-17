@@ -783,5 +783,33 @@
   // known stack slot in use (sp+192), matching the file's own "sized to
   // the exact span" convention rather than a named struct this function
   // gives no evidence for.
-  "debug-merc-highres-runtime": [[16, ["array", "uint8", 176]]]
+  "debug-merc-highres-runtime": [[16, ["array", "uint8", 176]]],
+  // (method 62 rigid-body-object): sp+16 is zeroed by a single quadword
+  // store (vf0) then partially overwritten at +4 with a computed float
+  // (mass-scaled gravity term), then passed whole to rigid-body-control's
+  // add-force! (offset 96, slot 20); the raw stack address's own type
+  // never resolved on its own ("Failed to guess stack use for 16").
+  "(method 62 rigid-body-object)": [[16, "vector"]],
+  // (method 83 rigid-body-object): sp+16 is a 136-byte scratch region: a
+  // rigid-body-impact gets built in its first 68 bytes (passed to (method 84
+  // rigid-body-object) and read as plain vectors at +0/+32 for a
+  // rigid-body-control-method-24 add-force! call, matching rigid-body-impact's
+  // own point/velocity fields), then the function keeps writing past that
+  // (a cached process-focusable-method-57 float at +112, working vectors at
+  // +80/+96) for its own impulse math. Declaring the region as
+  // "rigid-body-impact" (its own 0x44 size) left every access past offset 68
+  // unresolved one at a time, each fix moving the op index of the next
+  // failure and one combination (a scalar cast layered on top of the
+  // rigid-body-impact declaration) crashing the decompiler outright
+  // (Env::add_stack_structure_hint's reference-type check, the same class
+  // noted in the collide-planes entry above, hit by a bare "float" at the
+  // scratch offset). A 9-element inline-array of vector (144 bytes, covering
+  // the whole 136-byte region on 16-byte strides) resolves the entire
+  // function cleanly in one declaration instead: every access, at bounds
+  // that align and the one that does not (the +84 float sits at element 5's
+  // y component), decodes and the two call sites needing a real
+  // rigid-body-impact resolve their casts automatically. The raw stack
+  // address's own type never resolved on its own ("Failed to guess stack
+  // use for 16").
+  "(method 83 rigid-body-object)": [[16, ["inline-array", "vector", 9]]]
 }

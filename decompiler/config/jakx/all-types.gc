@@ -44928,7 +44928,16 @@
   :flag-assert         #x900000008
   )
 
-;; (define-extern get-intersect-point function) ;; (function vector touching-prims-entry collide-shape touching-shapes-entry vector)
+;; og:preserve-this activated (rigid-body-object rung): (method 84
+;; rigid-body-object) calls it with exactly this arg shape (vector,
+;; touching-prims-entry, collide-shape, touching-shapes-entry -> vector),
+;; corroborated register-for-register against the call site. Landed in
+;; goal_src as a stub with "ERROR: function has no type analysis. Cannot
+;; decompile." (collide-touch.gc), so this activates a symbol that links as
+;; zero until collide-touch.gc's own rung lands a real body; flagged in this
+;; rung's report as a boot risk, not fixed here (collide-touch.gc is a
+;; separate, unlanded object outside this band).
+(define-extern get-intersect-point (function vector touching-prims-entry collide-shape touching-shapes-entry vector))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; collide-shape                  ;;
@@ -48134,7 +48143,18 @@
   :size-assert         #xc8
   :flag-assert         #xa000000c8
   (:methods
-    (rigid-body-object-constants-method-9 (_type_) none) ;; 9
+    ;; og:preserve-this rigid-body-object rung: retyped from a bare "none"
+    ;; return, which fails to compile ("get_preferred_reg_class called on
+    ;; NullType") the moment a caller actually uses the result. (method 69
+    ;; rigid-body-object)'s own body is the evidence: the call's result is
+    ;; tested for truthiness, compared against (-> this info) (a
+    ;; rigid-body-object-constants), and passed straight through to (method
+    ;; 68 rigid-body-object)'s arg0 (itself cast to rigid-body-object-constants
+    ;; inside that method), all consistent with "return a possibly-different
+    ;; constants block, or #f if there is none". No landed body exists yet
+    ;; (this rung's rigid-body.gc dependency, see the report) to verify the
+    ;; offsets directly.
+    (rigid-body-object-constants-method-9 (_type_) rigid-body-object-constants) ;; 9
     )
   )
 
@@ -48431,7 +48451,17 @@
     (rigid-body-object-method-76 (_type_) none) ;; 76
     (rigid-body-object-method-77 (_type_) none) ;; 77
     (rigid-body-object-method-78 () none) ;; 78
-    (rigid-body-object-method-79 (_type_ object object) none) ;; 79
+    ;; og:preserve-this rigid-body-object rung: arg0/arg1 typed from this
+    ;; method's own body (rigid-body-object_ir2.asm). arg1's mask field is
+    ;; read at offset 88 and anded against 0x200000/0x400000, and its floats
+    ;; at 144/152/156 match attack-info's mask/damage/vehicle-damage-factor/
+    ;; vehicle-impulse-factor exactly; arg0 is written at offset 48, matching
+    ;; rigid-body-impact's impulse field, the same field (method 80
+    ;; rigid-body-object) already writes through this same slot. jak3's
+    ;; impulse-force<-penetrate (slot 47, +32 shift) carries a third
+    ;; explicit penetrate arg this body never reads or references, so the
+    ;; third arg is not adopted without call-site evidence for it.
+    (rigid-body-object-method-79 (_type_ rigid-body-impact attack-info) none) ;; 79
     (rigid-body-object-method-80 (_type_ rigid-body-impact) none) ;; 80 ;; arg1 read at offset 48 (float) and 56 (process), matching rigid-body-impact's impulse and process fields exactly; (method 80 haven-trashcan) uses it for an impulse-scaled impact sound gated by the causing process's mask bit 27
     (rigid-body-object-method-81 (_type_ process int symbol event-message-block) object) ;; 81 ;; jak3's rbody-event-handler shape: the decode reads a0/a1/a2/a3/t0 unset under the bare signature and rigid-body-object-event-handler passes the behavior's four event args straight through
     ;; og:preserve-this arg count corrected from zero (2026-08-16 construction-obs-h
@@ -48440,13 +48470,34 @@
     ;; with the same a0/a1/a2, so the base signature needs both explicit args even
     ;; though this override never touches the first. Declared arg0 as the file's own
     ;; established placeholder for a not-yet-understood rigid-body-object arg
-    ;; (methods 68/79/83/84 all use the same object fallback); arg1 typed rigid-body-
+    ;; (method 68 still uses the same object fallback); arg1 typed rigid-body-
     ;; info since offset 144 (structure, no basic-tag bias) lands exactly on that
     ;; type's own inertial-tensor row 2, x component, a real field boundary already
     ;; declared above, not a fabricated one.
+    ;; og:preserve-this rigid-body-object rung (held, not retyped): this base's own
+    ;; raw machine code reads two more registers than this signature declares (a3,
+    ;; checked for truthiness, and t0, moved to a callee-saved register and used
+    ;; through the rest of the body), matching jak3's attack-handler (slot 50, +32
+    ;; shift: process-drawable attack-info touching-shapes-entry penetrate). But
+    ;; construction-obs-h.gc's already-landed override
+    ;; ((defmethod rigid-body-object-method-82 ((this construction-object) (arg0
+    ;; object) (arg1 rigid-body-info)))) tail-calls this base with only two explicit
+    ;; args, and method-of-type calls are arity-checked at compile time, so widening
+    ;; this signature to four args breaks that file without touching it in the same
+    ;; change. Left undefined here rather than landed wrong; see this rung's report
+    ;; for the full evidence and the construction-obs-h.gc coordination this needs.
     (rigid-body-object-method-82 (_type_ object rigid-body-info) none) ;; 82
-    (rigid-body-object-method-83 (_type_ object object) none) ;; 83
-    (rigid-body-object-method-84 (_type_ object object) none) ;; 84
+    ;; og:preserve-this rigid-body-object rung: arg0 written at offsets 0/16/32
+    ;; (vector-sized zero stores, vf0) then 56/60 (single words), matching
+    ;; rigid-body-impact's point/normal/velocity/process/prim-id fields exactly
+    ;; (impulse at 48 is left alone here, unlike method 79's write to it). arg1
+    ;; read at offset 12 only, matching touching-shapes-entry's own layout; this
+    ;; method is (method 83 rigid-body-object)'s own callee at vtable offset 352
+    ;; (slot 84), passing the same stack-built rigid-body-impact and its own arg1
+    ;; straight through, corroborating both types from a call site in this same
+    ;; rung. Matches jak3's init-rbody-impact-from-tshape! (slot 52, +32 shift).
+    (rigid-body-object-method-83 (_type_ process-focusable touching-shapes-entry) symbol) ;; 83 ;; jak3 touch-handler (slot 51, +32 shift); arg0's method 57 call resolves cleanly against process-focusable-method-57 (jak3 27 shifted, zero-arg float getter), the exact shape at op 6; arg1 read at offset 184 (root field access), matching process-focusable's own inherited layout
+    (rigid-body-object-method-84 (_type_ rigid-body-impact touching-shapes-entry) none) ;; 84
     (rigid-body-object-method-85 () none) ;; 85
     (rigid-body-object-method-86 () none) ;; 86
     (rigid-body-object-method-87 (_type_) none) ;; 87

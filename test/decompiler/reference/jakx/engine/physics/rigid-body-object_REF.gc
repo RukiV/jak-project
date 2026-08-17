@@ -1,31 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: rigid-body-object.gc
-;; name in dgo: rigid-body-object
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
-;; og:preserve-this rigid-body-object rung: this object's own methods are
-;; landed below and compile clean, but almost every one of them dispatches
-;; through (-> this rbody), a rigid-body-control, and rigid-body-control's
-;; own methods (9 through 40, all of them, including the ones with real
-;; call-site-verified signatures already in rigid-body-h.gc) have no landed
-;; defmethod anywhere: rigid-body.gc, the object that carries their bodies,
-;; is still an empty stub. Reached methods: 62 (rigid-body-control-method-20,
-;; add-force!), 63 and 87 (rigid-body-control-method-10), 64
-;; (rigid-body-control-method-29, debug-print-info), 71
-;; (rigid-body-control-method-11, update-rbody-transform!), 72
-;; (rigid-body-control-method-30, debug-print-force-torque), 83
-;; (rigid-body-control-method-24/18/12/13). rigid-body-info-method-9 (method
-;; 68) and rigid-body-object-constants-method-9 (method 69) are the same
-;; class, bodied in the same unlanded rigid-body.gc object. Every one of
-;; these calls jumps to zero at runtime until rigid-body.gc lands; this was
-;; already true before this rung (method 71 itself was undefined), so this
-;; rung does not create the hazard, it just moves the crash one call deeper.
-;; Flagged for the boot smoke and for whoever picks up rigid-body.gc next.
-
 ;; definition for method 57 of type rigid-body-object
 (defmethod process-focusable-method-57 ((this rigid-body-object))
   (-> this info info inv-mass)
@@ -87,13 +62,13 @@
 
 ;; definition for method 85 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
-(defmethod rigid-body-object-method-85 rigid-body-object () 0
+(defmethod rigid-body-object-method-85 () 0
   (none)
   )
 
 ;; definition for method 86 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
-(defmethod rigid-body-object-method-86 rigid-body-object () 0
+(defmethod rigid-body-object-method-86 () 0
   (none)
   )
 
@@ -114,7 +89,7 @@
 
 ;; definition for method 88 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
-(defmethod rigid-body-object-method-88 rigid-body-object () 0
+(defmethod rigid-body-object-method-88 () 0
   (none)
   )
 
@@ -228,7 +203,7 @@
 
 ;; definition for method 61 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
-(defmethod rigid-body-object-method-61 rigid-body-object () (ja-post)
+(defmethod rigid-body-object-method-61 () (ja-post)
   0
   (none)
   )
@@ -317,7 +292,7 @@
 
 ;; definition for method 78 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
-(defmethod rigid-body-object-method-78 rigid-body-object () 0
+(defmethod rigid-body-object-method-78 () 0
   (none)
   )
 
@@ -387,30 +362,8 @@
   (none)
   )
 
-;; og:preserve-this rigid-body-object rung (held): the raw machine code for
-;; this method reads two more registers than the currently-declared two-arg
-;; signature provides (a3, checked for truthiness, and t0, moved to a
-;; callee-saved register and read through the rest of the body), matching
-;; jak3's attack-handler (slot 50, +32 shift: process-drawable attack-info
-;; touching-shapes-entry penetrate) at four args. But construction-obs-h.gc's
-;; already-landed override
-;;   (defmethod rigid-body-object-method-82 ((this construction-object)
-;;     (arg0 object) (arg1 rigid-body-info))
-;;     (set! (-> arg1 inertial-tensor fvec x) (/ (-> arg1 inertial-tensor fvec x) 1000))
-;;     ((method-of-type rigid-body-object rigid-body-object-method-82) this arg0 arg1)
-;;     (none))
-;; tail-calls this base with only two explicit args, and method-of-type calls
-;; are arity-checked at compile time, so widening this signature to four args
-;; breaks that file without touching it in the same change. hacks.jsonc's
-;; no_type_analysis_functions_by_name carries "(method 82 rigid-body-object)"
-;; so the rest of this object still decodes (leaving it under normal
-;; analysis made the decompiler abort the whole object once every other
-;; function's errors cleared). Left undefined here rather than landed wrong;
-;; needs a coordinated fix that retypes this signature and construction-obs-h.gc's
-;; override and tail-call together. Not reached by anything in this rung's
-;; own landed text: rigid-body-object-method-81's 'attack case dispatches to
-;; it, but that path is unexercised by a default boot the same way it was
-;; before this rung (method-82 was equally undefined then).
+;; definition for method 82 of type rigid-body-object
+;; ERROR: function has no type analysis. Cannot decompile.
 
 ;; definition for method 83 of type rigid-body-object
 ;; INFO: Used lq/sq

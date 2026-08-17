@@ -4404,5 +4404,47 @@
     // Cast starts one op after s5 is computed (12) through the function's
     // last op (220) to cover both dispatch sites.
     [[12, 220], "s5", "hud-item-string"]
+  ],
+  // (method 81 rigid-body-object): op 45 reads offset 228 on arg0 (process),
+  // the machine-load form of process-drawable's rbody field (declared 232,
+  // the +4 basic-tag bias), reached at that offset only through
+  // process-focusable; jak3's rbody-event-handler casts its own arg0 to
+  // process-focusable before the same read (goal_src/jak3/engine/physics/
+  // rigid-body.gc ~1158). Narrow to op 45 alone since s4 (the process arg)
+  // is passed straight through as plain process elsewhere in this method
+  // (get-penetrate-using-from-attack-event's a0).
+  // op 69/71 read offset 128 on s3 (loaded at op 62 from the attack event's
+  // own param 1, a raw uint64), twice, matching attack-info's own "id" field
+  // exactly (offset 128); s3 is also the value passed as the attack-info arg
+  // in this same case's dispatch to rigid-body-object-method-82 (op 78,
+  // still held, see this rung's report), corroborating the type from both
+  // directions.
+  "(method 81 rigid-body-object)": [
+    [45, "s4", "process-focusable"],
+    [[69, 72], "s3", "attack-info"]
+  ],
+  // (method 64 rigid-body-object): op 18 computes (+ a1-0 0) as the base for
+  // a raw store the function makes two ops later into (-> this rbody), and
+  // the same value is cast to rigid-body-object-constants at op 0 for the
+  // (-> this info) assignment (both are the same incoming blob). "object"
+  // does not support pointer arithmetic, hence "add failed"; op 39 reads a
+  // bare float off the same register with no offset (-> this max-time-step)'s
+  // source, matching rigid-body-object-constants' own first field. Ranged
+  // across both rather than a single op because the type propagator carries
+  // the narrower cast forward and a single-op cast at 18 alone left op 39
+  // unresolved; still scoped to this function body only, not the signature,
+  // because *snowball-constants* (peak-obs.gc's call site) is declared
+  // (pointer float), not this structure type (see all-types.gc's own note
+  // on that global).
+  "(method 64 rigid-body-object)": [
+    [[18, 40], "s5", "rigid-body-object-constants"]
+  ],
+  // (method 68 rigid-body-object): same shape as (method 64 rigid-body-object)
+  // just above, one op earlier in the body (this method has no leading
+  // "info" field caching before the arithmetic): op 1 computes (+ a1-0 0)
+  // for the same rbody-directed store. Narrowed for the same reason (no
+  // signature change, since arg0's real callers are not proven uniform).
+  "(method 68 rigid-body-object)": [
+    [1, "a1", "rigid-body-object-constants"]
   ]
 }
