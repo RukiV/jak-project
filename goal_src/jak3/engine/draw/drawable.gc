@@ -2245,14 +2245,12 @@
   )
 
 ;; og:preserve-this pc port function
-(defun pc-maybe-vsync ()
+(defun pc-maybe-vsync ((arg0 float))
   "PC Port implementation of the block of code in display-sync that computes frame-time-ratio and maybe vsyncs."
-  ;; for now, it's very simple.
-
-  ;; I think the right logic in the future is to always vsync here, but return a more accurate dog ratio.
-
+  ;; always vsync, but report the measured frame-time ratio (arg0) instead of a constant 1.0,
+  ;; so the clock tracks wall clock when the target fps is missed (issue #31).
   (syncv 0) ;; sync always!
-  1.0       ;; and report that we run at full speed.
+  arg0      ;; report the measured ratio
   )
 
 (defun display-sync ((arg0 display))
@@ -2270,10 +2268,19 @@
     ;; the *ticks-per-frame* is set based on vblank interrupt timing. Just lock it, like we did for Jak 2.
     ;; this value should be related the PS2's NTSC/PAL output system.
     ;; (set! *ticks-per-frame* (max 9000 (min #x2ee0 (sar (- s1-0 a1-1) 48))))
-    (set! *ticks-per-frame* 9765)
+    ;; PC PORT: derive the nominal frame duration from the target framerate (585900 = 9765 * 60)
+    ;; instead of the hardcoded 60fps value, so calc-ratio below measures against the selected
+    ;; fps (mirrors jak1's 'custom branch in video.gc; issue #31). Recomputed each frame so a
+    ;; target-fps change takes effect without a restart.
+    (set! *ticks-per-frame* (/ 585900 (-> *pc-settings* target-fps)))
 
     (let ((f28-0 (the float *ticks-per-frame*))
           (s3-0 (sar (- s2-0 s5-0) 48))
+          ;; measured frame-time ratio of the previous frame, floored at 1.0: the game's
+          ;; time-based tuning has only ever seen frames at or slower than nominal (the
+          ;; fmin 4.0 cap in set-time-ratios bounds the top end). A ratio below 1.0 (target
+          ;; fps above what the display delivers) is a separate behaviour class, deliberately
+          ;; not enabled here (issue #31).
           (f30-1 (fmax 1.0 (calc-ratio (the-as int s2-0) (the-as int s5-0))))
           )
       (/ (the float (sar (- s2-0 (the-as uint s1-0)) 48)) f28-0)
@@ -2333,8 +2340,8 @@
         ;       )
         )
 
-      ;; always vsync:
-      (set! f30-1 (pc-maybe-vsync))
+      ;; always vsync, keeping the measured frame-time ratio (issue #31):
+      (set! f30-1 (pc-maybe-vsync f30-1))
 
       ;; remember start time:
       (let ((s4-1 (-> arg0 on-screen)))
