@@ -52725,8 +52725,26 @@
 ;; (260->264) dropped as a duplicate of rigid-body-object's own inherited
 ;; flags; cam-target-handle folded in from the bring-up shim at its
 ;; confirmed offset 752, retiring the shim in cam-states.gc.
+;; og:preserve-this info narrowed to rigid-body-vehicle-constants via
+;; :override, matching jak3's own vehicle deftype
+;; (decompiler/config/jak3/all-types.gc:53878). rigid-body-object-constants'
+;; own 200-byte size-assert is correct and untouched (it is the real layout
+;; for non-vehicle rigid bodies like *bombbot-body-constants* and
+;; *skeet-rigid-body-constants*); the wcar family's info field genuinely
+;; holds the richer rigid-body-vehicle-constants at runtime, as the already
+;; landed *v-mongoose-constants* et al. (goal_src/jakx/levels/desert/
+;; wvehicle/wcar.gc) declare. Without this override the decompiler resolves
+;; (-> this info ...) against the 200-byte base type, which is what made a
+;; scoped decode of wcar-mongoose fail: (method 69 v-mongoose) loads floats
+;; at absolute offsets 2928 and 2968 through info and stores to 2952, all
+;; three landing inside rigid-body-vehicle-constants' own
+;; physics-model.rear-wheel (physics-model :inline at 2816, rear-wheel at
+;; +112 = 2928 local-pos.x, +112+24 = 2952 callback, +112+40 = 2968
+;; steer-arm-length) -- a rear-wheel physics-callback assignment, not an
+;; under-declared base type.
 (deftype vehicle (rigid-body-object)
-  ((car-info                        car-info-full                               :offset-assert 288)
+  ((info                             rigid-body-vehicle-constants                :override)
+   (car-info                        car-info-full                               :offset-assert 288)
    (pad-post-car-info                uint8                                12    :offset-assert 292)
    ;; og:preserve-this see goal_src/jakx/engine/vehicle/vehicle-h.gc:
    ;; extent-true pad, name/size fit two `matrix` but not load-confirmed.
