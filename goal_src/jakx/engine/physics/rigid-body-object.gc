@@ -60,7 +60,15 @@
 
 ;; definition for method 62 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
-(defmethod rigid-body-object-method-62 ((this rigid-body-object))
+;; og:preserve-this rigid-vehicle-small-tier rung: arg0 added (unused in this
+;; base body, the same class as method 68/79's own unused trailing args).
+;; rigid-body-control's own force-callback field is already declared
+;; (function rigid-body-object float none), and this method is assigned to
+;; it two methods above; a wvehicle-specific override of this same slot
+;; (wvehicle-physics.gc) reads its own explicit arg and forwards it
+;; unchanged to (method 214 wvehicle), proving the slot genuinely carries an
+;; argument through the vtable.
+(defmethod rigid-body-object-method-62 ((this rigid-body-object) (arg0 float))
   (let ((a1-0 (new 'stack-no-clear 'vector)))
     (vector-reset! a1-0)
     (set! (-> a1-0 y) (* -1.0 (-> this info info gravity) (-> this rbody info mass)))

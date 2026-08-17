@@ -14,7 +14,39 @@
   // left on, the leftover unresolved a3/t0 reads make the decompiler abort
   // this whole object once every other function's errors clear; skipping
   // analysis here keeps the rest of the object decoding.
-  "no_type_analysis_functions_by_name": ["(method 82 rigid-body-object)"],
+  // (method 210 wvehicle), (method 211 wvehicle), (method 62 wvehicle) and
+  // (method 216 wvehicle): a related cluster of debug/network telemetry
+  // methods, most writing into a shared fixed scratchpad address
+  // (0x70002000) at offsets past 500 bytes, arg1/arg2 typed "object"
+  // throughout since neither this rung's own scoped decode nor a quick
+  // corpus check turned up a declared type wide enough to cover the
+  // observed offsets (528+ in method 210 alone). (method 62 wvehicle) also
+  // reads a plain float off wvehicle's own self pointer at offset 720, a
+  // field this rung's own scoped decode of wvehicle-physics.gc did not
+  // otherwise need and wvehicle's own field list does not yet declare in
+  // that region. Resolving the scratchpad buffer's real layout and
+  // wvehicle's own field gap are both bigger derivations than this rung's
+  // band covers (rigid-body-small-tier rung, held; see the report).
+  // (method 212 wvehicle) forwards the same scratchpad constant into
+  // (method 211 wvehicle) and is landed with a narrow type_casts.jsonc
+  // entry instead, since its own failing ops are a single self-contained
+  // quad copy, not part of the wider buffer-layout gap.
+  // (method 249 wvehicle), (method 236 wvehicle) and (method 235 wvehicle):
+  // the same class as the wvehicle debug/telemetry cluster above, each its
+  // own multi-vector stack (and, for method 249, a second fixed scratchpad
+  // region at 0x70003000 distinct from 0x70002000) whose full layout is a
+  // bigger derivation than this rung's band covers (rigid-body-small-tier
+  // rung, held; see the report).
+  "no_type_analysis_functions_by_name": [
+    "(method 82 rigid-body-object)",
+    "(method 210 wvehicle)",
+    "(method 211 wvehicle)",
+    "(method 62 wvehicle)",
+    "(method 216 wvehicle)",
+    "(method 249 wvehicle)",
+    "(method 236 wvehicle)",
+    "(method 235 wvehicle)"
+  ],
   // this limits the number of cases in a cond.  The first argument is the name of the function.
   // the second argument is the name of the first condition in the cond. Use print_cfg to find it out.
   // The third argument is the number of cases. If you set it too small it may fail to build the CFG.

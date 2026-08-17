@@ -48429,7 +48429,18 @@
     )
   (:methods
     (rigid-body-object-method-61 () none) ;; 61
-    (rigid-body-object-method-62 (_type_) none) ;; 62
+    ;; og:preserve-this rigid-vehicle-small-tier rung: retyped from zero
+    ;; explicit args. rigid-body-control's own force-callback field is
+    ;; already declared (function rigid-body-object float none) (an
+    ;; earlier rung, unrelated to this one), and (method 69 rigid-body-
+    ;; object) assigns this exact method to that field; a wvehicle-specific
+    ;; override of this same slot (in wvehicle-physics.gc, this rung) reads
+    ;; its own explicit arg and forwards it unchanged to (method 214
+    ;; wvehicle), proving the slot genuinely takes an argument through the
+    ;; vtable, not just the field-type comment. The base body here still
+    ;; never reads the argument, the same class as method 79/68's unused
+    ;; trailing args.
+    (rigid-body-object-method-62 (_type_ float) none) ;; 62
     (rigid-body-object-method-63 (_type_) none) ;; 63
     (rigid-body-object-method-64 (_type_ object) none) ;; 64
     (rigid-body-object-method-65 (_type_) none) ;; 65
@@ -53540,8 +53551,14 @@
     (vehicle-method-155 (_type_) none) ;; 155
     (vehicle-method-156 (_type_) none) ;; 156
     (vehicle-method-157 (_type_) none) ;; 157
-    (vehicle-method-158 (_type_) none) ;; 158
-    (vehicle-method-159 (_type_) none) ;; 159
+    ;; og:preserve-this rigid-vehicle-small-tier rung: retyped from zero
+    ;; explicit args. Both are thin wvehicle-scoped wrappers that forward
+    ;; their own explicit arg unchanged into (method 62 rigid-body-object)'s
+    ;; vtable slot, which this same rung retyped to (_type_ float) none
+    ;; from call-site evidence in wvehicle-physics.gc; these two share that
+    ;; float arg by direct pass-through, not independent evidence.
+    (vehicle-method-158 (_type_ float) none) ;; 158
+    (vehicle-method-159 (_type_ float) none) ;; 159
     (vehicle-method-160 () none) ;; 160
     (vehicle-method-161 () none) ;; 161
     (vehicle-method-162 (_type_) none) ;; 162
@@ -55167,7 +55184,13 @@
     (wvehicle-method-259 (_type_ object object) none) ;; 259
     (wvehicle-method-260 (_type_) none) ;; 260
     (wvehicle-method-261 (_type_) none) ;; 261
-    (wvehicle-method-262 (_type_ object) none) ;; 262
+    ;; og:preserve-this rigid-body-small-tier rung: arg0 retyped from object
+    ;; to int. This method's own body multiplies it by 96 (the racer-array
+    ;; element stride, per race-control-method-9's own comment above, whose
+    ;; only call site is this method) and adds 112 to compute the racer-state
+    ;; pointer passed to race-control-method-9's arg3; "object" does not
+    ;; support integer multiplication.
+    (wvehicle-method-262 (_type_ int) none) ;; 262
     (wvehicle-method-263 () none) ;; 263
     (wvehicle-method-264 () none) ;; 264
     (wvehicle-method-265 (_type_ object object) none) ;; 265
@@ -73161,7 +73184,13 @@
 ;; wvehicle-race                  ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern check-travel function)
+;; og:preserve-this activated (rigid-body-small-tier rung): its own body
+;; (wvehicle-race.gc, this rung) reads arg0 as a vector (veclength), arg1 as
+;; a float compared against a distance threshold, and arg2 straight through
+;; to a "TOO FAST!" debug format call's ~s slot; no call site is visible in
+;; this rung's own scoped decode to corroborate arg2 or the return type
+;; further, so arg2 and the return are left as the generic object.
+(define-extern check-travel (function vector float object object))
 ;; (define-extern *previous-angle* object)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -74425,7 +74454,13 @@
 ;; (define-extern should-suppress-eco? function)
 ;; (define-extern rapid-fire-control-emitter-from-world function)
 ;; (define-extern rapid-fire-control-initialize-from-vehicle function)
-;; (define-extern is-friendly-fire-helper function)
+;; og:preserve-this activated (rigid-body-small-tier rung): its own body
+;; (wvehicle-weapons-util.gc, unlanded, out of this band) type-checks both
+;; args against 'vehicle before reading a team/player index at offset 2116
+;; on each; not landed here (a separate, unlanded object), only activated
+;; so (method 236 wvehicle) can resolve the symbol it captures as a
+;; function pointer.
+(define-extern is-friendly-fire-helper (function vehicle vehicle symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wcar-skel                      ;;

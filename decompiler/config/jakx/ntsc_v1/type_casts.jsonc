@@ -4513,5 +4513,29 @@
   // fully deriving (see the report).
   "(method 17 rb-debugger)": [
     [223, "a0", "(pointer process)"]
+  ],
+  // (method 212 wvehicle): the same fixed scratchpad address as the held
+  // (method 62 wvehicle) (hacks.jsonc, this rung), here used only for four
+  // quadword copies of the rbody's own matrix; cast to a quad-sized
+  // pointer at the store ops so all four s.q! stores resolve.
+  "(method 212 wvehicle)": [
+    [[8, 12], "v1", "(pointer uint128)"]
+  ],
+  // (method 262 wvehicle): *race-state* is declared "object" (provisional,
+  // widely referenced elsewhere and not this rung's to retype globally);
+  // op 8 reloads it purely as a raw address base for the racer-array
+  // pointer arithmetic (96*idx+112, race-control-method-9's own comment
+  // already documents this shape), a second, independent use from the
+  // direct race-state-typed reference the same global already resolves to
+  // for the call's own arg2. Cast narrowly to a raw pointer at this one op.
+  "(method 262 wvehicle)": [
+    [9, "a1", "(pointer int32)"]
+  ],
+  // (method 234 wvehicle): sp+80's own "vector" declaration auto-resolves
+  // to (pointer float) at the two points it is passed as a raw argument,
+  // which does not support the quadword load right after; cast to a
+  // quad-sized pointer at that one op instead.
+  "(method 234 wvehicle)": [
+    [16, "a0", "(pointer uint128)"]
   ]
 }
