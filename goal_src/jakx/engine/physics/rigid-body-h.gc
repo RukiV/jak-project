@@ -196,7 +196,17 @@
     (rigid-body-object-method-79 (_type_ object object) none) ;; 79
     (rigid-body-object-method-80 (_type_ rigid-body-impact) none) ;; 80
     (rigid-body-object-method-81 () none) ;; 81
-    (rigid-body-object-method-82 () none) ;; 82
+    ;; og:preserve-this arg count corrected from zero (2026-08-16 construction-obs-h
+    ;; rung): the construction-object override reads a2 (the second explicit arg) at
+    ;; offset 144 as a float and rewrites it before tail-calling the parent unchanged
+    ;; with the same a0/a1/a2, so the base signature needs both explicit args even
+    ;; though this override never touches the first. Declared arg0 as the file's own
+    ;; established placeholder for a not-yet-understood rigid-body-object arg
+    ;; (methods 68/79/83/84 all use the same object fallback); arg1 typed rigid-body-
+    ;; info since offset 144 (structure, no basic-tag bias) lands exactly on that
+    ;; type's own inertial-tensor row 2, x component, a real field boundary already
+    ;; declared above, not a fabricated one.
+    (rigid-body-object-method-82 (_type_ object rigid-body-info) none) ;; 82
     (rigid-body-object-method-83 (_type_ object object) none) ;; 83
     (rigid-body-object-method-84 (_type_ object object) none) ;; 84
     (rigid-body-object-method-85 () none) ;; 85
@@ -205,3 +215,94 @@
     (rigid-body-object-method-88 () none) ;; 88
     )
   )
+
+;; og:preserve-this landed from decompiler/config/jakx/all-types.gc's own "resurrected
+;; from the dead block" copy (rigid-body-control was forward-declared in goal_src via
+;; game-h.gc's declare-type since before this branch, but never given a real deftype
+;; here, so TypeSystem::lookup_type throws "not fully defined" the moment any code
+;; needs its fields, exactly what construction-object's own rbody-touching methods
+;; need). Field-for-field identical to the all-types.gc copy: flags is uint16 rather
+;; than an invented rigid-body-flag enum (no defenum for it exists anywhere in the
+;; corpus, and jakx's own binary contradicts the jak3-ported bit positions a prior
+;; attempt tried, per (method 3 rigid-body-control)'s inspect printing a raw 0x100 no
+;; 6-bit enum can represent); rotation overlays rot at offset 64 with :offset, not
+;; :offset-assert, since a vector's natural placement there does not match the union.
+;; Three method signatures promoted from the trailing-comment guesses to real
+;; typespecs on call-site evidence from (method 80 construction-object), the first
+;; landed caller: method 12 takes a float (the impulse-normalized value 1.0 passed at
+;; that call site), method 13 takes no explicit args (init-velocities!), method 18
+;; takes two vectors (apply-impact!, called with the impact point and a locally-built
+;; normal-scaled vector). The remaining methods keep their placeholder zero-arg
+;; signatures; nothing in this rung calls them.
+(deftype rigid-body-control (basic)
+  ((flags              uint16                                          :offset-assert 4) ;; og:preserve-this rigid-body-flag referenced but never defined; raw uint16 matches the 2-byte gap, no enum invented
+   (debug-id           int8                                            :offset-assert 6)
+   (debugger-step      int8                                            :offset-assert 7)
+   (info               rigid-body-info                                 :offset-assert 8)
+   (force-callback     (function rigid-body-object float none)         :offset-assert 12) ;; guessed by decompiler
+   (post-move-callback basic                                           :offset-assert 16)
+   (process            process                                         :offset-assert 20) ;; guessed by decompiler
+   (time-remaining     float                                           :offset-assert 24)
+   (max-ang-momentum   float                                           :offset-assert 28)
+   (linear-damping     float                                           :offset-assert 32)
+   (angular-damping    float                                           :offset-assert 36)
+   (bounce-factor      float                                           :offset-assert 40)
+   (friction-factor    float                                           :offset-assert 44)
+   (position           vector                                  :inline :offset-assert 48)
+   (rot                vector                                  :inline :offset-assert 64)
+   (rotation           quaternion                              :inline :offset 64)
+   (lin-momentum       vector                                  :inline :offset-assert 80)
+   (ang-momentum       vector                                  :inline :offset-assert 96)
+   (force              vector                                  :inline :offset-assert 112)
+   (torque             vector                                  :inline :offset-assert 128)
+   (lin-velocity       vector                                  :inline :offset-assert 144)
+   (ang-velocity       vector                                  :inline :offset-assert 160)
+   (matrix             matrix                                  :inline :offset-assert 176)
+   (inv-i-world        matrix                                  :inline :offset-assert 240)
+   )
+  :method-count-assert 41
+  :size-assert         #x130
+  :flag-assert         #x2900000130
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type process) _type_)
+    (rigid-body-control-method-9 () none) ;; 9 ;; (rigid-body-control-method-9 (_type_ collide-shape-moving float) none)
+    (rigid-body-control-method-10 () none) ;; 10 ;; (rigid-body-control-method-10 (_type_ rigid-body-object float float) object)
+    (rigid-body-control-method-11 () none) ;; 11 ;; (update-rbody-transform! (_type_ collide-shape-moving) none)
+    (rigid-body-control-method-12 (_type_ float) none) ;; 12 ;; call-site evidence: (method 80 construction-object)
+    (rigid-body-control-method-13 (_type_) none) ;; 13 ;; init-velocities!, call-site evidence: (method 80 construction-object)
+    (rigid-body-control-method-14 () none) ;; 14 ;; (rigid-body-control-method-14 (_type_ float) none)
+    (rigid-body-control-method-15 () none) ;; 15 ;; (rigid-body-control-method-15 (_type_) none)
+    (rigid-body-control-method-16 () none) ;; 16 ;; (reset-force-and-torque! (_type_) none)
+    (rigid-body-control-method-17 () none) ;; 17 ;; (reset-momentum! (_type_) none)
+    (rigid-body-control-method-18 (_type_ vector vector) none) ;; 18 ;; apply-impact!, call-site evidence: (method 80 construction-object)
+    (rigid-body-control-method-19 () none) ;; 19 ;; (rigid-body-control-method-19 (_type_ vector vector) none)
+    (rigid-body-control-method-20 () none) ;; 20 ;; (add-force! (_type_ vector) none)
+    (rigid-body-control-method-21 () none) ;; 21 ;; (rigid-body-control-method-21 (_type_ vector vector float) none)
+    (rigid-body-control-method-22 () none) ;; 22 ;; (rigid-body-control-method-22 (_type_ vector vector) none)
+    (rigid-body-control-method-23 () none) ;; 23 ;; (rigid-body-control-method-23 (_type_ vector vector) none)
+    (rigid-body-control-method-24 () none) ;; 24 ;; (rigid-body-control-method-24 (_type_ vector vector) none)
+    (rigid-body-control-method-25 () none) ;; 25 ;; (rigid-body-control-method-25 (_type_ vector) vector)
+    (rigid-body-control-method-26 () none) ;; 26 ;; (rigid-body-control-method-26 (_type_) none)
+    (rigid-body-control-method-27 () none) ;; 27 ;; (init! (_type_ rigid-body-info vector quaternion (function rigid-body-object float)) none)
+    (rigid-body-control-method-28 () none) ;; 28 ;; (rigid-body-control-method-28 (_type_ vector quaternion) none)
+    (rigid-body-control-method-29 () none) ;; 29 ;; (debug-print-info (_type_ object) none)
+    (rigid-body-control-method-30 () none) ;; 30 ;; (debug-print-force-torque (_type_ object) none)
+    (rigid-body-control-method-31 () none) ;; 31 ;; (debug-print-pos-rot (_type_ object) none)
+    (rigid-body-control-method-32 () none) ;; 32 ;; (debug-print-momentum (_type_ object) none)
+    (rigid-body-control-method-33 () none) ;; 33 ;; (debug-print-velocity (_type_ object) none)
+    (rigid-body-control-method-34 () none) ;; 34
+    (rigid-body-control-method-35 () none) ;; 35
+    (rigid-body-control-method-36 () none) ;; 36
+    (rigid-body-control-method-37 () none) ;; 37
+    (rigid-body-control-method-38 () none) ;; 38
+    (rigid-body-control-method-39 () none) ;; 39
+    (rigid-body-control-method-40 () none) ;; 40
+    )
+  )
+
+;; og:preserve-this landed from decompiler/config/jakx/all-types.gc (already active
+;; there, never carried into goal_src): construction-obs-h's own (defstate idle
+;; construction-object) uses this as its :event handler, and goalc resolves externs
+;; from goal_src only, never all-types.gc, so the symbol was unresolved at compile
+;; time until copied here verbatim.
+(define-extern rigid-body-object-event-handler (function process int symbol event-message-block object :behavior rigid-body-object))

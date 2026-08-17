@@ -1,4 +1,29 @@
 {
+  // (method 71 construction-object): rigid-body-object's own shared body,
+  // fills a large stack block at sp+80 whose offsets, all traced against
+  // this rung's own scoped decode, land exactly on collide-query's declared
+  // fields: +88/+92 (ignore-process0/1, stores this and #f), +96
+  // (ignore-pat-s32, 0x9000011), +100 (collide-with-s32, 1601), +208
+  // (start-pos, a quad copy of rbody's own position), +224 (move-dist, a
+  // vector-float*! of rbody's lin-velocity by the process clock's
+  // seconds-per-frame), +268 (radius), +352 (action-mask, 1). No other
+  // structure in the corpus matches all seven offsets at once.
+  "(method 71 construction-object)": [[80, "collide-query"]],
+  // (method 91 construction-object): the else branch computes a spawn-delta
+  // via vector-!2(scratch, root.trans, entity.trans) then reads the result's
+  // x/y/z back through raw lq/sq and l.f, so the slot type cannot be
+  // guessed; matches the sp-adjust-launch family's own vector scratch shape.
+  "(method 91 construction-object)": [[16, "vector"]],
+  // (method 92 construction-object): quad-copies *construction-glow-template*
+  // (a sprite-glow-data, per simple-sprite-system's own add! signature that
+  // the tail call resolves to) into sp+16, then vector-matrix*!s a joint-
+  // offset vector through node-list's own joint 0 bone transform into a
+  // second scratch vector immediately after it at sp+80 (16 bytes, 64 past
+  // the sprite-glow-data's own start).
+  "(method 92 construction-object)": [
+    [16, "sprite-glow-data"],
+    [80, "vector"]
+  ],
   // canyon-obs (event idle can-leaves-floor): builds a joint transform in a
   // stack slot with four raw lq/sq quad copies (a 64-byte node transform,
   // read from the sender's node-list cspace at op 43-49), same shape as the

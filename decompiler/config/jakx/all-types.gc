@@ -38312,7 +38312,14 @@
   (:methods
     (entity-more-perm-hash-method-9 (_type_) none) ;; 9
     (entity-more-perm-hash-method-10 (_type_ uint32) uint) ;; 10
-    (entity-more-perm-hash-method-11 (_type_ uint32) none) ;; 11
+    ;; og:preserve-this return type corrected from none (2026-08-16 construction-obs-h
+    ;; rung): (method 90 construction-object) is the first-ever call site, `(let ((s5-0
+    ;; (entity-more-perm-hash-method-11 *entity-more-perm* aid))) (when s5-0 ...))`
+    ;; treats the result as truthy then dereferences it with a doubleword load at
+    ;; offset 8, entity-more-perm's own `user-uint64` field exactly. Lookup-only
+    ;; sibling of method 12 (same aid arg, no was-allocated out-param, so no
+    ;; allocation side effect); returns the same type method 12 does.
+    (entity-more-perm-hash-method-11 (_type_ uint32) entity-more-perm) ;; 11
     (entity-more-perm-hash-method-12 (_type_ uint (pointer symbol)) entity-more-perm) ;; 12, lookup-or-allocate perm by aid; arg2 receives whether a new slot was allocated
     (entity-more-perm-hash-method-13 (_type_ level) none) ;; 13 ;; called method-of-type style from (method 25 level)
     (entity-more-perm-hash-method-14 (_type_ level) none) ;; 14 ;; structural twin of 13 (dispatches the adjacent process-type method slot)
@@ -48199,13 +48206,18 @@
     (rigid-body-control-method-9 () none) ;; 9 ;; (rigid-body-control-method-9 (_type_ collide-shape-moving float) none)
     (rigid-body-control-method-10 () none) ;; 10 ;; (rigid-body-control-method-10 (_type_ rigid-body-object float float) object)
     (rigid-body-control-method-11 () none) ;; 11 ;; (update-rbody-transform! (_type_ collide-shape-moving) none)
-    (rigid-body-control-method-12 () none) ;; 12 ;; (rigid-body-control-method-12 (_type_ float) none)
-    (rigid-body-control-method-13 () none) ;; 13 ;; (init-velocities! (_type_) none)
+    ;; og:preserve-this three signatures promoted from the trailing-comment guesses
+    ;; (2026-08-16 construction-obs-h rung), the first landed caller for any of them:
+    ;; (method 80 construction-object) calls 12 with a single float (1.0), 13 with no
+    ;; explicit args (init-velocities!), and 18 with two vectors (apply-impact!, the
+    ;; impact point and a locally-built normal-scaled vector).
+    (rigid-body-control-method-12 (_type_ float) none) ;; 12
+    (rigid-body-control-method-13 (_type_) none) ;; 13 ;; init-velocities!
     (rigid-body-control-method-14 () none) ;; 14 ;; (rigid-body-control-method-14 (_type_ float) none)
     (rigid-body-control-method-15 () none) ;; 15 ;; (rigid-body-control-method-15 (_type_) none)
     (rigid-body-control-method-16 () none) ;; 16 ;; (reset-force-and-torque! (_type_) none)
     (rigid-body-control-method-17 () none) ;; 17 ;; (reset-momentum! (_type_) none)
-    (rigid-body-control-method-18 () none) ;; 18 ;; (apply-impact! (_type_ vector vector) none)
+    (rigid-body-control-method-18 (_type_ vector vector) none) ;; 18 ;; apply-impact!
     (rigid-body-control-method-19 () none) ;; 19 ;; (rigid-body-control-method-19 (_type_ vector vector) none)
     (rigid-body-control-method-20 () none) ;; 20 ;; (add-force! (_type_ vector) none)
     (rigid-body-control-method-21 () none) ;; 21 ;; (rigid-body-control-method-21 (_type_ vector vector float) none)
@@ -48332,7 +48344,17 @@
     (rigid-body-object-method-79 (_type_ object object) none) ;; 79
     (rigid-body-object-method-80 (_type_ rigid-body-impact) none) ;; 80 ;; arg1 read at offset 48 (float) and 56 (process), matching rigid-body-impact's impulse and process fields exactly; (method 80 haven-trashcan) uses it for an impulse-scaled impact sound gated by the causing process's mask bit 27
     (rigid-body-object-method-81 () none) ;; 81
-    (rigid-body-object-method-82 () none) ;; 82
+    ;; og:preserve-this arg count corrected from zero (2026-08-16 construction-obs-h
+    ;; rung): the construction-object override reads a2 (the second explicit arg) at
+    ;; offset 144 as a float and rewrites it before tail-calling the parent unchanged
+    ;; with the same a0/a1/a2, so the base signature needs both explicit args even
+    ;; though this override never touches the first. Declared arg0 as the file's own
+    ;; established placeholder for a not-yet-understood rigid-body-object arg
+    ;; (methods 68/79/83/84 all use the same object fallback); arg1 typed rigid-body-
+    ;; info since offset 144 (structure, no basic-tag bias) lands exactly on that
+    ;; type's own inertial-tensor row 2, x component, a real field boundary already
+    ;; declared above, not a fabricated one.
+    (rigid-body-object-method-82 (_type_ object rigid-body-info) none) ;; 82
     (rigid-body-object-method-83 (_type_ object object) none) ;; 83
     (rigid-body-object-method-84 (_type_ object object) none) ;; 84
     (rigid-body-object-method-85 () none) ;; 85
@@ -82796,7 +82818,12 @@
 (define-extern *collision-editor-mesh-names* object) ;; provisional: call-site evidence only
 (define-extern *confirm-prev-state-name* object) ;; provisional: call-site evidence only
 (define-extern *construction-cone-constants* rigid-body-object-constants)
-(define-extern *construction-glow-template* object) ;; provisional: call-site evidence only
+;; og:preserve-this typed from object (2026-08-16 construction-obs-h rung): (method 92
+;; construction-object) quad-copy!s exactly 4 quadwords (64 bytes) from this global
+;; onto the stack, then passes that same stack address to simple-sprite-system's own
+;; add! (method 9, signature (_type_ sprite-glow-data) none). sprite-glow-data's own
+;; size-assert is #x40 (64 bytes), matching the quad-copy! count exactly.
+(define-extern *construction-glow-template* sprite-glow-data)
 (define-extern *credits-chars* object) ;; provisional: call-site evidence only
 (define-extern *ctf-blue-base* object) ;; provisional: call-site evidence only
 (define-extern *ctf-flag* object) ;; provisional: call-site evidence only

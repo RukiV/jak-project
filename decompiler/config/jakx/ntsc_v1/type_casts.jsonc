@@ -68,9 +68,34 @@
   // op 13 correctly types v1 as process (rigid-body-impact's own process
   // field, already fixed by the method-80 signature); op 16 then reads
   // v1+184 assuming a process-drawable's root field, needing the same cast.
+  // A second, independent occurrence of the same pattern reads arg0's own
+  // process field again at op 40 (register a0 this time, not v1): same
+  // v+184 root reload, needing the identical process-drawable cast, proven
+  // by jungle-obs's own landed idiom (`(the-as process-drawable (-> arg0
+  // process))`) at goal_src/jakx/levels/haven/jungle/jungle-obs.gc:635.
   "(method 80 construction-object)": [
-    [16, "v1", "process-drawable"]
+    [16, "v1", "process-drawable"],
+    [40, "a0", "process-drawable"]
   ],
+  // (method 71 construction-object): seven failed stores (auto-derived from the
+  // Failed store error list), all through the same base register reloaded as
+  // best-other-tri (collide-tri-result, offset 0's own narrowest alias) rather than
+  // the outer collide-query the offsets 88-352 actually reach into. Casting the base
+  // to collide-query at each failing store op resolves them to the named fields.
+  "(method 71 construction-object)": [
+    [91, "a0", "collide-query"],
+    [93, "a0", "collide-query"],
+    [94, "a0", "collide-query"],
+    [95, "a0", "collide-query"],
+    [97, "a0", "collide-query"],
+    [99, "a0", "collide-query"],
+    [100, "a0", "collide-query"]
+  ],
+  // (method 92 construction-object): the s.q! store at op 19 (auto-derived from the
+  // Failed store error list) writes the joint-transformed vector's quad into the
+  // sprite-glow-data's own position field via a raw (-> v1-2 data) pointer; casting
+  // that base to vector at the failing op resolves it to a plain quad set!.
+  "(method 92 construction-object)": [[19, "a0", "vector"]],
   // (enter idle construction-object): same fast random-float-in-[1,2) trick
   // as (code idle kcro-flag-down) above.
   "(enter idle construction-object)": [
