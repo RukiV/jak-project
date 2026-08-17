@@ -50230,16 +50230,33 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-follow-through rung: the dead block's :size-assert
+;; #x14 (20) contradicted the array's own indexing arithmetic. Both
+;; init-level-bbox-from-map (hud-classes_ir2.asm op 71, dsll a0-10 a0-9 5)
+;; and (method 24 hud-map) (op 100, dsll a0-8 s5-0 5) shift the
+;; *race-map-info-array* index by 5 (multiply by 32) before adding it to the
+;; array base, so the true element stride is 0x20, not 0x14. corner (offset
+;; 0) and tex-offset (offset 4) are non-:inline structure fields (pointers,
+;; 4 bytes each per the default field storage convention), confirmed by
+;; init-level-bbox-from-map dereferencing the offset-0 load a second time
+;; (l.wu then l.f) rather than reading a float directly, and by (method 24
+;; hud-map) loading offsets 0 and 4 as two separate raw uint32 values (op
+;; 118, 119) passed straight through to a callee rather than as one 8-byte
+;; inline vector2. Bytes 20 through 31 have no field-level evidence in
+;; either function this rung touches, so they are left as an unconfirmed
+;; pad rather than guessed at; the retirement condition is a function in
+;; this corpus that actually reads or writes offset 20+.
 (deftype race-map-info (structure)
   ((corner     vector2  :offset-assert 0)
    (tex-offset vector2  :offset-assert 4)
    (tex-id     uint32   :offset-assert 8)
    (scale      float    :offset-assert 12)
    (mode       int32    :offset-assert 16)
+   (pad        uint8 12 :offset-assert 20) ;; unconfirmed, sized only from the array's 0x20 index stride
    )
   :method-count-assert 9
-  :size-assert         #x14
-  :flag-assert         #x900000014
+  :size-assert         #x20
+  :flag-assert         #x900000020
   )
 
 

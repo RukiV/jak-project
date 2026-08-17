@@ -1,4 +1,34 @@
 {
+  // init-level-bbox-from-map and (method 24 hud-map): both index
+  // *race-map-info-array* with a shift-by-5 (multiply by 32, hud-classes_ir2.asm
+  // op 71/100), matching race-map-info's own :size-assert now that it is 0x20
+  // (see the type's own og:preserve-this note in all-types.gc). The decompiler
+  // still leaves the indexed pointer typed as the synthetic
+  // <(array race-map-info) + (value x 32)> rather than collapsing it to
+  // race-map-info, so field reads off it fall back to raw untyped loads: most
+  // land on the right primitive type by coincidence (tex-id's uint32, scale's
+  // float) but the offset-0/offset-4 pointer fields (corner, tex-offset) never
+  // recover a pointer type, so dereferencing them ("Could not figure out load")
+  // or building the tex-id call chain ("Failed load") fails. Casting the
+  // computed pointer to race-map-info at each site's own op range (starting one
+  // op after the add that builds it, matching the set-menumap-target! recipe
+  // above) forces the collapse.
+  //
+  // init-level-bbox-from-map: s4 is set at op 72 (daddu s4-0, v1-17, a0-10) and
+  // last read at op 97 (the second (l.f (+ s4-0 12)) call); range runs to 98 to
+  // cover that read.
+  "init-level-bbox-from-map": [
+    [[73, 98], "s4", "race-map-info"]
+  ],
+  // (method 24 hud-map): s5 is reused for two different purposes in this
+  // function; it only becomes the race-map-info-array pointer at op 101 (daddu
+  // s5-1, v1-23, a0-8), well after its earlier int use (race index, set at op
+  // 77 and shifted at op 100), so the cast range starts after the add rather
+  // than at the function's own s5 declaration. Last read is op 150 (the mode
+  // field, l.w (+ s5-1 16)); range runs to 151 to cover it.
+  "(method 24 hud-map)": [
+    [[102, 151], "s5", "race-map-info"]
+  ],
   // collide-probe: three functions load a bare `drawable` off a drawable-tree's
   // (or drawable-tree-collide-fragment's) data-override field at offset 28, then read
   // both .data (raw +32 pointer arithmetic, already resolves) and .length (offset 2)
