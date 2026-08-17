@@ -48209,8 +48209,13 @@
   (:methods
     (new (symbol type) _type_) ;; 0 ;; (new (symbol type process) _type_)
     (rigid-body-control-method-9 () none) ;; 9 ;; (rigid-body-control-method-9 (_type_ collide-shape-moving float) none)
-    (rigid-body-control-method-10 () none) ;; 10 ;; (rigid-body-control-method-10 (_type_ rigid-body-object float float) object)
-    (rigid-body-control-method-11 () none) ;; 11 ;; (update-rbody-transform! (_type_ collide-shape-moving) none)
+    ;; og:preserve-this method 10's trailing-comment guess claims a third
+    ;; explicit arg (rigid-body-object) ahead of the two floats; both of its
+    ;; real call sites (rigid-body-object-method-63 and -87, this rung's own
+    ;; scoped decode) push exactly two float values and nothing else, so the
+    ;; extra arg is dropped here rather than trusted from the hint.
+    (rigid-body-control-method-10 (_type_ float float) object) ;; 10
+    (rigid-body-control-method-11 (_type_ collide-shape-moving) none) ;; 11 ;; update-rbody-transform!, verified against rigid-body-object-method-71's call site (this rung)
     ;; og:preserve-this three signatures promoted from the trailing-comment guesses
     ;; (2026-08-16 construction-obs-h rung), the first landed caller for any of them:
     ;; (method 80 construction-object) calls 12 with a single float (1.0), 13 with no
@@ -48221,14 +48226,14 @@
     (rigid-body-control-method-14 () none) ;; 14 ;; (rigid-body-control-method-14 (_type_ float) none)
     (rigid-body-control-method-15 () none) ;; 15 ;; (rigid-body-control-method-15 (_type_) none)
     (rigid-body-control-method-16 () none) ;; 16 ;; (reset-force-and-torque! (_type_) none)
-    (rigid-body-control-method-17 () none) ;; 17 ;; (reset-momentum! (_type_) none)
+    (rigid-body-control-method-17 (_type_) none) ;; 17 ;; reset-momentum!, verified against vehicle-util's two call sites (this rung), neither pushes an arg
     (rigid-body-control-method-18 (_type_ vector vector) none) ;; 18 ;; apply-impact!
     (rigid-body-control-method-19 () none) ;; 19 ;; (rigid-body-control-method-19 (_type_ vector vector) none)
     (rigid-body-control-method-20 () none) ;; 20 ;; (add-force! (_type_ vector) none)
     (rigid-body-control-method-21 () none) ;; 21 ;; (rigid-body-control-method-21 (_type_ vector vector float) none)
     (rigid-body-control-method-22 () none) ;; 22 ;; (rigid-body-control-method-22 (_type_ vector vector) none)
     (rigid-body-control-method-23 () none) ;; 23 ;; (rigid-body-control-method-23 (_type_ vector vector) none)
-    (rigid-body-control-method-24 () none) ;; 24 ;; (rigid-body-control-method-24 (_type_ vector vector) none)
+    (rigid-body-control-method-24 (_type_ vector vector) none) ;; 24 ;; verified against vehicle-method-136's own call site (this rung), two vectors
     (rigid-body-control-method-25 () none) ;; 25 ;; (rigid-body-control-method-25 (_type_ vector) vector)
     (rigid-body-control-method-26 () none) ;; 26 ;; (rigid-body-control-method-26 (_type_) none)
     (rigid-body-control-method-27 () none) ;; 27 ;; (init! (_type_ rigid-body-info vector quaternion (function rigid-body-object float)) none)
@@ -48527,6 +48532,11 @@
     )
   )
 |#
+;; vehicle is referenced by rb-debugger's own method table below (methods
+;; 15/18/19/20 all take one), but its own deftype comes later in this file;
+;; forward-declared so the reference resolves, the same pattern this file
+;; already uses for rigid-body-object above.
+(declare-type vehicle rigid-body-object)
 ;; resurrected from the dead block above: rigid-body-h's top-level type-new
 ;; flag 0x1500000170 matches this deftype's own header exactly, method-count
 ;; 21 size 0x170 (scoped decode, this worktree's config, rigid-body-h).
@@ -48557,19 +48567,30 @@
   :method-count-assert 21
   :size-assert         #x170
   :flag-assert         #x1500000170
+  ;; og:preserve-this methods 9-20 promoted from bare () to their real arity
+  ;; (rigid-vehicle rung): rb-debugger has no jak3 twin, so every arg count
+  ;; below is read directly off this method's own prologue in a scoped
+  ;; decode of rigid-body-debug.gc (which register the body reads before it
+  ;; is set, per the decompiler's own "may read a register that is not set"
+  ;; diagnostic) rather than ported from a trailing comment. Methods 15, 18,
+  ;; 19 and 20 each read their second arg at +228, the exact offset
+  ;; vehicle-method-137 (this same rung) reads as (-> vehicle rbody), and
+  ;; retyping to vehicle cleared that specific error in a fresh scoped
+  ;; decode; 14 and 16 are left as the generic object where the body only
+  ;; proves the register is read, not its exact type.
   (:methods
-    (rb-debugger-method-9 () none) ;; 9
-    (rb-debugger-method-10 () none) ;; 10
-    (rb-debugger-method-11 () none) ;; 11
-    (rb-debugger-method-12 () none) ;; 12
-    (rb-debugger-method-13 () none) ;; 13
-    (rb-debugger-method-14 () none) ;; 14
-    (rb-debugger-method-15 () none) ;; 15
-    (rb-debugger-method-16 () none) ;; 16
-    (rb-debugger-method-17 () none) ;; 17
-    (rb-debugger-method-18 () none) ;; 18
-    (rb-debugger-method-19 () none) ;; 19
-    (rb-debugger-method-20 () none) ;; 20
+    (rb-debugger-method-9 (_type_) none) ;; 9
+    (rb-debugger-method-10 (_type_) none) ;; 10
+    (rb-debugger-method-11 (_type_ int) none) ;; 11
+    (rb-debugger-method-12 (_type_ int) none) ;; 12
+    (rb-debugger-method-13 (_type_) int) ;; 13
+    (rb-debugger-method-14 (_type_ object) none) ;; 14
+    (rb-debugger-method-15 (_type_ int vehicle) none) ;; 15
+    (rb-debugger-method-16 (_type_ object) none) ;; 16
+    (rb-debugger-method-17 (_type_) none) ;; 17
+    (rb-debugger-method-18 (_type_ vehicle) none) ;; 18
+    (rb-debugger-method-19 (_type_ vehicle) none) ;; 19
+    (rb-debugger-method-20 (_type_ vehicle) none) ;; 20
     )
   )
 
