@@ -4266,5 +4266,48 @@
     [[111, 114], "a1", "(pointer uint32)"],
     [122, "a1", "(pointer uint64)"],
     [[129, 138], "a0", "(pointer uint64)"]
+  ],
+  // emerc-vu1-init-buffer: the identical raw DMA-tag construction shape
+  // (method 8 collide-hash) already carries.
+  "emerc-vu1-init-buffer": [
+    [100, "v1", "(pointer uint32)"],
+    [101, "v1", "(pointer uint32)"]
+  ],
+  // emerc-vu1-initialize-chain: gp/s5 are both dma-gif-packet (correctly
+  // typed for the offset-0/8/12 dma-vif sub-fields, which resolve on
+  // their own), but the gif tag's own two uint64 halves (offset 16/24)
+  // get written as raw 32-bit words (the low/high halves of each 64-bit
+  // GIF tag word) rather than through the named gif0/gif1 fields, so
+  // those specific stores need the raw pointer width instead. s4/s5
+  // (pointer, ops 50/65) walk further into the same packet's payload
+  // area as bare vector floats (matching each block's own quad-copy!/
+  // math-camera-field-copy pattern), and v1 (pointer, op 90) is a third,
+  // final raw DMA-tag block back at the top-level gp base plus 176, the
+  // same base-address idiom as everywhere else in this file.
+  "emerc-vu1-initialize-chain": [
+    [12, "gp", "(pointer uint32)"],
+    [14, "gp", "(pointer uint32)"],
+    [15, "gp", "(pointer uint32)"],
+    [17, "gp", "(pointer uint32)"],
+    [24, "s5", "(pointer uint64)"],
+    [[58, 65], "s4", "(pointer float)"],
+    [[79, 90], "s5", "(pointer float)"],
+    [93, "v1", "(pointer uint32)"],
+    [99, "v1", "(pointer uint32)"],
+    // op 42/50: s5 is dma-gif-packet (correctly typed, :size-assert 32),
+    // but +48/+112 here are raw byte offsets into the payload area past
+    // the packet header, not further dma-gif-packet elements; cast to a
+    // generic pointer at each (op 42 feeds quad-copy!, itself (function
+    // pointer pointer int none); op 50 feeds the s4 float-vector walk
+    // already cast below).
+    [42, "s5", "pointer"],
+    [50, "s5", "pointer"],
+    // op 65: same shape once more, s5 advances by 128 into the payload
+    // area for the third float-vector walk (the s5 range at 79-90
+    // below).
+    [65, "s5", "pointer"],
+    // op 90: same shape again, gp (the top-level packet base) advances by
+    // 176 for the final raw DMA-tag block (the v1 range at 93/99 above).
+    [90, "gp", "pointer"]
   ]
 }
