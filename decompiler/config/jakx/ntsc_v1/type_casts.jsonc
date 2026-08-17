@@ -3435,5 +3435,34 @@
   // param (offset 16) and vf-loads straight from it at op 10 (lqc2 vf5,
   // 0(v1)); the param holds a vector pointer, same as the (+ self 412)
   // destination address one op earlier which types plain "vector".
-  "(event idle garage-tool-arm)": [[[5, 11], "v1", "vector"]]
+  "(event idle garage-tool-arm)": [[[5, 11], "v1", "vector"]],
+  // (anon-function 7 credits-obs) is passed to search-process-tree as the
+  // callback (function process-tree object), so arg0 (a0) is a
+  // process-tree, not the generic object the decompiler infers locally
+  // from the raw (l.wu (+ a0 -4)) type-tag read.
+  "(anon-function 7 credits-obs)": [[[0, 3], "a0", "process-tree"]],
+  // (code running end-credits-character-viewer) is parked as asm
+  // (hacks.jsonc, blocked by the undeclared traffic-object-spawn-params
+  // struct), so no type_casts entry applies to it; the net-driver,
+  // lobby-menu-manager and *net-drivers*/*credits-chars* type fixes it
+  // needed on the way there are still live in all-types.gc and may help
+  // other objects in the corpus.
+  "(code idle hirez-viewer)": [
+    [[11, 13], "v1", "art-joint-anim"],
+    [[32, 34], "v1", "art-joint-anim"]
+  ],
+  // activate-end-credits-proc: *end-credits-proc* is a handle-typed
+  // global; storing an 8-byte handle into it needs the loaded symbol
+  // value treated as a pointer to its own slot, not a bare handle value,
+  // for the s.d! store to resolve.
+  "activate-end-credits-proc": [[[34, 36], "a0", "(pointer handle)"]],
+  // update-stuff: v1 and gp both hold resolved process handles (hirez-
+  // viewer's process and turntable's process); both get their root
+  // field (offset 184, the process-drawable convention) read twice to
+  // copy quaternions between them, same shape as (method 80
+  // construction-object)'s v+184 root reload.
+  "update-stuff": [
+    [[26, 34], "v1", "process-drawable"],
+    [[28, 70], "gp", "process-drawable"]
+  ]
 }

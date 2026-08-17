@@ -85,7 +85,21 @@
     // asm; retyping method 190's return without evidence would be a guess,
     // and lobby-menu-manager typing is its own campaign, out of this band's
     // scope.
-    "(method 52 garage-turntable)"
+    "(method 52 garage-turntable)",
+    // (code running end-credits-character-viewer), internal name
+    // (anon-function 6 credits-obs): asm_functions_by_name is consulted
+    // before state-handler recognition renames the function, so the
+    // internal name is the key that actually matches here, unlike
+    // type_casts/stack_structures entries which are looked up after the
+    // rename. A large (400+ op) function that decodes cleanly up through
+    // spawning an AI vehicle for the credits camera; the remaining
+    // blocker is traffic-object-spawn-params, a 104-byte struct
+    // (mem-clear!'d then hand-filled field by field before vehicle-spawn)
+    // that is not declared anywhere in all-types.gc and belongs to the
+    // vehicle-spawn subsystem, not this band. Parked as asm; referenced
+    // only through the state machinery (defstate's own :code slot),
+    // never embedded inline as data, so parking is safe.
+    "(anon-function 6 credits-obs)"
   ],
   // these functions use pairs and the decompiler
   // will be less picky about types related to pairs.

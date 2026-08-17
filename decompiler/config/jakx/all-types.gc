@@ -55438,8 +55438,19 @@
 (define-extern *prebuilt-ai-vehicles* (array prebuilt-ai-vehicle))
 (define-extern *net-vehicles* (array net-vehicle))
 (define-extern find-vehicle-info (function symbol net-vehicle))
-;; (define-extern find-prebuilt-ai-vehicle function)
-;; (define-extern *net-drivers* array)
+;; credits-obs's only call site passes a single symbol (a level name);
+;; the result is #f-checked then read as a small struct (byte at offset
+;; 4, a handle at offset 8), so it is a real object, not none (support-
+;; level: arg count and type proven by the call site, return type is the
+;; conservative object supertype since the concrete struct is not
+;; declared anywhere in this band and this function is not defined in
+;; this object).
+(define-extern find-prebuilt-ai-vehicle (function symbol object))
+;; *net-drivers* is walked as an array of pointers indexed by (sll idx 2),
+;; each element read at offset 12; matches (array net-driver). Wins over
+;; the weaker provisional-extern-sweep entry below (object), which is now
+;; commented out to avoid a redefinition.
+(define-extern *net-drivers* (array net-driver))
 ;; (define-extern get-vehicle-name function)
 ;; (define-extern *protect-vehicle-slot-1* object)
 (define-extern protect-vehicle-slot-1 (function symbol none))
@@ -58351,7 +58362,9 @@
    (state-time                 uint64    :offset-assert 336)
    (has-driver?                symbol  2 :offset-assert 344)
    (car-part-type-selected     uint8     :offset-assert 352)
-   (cam-string                 basic     :offset-assert 356)
+   ;; retyped basic -> string: credits-obs (anon-function 6) copies
+   ;; "camera-71" into it via copy-string<-string(string string) string.
+   (cam-string                 string    :offset-assert 356)
    (driver-was-taken?          basic     :offset-assert 360)
    (interpolate-camera?        basic     :offset-assert 364)
    (last-selected-human-count  int8      :offset-assert 368)
@@ -60515,7 +60528,13 @@
 ;; (define-extern *waiting-for-lock* object)
 ;; (define-extern *net-world-entity-hash* object)
 ;; (define-extern set-net-task-mask function)
-;; (define-extern convert-load-parts-to-car-info function)
+;; credits-obs's only call site passes *default-vehicle-load-parts* and a
+;; pointer into *car-level-array*, both currently generic object
+;; themselves; typed conservatively as two object args returning object
+;; (support-level: arg count proven by the call site, exact types not
+;; resolved since neither arg's own type nor this function's body is
+;; defined in this band).
+(define-extern convert-load-parts-to-car-info (function object object object))
 ;; (define-extern convert-car-info-to-load-parts function)
 ;; (define-extern cleanup-at-game-end function)
 ;; (define-extern check-start-load function)
@@ -62158,7 +62177,13 @@
 (define-extern *car-appearance-hack* int)
 (define-extern *car-info-default* (pointer uint32))
 ;; (define-extern vehicle-init-by-other function) ;; (function int traffic-object-spawn-params object :behavior vehicle)
-;; (define-extern vehicle-idx-from-level-name function)
+;; credits-obs's only call site passes a single symbol (a level name) and
+;; discards no further use of the result within that scope; "idx" in the
+;; name and the sibling car-type-from-level-name (function symbol
+;; vehicle-type) support an int return (support-level: arg count and type
+;; proven by the call site, return type inferred from naming, not from a
+;; body decode since this function is not defined in this object).
+(define-extern vehicle-idx-from-level-name (function symbol int))
 ;; (define-extern vehicle-in-level? function)
 ;; (define-extern vehicle-spawn function) ;; (function vehicle-type traffic-object-spawn-params process-drawable)
 ;; og:preserve-this left commented rather than landed: target-standard-event-handler's
@@ -78165,10 +78190,13 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep)
+;; resurrected from the dead block above (dead-type sweep); id retyped
+;; sound-id -> symbol: hirez-viewer-init-by-other stores arg1 straight into
+;; it, and spawn-hirez-viewer's only call site (credits-obs) passes #t
+;; there, a literal symbol.
 (deftype hirez-viewer (process-drawable)
   ((char    credits-char  :offset-assert 248) ;; museum-char
-   (id      sound-id      :offset-assert 252) ;; guessed by decompiler
+   (id      symbol        :offset-assert 252)
    (credits symbol        :offset-assert 256) ;; guessed by decompiler
    )
   :method-count-assert 51
@@ -78202,24 +78230,24 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced 17->23)
+;; char-viewer retyped uint64 -> handle: (anon-function 10 credits-obs)
+;; reads it and validity-checks it with the pid-compare and
+;; process-extraction idiom before send-event 'finish, the canonical
+;; handle pattern.
+;; method-9/state-16/method-11/12/13/14 all removed: the top-level's own
+;; type-new call is ground truth for this type's real shape,
+;; (type-new 'end-credits-proc process #x1100100098): flag 0x11 = 17
+;; methods, matching process's inherited 15 plus exactly two new slots.
+;; The only method-set! calls anywhere in this object are slot 3
+;; (inspect) and slots 15/16 (running, die); no method-set! targets 9,
+;; 11, 12, 13 or 14 at all, so those six declared placeholders were pure
+;; invention with zero evidence, not overrides or real additions.
 (deftype end-credits-proc (process)
-  ((char-viewer uint64  :offset-assert 144)
+  ((char-viewer handle  :offset-assert 144)
    )
-  :method-count-assert 23
+  :method-count-assert 17
   :size-assert         #x98
-  :flag-assert         #x1700100098
-  (:methods
-    (end-credits-proc-method-9 () none) ;; 9
-    )
-  (:state-methods
-    end-credits-proc-state-16 ;; 16
-    )
-  (:methods
-    (end-credits-proc-method-11 () none) ;; 11
-    (end-credits-proc-method-12 () none) ;; 12
-    (end-credits-proc-method-13 () none) ;; 13
-    (end-credits-proc-method-14 () none) ;; 14
-    )
+  :flag-assert         #x1100100098
   (:state-methods
     running ;; 15
     die ;; 16
@@ -78255,30 +78283,33 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced 17->23)
+;; hirez-viewer/vehicle/turntable-handle retyped uint64 -> handle: (method
+;; 10 deactivate) reads turntable-handle and validity-checks it with the
+;; pid-compare and process-extraction idiom before send-event 'no-pad, the
+;; canonical handle pattern (same shape as spar-lighthouse-light's
+;; part-tracker); the sibling fields share the same naming and size and
+;; are presumed the same handle shape.
+;; method-9/state-16/method-11/12/13/14 all removed: the top-level's own
+;; type-new call is ground truth, (type-new 'end-credits-character-viewer
+;; process #x11003000b8): flag 0x11 = 17 methods, matching process's
+;; inherited 15 plus exactly two new slots. The only method-set! calls
+;; anywhere in this object are slot 3 (inspect), slot 10 (deactivate,
+;; overriding an inherited process slot, already landed as (defmethod
+;; deactivate ...) with no fresh declaration needed here) and slots 15/16
+;; (running, die); no method-set! targets 9, 11, 12, 13 or 14, so those
+;; six declared placeholders were pure invention with zero evidence.
 (deftype end-credits-character-viewer (process)
-  ((hirez-viewer     uint64        :offset-assert 144)
-   (vehicle          uint64        :offset-assert 152)
-   (turntable-handle uint64        :offset-assert 160)
+  ((hirez-viewer     handle        :offset-assert 144)
+   (vehicle          handle        :offset-assert 152)
+   (turntable-handle handle        :offset-assert 160)
    (last-up-time     int32         :offset-assert 168)
    (finish           basic         :offset-assert 172)
    (anim-ending      basic         :offset-assert 176)
    (current-char     credits-char  :offset-assert 180)
    )
-  :method-count-assert 23
+  :method-count-assert 17
   :size-assert         #xb8
-  :flag-assert         #x17003000b8
-  (:methods
-    (end-credits-character-viewer-method-9 () none) ;; 9
-    )
-  (:state-methods
-    end-credits-character-viewer-state-16 ;; 16
-    )
-  (:methods
-    (end-credits-character-viewer-method-11 () none) ;; 11
-    (end-credits-character-viewer-method-12 () none) ;; 12
-    (end-credits-character-viewer-method-13 () none) ;; 13
-    (end-credits-character-viewer-method-14 () none) ;; 14
-    )
+  :flag-assert         #x11003000b8
   (:state-methods
     running ;; 15
     die ;; 16
@@ -78286,14 +78317,52 @@
   )
 
 
-;; (define-extern *credits-chars* array)
-;; (define-extern hirez-viewer-init-by-other function) ;; (function museum-char symbol symbol object :behavior hirez-viewer)
-;; (define-extern spawn-hirez-viewer function) ;; (function museum-char symbol symbol handle)
-;; (define-extern draw-end-credits function) ;; (function level float symbol)
-;; (define-extern end-credits-character-viewer-init-by-other function)
-;; (define-extern update-stuff function)
-;; (define-extern end-credits-proc-init-by-other function)
-;; (define-extern activate-end-credits-proc function)
+;; *credits-chars* is walked as an array of pointers indexed by (sll idx 2),
+;; each element read at offset 12 (credits-char's own "scale" field
+;; offset), matching (array credits-char); wins over the weaker
+;; provisional-extern-sweep entry below (object), which is now commented
+;; out to avoid a redefinition.
+(define-extern *credits-chars* (array credits-char))
+;; hirez-viewer-init-by-other: the trailing hint claimed a third symbol arg,
+;; but the body only ever reads a0/a1 (stored to self's own char/id fields,
+;; offsets 248/252); no a2 read anywhere. spawn-hirez-viewer's only call
+;; site (credits-obs) passes credits-char, #t (symbol) and self (process),
+;; forwarding only the first two to this function; return type kept as the
+;; common init-by-other convention (compare part-tracker-init).
+(define-extern hirez-viewer-init-by-other (function credits-char symbol object :behavior hirez-viewer))
+;; spawn-hirez-viewer: forwards its own arg0/arg1 to
+;; hirez-viewer-init-by-other via run-function-in-process (matching its
+;; corrected two-arg signature above); arg2 is passed as the spawn's own
+;; a1 (process-spawn's :to/target-pool argument, the caller's own self at
+;; the only call site), and returns a packed pid/pointer handle (the
+;; standard ppointer->handle idiom).
+(define-extern spawn-hirez-viewer (function credits-char symbol process handle))
+;; draw-end-credits: arg1 (s4) is passed raw into mtc1, confirmed float;
+;; return is #f on every path, confirmed symbol; arg0 (gp) is dereferenced
+;; for its type then called through a vtable slot, consistent with the
+;; hinted level type (support-level: the vtable call proves gp is a real
+;; object with methods, not specifically level, but nothing here
+;; contradicts the hint).
+(define-extern draw-end-credits (function level float symbol))
+;; end-credits-character-viewer-init-by-other: no a0/a1 read anywhere in
+;; the body, only self (s6) fields set and enter-state called; zero args.
+(define-extern end-credits-character-viewer-init-by-other (function object :behavior end-credits-character-viewer))
+;; update-stuff: no a0/a1 read anywhere, only self (s6) fields read/set;
+;; zero args, tail sets v0 to 0 and returns, the none-return convention.
+;; Reads self's hirez-viewer (offset 144) and turntable-handle (offset
+;; 160) fields with the handle validity-check idiom, both fields declared
+;; on end-credits-character-viewer, so self is that type.
+(define-extern update-stuff (function none :behavior end-credits-character-viewer))
+;; end-credits-proc-init-by-other: no a0/a1 read anywhere, only self (s6)
+;; fields set and enter-state called; zero args.
+(define-extern end-credits-proc-init-by-other (function object :behavior end-credits-proc))
+;; activate-end-credits-proc: no a0/a1 read anywhere (only globals read);
+;; spawns end-credits-proc with no extra init args (run-function-in-process
+;; called with just self, no forwarded arguments), builds a packed
+;; pid/pointer handle and stores it into *end-credits-proc*, but the tail
+;; explicitly sets v0 to 0 and returns that, not the handle: none, not
+;; handle.
+(define-extern activate-end-credits-proc (function none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; kras-effects                   ;;
@@ -83361,7 +83430,7 @@
 ;; add! (method 9, signature (_type_ sprite-glow-data) none). sprite-glow-data's own
 ;; size-assert is #x40 (64 bytes), matching the quad-copy! count exactly.
 (define-extern *construction-glow-template* sprite-glow-data)
-(define-extern *credits-chars* object) ;; provisional: call-site evidence only
+;; (define-extern *credits-chars* object) ;; superseded: the real (array credits-char)-typed extern is declared above in the credits-obs section
 (define-extern *ctf-blue-base* object) ;; provisional: call-site evidence only
 (define-extern *ctf-flag* object) ;; provisional: call-site evidence only
 (define-extern *ctf-red-base* object) ;; provisional: call-site evidence only
@@ -83480,7 +83549,11 @@
 (define-extern *eco-nearby-ct* object) ;; provisional: call-site evidence only
 (define-extern *edit-stored-network-account* object) ;; provisional: call-site evidence only
 (define-extern *edit-stored-network-account-idx* object) ;; provisional: call-site evidence only
-(define-extern *end-credits-proc* object) ;; provisional: call-site evidence only
+;; activate-end-credits-proc builds a packed pid/pointer handle (the
+;; standard ppointer->handle idiom) and stores it here via s.d! (a full
+;; 64-bit store), the same handle-holding shape as end-credits-character-
+;; viewer's hirez-viewer/vehicle/turntable-handle fields.
+(define-extern *end-credits-proc* handle)
 (define-extern *engine-sprite-list* object) ;; provisional: call-site evidence only
 (define-extern *enter-pw-acct-name* object) ;; provisional: call-site evidence only
 (define-extern *expand-buf-number* object) ;; provisional: call-site evidence only
@@ -83858,7 +83931,7 @@
 ;; nav-control siblings (nav rung), fixing the later-weaker duplicate here.
 (define-extern *net-clan-ladder-stats-info-array* object) ;; provisional: call-site evidence only
 (define-extern *net-colarb-last-reqs* object) ;; provisional: call-site evidence only
-(define-extern *net-drivers* object) ;; provisional: call-site evidence only
+;; (define-extern *net-drivers* object) ;; superseded: the real (array net-driver)-typed extern is declared above near net-driver's own section
 ;; hud-and-levels-misc rung: retyped from object to net-game-mgr, matching
 ;; the already-declared deftype (net-game-mgr, 80 methods). (method 14
 ;; hud-text-effect-sound) dispatches virtual method 45 on it
