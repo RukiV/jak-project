@@ -42308,10 +42308,14 @@
 
 (define-extern *shadow-vu1-data* shadow-vu1-data) ;; 
 (define-extern shadow-vu1-block vu-function) ;; 
-(define-extern shadow-vu1-add-constants (function dma-buffer int none))
-(define-extern shadow-vu1-patch-consts (function symbol int none))
+;; add-constants/init-buffer read their 3rd arg at offset 176 (placement 180, inside
+;; the perspective matrix, +4 basic-tag corrected), matching the math-camera arg
+;; shadow-vu1-add-matrix already declares just below; patch-consts's 3rd arg is a
+;; second shift-by-32 int index into *shadow-globals*, not a math-camera.
+(define-extern shadow-vu1-add-constants (function dma-buffer int math-camera none))
+(define-extern shadow-vu1-patch-consts (function symbol int int none))
 (define-extern shadow-vu1-add-matrix (function dma-buffer math-camera none))
-(define-extern shadow-vu1-init-buffer (function dma-buffer int none))
+(define-extern shadow-vu1-init-buffer (function dma-buffer int math-camera none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; warp                           ;;
