@@ -14378,7 +14378,8 @@
   :size-assert         #x20
   :flag-assert         #xd00000020
   (:methods
-    (game-text-info-method-9 (_type_ object object) none) ;; 9 ;; (lookup-text! (_type_ object object) string)
+    ;; og:preserve-this net-hud rung: see the matching comment in goal_src's text-h.gc
+    (game-text-info-method-9 (_type_ object object) string) ;; 9 ;; (lookup-text! (_type_ object object) string)
     (game-text-info-method-10 (_type_ object object) none) ;; 10
     (game-text-info-method-11 (_type_ object) none) ;; 11
     (game-text-info-method-12 (_type_ object object) none) ;; 12
@@ -39678,10 +39679,13 @@
     (hud-method-23 () none) ;; 23 ;; (hud-method-23 (_type_) none)
     (hud-method-24 (_type_) none) ;; 24 ;; (check-ready-and-maybe-show (_type_) symbol)
     (hud-method-25 (_type_) none) ;; 25 ;; (update-value-callback (_type_) none)
-    (hud-method-26 () none) ;; 26 ;; (alloc-string-if-needed (_type_ int) none)
-    (hud-method-27 () none) ;; 27
+    ;; og:preserve-this net-hud rung: see the matching comment in goal_src's hud-h.gc
+    (hud-method-26 (_type_) none) ;; 26
+    ;; og:preserve-this net-hud rung: see the matching comment in goal_src's hud-h.gc
+    (hud-method-27 (_type_ object object object object) none) ;; 27
     (hud-method-28 () none) ;; 28
-    (hud-method-29 (_type_ object) none) ;; 29
+    ;; og:preserve-this net-hud rung: see the matching comment in goal_src's hud-h.gc
+    (hud-method-29 (_type_ object object) none) ;; 29
     )
   )
 
@@ -66476,40 +66480,12 @@
 ;; net-hud                        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
-(deftype in-game-hud (hud)
-  ((real-items           basic  :offset-assert 6364)
-   (items                basic  :offset-assert 6368)
-   (manager              basic  :offset-assert 6372)
-   (inited-strings-count int32  :offset-assert 6376)
-   )
-  :method-count-assert 33
-  :size-assert         #x18ec
-  :flag-assert         #x21186018ec
-  (:methods
-    (in-game-hud-method-30 () none) ;; 30
-    (in-game-hud-method-31 () none) ;; 31
-    (in-game-hud-method-32 () none) ;; 32
-    )
-  )
-|#
-;; resurrected from the dead block above (dead-type sweep)
-(deftype in-game-hud (hud)
-  ((real-items           basic  :offset-assert 6364)
-   (items                basic  :offset-assert 6368)
-   (manager              basic  :offset-assert 6372)
-   (inited-strings-count int32  :offset-assert 6376)
-   )
-  :method-count-assert 33
-  :size-assert         #x18ec
-  :flag-assert         #x21186018ec
-  (:methods
-    (in-game-hud-method-30 () none) ;; 30
-    (in-game-hud-method-31 (_type_) none) ;; 31
-    (in-game-hud-method-32 () none) ;; 32
-    )
-  )
-
+;; og:preserve-this net-hud rung: in-game-hud's own deftype was moved down past
+;; hud-item, hud-manager and hud-item-group's deftypes (originally declared right
+;; here, first in this section) because its fields now reference those types
+;; directly ((array hud-item), hud-manager) and the config parser resolves field
+;; types in file order, not by forward declaration; see in-game-hud's deftype
+;; after hud-item-group below for the dead block and the fix rationale.
 
 #|
 (deftype hud-item (basic)
@@ -66553,23 +66529,50 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this net-hud rung: effect retyped basic -> hud-effect: (method 9
+;; hud-item) null-checks the field then dispatches vtable+64 on it passing the
+;; owning hud-item as an extra arg, resolving to hud-effect-method-12's own
+;; (_type_ object) signature (already landed); (method 23 hud-item-group)'s
+;; broadcast dispatches vtable+68 on the same field with the item's own forwarded
+;; 4-arg message tuple, resolving to hud-effect-method-13 (already landed
+;; (_type_ object object object object)). parent retyped basic -> hud-item:
+;; methods 12/13/14 walk (-> v1 parent) in a loop re-reading (-> v1 flags) each
+;; iteration, which only resolves if parent stays self-typed across the walk (a
+;; parent/child hud-item chain); method 15's setter also stores its object arg
+;; straight into it with no cast beyond the field's own type. Method 11 gains
+;; _type_: (method 11 hud-item-group)'s override reads self (gp) to index its own
+;; items array before falling back to hud-item-method-11's trivial base body,
+;; failing register dependency on a0 with the old () signature (arity sweep, same
+;; class the hud wave already fixed on hud-effect/hud-manager). Method 23 grows to
+;; the 4-arg message signature: (method 23 hud-item-group)'s own override receives
+;; (self, arg0..arg3) via a1/a2/a3/t0, broadcasts them unchanged to each child's
+;; own method 23, then forwards them again to hud-item-method-23 itself via
+;; call-parent-method; hud-item-method-23's own body only reads self explicitly
+;; but implicitly forwards its own incoming a1/a2/a3/t0 straight into the effect
+;; field's method-13 dispatch, which only type-checks against hud-effect-method-13
+;; if hud-item-method-23 itself declares the matching 4-arg tuple. Scoped decode,
+;; net-hud_ir2.asm, this rung.
+;; forward-reference breaker: hud-item -> hud-effect (mutual reference: hud-effect's
+;; own item field points back to hud-item, and hud-effect's full deftype is declared
+;; further down this file)
+(declare-type hud-effect basic)
 (deftype hud-item (basic)
-  ((alpha           uint8   :offset-assert 4)
-   (real-alpha      uint8   :offset-assert 5)
-   (position-x      int16   :offset-assert 6)
-   (position-y      int16   :offset-assert 8)
-   (real-position-x int16   :offset-assert 10)
-   (real-position-y int16   :offset-assert 12)
-   (width           int16   :offset-assert 14)
-   (height          int16   :offset-assert 16)
-   (real-width      int16   :offset-assert 18)
-   (real-height     int16   :offset-assert 20)
-   (zval            uint16  :offset-assert 22)
-   (real-scale      int16   :offset-assert 24)
-   (scale           int16   :offset-assert 26)
-   (flags           int32   :offset-assert 28)
-   (effect          basic   :offset-assert 32)
-   (parent          basic   :offset-assert 36)
+  ((alpha           uint8      :offset-assert 4)
+   (real-alpha      uint8      :offset-assert 5)
+   (position-x      int16      :offset-assert 6)
+   (position-y      int16      :offset-assert 8)
+   (real-position-x int16      :offset-assert 10)
+   (real-position-y int16      :offset-assert 12)
+   (width           int16      :offset-assert 14)
+   (height          int16      :offset-assert 16)
+   (real-width      int16      :offset-assert 18)
+   (real-height     int16      :offset-assert 20)
+   (zval            uint16     :offset-assert 22)
+   (real-scale      int16      :offset-assert 24)
+   (scale           int16      :offset-assert 26)
+   (flags           int32      :offset-assert 28)
+   (effect          hud-effect :offset-assert 32)
+   (parent          hud-item   :offset-assert 36)
    )
   :method-count-assert 24
   :size-assert         #x28
@@ -66577,19 +66580,19 @@
   (:methods
     (hud-item-method-9 (_type_) none) ;; 9
     (hud-item-method-10 (_type_) none) ;; 10
-    (hud-item-method-11 () none) ;; 11
+    (hud-item-method-11 (_type_) none) ;; 11
     (hud-item-method-12 (_type_) none) ;; 12
     (hud-item-method-13 (_type_) none) ;; 13
     (hud-item-method-14 (_type_) none) ;; 14
     (hud-item-method-15 (_type_ object) none) ;; 15
     (hud-item-method-16 () none) ;; 16
-    (hud-item-method-17 (_type_ object) none) ;; 17
-    (hud-item-method-18 (_type_ object object object) none) ;; 18
+    (hud-item-method-17 (_type_ float) none) ;; 17 ;; og:preserve-this net-hud rung: arg0 retyped object -> float; body converts it straight into an fpr and multiplies it against a scale factor with no other use, flagged "Floating point math attempted on invalid types" with the old object typing (net-hud_ir2.asm, this rung)
+    (hud-item-method-18 (_type_ hud-item vector float) none) ;; 18 ;; og:preserve-this net-hud rung: arg0 retyped object -> hud-item (body reads its real-position-x, machine+4=10, and real-width, machine+4=18); arg1 retyped object -> vector, since (method 18 hud-item-group)'s own override builds it as a 4-sequential-float stack scratch buffer (position-x/position-y/width/height cast to float) before passing it through; arg2 retyped object -> float, converted straight to an fpr and multiplied with no other use (net-hud_ir2.asm, this rung)
     (hud-item-method-19 (_type_) none) ;; 19
-    (hud-item-method-20 (_type_ object) none) ;; 20
+    (hud-item-method-20 (_type_ float) none) ;; 20 ;; og:preserve-this net-hud rung: arg0 retyped object -> float; body converts it straight into an fpr and multiplies it against 255.0 to compute real-alpha, flagged "Floating point math attempted on invalid types" with the old object typing (net-hud_ir2.asm, this rung)
     (hud-item-method-21 (_type_) none) ;; 21
     (hud-item-method-22 (_type_) none) ;; 22
-    (hud-item-method-23 (_type_) none) ;; 23
+    (hud-item-method-23 (_type_ object object object object) none) ;; 23
     )
   )
 
@@ -66671,15 +66674,25 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this net-hud rung, arity sweep: basic-manager's overrides of 9/10
+;; read self (a0) unconditionally on entry (method 9 stores into self+0, method 10
+;; loads self+0/self+4), failing register dependency with the old () signature;
+;; the same class the hud wave already fixed on hud-effect. Method 11 grows to a
+;; 4-arg message tuple: basic-manager's override reads self (a0), compares arg2
+;; (a3) against the symbol 'kill-hud and 'kill-hud-instant, and dereferences arg3
+;; (t0) as a data pointer (l.d +16), the identical message-dispatch shape already
+;; landed for hud-effect-method-13; in-game-hud-method-27 forwards its own
+;; incoming 4-arg tuple straight into this same slot on its "items" field.
+;; Scoped decode, net-hud_ir2.asm, this rung.
 (deftype hud-manager (basic)
   ()
   :method-count-assert 12
   :size-assert         #x4
   :flag-assert         #xc00000004
   (:methods
-    (hud-manager-method-9 () none) ;; 9
-    (hud-manager-method-10 () none) ;; 10
-    (hud-manager-method-11 () none) ;; 11
+    (hud-manager-method-9 (_type_) none) ;; 9
+    (hud-manager-method-10 (_type_) none) ;; 10
+    (hud-manager-method-11 (_type_ object object symbol event-message-block) none) ;; 11 ;; og:preserve-this net-hud rung: arg2 retyped object -> symbol (basic-manager's override compares it directly against 'kill-hud/'kill-hud-instant); arg3 retyped object -> event-message-block (dereferenced at +16 as a d-word, exactly event-message-block's own param[0] slot). Scoped decode, net-hud_ir2.asm, this rung.
     )
   )
 
@@ -66768,11 +66781,11 @@
   :size-assert         #x3c
   :flag-assert         #x1d0000003c
   (:methods
-    (hud-item-string-method-24 (_type_) none) ;; 24
+    (hud-item-string-method-24 (_type_ object) none) ;; 24 ;; og:preserve-this net-hud rung: reads a1 as an incoming source string and forwards it straight into copy-string<-string with no other setup, the same shape as method-25's arg0; the old self-only () signature flagged "may read a1" (net-hud_ir2.asm, this rung)
     (hud-item-string-method-25 (_type_ object) none) ;; 25
     (hud-item-string-method-26 (_type_ object) none) ;; 26
     (hud-item-string-method-27 (_type_ object) none) ;; 27
-    (hud-item-string-method-28 () none) ;; 28
+    (hud-item-string-method-28 (_type_) none) ;; 28 ;; og:preserve-this net-hud rung: gains _type_; the bare () signature makes the decompiler pretty-print a self-less (defmethod NAME () ...) form that GOALC's real defmethod macro rejects ("Method type must be a symbol, got ()"), proven by offline-test's own scoped compile of the raw decompile; the method's only call site (from hud-item-string's own method-9 override, via method-of-object) never sets a1+, so self-only stays correct, just named (net-hud_ir2.asm, this rung)
     )
   )
 
@@ -66838,12 +66851,82 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this net-hud rung: items retyped basic -> (array hud-item), mirroring
+;; hud-effect-group's own items fix already landed. Every override (methods
+;; 9,10,11,12,13,14,15,17,18,19,20,21,22,23) reads items+0 as a length (l.w) then
+;; indexes items+12+4*i for a per-element pointer, the standard boxed (array T)
+;; layout, dispatching each element's own type-tag method for a "broadcast to
+;; children" recursion; the elements' own flags checks land at hud-item's own
+;; field offsets (flags 28, etc), proving polymorphic hud-item elements. Scoped
+;; decode, net-hud_ir2.asm, this rung.
 (deftype hud-item-group (hud-item)
-  ((items basic  :offset-assert 40)
+  ((items (array hud-item)  :offset-assert 40)
    )
   :method-count-assert 24
   :size-assert         #x2c
   :flag-assert         #x180000002c
+  )
+
+
+#|
+(deftype in-game-hud (hud)
+  ((real-items           basic  :offset-assert 6364)
+   (items                basic  :offset-assert 6368)
+   (manager              basic  :offset-assert 6372)
+   (inited-strings-count int32  :offset-assert 6376)
+   )
+  :method-count-assert 33
+  :size-assert         #x18ec
+  :flag-assert         #x21186018ec
+  (:methods
+    (in-game-hud-method-30 () none) ;; 30
+    (in-game-hud-method-31 () none) ;; 31
+    (in-game-hud-method-32 () none) ;; 32
+    )
+  )
+|#
+;; resurrected from the dead block above (dead-type sweep); moved past hud-item,
+;; hud-manager and hud-item-group (see the net-hud section header above) since
+;; its own fields now reference those types directly and the config parser
+;; resolves field types in file order.
+;; og:preserve-this net-hud rung: the +4 offset trap applies to this basic-derived
+;; chain (hud extends process, ultimately basic) same as hud-item, proven by
+;; (method 3 in-game-hud)'s own labeled debug print, which reads machine offsets
+;; 6360/6364/6368/6372 in strict sequence under format strings literally reading
+;; "real-items", "items", "manager", "inited-strings-count" (this worktree's own
+;; net-hud_ir2.asm, this rung), i.e. machine+4 = declared for every field here.
+;; items retyped basic -> (array hud-item): methods 7 (relocate), 27's main loop
+;; and 31 all iterate machine offset 6364 (declared 6368, "items") with the
+;; length-header-at-0, element-at-12+4*i layout, each element's flags checks
+;; landing at hud-item's own field offsets. manager retyped basic -> hud-manager:
+;; method 24 dispatches vtable+56 (method 10, self-only, matches
+;; hud-manager-method-10) and method 27's tail dispatches vtable+60 (method 11,
+;; forwarding the same 4-arg message tuple, matching hud-manager-method-11) on
+;; machine offset 6368 (declared 6372, "manager"), neither of which fit
+;; hud-item-group's own method 10/11 (confirmed self-only, no forwarding, from
+;; this same corpus). real-items keeps (array hud-item): only (method 3)'s print
+;; touches it (machine 6360, declared 6364), no independent contradicting use in
+;; this corpus, and the name parallels "items" closely enough that the same
+;; element type is the least-guess choice. inited-strings-count keeps int32:
+;; method 26 does a plain integer max (slt/movn) against machine offset 6372
+;; (declared 6376) and stores the result back with a raw s.w!, never dereferencing
+;; it as a pointer. Method 32 gains its real signature: in-game-hud-method-31's
+;; broadcast loop calls (method 32 self) on itself (not the item) passing the
+;; current item as arg0 (a1) and a stack scratch buffer as arg1 (a2).
+(deftype in-game-hud (hud)
+  ((real-items           (array hud-item)  :offset-assert 6364)
+   (items                (array hud-item)  :offset-assert 6368)
+   (manager              hud-manager       :offset-assert 6372)
+   (inited-strings-count int32             :offset-assert 6376)
+   )
+  :method-count-assert 33
+  :size-assert         #x18ec
+  :flag-assert         #x21186018ec
+  (:methods
+    (in-game-hud-method-30 () none) ;; 30
+    (in-game-hud-method-31 (_type_) none) ;; 31
+    (in-game-hud-method-32 (_type_ hud-item vector) none) ;; 32 ;; og:preserve-this net-hud rung: arg0 retyped object -> hud-item (body reads its flags field, machine+4=28); arg1 retyped object -> vector after the generated source still showed 24 embedded "Failed store: (s.f! arg1 fN)" errors under object typing, one per sequential float write at offsets 0/4/8/12 across six branches (net-hud_ir2.asm, this rung)
+    )
   )
 
 
@@ -82901,7 +82984,14 @@
 (define-extern *cty-attack-controller* object) ;; provisional: call-site evidence only
 (define-extern *cty-faction-manager* object) ;; provisional: call-site evidence only
 (define-extern *current-game-list-anim* object) ;; provisional: call-site evidence only
-(define-extern *current-hud* basic)
+;; og:preserve-this net-hud rung: retyped basic -> in-game-hud. net-hud's own
+;; (method 27 in-game-hud), (method 24 in-game-hud) and (method 26 in-game-hud)
+;; each self-assign it to their own a0 (the in-game-hud self) around a save and
+;; restore of the previous value; basic-manager-method-9 loads it and dispatches
+;; vtable+124 (method 27, resolved once retyped) with args matching
+;; in-game-hud-method-27's own 4-arg message signature. Scoped decode,
+;; net-hud_ir2.asm, this rung.
+(define-extern *current-hud* in-game-hud)
 (define-extern *current-room-name* object) ;; provisional: call-site evidence only
 ;; *curve-toad-linear-up-red*: wvehicle-weapons-part top-level-login stores
 ;; a curve2d-piecewise-typed call result into it, then immediately reads it
@@ -82950,10 +83040,22 @@
 (define-extern *debug-vehicle-work* object) ;; provisional: call-site evidence only
 (define-extern *decoder-queue-3-buf* object) ;; provisional: call-site evidence only
 (define-extern *default-continue* continue-point)
+;; og:preserve-this net-hud rung: net-hud's top-level-login points it at a static
+;; data label with a plain lui/ori address load (no method-new call). hud-box (32
+;; bytes) does not fit the static data actually present at that label
+;; ("Structure type hud-box takes up 32 bytes and doesn't fit", this worktree's
+;; scoped decode); hud-region (16 bytes, a plain offset/width/height float rect)
+;; does. Scoped decode, net-hud_ir2.asm, this rung.
+(define-extern *default-box* hud-region)
 (define-extern *default-nav-mesh* object) ;; provisional: call-site evidence only
 (define-extern *default-vehicle-load-parts* object) ;; provisional: call-site evidence only
 (define-extern *delete-buddy-confirmation* object) ;; provisional: call-site evidence only
 (define-extern *des-cactus-a-explode-params* object) ;; provisional: call-site evidence only
+;; og:preserve-this net-hud rung: net-hud's top-level-login stores #f into it in
+;; the same instruction pair as *debug-hud* (also object-typed); no other read
+;; site in this corpus, so it follows *debug-hud*'s own precedent rather than
+;; narrowing to symbol on a single write. Scoped decode, net-hud_ir2.asm.
+(define-extern *display-boxes* object)
 (define-extern *dist-cache-array* object) ;; provisional: call-site evidence only
 (define-extern *dm-cam-mode-interpolation* object) ;; provisional: call-site evidence only
 (define-extern *dma-block-lists* object) ;; provisional: call-site evidence only

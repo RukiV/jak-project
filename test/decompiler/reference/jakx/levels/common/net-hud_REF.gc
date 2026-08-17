@@ -1,23 +1,11 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: net-hud.gc
-;; name in dgo: net-hud
-;; dgos: COMMON, GAME
-
-;; DECOMP BEGINS
-
 ;; definition for symbol *debug-hud*, type object
 (define *debug-hud* (the-as object #f))
 
 ;; definition for symbol *display-boxes*, type object
 (define *display-boxes* (the-as object #f))
-
-;; forward-reference breaker: in-game-hud -> hud-item, in-game-hud -> hud-manager
-;; (both types are declared further down this file, but in-game-hud's own fields
-;; reference them directly)
-(declare-type hud-item basic)
-(declare-type hud-manager basic)
 
 ;; definition of type in-game-hud
 (deftype in-game-hud (hud)
@@ -52,11 +40,6 @@
 
 ;; definition for symbol *current-hud*, type in-game-hud
 (define *current-hud* (the-as in-game-hud #f))
-
-;; forward-reference breaker: hud-item -> hud-effect (mutual reference: hud-effect's
-;; own item field points back to hud-item, and hud-effect's full deftype is declared
-;; further down this file)
-(declare-type hud-effect basic)
 
 ;; definition of type hud-item
 (deftype hud-item (basic)
@@ -947,7 +930,8 @@
   )
 
 ;; definition for method 28 of type hud-item-string
-(defmethod hud-item-string-method-28 ((this hud-item-string)) (hud-method-29 *current-hud* (-> *current-hud* num-strings) 128)
+(defmethod hud-item-string-method-28 ((this hud-item-string))
+  (hud-method-29 *current-hud* (-> *current-hud* num-strings) 128)
   (none)
   )
 
@@ -960,7 +944,7 @@
   (set! (-> this string) #f)
   (when (logtest? (-> this flags) 1)
     (let ((s5-0 *current-hud*))
-      ((method-of-object this hud-item-string-method-28) this)
+      (hud-item-string-method-28 this)
       (set! (-> this string) (-> s5-0 strings (-> s5-0 num-strings)))
       (+! (-> s5-0 num-strings) 1)
       (when (>= (-> s5-0 num-strings) 45)
@@ -1512,3 +1496,6 @@
     )
   (none)
   )
+
+;; failed to figure out what this is:
+0
