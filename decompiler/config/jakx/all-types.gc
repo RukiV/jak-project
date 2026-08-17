@@ -50198,9 +50198,19 @@
 ;; (define-extern hud-create-icon function) ;; (function hud int int (pointer manipy))
 ;; (define-extern hud-post function)
 ;; (define-extern hud-handler function)
-;; (define-extern hud-init-by-other function) ;; (function object :behavior hud)
-;; (define-extern set-hud-piece-position! function) ;; (function hud-sprite int int none)
-;; (define-extern set-as-offset-from! function) ;; (function hud-sprite vector4w int int none)
+;; og:preserve-this hud-follow-through rung: activated from provisional
+;; comment; the base hud :behavior init, called with no explicit args by
+;; hud-map-init-by-other and every spawn-hud-results-* callsite in this band.
+(define-extern hud-init-by-other (function object :behavior hud))
+;; og:preserve-this hud-follow-through rung: activated from a provisional
+;; comment that already carried a derived signature; (method 24 hud-map)
+;; calls it directly (hud-classes_ir2.asm) and the signature matches its own
+;; sprite-array indexing (int, int) usage.
+(define-extern set-hud-piece-position! (function hud-sprite int int none))
+;; og:preserve-this hud-follow-through rung: activated from a provisional
+;; comment that already carried a derived signature; (method 24 hud-map)
+;; calls it right after set-hud-piece-position! with the same argument shape.
+(define-extern set-as-offset-from! (function hud-sprite vector4w int int none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-classes                    ;;
@@ -50233,10 +50243,35 @@
   )
 
 
-;; (define-extern *race-map-info-array* object)
-;; (define-extern hud-map-init-by-other function)
-;; (define-extern hack-set-level-bbox function)
-;; (define-extern init-level-bbox-from-map function)
+;; og:preserve-this hud-follow-through rung: type known from the decompiler's
+;; own inferred store comment ([v1: (array race-map-info)], hud-classes_ir2.asm
+;; op 12), but its static initializer still shows as an unresolved
+;; <static-data L17> placeholder rather than a real (new 'static 'array ...)
+;; literal: race-map-info's :size-assert #x14 does not divide its own vector2
+;; sub-fields on a clean 16-byte boundary, the same boxed-array-alignment
+;; class already named for this file. Extern activated so the rest of the
+;; file's real code can typecheck; the static array literal itself is left
+;; unresolved (deferred, not invented) and blocks this file's own top-level
+;; from compiling until it is hand-derived from L17's raw words.
+(define-extern *race-map-info-array* (array race-map-info))
+;; og:preserve-this hud-follow-through rung: activated from provisional
+;; comment. Stores its two float args (a0, a1) into hud-map's own x/y fields
+;; (machine offsets 6360/6364, declared 6364/6368 per the +4 basic-offset
+;; convention) with no second process arg threaded through, matching the
+;; :behavior convention already used for hud-init-by-other and its peers.
+(define-extern hud-map-init-by-other (function float float object :behavior hud-map))
+;; og:preserve-this hud-follow-through rung: activated from provisional
+;; comment. Six float args (a0/a1/a2/a3/t0/t1, all moved via mtc1) written
+;; into *level-bounding-box*'s six float fields; v0 is zeroed at every return
+;; but no call site anywhere in this corpus reads the result, matching this
+;; corpus's standing none-return convention for unread-result procedures
+;; (accepted "Return type mismatch int vs none" class, net-hud rung).
+(define-extern hack-set-level-bbox (function float float float float float float none))
+;; og:preserve-this hud-follow-through rung: activated from provisional
+;; comment. One float arg (a0, read once via mtc1 well into the body) folded
+;; into *level-bounding-box*'s own y-min field; same unread-result none-return
+;; convention as hack-set-level-bbox above.
+(define-extern init-level-bbox-from-map (function float none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; progress                       ;;
@@ -67696,18 +67731,17 @@
   )
 
 
-;; (define-extern team-has-local-humans? function)
-;; (define-extern get-player-id-by-team function)
+(define-extern team-has-local-humans? (function object))
+(define-extern get-player-id-by-team (function object))
 ;; (define-extern *hud-slowmo* array)
 ;; (define-extern *hud-slowmo-proc* object)
 (define-extern spawn-hud-slowmo (function object))
 ;; (define-extern *hud-top-split-bar* array)
 ;; (define-extern *hud-top-split-bar-proc* object)
-;; (define-extern spawn-hud-top-split-bar function)
+(define-extern spawn-hud-top-split-bar (function object))
 ;; (define-extern *hud-side-split-bar* array)
 ;; (define-extern *hud-side-split-bar-proc* object)
-;; (define-extern spawn-hud-side-split-bar function)
-
+(define-extern spawn-hud-side-split-bar (function object))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-results                    ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -68014,30 +68048,39 @@
   )
 
 
-;; (define-extern score-is-time function)
-;; (define-extern set-stats-text function)
+(define-extern score-is-time (function object))
+(define-extern set-stats-text (function object))
 ;; (define-extern *had-gold* object)
 ;; (define-extern is-nonstandard-mode-ignore-split? function)
-;; (define-extern is-nonstandard-mode? function)
-;; (define-extern *reset-hud-results* object)
-;; (define-extern *last-game-mgr-grand-prix* object)
+(define-extern is-nonstandard-mode? (function object))
+;; og:preserve-this hud-follow-through rung: activated from provisional comment.
+;; top-level-login only ever writes #f into it ((s.w! *reset-hud-results* #f),
+;; hud-results_ir2.asm op 65); no other read/write site in this corpus reads a
+;; field off it, so the bare object typing that unblocked its sibling flags
+;; elsewhere in this file is sufficient here too.
+(define-extern *reset-hud-results* object)
+;; og:preserve-this hud-follow-through rung: activated from provisional comment.
+;; Only ever set (op 67) then read through a (the-as none ...) cast (hud-results_
+;; ir2.asm ops 190/237), the same pattern as the already-active
+;; *last-cash-game-mgr-for-player-0/1*; bare object typing applies unchanged.
+(define-extern *last-game-mgr-grand-prix* object)
 ;; (define-extern *hud-results-medal* array)
 ;; (define-extern *hud-results-medal-proc* object)
-;; (define-extern spawn-hud-results-medal function)
+(define-extern spawn-hud-results-medal (function object))
 ;; (define-extern *hud-results-view-0* array)
 ;; (define-extern *hud-results-view-0-proc* object)
-;; (define-extern spawn-hud-results-view-0 function)
+(define-extern spawn-hud-results-view-0 (function object))
 ;; (define-extern *hud-results-view-1* array)
 ;; (define-extern *hud-results-view-1-proc* object)
-;; (define-extern spawn-hud-results-view-1 function)
+(define-extern spawn-hud-results-view-1 (function object))
 ;; (define-extern *hud-results-team-view-0* array)
 ;; (define-extern *hud-results-team-view-0-proc* object)
-;; (define-extern spawn-hud-results-team-view-0 function)
+(define-extern spawn-hud-results-team-view-0 (function object))
 ;; (define-extern *hud-results-team-view-1* array)
 ;; (define-extern *hud-results-team-view-1-proc* object)
-;; (define-extern spawn-hud-results-team-view-1 function)
-;; (define-extern spawn-hud-results-team function)
-;; (define-extern spawn-hud-results function)
+(define-extern spawn-hud-results-team-view-1 (function object))
+(define-extern spawn-hud-results-team (function object))
+(define-extern spawn-hud-results (function object))
 ;; (define-extern calc-player-rank function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -68095,17 +68138,31 @@
   )
 
 
-;; (define-extern calc-grand-prix-score function)
+;; og:preserve-this hud-follow-through rung: activated from provisional
+;; comments, hud-results-grand-prix_ir2.asm evidence for each.
+;; calc-grand-prix-score: one arg, reads a byte field at offset 286 and
+;; returns a small integer score (10, 8, ...) from a lookup ladder; no call
+;; site exists in this band's scope to pin a concrete struct type, so the
+;; arg is typed as a raw byte pointer (matching the existing knet-dopen/
+;; knet-file-erase precedent for this exact "unknown struct, byte-offset
+;; read" shape) rather than object, which cannot support offset arithmetic.
+(define-extern calc-grand-prix-score (function (pointer uint8) int))
 ;; (define-extern *hud-results-grand-prix* array)
 ;; (define-extern *hud-results-grand-prix-proc* object)
-;; (define-extern spawn-hud-results-grand-prix function)
+;; spawn-hud-results-grand-prix, spawn-hud-results-grand-prix-totals and
+;; spawn-hud-results-medal-1: all zero-arg (no incoming register read before
+;; each function's own *-proc* spawn-guard check), matching this corpus's
+;; zero-arg spawn-function convention.
+(define-extern spawn-hud-results-grand-prix (function object))
 ;; (define-extern *hud-results-grand-prix-totals* array)
 ;; (define-extern *hud-results-grand-prix-totals-proc* object)
-;; (define-extern spawn-hud-results-grand-prix-totals function)
-;; (define-extern grand-prix-totals-on? function)
+(define-extern spawn-hud-results-grand-prix-totals (function object))
+;; grand-prix-totals-on?: zero-arg, returns whether
+;; *hud-results-grand-prix-totals-proc* is truthy.
+(define-extern grand-prix-totals-on? (function object))
 ;; (define-extern *hud-results-medal-1* array)
 ;; (define-extern *hud-results-medal-1-proc* object)
-;; (define-extern spawn-hud-results-medal-1 function)
+(define-extern spawn-hud-results-medal-1 (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-high-scores                ;;
@@ -68251,26 +68308,25 @@
 
 ;; (define-extern *high-scores-list* array)
 ;; (define-extern *high-scores-list-proc* object)
-;; (define-extern spawn-high-scores-list function)
-;; (define-extern spawn-high-score-hud function)
-;; (define-extern high-scores-on? function)
+(define-extern spawn-high-scores-list (function object))
+(define-extern spawn-high-score-hud (function object))
+(define-extern high-scores-on? (function object))
 ;; (define-extern *hud-background* array)
 ;; (define-extern *hud-background-proc* object)
-;; (define-extern spawn-hud-background function)
+(define-extern spawn-hud-background (function object))
 ;; (define-extern *hud-background-top-view-0* array)
 ;; (define-extern *hud-background-top-view-0-proc* object)
-;; (define-extern spawn-hud-background-top-view-0 function)
+(define-extern spawn-hud-background-top-view-0 (function object))
 ;; (define-extern *hud-background-top-view-1* array)
 ;; (define-extern *hud-background-top-view-1-proc* object)
-;; (define-extern spawn-hud-background-top-view-1 function)
+(define-extern spawn-hud-background-top-view-1 (function object))
 ;; (define-extern *hud-background-side-view-0* array)
 ;; (define-extern *hud-background-side-view-0-proc* object)
-;; (define-extern spawn-hud-background-side-view-0 function)
+(define-extern spawn-hud-background-side-view-0 (function object))
 ;; (define-extern *hud-background-side-view-1* array)
 ;; (define-extern *hud-background-side-view-1-proc* object)
-;; (define-extern spawn-hud-background-side-view-1 function)
-;; (define-extern spawn-hud-results-background function)
-
+(define-extern spawn-hud-background-side-view-1 (function object))
+(define-extern spawn-hud-results-background (function object))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-cash                       ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -68503,45 +68559,54 @@
   )
 
 
-;; (define-extern medal-uses-score? function)
-;; (define-extern get-medal-ignore-gamestate function)
-;; (define-extern settings-multiplier function)
-;; (define-extern cup-multiplier function)
-;; (define-extern medal-instead-of-place? function)
+(define-extern medal-uses-score? (function object))
+(define-extern get-medal-ignore-gamestate (function object))
+(define-extern settings-multiplier (function object))
+(define-extern cup-multiplier (function object))
+(define-extern medal-instead-of-place? (function object))
 ;; (define-extern *last-cash-game-mgr-for-player-0* object)
-;; (define-extern *last-cash-game-mgr-for-player-1* object)
+;; og:preserve-this hud-follow-through rung: activated from provisional comment,
+;; matching the already-active *last-cash-game-mgr-for-player-0* (line ~83331):
+;; identical top-level-login pattern, initialized to the same -1 sentinel
+;; (hud-cash_ir2.asm op 49), read later only through a (the-as none ...) cast
+;; (op 7838), so the sibling's bare object typing applies unchanged.
+(define-extern *last-cash-game-mgr-for-player-1* object)
 ;; (define-extern *hud-game-end-grand-prix* array)
 ;; (define-extern *hud-game-end-grand-prix-proc* object)
-;; (define-extern spawn-hud-game-end-grand-prix function)
+(define-extern spawn-hud-game-end-grand-prix (function object))
 ;; (define-extern *hud-game-end-view-0* array)
 ;; (define-extern *hud-game-end-view-0-proc* object)
-;; (define-extern spawn-hud-game-end-view-0 function)
+(define-extern spawn-hud-game-end-view-0 (function object))
 ;; (define-extern *hud-game-end-side-view-0* array)
 ;; (define-extern *hud-game-end-side-view-0-proc* object)
-;; (define-extern spawn-hud-game-end-side-view-0 function)
+(define-extern spawn-hud-game-end-side-view-0 (function object))
 ;; (define-extern *hud-game-end-top-view-0* array)
 ;; (define-extern *hud-game-end-top-view-0-proc* object)
-;; (define-extern spawn-hud-game-end-top-view-0 function)
-;; (define-extern spawn-hud-game-end function)
-;; (define-extern end-game-menu-on? function)
+(define-extern spawn-hud-game-end-top-view-0 (function object))
+(define-extern spawn-hud-game-end (function object))
+(define-extern end-game-menu-on? (function object))
 ;; (define-extern *hud-cash-stats-single* array)
 ;; (define-extern *hud-cash-stats-single-proc* object)
-;; (define-extern spawn-hud-cash-stats-single function)
+(define-extern spawn-hud-cash-stats-single (function object))
 ;; (define-extern *hud-cash-stats-top-view-0* array)
 ;; (define-extern *hud-cash-stats-top-view-0-proc* object)
-;; (define-extern spawn-hud-cash-stats-top-view-0 function)
+(define-extern spawn-hud-cash-stats-top-view-0 (function object))
 ;; (define-extern *hud-cash-stats-top-view-1* array)
 ;; (define-extern *hud-cash-stats-top-view-1-proc* object)
-;; (define-extern spawn-hud-cash-stats-top-view-1 function)
+(define-extern spawn-hud-cash-stats-top-view-1 (function object))
 ;; (define-extern *hud-cash-stats-side-view-0* array)
 ;; (define-extern *hud-cash-stats-side-view-0-proc* object)
-;; (define-extern spawn-hud-cash-stats-side-view-0 function)
+(define-extern spawn-hud-cash-stats-side-view-0 (function object))
 ;; (define-extern *hud-cash-stats-side-view-1* array)
 ;; (define-extern *hud-cash-stats-side-view-1-proc* object)
-;; (define-extern spawn-hud-cash-stats-side-view-1 function)
-;; (define-extern reset-hud-cash-time function)
-;; (define-extern spawn-hud-cash-stats function)
-;; (define-extern cash-stats-on? function)
+(define-extern spawn-hud-cash-stats-side-view-1 (function object))
+(define-extern reset-hud-cash-time (function object))
+(define-extern spawn-hud-cash-stats (function object))
+;; og:preserve-this hud-follow-through rung: activated from provisional comment.
+;; cash-stats-on? is zero-arg (hud-cash_ir2.asm, no incoming args read) and
+;; returns whichever *hud-cash-stats-*-proc* symbol is truthy, or #f; typed
+;; (function object) per the corpus's zero-arg convention.
+(define-extern cash-stats-on? (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-widgets-2                  ;;
@@ -68886,56 +68951,61 @@
 
 
 ;; (define-extern *hud-manager-death-indicator-1* hud-manager-death-indicator)
-;; (define-extern *hud-manager-death-indicator-2* hud-manager-death-indicator)
+;; og:preserve-this hud-follow-through rung: activated from provisional comment.
+;; hud-manager-death-indicator is already a landed live type (resurrected by the
+;; medius bulk field wave, above); top-level-login registers methods on this
+;; exact symbol (hud-widgets-2_ir2.asm op 79) the same way it does for its
+;; sibling *hud-manager-death-indicator-1*, so the concrete type applies here too
+;; rather than the -1 sibling's looser provisional object typing.
+(define-extern *hud-manager-death-indicator-2* hud-manager-death-indicator)
 ;; (define-extern *death-indicator-single0* array)
 ;; (define-extern *death-indicator-single0-proc* object)
-;; (define-extern spawn-death-indicator-single0 function)
+(define-extern spawn-death-indicator-single0 (function object))
 ;; (define-extern *death-indicator-single1* array)
 ;; (define-extern *death-indicator-single1-proc* object)
-;; (define-extern spawn-death-indicator-single1 function)
+(define-extern spawn-death-indicator-single1 (function object))
 ;; (define-extern *death-indicator-single2* array)
 ;; (define-extern *death-indicator-single2-proc* object)
-;; (define-extern spawn-death-indicator-single2 function)
+(define-extern spawn-death-indicator-single2 (function object))
 ;; (define-extern *death-indicator-single3* array)
 ;; (define-extern *death-indicator-single3-proc* object)
-;; (define-extern spawn-death-indicator-single3 function)
+(define-extern spawn-death-indicator-single3 (function object))
 ;; (define-extern *death-indicator-single4* array)
 ;; (define-extern *death-indicator-single4-proc* object)
-;; (define-extern spawn-death-indicator-single4 function)
-;; (define-extern spawn-unused-death-indicator-single function)
+(define-extern spawn-death-indicator-single4 (function object))
+(define-extern spawn-unused-death-indicator-single (function object))
 ;; (define-extern *death-indicator-view-10* array)
 ;; (define-extern *death-indicator-view-10-proc* object)
-;; (define-extern spawn-death-indicator-view-10 function)
+(define-extern spawn-death-indicator-view-10 (function object))
 ;; (define-extern *death-indicator-view-11* array)
 ;; (define-extern *death-indicator-view-11-proc* object)
-;; (define-extern spawn-death-indicator-view-11 function)
+(define-extern spawn-death-indicator-view-11 (function object))
 ;; (define-extern *death-indicator-view-12* array)
 ;; (define-extern *death-indicator-view-12-proc* object)
-;; (define-extern spawn-death-indicator-view-12 function)
+(define-extern spawn-death-indicator-view-12 (function object))
 ;; (define-extern *death-indicator-view-13* array)
 ;; (define-extern *death-indicator-view-13-proc* object)
-;; (define-extern spawn-death-indicator-view-13 function)
+(define-extern spawn-death-indicator-view-13 (function object))
 ;; (define-extern *death-indicator-view-14* array)
 ;; (define-extern *death-indicator-view-14-proc* object)
-;; (define-extern spawn-death-indicator-view-14 function)
-;; (define-extern spawn-unused-death-indicator-view-1 function)
+(define-extern spawn-death-indicator-view-14 (function object))
+(define-extern spawn-unused-death-indicator-view-1 (function object))
 ;; (define-extern *death-indicator-view-20* array)
 ;; (define-extern *death-indicator-view-20-proc* object)
-;; (define-extern spawn-death-indicator-view-20 function)
+(define-extern spawn-death-indicator-view-20 (function object))
 ;; (define-extern *death-indicator-view-21* array)
 ;; (define-extern *death-indicator-view-21-proc* object)
-;; (define-extern spawn-death-indicator-view-21 function)
+(define-extern spawn-death-indicator-view-21 (function object))
 ;; (define-extern *death-indicator-view-22* array)
 ;; (define-extern *death-indicator-view-22-proc* object)
-;; (define-extern spawn-death-indicator-view-22 function)
+(define-extern spawn-death-indicator-view-22 (function object))
 ;; (define-extern *death-indicator-view-23* array)
 ;; (define-extern *death-indicator-view-23-proc* object)
-;; (define-extern spawn-death-indicator-view-23 function)
+(define-extern spawn-death-indicator-view-23 (function object))
 ;; (define-extern *death-indicator-view-24* array)
 ;; (define-extern *death-indicator-view-24-proc* object)
-;; (define-extern spawn-death-indicator-view-24 function)
-;; (define-extern spawn-unused-death-indicator-view-2 function)
-
+(define-extern spawn-death-indicator-view-24 (function object))
+(define-extern spawn-unused-death-indicator-view-2 (function object))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-widgets-3                  ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -69308,57 +69378,57 @@
 
 ;; (define-extern *hud-points-combo-display0* array)
 ;; (define-extern *hud-points-combo-display0-proc* object)
-;; (define-extern spawn-hud-points-combo-display0 function)
+(define-extern spawn-hud-points-combo-display0 (function object))
 ;; (define-extern *hud-points-combo-display1* array)
 ;; (define-extern *hud-points-combo-display1-proc* object)
-;; (define-extern spawn-hud-points-combo-display1 function)
+(define-extern spawn-hud-points-combo-display1 (function object))
 ;; (define-extern *hud-points-combo-display2* array)
 ;; (define-extern *hud-points-combo-display2-proc* object)
-;; (define-extern spawn-hud-points-combo-display2 function)
+(define-extern spawn-hud-points-combo-display2 (function object))
 ;; (define-extern *hud-points-combo-display3* array)
 ;; (define-extern *hud-points-combo-display3-proc* object)
-;; (define-extern spawn-hud-points-combo-display3 function)
+(define-extern spawn-hud-points-combo-display3 (function object))
 ;; (define-extern *hud-points-combo-display4* array)
 ;; (define-extern *hud-points-combo-display4-proc* object)
-;; (define-extern spawn-hud-points-combo-display4 function)
-;; (define-extern spawn-unused-hud-points-combo-display function)
+(define-extern spawn-hud-points-combo-display4 (function object))
+(define-extern spawn-unused-hud-points-combo-display (function object))
 ;; (define-extern *text-display-deflected-view-1* array)
 ;; (define-extern *text-display-deflected-view-1-proc* object)
-;; (define-extern spawn-text-display-deflected-view-1 function)
+(define-extern spawn-text-display-deflected-view-1 (function object))
 ;; (define-extern *text-display-deflected-view-2* array)
 ;; (define-extern *text-display-deflected-view-2-proc* object)
-;; (define-extern spawn-text-display-deflected-view-2 function)
+(define-extern spawn-text-display-deflected-view-2 (function object))
 ;; (define-extern *text-display-sblastered-view-1* array)
 ;; (define-extern *text-display-sblastered-view-1-proc* object)
-;; (define-extern spawn-text-display-sblastered-view-1 function)
+(define-extern spawn-text-display-sblastered-view-1 (function object))
 ;; (define-extern *text-display-sblastered-view-2* array)
 ;; (define-extern *text-display-sblastered-view-2-proc* object)
-;; (define-extern spawn-text-display-sblastered-view-2 function)
+(define-extern spawn-text-display-sblastered-view-2 (function object))
 ;; (define-extern display-sblastered-text-to-view function)
 ;; (define-extern *text-display-supernova-backfire-view-1* array)
 ;; (define-extern *text-display-supernova-backfire-view-1-proc* object)
-;; (define-extern spawn-text-display-supernova-backfire-view-1 function)
+(define-extern spawn-text-display-supernova-backfire-view-1 (function object))
 ;; (define-extern *text-display-supernova-backfire-view-2* array)
 ;; (define-extern *text-display-supernova-backfire-view-2-proc* object)
-;; (define-extern spawn-text-display-supernova-backfire-view-2 function)
+(define-extern spawn-text-display-supernova-backfire-view-2 (function object))
 ;; (define-extern display-supernova-backfire-text-to-view function)
 ;; (define-extern change-to-screen-space function)
 ;; (define-extern *hud-points-icon-display0* array)
 ;; (define-extern *hud-points-icon-display0-proc* object)
-;; (define-extern spawn-hud-points-icon-display0 function)
+(define-extern spawn-hud-points-icon-display0 (function object))
 ;; (define-extern *hud-points-icon-display1* array)
 ;; (define-extern *hud-points-icon-display1-proc* object)
-;; (define-extern spawn-hud-points-icon-display1 function)
+(define-extern spawn-hud-points-icon-display1 (function object))
 ;; (define-extern *hud-points-icon-display2* array)
 ;; (define-extern *hud-points-icon-display2-proc* object)
-;; (define-extern spawn-hud-points-icon-display2 function)
+(define-extern spawn-hud-points-icon-display2 (function object))
 ;; (define-extern *hud-points-icon-display3* array)
 ;; (define-extern *hud-points-icon-display3-proc* object)
-;; (define-extern spawn-hud-points-icon-display3 function)
+(define-extern spawn-hud-points-icon-display3 (function object))
 ;; (define-extern *hud-points-icon-display4* array)
 ;; (define-extern *hud-points-icon-display4-proc* object)
-;; (define-extern spawn-hud-points-icon-display4 function)
-;; (define-extern spawn-unused-hud-points-icon-display function)
+(define-extern spawn-hud-points-icon-display4 (function object))
+(define-extern spawn-unused-hud-points-icon-display (function object))
 ;; (define-extern set-to-upper-right function)
 ;; (define-extern create-points-icon-from-screen-pos function)
 ;; (define-extern create-points-icon function)
@@ -69393,6 +69463,19 @@
   :flag-assert         #x180000004c
   )
 |#
+;; resurrected from the dead block above (hud-follow-through rung): top-level-login
+;; registers methods directly on this type symbol (hud-widgets-4_ir2.asm op 134,
+;; method 9), so it must be live for the file's top level to resolve at all. The
+;; decoder-talk-times field offset is unconfirmed (ancestry fallback, not this
+;; rung's own evidence) and kept as-is; no method body in this band's scope reads
+;; it, so nothing here corroborates or contradicts offset 44.
+(deftype hud-headset-talker (hud-item-group)
+  ((decoder-talk-times uint32 8 :offset-assert 44) ;; offset basis: ancestry fallback, unconfirmed
+   )
+  :method-count-assert 24
+  :size-assert         #x4c
+  :flag-assert         #x180000004c
+  )
 
 #|
 (deftype hud-headset-talker-race (in-game-hud)
@@ -69430,17 +69513,22 @@
 
 ;; (define-extern *text-display-nice-shot* array)
 (define-extern *text-display-nice-shot-proc* process)
-;; (define-extern spawn-text-display-nice-shot function)
+(define-extern spawn-text-display-nice-shot (function object))
 ;; (define-extern display-nice-shot-to-view function)
 ;; (define-extern *hud-headset-talker-race* array)
 ;; (define-extern *hud-headset-talker-race-proc* object)
-;; (define-extern spawn-hud-headset-talker-race function)
+(define-extern spawn-hud-headset-talker-race (function object))
 ;; (define-extern *hud-headset-talker-other* array)
 ;; (define-extern *hud-headset-talker-other-proc* object)
-;; (define-extern spawn-hud-headset-talker-other function)
-;; (define-extern *last-talker-ids* object)
-;; (define-extern spawn-hud-headset-talker function)
-
+(define-extern spawn-hud-headset-talker-other (function object))
+;; og:preserve-this hud-follow-through rung: activated from provisional comment
+;; with a resurrected type rather than a bare object typing. Initialized from a
+;; static label (hud-widgets-4_ir2.asm op 131-132, L76), then indexed with a raw
+;; (+ base (sll idx 2)) word load/store and no array-header offset (ops 65-68,
+;; 98-101, 4-7) across a fixed 4-element init loop (ops 3-8, count 4): a bare
+;; word pointer, not a boxed GOAL (array int32).
+(define-extern *last-talker-ids* (pointer int32))
+(define-extern spawn-hud-headset-talker (function object))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; in-game-menu-hud               ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -71138,13 +71226,12 @@
 
 ;; (define-extern *vehicle-hud-view-0* array)
 ;; (define-extern *vehicle-hud-view-0-proc* object)
-;; (define-extern spawn-vehicle-hud-view-0 function)
+(define-extern spawn-vehicle-hud-view-0 (function object))
 ;; (define-extern *vehicle-hud-view-1* array)
 ;; (define-extern *vehicle-hud-view-1-proc* object)
-;; (define-extern spawn-vehicle-hud-view-1 function)
-;; (define-extern spawn-vehicle-hud function)
-;; (define-extern kill-vehicle-hud function)
-
+(define-extern spawn-vehicle-hud-view-1 (function object))
+(define-extern spawn-vehicle-hud (function object))
+(define-extern kill-vehicle-hud (function object))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-widgets-powerhang          ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -71261,11 +71348,10 @@
 
 ;; (define-extern *power-slide-hud-single* array)
 ;; (define-extern *power-slide-hud-single-proc* object)
-;; (define-extern spawn-power-slide-hud-single function)
+(define-extern spawn-power-slide-hud-single (function object))
 ;; (define-extern *hang-time-hud-single* array)
 ;; (define-extern *hang-time-hud-single-proc* object)
-;; (define-extern spawn-hang-time-hud-single function)
-
+(define-extern spawn-hang-time-hud-single (function object))
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wvehicle-wheel                 ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -72577,25 +72663,25 @@
 
 ;; (define-extern *hud-player-indicators-view0* array)
 ;; (define-extern *hud-player-indicators-view0-proc* object)
-;; (define-extern spawn-hud-player-indicators-view0 function)
+(define-extern spawn-hud-player-indicators-view0 (function object))
 ;; (define-extern *hud-player-indicators-view1* array)
 ;; (define-extern *hud-player-indicators-view1-proc* object)
-;; (define-extern spawn-hud-player-indicators-view1 function)
-;; (define-extern spawn-unused-hud-player-indicators-view function)
+(define-extern spawn-hud-player-indicators-view1 (function object))
+(define-extern spawn-unused-hud-player-indicators-view (function object))
 ;; (define-extern *hud-artifact-indicators-view0* array)
 ;; (define-extern *hud-artifact-indicators-view0-proc* object)
-;; (define-extern spawn-hud-artifact-indicators-view0 function)
+(define-extern spawn-hud-artifact-indicators-view0 (function object))
 ;; (define-extern *hud-artifact-indicators-view1* array)
 ;; (define-extern *hud-artifact-indicators-view1-proc* object)
-;; (define-extern spawn-hud-artifact-indicators-view1 function)
-;; (define-extern spawn-unused-hud-artifact-indicators-view function)
+(define-extern spawn-hud-artifact-indicators-view1 (function object))
+(define-extern spawn-unused-hud-artifact-indicators-view (function object))
 ;; (define-extern *hud-assassin-indicators-view0* array)
 ;; (define-extern *hud-assassin-indicators-view0-proc* object)
-;; (define-extern spawn-hud-assassin-indicators-view0 function)
+(define-extern spawn-hud-assassin-indicators-view0 (function object))
 ;; (define-extern *hud-assassin-indicators-view1* array)
 ;; (define-extern *hud-assassin-indicators-view1-proc* object)
-;; (define-extern spawn-hud-assassin-indicators-view1 function)
-;; (define-extern spawn-unused-hud-assassin-indicators-view function)
+(define-extern spawn-hud-assassin-indicators-view1 (function object))
+(define-extern spawn-unused-hud-assassin-indicators-view (function object))
 ;; (define-extern hud-indicators-spawn function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
