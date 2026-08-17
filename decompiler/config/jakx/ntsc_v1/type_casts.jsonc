@@ -3608,7 +3608,7 @@
   // debug leg: (anon-function 2 memory-usage) reads a process-drawable's root
   // (typed trsqv, too generic to have an offset-156 field) and needs it forced
   // down to collide-shape-moving before the following virtual call resolves;
-  // matches jak3's own hint for the same load ([211, "v1", "collide-shape-moving"]
+  // matches jak3's own hint for the same load ([211, "v1", "collide-shape-moving"],
   // in its config) but jakx's op number drifts from jak3's 211 to 206
   "(anon-function 2 memory-usage)": [[206, "v1", "collide-shape-moving"]],
   // debug leg: collision-edit-get-max-prim and collision-edit-get-prim both read
@@ -3798,5 +3798,35 @@
   "update-stuff": [
     [[26, 34], "v1", "process-drawable"],
     [[28, 70], "gp", "process-drawable"]
+  ],
+  // etie-ints/etie-floats (debug segment VU1 register dumps, gated by
+  // *debug-segment*): gp is set once per function to a raw VU1 data-memory
+  // address (0x1100c000 base, matching the PS2 VU1 data-memory mapping; see
+  // etie-init-consts/etie-init-engine for the same base class), then indexed
+  // per debug-segment register slot (16-byte stride, matching the VU1
+  // register file's own vi/vf layout) and dereferenced with l.wu. The
+  // decompiler leaves the indexed address typed plain int (raw address
+  // arithmetic, not a real pointer), so every load off it fails ("Could not
+  // figure out load"). etie-ints reads one raw uint32 slot twice (once into
+  // an arg register, once through the stack, both printed as the same word:
+  // decimal then hex, matching a vi-register debug line). etie-floats reads
+  // the same 4-word (16-byte) slot twice per vf register: once as raw uint32
+  // (hex dump line) and again as float (the ~16,,8F float dump line), so the
+  // same four addresses need two different pointee types depending on which
+  // read consumes them. Casts target the load's own op (one past the daddu
+  // that builds the address), matching the visvol-edit precedent above.
+  "etie-ints": [
+    [17, "v1", "(pointer uint32)"],
+    [21, "v1", "(pointer uint32)"]
+  ],
+  "etie-floats": [
+    [17, "v1", "(pointer uint32)"],
+    [22, "v1", "(pointer uint32)"],
+    [27, "v1", "(pointer uint32)"],
+    [32, "v1", "(pointer uint32)"],
+    [40, "v1", "(pointer float)"],
+    [45, "v1", "(pointer float)"],
+    [50, "v1", "(pointer float)"],
+    [56, "v1", "(pointer float)"]
   ]
 }
