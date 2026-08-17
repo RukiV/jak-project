@@ -113,7 +113,7 @@
 ;; (cgo-file "sewerw.gd" common-dep)
 ;; (cgo-file "thacred.gd" common-dep)
 ;; (cgo-file "ashcred.gd" common-dep)
-;; (cgo-file "krass.gd" common-dep)
+(cgo-file "krass.gd" common-dep) ;; shared kras track level
 (cgo-file "jgc.gd" common-dep) ;; jungle track section c
 ;; (cgo-file "leopl.gd" common-dep)
 ;; (cgo-file "csy.gd" common-dep)
@@ -229,7 +229,7 @@
 ;; (cgo-file "cye.gd" common-dep)
 ;; (cgo-file "snakl.gd" common-dep)
 ;; (cgo-file "ashlev.gd" common-dep)
-;; (cgo-file "krx.gd" common-dep)
+(cgo-file "krx.gd" common-dep) ;; kras alternate host: track code + shared art
 (cgo-file "jgx.gd" common-dep) ;; jungle shared prop art (retail order, jungle-obs.o armed)
 ;; (cgo-file "hvy.gd" common-dep)
 ;; (cgo-file "csx.gd" common-dep)
@@ -315,7 +315,7 @@
 ;; (cgo-file "deshunt2.gd" common-dep)
 ;; (cgo-file "thcvl2.gd" common-dep)
 ;; (cgo-file "swf.gd" common-dep)
-;; (cgo-file "krc.gd" common-dep)
+(cgo-file "krc.gd" common-dep) ;; kras section c
 ;; (cgo-file "drone.gd" common-dep)
 ;; (cgo-file "dockss.gd" common-dep)
 ;; (cgo-file "disleart.gd" common-dep)
@@ -325,7 +325,7 @@
 ;; (cgo-file "hsx.gd" common-dep)
 ;; (cgo-file "bobcl.gd" common-dep)
 ;; (cgo-file "atollctf.gd" common-dep)
-;; (cgo-file "krb.gd" common-dep)
+(cgo-file "krb.gd" common-dep) ;; kras section b
 ;; (cgo-file "clifctf.gd" common-dep)
 ;; (cgo-file "rayvl2.gd" common-dep)
 ;; (cgo-file "hvjgtt.gd" common-dep)
@@ -429,7 +429,7 @@
 ;; (cgo-file "swb.gd" common-dep)
 ;; (cgo-file "icepasss.gd" common-dep)
 ;; (cgo-file "atx.gd" common-dep)
-;; (cgo-file "krasw.gd" common-dep)
+(cgo-file "krasw.gd" common-dep) ;; kras track host; carries the track's code objects
 ;; (cgo-file "spattbox.gd" common-dep)
 ;; (cgo-file "drdkfoot.gd" common-dep)
 ;; (cgo-file "ictrtt.gd" common-dep)
@@ -449,7 +449,7 @@
 (cgo-file "junglew.gd" common-dep) ;; persistent track-wide jungle level (retail order, jungle-obs.o armed)
 ;; (cgo-file "tarlev.gd" common-dep)
 ;; (cgo-file "havens.gd" common-dep)
-;; (cgo-file "kra.gd" common-dep)
+(cgo-file "kra.gd" common-dep) ;; kras section a
 ;; (cgo-file "tpd.gd" common-dep)
 (cgo-file "jgd.gd" common-dep) ;; jungle track section d
 ;; (cgo-file "cantbox.gd" common-dep)
@@ -483,7 +483,7 @@
 ;; (cgo-file "docksw.gd" common-dep)
 ;; (cgo-file "icebergw.gd" common-dep)
 ;; (cgo-file "pke.gd" common-dep)
-;; (cgo-file "kry.gd" common-dep)
+(cgo-file "kry.gd" common-dep) ;; kras special/vista slot
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; Example Custom Level
