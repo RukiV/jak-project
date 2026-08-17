@@ -53,6 +53,42 @@
   // method 46 is update-transforms), resolves the call: the standard end-
   // of-init collide-shape setup across every game calls update-transforms
   // on the shape it just built.
+  // (method 71 <type>) is rigid-body-object's own shared body (byte-identical
+  // across every descendant that reaches it): op 68 reads root off the
+  // rigid-body-object instance as collide-shape (its declared field type,
+  // correct as far as it goes), then op 69-70 dereference the type-tag and
+  // call method 62 through it. collide-shape itself tops out at method-count-
+  // assert 55; method 62 (rbody-collision) lives on collide-shape-moving, the
+  // subtype every rigid-body-object's root actually is (rigid-body physics
+  // needs collide-shape-moving's extra machinery). Casting the type-tag
+  // reload at op 69 resolves it; same fix, same op index, for every type that
+  // reaches this shared method body.
+  // (method 80 construction-object): same rigid-body-impact handler shape as
+  // (method 80 haven-trashcan)/(rigid-body-object-method-80), now overridden.
+  // op 13 correctly types v1 as process (rigid-body-impact's own process
+  // field, already fixed by the method-80 signature); op 16 then reads
+  // v1+184 assuming a process-drawable's root field, needing the same cast.
+  "(method 80 construction-object)": [
+    [16, "v1", "process-drawable"]
+  ],
+  // (enter idle construction-object): same fast random-float-in-[1,2) trick
+  // as (code idle kcro-flag-down) above.
+  "(enter idle construction-object)": [
+    [16, "v1", "float"]
+  ],
+  // (code idle kcro-flag-down): standard fast random-float-in-[1,2) trick,
+  // OR a shifted rand-uint31-gen result into 1.0's bit pattern then mtc1 it
+  // straight into an FPR; op 9's mtc1 needs v1 read as float going in, not
+  // uint (the OR at op 6 already produced the final bit pattern).
+  "(code idle kcro-flag-down)": [
+    [9, "v1", "float"]
+  ],
+  "(method 71 peak-snowball)": [
+    [69, "a0", "collide-shape-moving"]
+  ],
+  "(method 71 train-object)": [
+    [69, "a0", "collide-shape-moving"]
+  ],
   "(method 11 can-leaves-floor)": [
     [83, "a0", "collide-shape"]
   ],

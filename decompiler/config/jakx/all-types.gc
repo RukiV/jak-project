@@ -48281,7 +48281,7 @@
   :flag-assert         #x5900900120
   (:state-methods
     idle ;; 59
-    rigid-body-object-state-60 ;; 60
+    active ;; 60 ;; real name proven by construction-object's own (enter idle construction-object) / (code active ...) usage
     )
   (:methods
     (rigid-body-object-method-61 () none) ;; 61
@@ -61041,7 +61041,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern *rigid-body-object-constants* object) ;; rigid-body-object-constants
-;; (define-extern rigid-body-object-event-handler function) ;; (function process int symbol event-message-block object :behavior rigid-body-object)
+(define-extern rigid-body-object-event-handler (function process int symbol event-message-block object :behavior rigid-body-object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; scene-actor                    ;;
@@ -65043,7 +65043,7 @@
 
 
 ;; (define-extern *construction-glow-template* object)
-;; (define-extern *was-allocated* object)
+(define-extern *was-allocated* symbol)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; daxter                         ;;
@@ -76952,9 +76952,15 @@
    (roll-sound-stop-time  int32              :offset-assert 404)
    (roll-sound-start-time int32              :offset-assert 408)
    )
-  :method-count-assert 96
+  :method-count-assert 95
   :size-assert         #x19c
-  :flag-assert         #x600110019c
+  :flag-assert         #x5f0110019c
+  ;; states idle=59 / active=60 dropped: same bug construction-object's own
+  ;; live block already documents (rigid-body-object's own states re-listed
+  ;; here shifted every id below and inflated the parser count to 96; the
+  ;; dead block's method-count-assert was auto-synced to match the bug
+  ;; instead of fixing it). method-count-assert corrected to 95 (89 inherited
+  ;; + 6 own), flag-assert's count byte corrected to match (0x5f).
   (:methods
     (coli-atlas-globe-method-89 () none) ;; 89
     (coli-atlas-globe-method-90 () none) ;; 90
@@ -76962,10 +76968,6 @@
     (coli-atlas-globe-method-92 () none) ;; 92
     (coli-atlas-globe-method-93 () none) ;; 93
     (coli-atlas-globe-method-94 () none) ;; 94
-    )
-  (:state-methods
-    idle ;; 59
-    active ;; 60
     )
   )
 
@@ -78275,7 +78277,7 @@
 
 
 ;; (define-extern *construction-cone-constants* object)
-;; (define-extern *construction-barricade-constants* object)
+(define-extern *construction-barricade-constants* rigid-body-object-constants)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; drome-effects                  ;;
@@ -79385,7 +79387,7 @@
 ;; (define-extern *kcro-bouncy-tire-a-constants* object)
 ;; (define-extern *kcro-fence-piece-a-debris-params* debris-static-params)
 ;; (define-extern *kcro-fence-piece-b-debris-params* debris-static-params)
-;; (define-extern *kcro-oil-barrel-constants* object)
+(define-extern *kcro-oil-barrel-constants* rigid-body-object-constants)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; kcross-ocean                   ;;
@@ -82808,7 +82810,7 @@
 (define-extern *collision-edit-info* object) ;; provisional: call-site evidence only
 (define-extern *collision-editor-mesh-names* object) ;; provisional: call-site evidence only
 (define-extern *confirm-prev-state-name* object) ;; provisional: call-site evidence only
-(define-extern *construction-cone-constants* object) ;; provisional: call-site evidence only
+(define-extern *construction-cone-constants* rigid-body-object-constants)
 (define-extern *construction-glow-template* object) ;; provisional: call-site evidence only
 (define-extern *credits-chars* object) ;; provisional: call-site evidence only
 (define-extern *ctf-blue-base* object) ;; provisional: call-site evidence only
@@ -83134,7 +83136,7 @@
 (define-extern *intro-hud-view-proc* object) ;; provisional: call-site evidence only
 (define-extern *jakx-logo-seen?* object) ;; provisional: call-site evidence only
 (define-extern *join-wait-prev-state-name* object) ;; provisional: call-site evidence only
-(define-extern *kcro-bouncy-tire-a-constants* object) ;; provisional: call-site evidence only
+(define-extern *kcro-bouncy-tire-a-constants* rigid-body-object-constants)
 (define-extern *kcro-fence-piece-a-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *kcro-fence-piece-b-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *keyboard-init-state* object) ;; provisional: call-site evidence only
