@@ -1,3 +1,8 @@
+;; og:preserve-this bring-up: kcross-vis converted to a .go raw copy (brdroom recipe, same
+;; as icew.gd). All five code objects are landed and real: kcross-part.gc, kcross-obs.gc
+;; (the deftypes for the seven kcro-* art-group types this DGO carries), kcross-ocean.gc,
+;; kcross-effects.gc and construction-obs.gc. kcr rides kcross's own continue
+;; (kcross-start), the first real (mi) exercise of kcross-obs.
 ("KCR.DGO"
  ("kcross-part.o"
   "construction-obs.o"
@@ -16,5 +21,5 @@
   "kcro-staff-flag-ag.go"
   "kcro-fence-piece-b-ag.go"
   "kcro-bouncy-tire-a-ag.go"
-  "kcross-vis.o"
+  "kcross-vis.go"
  ))

@@ -376,7 +376,7 @@
 ;; (cgo-file "swa.gd" common-dep)
 ;; (cgo-file "spd.gd" common-dep)
 ;; (cgo-file "peccred.gd" common-dep)
-;; (cgo-file "kcr.gd" common-dep)
+(cgo-file "kcr.gd" common-dep) ;; kcross track host; carries the track's code objects
 ;; (cgo-file "drc.gd" common-dep)
 ;; (cgo-file "thbvl3.gd" common-dep)
 ;; (cgo-file "cars.gd" common-dep)
@@ -407,7 +407,7 @@
 ;; (cgo-file "bearl.gd" common-dep)
 ;; (cgo-file "sno.gd" common-dep)
 ;; (cgo-file "s3a.gd" common-dep)
-;; (cgo-file "kcrx.gd" common-dep)
+(cgo-file "kcrx.gd" common-dep) ;; kcross alternate host: track code + shared art
 (cgo-file "hjy.gd" common-dep) ;; havjung vista level (#129)
 ;; (cgo-file "cougl.gd" common-dep)
 ;; (cgo-file "peaktt.gd" common-dep)
@@ -459,7 +459,7 @@
 (cgo-file "icb.gd" common-dep) ;; icelands section b (#112)
 ;; (cgo-file "dromes.gd" common-dep)
 ;; (cgo-file "snowfoot.gd" common-dep)
-;; (cgo-file "kcrosss.gd" common-dep)
+(cgo-file "kcrosss.gd" common-dep) ;; shared kcross track level
 ;; (cgo-file "snowtbox.gd" common-dep)
 ;; (cgo-file "drb.gd" common-dep)
 (cgo-file "ices.gd" common-dep) ;; shared icelands track level; no sprite tpage on this track (#112)

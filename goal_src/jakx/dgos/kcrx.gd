@@ -1,3 +1,6 @@
+;; og:preserve-this bring-up: kcrossx-vis converted to a .go raw copy (brdroom recipe,
+;; same as icx.gd). Carries the same five landed code objects as kcr.gd (see its note),
+;; riding kcrossx's own continue (kcrossx-start).
 ("KCRX.DGO"
  ("kcross-part.o"
   "construction-obs.o"
@@ -13,5 +16,5 @@
   "kcro-oil-barrel-ag.go"
   "kcro-fence-piece-b-ag.go"
   "kcro-bouncy-tire-a-ag.go"
-  "kcrossx-vis.o"
+  "kcrossx-vis.go"
  ))
