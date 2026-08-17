@@ -50420,7 +50420,13 @@
 ;; sparks                         ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern *sparks-work* sparks-work)
+;; correctly-typed declaration; wins over the weaker provisional-extern-sweep
+;; entry below (object), which is now commented out to avoid a redefinition.
+;; garage-obs (method 52 garage-turntable) reads *sparks-work* and calls
+;; through a vtable slot the decompiler resolves to method id 10 of its
+;; type, which only exists on sparks-work (sparks-work-method-10 (_type_
+;; object) none), not on the generic object type.
+(define-extern *sparks-work* sparks-work)
 ;; (define-extern sparks-vu1-block object)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -82692,8 +82698,14 @@
   ((track        joint-mod-rotate-world :inline :offset-assert 256)
    (elbow        uint32                32      :offset-assert 288) ;; og:preserve-this raw 128-byte span, true element shape unconfirmed (provisional extern hygiene sweep, 2026-08-16)
    (dest         vector                 :inline :offset-assert 416)
-   (arm-lengths  uint32                4       :offset-assert 432)
-   (dest-angles  uint32                4       :offset-assert 448)
+   ;; retyped uint32 -> float: (method 51 garage-tool-arm) reads all four
+   ;; elements (432, 436, 440, 444) via lwc1 and does float arithmetic on
+   ;; them (add.s), which fails type prop against uint32.
+   (arm-lengths  float                 4       :offset-assert 432)
+   ;; retyped uint32 -> float: (method 51 garage-tool-arm) stores (op 59)
+   ;; and reads (op 108) element 0 (offset 448) via swc1/lwc1, feeding the
+   ;; same quaternion-rotate-local-z! float-arg pattern as arm-lengths.
+   (dest-angles  float                 4       :offset-assert 448)
    (elbow-quat   quaternion    4       :inline :offset-assert 464)
    (total-length float                          :offset-assert 528)
    (flags        uint64                         :offset-assert 536)
@@ -82705,7 +82717,13 @@
     idle ;; 50
     )
   (:methods
-    (garage-tool-arm-method-51 () none) ;; 51
+    ;; missing _type_ as the implicit self arg made the decompiler's
+    ;; register-usage pass treat method 51's own arg_count as zero, so a0
+    ;; (self) read as an undeclared dependency and every field access off
+    ;; it decoded as <uninitialized>; the body reads track/elbow/dest/
+    ;; arm-lengths/dest-angles/elbow-quat/total-length/flags, all
+    ;; garage-tool-arm's own offsets, confirming a0 is self.
+    (garage-tool-arm-method-51 (_type_) none) ;; 51
     )
   )
 
@@ -82824,7 +82842,12 @@
   )
 
 
-;; (define-extern set-mult function)
+;; garage-obs's own set-mult: reads arg0's node-list field (offset 192, the
+;; process-drawable convention) and sq-stores a static quaternion constant
+;; into its 188-byte-offset joint slot, then returns that same quadword
+;; value; identical shape to (enter idle garage-car-arm)'s inlined version
+;; of the same idiom, just with a different static constant (L111 vs L110).
+(define-extern set-mult (function process-drawable vector))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; menumap-part                   ;;
@@ -83983,7 +84006,7 @@
 (define-extern *should-update-stats* object) ;; provisional: call-site evidence only
 (define-extern *slime-clut* object) ;; provisional: call-site evidence only
 (define-extern *socket-blocking* object) ;; provisional: call-site evidence only
-(define-extern *sparks-work* object) ;; provisional: call-site evidence only
+;; (define-extern *sparks-work* object) ;; superseded: the real sparks-work-typed extern is declared above in the sparks section
 (define-extern *spartacus-library* object) ;; provisional: call-site evidence only
 (define-extern *special-intro-hud-view* object) ;; provisional: call-site evidence only
 (define-extern *special-intro-hud-view-proc* object) ;; provisional: call-site evidence only

@@ -67,7 +67,25 @@
     "(anon-function 11 net-mgr-dme)",
     "get-current-room-name-and-info",
     // jak3 also asm-funcs this and hand-writes the GOAL replacement in texture.gc
-    "adgif-shader<-texture!"
+    "adgif-shader<-texture!",
+    // (method 11 garage-tool-arm): the whole body past the entry block is an
+    // unconditional "beq r0, r0" straight to the epilogue, so the entity-init
+    // block after it is unreachable in this binary; atomic-op conversion
+    // fails inside that dead block regardless ("Variable could not be
+    // constructed from register r0"), a step earlier than type prop, so no
+    // type_casts entry can reach it. Parked as asm; the only live behavior
+    // is the vmethod call in the entry block before the branch.
+    "(method 11 garage-tool-arm)",
+    // (method 52 garage-turntable): calls *lobby-menu-manager* method 190,
+    // declared "(_type_) none" in all-types.gc, then calls method 111 on
+    // its result after a #f-check, so 190's real return is some real object
+    // type, not none; no jak3 twin exists for this network-lobby type and
+    // no other call site in this band gives evidence for which type. Also
+    // hits a separate "Failed to guess stack use for 80" error. Parked as
+    // asm; retyping method 190's return without evidence would be a guess,
+    // and lobby-menu-manager typing is its own campaign, out of this band's
+    // scope.
+    "(method 52 garage-turntable)"
   ],
   // these functions use pairs and the decompiler
   // will be less picky about types related to pairs.

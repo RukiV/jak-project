@@ -3421,5 +3421,19 @@
   // casting t9 at the call op to that type lets expression building
   // succeed without inventing a callee identity beyond what the dead code
   // already provides.
-  "(anon-function 10 task-scenes)": [[13, "t9", "(function mood-context symbol)"]]
+  "(anon-function 10 task-scenes)": [[13, "t9", "(function mood-context symbol)"]],
+
+  // garage-turntable: the 'speed event case in both (event down) and
+  // (event up) reads the event-message-block's first param (offset 16) and
+  // immediately mtc1's it into self's speed field (offset 308), the
+  // standard "event param holds a float" idiom; cast the ld result to
+  // float so the following mtc1/swc1/mfc1 sequence type-checks as pure
+  // float use instead of "FPR -> GPR applied to a uint".
+  "(event down garage-turntable)": [[[18, 22], "v1", "float"]],
+  "(event up garage-turntable)": [[[28, 32], "v1", "float"]],
+  // (event idle garage-tool-arm)'s "set-dest-local" case reads the event
+  // param (offset 16) and vf-loads straight from it at op 10 (lqc2 vf5,
+  // 0(v1)); the param holds a vector pointer, same as the (+ self 412)
+  // destination address one op earlier which types plain "vector".
+  "(event idle garage-tool-arm)": [[[5, 11], "v1", "vector"]]
 }
