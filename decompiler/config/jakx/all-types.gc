@@ -50309,20 +50309,36 @@
   :method-count-assert 16
   :size-assert         #x8
   :flag-assert         #x1000000008
+  ;; jakx eng-util wave: all seven were bulk-synced as zero-arg, but every body
+  ;; reads a0 as this's own fields (pool/pool-sz), which only type-checks with
+  ;; _type_ present; refined further below once each body's real arg count is
+  ;; visible from a clean decode
+  ;; 9: rounds arg1 up to a 16-byte block count ((+ arg1 15) >> 4, the classic
+  ;; size-to-blocks idiom) and stores arg2 as a raw byte tag into the new
+  ;; block's header (+1); both proven at the (sb a2 1 s5) store past the
+  ;; out-of-memory early-out, where a2 is still the untouched incoming reg.
+  ;; 10: arg1 is dereferenced at -16 (the block header immediately before a
+  ;; user pointer, the standard free() layout), so arg1 is the raw pointer
+  ;; being freed. 12: arg1 is stored straight into this's own pool field
+  ;; (memblock) and arg2 is shifted right 4 and stored into pool-sz (the same
+  ;; size-to-blocks idiom as 9), matching an init(pool, size) shape.
   (:methods
-    (mem-manager-method-9 () none) ;; 9
-    (mem-manager-method-10 () none) ;; 10
-    (mem-manager-method-11 () none) ;; 11
-    (mem-manager-method-12 () none) ;; 12
-    (mem-manager-method-13 () none) ;; 13
-    (mem-manager-method-14 () none) ;; 14
-    (mem-manager-method-15 () none) ;; 15
+    (mem-manager-method-9 (_type_ int int) pointer) ;; 9
+    (mem-manager-method-10 (_type_ pointer) none) ;; 10
+    (mem-manager-method-11 (_type_) none) ;; 11
+    (mem-manager-method-12 (_type_ memblock int) none) ;; 12
+    (mem-manager-method-13 (_type_) none) ;; 13
+    (mem-manager-method-14 (_type_) none) ;; 14
+    (mem-manager-method-15 (_type_) none) ;; 15
     )
   )
 
 
-;; (define-extern *dynamic-alloc-pool* object)
-;; (define-extern *mem-manager* object)
+;; *dynamic-alloc-pool* already has a real (uncommented) declaration elsewhere
+;; in this file (object); top-level-login reads *mem-manager* directly (a
+;; global instance pointer, matching the type name convention), so it is typed
+;; mem-manager rather than left as an unknown symbol (jakx eng-util wave)
+(define-extern *mem-manager* mem-manager)
 ;; (define-extern mem-alloc-scert function)
 ;; (define-extern mem-free-scert function)
 ;; (define-extern mem-realloc-scert function)
