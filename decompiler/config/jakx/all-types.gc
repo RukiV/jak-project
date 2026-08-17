@@ -117,6 +117,11 @@
 (define-extern file-stream-seek (function file-stream int int int))
 (define-extern file-stream-read (function file-stream pointer int int))
 (define-extern file-stream-write (function file-stream pointer uint uint))
+;; jakx eng-util wave: store-image calls this with a0 = *temp-string* itself
+;; (the whole string, not the +4 data pointer the knet- family takes), matching
+;; file-stream-open's own string-arg convention above; the result flows into an
+;; int-typed local afterward at the L6 merge point in store-image
+(define-extern file-stream-mkdir (function string int))
 (define-extern reset-path (function none))
 (define-extern flush-cache (function int none))
 (define-extern gs-store-image (function object object object))
@@ -16145,7 +16150,11 @@
 
 (define-extern *screen-shot-work* screen-shot-work) ;; 
 (define-extern *image-name* string) ;; 
-(define-extern *capture-tga-buffer* object)
+;; jakx eng-util wave: store-image does raw byte-offset pointer arithmetic on
+;; this buffer (row-stride and per-pixel offsets added directly via daddu, then
+;; passed as file-stream-write's pointer arg), which fails type prop as
+;; "object int" under the old generic object type; pointer matches every use
+(define-extern *capture-tga-buffer* pointer)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; math-camera-h                  ;;
@@ -59591,9 +59600,12 @@
 ;; capture                        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern gs-set-default-store-image function) ;; (function gs-store-image-packet int int gs-psm int int int int int)
-;; (define-extern *capture-tga-temp* object)
-;; (define-extern store-image function) ;; (function screen-shot-work none)
+(define-extern gs-set-default-store-image (function gs-store-image-packet int int gs-psm int int int int int))
+;; *capture-tga-temp* and store-image both already have real (uncommented)
+;; declarations elsewhere in this file (int and (function screen-shot-work int)
+;; respectively); the placeholders that used to sit here guessed object and
+;; (function screen-shot-work none), both wrong, so they are removed rather
+;; than left as stale duplicate documentation (jakx eng-util wave capture rung).
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; fmv-player                     ;;
@@ -83441,7 +83453,27 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier idle-control deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern item-num-selection type) ;; runtime-typed from savestate
 (define-extern keybd-get-data function) ;; runtime-typed from savestate
-(define-extern knet-dopen function) ;; runtime-typed from savestate
+;; jakx eng-util wave: capture.gc's store-image calls this with only a0 set to
+;; a raw (pointer uint8) (a string's data field, host0:...high-res/ path), and
+;; branches on (<0.si v0) afterward, so it is a one-arg call returning a
+;; pass/fail int (proven from that call site's register trace; no second call
+;; site found to corroborate further, so the return is typed int rather than a
+;; narrower guess)
+(define-extern knet-dopen (function (pointer uint8) int))
+;; jakx eng-util wave: store-image's dopen/dread/dclose loop passes the dopen
+;; handle back in as a0 and a raw stack buffer as a1 (its 0(a1) word is later
+;; tested against the 0x2000 attribute bit and a name field is read at +64, but
+;; nothing here derives its true struct layout, so the pointer stays untyped
+;; rather than inventing a dirent deftype); return is tested >0.si to keep
+;; reading, matching sceIoDread's continue-while-positive convention
+(define-extern knet-dread (function int pointer int))
+;; same call family as knet-dread; takes the dopen handle back, return value is
+;; never read at this call site so int is the family-consistent guess, not proof
+(define-extern knet-dclose (function int int))
+;; called with a0 = (pointer uint8) (the freshly formatted host0:...high-res/~G
+;; path), same one-arg path-string shape as knet-dopen; return is unread at this
+;; call site, typed int by the same family-consistent guess as knet-dclose
+(define-extern knet-file-erase (function (pointer uint8) int))
 (define-extern knet-get-dynamic-patches function) ;; runtime-typed from savestate
 (define-extern knet-lg-aread function) ;; runtime-typed from savestate
 (define-extern knet-lg-awrite function) ;; runtime-typed from savestate
