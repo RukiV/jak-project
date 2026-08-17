@@ -54,6 +54,7 @@ written is read-only by design and not a finding.
 | `*settings-music-seek-speed*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
 | `*settings-music-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
 | `*settings-sfx-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
+| `*sp-temp*` | 2 | `goal_src/jakx/engine/gfx/sprite/particles/sparticle-launcher.gc` |
 | `*HACK-find-nearest-focusable-ignore*` | 1 | `goal_src/jakx/engine/collide/find-nearest-h.gc` |
 | `*add-sphere*` | 1 | `goal_src/jakx/engine/draw/drawable.gc` |
 | `*amy-cam*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -211,7 +212,6 @@ written is read-only by design and not a finding.
 | `*sky-clouds-clut-ready*` | 1 | `goal_src/jakx/engine/gfx/sky/sky-tng.gc` |
 | `*slow-frame-rate*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*sp-launcher-enable*` | 1 | `goal_src/jakx/engine/gfx/sprite/particles/sparticle-launcher.gc` |
-| `*sp-temp*` | 1 | `goal_src/jakx/engine/gfx/sprite/particles/sparticle-launcher.gc` |
 | `*stats-bsp*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-buffer*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-collide*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
