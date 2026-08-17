@@ -206,3 +206,31 @@
   :size-assert         #x30
   :flag-assert         #xc00000030
   )
+
+;; joint-mod-ik landed for the same build-first reason as the joint-mod-base family
+;; above: relocate.gc's (method 7 process-drawable) has a defmethod relocate override
+;; for joint-mod-ik, which needs the full type defined earlier in build order, and
+;; joint-mod-h.o runs well ahead of relocate.o. Transcribed verbatim from
+;; decompiler/config/jakx/all-types.gc to satisfy the two-file consistency rule; the
+;; rest of the joint-mod-base family is still not landed here.
+
+(deftype joint-mod-ik (basic)
+  ((flags                  joint-mod-ik-flags                                          :offset-assert 4) ;; joint-mod-ik-flags
+   (elbow-pole-vector-axis int8                                                        :offset-assert 5) ;; uint32
+   (elbow-rotation-axis    int8                                                        :offset-assert 6) ;; uint32
+   (elbow-node             int8                                                        :offset-assert 7)
+   (process                process-drawable                                            :offset-assert 8) ;; guessed by decompiler
+   (callback               (function joint-mod-ik matrix matrix vector object)         :offset-assert 12) ;; guessed by decompiler
+   (handle-pos             vector                                              :inline :offset-assert 16)
+   (hand-dist              float                                                       :offset-assert 32)
+   (blend                  float                                                       :offset-assert 36)
+   )
+  :method-count-assert 11
+  :size-assert         #x28
+  :flag-assert         #xb00000028
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type process-drawable int float) _type_)
+    (joint-mod-ik-method-9 (_type_ object) none) ;; 9 ;; (set-ik-target! (_type_ object) none)
+    (enable-set! (_type_ symbol) none) ;; 10 ;; (enable-set! (_type_ symbol) none)
+    )
+  )

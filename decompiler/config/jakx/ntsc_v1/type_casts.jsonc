@@ -272,6 +272,33 @@
   "(method 24 hud-map)": [
     [[102, 151], "s5", "race-map-info"]
   ],
+  // relocate (method 7 process): the connection-list walk reads next1/prev1 off
+  // connectable (both declared on connectable itself, offsets 8/12, resolve fine), then
+  // reads param1/param2/param3 off the same node at offsets 20/24/28, which only exist
+  // on connection, the linked-list node's actual runtime type (matching jak1/jak2/jak3's
+  // identical relocate, which reads the same three fields via (the-as connection v1-7)).
+  // Each param has two read sites per iteration (the range check, then the conditional
+  // write), each its own basic block, so the cast does not carry across the branch and
+  // needs one entry per site; the loop's own next1 advance re-widens back to connectable
+  // on its own without a cast.
+  "(method 7 process)": [
+    [47, "v1", "connection"],
+    [57, "v1", "connection"],
+    [59, "v1", "connection"],
+    [60, "v1", "connection"],
+    [70, "v1", "connection"],
+    [72, "v1", "connection"],
+    [73, "v1", "connection"],
+    [83, "v1", "connection"],
+    [85, "v1", "connection"],
+    // heap-walk loop past the connection-list: (relocate s4-0 offset) and
+    // (asize-of s4-0) each dispatch through the object's own vtable, which needs the
+    // -4 type-tag deref typed as basic (jak3's twin casts the same loop variable
+    // (the-as basic (&+ (-> this heap-base) 4)) up front); a0 here is s4 copied in
+    // right before each vtable call.
+    [120, "a0", "basic"],
+    [127, "a0", "basic"]
+  ],
   // collide-probe: three functions load a bare `drawable` off a drawable-tree's
   // (or drawable-tree-collide-fragment's) data-override field at offset 28, then read
   // both .data (raw +32 pointer arithmetic, already resolves) and .length (offset 2)
