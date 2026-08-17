@@ -13,6 +13,46 @@
   // address's own type never resolved on its own ("Failed to guess stack
   // use for 16").
   "(method 10 race-state)": [[16, "event-message-block"]],
+  // collide-planes: sp+48 is an 18-slot inline-array of vector, zeroed by its
+  // own loop (op 65-68, bound "slti a0, v1, 18") right before a second, larger
+  // array at sp+336 (37 slots, same shape, bound "slti a0, v1, 37"; that one
+  // resolves to (inline-array vector) on its own from the zero-store loop
+  // without a declaration). The sp+48 array does not resolve on its own
+  // ("Failed to guess stack use for 48"), and the unresolved base also kills
+  // the veccross pointer arithmetic at op 419 ("add failed: <uninitialized>
+  // <value x 16>"), which walks the same s5 base by the same stride.
+  // Declaring sp+48 alone lets the auto stack-structure guesser continue past
+  // it and infer sp+336 (the second, 37-slot zero-store loop immediately
+  // following) on its own, but it lands on a bad hint: a NONE-container hint
+  // whose whole element_type string is "(inline-array vector)", which fails
+  // the reference-type check in Env::add_stack_structure_hint ("Stack
+  // variable type (inline-array vector) is not a reference and cannot be
+  // stored directly on the stack at offset 336. Use an array instead.",
+  // decompiler/IR2/Env.cpp:833). Declaring sp+336 explicitly as an
+  // "inline-array" (matching sp+48's own container, rather than the
+  // literal "array" the error message suggests) sidesteps the guesser's
+  // NONE-container bug at the decompile stage; an explicit "array"
+  // declaration was tried first and decompiled clean, but the compiler
+  // rejects the resulting (-> (&+ base offset) field) form the decompiler
+  // emits for a raw (pointer vector): a single-item deref list only works
+  // for a real field or an inline-array index, not for a bare pointer
+  // ("The symbol quad was looked up as a global variable"), so this needs
+  // the same index-then-field-access shape sp+48 already produces cleanly.
+  // sp+928 sits immediately after the sp+336 array (336 + 37*16 = 928) and is
+  // its own single-vector scratch slot: spilled to a stack-store/stack-load
+  // pair (offset 1664), zeroed, then reused as a veccross destination. Once
+  // sp+48/336 resolve, this becomes the next unresolved base ("Failed to
+  // guess stack use for 928"), whose taint otherwise propagates through the
+  // rest of the function via the s1/s3/a0/a1 chains that read past it.
+  "collide-planes": [
+    [48, ["inline-array", "vector", 18]],
+    [336, ["inline-array", "vector", 37]],
+    [928, "vector"],
+    // sp+944 is the same shape immediately after sp+928: its own single-vector
+    // scratch slot, spilled through offset 1632, zeroed, then reused as a
+    // vector-!2 destination.
+    [944, "vector"]
+  ],
   // (method 9 plane-volume): sp+16 through sp+96 (stride 16, six slots) are each
   // zeroed by their own quad store before the plane-corner loop starts, then indexed
   // by veccross/vector-float*! results keyed off s3 (0-5), matching a six-corner
