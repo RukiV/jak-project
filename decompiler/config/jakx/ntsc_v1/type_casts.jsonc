@@ -96,6 +96,35 @@
   // sprite-glow-data's own position field via a raw (-> v1-2 data) pointer; casting
   // that base to vector at the failing op resolves it to a plain quad set!.
   "(method 92 construction-object)": [[19, "a0", "vector"]],
+  // part-water-splash-callback (water rung): gpr->fpr reinterprets userdata's bits
+  // as a float, but the local-var table kept f0's declared type as uint (userdata's
+  // own field type) rather than the post-reinterpret float, so the later *.s at op
+  // 10 sees a float/uint operand pair. Casting f0 to float at that op matches what
+  // gpr->fpr actually produces.
+  "part-water-splash-callback": [[10, "f0", "float"]],
+  // water-info<-region (water rung): op 59 reads a pair's cdr generically as
+  // object, so op 60's car read (offset -2, the compact-pair convention) cannot
+  // resolve; casting the cdr result to pair at the failing op fixes it.
+  // water-info<-region (water rung): walks a resource-tag property list looking
+  // for several named properties ('height, 'ocean, and others further in), each
+  // match doing its own car/cdr chain (offsets 2 and -2, the compact-pair
+  // convention); every register along each chain needed the same pair cast.
+  "water-info<-region": [
+    [60, "v1", "pair"],
+    [68, "v1", "pair"],
+    [69, "v1", "pair"],
+    [70, "v1", "pair"],
+    [110, "v1", "pair"],
+    [111, "v1", "pair"],
+    [112, "v1", "pair"],
+    [161, "v1", "pair"],
+    [162, "v1", "pair"],
+    [163, "v1", "pair"],
+    [164, "v1", "pair"],
+    [165, "v1", "pair"],
+    [196, "v1", "pair"],
+    [197, "v1", "pair"]
+  ],
   // (method 58 water-anim): res-lump-data returns a raw pointer, read as three
   // consecutive floats (offsets 0, 4, 8). Ops 31 and 43 resolve on their own; only
   // op 37 (offset 4, y) needed the explicit cast to (pointer float).
