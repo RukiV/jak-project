@@ -2881,5 +2881,18 @@
   "sampler-stop": [
     [1, "v1", "timer-bank"],
     [12, "v1", "timer-bank"]
-  ]
+  ],
+  // debug leg: (method 11 memory-usage-block)'s v1 accumulates one of a dozen
+  // lui/ori level-memory-mode size constants across a branch merge, then
+  // subtracts a borrow-info offset from it; the merge leaves v1 typed object,
+  // matching jak3's own hint for the same subtract ([112, "v1", "int"] in its
+  // config) but at jakx's own op number, which drifts from jak3's 112 to 78
+  // because of a different branch layout ahead of the merge
+  "(method 11 memory-usage-block)": [[78, "v1", "int"]],
+  // debug leg: (anon-function 2 memory-usage) reads a process-drawable's root
+  // (typed trsqv, too generic to have an offset-156 field) and needs it forced
+  // down to collide-shape-moving before the following virtual call resolves;
+  // matches jak3's own hint for the same load ([211, "v1", "collide-shape-moving"]
+  // in its config) but jakx's op number drifts from jak3's 211 to 206
+  "(anon-function 2 memory-usage)": [[206, "v1", "collide-shape-moving"]]
 }
