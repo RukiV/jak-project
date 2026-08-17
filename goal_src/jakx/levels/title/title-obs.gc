@@ -798,20 +798,19 @@
   :post target-no-move-post
   )
 
-;; definition for symbol *end-credits-proc*, type handle
-;; og:preserve-this compile-only literal: the raw static init is an all-zero
-;; handle (a null process reference); decompile_at_label_with_hint has no
-;; expansion path for a bare primitive (handle is not a deftype/structure),
-;; so the label prints as an unexpandable placeholder. The very next form
-;; (s.d! *end-credits-proc* #f) re-zeroes this slot at runtime anyway, so
-;; the static value is inert; (the-as handle #f) matches the zero-handle
-;; idiom already used elsewhere in this landing band.
-(define *end-credits-proc* (the-as handle #f))
+;; definition for symbol *end-credits-proc*, type (pointer handle)
+;; og:preserve-this the retail static is a one-slot handle cell (label L226) whose
+;; address is the symbol's value, and the top level then stores #f into the cell
+;; (sd s7, 0(v1)); credits-obs's activate-end-credits-proc writes the new process
+;; handle through the same cell. entity.gc's *additional-spawners* carries the
+;; identical cell idiom. Landing the value as a bare (the-as handle #f) turned the
+;; store into a write through the #f symbol's address, which corrupted the symbol
+;; table and killed the 2026-08-17 boot inside texture-anim's init a hundred objects
+;; later (bisected to this file, then to this form).
+(define *end-credits-proc* (new 'static 'array handle 1 (new 'static 'handle)))
 
 ;; failed to figure out what this is:
-(let ((v1-75 *end-credits-proc*))
-  (s.d! v1-75 #f)
-  )
+(set! (-> *end-credits-proc* 0) (the-as handle #f))
 
 ;; definition for function end-end-credits
 ;; ERROR: function was not converted to expressions. Cannot decompile.
