@@ -493,5 +493,22 @@
   // scoped decode is zero-error.
   "(method 9 level-bounding-box)": [
     [16, ["inline-array", "vector", 2]]
+  ],
+  // (method 39 nav-mesh) and (method 41 nav-mesh), nav rung: both build a ping-pong
+  // pair of vector-sized scratch buffers at sp+16/sp+32, then keep raw pointers to
+  // whichever buffer is "current" at sp+48/sp+52 (a daddiu of each buffer's own
+  // address, stack-stored right after). Both buffers are pointer-taken directly by
+  // their own absolute offset (daddiu sp, 16 and daddiu sp, 32), never through
+  // array-element arithmetic off a shared base, so a single inline-array hint only
+  // resolves the first slot; the second still reads "Failed to guess stack use for
+  // 32". Two independent vector entries resolve both, and the final indirect load
+  // in each function ("Could not figure out load: (set! v1 (l.q v1))") clears too.
+  "(method 39 nav-mesh)": [
+    [16, "vector"],
+    [32, "vector"]
+  ],
+  "(method 41 nav-mesh)": [
+    [16, "vector"],
+    [32, "vector"]
   ]
 }

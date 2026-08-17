@@ -1,48 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: nav-mesh-h.gc
-;; name in dgo: nav-mesh-h
-;; dgos: ENGINE, GAME
-
-;; +++nav-mesh-flag
-(defenum nav-mesh-flag
-  :type uint8
-  :bitfield #t
-  (water 0)
-  (dummy 1)
-  )
-;; ---nav-mesh-flag
-
-;; +++nav-mesh-link-search-node-status
-(defenum nav-mesh-link-search-node-status
-  :type uint8
-  :bitfield #t
-  (open 0)
-  (closed 1)
-  )
-;; ---nav-mesh-link-search-node-status
-
-;; nav-mesh's poly-hash/sphere-hash fields need these forward-declared: the real
-;; deftype for both lives in spatial-hash-h.gc, which is not guaranteed to load
-;; before this file in game.gp's step order (same self-containment class as
-;; nav-mesh-editor-h's declare-type for nav-mesh-editable).
-(declare-type grid-hash structure)
-(declare-type sphere-hash structure)
-
-;; (method 12 nav-ray) calls debug-validate-nav-poly, whose real implementation
-;; is a defun-debug on jak3's twin nav-mesh.gc (a separate, still-unlanded jakx
-;; object out of this rung's band). Provisional extern with the signature
-;; already recorded in all-types.gc; this links as zero until nav-mesh.gc lands
-;; debug-validate-nav-poly for real. nav-mesh-link and nav-poly are only
-;; declared below, in the DECOMP BEGINS body, so forward-declare both here too.
-(declare-type nav-mesh-link structure)
-(declare-type nav-poly structure)
-(define-extern debug-validate-nav-poly (function nav-mesh-link nav-poly none))
-
-
-;; DECOMP BEGINS
-
 ;; definition of type nav-mesh-work-debug
 (deftype nav-mesh-work-debug (structure)
   "Debug outputs for the nav-mesh assembly functions"
