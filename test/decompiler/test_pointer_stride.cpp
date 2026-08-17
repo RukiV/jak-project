@@ -40,7 +40,7 @@ TEST_F(FormRegressionTestJakX, PointerStrideResolvesDerefMatchesFailure) {
   std::string expected =
       "(begin\n"
       "  (let ((v1-0 *car-upgrade-info*))\n"
-      "    (set! (-> v1-0 data 0 data 0 base) (the-as uint 5))\n"
+      "    (set! (-> v1-0 0 data 0 data 0 base) (the-as uint 5))\n"
       "    )\n"
       "  0\n"
       "  (none)\n"
@@ -64,7 +64,7 @@ TEST_F(FormRegressionTestJakX, PointerStrideResolvesOffsetIntoElement) {
   std::string expected =
       "(begin\n"
       "  (let ((v1-0 *car-upgrade-info*))\n"
-      "    (set! (-> v1-0 data 0 data 0 max) (the-as uint 5))\n"
+      "    (set! (-> v1-0 0 data 0 data 0 max) (the-as uint 5))\n"
       "    )\n"
       "  0\n"
       "  (none)\n"
