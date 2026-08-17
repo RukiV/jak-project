@@ -50856,12 +50856,23 @@
   :method-count-assert 15
   :size-assert         #x30
   :flag-assert         #xf00000030
+  ;; jakx eng-util wave: methods 9-13 all index a raw base address by this's own
+  ;; offset field (arg1, (+ arg1 (-> this offset)) then (l.w ...)), so arg1 is
+  ;; int at every call, not object. Method 10's arg2 feeds clear/format/
+  ;; copy-string<-string as the destination buffer (string), and its arg3 is
+  ;; only ever null-checked (symbol flag). Method 11 and 12's arg2 goes through
+  ;; mtc1/cvt.w.s (float). Method 13's arg2 and arg3 are both read through
+  ;; stat-info's own field offsets (12 offset, 24 scale), i.e. both stat-info.
+  ;; Evidence: statistics_ir2.asm scoped decode, methods 9-13 bodies.
   (:methods
-    (stat-info-method-9 (_type_ object) none) ;; 9
-    (stat-info-method-10 (_type_ object object object) none) ;; 10
-    (stat-info-method-11 (_type_ object object) none) ;; 11
-    (stat-info-method-12 (_type_ object object) none) ;; 12
-    (stat-info-method-13 (_type_ object object object) none) ;; 13
+    ;; forwards a2/a3 straight to stat-info-method-10 without touching them
+    ;; (never sets them itself before the tail call), so it shares method 10's
+    ;; string/symbol tail args rather than dropping them
+    (stat-info-method-9 (_type_ int string symbol) none) ;; 9
+    (stat-info-method-10 (_type_ int string symbol) symbol) ;; 10
+    (stat-info-method-11 (_type_ int float) symbol) ;; 11
+    (stat-info-method-12 (_type_ int float) symbol) ;; 12
+    (stat-info-method-13 (_type_ int stat-info stat-info) symbol) ;; 13
     (stat-info-method-14 (_type_ object) none) ;; 14
     )
   )
