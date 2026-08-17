@@ -36168,9 +36168,13 @@
   :size-assert         #x231
   :flag-assert         #x4801b00231
   (:state-methods
-    projectile-state-50 ;; 50
+    ;; die and impact renamed from the projectile-state-50/52 placeholders:
+    ;; v-toad-shot's own dead block names them directly (scoped decode,
+    ;; this worktree's config, wcar-projectiles). 51 and 53 stay
+    ;; unresolved, no child's decode names them yet.
+    die ;; 50
     projectile-state-51 ;; 51
-    projectile-state-52 ;; 52
+    impact ;; 52
     projectile-state-53 ;; 53
     )
   (:methods
@@ -60275,6 +60279,43 @@
     )
   )
 |#
+;; resurrected from the dead block above: idle and the eight numbered
+;; methods are new slots (50-58) extending process-drawable's own 50-slot
+;; count, interleaved in file order (method 50, state idle at 51, methods
+;; 52-58) so slot numbering matches the dead block's own comments.
+(deftype water-anim (process-drawable)
+  ((water-height        meters        :offset-assert 248)
+   (wade-height         meters        :offset-assert 252)
+   (swim-height         meters        :offset-assert 256)
+   (bottom-height       meters        :offset-assert 260)
+   (attack-event        symbol        :offset-assert 264) ;; guessed by decompiler
+   (attack-id           uint32        :offset-assert 268)
+   (flow                flow-control  :offset-assert 272) ;; guessed by decompiler
+   (target              uint64        :offset-assert 280) ;; handle
+   (flags               water-flag    :offset-assert 288) ;; guessed by decompiler
+   (look                int32         :offset-assert 292) ;; wanim-look
+   (play-ambient-sound? symbol        :offset-assert 296) ;; guessed by decompiler
+   (visible             symbol        :offset-assert 300) ;; guessed by decompiler
+   )
+  :method-count-assert 59
+  :size-assert         #x130
+  :flag-assert         #x3b00a00130
+  (:methods
+    (water-anim-method-50 () none) ;; 50
+    )
+  (:state-methods
+    idle ;; 51
+    )
+  (:methods
+    (water-anim-method-52 () none) ;; 52
+    (water-anim-method-53 () none) ;; 53
+    (water-anim-method-54 () none) ;; 54
+    (water-anim-method-55 () none) ;; 55
+    (water-anim-method-56 () none) ;; 56
+    (water-anim-method-57 () none) ;; 57
+    (water-anim-method-58 () none) ;; 58
+    )
+  )
 
 #|
 (deftype water-anim-look (structure)
@@ -65194,6 +65235,39 @@
     )
   )
 |#
+;; resurrected from the dead block above, reordered: idle and shoot are
+;; new slots (50, 51) extending process-drawable's own 50-slot count, the
+;; same shape as the already-active krasfemale (process-drawable, idle at
+;; 50) two types up in this file; state names read directly from the
+;; (new 'static 'state :name ...) blocks (scoped decode, this worktree's
+;; config, race-obs). The dead block listed :methods before :state-methods,
+;; which under file-position slot assignment put wrong-way-linebot-method-52
+;; at 50 and shoot at 52, not the 50/51/52 the block's own comments claim;
+;; a scoped decode of race-obs against that ordering crashed the decompiler
+;; ("Found a method named (method 52 wrong-way-linebot) but the symbol has
+;; type (state _type_)"). States listed first here so file position matches
+;; the comments.
+(deftype wrong-way-linebot (process-drawable)
+  ((initial-quat quaternion :inline :offset-assert 256)
+   (initial-pos  vector     :inline :offset-assert 272)
+   (hover-sound  uint32             :offset-assert 288)
+   (l-control    uint32    3       :offset-assert 292)
+   (my-vehicle   uint64             :offset-assert 304)
+   (spawn-part   uint64             :offset-assert 312)
+   (vehicle-part uint64             :offset-assert 320)
+   (sound-id     uint32             :offset-assert 328)
+   )
+  :method-count-assert 53
+  :size-assert         #x14c
+  :flag-assert         #x3500c0014c
+  (:state-methods
+    idle ;; 50
+    shoot ;; 51
+    )
+  (:methods
+    (wrong-way-linebot-method-52 () none) ;; 52
+    )
+  )
 
 #|
 (deftype wrong-way (process-drawable)
@@ -70610,6 +70684,28 @@
     )
   )
 |#
+;; resurrected from the dead block above, idle dropped: slot 59 is
+;; rigid-body-object's own idle state two types up in this file, inherited
+;; rather than newly allocated here; explode, fade-out and die are the
+;; three genuinely new slots (89-91) extending rigid-body-object's 89-slot
+;; count, listed in that ascending order so file-position slot assignment
+;; matches the dead block's own comments, followed by vehicle-wheel's one
+;; new regular method (92).
+(deftype vehicle-wheel (rigid-body-object)
+  ((camera-dist float  :offset-assert 288)
+   )
+  :method-count-assert 93
+  :size-assert         #x124
+  :flag-assert         #x5d00a00124
+  (:state-methods
+    explode ;; 89
+    fade-out ;; 90
+    die ;; 91
+    )
+  (:methods
+    (vehicle-wheel-method-92 () none) ;; 92
+    )
+  )
 
 ;; (define-extern *vehicle-wheel-constants* object) ;; rigid-body-object-constants
 ;; (define-extern vehicle-wheel-init-by-other function) ;; (function vehicle-wheel-init-params object :behavior vehicle-wheel)
@@ -71903,6 +71999,25 @@
     )
   )
 |#
+;; resurrected from the dead block above, :state-methods dropped: slots 50
+;; and 52 are projectile's own die and impact (renamed above from the
+;; projectile-state-50/52 placeholders using these exact names), inherited
+;; here rather than newly allocated; keeping the clause would misallocate
+;; two slots v-toad-shot does not own against method-count-assert 76.
+(deftype v-toad-shot (net-projectile)
+  ((trail-tracker    uint64         :offset-assert 568) ;; handle
+   (blast-radius     float          :offset-assert 576)
+   (powerup-level    uint8          :offset-assert 580)
+   (initial-velocity vector :inline :offset-assert 592)
+   (vehicle-perigee  float          :offset-assert 608)
+   )
+  :method-count-assert 76
+  :size-assert         #x264
+  :flag-assert         #x4c01e00264
+  (:methods
+    (v-toad-shot-method-75 () none) ;; 75
+    )
+  )
 
 ;; (define-extern v-toad-shot-init-remote function)
 ;; (define-extern *msg-map-v-toad-shot* array)
@@ -83059,7 +83174,6 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier turbodash-seeker deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier udp-layer deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern universe-choice object) ;; provisional: call-site evidence only
-(define-extern v-toad-shot object) ;; provisional: call-site evidence only
 (define-extern v-wpn-yellow-chain-gun-I-rapid-fire-control-params object) ;; provisional: call-site evidence only
 (define-extern v-wpn-yellow-chaingun-1-hitspang-params object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier v-yellow-guided-missile deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
@@ -83067,12 +83181,9 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier vehicle-handling-info deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier vehicle-reticle-on-me deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern vehicle-weapon-drone object) ;; provisional: call-site evidence only
-(define-extern vehicle-wheel object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the vol-control deftype and broke goal_src's (declare-type vol-control ...) in JakXTypeConsistency
 ;; og:preserve-this provisional extern removed: shadowed the earlier volume-descriptor-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
-(define-extern water-anim object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the water-control declare-type and broke goal_src's (declare-type water-control ...) in JakXTypeConsistency
-(define-extern wrong-way-linebot object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier wvehicle-part-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier wvehicle-physics-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier wvehicle-sound-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
