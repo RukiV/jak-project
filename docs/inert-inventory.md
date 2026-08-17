@@ -47,6 +47,7 @@ written is read-only by design and not a finding.
 | `*artist-all-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-reverb*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*display-vol-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*music-lock*` | 2 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*settings-dialog-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
@@ -145,7 +146,6 @@ written is read-only by design and not a finding.
 | `*display-traffic-height-map*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-trail-graph*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-tri-stats*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-vol-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-water-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-xyz-axes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*dma-disasm*` | 1 | `goal_src/jakx/engine/dma/dma-disasm.gc` |
