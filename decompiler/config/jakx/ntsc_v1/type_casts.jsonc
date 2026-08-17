@@ -1,4 +1,41 @@
 {
+  // collide-probe: three functions load a bare `drawable` off a drawable-tree's
+  // (or drawable-tree-collide-fragment's) data-override field at offset 28, then read
+  // both .data (raw +32 pointer arithmetic, already resolves) and .length (offset 2)
+  // off it. drawable itself has no length field; drawable-inline-array-node does.
+  // Casting the read sites (not the load's own construction op, which still needs to
+  // see the source as drawable-tree/drawable-tree-collide-fragment to resolve its own
+  // offset-28 field) resolves both accesses, matching jak1's
+  // (-> (the-as drawable-inline-array-node v1) data) / (-> v1 length) shape.
+  "collide-probe-collide-fragment-tree-make-list": [
+    [3, "v1", "drawable-inline-array-node"],
+    [5, "v1", "drawable-inline-array-node"],
+    [6, "v1", "drawable-inline-array-node"]
+  ],
+  "collide-probe-instance-tie-tree-make-list": [
+    [3, "v1", "drawable-inline-array-node"],
+    [5, "v1", "drawable-inline-array-node"],
+    [6, "v1", "drawable-inline-array-node"],
+    [18, "v1", "drawable-inline-array-node"],
+    [20, "v1", "drawable-inline-array-node"],
+    [21, "v1", "drawable-inline-array-node"]
+  ],
+  "collide-probe-make-list": [
+    [22, "v1", "drawable-inline-array-node"],
+    [23, "v1", "drawable-inline-array-node"],
+    [33, "v1", "drawable-inline-array-node"],
+    [34, "v1", "drawable-inline-array-node"],
+    [50, "v1", "drawable-inline-array-node"],
+    [51, "v1", "drawable-inline-array-node"]
+  ],
+  // collide-upload-vu0: a0-5 is *vu0-dma-list*'s base pointer, typed generic `pointer`
+  // by the decompiler. The first quadword store (id/end dma-tag) resolves on its own;
+  // the second (the zero low-word at +8) only resolves once a0 is known to be
+  // (pointer int64) at that specific op, matching jak1's indexed
+  // (-> (the-as (pointer uint64) a0-5) 1) shape.
+  "collide-upload-vu0": [
+    [17, "a0", "(pointer int64)"]
+  ],
   // target-pilot-post: v1-1 is the vehicle process from (-> self vehicle)'s
   // handle->process conversion (see the vehicle field's own og:preserve-this note in
   // all-types.gc), which the decompiler can only type generically as process. Ops
