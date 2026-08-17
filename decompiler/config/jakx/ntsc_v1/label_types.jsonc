@@ -341,5 +341,46 @@
   // address into the symbol slot with a 32-bit sw, the same shape as the
   // already-landed single-instance statics (daxter's L222, foreground's L216),
   // not a pointer/array case, so no count is given.
-  "wvehicle-states": [["L166", "vector"]]
+  "wvehicle-states": [["L166", "vector"]],
+  // *car-part-type-to-text-table*: top-level-login stores L1's raw address
+  // (lui/ori, no allocation) into the symbol slot, the same unboxed-static
+  // shape as wvehicle-weapons' L920 and wvehicle-states' L166 above. L1 runs
+  // exactly 8 words (32 bytes) up to the next label with zero slack, which is
+  // precisely 16 uint16 elements and no other stride divides it evenly with
+  // no remainder. The 16 decoded halfwords read 1529, 1533, 1531, 1528, 1857,
+  // 1530, 1534, 1532, 2754, 3401, 3769, 0, 0, 0, 0, 0: a tight band consistent
+  // with text-table indices, matching the symbol's own name. No call site is
+  // decoded yet to corroborate the read pattern, so the extern itself stays
+  // typed `object` (goal_src, manual pointer casts at any future call site),
+  // matching menumap-part's *menumap-firework-colors* treatment; this entry
+  // only unblocks car-tables' top-level static recognition.
+  // *car-upgrade-info*: L2 is a second raw address load in the same
+  // top-level-login (lui/ori, no allocation), same shape as L1 above. Unlike
+  // L1, its declared type (pointer car-upgrade-info-array) points at a plain
+  // structure (not a basic), so a bare single-instance entry is correct, the
+  // same pattern as wvehicle-states' L166 vector above: no array_size is
+  // given because the pointed-to type IS the whole record, not an element
+  // type. car-upgrade-info-array's own :size-assert (#x3c0, 960 bytes) is
+  // 15 upgrade-info-array of 4 upgrade-info at a 16-byte stride, which
+  // matches the machine code's own +16/+32/... pointer walk through the
+  // record exactly (offline-test -f car-tables, this worktree's config).
+  // goal_src landing is deferred: both fixes clear the top-level-killing
+  // type-prop failure (car-tables_disasm.gc goes from an 8-line "not
+  // converted to expressions" stub to ~1256 real lines), but a separate,
+  // pre-existing defect remains underneath. The retail code walks
+  // *car-upgrade-info* with raw pointer arithmetic (a0 = base + 16, +32,
+  // ...) rather than array indexing, and the decompiler renders the
+  // per-field byte stores as bare `(s.b! (+ a0-N 4) ...)`, which goalc
+  // rejects ("Cannot do math on a (pointer car-upgrade-info-array)."), 240
+  // occurrences across the 60 records. Tried and rejected: overriding the
+  // walking variable's type via var_names.jsonc to (inline-array
+  // upgrade-info) (this worktree's config, "(top-level-login car-tables)");
+  // the retype only changes the let-binding's displayed type, the
+  // downstream &-> calls still resolve against the original propagated
+  // (pointer car-upgrade-info-array) type and recast back to it, so the
+  // math error is unchanged. This needs either FormExpressionBuilder work
+  // (base+constant*stride recognition cascading into inline-array
+  // indexing) or ~120 individual per-record var_names overrides; out of
+  // scope for a config-only rung.
+  "car-tables": [["L1", "(pointer uint16)", 16], ["L2", "car-upgrade-info-array"]]
 }
