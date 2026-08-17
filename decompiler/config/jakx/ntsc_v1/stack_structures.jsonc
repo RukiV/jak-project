@@ -53,6 +53,20 @@
     // vector-!2 destination.
     [944, "vector"]
   ],
+  // (event active movie-path): sp+16 is filled with a (pointer process) at
+  // +8 (self's own handle-adjacent field, offset 28), an int 2 at +68, the
+  // 'change symbol at +64 and the 'ratio symbol/#f pair at +16/+24, then
+  // passed straight to send-event-function; the raw stack address's own
+  // type never resolved on its own ("Failed to guess stack use for 16"),
+  // same event-message-block shape as (event cam-master-active) above.
+  "(event active movie-path)": [[16, "event-message-block"]],
+  // (method 16 movie-path): sp+16 is written by three sequential 16-byte
+  // pieces (a quad copy of root's own trans vector at +0, quaternion-copy!
+  // into +16, vector-identity! into +32) then handed to a 'teleport-to-
+  // transformq event as its transformq payload; matches transformq's own
+  // trans/rot/scale layout exactly. The raw stack address's own type never
+  // resolved on its own ("Failed to guess stack use for 16").
+  "(method 16 movie-path)": [[16, "transformq"]],
   // (method 9 plane-volume): sp+16 through sp+96 (stride 16, six slots) are each
   // zeroed by their own quad store before the plane-corner loop starts, then indexed
   // by veccross/vector-float*! results keyed off s3 (0-5), matching a six-corner

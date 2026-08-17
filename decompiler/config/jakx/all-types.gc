@@ -39809,7 +39809,7 @@
     (path-control-method-15 () none) ;; 15 ;; (path-control-method-15 (_type_ vector float float) vector)
     (path-control-method-16 (_type_ vector) none) ;; 16 ;; (displacement-between-points-at-percent-normalized! (_type_ vector float) vector)
     (get-num-segments (_type_) float) ;; 17 ;; 
-    (path-control-method-18 (_type_) none) ;; 18 ;; (total-distance (_type_) float)
+    (total-distance (_type_) float) ;; 18
     (get-num-verts (_type_) int) ;; 19 ;; 
     (segement-duration->path-duration (_type_ float) float)
     (average-segment-length(_type_ float) float) ;; 21 ;; (path-duration->segment-duration (_type_ float) float)
@@ -50114,9 +50114,20 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; root retyped basic -> trsqv: (method 11 movie-path) constructs it with
+;; (new 'process 'trsqv) (raw offset 140, the +4 basic-tag trap for 144) and
+;; immediately does pointer arithmetic on the result ("add failed: basic
+;; <integer 12>" against the untyped basic field); trsqv's own doc comment
+;; names this exact role ("The root of a process-drawable is a trsqv").
+;; path retyped basic -> curve-control: (method 11 movie-path) constructs it
+;; with curve-control's own new method (symbol lookup on 'curve-control,
+;; method slot 16), and (method 16 movie-path) later dispatches its vtable
+;; method 14 off the stored result ("The method with id 14 of type basic
+;; could not be found"), which only exists on path-control (curve-control's
+;; parent) and up.
 (deftype movie-path (process)
-  ((root        basic          :offset-assert 144)
-   (path        basic          :offset-assert 148)
+  ((root        trsqv          :offset-assert 144)
+   (path        curve-control  :offset-assert 148)
    (path-pos    float          :offset-assert 152)
    (path-speed  float          :offset-assert 156)
    (rot         vector :inline :offset-assert 160)
@@ -83734,6 +83745,7 @@
 (define-extern *mine-b-hack* object) ;; provisional: call-site evidence only
 (define-extern *movie-path* object) ;; provisional: call-site evidence only
 (define-extern *movie-path-dir* object) ;; provisional: call-site evidence only
+(define-extern *movie-path-filename* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-artifact* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-chicken-drone* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-coli-statue* object) ;; provisional: call-site evidence only
