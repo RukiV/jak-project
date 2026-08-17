@@ -53987,9 +53987,29 @@
 
 ;; (define-extern V_R_MINE1_ARMED? object)
 ;; (define-extern weapon-mask->type function)
-;; activated: wvehicle-weapons-h top-level-login reads it directly; object is
-;; the placeholder's own already-given type, unchanged.
-(define-extern *weapon-suppression-table* object)
+;; *weapon-suppression-table*: top-level-login's clearing loop does
+;; (+ *weapon-suppression-table* (+ (sll place 4) (sll wtype 2)) 12), all
+;; multiples of 4 (symbol-pointer width): place in [0,21), wtype in [0,17),
+;; base offset 3 elements. object made the add throw ("add failed: int
+;; object"), killing the whole top-level (zero deftypes, local-vars
+;; fallback). (pointer symbol) matches the byte-level unit the arithmetic
+;; already uses and clears it: 11 deftypes recover, local-vars fallback
+;; disappears (scoped decode, this worktree's config, wvehicle-weapons-h).
+;; L34 itself (21 back-to-back separately-boxed (array symbol) records,
+;; allocated-length 17, 84 bytes each) still fails static-ref: L34 points at
+;; the type-tag word itself, not a basic's data pointer 4 bytes past it, so
+;; decompile_boxed_array's alignment check (data_decompile.cpp:1838-1839)
+;; never fires; the label_types sized-pointer path routes through
+;; decompile_value_array, which throws unconditionally on any embedded
+;; TYPE_PTR word inside an element's byte range (data_decompile.cpp:318-324),
+;; and inline-array explicitly rejects basic element types
+;; (data_decompile.cpp:98-99, "Plan basic arrays not supported yet"). No
+;; label_types entry can express this shape today; it is a decompiler gap,
+;; not a config gap. Isolated to a WARN on this one static since 6c429336b
+;; (per-element static-ref isolation), so it does not block the file's other
+;; deftypes, but the raw <static-data L34> placeholder is not valid GOAL and
+;; still blocks landing wvehicle-weapons-h.gc itself.
+(define-extern *weapon-suppression-table* (pointer symbol))
 ;; (define-extern v-wpn-base-common-trans function)
 ;; (define-extern v-wpn-event-base function)
 ;; activated: wvehicle-weapons-h top-level-login reads it directly; object is
