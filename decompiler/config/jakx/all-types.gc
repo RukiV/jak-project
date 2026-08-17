@@ -53673,9 +53673,9 @@
   :size-assert         #x5c
   :flag-assert         #xc0000005c
   (:methods
-    (racer-state-method-9 () none) ;; 9 ;; (update-lap-distance (_type_ race-state) none)
-    (racer-state-method-10 () none) ;; 10 ;; (begin-lap (_type_ race-state) none)
-    (racer-state-method-11 () none) ;; 11 ;; (end-lap (_type_ race-state) none)
+    (racer-state-method-9 (_type_ race-state) none) ;; 9 ;; (update-lap-distance (_type_ race-state) none)
+    (racer-state-method-10 (_type_ race-state) none) ;; 10 ;; (begin-lap (_type_ race-state) none)
+    (racer-state-method-11 (_type_ race-state) none) ;; 11 ;; (end-lap (_type_ race-state) none)
     )
   )
 |#
@@ -53683,6 +53683,10 @@
 ;; below when it was actually killed, but wvehicle-h.gc's race-control uses
 ;; it only as a plain non-inline pointer field, so the parent correction is
 ;; safe (declare-type-audit, census2/declare-type-audit.json)
+;; forward-reference breaker: racer-state -> race-state (racer-state's own
+;; methods 9/10/11 take a race-state arg, and race-state's own deftype sits
+;; further down this file, hud-and-levels-misc rung)
+(declare-type race-state structure)
 (deftype racer-state (structure)
   ((position                vector    :inline :offset-assert 0)
    (start-position          vector    :inline :offset-assert 16)
@@ -53706,9 +53710,9 @@
   :size-assert         #x5c
   :flag-assert         #xc0000005c
   (:methods
-    (racer-state-method-9 () none) ;; 9 ;; (update-lap-distance (_type_ race-state) none)
-    (racer-state-method-10 () none) ;; 10 ;; (begin-lap (_type_ race-state) none)
-    (racer-state-method-11 () none) ;; 11 ;; (end-lap (_type_ race-state) none)
+    (racer-state-method-9 (_type_ race-state) none) ;; 9 ;; (update-lap-distance (_type_ race-state) none)
+    (racer-state-method-10 (_type_ race-state) none) ;; 10 ;; (begin-lap (_type_ race-state) none)
+    (racer-state-method-11 (_type_ race-state) none) ;; 11 ;; (end-lap (_type_ race-state) none)
     )
   )
 
@@ -53774,10 +53778,17 @@
   :method-count-assert 12
   :size-assert         #x430
   :flag-assert         #xc00000430
+  ;; hud-and-levels-misc rung: methods 9/10/11 synced to their own trailing
+  ;; ";; (sig)" comments, same defect class as racer-state's own methods
+  ;; above. (method 10 race-state)'s own body reads racer-count at raw
+  ;; offset 65 with no arg0 typed at all until this is declared ("Could not
+  ;; figure out load: (set! v1 (l.b (+ gp 65)))"); (method 9 race-state)
+  ;; similarly fails its own array-index multiply with arg0/arg1 both
+  ;; unset.
   (:methods
-    (race-state-method-9 () none) ;; 9 ;; (init-racers! (_type_ process-drawable int) none)
-    (race-state-method-10 () none) ;; 10 ;; (begin-race (_type_) none)
-    (race-state-method-11 () none) ;; 11 ;; (update (_type_) none)
+    (race-state-method-9 (_type_ process-drawable int) none) ;; 9 ;; (init-racers! (_type_ process-drawable int) none)
+    (race-state-method-10 (_type_) none) ;; 10 ;; (begin-race (_type_) none)
+    (race-state-method-11 (_type_) none) ;; 11 ;; (update (_type_) none)
     )
   )
 

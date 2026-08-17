@@ -5,6 +5,11 @@
 ;; name in dgo: race-h
 ;; dgos: ENGINE, GAME
 
+;; forward-reference breaker: racer-state -> race-state (racer-state's own
+;; methods 9/10/11 take a race-state arg, and race-state's own deftype sits
+;; further down this file, hud-and-levels-misc rung)
+(declare-type race-state structure)
+
 ;; definition of type racer-state
 (deftype racer-state (structure)
   ((position                 vector  :inline)
@@ -25,10 +30,14 @@
    (lap-count                int8)
    (lap-quadrant             int8)
    )
+  ;; hud-and-levels-misc rung: methods 9/10/11 synced to race-manager.gc's
+  ;; own call-site usage (all three take a race-state as their sole arg
+  ;; beyond self). See decompiler/config/jakx/all-types.gc's matching
+  ;; comment for the evidence.
   (:methods
-    (racer-state-method-9 () none)
-    (racer-state-method-10 () none)
-    (racer-state-method-11 () none)
+    (racer-state-method-9 (_type_ race-state) none)
+    (racer-state-method-10 (_type_ race-state) none)
+    (racer-state-method-11 (_type_ race-state) none)
     )
   )
 
@@ -81,10 +90,14 @@
    (longest-race-line-dist  float)
    (racer-array             racer-state  10 :inline)
    )
+  ;; hud-and-levels-misc rung: method 9 synced to race-manager.gc's own
+  ;; call-site usage (process-drawable and int args beyond self); methods
+  ;; 10/11 take only self. See decompiler/config/jakx/all-types.gc's
+  ;; matching comment for the evidence.
   (:methods
-    (race-state-method-9 () none)
-    (race-state-method-10 () none)
-    (race-state-method-11 () none)
+    (race-state-method-9 (_type_ process-drawable int) none)
+    (race-state-method-10 (_type_) none)
+    (race-state-method-11 (_type_) none)
     )
   )
 
