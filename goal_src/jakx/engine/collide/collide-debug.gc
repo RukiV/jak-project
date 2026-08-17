@@ -7,3 +7,56 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this method 9 of type collide-cache is deferred, not landed. Its own
+;; prim-walk loop reads collide-cache's own `prim` field (offset 108) narrowed to
+;; collide-prim-core (the sub-struct collide-cache-prim starts with at offset 0,
+;; the same union tie-break class as main-collide's matrix4h ambiguity) then needs
+;; the wider collide-cache-prim back to reach its own `prim` field at offset 36,
+;; and from there collide-shape-prim-sphere specifically (jak3's twin,
+;; goal_src/jak3/engine/collide/collide-debug.gc:148, casts the same chain via
+;; (the-as collide-shape-prim-sphere ...)) to reach `pat`. type_casts.jsonc entries
+;; targeting every read site in this loop were tried and reverted: each fix shifted
+;; the decompiler's own op numbering enough to break a previously-working site
+;; elsewhere in the same function, never converging to zero errors. Two externs
+;; this method calls were activated anyway since they carry their own independent
+;; evidence: debug-reset-prim-buffer (zero args, unused return, no jak1/jak2/jak3
+;; twin) and print-collide-cache-tri-count (one collide-cache arg, correcting the
+;; hinted zero-arg signature).
+;;   (defmethod (method 9 collide-cache) ((this collide-cache))
+;;     ...
+;;     )
+
+;; definition of type col-rend-filter
+(deftype col-rend-filter (structure)
+  ((show-pat       uint32)
+   (show-pat-mask  uint32)
+   )
+  )
+
+;; definition for method 3 of type col-rend-filter
+(defmethod inspect ((this col-rend-filter))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'col-rend-filter)
+  (format #t "~1Tshow-pat: ~D~%" (-> this show-pat))
+  (format #t "~1Tshow-pat-mask: ~D~%" (-> this show-pat-mask))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this function col-rend-draw is deferred, not landed, for the same
+;; collide-cache-prim/collide-shape-prim-sphere chain named above (its own triangle
+;; loop is clean; only the second, sphere-primitive loop hits the unresolved chain).
+;; Method 9 of type col-rend (draw) is deferred alongside it: its only failure mode
+;; is calling this deferred function, and landing the caller while the callee stays
+;; undefined would compile clean today (offline-test and (mi) are both compile-only,
+;; no link stage) and still link as zero at kernel link (AGENTS.md section 5).
+;;   (defun col-rend-draw ((arg0 col-rend) (arg1 col-rend-filter))
+;;     ...
+;;     )
+;;   (defmethod draw ((this col-rend))
+;;     ...
+;;     )
+

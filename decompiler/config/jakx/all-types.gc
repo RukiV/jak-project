@@ -41655,7 +41655,10 @@
 (define-extern *debug-text-3ds* (inline-array debug-text-3d))
 (define-extern *debug-text-3d-trk* debug-tracking-thang) ;; 
 (define-extern *debug-prims* prim-strip) ;; nav rung: retyped from int; debug-reset-prim-buffer both (new 'debug 'prim-strip ...)-constructs and field-stores through it, and int cannot carry a pointer store target
-(define-extern debug-reset-prim-buffer (function none)) ;; nav rung: call site in (anon-function 18 nav-mesh-editor) passes no args and never reads v0
+;; og:preserve-this activated (nav and engine quick-tier rungs): (method 9 collide-cache)'s own call and
+;; (anon-function 18 nav-mesh-editor)'s both pass zero arguments (t9 loaded and jalr'd immediately, no arg
+;; registers set) and never read v0 afterward. Unique to jakx; no jak1/jak2/jak3 twin carries this symbol.
+(define-extern debug-reset-prim-buffer (function none))
 (define-extern add-debug-flat-triangle (function symbol bucket-id vector vector vector rgba symbol))
 ;; (define-extern get-debug-line function) ;; (function debug-line)
 ;; (define-extern get-debug-text-3d function) ;; (function debug-text-3d)
@@ -44701,7 +44704,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern add-collide-debug-box function) ;; (function vector rgba none)
-;; (define-extern print-collide-cache-tri-count function) ;; (function none)
+;; og:preserve-this activated: (method 9 collide-cache) passes its own `this` in a0
+;; at the call (the outer method's own collide-cache argument copied straight
+;; through), correcting the hinted zero-arg signature to one collide-cache arg.
+(define-extern print-collide-cache-tri-count (function collide-cache none))
 ;; (define-extern print-exceeded-max-cache-tris function) ;; (function none)
 ;; (define-extern fill-bg-using-box-new function) ;; (function collide-cache object collide-query none)
 ;; (define-extern fill-bg-using-line-sphere-new function) ;; (function collide-cache object collide-query none)
@@ -49226,7 +49232,10 @@
   )
 
 
-;; (define-extern col-rend-draw function) ;; (function col-rend col-rend-filter none)
+;; og:preserve-this activated: two args (a0/a1) matching the hinted signature; body
+;; reads math-camera-matrix and builds a scratch matrix at sp+16 from col-rend/filter
+;; fields, consistent with a col-rend draw routine.
+(define-extern col-rend-draw (function col-rend col-rend-filter none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; relocate                       ;;
