@@ -173,7 +173,36 @@
     // to the same unresolved inner lambda; parked as asm.
     "title-control-init",
     "title-control-spawn",
-    "draw-language-select"
+    "draw-language-select",
+    // desarena-obs: desarena-activate/deactivate never decoded at all
+    // ("no type analysis"), no in-band call-site evidence (nothing in
+    // this object calls them; they are level-hook functions referenced
+    // from elsewhere, out of this band's scope).
+    "desarena-activate",
+    "desarena-deactivate",
+    // palm-tree's own methods 11/52/54/55: all raw, unconverted register
+    // dumps reading a1/uninitialized locals with no traceable source
+    // (method 55: "add failed uninitialized integer 16" plus a stack-use
+    // guess failure; method 54: raw l.q load; method 11 and 52: fully
+    // unconverted). method 52 is called from (post idle palm-tree), which
+    // still resolves fine against a parked method's decoder-generated
+    // stub body.
+    "(method 11 palm-tree)",
+    "(method 52 palm-tree)",
+    "(method 54 palm-tree)",
+    "(method 55 palm-tree)",
+    // palm-tree-a/b/c's own method 35 and 54 overrides (six total): the
+    // same "may read a1 not set" pattern as the base type's method 54
+    // (a1 is very likely a vector impact-velocity/direction argument, but
+    // no in-band evidence pins the exact signature since every one of
+    // these bodies reads it uninitialized rather than receiving it as a
+    // declared param).
+    "(method 35 palm-tree-a)",
+    "(method 54 palm-tree-a)",
+    "(method 35 palm-tree-b)",
+    "(method 54 palm-tree-b)",
+    "(method 35 palm-tree-c)",
+    "(method 54 palm-tree-c)"
   ],
   // these functions use pairs and the decompiler
   // will be less picky about types related to pairs.
