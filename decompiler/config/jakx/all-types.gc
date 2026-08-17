@@ -65654,6 +65654,17 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; hud-and-levels-misc rung: (anon-function 3 intro-scenes2) stores this
+;; field's raw value straight into joint-control-channel's own frame-group
+;; field (declared offset-assert 4, art-joint-anim), then separately
+;; dereferences it at offset 32 (art-joint-anim's own blend-shape-anim,
+;; (pointer int8)) and reads a halfword off that; a plain uint32 does not
+;; fit either access. Retyping this field to art-joint-anim was tried and
+;; measured to have zero effect on the field's own read type at either
+;; access, byte for byte identical output to declaring it plain int32
+;; (confirmed by directly swapping the declared type and rerunning the
+;; scoped decode), for a reason this rung could not determine; left at its
+;; original type rather than landing an unproven change.
 (deftype krasmale (process-drawable)
   ((extra-id uint32  :offset-assert 248)
    (anim     basic   :offset-assert 252)
@@ -65681,6 +65692,10 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; hud-and-levels-misc rung: krasfemale's own sibling function
+;; ((anon-function 7 intro-scenes2)) shows the identical shape as
+;; krasmale's; see krasmale's own comment above for the evidence and the
+;; measured zero-effect retype attempt.
 (deftype krasfemale (process-drawable)
   ((extra-id uint32  :offset-assert 248)
    (anim     basic   :offset-assert 252)
