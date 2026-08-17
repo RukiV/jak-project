@@ -2204,30 +2204,10 @@
   "fx-copy-buf": [[[3, 12], "a0", "dma-packet"]],
   "init-hflip-zbuf": [[[14, 19], "v1", "dma-packet"]],
   "init-warp": [[[20, 25], "v1", "dma-packet"]],
-  // hflip-zbuf-init/fx-copy-init: same dma-tag idiom, a second dma-tag rewrite later in
-  // the same byte-identical bodies (arg0's base field re-read and combined in place).
-  // op 135/138 reads vif0+vif1 as one combined 64-bit word (dma-packet has no single
-  // field spanning both), so that one op needs a plain 64-bit pointer instead.
-  "hflip-zbuf-init": [
-    [[62, 135], "v1", "dma-packet"],
-    [135, "v1", "(pointer uint64)"],
-    [[136, 144], "v1", "dma-packet"]
-  ],
-  "fx-copy-init": [
-    [[62, 138], "v1", "dma-packet"],
-    [138, "v1", "(pointer uint64)"],
-    [[139, 144], "v1", "dma-packet"]
-  ],
-  // emerc-vu1-initialize-chain: s5 is the dma-gif-packet argument; s3/s4 point mid-chain
-  // (offsets 48/112, not multiples of dma-gif-packet's own 32-byte size) at scratch
-  // written via quad-copy!, which only needs a bare pointer (matches (method 9
-  // merc-effect)'s identical s4/s5 pointer-cast idiom just above).
-  "emerc-vu1-initialize-chain": [
-    [42, "s5", "pointer"],
-    [50, "s5", "pointer"],
-    [65, "s5", "pointer"],
-    [90, "gp", "pointer"]
-  ],
+  // hflip-zbuf-init, fx-copy-init and emerc-vu1-initialize-chain: the earlier
+  // gfx wave's dma-packet entries for these three were superseded by the gfx
+  // small tier's per-op entries near the end of this file (the later key was
+  // the one in force when hflip, warp and emerc landed); one key, one value.
   "(method 9 merc-effect)": [
     [38, "v1", "merc-eye-ctrl"],
     [62, "s4", "pointer"],
@@ -2244,22 +2224,8 @@
     [60, "s3", "int"],
     [26, "v1", "adgif-shader"]
   ],
-  // debug-merc-highres-runtime: same shape as debug-merc-fade-runtime above (frag-geo/
-  // frag-ctrl self-increment plus the adgif-shader per-shader cursor at
-  // merc-fragment-fp-data+16).
-  "debug-merc-highres-runtime": [
-    [215, "s1", "int"],
-    [217, "s2", "int"],
-    [84, "v1", "adgif-shader"]
-  ],
-  // debug-merc-size-runtime: same adgif-shader per-shader cursor as
-  // debug-merc-fade-runtime above.
-  "debug-merc-size-runtime": [
-    [92, "v1", "adgif-shader"],
-    [116, "s1", "int"],
-    [118, "s2", "int"],
-    [[53, 63], "v1", "adgif-shader"]
-  ],
+  // debug-merc-highres-runtime and debug-merc-size-runtime: superseded the same
+  // way by the gfx small tier's fuller entries near the end of this file.
   // merc. jak3's block verbatim; jakx's failing op (103) matches jak3's op numbers
   "(method 8 merc-ctrl)": [
     [46, "s2", "pointer"],
