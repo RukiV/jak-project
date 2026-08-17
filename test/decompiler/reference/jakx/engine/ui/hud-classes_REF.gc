@@ -1,66 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: hud-classes.gc
-;; name in dgo: hud-classes
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
-;; og:preserve-this hud-static-literals rung: hud-init-by-other forward-declared
-;; here. It is a real function called (zero args) at the tail of
-;; hud-map-init-by-other below, already typed in decompiler/config/jakx/
-;; all-types.gc, but goalc resolves externs from goal_src only, never
-;; all-types.gc, so the symbol was unresolved at compile time regardless. Its
-;; true home file is not yet landed; activate here so this file compiles
-;; independently, matching the provisional-extern-hygiene pattern used on
-;; hud-oneoff.gc's print-game-text. Retire this declaration once
-;; hud-init-by-other's owning file lands for real.
-(define-extern hud-init-by-other (function object :behavior hud))
-;; og:preserve-this hud-static-literals rung: *minimap* forward-declared here for
-;; the same reason as hud-init-by-other above. Its owning file, minimap.gc, is a
-;; 9-line stub (the *minimap* instance itself is not yet landed), but its type,
-;; minimap, is already landed in minimap-h.gc with method-10 through method-15
-;; declared, so only the instance symbol is missing here. Retire this declaration
-;; once minimap.gc lands the real *minimap* instance.
-(define-extern *minimap* minimap)
-;; og:preserve-this hud-static-literals rung: set-hud-piece-position! and
-;; set-as-offset-from! forward-declared here for the same reason as the two
-;; above. Both are called from (method 24 hud-map) below with the argument
-;; shapes these signatures carry; jak3's own hud.gc defines both for real
-;; (goal_src/jak3/engine/ui/hud.gc), confirming the home file is jakx's own
-;; hud.gc, still a bring-up stub here. Retire these declarations once hud.gc
-;; lands the real definitions.
-(define-extern set-hud-piece-position! (function hud-sprite int int none))
-(define-extern set-as-offset-from! (function hud-sprite vector4w int int none))
-;; og:preserve-this hud-static-literals rung: level-bounding-box forward-
-;; declared here (full deftype, not just an extern) because hack-set-level-bbox
-;; and init-level-bbox-from-map (both defined below) do direct field access
-;; (-> *level-bounding-box* bmin x), which needs the real field layout, not
-;; just a declare-type name stub. Transcribed verbatim from
-;; decompiler/config/jakx/all-types.gc; no other jakx goal_src file references
-;; this symbol yet, so its true home file is unknown from this rung's scope
-;; alone. Retire this declaration once that home file lands the real type and
-;; instance.
-(deftype level-bounding-box (structure)
-  ((bmin vector :inline)
-   (bsz  vector :inline)
-   )
-  (:methods
-    (level-bounding-box-method-9 (_type_) none)
-    (level-bounding-box-method-10 () none)
-    (level-bounding-box-method-11 (_type_ object mem-buffer) none)
-    )
-  )
-(define-extern *level-bounding-box* level-bounding-box)
-;; og:preserve-this hud-static-literals rung: get-open-task-node-info forward-
-;; declared here for the same reason as the externs above; its return type,
-;; game-task-node-info, is already landed (task-control-h.gc), so only the
-;; function symbol itself was missing. Called by init-level-bbox-from-map
-;; below. Retire this declaration once this function's owning file lands the
-;; real definition.
-(define-extern get-open-task-node-info (function game-task-node-info))
-
 ;; definition of type race-map-info
 (deftype race-map-info (structure)
   ((corner      vector2)

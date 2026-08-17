@@ -50358,17 +50358,19 @@
   )
 
 
-;; og:preserve-this hud-follow-through rung: type known from the decompiler's
-;; own inferred store comment ([v1: (array race-map-info)], hud-classes_ir2.asm
-;; op 12), but its static initializer still shows as an unresolved
-;; <static-data L17> placeholder rather than a real (new 'static 'array ...)
-;; literal: race-map-info's :size-assert #x14 does not divide its own vector2
-;; sub-fields on a clean 16-byte boundary, the same boxed-array-alignment
-;; class already named for this file. Extern activated so the rest of the
-;; file's real code can typecheck; the static array literal itself is left
-;; unresolved (deferred, not invented) and blocks this file's own top-level
-;; from compiling until it is hand-derived from L17's raw words.
-(define-extern *race-map-info-array* (array race-map-info))
+;; og:preserve-this hud-static-literals rung: the (array race-map-info)
+;; extern above was never a real boxed 'array (no type-tag/length/alloc-
+;; length header word triple precedes L17; decompile_boxed_array's own
+;; alignment check rejects it), and both call sites (init-level-bbox-from-map
+;; op 71, (method 24 hud-map) op 100) index it with raw pointer arithmetic,
+;; `(+ *race-map-info-array* (* index 32))`, never through a data field. That
+;; is the unboxed inline-array-of-structures shape (car-tables' L2 /
+;; wvehicle-states' L166 precedent), so the extern is retyped to
+;; (inline-array race-map-info), matching *inv-init-table*'s own
+;; (define-extern (inline-array invinitdata)) shape. L17's own 256 raw words
+;; (hud-classes_ir2.asm) divide into exactly 32 elements of race-map-info's
+;; 8-word (0x20) stride with zero remainder, confirming the count.
+(define-extern *race-map-info-array* (inline-array race-map-info))
 ;; og:preserve-this hud-follow-through rung: activated from provisional
 ;; comment. Stores its two float args (a0, a1) into hud-map's own x/y fields
 ;; (machine offsets 6360/6364, declared 6364/6368 per the +4 basic-offset
@@ -84287,7 +84289,11 @@
 (define-extern *progress-save-info* object) ;; provisional: call-site evidence only
 (define-extern *r2-press-time* object) ;; provisional: call-site evidence only
 (define-extern *race-banner-subtract* object) ;; provisional: call-site evidence only
-(define-extern *race-map-info-array* (array race-map-info))
+;; og:preserve-this hud-static-literals rung: later duplicate of the
+;; hud-classes-scoped extern above; retyped in lockstep so this later,
+;; winning entry does not silently shadow the corrected one back to the
+;; boxed-array shape that decompile_boxed_array rejects.
+(define-extern *race-map-info-array* (inline-array race-map-info))
 (define-extern *race-state* object) ;; provisional: call-site evidence only
 (define-extern *ragdoll-test-ragdoll-setup* object) ;; provisional: call-site evidence only
 (define-extern *raptor-enemy-info* object) ;; provisional: call-site evidence only

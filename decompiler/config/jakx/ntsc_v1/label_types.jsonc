@@ -426,6 +426,16 @@
   // scope for a config-only rung.
   "car-tables": [["L1", "(pointer uint16)", 16], ["L2", "car-upgrade-info-array"]],
 
+  // hud-static-literals rung: *race-map-info-array*'s L17 fails
+  // decompile_boxed_array's own alignment check (no type-tag/length header
+  // triple precedes it; both call sites index it with raw pointer
+  // arithmetic, `(+ *race-map-info-array* (* index 32))`, never through a
+  // data field), the unboxed inline-array-of-structures shape. L17 runs 256
+  // words (1024 bytes) to the next label with zero remainder against
+  // race-map-info's own 8-word (0x20) stride, exactly 32 elements; paired
+  // with the (inline-array race-map-info) extern retype in all-types.gc.
+  "hud-classes": [["L17", "(inline-array race-map-info)", 32]],
+
   // hud-cash: far-label uint64 flag doublewords reached via lui/ori/addu(fp),
   // same class as the scert-*-h wave above, feeding (type-new sym parent
   // flags) calls for hud-cash-stats/end-menu/cash-hud and the eight
