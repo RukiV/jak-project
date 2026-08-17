@@ -196,10 +196,24 @@ void try_reverse_lookup_array_like(const FieldReverseLookupInput& input,
     // header case is handled above, and any offset past the header always means "next
     // element", never "into this element's fields".
     auto try_struct_field_fallback = [&]() {
-      if (!boxed_array) {
+      // (pointer some-basic) is genuinely an array of references (get_deref_info's
+      // POINTER_SIZE stride is the real element size there, not a coincidence), so
+      // only fall back to field resolution for pointers to plain structures.
+      if (!boxed_array && !ts.tc(TypeSpec("basic"), input.base_type.get_single_arg())) {
+        // The pointer's own dereference needs an explicit token in the path: goalc's
+        // compile_deref (goalc/compiler/compilation/Type.cpp) has no
+        // pointer-to-structure-field path, so it accepts only the canonical
+        // (-> ptr 0 field ...) form and rejects (-> ptr field ...). Without this node
+        // the recursion below still finds the pointee's fields correctly, but the
+        // printed path omits the pointer's own deref and goalc rejects the result.
+        ReverseLookupNode deref_node;
+        deref_node.prev = parent;
+        deref_node.token.kind = FieldReverseLookupOutput::Token::Kind::CONSTANT_IDX;
+        deref_node.token.idx = 0;
+
         FieldReverseLookupInput struct_input = input;
         struct_input.base_type = input.base_type.get_single_arg();
-        try_reverse_lookup_other(struct_input, ts, parent, output, max_count);
+        try_reverse_lookup_other(struct_input, ts, &deref_node, output, max_count);
       }
     };
 

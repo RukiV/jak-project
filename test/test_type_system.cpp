@@ -148,6 +148,86 @@ TEST(TypeSystemReverse, InlineArrayOverlayUsesStrideNotTightSize) {
   EXPECT_EQ(printed.find("(-> items 4)"), std::string::npos);
 }
 
+TEST(TypeSystemReverse, PointerToStructFallbackEmitsDerefToken) {
+  // Pins the try_struct_field_fallback fix in TypeFieldLookup.cpp. A plain
+  // (non-boxed) pointer to a reference-typed structure whose own fields are
+  // reached through a hoisted base-plus-constant-stride walk (the offset
+  // folded into a single ADD rather than each load/store's own displacement)
+  // must resolve with the pointer's own dereference as an explicit leading
+  // "0" token, because compile_deref (goalc/compiler/compilation/Type.cpp)
+  // has no pointer-to-structure-field path and accepts only the canonical
+  // (-> ptr 0 field ...) form, never (-> ptr field ...). This mirrors
+  // car-tables' real *car-upgrade-info* extern, typed (pointer
+  // car-upgrade-info-array): a three-level nest of an outer structure whose
+  // inline array "data" holds mid structures, whose own inline array "data"
+  // holds leaf structures, with leaf's uint8 fields at offsets 4 and 5.
+  TypeSystem ts;
+  ts.add_builtin_types(GameVersion::Jak1);
+  goos::Reader reader;
+  auto add_type = [&](const std::string& str) {
+    auto& in = reader.read_from_string(str).as_pair()->cdr.as_pair()->car.as_pair()->cdr;
+    parse_deftype(in, &ts);
+  };
+
+  add_type(
+      "(deftype pfb-leaf (structure)\n"
+      "  ((cost           float  :offset-assert 0)\n"
+      "   (base           uint8  :offset-assert 4)\n"
+      "   (max            uint8  :offset-assert 5)\n"
+      "   (rookie         uint8  :offset-assert 6)\n"
+      "   (pro            uint8  :offset-assert 7)\n"
+      "   (cost-increment float  :offset-assert 8)\n"
+      "   (pad            uint8 4 :offset-assert 12)\n"
+      "   )\n"
+      "  :method-count-assert 9\n"
+      "  :size-assert         #x10\n"
+      "  :flag-assert         #x900000010\n"
+      "  )");
+
+  add_type(
+      "(deftype pfb-mid (structure)\n"
+      "  ((data pfb-leaf 4 :inline :offset-assert 0)\n"
+      "   )\n"
+      "  :method-count-assert 9\n"
+      "  :size-assert         #x40\n"
+      "  :flag-assert         #x900000040\n"
+      "  )");
+
+  add_type(
+      "(deftype pfb-outer (structure)\n"
+      "  ((data pfb-mid 15 :inline :offset-assert 0)\n"
+      "   )\n"
+      "  :method-count-assert 9\n"
+      "  :size-assert         #x3c0\n"
+      "  :flag-assert         #x9000003c0\n"
+      "  )");
+
+  auto check_offset = [&](int offset, const std::string& expected_field) {
+    FieldReverseLookupInput input;
+    input.base_type = ts.make_pointer_typespec("pfb-outer");
+    input.offset = offset;
+    DerefKind dk;
+    dk.size = 1;
+    dk.sign_extend = false;
+    dk.is_store = true;
+    dk.reg_kind = RegClass::GPR_64;
+    input.deref = dk;
+    auto result = ts.reverse_field_lookup(input);
+    ASSERT_TRUE(result.success);
+    ASSERT_EQ(result.tokens.size(), 6u);
+    EXPECT_EQ(result.tokens.at(0).kind, FieldReverseLookupOutput::Token::Kind::CONSTANT_IDX);
+    EXPECT_EQ(result.tokens.at(0).print(), "0");
+    EXPECT_EQ(result.tokens.at(1).print(), "data");
+    EXPECT_EQ(result.tokens.at(2).print(), "0");
+    EXPECT_EQ(result.tokens.at(3).print(), "data");
+    EXPECT_EQ(result.tokens.at(4).print(), "0");
+    EXPECT_EQ(result.tokens.at(5).print(), expected_field);
+  };
+
+  check_offset(4, "base");
+  check_offset(5, "max");
+}
+
 TEST(TypeSystem, TypeSpec) {
   TypeSystem ts;
   ts.add_builtin_types(GameVersion::Jak1);
