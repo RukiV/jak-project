@@ -49837,6 +49837,11 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this all six method signatures promoted from the trailing-comment
+;; guesses (2026-08-17 water-flow rung): register evidence from this rung's own
+;; scoped decode confirms five of them directly ("Bad register dependency" on
+;; exactly the extra args each trailing comment already named); method 12 kept its
+;; own guessed arg count for consistency, unreached by anything in this rung.
 (deftype flow-control (basic)
   ((path           path-control               :offset-assert 4) ;; guessed by decompiler
    (speed          float                      :offset-assert 8)
@@ -49849,12 +49854,12 @@
   :size-assert         #x40
   :flag-assert         #xe00000040
   (:methods
-    (new (symbol type) _type_) ;; 0 ;; (new (symbol type process-drawable res-lump) _type_)
-    (flow-control-method-9 () none) ;; 9 ;; (draw-path (_type_) none)
-    (flow-control-method-10 () none) ;; 10 ;; (setup (_type_ (pointer float) int) none)
-    (flow-control-method-11 () none) ;; 11 ;; (push-process (_type_ process-focusable) none)
-    (flow-control-method-12 () none) ;; 12 ;; (find-and-push-things (_type_) none)
-    (flow-control-method-13 () none) ;; 13 ;; (flow-control-method-13 (_type_ water-info vector) symbol)
+    (new (symbol type process-drawable res-lump) _type_) ;; 0
+    (flow-control-method-9 (_type_) none) ;; 9 ;; draw-path
+    (flow-control-method-10 (_type_ (pointer float) int) none) ;; 10 ;; setup
+    (flow-control-method-11 (_type_ process-focusable) none) ;; 11 ;; push-process
+    (flow-control-method-12 (_type_) none) ;; 12 ;; find-and-push-things
+    (flow-control-method-13 (_type_ water-info vector) symbol) ;; 13
     )
   )
 
@@ -49884,7 +49889,11 @@
   )
 
 
-;; (define-extern ray-plane-equation-intersect function) ;; (function vector vector vector vector float)
+;; og:preserve-this activated verbatim from its own trailing typespec (2026-08-17
+;; water-flow rung), the same provisional-extern-hygiene class documented on
+;; rigid-body-control above: a commented-out extern here dropped both this
+;; function's own type analysis and blocked (method 13 flow-control), its caller.
+(define-extern ray-plane-equation-intersect (function vector vector vector vector float))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; task-control                   ;;
@@ -60630,14 +60639,18 @@
   (:state-methods
     idle ;; 51
     )
+  ;; og:preserve-this all seven bare "()" placeholders corrected to "(_type_)" at
+  ;; minimum (2026-08-17 water-anim rung): none even typed the implicit this, so the
+  ;; decompiler could not resolve a single field access in any of the seven bodies.
+  ;; Individual arg counts added past that minimum on call-site/body evidence.
   (:methods
-    (water-anim-method-52 () none) ;; 52
-    (water-anim-method-53 () none) ;; 53
-    (water-anim-method-54 () none) ;; 54
-    (water-anim-method-55 () none) ;; 55
-    (water-anim-method-56 () none) ;; 56
-    (water-anim-method-57 () none) ;; 57
-    (water-anim-method-58 () none) ;; 58
+    (water-anim-method-52 (_type_ vector) none) ;; 52 ;; sets root.trans from arg0, reseeds water-height from the result, nudges sound position if any
+    (water-anim-method-53 (_type_ vector) float) ;; 53 ;; thin wrapper over ripple-find-height, the literal 0 is not an argument
+    (water-anim-method-54 (_type_) object) ;; 54
+    (water-anim-method-55 (_type_) none) ;; 55
+    (water-anim-method-56 (_type_) symbol) ;; 56
+    (water-anim-method-57 (_type_) symbol) ;; 57
+    (water-anim-method-58 (_type_) none) ;; 58 ;; reads look-entry resource fields into water-height/wade-height/swim-height and a y-rotation
     )
   )
 
@@ -60665,8 +60678,13 @@
 
 
 ;; (define-extern *water-anim-look* array) ;; (array water-anim-look)
-;; (define-extern water-anim-event-handler function) ;; (function process int symbol event-message-block object :behavior water-anim)
-;; (define-extern water-anim-init-by-other function) ;; (function entity-actor object :behavior water-anim)
+;; og:preserve-this both activated verbatim from their own trailing typespecs
+;; (2026-08-17 water-anim rung), the same provisional-extern-hygiene class
+;; documented on rigid-body-control above: a commented-out extern here drops the
+;; top-level function referencing it (water-anim-event-handler is the idle state's
+;; own :event handler; water-anim-init-by-other is the type's :init-by-other).
+(define-extern water-anim-event-handler (function process int symbol event-message-block object :behavior water-anim))
+(define-extern water-anim-init-by-other (function entity-actor object :behavior water-anim))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; rigid-body-debug               ;;
@@ -83478,7 +83496,13 @@
 (define-extern *video-change* object) ;; provisional: call-site evidence only
 (define-extern *visvol-edit-info* object) ;; provisional: call-site evidence only
 (define-extern *waiting-for-lock* object) ;; provisional: call-site evidence only
-(define-extern *water-anim-look* object) ;; provisional: call-site evidence only
+;; og:preserve-this typed from object (2026-08-17 water-anim rung): (method 54
+;; water-anim) reads a raw word straight off this symbol's own value (matching a
+;; boxed array's own length field placement) and indexes it as an array of
+;; water-anim-look, exactly the type the file's own top-level define already builds
+;; via (new 'static 'boxed-array :type water-anim-look). The commented-out hint two
+;; screens up already named this exact type.
+(define-extern *water-anim-look* (array water-anim-look))
 ;; *water-simple-alpha-curve-in*: water top-level-login stores a
 ;; curve2d-piecewise-typed call result into it, then immediately reads it
 ;; back typed object and calls method 10 (offset 56, allocate!, args

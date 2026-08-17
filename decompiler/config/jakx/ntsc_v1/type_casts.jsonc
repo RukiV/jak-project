@@ -96,6 +96,23 @@
   // sprite-glow-data's own position field via a raw (-> v1-2 data) pointer; casting
   // that base to vector at the failing op resolves it to a plain quad set!.
   "(method 92 construction-object)": [[19, "a0", "vector"]],
+  // (method 58 water-anim): res-lump-data returns a raw pointer, read as three
+  // consecutive floats (offsets 0, 4, 8). Ops 31 and 43 resolve on their own; only
+  // op 37 (offset 4, y) needed the explicit cast to (pointer float).
+  "(method 58 water-anim)": [[37, "v1", "(pointer float)"], [43, "v1", "(pointer float)"]],
+  // (method 56 water-anim): same shape as method 58's fix above, a raw res-lump
+  // pointer read as three consecutive floats (offsets 0, 4, 8); offsets 4 and 8
+  // (ops 56, 58) both needed the explicit cast to (pointer float).
+  // res-lump-data for 'water-height returns a variable-length lump of up to five
+  // floats (water-height, wade-height, swim-height, flags, bottom-height), each
+  // trailing float gated behind its own tag-length check; every offset past the
+  // first needed the explicit cast since the pointer type carries no length.
+  "(method 56 water-anim)": [
+    [56, "v1", "(pointer float)"],
+    [58, "v1", "(pointer float)"],
+    [65, "v1", "(pointer float)"],
+    [74, "v1", "(pointer float)"]
+  ],
   // (enter idle construction-object): same fast random-float-in-[1,2) trick
   // as (code idle kcro-flag-down) above.
   "(enter idle construction-object)": [
