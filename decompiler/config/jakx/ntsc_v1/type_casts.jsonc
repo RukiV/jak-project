@@ -1,4 +1,33 @@
 {
+  // spawn-hud-results-medal-1, spawn-hud-results-grand-prix-totals,
+  // spawn-hud-results-grand-prix: the spawned-process type-narrowing class the
+  // hud-follow-through rung named but did not fix (0857cd5f7's commit body,
+  // defect class 3). Each function allocates/activates/runs a concrete
+  // in-game-hud marker subtype (hud-results-medal-1 etc, all zero-field
+  // children of in-game-hud), then re-derives the running process through two
+  // more field reads (offset 28, a (pointer process), then offset 32 off its
+  // dereference) to reach the object whose inited-strings-count field
+  // (declared offset-assert 6376 on in-game-hud, raw 6372 per the +4 basic-tag
+  // convention) it zeroes. The decompiler only recovers the second read (op 29
+  // in all three functions here) as generic process, not the concrete spawned
+  // type, so the store at op 31 fails ("Failed store:
+  // (s.w! (+ (the-as process v0-0) 6372) 0)"). Casting v0 to the function's
+  // own concrete spawned type starting one op after the read that computes it
+  // (30, so op 29's own load off v1 still resolves as generic process first)
+  // through one past the failing store (32) resolves it; proved first on
+  // spawn-hud-results-medal-1, then applied unchanged (same op numbers, same
+  // shape, confirmed op by op against this worktree's own
+  // hud-results-grand-prix_ir2.asm) to the other two, clearing all three of
+  // this object's "Failed store" errors.
+  "spawn-hud-results-medal-1": [
+    [[30, 32], "v0", "hud-results-medal-1"]
+  ],
+  "spawn-hud-results-grand-prix-totals": [
+    [[30, 32], "v0", "hud-results-grand-prix-totals"]
+  ],
+  "spawn-hud-results-grand-prix": [
+    [[30, 32], "v0", "hud-results-grand-prix"]
+  ],
   // init-level-bbox-from-map and (method 24 hud-map): both index
   // *race-map-info-array* with a shift-by-5 (multiply by 32, hud-classes_ir2.asm
   // op 71/100), matching race-map-info's own :size-assert now that it is 0x20

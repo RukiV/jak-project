@@ -68165,7 +68165,12 @@
 ;; arg is typed as a raw byte pointer (matching the existing knet-dopen/
 ;; knet-file-erase precedent for this exact "unknown struct, byte-offset
 ;; read" shape) rather than object, which cannot support offset arithmetic.
-(define-extern calc-grand-prix-score (function (pointer uint8) int))
+;; hud-and-levels-misc rung: (pointer uint8) failed decode ("Could not
+;; figure out load: (set! v1 (l.b (+ a0 286)))", hud-results-grand-prix_ir2.asm
+;; op 0) because the machine code uses lb (signed byte load), not lbu, at
+;; offset 286. Retyped to (pointer int8) to match the load's own signedness;
+;; the compared values (0 through 4) are unaffected by signedness either way.
+(define-extern calc-grand-prix-score (function (pointer int8) int))
 ;; (define-extern *hud-results-grand-prix* array)
 ;; (define-extern *hud-results-grand-prix-proc* object)
 ;; spawn-hud-results-grand-prix, spawn-hud-results-grand-prix-totals and
