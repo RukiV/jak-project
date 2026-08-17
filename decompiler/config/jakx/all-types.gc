@@ -45369,8 +45369,8 @@
   ((volume-type  symbol                :offset-assert 0) ;; guessed by decompiler
    (point-count  int16                 :offset-assert 4)
    (normal-count int16                 :offset-assert 6)
-   (first-point  vector                :offset-assert 8) ;; (pointer vector)
-   (first-normal vector                :offset-assert 12) ;; (pointer vector)
+   (first-point  (pointer vector)      :offset-assert 8)
+   (first-normal (pointer vector)      :offset-assert 12)
    (num-planes   int32                 :offset-assert 16)
    (plane        (inline-array plane)  :offset-assert 20) ;; guessed by decompiler
    )
@@ -45378,10 +45378,20 @@
   :method-count-assert 12
   :size-assert         #x18
   :flag-assert         #xc00000018
+  ;; og:preserve-this synced against the byte-identical jak3 twin at
+  ;; decompiler/config/jak3/all-types.gc:33832. first-point/first-normal were declared
+  ;; bare vector instead of (pointer vector), which fails vol.gc's own method 10 (its
+  ;; debug-draw walk advances first-point by 32 bytes per iteration, pointer
+  ;; arithmetic a bare struct field does not support: "add failed: vector <integer
+  ;; 32>"). Methods 9/10/11 kept generic() none, when vol.gc's own decode needs
+  ;; vector-array args on 9 (raw offset arithmetic on arg2/arg3 matches
+  ;; vector-array's length-then-data shape) and vector/float on 11 (arg1 is read via
+  ;; gpr->fpr, arg0 passed straight to vector-dot); jak3 keeps method 9 itself
+  ;; unnamed but names 10/debug-draw and 11/point-in-vol?, so both are adopted here.
   (:methods
-    (plane-volume-method-9 (_type_ object object object) none) ;; 9 ;; (plane-volume-method-9 (_type_ object object object) plane-volume)
-    (plane-volume-method-10 (_type_) none) ;; 10 ;; (debug-draw (_type_) none)
-    (plane-volume-method-11 (_type_ object object) none) ;; 11 ;; (point-in-vol? (_type_ object object) symbol)
+    (plane-volume-method-9 (_type_ symbol vector-array vector-array) plane-volume) ;; 9
+    (debug-draw (_type_) none) ;; 10
+    (point-in-vol? (_type_ vector float) symbol) ;; 11
     )
   )
 
@@ -49361,7 +49371,11 @@
 ;; vol                            ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern plane-volume-intersect-dist function) ;; (function vector vector vector float)
+;; og:preserve-this activated: three vector args (vec3dot against a0/a1, then a0/a2,
+;; plus a float read at a0+12 for the plane's w/distance component) and a float
+;; return (v0/f0 on both exits), matching the hinted signature exactly; no VU macro
+;; ops, plain scalar float math, so it decodes fully once the type is known.
+(define-extern plane-volume-intersect-dist (function vector vector vector float))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; nav-engine                     ;;
