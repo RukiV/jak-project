@@ -38,10 +38,11 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (186)
+### Never written (189)
 
 | symbol | reading files | defined in |
 |---|---:|---|
+| `*display-capture-mode*` | 10 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-reverb*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -191,12 +192,14 @@ written is read-only by design and not a finding.
 | `*profile-x*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*race-record-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-cam-collide-history*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*record-fma*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-end*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-low-res*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-pal*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-path-dry-run*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-path-high-res*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-path-mode*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*record-fma-real*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-start*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-use-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*scert-function-id*` | 1 | `goal_src/jakx/engine/net/scert-funcs.gc` |
