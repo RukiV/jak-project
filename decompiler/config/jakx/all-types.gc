@@ -66617,23 +66617,41 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this arity sweep, methods 9/10/13: hud-effects_ir2.asm shows every
+;; override (hud-effect-group/slide/move/throb/scale) reading gp/a0 as self at
+;; machine offset 4/24 immediately on entry (declared 8/28), which only resolves once
+;; the base slot itself binds _type_; the () signature left self unbound and every
+;; override failed type prop identically. Method 13's overrides (hud-effect-group,
+;; hud-effect-emit-score-icon) thread four extra registers (a1/a2/a3/t0) straight
+;; through to the call-parent-method dispatch untouched, with hud-effect-emit-
+;; score-icon's own override the only one reading them (a3 compared against
+;; 'succeed, t0 read with l.d +16); no external caller survives in this corpus to
+;; narrow them further, so they stay object per the sweep's provisional-typespec
+;; convention. item retyped basic -> hud-item: every hud-effect-* override reads
+;; item at hud-item's own field offsets (position-x 6, position-y 8, real-width 18,
+;; real-height 20, zval 22), proof the field is a plain hud-item pointer rather than
+;; a specific subtype. hud-effect-font-effect's method 12/14 still fail past this;
+;; that residue reaches into offsets past hud-item's own 40-byte size-assert (a
+;; hud-item-string's string/has-outline fields) and is the known offset-4
+;; inline-16-align defect class, tracked separately rather than forced here. Scoped
+;; decode, this rung.
 (deftype hud-effect (basic)
-  ((message      basic  :offset-assert 4)
-   (active       basic  :offset-assert 8)
-   (pending      basic  :offset-assert 12)
-   (delay        int32  :offset-assert 16)
-   (receive-time int32  :offset-assert 20)
-   (item         basic  :offset-assert 24)
+  ((message      basic     :offset-assert 4)
+   (active       basic     :offset-assert 8)
+   (pending      basic     :offset-assert 12)
+   (delay        int32     :offset-assert 16)
+   (receive-time int32     :offset-assert 20)
+   (item         hud-item  :offset-assert 24)
    )
   :method-count-assert 15
   :size-assert         #x1c
   :flag-assert         #xf0000001c
   (:methods
-    (hud-effect-method-9 () none) ;; 9
-    (hud-effect-method-10 () none) ;; 10
+    (hud-effect-method-9 (_type_) none) ;; 9
+    (hud-effect-method-10 (_type_) none) ;; 10
     (hud-effect-method-11 (_type_) none) ;; 11
     (hud-effect-method-12 (_type_ object) none) ;; 12
-    (hud-effect-method-13 () none) ;; 13
+    (hud-effect-method-13 (_type_ object object object object) none) ;; 13
     (hud-effect-method-14 (_type_) none) ;; 14
     )
   )
@@ -66848,8 +66866,15 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this items retyped basic -> (array hud-effect): methods 9/10/11/12/13
+;; all read items+0 as a length (l.w) then index items+12+i*4 for a per-element
+;; pointer, the standard boxed (array T) layout (length/alloc-length/content-type
+;; header, data at +12); each iteration then loads the element's OWN type pointer at
+;; elt-4 for a dynamic vtable dispatch, proving polymorphic hud-effect elements
+;; rather than a single concrete subtype. Scoped decode, hud-effects_ir2.asm, this
+;; rung.
 (deftype hud-effect-group (hud-effect)
-  ((items basic  :offset-assert 28)
+  ((items (array hud-effect)  :offset-assert 28)
    )
   :method-count-assert 15
   :size-assert         #x20
@@ -70229,12 +70254,18 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced 16->22)
+;; og:preserve-this context retyped basic -> font-context: hud-oneoff's trans state stores
+;; floats at context+28/+32 (machine offsets; +4 for the basic tag word gives declared 32/36,
+;; font-context's origin.x/origin.y) and context+4 (declared 8, font-context's alpha), and
+;; hoff-text-floater-init-by-other allocates it via (new 'process 'font-context
+;; *font-default-matrix* ...) with the init-params' color/flags fields feeding the trailing
+;; font-color/font-flags args. Scoped decode, hud-oneoff_ir2.asm, this rung.
 (deftype hoff-text-floater (process)
   ((screen-from vector :inline :offset-assert 144)
    (float-rate  float          :offset-assert 160)
    (duration    uint64         :offset-assert 168)
    (state-time  uint64         :offset-assert 176)
-   (context     basic          :offset-assert 184)
+   (context     font-context   :offset-assert 184)
    (text        basic          :offset-assert 188)
    )
   :method-count-assert 16
@@ -70283,7 +70314,12 @@
   )
 
 
-;; (define-extern hoff-text-floater-init-by-other function)
+;; og:preserve-this typed from hud-oneoff_ir2.asm: single arg (gp/a0) reads only
+;; hoff-text-floater-init-params fields (16/20/24/28/32/33/36/40) and the body writes
+;; s6 (self) directly with no second process arg, matching the :behavior convention used
+;; by light-trail-tracker-init-by-other and peers. Return value is enter-state's tail
+;; call result, typed object like enter-state itself. Scoped decode, this rung.
+(define-extern hoff-text-floater-init-by-other (function hoff-text-floater-init-params object :behavior hoff-text-floater))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-deathmatch                 ;;
