@@ -54612,6 +54612,15 @@
 
 ;; (define-extern V_R_MINE1_ARMED? object)
 ;; (define-extern weapon-mask->type function)
+;; og:preserve-this tried and reverted (wvehicle-small-tier rung): activating
+;; a concrete (function int int) signature (a0 is a raw weapon bitmask,
+;; returned as an int weapon-type index; the body is asm, a plzcw
+;; leading-zero-count special instruction) crashes the decompiler outright
+;; ("Assertion failed: 'is_var()'", decompiler/IR2/AtomicOp.h:156,
+;; SimpleAtom::var) while processing this object, isolated by disabling it
+;; alone against an otherwise-unchanged config (crash persisted with only
+;; this extern active, cleared with only this extern reverted). A decompiler
+;; bug, not a config gap; left commented out.
 ;; *weapon-suppression-table*: top-level-login's clearing loop does
 ;; (+ *weapon-suppression-table* (+ (sll place 4) (sll wtype 2)) 12), all
 ;; multiples of 4 (symbol-pointer width): place in [0,21), wtype in [0,17),
@@ -54635,8 +54644,18 @@
 ;; deftypes, but the raw <static-data L34> placeholder is not valid GOAL and
 ;; still blocks landing wvehicle-weapons-h.gc itself.
 (define-extern *weapon-suppression-table* (pointer symbol))
-;; (define-extern v-wpn-base-common-trans function)
-;; (define-extern v-wpn-event-base function)
+;; og:preserve-this activated (wvehicle-small-tier rung): the top-level's own
+;; defstate assignment casts it explicitly, "(the-as (function object)
+;; v-wpn-base-common-trans)", confirming the trans-slot shape (no args beyond
+;; self, matching state's own trans field type); :behavior vehicle-weapon-slot
+;; from the body's own self (s6) reads.
+(define-extern v-wpn-base-common-trans (function object :behavior vehicle-weapon-slot))
+;; og:preserve-this activated (wvehicle-small-tier rung): (event idle
+;; vehicle-weapon-slot)'s own call site passes its own four event-handler
+;; args straight through (process, int, symbol, event-message-block), the
+;; standard event-handler shape, and the body dispatches on the symbol arg
+;; (a2) by comparing against 'done/'ammo-remaining/'refill-ammo/'get-color.
+(define-extern v-wpn-event-base (function process int symbol event-message-block object :behavior vehicle-weapon-slot))
 ;; activated: wvehicle-weapons-h top-level-login reads it directly; object is
 ;; the placeholder's own already-given type, unchanged.
 (define-extern *cheat-defaultgun-in-race* object)
@@ -74191,7 +74210,12 @@
 ;; call sites); function is the placeholder's own already-given type,
 ;; unchanged.
 (define-extern warning-hud-draw function)
-;; (define-extern v-wpn-type->color function)
+;; og:preserve-this activated (wvehicle-small-tier rung): defined in
+;; wvehicle-weapons-util.gc, called from v-wpn-event-base's 'get-color case
+;; with a weapon-type int (l.bu, unsigned byte) and its own body compares the
+;; arg against integer constants and returns small integers (0/1/2), a
+;; type-to-color-index mapping.
+(define-extern v-wpn-type->color (function int int))
 ;; (define-extern v-wpn-type->gunmount-config function)
 ;; (define-extern v-wpn-missile-init-by-other function)
 ;; (define-extern make-vehicle-weapon-slot function)
@@ -74205,7 +74229,15 @@
 ;; (define-extern v-wpn-mask-selection-table! function)
 ;; (define-extern v-wpn-pack-msg function)
 ;; (define-extern v-wpn-unpack-msg! function)
-;; (define-extern vehicle-get-weapon-level function)
+;; og:preserve-this activated (wvehicle-small-tier rung): defined in
+;; wvehicle-weapons-util.gc, called from v-wpn-base-common-trans with the
+;; resolved target vehicle and the weapon slot's own weapon-type byte. Reads
+;; a0's own float at raw offset 704 (declared 708, vehicle's
+;; unknown-float-704, the same field set-vehicle-light-eco writes; further
+;; evidence, not yet an inspect-method name, that this field is a shared
+;; eco-level value gating both light color and weapon tier), thresholds it,
+;; and returns a small int weapon-level tier (1, 2 or 3).
+(define-extern vehicle-get-weapon-level (function vehicle int int))
 ;; (define-extern global-turbo-suppressor-set! function)
 ;; (define-extern should-suppress-eco? function)
 ;; (define-extern rapid-fire-control-emitter-from-world function)

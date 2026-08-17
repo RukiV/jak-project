@@ -2994,6 +2994,24 @@
     [29, "a0", "(pointer process)"],
     [43, "a0", "(pointer process)"]
   ],
+  // v-wpn-base-common-trans: the same handle->process shape once more,
+  // reading self's own weapon-target handle at op 0 (raw 244, matching the
+  // rung's own vehicle-states investigation of the neighbouring field at
+  // 244) rather than a wpn-left/right field.
+  // op 14 reads raw offset 244 off the resolved target process (gp) itself,
+  // the same raw offset the vehicle-states rung's own scoped decode already
+  // resolved cleanly as vehicle's own focus-status field on a vehicle-typed
+  // base (no cast needed there); weapon slots track vehicle targets, so
+  // vehicle is the evidenced type here too, not a guess from the offset
+  // alone; confirmed further down the same function by a second, unrelated
+  // load: the resolved target (gp) is passed directly to
+  // vehicle-get-weapon-level (op 31), a function named for exactly this
+  // type. Range covers every remaining read of gp in this function (through
+  // its last use as send-event-function's target argument at op 51).
+  "v-wpn-base-common-trans": [
+    [5, "a0", "(pointer process)"],
+    [[14, 52], "gp", "vehicle"]
+  ],
   // test-vehicle-weapon op 31 and set-veh-weapon op 24, left UNFIXED (tried
   // and reverted): the load feeding the handle->process chain above, one
   // level up. "ld v1, 4500(v1)" reads the vehicle's own wpn-left field
