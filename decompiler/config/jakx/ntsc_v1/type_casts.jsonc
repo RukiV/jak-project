@@ -4192,5 +4192,26 @@
     [606, "a1", "int"],
     [756, "a0", "int"],
     [764, "a1", "int"]
+  ],
+  // hflip-zbuf-init: three raw GIF/DMA-tag construction blocks, the same
+  // base-address idiom (method 8 collide-hash) and shadow-vu1-init-buffer
+  // above already carry: a generic pointer resolves the trivial
+  // zero-offset store on its own but needs an explicit element type for
+  // any later offset. a3 (op 63) at +8/+12 (the second half of a GIF tag
+  // pair); t0 (op 76) at +8 (a vif-tag pair); t2 (op 90) at +8/+16/+24
+  // (a run of packed dma-tag words). v1 (op 61, the buffer's own current
+  // dma-packet pointer) resolves the +8 load at op 135 as (pointer
+  // uint64) on its own but shows plain dma-packet again for the +8 store
+  // five ops later at op 140 with no intervening redefinition; cast to
+  // match the load's own resolution.
+  "hflip-zbuf-init": [
+    [66, "a3", "(pointer uint32)"],
+    [68, "a3", "(pointer uint32)"],
+    [83, "t0", "(pointer uint64)"],
+    [98, "t2", "(pointer uint64)"],
+    [107, "t2", "(pointer uint64)"],
+    [116, "t2", "(pointer uint64)"],
+    [135, "v1", "(pointer uint64)"],
+    [140, "v1", "(pointer uint64)"]
   ]
 }
