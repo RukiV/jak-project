@@ -44703,16 +44703,30 @@
 ;; collide-hash                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern add-collide-debug-box function) ;; (function vector rgba none)
+;; og:preserve-this activated: a0 (vector, dereffed via .lvf) plus a second arg
+;; consumed by the add-debug-box call this function wraps, matching the hint.
+(define-extern add-collide-debug-box (function vector rgba none))
 ;; og:preserve-this activated: (method 9 collide-cache) passes its own `this` in a0
 ;; at the call (the outer method's own collide-cache argument copied straight
 ;; through), correcting the hinted zero-arg signature to one collide-cache arg.
 (define-extern print-collide-cache-tri-count (function collide-cache none))
-;; (define-extern print-exceeded-max-cache-tris function) ;; (function none)
-;; (define-extern fill-bg-using-box-new function) ;; (function collide-cache object collide-query none)
-;; (define-extern fill-bg-using-line-sphere-new function) ;; (function collide-cache object collide-query none)
-;; (define-extern collide-list-fill-bg-using-box function) ;; (function collide-cache collide-list collide-query none)
-;; (define-extern collide-list-fill-bg-using-line-sphere function) ;; (function collide-cache collide-list collide-query none)
+;; og:preserve-this activated: zero args used in the body, matching the hint.
+(define-extern print-exceeded-max-cache-tris (function none))
+;; og:preserve-this activated, matching the hinted signature. Both are already
+;; mips2c-flagged (hacks.jsonc) with a live jakx C++ implementation registered in
+;; game/mips2c/jakx_functions/collide_hash.cpp, but def-mips2c's own auto-generated
+;; declaration types the function as bare `function`, which is not enough for their
+;; own callers (collide-list-fill-bg-using-box/-line-sphere) to resolve the call
+;; ("Called a function, but we do not know its type"); this define-extern gives the
+;; real signature precedence.
+(define-extern fill-bg-using-box-new (function collide-cache object collide-query none))
+(define-extern fill-bg-using-line-sphere-new (function collide-cache object collide-query none))
+;; og:preserve-this activated, matching the hinted signature (both are large
+;; wrapper functions in this same file that call fill-bg-using-box-new /
+;; fill-bg-using-line-sphere-new after building a collide-query from a
+;; collide-list).
+(define-extern collide-list-fill-bg-using-box (function collide-cache collide-list collide-query none))
+(define-extern collide-list-fill-bg-using-line-sphere (function collide-cache collide-list collide-query none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; collide-probe                  ;;

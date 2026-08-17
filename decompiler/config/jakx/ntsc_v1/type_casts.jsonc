@@ -281,6 +281,24 @@
   "(method 10 idle-control)": [
     [35, "v1", "pair"]
   ],
+  // print-collide-cache-tri-count: the tri-array index arithmetic (v1 * 64, stride
+  // matching collide-cache-tri's own size) resolves to a symbolic offset-expression
+  // type rather than plain collide-cache-tri, so the pat field read at +48 fails
+  // ("Failed load", not a field-name-ambiguity class); cast back to the concrete
+  // type before that read.
+  "print-collide-cache-tri-count": [
+    [9, "a1", "collide-cache-tri"]
+  ],
+  // (method 8 collide-hash): two scratchpad bitfield reads (VU0 scratchpad base
+  // 0x70000000 plus a word index) resolve to a symbolic offset-expression type
+  // rather than a plain pointer, matching the same class collide-upload-vu0's own
+  // type_casts entry below fixes for the same base-address idiom.
+  "(method 8 collide-hash)": [
+    [32, "a0", "(pointer uint128)"],
+    [48, "a1", "(pointer uint32)"],
+    [60, "a1", "(pointer uint32)"],
+    [71, "v1", "(pointer uint32)"]
+  ],
   // pull-riders!, keyed by its canonical (method 44 collide-shape) form since
   // type_casts matches methods by that form, not their decompiled display name
   // (tried the display name first; it parsed without error but matched nothing).

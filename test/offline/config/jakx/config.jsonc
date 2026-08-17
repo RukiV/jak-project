@@ -449,6 +449,24 @@
     "(method 36 collide-shape)",
     "(method 12 collide-shape-prim-group)",
     "(method 13 collide-shape-prim)",
+    // collide-hash: collide-list-fill-bg-using-line-sphere fails past its own
+    // resolved stack layout on a field read at raw offset 172 off a
+    // collide-hash-scratch value that does not declare a field there; goal_src
+    // carries the full analysis, including the type_casts attempt that did not
+    // change the error.
+    "collide-list-fill-bg-using-line-sphere",
+    // collide-list-fill-bg-using-box: same matrix4h vector4h/long offset-0 tie as
+    // main-collide's instance-sphere-box-intersect?; the REF records the
+    // decompiler's own (-> s3-0 origin vector4h long), which goalc rejects, and
+    // goal_src carries the hand-corrected (-> s3-0 origin long 0) at the same site
+    // (same byte address, matching every other index in the same expression); the
+    // decomp-vs-REF diff still gates the rest of the function.
+    "collide-list-fill-bg-using-box",
+    // (method 8 collide-hash) (mem-usage): the REF records the decompiler's own
+    // (logand a0-11 31) with a0-11 printed as uint (the item id field's own
+    // declared type); goalc rejects that as ash's exponent argument. goal_src
+    // carries a hand-cast to int at both sites, same byte-identical semantics.
+    "(method 8 collide-hash)",
     // idle-control: (method 10 idle-control) (play-idle-frames!) fails on an
     // art-element field at offset 32 that falls in undocumented padding, past the
     // point jak3's twin corroborates (it uses the high-level ja macro there
