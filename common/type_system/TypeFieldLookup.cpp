@@ -184,8 +184,29 @@ void try_reverse_lookup_array_like(const FieldReverseLookupInput& input,
     int offset = input.offset - (boxed_array ? ARRAY_DATA_OFFSET : 0);
     int elt_idx = offset / di.stride;
     int offset_into_elt = offset - (elt_idx * di.stride);
+
+    // A plain (non-boxed) pointer to a reference type (structure/basic) gets di.stride ==
+    // POINTER_SIZE here (get_deref_info models it as "array of pointers"), which is the
+    // right model for a genuine pointer array but a coincidence when the pointer instead
+    // addresses a single instance whose own fields (for example a nested inline array) are
+    // being reached via a hoisted base-plus-constant-stride walk (the offset folded into a
+    // separate ADD instead of each load/store's own displacement). When the array-style
+    // reading below can't actually produce a match for this offset, fall back to resolving
+    // it as a field access on the pointee type itself. Boxed arrays don't need this: the
+    // header case is handled above, and any offset past the header always means "next
+    // element", never "into this element's fields".
+    auto try_struct_field_fallback = [&]() {
+      if (!boxed_array) {
+        FieldReverseLookupInput struct_input = input;
+        struct_input.base_type = input.base_type.get_single_arg();
+        try_reverse_lookup_other(struct_input, ts, parent, output, max_count);
+      }
+    };
+
     if (offset_into_elt) {
-      // shouldn't have a weird offset.
+      // doesn't land on a clean multiple of the array-style stride, so it isn't
+      // "index N of an array of this type". Try the pointee's own fields instead.
+      try_struct_field_fallback();
       return;
     }
 
@@ -195,7 +216,10 @@ void try_reverse_lookup_array_like(const FieldReverseLookupInput& input,
     constant_node.token.idx = elt_idx;
     if (input.deref.has_value()) {
       if (!deref_matches(di, input.deref.value(), is_integer, is_basic)) {
-        // this isn't the right type of dereference
+        // the array-style element type doesn't match the size/kind of this dereference
+        // (for example a byte store against a POINTER_SIZE array-of-pointers stride). Try
+        // the pointee's own fields instead before giving up.
+        try_struct_field_fallback();
         return;
       }
 
