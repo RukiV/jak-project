@@ -83316,7 +83316,14 @@
 (define-extern *grand-prix-locked* object) ;; provisional: call-site evidence only
 (define-extern *grid-hash-work* object) ;; provisional: call-site evidence only
 (define-extern *had-gold* object) ;; provisional: call-site evidence only
-(define-extern *hang-time-hud-single* object) ;; provisional: call-site evidence only
+;; hud-and-levels-misc rung: activated from provisional comment. (method 26
+;; hang-time-hud-single) reads this at offset 12 (array data start), then 36
+;; (declared 40, hud-item-group's items field via the +4 basic-tag trap),
+;; then 12 again (a nested element), the same items-global shape already
+;; established for *hud-results-grand-prix* and its siblings; a weaker,
+;; later-in-file object typing shadowed the correct (array hud-item) sitting
+;; commented a few thousand lines earlier in this file.
+(define-extern *hang-time-hud-single* (array hud-item))
 (define-extern *hang-time-hud-single-proc* hang-time-hud-single)
 (define-extern *haven-gen-light-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *headset-buffers-decoded* object) ;; provisional: call-site evidence only
@@ -83753,7 +83760,15 @@
 (define-extern *player-menu-array-to-use* object) ;; provisional: call-site evidence only
 (define-extern *plow-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *plow-enemy-info* object) ;; provisional: call-site evidence only
-(define-extern *power-slide-hud-single* object) ;; provisional: call-site evidence only
+;; hud-and-levels-misc rung: retyped from object to (array hud-item),
+;; matching *hang-time-hud-single*'s own fix in this same commit: the correct
+;; type sits commented a few thousand lines earlier in this file
+;; (";; (define-extern *power-slide-hud-single* array)"), shadowed by this
+;; later, weaker object typing. No call site in this rung's own scope reads
+;; it (power-slide-hud-single is hang-time-hud-single's sibling type,
+;; identical shape), so this is symmetry with a confirmed sibling rather than
+;; direct evidence from this band; flagged as such.
+(define-extern *power-slide-hud-single* (array hud-item))
 (define-extern *power-slide-hud-single-proc* power-slide-hud-single)
 (define-extern *powercell-footie-constants* object) ;; provisional: call-site evidence only
 (define-extern *prev-create-menu-state-name* object) ;; provisional: call-site evidence only

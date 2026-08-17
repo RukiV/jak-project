@@ -55,6 +55,68 @@
   // class proved on spawn-hud-results-medal-1 above, same op numbers (v0 set
   // at op 29, failing store at op 31), applied unchanged after confirming
   // each function's own ir2.asm shares that exact shape.
+  // (method 26 hang-time-hud-single): *hang-time-hud-single* is
+  // (array hud-item); its own index-0 element is a hud-item-group (matching
+  // the sibling pattern already established in this file), and this
+  // function re-reads it fresh from the global four times (ops 30, 36, 43,
+  // 49), each time immediately followed by an offset-36 (declared 40) read
+  // of its items field. Casting a0 to hud-item-group at each of the four
+  // offset-36 read ops resolves them; the subsequent offset-12/16 reads
+  // already resolve on their own once the items field itself is typed.
+  // The item pulled out of that items array (a0-9/13/17/21, ops 32/38/45/51)
+  // is stored to at raw offset 40 (declared 44 via the +4 basic-tag trap),
+  // matching display-nice-shot-to-view's own text-id field on
+  // hud-item-string, not hud-item-group.
+  "(method 26 hang-time-hud-single)": [
+    [31, "a0", "hud-item-group"],
+    [33, "a0", "hud-item-string"],
+    [37, "a0", "hud-item-group"],
+    [39, "a0", "hud-item-string"],
+    [44, "a0", "hud-item-group"],
+    [46, "a0", "hud-item-string"],
+    [50, "a0", "hud-item-group"],
+    [52, "a0", "hud-item-string"]
+  ],
+  "spawn-hang-time-hud-single": [
+    [[30, 32], "v0", "hang-time-hud-single"]
+  ],
+  "spawn-power-slide-hud-single": [
+    [[30, 32], "v0", "power-slide-hud-single"]
+  ],
+  // (method 23 hud-item-hang-time-seconds), (method 23
+  // hud-item-hang-time-tenths-seconds), (method 23 hud-item-power-slide-
+  // distance), (method 23 hud-item-power-slide-distance-tenths): hud-item's
+  // own method 23 is already declared (_type_ object object object object)
+  // (all-types.gc, hud-item's :methods block); t0 (the fourth message arg)
+  // is read with ld (a full doubleword) at offset 16 in each override, which
+  // is exactly event-message-block's own param field (uint64 6,
+  // offset-assert 16): the 'add-hang-time'/'add-distance' message's own
+  // payload sits in param 0, boxed as a uint64 and reinterpreted as a float
+  // via the immediately following mtc1 (which only consumes the lower 32
+  // bits). Casting t0 to event-message-block at the read op resolves all
+  // four identically-shaped overrides.
+  // hud-item-hang-time-seconds and hud-item-hang-time-tenths-seconds add the
+  // message payload to their own existing value (add.s), unlike the
+  // power-slide-distance pair, which only stores it (no arithmetic, so no
+  // second cast needed there): param's own declared type is uint64, so the
+  // decompiler tracks the value moved into the float register (via mtc1) as
+  // still uint-flavored, and the add fails ("Floating point math attempted
+  // on invalid types: float and uint"). Casting v1 to float at the mtc1 op
+  // itself (one past the event-message-block read) clears it.
+  "(method 23 hud-item-hang-time-seconds)": [
+    [4, "t0", "event-message-block"],
+    [5, "v1", "float"]
+  ],
+  "(method 23 hud-item-hang-time-tenths-seconds)": [
+    [4, "t0", "event-message-block"],
+    [5, "v1", "float"]
+  ],
+  "(method 23 hud-item-power-slide-distance)": [
+    [3, "t0", "event-message-block"]
+  ],
+  "(method 23 hud-item-power-slide-distance-tenths)": [
+    [3, "t0", "event-message-block"]
+  ],
   "spawn-hud-headset-talker-other": [
     [[30, 32], "v0", "hud-headset-talker-other"]
   ],
