@@ -107,3 +107,8 @@ class FormRegressionTestJak2 : public FormRegressionTest {
  protected:
   static void SetUpTestCase();
 };
+
+class FormRegressionTestJakX : public FormRegressionTest {
+ protected:
+  static void SetUpTestCase();
+};

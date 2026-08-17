@@ -31,6 +31,12 @@ void FormRegressionTestJak2::SetUpTestCase() {
   dts->parse_type_defs({"decompiler", "config", "jak2", "all-types.gc"});
 }
 
+void FormRegressionTestJakX::SetUpTestCase() {
+  parser = std::make_unique<InstructionParser>();
+  dts = std::make_unique<DecompilerTypeSystem>(GameVersion::JakX);
+  dts->parse_type_defs({"decompiler", "config", "jakx", "all-types.gc"});
+}
+
 void FormRegressionTest::TearDownTestCase() {
   parser.reset();
   dts.reset();

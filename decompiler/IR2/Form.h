@@ -1365,6 +1365,8 @@ class StorePlainDeref : public FormElement {
   void get_modified_regs(RegSet& regs) const override;
   void push_to_stack(const Env& env, FormPool& pool, FormStack& stack) override;
   int size() const { return m_size; }
+  Form* dst() const { return m_dst; }
+  const SimpleExpression& expr() const { return m_expr; }
 
  private:
   Form* m_dst = nullptr;

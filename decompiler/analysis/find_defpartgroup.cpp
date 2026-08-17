@@ -3,6 +3,7 @@
 #include "common/goos/PrettyPrinter.h"
 #include "common/util/BitUtils.h"
 
+#include "decompiler/IR2/Env.h"
 #include "decompiler/IR2/Form.h"
 #include "decompiler/IR2/GenericElementMatcher.h"
 #include "decompiler/ObjectFile/LinkedObjectFile.h"
@@ -20,10 +21,9 @@ const goos::Object* cdr(const goos::Object* x) {
   return &x->as_pair()->cdr;
 }
 
-void read_static_group_data(DecompiledDataElement* src,
+void read_static_group_data(const DecompilerLabel& lab,
                             const Env& env,
                             DefpartgroupElement::StaticInfo& group) {
-  auto lab = src->label();
   // looks like:
 
   // Jak 3
@@ -248,12 +248,15 @@ void run_defpartgroup(Function& top_level_func,
     return;
   }
   top_level_func.ir2.top_form->apply_form([&](Form* form) {
-    for (auto& fe : form->elts()) {
-      auto as_set = dynamic_cast<SetFormFormElement*>(fe);
+    auto& elts = form->elts();
+    for (size_t idx = 0; idx < elts.size(); idx++) {
+      // The usual, fully-folded shape:
+      //   (set! (-> *part-group-id-table* 188) (new 'static 'sparticle-launch-group ...
+      // The compiler's own symbol-load and label-load feed directly into the store
+      // because convert_to_expressions (FormExpressionAnalysis.cpp) was able to
+      // inline them, so the whole thing is one SetFormFormElement.
+      auto as_set = dynamic_cast<SetFormFormElement*>(elts.at(idx));
       if (as_set) {
-        /* Looks something like this:
-            (set! (-> *part-group-id-table* 188) (new 'static 'sparticle-launch-group
-         */
         if (as_set->dst()->elts().size() != 1) {
           continue;
         }
@@ -277,22 +280,126 @@ void run_defpartgroup(Function& top_level_func,
           continue;
 
         int id = dest->tokens().at(0).int_constant();
+        FormElement* rewritten = nullptr;
         if (sym.get_str() == "*part-group-id-table*") {
           DefpartgroupElement::StaticInfo group;
-          read_static_group_data(src, env, group);
+          read_static_group_data(src->label(), env, group);
           part_group_table.emplace(id, group.name);
-          auto rewritten = pool.alloc_element<DefpartgroupElement>(group, id);
-          if (rewritten) {
-            fe = rewritten;
-          }
+          rewritten = pool.alloc_element<DefpartgroupElement>(group, id);
         } else if (sym.get_str() == "*part-id-table*") {
           DefpartElement::StaticInfo part;
           read_static_part_data(src, env, part);
-          auto rewritten = pool.alloc_element<DefpartElement>(part, id);
-          if (rewritten) {
-            fe = rewritten;
-          }
+          rewritten = pool.alloc_element<DefpartElement>(part, id);
         }
+        if (rewritten) {
+          elts.at(idx) = rewritten;
+        }
+        continue;
+      }
+
+      // jakx shape (wvehicle-hud): an unrelated instruction later in the SAME
+      // top-level function can trip types2::run's "Failed to guess label use"
+      // bailout (types2.cpp, the unknown_label_tag/selected_type check), which
+      // marks types_succeeded false for the whole function. ir2_build_expressions
+      // (ObjectFileDB_IR2.cpp) skips any function whose types_succeeded is false,
+      // so convert_to_expressions never runs on it: the id-table store stays the
+      // raw StorePlainDeref that build_initial_forms/StoreOp::get_as_form produced
+      // (AtomicOpForm.cpp; the array index is a compile-time constant, so it is a
+      // plain resolved field offset, not an OBJECT_PLUS_PRODUCT_WITH_CONSTANT
+      // stride access), and its base and value registers stay two separate,
+      // preceding SetVarElement statements (SetVarOp::get_as_form) instead of
+      // being inlined into one SetFormFormElement the way
+      // StorePlainDeref::push_to_stack (FormExpressionAnalysis.cpp) would have
+      // done. This happens even for statements that type-propagated cleanly on
+      // their own before the later, unrelated failure. Concretely, three
+      // top-level siblings instead of one:
+      //   (set! v1-N L5xx)                    ; value def: a bare label address
+      //   (set! a0-N *part-group-id-table*)   ; base def: a bare symbol value
+      //   (set! (-> a0-N id) v1-N)            ; the store, a StorePlainDeref
+      // Recover the same rewrite by reading the label and symbol back out of the
+      // two immediately preceding sibling statements instead of requiring them
+      // pre-folded. This is not gated to GameVersion::JakX: the mechanism that
+      // produces the shape (a whole-function types_succeeded bailout) is generic
+      // decompiler machinery, not a jakx-specific code path; it simply has not
+      // been observed to fire on a jak1/2/3 defpartgroup site.
+      auto as_store = dynamic_cast<StorePlainDeref*>(elts.at(idx));
+      if (!as_store || idx < 2 || !as_store->expr().is_var()) {
+        continue;
+      }
+      if (as_store->dst()->elts().size() != 1) {
+        continue;
+      }
+      auto dest = dynamic_cast<DerefElement*>(as_store->dst()->elts().at(0));
+      if (!dest)
+        continue;
+      if (dest->tokens().size() != 1)
+        continue;
+      if (dest->tokens().at(0).kind() != DerefToken::Kind::INTEGER_CONSTANT)
+        continue;
+      if (dest->base()->elts().size() != 1)
+        continue;
+      auto dest_base = dynamic_cast<SimpleExpressionElement*>(dest->base()->elts().at(0));
+      if (!dest_base || !dest_base->expr().is_identity() || dest_base->expr().args() < 1)
+        continue;
+      auto& base_arg = dest_base->expr().get_arg(0);
+      if (!base_arg.is_var())
+        continue;
+      int id = dest->tokens().at(0).int_constant();
+
+      auto base_def = dynamic_cast<SetVarElement*>(elts.at(idx - 1));
+      auto value_def = dynamic_cast<SetVarElement*>(elts.at(idx - 2));
+      if (!base_def || !value_def) {
+        continue;
+      }
+      if (!same_expression_var(base_def->dst(), base_arg.var()) ||
+          !same_expression_var(value_def->dst(), as_store->expr().var())) {
+        continue;
+      }
+
+      if (base_def->src()->elts().size() != 1) {
+        continue;
+      }
+      auto base_def_src = dynamic_cast<SimpleExpressionElement*>(base_def->src()->elts().at(0));
+      if (!base_def_src || !base_def_src->expr().is_identity()) {
+        continue;
+      }
+      auto& sym = base_def_src->expr().get_arg(0);
+      if (!sym.is_sym_val())
+        continue;
+
+      if (value_def->src()->elts().size() != 1) {
+        continue;
+      }
+      auto value_def_src = dynamic_cast<SimpleExpressionElement*>(value_def->src()->elts().at(0));
+      if (!value_def_src || !value_def_src->expr().is_identity()) {
+        continue;
+      }
+      auto& label_atom = value_def_src->expr().get_arg(0);
+      if (!label_atom.is_label())
+        continue;
+
+      auto lab = env.file->labels.at(label_atom.label());
+      FormElement* rewritten = nullptr;
+      if (sym.get_str() == "*part-group-id-table*") {
+        DefpartgroupElement::StaticInfo group;
+        read_static_group_data(lab, env, group);
+        part_group_table.emplace(id, group.name);
+        rewritten = pool.alloc_element<DefpartgroupElement>(group, id);
+      } else if (sym.get_str() == "*part-id-table*") {
+        const auto& hint = env.file->label_db->lookup(label_atom.label());
+        if (!hint.known) {
+          continue;
+        }
+        DefpartElement::StaticInfo part;
+        auto data_elt = pool.alloc_element<DecompiledDataElement>(lab, hint);
+        read_static_part_data(data_elt, env, part);
+        rewritten = pool.alloc_element<DefpartElement>(part, id);
+      }
+
+      if (rewritten) {
+        elts.at(idx) = rewritten;
+        elts.erase(elts.begin() + (idx - 2), elts.begin() + idx);
+        idx -= 2;
       }
     }
   });
