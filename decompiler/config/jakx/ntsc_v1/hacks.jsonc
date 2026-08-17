@@ -340,6 +340,17 @@
     // the rest of the object's plain GOAL decode independent of these two.
     "collide-probe-instance-tie",
     "collide-probe-node",
+    // main-collide's own vitof12 gap named above, corrected: plain GOAL decode resolves
+    // the VU0 sphere transform's first quadword read as (-> arg1 origin vector4h long)
+    // instead of the flat (-> arg1 origin long 0) its jak3 twin uses (both are the same
+    // byte offset; matrix4h's vector4h and long fields tie at offset 0 and the tie breaks
+    // differently here), which goalc rejects as an unresolved symbol lookup on `long`.
+    // Flagging it here (unlike collide-probe's pref/vcallms pair above) lets the mips2c
+    // pass actually succeed on the vitof12/VU macro ops and auto-generate a def-mips2c
+    // scaffold, but no jakx C++ mips2c port for it exists or is added by this change, so
+    // the landed source keeps the declaration commented out (bones-mtx-calc precedent)
+    // rather than shipping a def-mips2c with nothing behind it at kernel link.
+    "instance-sphere-box-intersect?",
     // bones. Hand-scheduled PS2 assembly: six bare backward gotos, two back edges into a
     // single loop head, and real work in five branch delay slots. The CFG cannot be
     // resolved and no GOAL syntax expresses it. Config only, with no C++ implementation,
