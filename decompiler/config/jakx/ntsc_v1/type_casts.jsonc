@@ -3090,6 +3090,128 @@
   // at 8), so it would misrepresent every wpn-right access as wpn-left
   // regardless of which branch actually ran, which is worse than the
   // decode error. Tried against this rung's own scoped decode and reverted.
+  // (method 144 wvehicle): op 67 reads raw offset 884 off self (declared
+  // 888), landing inside vehicle's own pad-net-payload-gap (a uint8 x948
+  // placeholder spanning declared 860-1808, the vehicle layout hole tracked
+  // separately on issue 328; not opened here). The neighbouring read at op
+  // 62 (raw 3880, declared 3884, hang-time-sound-id) already resolves
+  // cleanly and is passed to the identical sound-stop call, so 884 is
+  // evidently another real sound-id sized uint32, just inside the
+  // unshaped pad; scoped to this one op with a plain (pointer uint32) cast
+  // (884 is a clean multiple of 4) rather than declaring a field.
+  // op 82/85: a second sound-id pair in the same pad region, raw offset 892
+  // (declared 896), same shape as op 67's fix.
+  "(method 144 wvehicle)": [
+    [67, "gp", "(pointer uint32)"],
+    [70, "gp", "(pointer uint32)"],
+    [82, "gp", "(pointer uint32)"],
+    [85, "gp", "(pointer uint32)"]
+  ],
+  // (method 70 wvehicle): once self resolves (the rigid-body-object-method-70
+  // arg-count fix above), ten of its own raw offset reads still land inside
+  // vehicle's pad-net-payload-gap (884-908, all within the declared
+  // 860-1808 pad, the layout hole tracked on issue 328 and not opened
+  // here): offset 900 (four uses, a float, matching the mtc1/lwc1/swc1
+  // instructions throughout) and offset 888 (six uses, a uint32 sound-id-
+  // shaped value, matching the sw/lwu instructions and the same pattern as
+  // the other pad sound-id reads fixed above). Every other offset this
+  // method touches (252, 260, 484, 2340-2380) already resolves through
+  // wvehicle/vehicle's own declared fields once self is typed, and needed
+  // no cast.
+  // ops 161-217 all read *debug-engine-sound-work* (still a generic object
+  // placeholder, guarded behind the *debug-engine-sounds* debug flag) as
+  // raw floats at offset 0 or 4; scoped op by op rather than fully typing
+  // the debug global from field accesses with no name evidence.
+  // ops 234/256/270 read s5 (update-engine-mix-state-work) at offset 16 as
+  // a plain float load; offset 16 is loops[1]'s own i-loop field (int8,
+  // declared on update-engine-loop-state-work), so the 4-byte float load
+  // spans past that single byte the same way the earlier wide-store class
+  // does elsewhere in this rung, and needed the explicit cast. The
+  // matching store at op 116 (same offset) resolves on its own, matching
+  // the established pattern that narrower stores into a wider-declared
+  // field are tolerated while reads are not.
+  // ops past 270, left UNFIXED (tried extensively and reverted): the sp+96
+  // stack block is dual-purpose. Its first 51 bytes (0x33) are
+  // update-engine-mix-state-work and resolve on their own throughout
+  // (confirmed by dozens of untouched reads and writes at offsets inside
+  // that range). Offsets 140-190 and 184, all past the struct's own
+  // bounds, are separate local float/uint32 scratch variables the compiler
+  // placed adjacent to it in the same frame; stores at those offsets
+  // already resolve without help, but each load needs its own per-op
+  // pointer cast. Patched roughly 35 individual load ops this way (offsets
+  // 140-190 across a dozen-plus call sites, then 184 three more times) and
+  // the failure kept moving to a nearby, previously-clean op rather than
+  // converging: this function's own error reporting only surfaces the
+  // first unresolved op per pass, and with this much of the function
+  // gated behind loop-carried stack state, each fix exposes another
+  // sibling read the same way. A full scan of the resulting decode still
+  // showed several hundred "<uninitialized>" annotations spanning the
+  // rest of the function once any one op in this region is reached,
+  // confirming the remaining surface is not a short tail. Reverted to the
+  // last clean, converged state (through op 270) rather than continuing
+  // an open-ended per-op patch with no evidenced stopping point.
+  "(method 70 wvehicle)": [
+    [2, "gp", "(pointer float)"],
+    [4, "gp", "(pointer uint32)"],
+    [8, "gp", "(pointer uint32)"],
+    [22, "gp", "(pointer uint32)"],
+    [29, "gp", "(pointer float)"],
+    [44, "gp", "(pointer uint32)"],
+    [51, "gp", "(pointer float)"],
+    [63, "gp", "(pointer uint32)"],
+    [66, "gp", "(pointer uint32)"],
+    [69, "gp", "(pointer uint32)"],
+    [161, "s4", "(pointer float)"],
+    [180, "s4", "(pointer float)"],
+    [200, "s4", "(pointer float)"],
+    [211, "s4", "(pointer float)"],
+    [215, "s4", "(pointer float)"],
+    [217, "s4", "(pointer float)"],
+    [234, "s5", "(pointer float)"],
+    [256, "s5", "(pointer float)"],
+    [270, "s5", "(pointer float)"]
+  ],
+  // update-engine-mix-state: a0 becomes info-array (update-engine-mix-state-
+  // params' own raw uint32 field) plus a stride-24 index. 24 bytes is
+  // vehicle-sound-engine-loop-info's own size, and the fields the body
+  // reads off it (offset 12 min-rpm, offset 16 max-rpm) confirm the type;
+  // it is then stored into an update-engine-loop-state-work's own info
+  // field (offset 4), the last read of this particular value. Range covers
+  // every use from the stride add through that store.
+  // s2 walks self's second wvehicle-engine-mix-state argument's own "loops"
+  // field the same way (method 223 wvehicle)'s own fix does: a uint32
+  // sound-id at offset 0 (multiple reads and writes, passed to
+  // new-sound-id/sound-stop) and an int8 at offset 4.
+  "update-engine-mix-state": [
+    [[30, 46], "a0", "vehicle-sound-engine-loop-info"],
+    [65, "s2", "(pointer int8)"],
+    [70, "s2", "(pointer uint32)"],
+    [73, "s2", "(pointer uint32)"],
+    [76, "s2", "(pointer uint32)"],
+    [82, "s2", "(pointer uint32)"],
+    [84, "s2", "(pointer int8)"],
+    [86, "s2", "(pointer uint32)"],
+    [89, "s2", "(pointer uint32)"],
+    [92, "s2", "(pointer uint32)"],
+    [94, "s2", "(pointer int8)"]
+  ],
+  // (method 223 wvehicle): a nested loop walks self's own two
+  // wvehicle-engine-mix-state fields (stride 32, matching min/max-load's
+  // own 32-byte size and 32-byte separation) and, within each, two 16-byte
+  // sub-elements of the "loops" field (currently a flat uint8 x32
+  // placeholder with no declared substructure). Each 16-byte element is
+  // read as a uint32 sound-id at offset 0 (passed to sound-stop, the same
+  // shape as every other sound-id field in this file) and written as an
+  // int8 at offset 4; scoped per-op rather than reshaping the shared
+  // wvehicle-engine-mix-state type, since no inspect method or string
+  // reference names this element and the field's own declaration stays a
+  // placeholder for whoever lands that type properly.
+  "(method 223 wvehicle)": [
+    [11, "s2", "(pointer uint32)"],
+    [14, "s2", "(pointer uint32)"],
+    [17, "s2", "(pointer uint32)"],
+    [19, "s2", "(pointer int8)"]
+  ],
 
   ////////////////////////////////////////////////////////////////////////////
   // Inlined (rand-float-gen): mtc1 of a raw IEEE-754 bit pattern

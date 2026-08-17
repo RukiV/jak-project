@@ -739,7 +739,7 @@
   // *particle-birth-work*'s own inline-array vector at +16, immediately
   // after the first vector filled by vector-float*!2's own output at +0),
   // same shape as add-collide-debug-box's own two-vector stack block above.
-  "birth-func-set-pos-vel": [[16, ["inline-array", "vector", 2]]]
+  "birth-func-set-pos-vel": [[16, ["inline-array", "vector", 2]]],
   // (method 61 v-drone), left UNFIXED (tried and reverted): sp+16 (s5) is a
   // headlight-glow scratch block used in 16-byte quadword units throughout
   // (raw lq/sq copies at s5+80 from a bone matrix, quad-copy! into s5+144
@@ -756,4 +756,26 @@
   // Left as three open errors: the add failure itself, "Failed to guess
   // stack use for 16", and "Function may read a register that is not set:
   // a0" (a consequence of the same untyped stack region).
+  //
+  // update-engine-mix-state and (method 70 wvehicle) (wvehicle-small-tier
+  // rung, wvehicle-sounds object): both build an
+  // update-engine-mix-state-work at sp+32 field for field (a two-element
+  // loops array at +0, ups at +44 matching a genuine float store,
+  // active-loop-count/i-min/i-max at +48 written together as one word
+  // rather than three individual bytes in (method 70 wvehicle) specifically
+  // (its own type_casts.jsonc entry covers that one op; declaring the
+  // stack block itself as update-engine-mix-state-work is still the
+  // right base type, matching update-engine-mix-state's own signature for
+  // the identical argument).
+  "update-engine-mix-state": [[32, "update-engine-mix-state-work"]],
+  // (method 70 wvehicle) allocates a second, independent
+  // update-engine-mix-state-work at sp+96 later in the same function (a
+  // third engine-loop update, same shape as the first two at sp+32), so it
+  // needs its own base-offset entry: register-based stack typing only
+  // covers the exact sp offset where a register was established, not every
+  // later re-derivation through a different base.
+  "(method 70 wvehicle)": [
+    [32, "update-engine-mix-state-work"],
+    [96, "update-engine-mix-state-work"]
+  ]
 }
