@@ -9,7 +9,8 @@
 
 ;; definition of type can-leaves-floor
 (deftype can-leaves-floor (process-drawable)
-  ((leaf-part-spec-a  sp-field-init-spec)
+  ((root              collide-shape-moving :override)
+   (leaf-part-spec-a  sp-field-init-spec)
    (leaf-part-spec-b  sp-field-init-spec)
    )
   (:state-methods
@@ -91,19 +92,11 @@
       (set! (-> s4-0 backup-collide-with) (-> v1-17 prim-core collide-with))
       )
     (set! (-> s4-0 event-self) 'touched)
-    (set! (-> this root) s4-0)
+    (set! (-> this root) (the-as collide-shape-moving s4-0))
     )
   (set! (-> this part) (create-launch-control (-> *part-group-id-table* 438) this))
   (process-drawable-from-entity! this arg0)
-  ;; og:preserve-this the decompiler resolves this call through a type_casts
-  ;; hint (root is declared trsqv, method 46/update-transforms only exists on
-  ;; collide-shape, and the store two lines above proves the runtime value is
-  ;; one) but does not print the cast into the method-call sugar form, so
-  ;; goalc's own forward compile fails on trsqv lacking update-transforms
-  ;; without it. Same idiom as process-drawable.gc and generic-obs.gc's own
-  ;; (the-as collide-shape (-> self root)) call sites; retires if the
-  ;; decompiler starts emitting the cast itself.
-  (update-transforms (the-as collide-shape (-> this root)))
+  (update-transforms (-> this root))
   (go (method-of-object this idle))
   0
   )
