@@ -82,6 +82,21 @@
     ["L5", "ocean-trans-indices", true],
     ["L6", "ocean-near-indices", true]
   ],
+  // NOTE (level-obs wave): the other ten unlanded ocean tracks (atoll, canspar,
+  // cliffs, desert, desisle, docks, drome, haven, kcross, kras, spargus,
+  // temple) do NOT get an entry here, unlike jungle-ocean/havjung-ocean above.
+  // Tried first with the same shape mirrored from those two, but the third
+  // element "true" (is_val) forces a bare (the-as TYPE LN) cast at the
+  // definition site instead of a full structural walk, which goalc then
+  // rejects at compile ("the-as ocean-near-indices L6": L6 is a decompiler-
+  // internal label name, not a real GOAL symbol). Once the two JakX
+  // array_field_decomp_special_cases entries for ocean-near-indices and
+  // ocean-mid-masks were added (decompiler/util/data_decompile.cpp, mirrored
+  // verbatim from Jak1/Jak2's identical deftypes), a scoped decode with NO
+  // label_types entry reached zero markers AND fully expanded static content
+  // for all twelve tracks; the hint was unnecessary once that landed and
+  // actively counterproductive before it did. Verified per-object on a
+  // decompiler.exe rebuilt from this worktree.
   "foreground": [
     ["L215", "shadow-settings"], // *default-shadow-settings* static; jak3's same-named label was a bucket array
     ["L216", "vector"]

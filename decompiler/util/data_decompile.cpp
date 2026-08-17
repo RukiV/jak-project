@@ -1112,6 +1112,17 @@ const std::unordered_map<
                                               ArrayFieldDecompMeta::Kind::REF_TO_INTEGER_ARR)}}},
              {"simple-sprite-system",
               {{"data", ArrayFieldDecompMeta(TypeSpec("sprite-glow-data"), 64)}}},
+             // level-obs wave: the twelve unlanded per-track ocean objects hit the
+             // same unbounded inline-array fields jungle-ocean/havjung-ocean's own
+             // ocean-near-indices and ocean-mid-masks statics needed; jakx's deftypes
+             // for both are byte-identical to jak1/jak2's (ocean-near-index 0x20,
+             // ocean-mid-mask 0x8), so the entries are transplanted verbatim from the
+             // Jak1/Jak2 sections above. ocean-mid-indices and ocean-trans-indices are
+             // NOT special cases here: both declare a fixed :inline count on the
+             // deftype itself (36 and 2304 respectively) and decode without help.
+             {"ocean-near-indices",
+              {{"data", ArrayFieldDecompMeta(TypeSpec("ocean-near-index"), 32)}}},
+             {"ocean-mid-masks", {{"data", ArrayFieldDecompMeta(TypeSpec("ocean-mid-mask"), 8)}}},
          }}};
 
 goos::Object decompile_structure(const TypeSpec& type,
