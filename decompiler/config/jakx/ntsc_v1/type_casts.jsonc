@@ -43,6 +43,34 @@
     [28, "a1", "pair"],
     [29, "a1", "pair"]
   ],
+  // canyon-obs (method 11 can-leaves-floor): op 69 stores a freshly (new
+  // 'process 'collide-shape ...) instance straight into this's root field
+  // (machine offset 184, placement 188), then op 82-84 reads it back and
+  // calls method 46 through it. root is declared trsqv (process-drawable's
+  // own field, jak3-identical), which tops out at method-count-assert 28,
+  // so type prop cannot resolve method 46 at all. Casting the reload to the
+  // type actually stored, collide-shape (method-count-assert far above 46;
+  // method 46 is update-transforms), resolves the call: the standard end-
+  // of-init collide-shape setup across every game calls update-transforms
+  // on the shape it just built.
+  "(method 11 can-leaves-floor)": [
+    [83, "a0", "collide-shape"]
+  ],
+  // canyon-obs (event idle can-leaves-floor): op 4-7 confirms the event's
+  // sender (a0, generic process) via (type? sender vehicle); the surviving
+  // register gp then reads root at op 11 (machine offset 184, placement
+  // 188), which only process-drawable and its descendants declare. gp is
+  // typed plain process because that is all an event argument can be
+  // without a cast: the type? check already proves the runtime value, so
+  // the cast just tells type prop what the check already guarantees.
+  "(event idle can-leaves-floor)": [
+    [11, "gp", "process-drawable"],
+    [43, "gp", "process-drawable"],
+    [50, "a0", "matrix"],
+    [51, "a0", "matrix"],
+    [52, "a0", "matrix"],
+    [53, "a0", "matrix"]
+  ],
   // driver-gtblitz-method-64: op 4 loads *net-world*'s task-node-info field (declared
   // plain basic) then reads a byte at machine offset 5, which is declared offset 9
   // (+4 basic-tag trap) once cast to the real runtime type. net-world.gc's own

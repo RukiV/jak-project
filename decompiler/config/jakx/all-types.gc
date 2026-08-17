@@ -75872,9 +75872,20 @@
     )
   )
 |#
-;; resurrected via offset-fix package (2026-08-13 adjudication)
+;; resurrected via offset-fix package (2026-08-13 adjudication); the pad-tail
+;; identity that adjudication left open is now resolved (level-obs wave,
+;; canyon-obs landing). (method 11 can-leaves-floor) stores a sp-field-init-
+;; spec pointer at each half of the 8 bytes (machine offset 244 then 248,
+;; placement 248 and 252, both from the same *part-id-table* sparticle-
+;; launcher's field array, just two different sub-spec offsets within it);
+;; (event idle can-leaves-floor) reads both back through s6 to poke their
+;; probability float (offset 4) each frame, the standard cached-spec-pointer
+;; idiom for runtime-tunable particle emission. Two named pointer fields
+;; replace the raw byte pad; :offset-assert values are placement offsets per
+;; the machine-plus-4 convention, matching both stores exactly.
 (deftype can-leaves-floor (process-drawable)
-  ((pad-tail uint8 8  :offset-assert 248)
+  ((leaf-part-spec-a sp-field-init-spec :offset-assert 248)
+   (leaf-part-spec-b sp-field-init-spec :offset-assert 252)
    )
   :method-count-assert 51
   :size-assert         #x100
@@ -75882,16 +75893,6 @@
   (:state-methods
     idle ;; 50
     )
-  ;; adjudicated: SIZE-ASSERT RIGHT (proven), FIELD LIST empty where 8 bytes
-  ;; exist. process-drawable ends at 248 and the size-assert is 0x100 = 256, so
-  ;; the type owns 8 bytes the empty field list never declared. (method 3
-  ;; can-leaves-floor) in canyon-obs_ir2.asm prints NOTHING of its own -- it only
-  ;; chains to the parent inspect -- so the machine code confirms the fields are
-  ;; unprintable/unnamed but says nothing about what they are.
-  ;; The 8-byte total is forced by the size-assert (which comes from the retail
-  ;; type flags, not from inference); the pad's identity is unknown. This is the
-  ;; weakest block in the batch: it is the only one where nothing but the size
-  ;; constrains the repair.
   )
 
 
