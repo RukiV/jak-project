@@ -1,22 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: hud-widgets-powerhang.gc
-;; name in dgo: hud-widgets-powerhang
-;; dgos: COMMON, GAME
-
-;; DECOMP BEGINS
-
-;; forward-reference breaker: power-slide-hud-single and hang-time-hud-single
-;; are each used in a (the-as ...) cast in their own static instance's
-;; definition before their (deftype ...) forms further down this file,
-;; matching the original top-level-login's own instruction order (the static
-;; define precedes the type-new call for each type in the retail binary),
-;; the same shape as hud-results-grand-prix.gc's own forward-reference
-;; breaker.
-(declare-type power-slide-hud-single in-game-hud)
-(declare-type hang-time-hud-single in-game-hud)
-
 ;; definition of type hud-item-power-slide-distance-tenths
 (deftype hud-item-power-slide-distance-tenths (hud-item-string)
   ((distance  float)
@@ -660,6 +644,16 @@
   (the-as hang-time-hud-single ((method-of-type in-game-hud relocate) this offset))
   )
 
+;; definition for method 26 of type hang-time-hud-single
+;; INFO: this function exists in multiple non-identical object files
+(defmethod hud-method-26 ((this hang-time-hud-single))
+  (set! (-> this items) *hang-time-hud-single*)
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hang-time-hud-single-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
 ;; definition for method 10 of type hang-time-hud-single
 (defmethod deactivate ((this hang-time-hud-single))
   "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
@@ -705,17 +699,6 @@
     )
   )
 
-;; og:preserve-this hud-static-literals rung: the decompiler's own dump
-;; carries two non-identical bodies for this method (COMMON and GAME DGO
-;; copies of this object decode to different bytecode here), the same class
-;; already landed on sprite.gc's (method 3 sprite-aux-list) and
-;; sparticle-launcher's own duplicate. The shorter of the two only sets
-;; items/manager/proc with no localized text; this one also switches on
-;; get-current-language to pick which of *hang-time-hud-single*'s two
-;; text items gets the tenths-vs-seconds text id, matching the widget's own
-;; purpose (a hang-time readout needs real text), so it is kept and the
-;; shorter stub is dropped, matching the sprite.gc precedent of keeping one
-;; body and the INFO comment.
 ;; definition for method 26 of type hang-time-hud-single
 ;; INFO: this function exists in multiple non-identical object files
 (defmethod hud-method-26 ((this hang-time-hud-single))

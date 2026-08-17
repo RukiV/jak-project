@@ -183,13 +183,17 @@
   // bits). Casting t0 to event-message-block at the read op resolves all
   // four identically-shaped overrides.
   // hud-item-hang-time-seconds and hud-item-hang-time-tenths-seconds add the
-  // message payload to their own existing value (add.s), unlike the
-  // power-slide-distance pair, which only stores it (no arithmetic, so no
-  // second cast needed there): param's own declared type is uint64, so the
-  // decompiler tracks the value moved into the float register (via mtc1) as
-  // still uint-flavored, and the add fails ("Floating point math attempted
-  // on invalid types: float and uint"). Casting v1 to float at the mtc1 op
-  // itself (one past the event-message-block read) clears it.
+  // message payload to their own existing value (add.s), which needs the
+  // second float cast to clear "Floating point math attempted on invalid
+  // types: float and uint"; the power-slide-distance pair's own hud-static-
+  // literals-rung decode (hud-widgets-powerhang_ir2.asm) shows the exact
+  // same mtc1-into-uint shape at their own read op, just without a
+  // downstream add, so gpr->fpr itself still needs param's value cast to
+  // float regardless of what follows: param's own declared type is uint64,
+  // so the decompiler tracks the value moved into the float register (via
+  // mtc1) as still uint-flavored either way. Casting v1 to float at the
+  // mtc1 op itself (one past the event-message-block read) clears both
+  // classes.
   "(method 23 hud-item-hang-time-seconds)": [
     [4, "t0", "event-message-block"],
     [5, "v1", "float"]
@@ -199,10 +203,12 @@
     [5, "v1", "float"]
   ],
   "(method 23 hud-item-power-slide-distance)": [
-    [3, "t0", "event-message-block"]
+    [3, "t0", "event-message-block"],
+    [4, "v1", "float"]
   ],
   "(method 23 hud-item-power-slide-distance-tenths)": [
-    [3, "t0", "event-message-block"]
+    [3, "t0", "event-message-block"],
+    [4, "v1", "float"]
   ],
   "spawn-hud-headset-talker-other": [
     [[30, 32], "v0", "hud-headset-talker-other"]
