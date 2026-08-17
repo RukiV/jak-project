@@ -4090,5 +4090,107 @@
     // Same shape again at op 73: t1 (op 72, math-camera plus 320, landing
     // on isometric.trans) quad-copied whole.
     [73, "t1", "(pointer uint128)"]
+  ],
+  // update-eyes and dirty-eyes: v1 is eye-control's own process field
+  // (l.d offset 0, declared uint64 "handle" in its own table), then
+  // split via the standard sllv/dsra32 handle->process idiom (low 32
+  // bits dereferenced as the process pointer at op 16/17, high 32 bits
+  // read back as the pid at op 19), matching the cloud-track precedent
+  // ((method 10 race-state) above) that casts the raw loaded handle
+  // value itself, letting both halves of the split resolve.
+  // jak3's own update-eyes carries a matching pair of process-drawable
+  // casts (its ops 23/29, register v1), but jakx's update-eyes has an
+  // extra are-we-in-time-trial-mode? guard jak3's does not, shifting both
+  // the op numbers and which register ends up holding the process
+  // (jakx keeps it in s4, not v1, through this point); found by rerunning
+  // this rung's own scoped decode rather than assumed from jak3's op
+  // numbers directly. dirty-eyes carries the identical shape at the same
+  // op.
+  "update-eyes": [
+    [[16, 20], "v1", "handle"],
+    [[22, 36], "s4", "process-drawable"]
+  ],
+  "dirty-eyes": [
+    [[16, 20], "v1", "handle"],
+    [[22, 36], "s4", "process-drawable"]
+  ],
+  // free-eye-index: a2 is eye-control's own array-indexed pointer (eye
+  // index times 80, eye's own inline stride, plus inner index times 4,
+  // added onto the eye-control base), matching jak3's identical
+  // free-eye-index type_casts entry (jak3 op 30, jakx op 29, otherwise
+  // unchanged).
+  "free-eye-index": [[29, "a2", "eye-control"]],
+  // render-eyes-64/render-eyes-32: adopted from jak3's own type_casts
+  // entries for these two functions wholesale (goal_src/jak3/engine/gfx/
+  // foreground/eye.gc lands both in full); tried unverified per this
+  // rung's own scoped decode rather than checked op-by-op given the
+  // sheer count, since jakx's racing-HUD eye renderer is otherwise
+  // untouched from jak3's own DMA-gif-packet/adgif-shader/vector4w
+  // structure here.
+  "render-eyes-64": [
+    [[77, 82], "v1", "dma-gif-packet"],
+    [[88, 93], "s0", "adgif-shader"],
+    [[132, 164], "v1", "(inline-array vector4w)"],
+    [[244, 274], "a1", "(inline-array vector4w)"],
+    [[284, 292], "v1", "dma-gif-packet"],
+    [[298, 303], "s0", "adgif-shader"],
+    [[376, 406], "a1", "(inline-array vector4w)"],
+    [[442, 450], "v1", "dma-gif-packet"],
+    [[456, 461], "s0", "adgif-shader"],
+    [[535, 562], "a1", "(inline-array vector4w)"],
+    [[575, 580], "v1", "dma-gif-packet"],
+    [[586, 591], "s0", "adgif-shader"],
+    [[664, 694], "a1", "(inline-array vector4w)"],
+    [[733, 738], "v1", "dma-gif-packet"],
+    [[744, 749], "s0", "adgif-shader"],
+    [[845, 874], "a1", "(inline-array vector4w)"],
+    [[887, 892], "v1", "dma-gif-packet"],
+    [[898, 903], "s0", "adgif-shader"],
+    [[1003, 1029], "a1", "(inline-array vector4w)"],
+    [180, "a0", "int"],
+    [188, "a1", "int"],
+    [310, "a0", "int"],
+    [318, "a1", "int"],
+    [468, "a0", "int"],
+    [476, "a1", "int"],
+    [598, "a0", "int"],
+    [606, "a1", "int"],
+    [756, "a0", "int"],
+    [764, "a1", "int"],
+    [910, "a0", "int"],
+    [918, "a1", "int"]
+  ],
+  "render-eyes-32": [
+    [[77, 82], "v1", "dma-gif-packet"],
+    [[88, 93], "s0", "adgif-shader"],
+    [[132, 164], "v1", "(inline-array vector4w)"],
+    [[244, 274], "a1", "(inline-array vector4w)"],
+    [[287, 292], "v1", "dma-gif-packet"],
+    [[298, 303], "s0", "adgif-shader"],
+    [[376, 406], "a1", "(inline-array vector4w)"],
+    [[445, 450], "v1", "dma-gif-packet"],
+    [[456, 461], "s0", "adgif-shader"],
+    [[532, 562], "a1", "(inline-array vector4w)"],
+    [[575, 580], "v1", "dma-gif-packet"],
+    [[586, 591], "s0", "adgif-shader"],
+    [[664, 694], "a1", "(inline-array vector4w)"],
+    [[733, 738], "v1", "dma-gif-packet"],
+    [[744, 749], "s0", "adgif-shader"],
+    [[845, 874], "a1", "(inline-array vector4w)"],
+    [[887, 892], "v1", "dma-gif-packet"],
+    [[898, 903], "s0", "adgif-shader"],
+    [[1000, 1029], "a1", "(inline-array vector4w)"],
+    [180, "a0", "int"],
+    [188, "a1", "int"],
+    [910, "a0", "int"],
+    [918, "a1", "int"],
+    [310, "a0", "int"],
+    [318, "a1", "int"],
+    [468, "a0", "int"],
+    [476, "a1", "int"],
+    [598, "a0", "int"],
+    [606, "a1", "int"],
+    [756, "a0", "int"],
+    [764, "a1", "int"]
   ]
 }

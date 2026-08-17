@@ -50448,8 +50448,8 @@
 ;; (define-extern *eye-work* object) ;; eye-work
 (define-extern find-free-eye-index (function int string int int))
 (define-extern free-eye-index (function int int))
-;; (define-extern render-eyes-32 function) ;; (function dma-buffer eye-control int pointer)
-;; (define-extern render-eyes-64 function) ;; (function dma-buffer eye-control int pointer)
+(define-extern render-eyes-32 (function dma-buffer eye-control int pointer))
+(define-extern render-eyes-64 (function dma-buffer eye-control int pointer))
 (define-extern dirty-eyes (function none)) ;; refine after unlock
 (define-extern update-eyes (function none))
 (define-extern convert-eye-data (function eye uint float))
@@ -70257,7 +70257,11 @@
 ;; (define-extern quit-game-stats-update function)
 ;; (define-extern current-level-difficulty function)
 ;; (define-extern difficulty-stats function)
-(define-extern are-we-in-time-trial-mode? function) ;; eye.gc only tests it for nonzero (guard), never calls it; no landed call site to prove args
+;; update-eyes (op 23-25): called with zero args (t9 set, immediate jalr, no
+;; a0-a3 setup), result checked for truthiness (bnel v0). "are we in X
+;; mode?" naming convention returns a boolean-ish symbol in this codebase.
+;; The prior comment here ("never calls it") predates this call site.
+(define-extern are-we-in-time-trial-mode? (function symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-race                       ;;
