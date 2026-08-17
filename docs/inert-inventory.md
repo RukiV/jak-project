@@ -38,7 +38,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (191)
+### Never written (190)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -182,7 +182,6 @@ written is read-only by design and not a finding.
 | `*list-all-scenes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*lobby-local-players*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*manual-sample-point*` | 1 | `goal_src/jakx/engine/camera/cam-update-h.gc` |
-| `*max-dma*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*merc-vu1-init-ready*` | 1 | `goal_src/jakx/engine/gfx/foreground/merc/merc.gc` |
 | `*music-volume-ducked-by-sound*` | 1 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*music-volume-during-speech*` | 1 | `goal_src/jakx/engine/sound/speech-h.gc` |
