@@ -3828,5 +3828,214 @@
     [45, "v1", "(pointer float)"],
     [50, "v1", "(pointer float)"],
     [56, "v1", "(pointer float)"]
+  ],
+  // debug-merc-size-runtime (debug-foreground.gc): s1/s2 are the loop's own
+  // merc-fragment/merc-fragment-control pointers (set at ops 8/7), but the
+  // per-fragment loop increment (ops 116/118, matching debug-merc-fade-
+  // runtime's own explicit (the-as int ...) wrap around the same asize-of
+  // advance) has to demote the back-edge value to plain int, which merges
+  // against the entry type at the loop header to plain object ("add
+  // failed" at the increment itself; "Could not figure out load" at every
+  // raw offset read of s1/s2 anywhere in the loop body, one at a time as
+  // each successive error unmasks the next). Rather than chase each read
+  // site individually (five rounds of this rung's own scoped decode found
+  // new ones each time: ops 21/22/24, then 38, with more implied), this
+  // casts s1/s2 back to their concrete types across the whole loop body,
+  // one op after their own definitions through the op immediately before
+  // the increment, matching debug-merc-fade-runtime's own working shape
+  // where the loop variable is simply cast at every use instead.
+  //
+  // Two independent errors sit inside that same loop body regardless of
+  // the s1/s2 widening: two separate adgif-shader "strip length" reads
+  // (the "input size" check's own shader loop at ops 97/104, and a second,
+  // separate copy for the "output size" check at ops 53/62), both register
+  // v1, both the same shape as etie-ints/etie-floats above (a halfword
+  // read 28 bytes into the current shader with no confidently named field,
+  // cast to the raw width the load itself uses; the stride-80 walk cast to
+  // adgif-shader, matching its own :size-assert, since merc-fp-header's
+  // :size-assert of 16 does not collapse a +80 step).
+  "debug-merc-size-runtime": [
+    [[9, 116], "s1", "merc-fragment"],
+    [[8, 118], "s2", "merc-fragment-control"],
+    [116, "s1", "int"],
+    [118, "s2", "int"],
+    [97, "v1", "(pointer uint16)"],
+    [104, "v1", "adgif-shader"],
+    [53, "v1", "(pointer uint16)"],
+    [62, "v1", "adgif-shader"],
+    // A further pair once the above clear: the "TOO MANY MIPS" epilogue's
+    // per-effect walk clears the VU0 scratchpad ready-flag at the fixed
+    // base address 0x70000000 (lui v1, 28672), the same base-address idiom
+    // (method 8 collide-hash) and collide-upload-vu0 already carry above,
+    // and the stores off it need the same raw pointer cast.
+    [139, "v1", "(pointer uint32)"],
+    [141, "v1", "(pointer uint32)"]
+  ],
+  // debug-merc-highres-runtime (debug-foreground.gc): same shape as
+  // debug-merc-size-runtime above, s1/s2 cast to their concrete types
+  // across the whole loop body (one op after their own definitions at ops
+  // 11/10 through the op before the increment at 215/217) rather than
+  // chasing each read site (this rung's own scoped decode still found new
+  // ones after five rounds of narrow single-op and short-range fixes).
+  //
+  // a0 is computed at op 146 as merc-fragment's own vertex-record area (s1
+  // plus unsigned-four-count rounded up to a 16-byte boundary), then
+  // indexed at 12-byte stride (ops 161/168) and read at +4/+5 (ops 162/
+  // 169). 12 bytes is merc-vtx's own size-assert, and +4/+5 are exactly
+  // its dst-0/dst-1 fields (the values the surrounding "has a hole at
+  // address" scratch-buffer check is built from). Casting a0 to merc-vtx
+  // across the read span (one op after the def through the last use at
+  // 168) lets the indexed arithmetic collapse to plain field reads.
+  //
+  // debug-merc-highres-runtime also carries its own copy of the
+  // adgif-shader "strip length" read and stride-80 walk from
+  // debug-merc-size-runtime above (ops 101/111 here instead of 97/104,
+  // register a0 instead of v1; same evidence, same fix).
+  "debug-merc-highres-runtime": [
+    [[147, 169], "a0", "merc-vtx"],
+    // op 162's own load (a2, the dst-0 field, indexed off the same a0 base
+    // as op 168's dst-1 one two ops later) still reports a stale "Failed
+    // load" even though the a0 cast above already collapses it to
+    // <merc-vtx + (value x 12)> and resolves it to uint on its own line;
+    // op 169's identical shape does not carry the same stale error. Casting
+    // a2 directly at its own op clears the leftover record without
+    // changing the resolved type.
+    [162, "a2", "merc-vtx"],
+    // op 169's own dst-1 read carries the identical stale-error shape as
+    // op 162's dst-0 one right above it.
+    [169, "a3", "merc-vtx"],
+    [[12, 215], "s1", "merc-fragment"],
+    [[11, 217], "s2", "merc-fragment-control"],
+    [215, "s1", "int"],
+    [217, "s2", "int"],
+    [101, "a0", "(pointer uint16)"],
+    [111, "a0", "adgif-shader"],
+    // debug-merc-highres-runtime's own "TOO MANY MIPS" epilogue carries the
+    // same VU0 scratchpad ready-flag clear as debug-merc-size-runtime's
+    // ops 139/141 above, at ops 238/240 here.
+    [238, "v1", "(pointer uint32)"],
+    [240, "v1", "(pointer uint32)"],
+    // sv-144 (the "output size" quad-count accumulator) is declared from
+    // its own initial 0 at op 67, defaulting to plain int. Its own
+    // reassignment two ops later (op 76) multiplies strip-len (uint8, read
+    // at op 69) by 3 through an unsigned multiply instruction, and the
+    // decompiler renders the literal 3 with an explicit uint cast to match
+    // (the-as uint 3), which then makes the whole sum uint under the GOAL
+    // compiler's own arithmetic promotion rules; (mi) rejects the
+    // int/uint mismatch even though the decompiler's own looser tracking
+    // shows the same op as int-compatible ("<integer 0 + int>"). Casting
+    // the strip-len read itself to int (same bits, uint8 values are never
+    // negative) removes the need for the uint literal cast, keeping the
+    // whole expression, and sv-144's own declared type, plain int.
+    [69, "v1", "int"]
+  ],
+  // diag-frag-print: v1 is merc-fragment-fp-data's own return (correctly
+  // typed merc-fp-header at op 247), but the debug print two ops later
+  // reads raw offset 44, 28 bytes past the header's own :size-assert #x10
+  // (into the adgif-shader array that follows it, per debug-merc-fade-
+  // runtime's own &+ 16 precedent), masked to a byte for a bare "~x
+  // VERTICES" hex dump. No field in adgif-shader's own table names this
+  // offset with any confidence (28 bytes in lands mid gs-reg64, not a
+  // documented boundary), so this casts the pointer to the raw word width
+  // the load itself already uses rather than guessing a field name.
+  // Once that clears, the same per-fragment loop increment as
+  // debug-merc-highres-runtime above fails next: ops 255/256 advance s4
+  // (merc-fragment) and s5 (merc-fragment-control) by their own asize-of
+  // results, the identical "add failed" shape, same fix.
+  //
+  // A third, independent error follows: op 234 reads a full word at
+  // merc-fp-header offset 12 (shader-cnt/kick-info-offset/kick-info-step/
+  // hword-cnt, four packed uint8 fields, read together as one raw word for
+  // a hex dump rather than through any single named field; ops 231-233
+  // read offsets 0/4/8 the same way and already resolve cleanly as float,
+  // since x-add/y-add/z-add are real named fields there). Cast to the raw
+  // word width the load already uses, same class as op 248 above.
+  //
+  // Same s1/s2-class loop-header widening as the two functions above hits
+  // s4/s5 here (the per-fragment loop increment at ops 255/256 demotes the
+  // back-edge value to int, matching debug-merc-fade-runtime's own
+  // (the-as int ...) wrap), so both are cast to their concrete types
+  // across the whole loop body rather than chased read by read: s4 one op
+  // after its own def (op 4) through the op before its own increment
+  // (255); s5 the same, one op after op 3 through 256. s0 (a copy of s4
+  // taken at op 17) gets its own narrower range, since op 173 rebinds it
+  // to an unrelated computed pointer that already resolves cleanly on its
+  // own (forcing merc-fragment there would fight that pointer's own
+  // <merc-fragment + (value x 16)> arithmetic type), so its range stops at
+  // 90, one past its own last raw read in the object-typed window (verified
+  // directly against this worktree's own scoped decode: ops 26-29, 34-37,
+  // 42-45, 50, 82, 84, 85, 88, 89; op 169, later still and past op 173's
+  // rebind, resolves on its own without help). s0's later op 234 use above
+  // is a distinct, later SSA generation, reassigned at op 220, so the two
+  // entries do not overlap.
+  // A further, nested copy of the same loop-carried-pointer class sits
+  // past op 173, where s0 is rebound to a fresh pointer (v1, the fragment's
+  // own vtx-record area, plus a rounded unsigned-four-count offset,
+  // matching debug-merc-highres-runtime's a0-40 at its own op 146) that
+  // walks a per-vertex dump loop advancing by 12 (merc-vtx's own
+  // :size-assert) at op 208. op 173's own definition resolves fine on its
+  // own (<merc-fragment + (value x 16)>), but by its very next read seven
+  // ops later (op 181, no intervening redefinition) the type has already
+  // fallen to plain int, the same loop-header merge shape as s1/s2/s4/s5
+  // above; cast across the loop body, one op after the def through the op
+  // before its own increment.
+  "diag-frag-print": [
+    [248, "v1", "(pointer uint32)"],
+    // op 81 copies s4 to stack offset 48 (the "sv-48" HEADER/RGBAs walk
+    // pointer); the wide s4 range below types it merc-fragment like every
+    // other s4 copy, but sv-48's own advance two blocks later (op 102,
+    // "+4", collapsing to &-> ... header mat1-cnt, an unrelated shape from
+    // the s1/s4-class "add failed" fix) resolves to (pointer uint8) on its
+    // own, and a lexical variable's set! must match its own let binding's
+    // type, not merely be castable to it. This single-op override, more
+    // specific than the range below, keeps sv-48's own declared type
+    // (pointer uint8) so the later set! type-checks; sv-32 (op 80, the
+    // adjacent copy used only through explicit (the-as uint ...) later)
+    // is unaffected and stays merc-fragment.
+    [81, "s4", "(pointer uint8)"],
+    [[5, 81], "s4", "merc-fragment"],
+    [[82, 255], "s4", "merc-fragment"],
+    [[4, 256], "s5", "merc-fragment-control"],
+    [255, "s4", "int"],
+    [256, "s5", "int"],
+    [234, "s0", "(pointer uint32)"],
+    [[26, 90], "s0", "merc-fragment"],
+    [[174, 208], "s0", "merc-fragment"],
+    [208, "s0", "int"],
+    // A separate, earlier vtx-dump loop (stack slot 48(sp) rather than a
+    // register, an independent copy of the same "vtx ~2d: ~02x ~02x ~02x
+    // ~02x" print seen at op 181 above but reached through a different
+    // code path) carries the identical stale first-read shape: op 144's
+    // own stack-load resolves object while the three others reading the
+    // exact same slot moments later (ops 146/148/150) already resolve
+    // merc-fragment on their own.
+    // The four back-to-back stack reads of the same 48(sp) slot cascade:
+    // fixing each one's stale error unmasks the exact same shape on the
+    // next, one at a time (verified through four rounds of this rung's own
+    // scoped decode), so all four are cast up front here.
+    [145, "v1", "merc-fragment"],
+    [147, "v1", "merc-fragment"],
+    [149, "v1", "merc-fragment"],
+    [151, "v1", "merc-fragment"],
+    // op 153's own read of the same slot, immediately before advancing it
+    // by 4 for the next loop iteration (op 154, "add failed: object
+    // <integer 4>" until cast), carries the same stale shape.
+    [154, "v1", "merc-fragment"],
+    // An earlier, separate "RGBAs:" print loop over the same 48(sp) slot
+    // advances it by 4 at its own op 101, register a0 this time; same
+    // shape, same fix.
+    [101, "a0", "merc-fragment"],
+    // That loop's own raw byte stores (writing the literal 128/128/0/128
+    // pattern into the same slot, two unrolled passes) need the identical
+    // cast for the store side once the later reads above stop masking
+    // them: v1 at ops 118/120/136/139, a0 at ops 123/131/134.
+    [118, "v1", "merc-fragment"],
+    [120, "v1", "merc-fragment"],
+    [123, "a0", "merc-fragment"],
+    [126, "v1", "merc-fragment"],
+    [131, "a0", "merc-fragment"],
+    [134, "a0", "merc-fragment"],
+    [136, "v1", "merc-fragment"],
+    [139, "v1", "merc-fragment"]
   ]
 }
