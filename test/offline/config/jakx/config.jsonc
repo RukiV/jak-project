@@ -559,7 +559,16 @@
     // traffic-object-spawn-params (the race/vehicle band's own typing territory);
     // goal_src holds the whole function back as a define-extern with no body for the
     // same reason. Retires when vehicle-spawn lands.
-    "target-standard-event-handler"
+    "target-standard-event-handler",
+    // path: (method 28 path-control)'s sv-112 out-of-range-sentinel init loads
+    // the positive-infinity bit pattern (#x7f800000); the decompiler's float
+    // literal table folds -1.0/1.0 into a plain float constant but does not
+    // recognize this pattern, so the raw decoded string keeps the internal
+    // gpr->fpr helper instead of a the-as float cast. The landed goal_src
+    // carries the hand cast at the same site (matching jak3's own path.gc,
+    // which renders this identical assignment as (the-as float #x7f800000));
+    // the decomp-vs-REF diff still gates the rest of the object.
+    "(method 28 path-control)"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the

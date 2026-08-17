@@ -81,20 +81,8 @@
   (cond
     ((-> this enabled?)
      (when (nonzero? (-> this path))
-       (let* ((a0-1 (-> this path))
-              (t9-0 (method-of-object a0-1 path-control-method-14))
-              (a1-0 (-> this root trans))
-              (a2-0 (-> this path-pos))
-              )
-         'interp
-         (t9-0 a0-1 a1-0 a2-0)
-         )
-       (let ((t9-1 (method-of-object (-> this path) curve-control-method-33)))
-         (-> this rot)
-         (-> this path-pos)
-         #x3f800000
-         (t9-1)
-         )
+       (get-point-at-percent-along-path! (-> this path) (-> this root trans) (-> this path-pos) 'interp)
+       (curve-control-method-33 (-> this path) (-> this rot) (-> this path-pos) 1.0)
        (quaternion-look-at! (the-as quaternion (-> this root rot)) (-> this rot) *up-vector*)
        (let ((f0-3 (+ (-> this path-pos) (* (-> this path-speed) (seconds-per-frame)))))
          (set! (-> this path-pos) f0-3)
@@ -154,7 +142,7 @@
      )
     (else
       (if (nonzero? (-> this path))
-          (path-control-method-9 (-> this path))
+          (debug-draw (-> this path))
           )
       )
     )
@@ -194,3 +182,7 @@
   (set! *movie-path* (process->ppointer this))
   (go (method-of-object this active))
   )
+
+
+
+

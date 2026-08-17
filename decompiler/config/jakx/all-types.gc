@@ -39806,36 +39806,77 @@
   :size-assert         #x28
   :flag-assert         #x2100000028
   (:methods
-    (new (symbol type process symbol float entity symbol) _type_) ;; 0 ;; 
-    (path-control-method-9 (_type_) none) ;; 9 ;; (debug-draw (_type_) none)
+    (new (symbol type process symbol float entity symbol) _type_) ;; 0 ;;
+    ;; renamed from path-control-method-9: path.gc's own ir2 decodes this
+    ;; identically for path-control and curve-control alike (add-debug-text-3d /
+    ;; add-debug-line / add-debug-x calls gated on *display-path-marks*), matching
+    ;; jak3's debug-draw body one for one (only the bucket-id literal differs).
+    (debug-draw (_type_) none) ;; 9
     ;; jakx slot verified at the collide-shape.o shove-to-closest-point-on-path call
     ;; site (a1=stack vector out, a2=float index, a3='interp), matching jak3's sig
     (get-point-in-path! (_type_ vector float symbol) vector) ;; 10
-    (path-control-method-11 (_type_ object) none) ;; 11 ;; (get-random-point (_type_ object) vector)
-    (path-control-method-12 (_type_) none) ;; 12 ;; (path-control-method-12 (_type_) vector)
+    ;; renamed from path-control-method-11: path.gc's ir2 stores arg0 with s.q!
+    ;; (a full vector quadword), matching jak3's get-random-point body exactly.
+    (get-random-point (_type_ vector) vector) ;; 11
+    ;; jakx slot verified against path.gc's ir2 (both path-control and
+    ;; curve-control variants read arg0/arg1/arg2 as vector/float/float and
+    ;; forward into method 32), matching jak3's path-control-method-12 sig.
+    (path-control-method-12 (_type_ vector float float) vector) ;; 12
     (path-control-method-13 (_type_ vector float) vector) ;; 13 ;; (displacement-between-two-points-normalized! (_type_ vector float) vector)
-    (path-control-method-14 (_type_ vector float) none) ;; 14 ;; (get-point-at-percent-along-path! (_type_ vector float symbol) vector)
-    (path-control-method-15 () none) ;; 15 ;; (path-control-method-15 (_type_ vector float float) vector)
-    (path-control-method-16 (_type_ vector) none) ;; 16 ;; (displacement-between-points-at-percent-normalized! (_type_ vector float) vector)
-    (get-num-segments (_type_) float) ;; 17 ;; 
+    ;; renamed from path-control-method-14: path.gc's ir2 reads a3 (the symbol
+    ;; arg) on the path-control variant ("Function may read a register that is
+    ;; not set: a3" against the old 2-arg declaration), matching jak3's
+    ;; get-point-at-percent-along-path! sig.
+    (get-point-at-percent-along-path! (_type_ vector float symbol) vector) ;; 14
+    ;; jakx slot verified against path.gc's ir2 (both variants read this/arg0/
+    ;; arg1/arg2 as vector/float/float and forward via method-of-object),
+    ;; matching jak3's path-control-method-15 sig.
+    (path-control-method-15 (_type_ vector float float) vector) ;; 15
+    ;; renamed from path-control-method-16: path.gc's ir2 shows the path-control
+    ;; variant forwarding to method 13 with a scaled float arg1 ("Function may
+    ;; read a register that is not set: a2" against the old 1-arg declaration),
+    ;; matching jak3's displacement-between-points-at-percent-normalized! sig.
+    (displacement-between-points-at-percent-normalized! (_type_ vector float) vector) ;; 16
+    (get-num-segments (_type_) float) ;; 17 ;;
     (total-distance (_type_) float) ;; 18
-    (get-num-verts (_type_) int) ;; 19 ;; 
+    (get-num-verts (_type_) int) ;; 19 ;;
     (segement-duration->path-duration (_type_ float) float)
     (average-segment-length(_type_ float) float) ;; 21 ;; (path-duration->segment-duration (_type_ float) float)
     (path-control-method-22 (_type_ vector) float) ;; 22 ;; (path-control-method-22 (_type_ vector) float)
     (path-control-method-23 (_type_ vector) float) ;; 23
     (path-control-method-24 (_type_ vector) float) ;; 24
     (path-control-method-25 (_type_ vector) float) ;; 25
-    ;; synced to its own trailing hint: (post idle peak-snowball) feeds
-    ;; the result straight into an mtc1/swc1 float store (peak-snowball's
-    ;; own last-u field), confirming float, not none.
-    (path-control-method-26 (_type_ object object) float) ;; 26
-    (path-control-method-27 (_type_ object) none) ;; 27 ;; (path-control-method-27 (_type_ object) vector)
-    (path-control-method-28 (_type_ object object object) none) ;; 28 ;; (path-control-method-28 (_type_ object object object) float)
+    ;; jakx slot verified against path.gc's ir2 (both arg0/arg1 are read via
+    ;; gpr->fpr immediately on entry, no field deref), matching jak3's
+    ;; path-control-method-26 float/float sig, not the stale object/object one.
+    (path-control-method-26 (_type_ float float) float) ;; 26
+    ;; renamed from path-control-method-27: no rename, jak3 keeps this generic
+    ;; too; jakx slot verified against path.gc's ir2 (arg0 is read/written as a
+    ;; full vector, op 56's l.f load against the old object-typed arg0 is what
+    ;; produced "failed type prop"), matching jak3's vector/vector sig.
+    (path-control-method-27 (_type_ vector) vector) ;; 27
+    ;; jakx slot verified against path.gc's ir2 (arg0/arg1 vector, arg2 symbol,
+    ;; return float via a division), matching jak3's path-control-method-28 sig.
+    (path-control-method-28 (_type_ vector vector symbol) float) ;; 28
     (path-control-method-29 (_type_ vector int float) float) ;; 29
-    (path-control-method-30 (_type_) none) ;; 30 ;; 
+    ;; jakx-only slot, no jak3 twin: path.gc's ir2 shows this reads only `this`,
+    ;; walks method 14 (get-point-at-percent-along-path!) across 129 evenly
+    ;; spaced curve samples to build an arc-length table, normalizes it, then
+    ;; inverts it into distmap (the raw offset-12/declared-offset-16 float
+    ;; array, +4 basic-tag trap) so distmap maps distance-fraction back to
+    ;; curve parameter; named for path-h.gc's own "method 30 (distmap fill)"
+    ;; bring-up guard comment on `new path-control`/`new curve-control`. Args
+    ;; unchanged (this only); the load needs a type_casts.jsonc pointer cast,
+    ;; not a signature change.
+    (path-control-method-30 (_type_) none) ;; 30
     (should-display-marks? (_type_) symbol) ;; 31 ;; (displacement-between-two-points! (_type_ vector float float) vector)
-    (path-control-method-32 (_type_ object object object) none) ;; 32
+    ;; renamed from path-control-method-32: path.gc's ir2 matches jak3's
+    ;; displacement-between-two-points! body one for one for the path-control
+    ;; variant (vector-reset!/vector-!/vector-float*! sequence inlined as raw
+    ;; VU ops); the curve-control override at this same slot uses
+    ;; curve-evaluate! instead, matching jak3's curve-control override of the
+    ;; same virtual slot.
+    (displacement-between-two-points! (_type_ vector float float) vector) ;; 32
     )
   )
 
@@ -39847,8 +39888,21 @@
   :flag-assert         #x2300000028
   (:methods
     (new (symbol type process symbol res-lump symbol float) _type_) ;; 0
-    (curve-control-method-33 () none) ;; 33
-    (curve-control-method-34 (_type_ object object object) none) ;; 34
+    ;; jakx-only slot, no jak3 twin: path.gc's ir2 shows this reads this/arg0
+    ;; (vector)/arg2 (float) but never touches arg1, forwarding (this arg0
+    ;; (/ arg2 (the float (+ (-> this curve num-cverts) -1)))) into method 34
+    ;; (curve-evaluate!-based displacement), then vector-normalize!s arg0 --
+    ;; the same wrapper shape as slot 13's curve-control override of
+    ;; displacement-between-two-points-normalized! (which forwards into slot
+    ;; 16), duplicated here against slot 34 instead of slot 16. Movie-path.gc's
+    ;; own call site passes (rot path-pos 1.0), so arg1 is declared float to
+    ;; match the caller even though this body never reads it.
+    (curve-control-method-33 (_type_ vector float float) none) ;; 33
+    ;; jakx-only slot, no jak3 twin: path.gc's ir2 for this slot is a verbatim
+    ;; duplicate of the curve-control override of slot 32
+    ;; (displacement-between-two-points!, curve-evaluate!-based), compiled as a
+    ;; second, separately addressed copy rather than a shared vtable entry.
+    (curve-control-method-34 (_type_ vector float float) vector) ;; 34
     )
   )
 

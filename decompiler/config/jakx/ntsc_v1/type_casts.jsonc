@@ -4544,5 +4544,24 @@
   // not carry a resolvable type there and leaves the function undecompilable).
   "(method 46 process-drawable)": [
     [101, "s1", "nav-mesh"]
+  ],
+  // (method 30 path-control): this's own distmap field (uint32, raw offset
+  // 12, declared offset 16 via the +4 basic-tag trap) is a res-lump-provided
+  // pointer to a flat float array, not a plain handle; op 2 dereferences it
+  // straight into a float compare ("failed type prop at 2: Could not figure
+  // out load: (set! f0 (l.f v1))"), and the fill loop re-reads the same
+  // field into a1 at op 111 before scaled-index arithmetic and a float store
+  // at op 114.
+  "(method 30 path-control)": [
+    [2, "v1", "(pointer float)"],
+    [[111, 115], "a1", "(pointer float)"]
+  ],
+  // (method 28 path-control): sv-124 (matching jak3's own "(sv-124 (the-as
+  // float -1.0))" local) resolves as float at every earlier read/write in
+  // this function, but the final stack-load feeding the closing division
+  // ("Floating point division attempted on invalid types") loses that type;
+  // f0 needs an explicit float cast at that specific reload.
+  "(method 28 path-control)": [
+    [[240, 246], "f0", "float"]
   ]
 }

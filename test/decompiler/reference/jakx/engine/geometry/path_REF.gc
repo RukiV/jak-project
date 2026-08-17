@@ -1,18 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: path.gc
-;; name in dgo: path
-;; dgos: ENGINE, GAME
-
-;; og:preserve-this add-debug-curve2 is declared here (not landed anywhere in
-;; goal_src/jakx yet) so curve-control's debug-draw override can guard the call
-;; with (nonzero? add-debug-curve2) rather than link as zero unconditionally;
-;; see the guard's own comment below. Matches all-types.gc's own extern sig.
-(define-extern add-debug-curve2 (function symbol bucket-id curve rgba symbol symbol))
-
-;; DECOMP BEGINS
-
 ;; definition for method 9 of type path-control
 ;; WARN: Return type mismatch int vs none.
 (defmethod debug-draw ((this path-control))
@@ -438,7 +426,7 @@
           (sv-124 -1.0)
           )
       (get-point-in-path! this sv-96 0.0 'interp)
-      (set! sv-112 (the-as float #x7f800000))
+      (set! sv-112 (gpr->fpr #x7f800000))
       (when (not arg2)
         (set! sv-124 (path-control-method-22 this arg0))
         (get-point-in-path! this sv-108 (the-as float sv-124) 'interp)
@@ -616,16 +604,7 @@
     ((let ((a0-5 this))
        (and *display-path-marks* (logtest? (-> a0-5 flags) (path-control-flag display)))
        )
-     ;; og:preserve-this bring-up guard: add-debug-curve2 (and the add-debug-curve
-     ;; it wraps) are not landed anywhere in goal_src/jakx yet, only declared as
-     ;; externs in all-types.gc; an unlanded extern links as zero, so guard the
-     ;; SYMBOL rather than call through it unconditionally. This path is debug-only
-     ;; spline visualization (draw-line flag, curve-control's debug-draw override),
-     ;; never exercised on a normal boot. Retire the guard when debug.gc lands both.
-     (if (and (logtest? (-> this flags) (path-control-flag draw-line))
-              (> (-> this curve num-cverts) 0)
-              (nonzero? add-debug-curve2)
-              )
+     (if (and (logtest? (-> this flags) (path-control-flag draw-line)) (> (-> this curve num-cverts) 0))
          (add-debug-curve2 #t (bucket-id bucket785) (-> this curve) (new 'static 'rgba :r #xff :g #x80 :a #x80) #f)
          )
      (dotimes (s5-1 (-> this curve num-cverts))
@@ -722,3 +701,7 @@
   0
   (none)
   )
+
+
+
+

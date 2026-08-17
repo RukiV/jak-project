@@ -1860,27 +1860,16 @@
         ;; slot 9 needs no guard: path-h.gc:115 does (set! (-> path-control method-table 9)
         ;; nothing) BEFORE deftype curve-control on line 117, so the curve-control this
         ;; trans actually holds inherits a real 'nothing' there, not a 0. Retail-faithful.
-        (path-control-method-9 (-> self path))
-        ;; og:preserve-this bring-up guard: path.gc is still a 9-line stub, so
-        ;; path-control slots 14 and 16 have no body anywhere in goal_src and read 0 --
-        ;; calling through them is a jump to address 0 and a DEP fault. Guard the SLOT,
-        ;; not the object: the object is a live curve-control, it is the method that is
-        ;; missing. Now that jungle-part/jungle-part2 land, the jungle part groups
-        ;; resolve, so these spawners take the success path instead of the bring-up park
-        ;; and this trans runs for real on the 66 junglea/junglee spawners that carry a
-        ;; 'path res lump. Delete both guards when path.gc lands.
-        (when (nonzero? (-> path-control method-table 14))
-          (let ((t9-1 (method-of-object (-> self path) path-control-method-14)))
-            'interp
-            (t9-1 (-> self path) (-> self root trans) (-> self path-pos))
-            )
-          )
-        (when (nonzero? (-> path-control method-table 16))
-          (let ((t9-2 (method-of-object (-> self path) path-control-method-16)))
-            (-> self path-pos)
-            (t9-2 (-> self path) (-> self last-velocity))
-            )
-          )
+        (debug-draw (-> self path))
+        ;; og:preserve-this guards retired: path.gc landed slots 14
+        ;; (get-point-at-percent-along-path!) and 16
+        ;; (displacement-between-points-at-percent-normalized!), so both calls are direct
+        ;; again. The trailing dead-expression statements this site used to carry ('interp
+        ;; before the slot-14 call, path-pos before the slot-16 call) were the decompiler
+        ;; failing to bind a 3rd/2nd argument against the old stub signatures; they fold
+        ;; into real arguments now that path-h.gc declares the real arities.
+        (get-point-at-percent-along-path! (-> self path) (-> self root trans) (-> self path-pos) 'interp)
+        (displacement-between-points-at-percent-normalized! (-> self path) (-> self last-velocity) (-> self path-pos))
         (let ((f0-3 (+ (-> self path-pos) (* (-> self path-speed) (seconds-per-frame)))))
           (set! (-> self path-pos) f0-3)
           (set! (-> self path-pos) (- f0-3 (* (the float (the int (/ f0-3 1.0))) 1.0)))

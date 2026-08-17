@@ -504,15 +504,23 @@
                 )
             (let ((s5-0 (new 'stack-no-clear 'vector)))
               (let* ((a0-16 (-> self path))
-                     (t9-5 (method-of-object a0-16 path-control-method-14))
+                     (t9-5 (method-of-object a0-16 get-point-at-percent-along-path!))
                      (a1-10 s5-0)
                      (a2-7 f28-1)
                      )
-                'interp
-                (t9-5 a0-16 a1-10 a2-7)
+                ;; og:preserve-this arg-count fix: path.gc landed slot 14 as
+                ;; (_type_ vector float symbol) vector, so the trailing 'interp
+                ;; that used to sit here as a dead expression (a decompiler
+                ;; artifact against the old 2-arg stub declaration) is the real
+                ;; 4th argument now.
+                (t9-5 a0-16 a1-10 a2-7 'interp)
                 )
               (let ((gp-0 (new 'stack-no-clear 'vector)))
-                (path-control-method-16 (-> self path) gp-0)
+                ;; og:preserve-this arg-count fix: path.gc landed slot 16 as
+                ;; (_type_ vector float) vector; f28-1 is the same path-progress
+                ;; value already passed to path-control-method-26 and to slot
+                ;; 14 above (a2-7), so it is the evidenced float arg here too.
+                (displacement-between-points-at-percent-normalized! (-> self path) gp-0 f28-1)
                 (let ((s4-0 (the-as object (new 'stack-no-clear 'quaternion))))
                   (quaternion-look-at! (the-as quaternion (&-> (the-as quaternion s4-0) x)) gp-0 *up-vector*)
                   (quaternion->matrix
