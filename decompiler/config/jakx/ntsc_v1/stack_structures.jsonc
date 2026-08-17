@@ -713,7 +713,33 @@
   // handle from wvehicle's own field 28), 64 ('fire), 68 (0), the same
   // event-message-block shape as (method 10 race-state) above ("Failed to
   // guess stack use for 16").
-  "test-vehicle-weapon": [[16, "event-message-block"]]
+  "test-vehicle-weapon": [[16, "event-message-block"]],
+  // sparticle-motion-blur-dirt (wvehicle-small-tier rung, wvehicle-part
+  // object): sp+16 is a four-slot scratch block, not a single vector (a
+  // single-vector declaration cleared the first error but left further
+  // offsets in use unresolved). Slot 0 (sp+16) is filled by three float
+  // stores (the input vector's own x/y/z) plus a literal 1.0; slot 16
+  // (sp+32) is a raw quad copy from the sparticle-cpuinfo argument's own
+  // +16 field, both plain vectors. Slots 32 and 48 (sp+48/64) are
+  // transform-point-qword!'s own vector4w output in two different branches,
+  // each read back afterward as raw int32 words for a bias-subtract-then-
+  // convert bit trick (add a negative magic constant, reinterpret as float,
+  // cvt.s.w). A second offset-keyed declaration for those two slots (48,
+  // vector4w) never took effect: s5 only carries the type from its own
+  // origin point (sp+16), and every later offset off s5 resolves through
+  // that one declaration regardless of a second entry elsewhere, so
+  // widening the count to 4 with a uniform "vector" element type let the
+  // pointer arithmetic through but still resolved the readback as a float
+  // field ("add failed: float <integer -28672>", int32 arithmetic against a
+  // float-typed load). Kept the array at just the two genuine vector slots
+  // and cast the raw-int readbacks directly instead (see type_casts.jsonc).
+  "sparticle-motion-blur-dirt": [[16, ["inline-array", "vector", 2]]],
+  // birth-func-set-pos-vel (wvehicle-small-tier rung, wvehicle-part object):
+  // sp+16 holds two adjacent vectors (a raw lq/sq quad copy at +16 from
+  // *particle-birth-work*'s own inline-array vector at +16, immediately
+  // after the first vector filled by vector-float*!2's own output at +0),
+  // same shape as add-collide-debug-box's own two-vector stack block above.
+  "birth-func-set-pos-vel": [[16, ["inline-array", "vector", 2]]]
   // (method 61 v-drone), left UNFIXED (tried and reverted): sp+16 (s5) is a
   // headlight-glow scratch block used in 16-byte quadword units throughout
   // (raw lq/sq copies at s5+80 from a bone matrix, quad-copy! into s5+144

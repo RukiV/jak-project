@@ -3047,6 +3047,31 @@
     [[11, 38], "gp", "vehicle"],
     [21, "v1", "(pointer uint8)"]
   ],
+  // sparticle-motion-blur-dirt: view-get-active-target returns process
+  // (its own declared signature), but op 47 reads raw offset 184 off it
+  // (declared 188 with the usual -4 correction, process-drawable's own root
+  // field); the active target is always a drawable process in practice.
+  // ops 64/68/etc read the transform-point-qword! output back as raw int32
+  // words for a bias-subtract-then-i2f-convert bit trick; the stack array's
+  // own element type (vector, for the two genuine vector slots that share
+  // its declaration) resolves the load itself as float, so the arithmetic
+  // needed the explicit int cast op by op.
+  "sparticle-motion-blur-dirt": [
+    [47, "v0", "process-drawable"],
+    [64, "v1", "int"],
+    [68, "v1", "int"],
+    [72, "v1", "int"],
+    [76, "v1", "int"],
+    [98, "v1", "int"],
+    [89, "gp", "sparticle-launchinfo"]
+  ],
+  // op 89's cast: arg2 is declared vector (the generic sparticle-callback
+  // signature shared by every such function), but the write at offset 24
+  // lands inside sparticle-launchinfo's own conerot field (a vector at
+  // :offset-assert 16, so offset 24 is its z component); scoped to that one
+  // op since every earlier/later offset in this function (0, 4, 8, 12) is
+  // covered by launchrot at offset 0, which coincides with a plain vector's
+  // own layout and needs no cast.
   // test-vehicle-weapon op 31 and set-veh-weapon op 24, left UNFIXED (tried
   // and reverted): the load feeding the handle->process chain above, one
   // level up. "ld v1, 4500(v1)" reads the vehicle's own wpn-left field
