@@ -60168,7 +60168,10 @@
 ;; (define-extern auto-idle state)
 ;; (define-extern auto-save-error-proc-init-by-other function)
 ;; (define-extern progress-allowed? function) ;; (function symbol)
-;; (define-extern auto-save-command function) ;; (function symbol int int process-tree symbol (pointer auto-save))
+;; auto-save itself is still dead-blocked below (#|...|#, not this rung's
+;; scope); forward-declared here only so (pointer auto-save) parses.
+(declare-type auto-save process)
+(define-extern auto-save-command (function symbol int int process-tree symbol (pointer auto-save))) ;; part-tester_ir2.asm: two call sites in save-memcard's own event handlers reference this bare symbol ("Unknown symbol"), matching the dead block's own hint signature
 (define-extern auto-save-check (function int))
 ;; (define-extern auto-save-user function) ;; (function (pointer auto-save))
 
@@ -62889,19 +62892,49 @@
   :method-count-assert 59
   :size-assert         #x110
   :flag-assert         #x3b00800110
+  ;; test-idle: a bare zero-arg state (a global "state" declaration alone
+  ;; located the defstate but reported "no argument information"; declaring
+  ;; it here, matching target's own bare zero-arg states like target-float,
+  ;; gives the decompiler the associated process type it needs).
+  (:states
+    test-idle
+    )
   )
 
-
-;; (define-extern save-memcard-init-by-other function)
-;; (define-extern *debug-save-memcard-dead-pool* object)
-;; (define-extern start-save-memcard function)
-;; (define-extern *part-tester-name* object) ;; string
-;; (define-extern part-tester-init-by-other function) ;; (function vector none :behavior process-drawable)
-;; (define-extern *debug-part-dead-pool* object) ;; dead-pool
-;; (define-extern start-part function) ;; (function none)
-;; (define-extern test-idle state)
-;; (define-extern test-process-init-by-other function)
-;; (define-extern start-test function)
+;; resurrected from the dead block above: *debug-part-dead-pool* alone kills
+;; (top-level-login part-tester) ("Unknown symbol", plus a label-use failure
+;; at op 6 that cascades into every other top-level-assigned function symbol
+;; reading as "unknown type"), matching the dead block's own dead-pool hint.
+(define-extern *debug-part-dead-pool* dead-pool)
+;; start-test/start-part/start-save-memcard: zero-arg debug spawn triggers,
+;; each kill-by-type-inherited then process-spawn a specific test process;
+;; no incoming a0/a1 register reads anywhere in any of the three bodies
+;; (part-tester_ir2.asm, this worktree's config).
+(define-extern start-test (function none))
+(define-extern start-part (function none)) ;; dead block's own hint signature
+;; retyped (function none) -> (function string none): op 0 reads a0 (an
+;; incoming arg, not a fresh local) straight through to charp<-string's own
+;; string parameter ("Function may read a register that is not set: a0"
+;; against the old zero-arg declaration).
+(define-extern start-save-memcard (function string none))
+;; test-process-init-by-other/save-memcard-init-by-other: same init-by-other
+;; shape as part-tester-init-by-other below (a spawn-position vector in,
+;; :behavior the type being initialized), matching the dead block's own
+;; part-tester-init-by-other hint.
+(define-extern test-process-init-by-other (function vector none :behavior test-process))
+;; :behavior corrected from the dead block's own process-drawable hint to
+;; part-tester: self's own root field lands at raw offset 140, which is
+;; process-drawable's path field (208 declared), not its root (188); it only
+;; makes sense as part-tester's own root at 144, immediately after process's
+;; 144-byte base ("Could not figure out load: (l.wu (+ s6 140))" against the
+;; too-generic process-drawable self type).
+(define-extern part-tester-init-by-other (function vector none :behavior part-tester))
+;; *part-tester* is set from self's own ppointer field (raw offset 28,
+;; process-tree's own field, a direct read rather than a process->ppointer
+;; call but the same (pointer process) result movie-path's own *movie-path*
+;; holds).
+(define-extern *part-tester* (pointer process))
+(define-extern save-memcard-init-by-other (function vector none :behavior save-memcard))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; manipulator                    ;;
@@ -83357,7 +83390,12 @@
 (define-extern *debug-hud-disable* object) ;; provisional: call-site evidence only
 (define-extern *debug-move-rigid-body* object) ;; provisional: call-site evidence only
 (define-extern *debug-nav-control-output* object) ;; provisional: call-site evidence only
-(define-extern *debug-save-memcard-dead-pool* object) ;; provisional: call-site evidence only
+;; retyped object -> dead-pool: start-save-memcard dispatches vtable method
+;; 15 off it (kill-by-type-inherited's own slot, same shape as *debug-part-
+;; dead-pool* and *nk-dead-pool* elsewhere in part-tester_ir2.asm), which
+;; only resolves against a real type ("The method with id 15 of type object
+;; could not be found").
+(define-extern *debug-save-memcard-dead-pool* dead-pool)
 (define-extern *debug-vehicle-work* object) ;; provisional: call-site evidence only
 (define-extern *decoder-queue-3-buf* object) ;; provisional: call-site evidence only
 (define-extern *default-continue* continue-point)
