@@ -232,6 +232,7 @@ written is read-only by design and not a finding.
 | `*use-old-listener-print*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*view-assert*` | 1 | `goal_src/jakx/engine/gfx/view-h.gc` |
 | `*vis-actors*` | 1 | `goal_src/jakx/engine/entity/entity.gc` |
+| `*was-allocated*` | 1 | `goal_src/jakx/engine/common-obs/construction-obs-h.gc` |
 
 ## jak3
 
