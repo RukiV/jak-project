@@ -448,7 +448,16 @@
     "(method 19 collide-shape-prim)",
     "(method 36 collide-shape)",
     "(method 12 collide-shape-prim-group)",
-    "(method 13 collide-shape-prim)"
+    "(method 13 collide-shape-prim)",
+    // race-control: output-race-mesh's own all-types.gc define-extern documents the
+    // full analysis. Type prop fails on its first load ((l.wu (+ a0 52)) against a0
+    // typed object) before any compile-time cast could apply; a config-only rung
+    // already tried and reverted casting a0 at both the entry op and the failing op.
+    // No call site anywhere in the corpus narrows the argument's real type. goal_src
+    // leaves the function undefined (deferred, not landed) rather than carry the
+    // decompiler's non-compiling fallback body; the decomp-vs-REF diff still gates
+    // the rest of the object.
+    "output-race-mesh"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the

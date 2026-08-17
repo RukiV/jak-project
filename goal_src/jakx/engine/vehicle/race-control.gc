@@ -7,3 +7,60 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this forward reference: wvehicle-h.gc runs well after race-control.gc
+;; in build order, so method 9's own signature (below) needs wvehicle known before its
+;; own home file supplies the real declare-type. Matches wvehicle-h.gc's own forward
+;; declaration (basic) verbatim.
+(declare-type wvehicle basic)
+
+;; definition of type race-control
+(deftype race-control (structure)
+  ((state        race-state)
+   (racer-state  racer-state)
+   (mesh         race-mesh)
+   (line         race-line)
+   )
+  :pack-me
+  (:methods
+    (race-control-method-9 (_type_ wvehicle race-state racer-state) none)
+    )
+  )
+
+;; definition for method 3 of type race-control
+(defmethod inspect ((this race-control))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'race-control)
+  (format #t "~1Tstate: #<race-state @ #x~X>~%" (-> this state))
+  (format #t "~1Tracer-state: #<racer-state @ #x~X>~%" (-> this racer-state))
+  (format #t "~1Tmesh: ~A~%" (-> this mesh))
+  (format #t "~1Tline: #<race-line @ #x~X>~%" (-> this line))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 9 of type race-control
+;; WARN: Return type mismatch int vs none.
+(defmethod race-control-method-9 ((this race-control) (arg0 wvehicle) (arg1 race-state) (arg2 racer-state))
+  (set! (-> this state) arg1)
+  (set! (-> this racer-state) arg2)
+  (set! (-> this racer-state racer) (the-as uint (process->handle arg0)))
+  (set! (-> this mesh) (the-as race-mesh (-> arg1 mesh)))
+  (set! (-> this line) #f)
+  0
+  (none)
+  )
+
+;; og:preserve-this output-race-mesh is deferred, not landed. Its own all-types.gc
+;; define-extern entry (just above the top-level-login block, before race-control
+;; itself) documents why in full: a config-only rung already tried casting a0 to a
+;; concrete type at both the entry op and the failing op, and neither changed the
+;; "Could not figure out load" error, because this is type ANALYSIS failing to
+;; resolve the raw offset-52 load in the first place, not a compile-time math
+;; restriction on a resolved type (car-tables' class). No call site anywhere in the
+;; decoded corpus narrows `object` to the argument's real container type, so there is
+;; no evidence to invent one from. Retire this note once a call site or decompiler fix
+;; supplies the real type.
+
