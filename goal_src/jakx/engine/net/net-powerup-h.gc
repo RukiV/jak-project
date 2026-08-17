@@ -181,8 +181,12 @@
   (:methods
     (powerup-draw-method-52 (_type_) none)
     (powerup-draw-method-53 (_type_ object object) none)
-    (powerup-draw-method-54 () none)
-    (powerup-draw-method-55 () none)
+    ;; missing _type_ arg0: time-box-obs's (state idle time-freeze-short-
+    ;; draw) dispatches these through method-of-object, which needs the
+    ;; implicit this parameter declared to resolve to a real 1-arg
+    ;; function type instead of (function none).
+    (powerup-draw-method-54 (_type_) none)
+    (powerup-draw-method-55 (_type_) none)
     (powerup-draw-method-56 (_type_ object) none)
     )
   )
@@ -204,7 +208,14 @@
   )
 
 ;; definition for function powerup-draw-init-by-other
-;; ERROR: function has no type analysis. Cannot decompile.
+;; og:preserve-this compile-only forward declaration: this function never
+;; decoded ("function has no type analysis"), but time-box-obs's three
+;; time-freeze-*-draw constructors reference it as a process-spawn :init
+;; argument; declared with the signature already carried in
+;; decompiler/config/jakx/all-types.gc:55581 (net-powerup vector
+;; entity-actor object :behavior powerup-draw) so those call sites resolve.
+;; Re-derive the real body when the underlying decode issue is fixed.
+(define-extern powerup-draw-init-by-other (function net-powerup vector entity-actor object :behavior powerup-draw))
 
 ;; failed to figure out what this is:
 0

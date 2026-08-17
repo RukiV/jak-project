@@ -99,7 +99,81 @@
     // vehicle-spawn subsystem, not this band. Parked as asm; referenced
     // only through the state machinery (defstate's own :code slot),
     // never embedded inline as data, so parking is safe.
-    "(anon-function 6 credits-obs)"
+    "(anon-function 6 credits-obs)",
+    // powerup-draw-method-53 (time-freeze-short-draw/long-draw/med-draw
+    // overrides): raw, unconverted register dump; a1/a2 are declared
+    // generic object per all-types.gc with no call-site evidence in this
+    // band for their real types (no caller of this method decodes within
+    // time-box-obs itself), so retyping them would be a guess. Parked as
+    // asm; referenced only through the type's own vtable dispatch, never
+    // embedded inline as data.
+    "(method 53 time-freeze-short-draw)",
+    "(method 53 time-freeze-long-draw)",
+    "(method 53 time-freeze-med-draw)",
+    // powerup-draw-method-54 (same three overrides): a large part-tracker/
+    // debris-spawn handler; adding the missing _type_ arg0 (all-types.gc)
+    // got it much further (op 5 to op 94) but it still fails on a 112-byte
+    // stack structure and a process root-field read this band has no
+    // further evidence for (a vehicle-handle uint64 -> handle retype was
+    // tried and made no difference, reverted). Parked as asm.
+    "(method 54 time-freeze-short-draw)",
+    "(method 54 time-freeze-long-draw)",
+    "(method 54 time-freeze-med-draw)",
+    // net-powerup-method-50/52 (time-freeze-short override, inherited by
+    // time-freeze-long/med): raw, unconverted; a1/a2 declared generic
+    // object per all-types.gc (method 50) and method 52's declared single
+    // process-tree arg does not account for the a2 register the body
+    // actually reads, with no in-band call-site evidence for either.
+    // Parked as asm.
+    "(method 50 time-freeze-short)",
+    "(method 52 time-freeze-short)",
+    // kras-pump-break-proxy-method-61/62: both read at least one arg
+    // beyond a widened (object object) guess before failing further in;
+    // method 62 additionally regressed from a type-prop error to a full
+    // CFG failure under a rigid-body-impact retype for its one declared
+    // arg (tried and reverted, despite the arg's offset-48 float load
+    // being an exact match for rigid-body-impact's own impulse field),
+    // so something about this pair resists the type_casts/all-types.gc
+    // route with the evidence available in this band. Parked as asm.
+    "(method 61 kras-pump-break-proxy)",
+    "(method 62 kras-pump-break-proxy)",
+    // train-obs: six free functions with zero in-band call-site evidence
+    // for their signatures (every caller also failed to decode, since
+    // they cascade off the same unresolved chain), all left as bare
+    // `function` externs in the pre-authored reservoir. Parked as asm
+    // rather than guessed at.
+    "train-car-init-by-other",
+    "train-car-spawn",
+    "position-train-car",
+    "train-move",
+    "cars-spawn",
+    "play-horn",
+    // (method 10 train): overrides deactivate; a2 loaded straight from a0
+    // (this) with no resolvable field evidence for what it reads.
+    "(method 10 train)",
+    // (method 71 train): the quaternion-look-at!/quaternion->matrix
+    // compound stack shape is declared (stack_structures.jsonc) but the
+    // arithmetic itself still fails ("add failed: quaternion <integer
+    // 64>"), the same class already fixed by hand for peak-obs but with
+    // no in-band op-level evidence here for which casts to add without
+    // risking the same silent-corruption failure mode already hit once
+    // in this band (peak-obs's rbody-collision root cast).
+    "(method 71 train)",
+    // (method 66 train): full CFG failure, no error detail to act on.
+    "(method 66 train)",
+    // end-end-credits: reads *end-credits-proc* (handle) through a raw
+    // doubleword load off its own symbol-slot address with no in-band
+    // evidence for the surrounding stack shape.
+    "end-end-credits",
+    // title-control-init/title-control-spawn/draw-language-select: each
+    // decodes to seemingly complete GOAL text ("may read a0" was the only
+    // decode-time flag) but fails real compilation with a raw label leak
+    // (an unresolved anon-function, e.g. L215 in title-control-init's
+    // dma-get-named-buffer call) or return-type mismatches that trace back
+    // to the same unresolved inner lambda; parked as asm.
+    "title-control-init",
+    "title-control-spawn",
+    "draw-language-select"
   ],
   // these functions use pairs and the decompiler
   // will be less picky about types related to pairs.

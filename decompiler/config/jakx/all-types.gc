@@ -55670,8 +55670,12 @@
   (:methods
     (powerup-draw-method-52 (_type_) none) ;; 52
     (powerup-draw-method-53 (_type_ object object) none) ;; 53
-    (powerup-draw-method-54 () none) ;; 54
-    (powerup-draw-method-55 () none) ;; 55
+    ;; missing _type_ arg0: the raw body reads (-> this root) (machine
+    ;; offset 184) off whatever register carries 'this', which only
+    ;; type-checks once the implicit this parameter is declared, matching
+    ;; the sibling entries in this same block.
+    (powerup-draw-method-54 (_type_) none) ;; 54
+    (powerup-draw-method-55 (_type_) none) ;; 55
     (powerup-draw-method-56 (_type_ object) none) ;; 56
     )
   )
@@ -59989,7 +59993,8 @@
 ;; (define-extern fmv-file-read function)
 ;; (define-extern fmv-fade-out function)
 ;; (define-extern fmv-player-init-by-other function)
-;; (define-extern fmv-player-run function)
+;; title-obs (anon-function 2) calls this directly.
+(define-extern fmv-player-run function)
 ;; (define-extern fmv-player-run-texture function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -60286,23 +60291,44 @@
   )
 
 
-;; (define-extern title-control-init function) ;; (function object :behavior title-control)
-;; (define-extern title-control-spawn function)
-;; (define-extern title-screen-change function) ;; (function string int string int symbol symbol int :behavior title-control)
-;; (define-extern title-progress function) ;; (function symbol int)
-;; (define-extern title-fade-out function) ;; (function float int)
-;; (define-extern direction-press function) ;; (function time-frame time-frame symbol symbol)
-;; (define-extern *scrap-book-3* array)
-;; (define-extern *scrap-book-1* array) ;; (array int16)
-;; (define-extern *scrap-book-2* array) ;; (array int16)
-;; (define-extern *progress-save-info* object) ;; mc-slot-info
-;; (define-extern post-memcard function)
-;; (define-extern *game-name-entered* object)
-;; (define-extern draw-language-select function)
-;; (define-extern check-language function)
+;; title-obs: activated from the pre-authored reservoir below, matching
+;; the object's baseline top-level-killer (*scrap-book-1*) and every
+;; per-function "didn't know its type" warning in the same object.
+;; *end-credits-proc* stays commented here: a stronger, already-active
+;; definition (handle, from the credits-obs landing) exists later in this
+;; file and would otherwise conflict per check_alltypes_shadowing.py.
+;; candidate signatures from this file's own trailing comments, applied
+;; after the bare function typing left title-control-init/spawn and
+;; title-screen-change with "no type analysis" (their bodies never got
+;; args to work with).
+;; title-control-init's own body references this global (bad register
+;; dependency on a0 traced back to an unknown-symbol warning on this
+;; name); a bare process-pointer global, matching the *target*/*camera*
+;; convention for a level's singleton active-process handle.
+(define-extern *title-control* title-control)
+(define-extern title-control-init (function object :behavior title-control))
+(define-extern title-control-spawn (function object :behavior title-control))
+(define-extern title-screen-change (function string int string int symbol symbol int :behavior title-control))
+(define-extern title-progress (function symbol int))
+(define-extern title-fade-out (function float int))
+(define-extern direction-press (function time-frame time-frame symbol symbol))
+(define-extern *scrap-book-3* array)
+(define-extern *scrap-book-1* array) ;; (array int16)
+(define-extern *scrap-book-2* array) ;; (array int16)
+(define-extern *progress-save-info* object) ;; mc-slot-info
+;; confirmed by this object's own decoder-inserted cast at the target-title
+;; :post slot: (the-as (function object) post-memcard).
+(define-extern post-memcard (function object))
+(define-extern *game-name-entered* object)
+;; no in-object call-site evidence; shaped like the sibling post-memcard
+;; poll/post callback (zero args, object return) pending stronger evidence.
+(define-extern draw-language-select (function object))
+(define-extern check-language (function object))
 ;; (define-extern *end-credits-proc* object)
-;; (define-extern end-end-credits function)
-;; (define-extern start-end-credits function)
+;; no in-object call-site evidence; shaped as zero-arg triggers pending
+;; stronger evidence.
+(define-extern end-end-credits (function none))
+(define-extern start-end-credits (function none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; dynamic-patch                  ;;
@@ -76363,9 +76389,12 @@
     idle ;; 50
     )
   (:methods
-    (time-freeze-short-draw-method-57 () none) ;; 57
+    ;; missing _type_ arg0, same class as powerup-draw-method-54/55; this
+    ;; slot is inherited by time-freeze-long-draw and time-freeze-med-draw
+    ;; too, so this one fix covers all three.
+    (time-freeze-short-draw-method-57 (_type_) none) ;; 57
     )
-  
+
   )
 
 
@@ -76467,26 +76496,32 @@
   )
 
 
-;; (define-extern *time-freeze-short-debris-params* debris-static-params)
-;; (define-extern *time-freeze-med-debris-params* debris-static-params)
-;; (define-extern *time-freeze-long-debris-params* debris-static-params)
-;; (define-extern time-freeze-short-draw-init-remote function)
-;; (define-extern *msg-map-time-freeze-short-draw* array)
-;; (define-extern *net-process-class-info-time-freeze-short-draw* object)
-;; (define-extern time-freeze-short-init-remote function)
-;; (define-extern *msg-map-time-freeze-short* array)
-;; (define-extern *net-process-class-info-time-freeze-short* object)
-;; (define-extern time-freeze-long-draw-init-remote function)
-;; (define-extern *msg-map-time-freeze-long-draw* array)
-;; (define-extern *net-process-class-info-time-freeze-long-draw* object)
-;; (define-extern time-freeze-long-init-remote function)
-;; (define-extern *msg-map-time-freeze-long* array)
-;; (define-extern *net-process-class-info-time-freeze-long* object)
-;; (define-extern time-freeze-med-draw-init-remote function)
-;; (define-extern *msg-map-time-freeze-med-draw* array)
-;; (define-extern *net-process-class-info-time-freeze-med-draw* object)
-;; (define-extern time-freeze-med-init-remote function)
-;; (define-extern *msg-map-time-freeze-med* array)
+;; time-box-obs: activated from the pre-authored reservoir below, matching
+;; the object's baseline top-level-killer (*msg-map-time-freeze-short-draw*)
+;; and every per-type "didn't know its type" warning in the same object.
+(define-extern *time-freeze-short-debris-params* debris-static-params)
+(define-extern *time-freeze-med-debris-params* debris-static-params)
+(define-extern *time-freeze-long-debris-params* debris-static-params)
+(define-extern time-freeze-short-draw-init-remote (function time-freeze-short-draw int process :behavior time-freeze-short-draw))
+(define-extern *msg-map-time-freeze-short-draw* array)
+(define-extern *net-process-class-info-time-freeze-short-draw* net-process-class-info)
+(define-extern time-freeze-short-init-remote (function time-freeze-short int process :behavior time-freeze-short))
+(define-extern *msg-map-time-freeze-short* array)
+(define-extern *net-process-class-info-time-freeze-short* net-process-class-info)
+(define-extern time-freeze-long-draw-init-remote (function time-freeze-long-draw int process :behavior time-freeze-long-draw))
+(define-extern *msg-map-time-freeze-long-draw* array)
+(define-extern *net-process-class-info-time-freeze-long-draw* net-process-class-info)
+(define-extern time-freeze-long-init-remote (function time-freeze-long int process :behavior time-freeze-long))
+(define-extern *msg-map-time-freeze-long* array)
+(define-extern *net-process-class-info-time-freeze-long* net-process-class-info)
+(define-extern time-freeze-med-draw-init-remote (function time-freeze-med-draw int process :behavior time-freeze-med-draw))
+(define-extern *msg-map-time-freeze-med-draw* array)
+(define-extern *net-process-class-info-time-freeze-med-draw* net-process-class-info)
+(define-extern time-freeze-med-init-remote (function time-freeze-med int process :behavior time-freeze-med))
+(define-extern *msg-map-time-freeze-med* array)
+;; redundant with the correctly-typed define-extern later in this file
+;; (net-process-class-info, not the generic object typing here); commented
+;; out to remove the duplicate name.
 ;; (define-extern *net-process-class-info-time-freeze-med* object)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78420,7 +78455,10 @@
   )
 
 
-#|
+;; resurrected from the dead block above (dead-type sweep): train-obs's own
+;; top-level killed on "Unknown symbol: train" (the type itself was
+;; unknown, matching train-car/wind-rotor/docks-states next to it in this
+;; file, all resurrected the same way).
 (deftype train (train-object)
   ((curve          basic           :offset-assert 304)
    (head-car       int32           :offset-assert 308)
@@ -78444,17 +78482,18 @@
     training-mine
     )
   )
-|#
 
-;; (define-extern *train-constants* object)
-;; (define-extern *train-headlight-glow-template* object)
-;; (define-extern train-car-init-by-other function)
-;; (define-extern train-car-spawn function)
-;; (define-extern *desired-number-of-cars* object)
-;; (define-extern position-train-car function)
-;; (define-extern train-move function)
-;; (define-extern cars-spawn function)
-;; (define-extern play-horn function)
+;; train-obs: activated from the pre-authored reservoir below, matching
+;; the object's per-function "didn't know its type" warnings.
+(define-extern *train-constants* object)
+(define-extern *train-headlight-glow-template* object)
+(define-extern train-car-init-by-other function)
+(define-extern train-car-spawn function)
+(define-extern *desired-number-of-cars* object)
+(define-extern position-train-car function)
+(define-extern train-move function)
+(define-extern cars-spawn function)
+(define-extern play-horn function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; docks-effects                  ;;
@@ -78726,12 +78765,19 @@
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype kras-pump-break-proxy (process-focusable)
-  ((actor-group       uint32         :offset-assert 256)
+  ;; retyped actor-group uint32 -> (pointer int32): inspect (method 3)
+  ;; indexes it as a base pointer (sll count 2, add, load word) across
+  ;; actor-group-count elements, not a scalar value.
+  ((actor-group       (pointer int32)  :offset-assert 256)
    (actor-group-count int32          :offset-assert 260)
    (impact-velocity   vector :inline :offset-assert 272)
    (hit-points        float          :offset-assert 288)
    (start-exploded    basic          :offset-assert 292)
-   (net-parent        uint64         :offset-assert 296)
+   ;; retyped uint64 -> handle: a -parent field storing a process
+   ;; reference, matching the handle idiom established elsewhere this
+   ;; band; inspect (method 3) was failing to type-prop the raw load of
+   ;; this exact field.
+   (net-parent        handle         :offset-assert 296)
    )
   :method-count-assert 65
   :size-assert         #x130
@@ -78741,12 +78787,17 @@
     explode ;; 60
     )
   (:methods
-    (kras-pump-break-proxy-method-61 () none) ;; 61
+    ;; missing _type_ arg0 on 61/64, same class as powerup-draw-method-54/55.
+    ;; arg count widened: the body reads a2 from its first op with no
+    ;; setup, so this takes at least 2 params beyond this; shaped like the
+    ;; sibling method 62 (object object) pending stronger evidence for
+    ;; the exact types.
+    (kras-pump-break-proxy-method-61 (_type_ object object) none) ;; 61
     (kras-pump-break-proxy-method-62 (_type_ object) none) ;; 62
     (kras-pump-break-proxy-method-63 (_type_ entity-actor) none) ;; 63
-    (kras-pump-break-proxy-method-64 () none) ;; 64
+    (kras-pump-break-proxy-method-64 (_type_) none) ;; 64
     )
-  
+
   )
 
 
@@ -78796,7 +78847,11 @@
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype kras-pump-break (process-nettable)
   ((exploded basic   :offset-assert 188)
-   (drawable uint64  :offset-assert 192)
+   ;; retyped uint64 -> handle: (method 43) writes this field via
+   ;; (process->handle v1-2) directly and reads it back through the
+   ;; canonical sllv/lwu handle-deref idiom, the same class already
+   ;; established elsewhere this band.
+   (drawable handle  :offset-assert 192)
    )
   :method-count-assert 46
   :size-assert         #xc8
@@ -78807,17 +78862,25 @@
   (:methods
     (kras-pump-break-method-43 (_type_) none) ;; 43
     (kras-pump-break-method-44 (_type_) none) ;; 44
-    (kras-pump-break-method-45 (_type_) none) ;; 45
+    ;; return retyped none -> symbol: an idle-state caller wraps the call
+    ;; in (not ...), a none-typed value cannot be used in a condition.
+    (kras-pump-break-method-45 (_type_) symbol) ;; 45
     )
   
   )
 
 
-;; (define-extern kras-pump-break-draw-init-by-other function)
-;; (define-extern kras-pump-break-init-remote function)
-;; (define-extern *msg-map-kras-pump-break* array)
-;; (define-extern *net-process-class-info-kras-pump-break* object)
-;; (define-extern *kras-pump-debris-params* debris-static-params)
+;; kras-obs: activated from the pre-authored reservoir below, matching the
+;; object's baseline top-level-killer (*kras-pump-debris-params*) and its
+;; per-function "didn't know its type" warnings.
+;; args derived from (method 44 kras-pump-break)'s own process-spawn call
+;; site: (process-spawn kras-pump-break-draw this (-> this entity)
+;; (-> this exploded) ...) passes 3 explicit values.
+(define-extern kras-pump-break-draw-init-by-other (function kras-pump-break entity-actor basic symbol :behavior kras-pump-break-draw))
+(define-extern kras-pump-break-init-remote (function kras-pump-break int process :behavior kras-pump-break))
+(define-extern *msg-map-kras-pump-break* array)
+(define-extern *net-process-class-info-kras-pump-break* net-process-class-info)
+(define-extern *kras-pump-debris-params* debris-static-params)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; kras-ocean                     ;;
@@ -79278,13 +79341,22 @@
 ;; desarena-obs                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
+;; desarena-obs: activated from the pre-authored reservoir; the whole
+;; palm-tree family was left commented out, so its own top-level killed on
+;; "Unknown symbol: palm-tree-a" (the type itself was unknown) and every
+;; palm-tree/palm-tree-a/b/c method fell back to generic process/basic
+;; dispatch. jmods retyped from the UNKNOWN placeholder to
+;; joint-mod-rotate-local, 5 :inline: jak3's own wind-swaying desert plant
+;; (des-cactus.gc) has the identical field name and per-element shape (4
+;; there instead of 5), and joint-mod-rotate-local's own size-assert (#x20,
+;; 32 bytes) divides the offset span here exactly (304 to last-impulse-
+;; time's 464 is 160 bytes / 5 = 32).
 (deftype palm-tree (process-drawable)
-  ((attack-vel        vector  :inline :offset-assert 256)
-   (spring-pos        vector  :inline :offset-assert 272)
-   (spring-vel        vector  :inline :offset-assert 288)
-   (jmods             UNKNOWN 5       :offset-assert 304)
-   (last-impulse-time int32           :offset-assert 464)
+  ((attack-vel        vector                 :inline :offset-assert 256)
+   (spring-pos        vector                 :inline :offset-assert 272)
+   (spring-vel        vector                 :inline :offset-assert 288)
+   (jmods             joint-mod-rotate-local  5       :inline :offset-assert 304)
+   (last-impulse-time int32                           :offset-assert 464)
    )
   :method-count-assert 56
   :size-assert         #x1d4
@@ -79300,40 +79372,33 @@
     vibrate ;; 51
     )
   )
-|#
 
-#|
 (deftype palm-tree-a (palm-tree)
   ()
   :method-count-assert 56
   :size-assert         #x1d4
   :flag-assert         #x38015001d4
   )
-|#
 
-#|
 (deftype palm-tree-b (palm-tree)
   ()
   :method-count-assert 56
   :size-assert         #x1d4
   :flag-assert         #x38015001d4
   )
-|#
 
-#|
 (deftype palm-tree-c (palm-tree)
   ()
   :method-count-assert 56
   :size-assert         #x1d4
   :flag-assert         #x38015001d4
   )
-|#
 
-;; (define-extern desarena-activate function)
-;; (define-extern desarena-deactivate function)
-;; (define-extern *palm-tree-a-debris-params* debris-static-params)
-;; (define-extern *palm-tree-b-debris-params* debris-static-params)
-;; (define-extern *palm-tree-c-debris-params* debris-static-params)
+(define-extern desarena-activate function)
+(define-extern desarena-deactivate function)
+(define-extern *palm-tree-a-debris-params* debris-static-params)
+(define-extern *palm-tree-b-debris-params* debris-static-params)
+(define-extern *palm-tree-c-debris-params* debris-static-params)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; desarena-effects               ;;
@@ -80181,7 +80246,8 @@
 ;; (define-extern jak-owner function)
 ;; (define-extern *timetrial-ghost-time-string* string)
 ;; (define-extern lobby-menu-manager-init-by-other function)
-;; (define-extern lobby-start function)
+;; title-obs (anon-function 11) calls this directly.
+(define-extern lobby-start function)
 ;; (define-extern flash-game-started function)
 ;; (define-extern update-lobby-camera function)
 (define-extern cam-lobby (state camera-slave)) ;; parent assumed; jakx-new state
@@ -83937,7 +84003,10 @@
 (define-extern *msg-map-coli-statue* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-collectoid-draw* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-eco-mgr* object) ;; provisional: call-site evidence only
-(define-extern *msg-map-kras-pump-break* object) ;; provisional: call-site evidence only
+;; later-duplicate-wins: superseded by the correctly-typed define-extern
+;; near the kras-pump-break reservoir activation (array, not the generic
+;; provisional-sweep object typing).
+;; (define-extern *msg-map-kras-pump-break* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-mine-a* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-game-mgr* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-player* object) ;; provisional: call-site evidence only
@@ -83991,7 +84060,10 @@
 (define-extern *net-process-class-info-collectoid-draw* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-ctf-flag* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-eco-mgr* object) ;; provisional: call-site evidence only
-(define-extern *net-process-class-info-kras-pump-break* object) ;; provisional: call-site evidence only
+;; redundant with the kras-pump-break reservoir activation above (same
+;; object typing, both entries agree); commented out to remove the
+;; duplicate name.
+;; (define-extern *net-process-class-info-kras-pump-break* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-mine-a* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-mine-b* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-artifact* object) ;; provisional: call-site evidence only
@@ -84018,9 +84090,11 @@
 (define-extern *net-process-class-info-powercell-dispenser* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-powercell-dispenser-draw* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-powercell-footie* object) ;; provisional: call-site evidence only
-(define-extern *net-process-class-info-time-freeze-long* object) ;; provisional: call-site evidence only
+;; redundant with the time-box-obs reservoir activation above (same object
+;; typing, both entries agree); commented out to remove the duplicate name.
+;; (define-extern *net-process-class-info-time-freeze-long* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-time-freeze-med* net-process-class-info)
-(define-extern *net-process-class-info-time-freeze-short* object) ;; provisional: call-site evidence only
+;; (define-extern *net-process-class-info-time-freeze-short* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-vehicle* object) ;; provisional: call-site evidence only
 (define-extern *net-process-table* (array process-nettable))
 (define-extern *net-start-view-ct* object) ;; provisional: call-site evidence only
@@ -84044,7 +84118,10 @@
 (define-extern *ocean-colors-temple* ocean-colors)
 (define-extern *old-vector* object) ;; provisional: call-site evidence only
 (define-extern *open-new-cup* object) ;; provisional: call-site evidence only
-(define-extern *palm-tree-a-debris-params* object) ;; provisional: call-site evidence only
+;; later-duplicate-wins: superseded by the correctly-typed define-extern
+;; near the palm-tree family (debris-static-params, not the generic
+;; provisional-sweep object typing).
+;; (define-extern *palm-tree-a-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *param1-num-info* object) ;; provisional: call-site evidence only
 (define-extern *part-tester-name* object) ;; provisional: call-site evidence only
 (define-extern *patch-buffer-size* object) ;; provisional: call-site evidence only
@@ -84096,7 +84173,10 @@
 (define-extern *rigid-body-queue-manager* object) ;; provisional: call-site evidence only
 (define-extern *rushhour-drone-colors* object) ;; provisional: call-site evidence only
 (define-extern *scert-extra-params* object) ;; provisional: call-site evidence only
-(define-extern *scrap-book-3* object) ;; provisional: call-site evidence only
+;; later-duplicate-wins: superseded by the correctly-typed define-extern
+;; in the title-obs reservoir activation (array, not the generic
+;; provisional-sweep object typing).
+;; (define-extern *scrap-book-3* object) ;; provisional: call-site evidence only
 (define-extern *scratch-top* pointer)
 (define-extern *script-form* (inline-array script-form)) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:34830 (was provisional: call-site evidence only)
 ;; *search-info* moved: real deftype and extern now declared with search-info
@@ -84136,7 +84216,10 @@
 (define-extern *text-display-supernova-backfire-view-1-proc* object) ;; provisional: call-site evidence only
 (define-extern *text-display-supernova-backfire-view-2* object) ;; provisional: call-site evidence only
 (define-extern *text-display-supernova-backfire-view-2-proc* object) ;; provisional: call-site evidence only
-(define-extern *time-freeze-short-debris-params* object) ;; provisional: call-site evidence only
+;; later-duplicate-wins: superseded by the correctly-typed define-extern
+;; in the time-box-obs reservoir activation (debris-static-params, not
+;; the generic provisional-sweep object typing).
+;; (define-extern *time-freeze-short-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *time-lock-check* object) ;; provisional: call-site evidence only
 (define-extern *timetrial-rec* object) ;; provisional: call-site evidence only
 (define-extern *tmp-clan-members* object) ;; provisional: call-site evidence only
@@ -84145,7 +84228,9 @@
 (define-extern *tmp-rigid-body-control* object) ;; provisional: call-site evidence only
 (define-extern *tmp-transition* object) ;; provisional: call-site evidence only
 (define-extern *total-pts-at-stake* object) ;; provisional: call-site evidence only
-(define-extern *train-constants* object) ;; provisional: call-site evidence only
+;; redundant with the train-obs reservoir activation above (same object
+;; typing, both entries agree); commented out to remove the duplicate name.
+;; (define-extern *train-constants* object) ;; provisional: call-site evidence only
 (define-extern *training2-race-hud* object) ;; provisional: call-site evidence only
 (define-extern *training2-race-hud-proc* (pointer training2-race-hud))
 (define-extern *training3-race-hud* object) ;; provisional: call-site evidence only
@@ -84305,7 +84390,7 @@
 (define-extern net-race-start (function object)) ;; provisional: call-site evidence only
 (define-extern net-race-stop (function object)) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier nospawn deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
-(define-extern palm-tree object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the earlier palm-tree deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier player-info-menu deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern print-game-text-work object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier profile-error-string deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
