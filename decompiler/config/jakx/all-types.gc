@@ -64850,31 +64850,31 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced 16->22)
+;; jak3's twin (decompiler/config/jak3/all-types.gc) carries no :methods block
+;; at all for visvol-editor, method-count-assert 15, state idle at slot 14; its
+;; own process base is method-count-assert 14, one less than jakx's 15, so the
+;; jakx-native numbers here are +1 throughout (16 and slot 15) rather than a
+;; blind transplant of jak3's raw numbers. The auto-synced 9-14 :methods block
+;; below was bogus (no jak3 counterpart, and the collision-editor rung proved
+;; empirically that this exact half-drop, keeping 9-13 and dropping only 14,
+;; does not resolve an enter-state failure the same shape would cause here);
+;; dropping the whole block matches jak3's real shape instead of guessing
 (deftype visvol-editor (process)
   ((proc uint64  :offset-assert 144) ;; handle
    )
-  :method-count-assert 22
+  :method-count-assert 16
   :size-assert         #x98
-  :flag-assert         #x1600100098
-  (:methods
-    (visvol-editor-method-9 () none) ;; 9
-    (visvol-editor-method-10 () none) ;; 10
-    (visvol-editor-method-11 () none) ;; 11
-    (visvol-editor-method-12 () none) ;; 12
-    (visvol-editor-method-13 () none) ;; 13
-    (visvol-editor-method-14 () none) ;; 14 ;; (idle () _type_ :state)
-    )
+  :flag-assert         #x1000100098
   (:state-methods
     idle ;; 15
     )
   )
 
 
-;; (define-extern *visvol-edit-info* object) ;; visvol-edit-info
-;; (define-extern visvol-editor-init-by-other function) ;; (function handle object :behavior visvol-editor)
-;; (define-extern stop-visvol-edit function) ;; (function object)
-;; (define-extern visvol-edit function) ;; (function string object)
+(define-extern *visvol-edit-info* visvol-edit-info)
+(define-extern visvol-editor-init-by-other (function handle object :behavior visvol-editor))
+(define-extern stop-visvol-edit (function object))
+(define-extern visvol-edit (function string object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; collision-editor               ;;
@@ -83661,7 +83661,6 @@
 (define-extern *verts-buf-1* object) ;; provisional: call-site evidence only
 (define-extern *vibration-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *video-change* object) ;; provisional: call-site evidence only
-(define-extern *visvol-edit-info* object) ;; provisional: call-site evidence only
 (define-extern *waiting-for-lock* object) ;; provisional: call-site evidence only
 ;; og:preserve-this typed from object (2026-08-17 water-anim rung): (method 54
 ;; water-anim) reads a raw word straight off this symbol's own value (matching a

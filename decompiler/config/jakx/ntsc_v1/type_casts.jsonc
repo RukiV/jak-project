@@ -2929,5 +2929,28 @@
   // value unchanged from op 1 (where it is first copied from a1) through its
   // last use at op 411, so one range cast covers all five reads instead of five
   // separate point casts
-  "(method 10 collision-edit-info)": [[[1, 411], "gp", "process-drawable"]]
+  "(method 10 collision-edit-info)": [[[1, 411], "gp", "process-drawable"]],
+  // debug leg: visvol-edit splits a packed 64-bit handle (pid in the high
+  // word, ppointer in the low word) into two 32-bit halves via sllv/dsra32,
+  // then dereferences the low half as a raw pointer; matches jak3's own hint
+  // for this exact function and both op ranges exactly, same op numbers, no
+  // drift
+  "visvol-edit": [
+    [[17, 21], "v1", "handle"],
+    [[22, 26], "v1", "handle"]
+  ],
+  // debug leg: (method 11 visvol-edit-info) reads a process-drawable's
+  // node-list field (offset 192) three times (ops 9, 66) and root field
+  // (offset 188, op 11) once, all off its raw arg1, declared object; one
+  // range cast from op 9 through the last use at op 66 covers all three (the
+  // upper bound is exclusive, so 67). No jak3 hint for this function;
+  // jakx-only, evidence is the field table
+  "(method 11 visvol-edit-info)": [[[9, 67], "a1", "process-drawable"]],
+  // debug leg: (method 10 visvol-edit-info) repeats the same node-list read
+  // through gp (a copy of arg1 taken at op 1) at least eighteen times across
+  // the function body; gp holds the value unchanged from op 1 through its
+  // last use at op 702, so one range cast covers the whole span. The range
+  // upper bound is exclusive (verified empirically: [1, 702] still left op
+  // 702 itself unresolved), hence 703 here
+  "(method 10 visvol-edit-info)": [[[1, 703], "gp", "process-drawable"]]
 }
