@@ -72982,6 +72982,69 @@
     )
   )
 |#
+;; resurrected from the dead block above (hud-widgets-tier rung): every
+;; (method N hud-weapon-field) in wvehicle-hud's own scoped decode this
+;; rung fails with "Function has unknown type" while the type stays
+;; commented out, so nothing dispatching on it decodes at all. The dead
+;; block's own field list duplicates hud-w-stelnova-01 at offset 164 and
+;; again at what should be offset 208 (the gap between hud-w-earthshaker-01
+;; at 204 and hud-w-clone-car-01 at 212), skipping a field entirely; this
+;; rung's own decode of wvehicle-hud never resolves far enough to read that
+;; slot (no landed caller reaches it), so there is no first-hand evidence
+;; for its real name here. Named hud-w-unknown-208 rather than guessing a
+;; weapon name or silently dropping the slot, so the struct's own size and
+;; every other field's offset stay correct; retire (rename) once a caller
+;; or a defpart texture-id dump (offline-test -d) names it for real.
+(deftype hud-weapon-field (hud-item-group)
+  ((side                             uint64  :offset-assert 48)
+   (spinning                         basic   :offset-assert 56)
+   (next-change-time                 int32   :offset-assert 60)
+   (weapon-selection                 uint8   :offset-assert 64)
+   (powerup-level                    int32   :offset-assert 68)
+   (overdraw-number                  int32   :offset-assert 72)
+   (yellow-back                      basic   :offset-assert 76)
+   (neutral-back                     basic   :offset-assert 80)
+   (red-back                         basic   :offset-assert 84)
+   (hud-transparent-01               basic   :offset-assert 88)
+   (hud-w-peashooter-01              basic   :offset-assert 92)
+   (hud-w-leadfoot-01                basic   :offset-assert 96)
+   (hud-w-chain-gun-01               basic   :offset-assert 100)
+   (hud-w-coil-gun-01                basic   :offset-assert 104)
+   (hud-w-tracking-missile-double-01 basic   :offset-assert 108)
+   (hud-w-tracking-missile-quad-01   basic   :offset-assert 112)
+   (hud-w-skullsplitter-01           basic   :offset-assert 116)
+   (hud-w-fragmentation-01           basic   :offset-assert 120)
+   (hud-w-suc-seeker-01              basic   :offset-assert 124)
+   (hud-w-sup-suc-seeker-01          basic   :offset-assert 128)
+   (hud-w-chickendrone-01            basic   :offset-assert 132)
+   (hud-w-homing-drone-01            basic   :offset-assert 136)
+   (hud-w-mine-magna-01              basic   :offset-assert 140)
+   (hud-w-mine-01                    basic   :offset-assert 144)
+   (hud-w-smokescreen-01             basic   :offset-assert 148)
+   (hud-w-pcell-01                   basic   :offset-assert 152)
+   (hud-w-smokescreen-electric-01    basic   :offset-assert 156)
+   (hud-w-oilslick-01                basic   :offset-assert 160)
+   (hud-w-stelnova-01                basic   :offset-assert 164)
+   (hud-w-firewall-01                basic   :offset-assert 168)
+   (hud-w-angrybot-01                basic   :offset-assert 172)
+   (hud-w-dumbbot-01                 basic   :offset-assert 176)
+   (hud-w-turbozap-01                basic   :offset-assert 180)
+   (hud-w-ultraturbo-01              basic   :offset-assert 184)
+   (hud-w-lilbuddy-01                basic   :offset-assert 188)
+   (hud-w-demondrone-01              basic   :offset-assert 192)
+   (hud-w-shield-deflexor-01         basic   :offset-assert 196)
+   (hud-w-shield-deathtouch-01       basic   :offset-assert 200)
+   (hud-w-earthshaker-01             basic   :offset-assert 204)
+   (hud-w-unknown-208                basic   :offset-assert 208)
+   (hud-w-clone-car-01               basic   :offset-assert 212)
+   )
+  :method-count-assert 25
+  :size-assert         #xd8
+  :flag-assert         #x19000000d8
+  (:methods
+    (hud-weapon-field-method-24 () none) ;; 24
+    )
+  )
 
 #|
 (deftype hud-vehicle-left (hud-item-group)
