@@ -34,6 +34,33 @@
   "(method 10 race-state)": [
     [[17, 24], "v1", "handle"]
   ],
+  // (method 11 racer-state): the last open error from the hud-and-levels-misc
+  // rung (issue 335), resolved by call-site and macro-shape evidence, not by
+  // a race-state layout change. v1 at op 2 is race-state's start-dir.w (raw
+  // offset 28, confirmed genuinely a vector field by race-h's own kernel-truth
+  // inspect method, so no struct redesign); cast to (pointer process) so ops
+  // 4-9's two-read shift/or/store sequence matches FormExpressionAnalysis.cpp's
+  // native make_handle matcher (ppointer field read, pid field read at raw 48,
+  // matching declared offset 52 via the jakx +4 basics convention) and
+  // collapses to (ppointer->handle ...), the same macro used throughout
+  // gkernel-h.gc; this is the construction-direction twin of (method 10
+  // race-state) above, which already casts the split-direction read to
+  // handle. Ops 14/19 read race-state's racer-array[0].end-of-race-dist (also
+  // confirmed float by racer-state's own kernel-truth inspect) as a raw
+  // (pointer uint128); the +12 offset before the lq/sq is the same 12-mod-16
+  // basic-offset-artifact class the bring-up doc names, and this is the
+  // second field in the same method reused as scratch address storage during
+  // this reset-to-start-position call, evidenced by the sole caller
+  // (race-state-method-9) forcibly reinterpreting its own process-drawable
+  // arg as race-state via (the-as race-state arg0) in already-clean code.
+  // Support-grade, not proof-grade: no second caller exists in the corpus to
+  // cross-check the semantic story, only the byte-identical zero-error
+  // compile and the macro-shape match.
+  "(method 11 racer-state)": [
+    [[3, 10], "v1", "(pointer process)"],
+    [15, "a2", "(pointer uint128)"],
+    [20, "a1", "(pointer uint128)"]
+  ],
   "spawn-hud-headset-talker": [
     [22, "v1", "game-task-node-info"]
   ],
