@@ -4588,6 +4588,107 @@
     [[16, 20], "v1", "handle"],
     [[22, 36], "s4", "process-drawable"]
   ],
+  // (method 51 helmet-garage): s5 (op 5, l.wu of a0's parent-tree's own
+  // self field, raw offset 32 landing on process-tree's own self field
+  // at declared offset 36) is already correctly typed process-tree, but
+  // op 9's raw offset 184 (root, declared 188 for a basic per the +4
+  // convention) and op 21's raw offset 228 (rbody, declared 232) are
+  // both process-drawable-only fields, not on process-tree itself.
+  // Widened over its whole live range (op 6 through its last read at
+  // op 21, before the branch reassigns v1/gp for unrelated work).
+  // Separately, hud-handle (raw offset 268, declared 272) carries a raw
+  // uint64 handle value read at op 25 (l.d, a real 8-byte load), then
+  // split by the same sllv/dsra32 idiom as update-eyes/dirty-eyes above
+  // (deref the low 32 bits as the process pointer at op 29/30, compare
+  // the pid read back from it at op 31 against the high 32 bits from op
+  // 32) to validate the still-live handle; cast v1 to handle over that
+  // span. A second, unrelated site at op 74-81 is not a handle at all:
+  // op 74 is l.wu (a 4-byte load) of a spawned helmet-hud's own
+  // ppointer field (raw offset 28, declared 32, a plain (pointer
+  // process)), dereferenced directly at op 76 to read its pid at op 77,
+  // then zero-extended into a 64-bit register via the same sllv-by-zero
+  // idiom at op 81 so it can be OR'd with the pid (already shifted into
+  // the high 32 bits) and stored as a fresh handle. The (pointer
+  // process) cast types the truthy check at op 75 and the outer load
+  // at op 74 correctly, but unlike the first fold, the deref at op 76
+  // and the sllv-by-zero at op 81 do not resolve into real expressions:
+  // this shape is sllv-after-deref (deref v1 first, re-encode it later)
+  // rather than the recognized sllv-then-deref shape the first fold
+  // matches, so the pattern matcher does not fold it regardless of
+  // operand typing. Held as raw asm at both ops per house convention
+  // (sllv folds that do not converge stay asm).
+  //
+  // Four more accesses in the same function read *lobby-menu-manager*
+  // (declared extern type plain basic) at raw offset 76, declared 80
+  // for a basic per the +4 convention, landing on process's own
+  // next-state field (a state); two of the four immediately deref the
+  // result's own offset 0 (a state's own name field) to compare against
+  // the 'customize-accessories-selection symbol, the standard "is this
+  // process about to enter state X" idiom. A fifth access (op 63/64)
+  // reads a byte at raw 348, declared 352 on lobby-menu-manager's own
+  // table (car-part-type-selected), needing the full lobby-menu-manager
+  // type rather than just process.
+  "(method 51 helmet-garage)": [
+    [[6, 24], "s5", "process-drawable"],
+    [[26, 33], "v1", "handle"],
+    [[75, 82], "v1", "(pointer process)"],
+    [[38, 39], "v1", "lobby-menu-manager"],
+    [[42, 43], "v1", "lobby-menu-manager"],
+    [[53, 54], "v1", "lobby-menu-manager"],
+    [[57, 58], "v1", "lobby-menu-manager"],
+    [[64, 65], "v1", "lobby-menu-manager"]
+  ],
+  // (method 9 helmet): arg0 (a1) is used two ways in this function: at
+  // op 4 it is stored through as a raw process pointer (raw offset 64,
+  // declared 68, process's own level field, matching *level*'s own
+  // level-default table entry being written there), then at op 6 it is
+  // passed on to skeleton-group->draw-control as process-drawable
+  // (already resolves cleanly via an inserted the-as, no cast needed
+  // there). Cast to process for just the op 4 store; process-drawable
+  // would work too since it inherits the same field, but process is the
+  // narrower type this specific access needs.
+  "(method 9 helmet)": [[[0, 5], "a1", "process"]],
+  // (method 10 helmet): arg0 (a1) is read once, at op 0, at raw offset
+  // 192 (declared 196, process-drawable's own draw field), then
+  // reassigned at op 2 to an unrelated value (this's own draw field).
+  // a1 is reassigned at op 2 to this's own draw field (declared
+  // generically as basic on the shared helmet structure); the op 3
+  // store targets its own lights field (raw offset 248), matching
+  // draw-control's own field already resolved one line earlier through
+  // arg0's draw-control.
+  "(method 10 helmet)": [
+    [[0, 2], "a1", "process-drawable"],
+    [[3, 4], "a1", "draw-control"]
+  ],
+  // (method 11 helmet): arg0 (a1) is read at op 5 (raw offset 188,
+  // declared 192, node-list) and op 15 (raw offset 192, declared 196,
+  // draw), both process-drawable-only fields; reassigned at op 21 to an
+  // unrelated stack-copy value. jak3's own analogous helmet method
+  // shows the same two-field root/node-list access shape on its own
+  // arg0, support for process-drawable being the right narrowing here
+  // rather than a more specific descendant.
+  // gp (op 4, l.wu of this's own draw field, declared generically as
+  // basic on the shared helmet structure since it holds either a
+  // helmet-hud or helmet-garage's own draw-control) needs draw-control
+  // for its several field accesses through the rest of the function
+  // (status flags at raw offset 4, matching the identical access
+  // already resolved in method 9 on a value returned directly typed
+  // draw-control; further reads at raw 28/156/172); gp is never
+  // reassigned after op 4, so the cast spans to the function's end.
+  // a3 (op 18 and, separately, op 45: both (+ s5-0 0), the stack matrix
+  // declared in stack_structures.jsonc) infers as vector by itself,
+  // which is wide enough for the offset-0 quad reads/writes but not
+  // for the offset 16/32/48 rows the surrounding lq/sq block walks;
+  // stores through it resolve regardless (s.q! does not need a
+  // declared field to write through), but loads do, so only the second
+  // occurrence's reads (op 46-49) actually error. Cast both spans to
+  // matrix so the row-by-row quad access resolves by field.
+  "(method 11 helmet)": [
+    [[0, 21], "a1", "process-drawable"],
+    [[5, 70], "gp", "draw-control"],
+    [[19, 28], "a3", "matrix"],
+    [[46, 50], "a3", "matrix"]
+  ],
   // free-eye-index: a2 is eye-control's own array-indexed pointer (eye
   // index times 80, eye's own inline stride, plus inner index times 4,
   // added onto the eye-control base), matching jak3's identical

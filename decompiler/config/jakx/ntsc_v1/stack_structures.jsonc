@@ -49,6 +49,31 @@
   // address's own type never resolved on its own ("Failed to guess stack
   // use for 16").
   "(method 10 race-state)": [[16, "event-message-block"]],
+  // (method 51 helmet-garage): sp+16 is passed as the destination to
+  // matrix<-transformq! (op 11) and then as the source to
+  // vector-matrix*! (op 17), both matrix-shaped calls; the raw stack
+  // address's own type never resolved on its own ("Failed to guess
+  // stack use for 16").
+  "(method 51 helmet-garage)": [[16, "matrix"]],
+  // (method 11 helmet): sp+16 is filled by a 64-byte lq/sq copy (ops
+  // 20-27, four quadwords, matching a matrix's own size) from a bone's
+  // transform, then passed to matrix<-scale (op 30) as the destination;
+  // a second, unrelated 16-byte region at sp+80 (16+64) is filled by one
+  // more lq/sq (ops 56-57) from the same draw-control's own field and
+  // consumed by vector-matrix*! (op 65) as a vector. A separate
+  // matrix/vector declaration pair leaves op 60's store unresolved
+  // ("Failed store"): it addresses the trailing vector's own w
+  // component (relative offset 12) as a literal +76 from s5 (the
+  // matrix base) rather than from the vector's own pointer, crossing
+  // between the two declared regions in one computation the field
+  // resolver cannot follow across separate entries. Declaring the
+  // whole 80-byte span as one 5-element vector array instead (matrix's
+  // own four rows plus the trailing vector as a fifth element) resolves
+  // every access uniformly; matrix<-scale and matrix<-transformq!'s own
+  // matrix parameter still accepts it via the usual the-as. The raw
+  // stack address's own type never resolved on its own ("Failed to
+  // guess stack use for 16").
+  "(method 11 helmet)": [[16, ["inline-array", "vector", 5]]],
   // collide-planes: sp+48 is an 18-slot inline-array of vector, zeroed by its
   // own loop (op 65-68, bound "slti a0, v1, 18") right before a second, larger
   // array at sp+336 (37 slots, same shape, bound "slti a0, v1, 37"; that one
