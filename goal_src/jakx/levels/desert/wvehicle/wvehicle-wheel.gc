@@ -7,3 +7,252 @@
 
 ;; DECOMP BEGINS
 
+;; definition of type vehicle-wheel-init-params
+(deftype vehicle-wheel-init-params (structure)
+  ((vehicle   basic)
+   (skel      skeleton-group)
+   (level     symbol)
+   (radius    float)
+   (position  vector      :inline)
+   (rotation  quaternion  :inline)
+   (scale     vector      :inline)
+   )
+  )
+
+;; definition for method 3 of type vehicle-wheel-init-params
+(defmethod inspect ((this vehicle-wheel-init-params))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'vehicle-wheel-init-params)
+  (format #t "~1Tvehicle: ~A~%" (-> this vehicle))
+  (format #t "~1Tskel: ~A~%" (-> this skel))
+  (format #t "~1Tlevel: ~A~%" (-> this level))
+  (format #t "~1Tradius: ~f~%" (-> this radius))
+  (format #t "~1Tposition: #<vector @ #x~X>~%" (-> this position))
+  (format #t "~1Trotation: #<quaternion @ #x~X>~%" (-> this rotation))
+  (format #t "~1Tscale: #<vector @ #x~X>~%" (-> this scale))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this *vehicle-wheel-constants* is omitted rather than
+;; landed. Its own static (L53) fails static-ref the same way as the
+;; other unparseable <static-data LNN> placeholders this band keeps
+;; hitting; its likely type, rigid-body-vehicle-constants, is a huge
+;; nested structure (12 sub-types, 3,200+ bytes), not a quick
+;; label_types.jsonc win like vehicle-effects's glow templates. Method
+;; 66 (its only reader) is omitted with it.
+
+;; definition of type vehicle-wheel
+(deftype vehicle-wheel (rigid-body-object)
+  ((camera-dist  float)
+   )
+  (:state-methods
+    explode
+    fade-out
+    die
+    )
+  (:methods
+    (vehicle-wheel-method-92 () none)
+    )
+  )
+
+;; definition for method 3 of type vehicle-wheel
+(defmethod inspect ((this vehicle-wheel))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type rigid-body-object inspect)))
+    (t9-0 this)
+    )
+  (format #t "~2Tcamera-dist: ~f~%" (-> this camera-dist))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this methods 92, 65, 87 and 88 are omitted rather than
+;; landed. Same defect class as vehicle-debris's methods 65/87/88 in
+;; this same band: method 92 fails at op 0 and reads a0/a1/a2 with none
+;; set (three unset registers, not a dropped-argument fix, something
+;; else corrupted this override's decode); method 65 fails at op 41 and
+;; reads a1 unset; method 87 fails a stack-use guess; method 88
+;; references an unactivated find-nearest-camera-distance (the same
+;; missing symbol vehicle-debris's own method 88 hit) but is otherwise
+;; raw-fallback regardless. New discoveries, not in either the
+;; wvehicle-small-tier or rigid-body-object rung's held lists. Re-derive
+;; from the framework's own dump (offline-test -f wvehicle-wheel -d)
+;; once the root cause is found. idle's own :event handler still
+;; dispatches vehicle-wheel-method-92 (unfilled, check_method_slots
+;; flags it); the callee's home is this same object once method 92
+;; lands.
+
+;; definition for method 61 of type vehicle-wheel
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-61 ((this vehicle-wheel))
+  (ja-post)
+  (if (logtest? (-> this rbody flags) 1)
+      (update-transforms (-> this root))
+      )
+  0
+  (none)
+  )
+
+;; definition for method 71 of type vehicle-wheel
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-71 ((this vehicle-wheel))
+  0
+  (none)
+  )
+
+;; definition for method 80 of type vehicle-wheel
+;; WARN: Return type mismatch symbol vs none.
+(defmethod rigid-body-object-method-80 ((this vehicle-wheel) (arg0 rigid-body-impact))
+  (when (< 40960.0 (-> arg0 impulse))
+    (let ((f30-0 (* 0.000024414063 (+ -40960.0 (-> arg0 impulse))))
+          (v1-5 (make-sound-instance (-> *sound-info* 625) (new 'static 'sound-id) (the-as handle #f)))
+          )
+      (cond
+        (v1-5
+          (set! (-> v1-5 volume) (the int (* 1024.0 (fmin 1.0 f30-0))))
+          (logior! (-> v1-5 flags) 64)
+          (-> v1-5 id)
+          )
+        (else
+          0
+          )
+        )
+      )
+    (when (< 81920.0 (-> arg0 impulse))
+      (let ((f30-1 (* 0.000024414063 (+ -81920.0 (-> arg0 impulse))))
+            (v1-13 (make-sound-instance (-> *sound-info* 624) (new 'static 'sound-id) (the-as handle #f)))
+            )
+        (cond
+          (v1-13
+            (set! (-> v1-13 volume) (the int (* 1024.0 (fmin 1.0 f30-1))))
+            (logior! (-> v1-13 flags) 64)
+            (-> v1-13 id)
+            )
+          (else
+            0
+            )
+          )
+        )
+      )
+    0
+    )
+  (logior! (-> this root penetrated-by) (penetrate vehicle))
+  #t
+  (none)
+  )
+
+;; failed to figure out what this is:
+(defstate idle (vehicle-wheel)
+  :virtual #t
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (local-vars (v0-1 object))
+    (case message
+      (('explode)
+       (let ((a0-3 (-> self draw color-mult)))
+         (vector-float*! (the-as vector a0-3) (the-as vector a0-3) 0.25)
+         )
+       (set! (-> self rbody position quad) (-> self root trans quad))
+       (quaternion-copy! (the-as quaternion (-> self rbody rot)) (the-as quaternion (-> self root rot)))
+       (let ((a1-3 (-> block param 0))
+             (gp-1 (-> block param 1))
+             )
+         (when (and a1-3 gp-1)
+           ((method-of-object (-> self rbody) rigid-body-control-method-31))
+           ((method-of-object (-> self rbody) rigid-body-control-method-32))
+           (go-virtual explode)
+           )
+         )
+       )
+      (('enable-collision)
+       (set! v0-1 (logior (-> self flags) 1))
+       (set! (-> self flags) (the-as uint v0-1))
+       v0-1
+       )
+      (('disable-collision)
+       (set! v0-1 (logand -2 (-> self flags)))
+       (set! (-> self flags) (the-as uint v0-1))
+       v0-1
+       )
+      (('modify-draw-status)
+       (-> block param 0)
+       (-> block param 1)
+       ((method-of-object self vehicle-wheel-method-92))
+       )
+      )
+    )
+  :enter (behavior ()
+    (let ((v1-1 (-> self root root-prim)))
+      (set! (-> v1-1 prim-core collide-as) (collide-spec))
+      (set! (-> v1-1 prim-core collide-with) (collide-spec))
+      )
+    0
+    )
+  :trans #f
+  :post (behavior ()
+    (rigid-body-object-method-61 self)
+    )
+  )
+
+;; failed to figure out what this is:
+(defstate explode (vehicle-wheel)
+  :virtual #t
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('impact-impulse)
+       (let ((a1-1 (-> block param 0)))
+         (rigid-body-object-method-80 self (the-as rigid-body-impact a1-1))
+         )
+       )
+      )
+    )
+  ;; og:preserve-this the retail :enter handler decoded as a raw label
+  ;; (L13), an anon-function the decompiler never recognized as a proper
+  ;; function; raw label references are not valid GOAL, so the key is
+  ;; omitted entirely rather than left broken or given an invented stub
+  ;; body, matching the credits-obs precedent for the same defect class.
+  :trans #f
+  :code sleep-code
+  :post (behavior ()
+    (rigid-body-object-method-71 self)
+    (if (time-elapsed? (-> self state-time) (seconds 4))
+        (go-virtual fade-out)
+        )
+    )
+  )
+
+;; failed to figure out what this is:
+(defstate fade-out (vehicle-wheel)
+  :virtual #t
+  :enter (behavior ()
+    (set-time! (-> self state-time))
+    (logior! (-> self draw status) (draw-control-status force-fade))
+    )
+  :code sleep-code
+  :post (behavior ()
+    (set! (-> self draw force-fade)
+          (the-as
+            uint
+            (the int (fmax 0.0 (- 128.0 (* 0.42666668 (the float (- (current-time) (-> self state-time)))))))
+            )
+          )
+    (if (< (-> self draw force-fade) (the-as uint 2))
+        (go-virtual die)
+        )
+    (rigid-body-object-method-71 self)
+    )
+  )
+
+;; failed to figure out what this is:
+(defstate die (vehicle-wheel)
+  :virtual #t
+  :code (behavior ()
+    (cleanup-for-death self)
+    )
+  )
