@@ -79,15 +79,32 @@
   :flag-assert         #x9000000e4
   )
 
-;; og:preserve-this wvehicle-core rung (held): (method 224 wvehicle) is the
-;; same offset-720-on-self class as (method 62 wvehicle) (wvehicle-physics.gc):
-;; "Could not figure out load: (set! f1 (l.f (+ a0 720)))", a field this
-;; rung's own scoped decode does not otherwise need and wvehicle's own field
-;; list does not yet declare in that region. Its declared signature IS fixed
-;; in this rung (float float -> float, proven by all three of its own
-;; callers: estimate-eng-torque-from-gear, (method 214 wvehicle) and
-;; (method 215 wvehicle), landed below), only the body is held. Parked in
-;; hacks.jsonc's no_type_analysis_functions_by_name.
+;; vehicle rung: (method 224 wvehicle) un-held. Its own offset-720-on-self
+;; read is vehicle-h.gc's own torque-scale field (raw capture 720,
+;; +4-corrected offset 724), carved out of vehicle's pad-pre-behavior and
+;; mirrored in all-types.gc; removed from hacks.jsonc's
+;; no_type_analysis_functions_by_name and decodes clean with no warnings.
+;; definition for method 224 of type wvehicle
+(defmethod wvehicle-method-224 ((this wvehicle) (arg0 float) (arg1 float))
+  (let ((v1-0 (-> this info)))
+    (* (-> this engine-max-torque)
+       (-> this torque-scale)
+       (+ 1.0 (-> v1-0 engine drag))
+       (fmax
+         -0.1
+         (+ (* arg1
+               (fmax 0.0 (- 1.0 (square (/ (- arg0 (-> v1-0 engine peak-torque-rpm)) (-> v1-0 engine powerband-width-rpm)))))
+               )
+            (* -1.0 (/ arg0 (-> v1-0 engine peak-torque-rpm)) (-> v1-0 engine drag) (if (= (-> this clutch-grab) 0.0)
+                                                                                        0.25
+                                                                                        1.0
+                                                                                        )
+               )
+            )
+         )
+       )
+    )
+  )
 
 ;; og:preserve-this wvehicle-core rung (held): (method 217 wvehicle) is one
 ;; of this rung's own named targets but stays held. Its own local sp+16

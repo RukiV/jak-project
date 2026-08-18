@@ -702,9 +702,17 @@
    ;; +4-corrected offsets 704/708) are load-proven -- dropping either
    ;; regresses the wvehicle-net and wvehicle-h decodes in the full-corpus
    ;; gate -- but no inspect method in this rung's scope names them; retire
-   ;; the placeholder names once one does. pad-pre-behavior widens from 8 to
-   ;; 16 to absorb them and still lands behavior at its independently
+   ;; the placeholder names once one does. pad-pre-behavior widened from 8 to
+   ;; 16 to absorb them, still landing behavior at its independently
    ;; confirmed offset (vehicle-h.o's own inspect, `ld a2, 724(gp)`, +4).
+   ;; vehicle rung: pad-pre-behavior narrows back to 12 to carve out
+   ;; torque-scale (raw capture 720, +4-corrected offset 724), read
+   ;; alongside engine-max-torque in (method 224 wvehicle)'s own
+   ;; engine-torque-curve body (a direct multiplier on the base torque) and
+   ;; alongside a *game-info* difficulty-style scalar in (method 62
+   ;; wvehicle)'s own acceleration body (a straight multiplier into the same
+   ;; kind of output); named by usage pattern across both, not by an inspect
+   ;; method (support-level evidence, not proof).
    (controls                        vehicle-controls                    :inline :offset 484)
    (prev-controls                   vehicle-controls                    :inline :offset 508)
    ;; og:preserve-this unknown-flags-528 (raw capture 528, +4-corrected offset
@@ -728,7 +736,8 @@
    (speed-factor                    float                                       :offset 700)
    (unknown-float-700               float                                       :offset 704)
    (unknown-float-704               float                                       :offset 708)
-   (pad-pre-behavior                uint8                                16    :offset 712)
+   (pad-pre-behavior                uint8                                12    :offset 712)
+   (torque-scale                    float                                       :offset 724)
    (behavior                        uint64                                      :offset-assert 728)
    (cam-view                        int8                                        :offset-assert 736)
    ;; og:preserve-this 7 bytes unaccounted (737-744).
