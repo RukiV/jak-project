@@ -61,75 +61,100 @@
   )
 
 ;; WARN: Return type mismatch int vs none.
+;; og:preserve-this runtime-link guard: kill-current-talker's own body
+;; unconditionally calls gui-control-method-16 on *gui-control*, and
+;; *gui-control* has no landed instantiation anywhere in goal_src (only the
+;; forward (define-extern *gui-control* gui-control) declaration; its true
+;; home, the file that would (set! *gui-control* (new ...)) it, is not
+;; landed). Confirmed as the R10 boot crash: game-info.gc's own initialize!
+;; calls (kill-current-talker '() '() 'die) unconditionally on every boot
+;; (guarded only on kill-current-talker itself being landed, R3a's own
+;; guard above), and kill-current-talker's first (member 'daxter '())
+;; check is false, so its first gui-control-method-16 call runs with
+;; *gui-control* still 0; the method dispatch's own [a0 - 4] type read then
+;; faults (ambient.gc's own (mi) (asm-file "ambient.gc" :color :disassemble
+;; <out>) shows this exact instruction, "mov eax, [r15+rdi*1-0x04]", inside
+;; kill-current-talker, rdi holding '*gui-control*; the crash report's own
+;; register dump matches every argument value of that first call: rsi=4,
+;; rdx=1, rcx=0x14=20, r8=0, r9/r10/r11/r14=#f). Same class as *common-
+;; text*'s own guard (text-h.gc:54 defines it (the-as game-text-info #f),
+;; main.gc:299 and in-game-menu-hud.gc:76 both check (not *common-text*)
+;; before use) and this file's own kill-current-talker/task-node-reset/
+;; reset-actors guards just above and below; nonzero? rather than a
+;; truthy check, matching those three, since an unset extern's raw value
+;; is not guaranteed to be the #f singleton. Retires when gui-control's own
+;; owning file lands and populates *gui-control* for real.
 (defun kill-current-talker ((arg0 pair) (arg1 pair) (arg2 symbol))
-  (if (not (member 'daxter arg1))
+  (when (nonzero? *gui-control*)
+    (if (not (member 'daxter arg1))
+        (gui-control-method-16
+          *gui-control*
+          4
+          (the-as uint 1)
+          20
+          0
+          (the-as string #f)
+          (the-as (function gui-connection symbol) #f)
+          (the-as process #f)
+          )
+        )
+    (if (not (member 'pecker arg1))
+        (gui-control-method-16
+          *gui-control*
+          4
+          (the-as uint 1)
+          25
+          0
+          (the-as string #f)
+          (the-as (function gui-connection symbol) #f)
+          (the-as process #f)
+          )
+        )
+    (if (not (member 'speech arg1))
+        (gui-control-method-16
+          *gui-control*
+          4
+          (the-as uint 1)
+          29
+          0
+          (the-as string #f)
+          (the-as (function gui-connection symbol) #f)
+          (the-as process #f)
+          )
+        )
+    (if (not (member 'message arg1))
+        (gui-control-method-16
+          *gui-control*
+          4
+          (the-as uint 1)
+          67
+          0
+          (the-as string #f)
+          (the-as (function gui-connection symbol) #f)
+          (the-as process #f)
+          )
+        )
+    (when (not (member 'notice arg1))
       (gui-control-method-16
         *gui-control*
         4
         (the-as uint 1)
-        20
+        68
         0
         (the-as string #f)
         (the-as (function gui-connection symbol) #f)
         (the-as process #f)
         )
-      )
-  (if (not (member 'pecker arg1))
       (gui-control-method-16
         *gui-control*
         4
         (the-as uint 1)
-        25
+        71
         0
         (the-as string #f)
         (the-as (function gui-connection symbol) #f)
         (the-as process #f)
         )
-      )
-  (if (not (member 'speech arg1))
-      (gui-control-method-16
-        *gui-control*
-        4
-        (the-as uint 1)
-        29
-        0
-        (the-as string #f)
-        (the-as (function gui-connection symbol) #f)
-        (the-as process #f)
-        )
-      )
-  (if (not (member 'message arg1))
-      (gui-control-method-16
-        *gui-control*
-        4
-        (the-as uint 1)
-        67
-        0
-        (the-as string #f)
-        (the-as (function gui-connection symbol) #f)
-        (the-as process #f)
-        )
-      )
-  (when (not (member 'notice arg1))
-    (gui-control-method-16
-      *gui-control*
-      4
-      (the-as uint 1)
-      68
-      0
-      (the-as string #f)
-      (the-as (function gui-connection symbol) #f)
-      (the-as process #f)
-      )
-    (gui-control-method-16
-      *gui-control*
-      4
-      (the-as uint 1)
-      71
-      0
-      (the-as string #f)
-      (the-as (function gui-connection symbol) #f)
-      (the-as process #f)
       )
     )
   0
