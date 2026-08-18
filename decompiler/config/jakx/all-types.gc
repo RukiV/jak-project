@@ -66567,6 +66567,23 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; jakx: tail-field layout is under active dispute, not resolved this rung.
+;; task-arrow-init-by-other's own ir2 shows params.color (task-arrow-params
+;; offset 48) copied to self offset 244, not the 248 declared below for
+;; "color", and a 16-byte quad copy from params.pos (params offset 16) into
+;; self offset 252, not the 256 "pos" declares; goalc itself rejects offset
+;; 252 for pos ("Field pos was placed at 256 but offset-assert was set to
+;; 252"), an inline vector's 16-byte alignment requirement, so 252 cannot be
+;; right either. The three explicit 0.0 stores this same function makes at
+;; raw offsets 268/272/284 (matching jak3's own "(set! max-dist 0.0) (set!
+;; theta 0.0) (set! phi 0.0)" trio) do not fit cleanly against either
+;; hypothesis. Left at the census declaration pending real field-offset
+;; archaeology; the choir-sound/draw-back tail (offsets 336/340 raw, both
+;; confirmed independent of the pos dispute: the ambient-sound allocation
+;; and the camera-facing-quad allocation each land on a distinctive `new`
+;; call site) is the part actually blocking method 53/54's remaining
+;; errors, and is deferred alongside pos/theta/phi rather than landed half
+;; of a still-disputed struct.
 (deftype task-arrow (process-drawable)
   ((color            uint32                     :offset-assert 248)
    (pos              vector             :inline :offset-assert 256)
@@ -66596,15 +66613,22 @@
     leave ;; 52
     )
   (:methods
-    (task-arrow-method-53 () none) ;; 53
+    ;; jakx slot verified against task-arrow's own ir2 ("Function may read a
+    ;; register that is not set: a1" against the old 0-arg declaration);
+    ;; matches jak3's task-arrow-method-23 (_type_ vector) none at the
+    ;; equivalent slot.
+    (task-arrow-method-53 (_type_ vector) none) ;; 53
     (task-arrow-method-54 (_type_) none) ;; 54
     )
-  
+
   )
 
 
-;; (define-extern task-arrow-init-by-other function) ;; (function task-arrow-params object :behavior task-arrow)
-;; (define-extern task-arrow-spawn function) ;; (function task-arrow-params process-tree process)
+;; jakx: signature confirmed against jak3's own task-arrow.gc twin
+;; (defbehavior task-arrow-init-by-other task-arrow, ending in (go-virtual
+;; idle), and defun task-arrow-spawn, returning a process local).
+(define-extern task-arrow-init-by-other (function task-arrow-params object :behavior task-arrow))
+(define-extern task-arrow-spawn (function task-arrow-params process-tree process))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; race-manager                   ;;
