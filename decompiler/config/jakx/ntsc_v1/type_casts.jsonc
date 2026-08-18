@@ -8,6 +8,36 @@
     [[18, 38], "s6", "coli-break-object"],
     [[62, 67], "s6", "coli-break-object"]
   ],
+  // (method 9 race-mesh) (race-mesh rung, jakx-levels-other-tier-4): v1's
+  // self-referential second load (dest and base both v1, l.h (+ v1 2),
+  // end-edge) fails even though v1 is already typed race-mesh-slice at
+  // that point (method 10's identical shape resolves on its own); forcing
+  // the type at op 9 itself (not op 8) clears it.
+  "(method 9 race-mesh)": [
+    [[9, 10], "v1", "race-mesh-slice"]
+  ],
+  // same self-referential race-mesh-slice second-field load as method 9
+  // above, at each method's own op (race-mesh rung, jakx-levels-other-tier-4).
+  "(method 15 race-mesh)": [
+    [[26, 27], "v1", "race-mesh-slice"]
+  ],
+  "(method 16 race-mesh)": [
+    [[10, 11], "v1", "race-mesh-slice"]
+  ],
+  "(method 20 race-mesh)": [
+    [[37, 38], "v1", "race-mesh-slice"]
+  ],
+  "(method 10 race-mesh)": [
+    [[13, 14], "v1", "race-mesh-slice"]
+  ],
+  // (method 18 race-mesh): op 65 reads bounds.min.y (offset 20, a declared
+  // int32) with l.wu (unsigned); the same load/declared-signedness mismatch
+  // class as race-mesh-hash-search's own second-best-dist float fix above.
+  // Casting through a raw unsigned pointer at this one op clears it without
+  // touching vector4w's shared x/y/z/w declarations.
+  "(method 18 race-mesh)": [
+    [[60, 68], "s5", "(pointer uint32)"]
+  ],
   // spawn-hud-in-game-menu-networked: *hud-in-game-menu-networked-view-N*
   // globals are declared generic array (element type not recoverable this
   // rung); raw pointer chase (data start at 12, then a nested pointer read

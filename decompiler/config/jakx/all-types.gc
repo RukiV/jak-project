@@ -49424,7 +49424,10 @@
 (define-extern line-in-view-frustum? (function vector vector symbol)) ;; confirmed against jak2/jak3 twin (decompiler/config/jak2/all-types.gc:32130, decompiler/config/jak3/all-types.gc:38264); needed for gun-util's draw-beam clean decode
 (define-extern sphere-in-view-frustum-any? (function sphere symbol)) ;; jakx-new: any-of-4-views frustum test, proven from the drawable.gc asm (#53 slice 2)
 ;; (define-extern line-in-view-frustum-any? function)
-;; (define-extern find-nearest-camera-distance function)
+;; race-line method 14 and race-mesh method 10 both call this with a single
+;; vector arg and immediately mtc1 the raw v0 bits into a float register;
+;; race-mesh rung, jakx-levels-other-tier-4.
+(define-extern find-nearest-camera-distance (function vector float))
 (define-extern vis-cull (function int symbol))
 ;; (define-extern vis-cull-debug function) ;; (function work-area int symbol)
 ;; (define-extern error-sphere function) ;; (function drawable-error string none)
@@ -54519,12 +54522,23 @@
 (deftype race-mesh-hash-search (structure)
   ((best-dist             float                  :offset-assert 0)
    (debug-cells-searched  int32                  :offset-assert 4)
-   (debug-slices-searched int32                  :offset-assert 8)
+   ;; race-mesh rung (jakx-levels-other-tier-4): (method 18 race-mesh) reads
+   ;; this with lwc1 (a float load) in the identical shape to best-dist
+   ;; above (subtracted from a hash-bucket constant, divided, truncated to
+   ;; int), not as a counter; retyped from the guessed int32.
+   (second-best-dist      float                  :offset-assert 8)
    (bounds                bounding-box4w :inline :offset-assert 16)
    (cell-quads            vector         2 :inline :offset-assert 48) ;; guessed by decompiler
    (slice-quads           vector         4 :inline :offset-assert 80) ;; guessed by decompiler
    (cell-bits             vector16ub     2 :inline :offset 48) ;; guessed by decompiler
    (slice-bits            vector16ub     2 :inline :offset 80) ;; guessed by decompiler
+   ;; race-mesh rung (jakx-levels-other-tier-4): (method 18 race-mesh) both
+   ;; writes -1 and reads back an int16 at raw offset 116 (inside
+   ;; slice-quads[2]'s own y component), the same -1 sentinel idiom as
+   ;; race-mesh-slice-query's own slice-id at the identical offset 116;
+   ;; overlaid rather than resized, since slice-quads' own vectors are read
+   ;; as vectors elsewhere in this same method.
+   (best-slice-id         int16          :overlay-at (-> slice-quads 2 y))
    )
   :method-count-assert 9
   :size-assert         #x90
@@ -54546,6 +54560,14 @@
 (deftype race-mesh-slice-query (structure)
   ((search-sphere sphere    :inline :offset-assert 0)
    (slice-range   uint16   2       :offset-assert 16)
+   ;; race-mesh rung (jakx-levels-other-tier-4): (method 11 race-mesh)
+   ;; accesses offset 16 and 18 as two independent scalars (each gets its
+   ;; own +slice-count wraparound adjustment), which the bare array offset
+   ;; never resolved through ->; overlaid named scalars clear it, matching
+   ;; race-mesh-slice's own edge-index-array/start-edge/end-edge precedent
+   ;; already landed in race-mesh-h.gc.
+   (slice-start   int16            :overlay-at (-> slice-range 0))
+   (slice-end     int16            :overlay-at (-> slice-range 1))
    (race-line     race-line         :offset-assert 20)
    (pt-on-slice   vector    :inline :offset-assert 32)
    (slice-corners vector    4 :inline :offset-assert 48) ;; guessed by decompiler
@@ -54714,18 +54736,46 @@
   :size-assert         #x20
   :flag-assert         #x1500000020
   (:methods
-    (race-mesh-method-9 () none) ;; 9 ;; (debug-draw-path (_type_ int int rgba rgba) none)
-    (race-mesh-method-10 () none) ;; 10 ;; (debug-draw-path-from-history (_type_ int int) symbol)
-    (race-mesh-method-11 () none) ;; 11 ;; (debug-draw-slice (_type_ int) none)
-    (race-mesh-method-12 () none) ;; 12 ;; (debug-draw-edges (_type_) none)
-    (race-mesh-method-13 () none) ;; 13 ;; (race-mesh-method-13 (_type_ race-mesh-slice-query) none)
-    (race-mesh-method-14 () none) ;; 14 ;; (race-mesh-method-14 (_type_ race-mesh-slice-query) none)
-    (race-mesh-method-15 () none) ;; 15 ;; (race-mesh-method-15 (_type_ int race-mesh-slice-query) none)
-    (race-mesh-method-16 () none) ;; 16 ;; (race-mesh-method-16 (_type_ race-mesh-slice-query) none)
-    (race-mesh-method-17 () none) ;; 17 ;; (race-mesh-method-17 (_type_ race-mesh-slice-query) symbol)
-    (race-mesh-method-18 () none) ;; 18 ;; (race-mesh-method-18 (_type_ race-mesh-hash-search int int race-mesh-slice-query) none)
-    (race-mesh-method-19 () none) ;; 19 ;; (race-mesh-method-19 (_type_ int race-mesh-slice-query) symbol)
-    (race-mesh-method-20 () none) ;; 20
+    ;; race-mesh rung (jakx-levels-other-tier-4): all twelve carried a bare
+    ;; () signature while their own trailing ";; (sig)" comment already gave
+    ;; the real one (a config defect the pipeline brief calls out by name);
+    ;; syncing to the trailing comments cleared every one of these methods'
+    ;; "a0/a1/... not set" and "Could not figure out load" cascades. Method
+    ;; 20 had no trailing comment; proven from its own body instead (only a0
+    ;; and a1 read, matching method 11's neighboring debug-draw-slice shape).
+    (race-mesh-method-9 (_type_ int int rgba rgba) none) ;; 9 debug-draw-path
+    (race-mesh-method-10 (_type_ int int) symbol) ;; 10 debug-draw-path-from-history
+    ;; the trailing "debug-draw-slice (_type_ int)" comment above was wrong
+    ;; too: the body dereferences a1 at offsets 16 and 18, exactly matching
+    ;; race-mesh-slice-query's own slice-range uint16 2 array, adding this's
+    ;; slice-count to both entries when flag bit 2 is set (wraparound
+    ;; correction); race-mesh rung, jakx-levels-other-tier-4.
+    (race-mesh-method-11 (_type_ race-mesh-slice-query) none) ;; 11
+    ;; the trailing debug-draw-edges () comment above was itself wrong: the
+    ;; body never reads a0 (this) at all, checks a1 for #f then forwards it
+    ;; as race-line's own "this" to (method 10 race-line), forwarding a2 as
+    ;; that call's int arg; race-mesh rung, jakx-levels-other-tier-4.
+    (race-mesh-method-12 (_type_ race-line int) symbol) ;; 12 debug-draw-edges
+    (race-mesh-method-13 (_type_ race-mesh-slice-query) none) ;; 13
+    (race-mesh-method-14 (_type_ race-mesh-slice-query) none) ;; 14
+    ;; the trailing comment above had the args in the wrong order: a1 (the
+    ;; first explicit arg) is dereferenced directly as a race-mesh-slice-query
+    ;; (vector fields at 32/48/64/80/96 match pt-on-slice/slice-corners), not
+    ;; used as an int anywhere; race-mesh rung, jakx-levels-other-tier-4.
+    (race-mesh-method-15 (_type_ race-mesh-slice-query int) none) ;; 15
+    ;; the trailing comment above swapped the args: a1 is used as an int
+    ;; slice index (shifted left 2 to index the slices array, the same
+    ;; "(inline-array race-mesh-slice) int" add method 15 also does), and
+    ;; a2 (aliased gp) is the race-mesh-slice-query, written into at offset
+    ;; 116 (slice-id); race-mesh rung, jakx-levels-other-tier-4.
+    (race-mesh-method-16 (_type_ int race-mesh-slice-query) none) ;; 16
+    (race-mesh-method-17 (_type_ race-mesh-slice-query) symbol) ;; 17
+    (race-mesh-method-18 (_type_ race-mesh-hash-search int int race-mesh-slice-query) none) ;; 18
+    (race-mesh-method-19 (_type_ int race-mesh-slice-query) symbol) ;; 19
+    ;; race-mesh rung (jakx-levels-other-tier-4): a2 dereferences
+    ;; race-mesh-slice-query's slice-start/slice-end (offsets 16/18, the
+    ;; same shape method 11 hits), and v0 resolves to a plain #f/#t branch.
+    (race-mesh-method-20 (_type_ int race-mesh-slice-query) symbol) ;; 20
     )
   )
 
