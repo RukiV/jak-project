@@ -188,7 +188,18 @@
     "check-vehicle-line-spheres-hack",
     "collide-sphere-with-line-sphere-hack",
     "debug-draw-rigid-body-move",
-    "(method 66 collide-shape-moving)"
+    "(method 66 collide-shape-moving)",
+    // 3d-menu-elements rung: interface-cam-init-by-other and garage-cinema-
+    // init-by-other both read a1 uninitialized in their process-entity-set!
+    // call, the same "may read a1 not set, no in-band evidence pins the
+    // exact signature" pattern as palm-tree's methods above. Both are
+    // invoked exclusively via run-function-in-process with a single
+    // explicit trailing arg (a stack vector), so whatever value a1 ends up
+    // holding for the process-entity-set! call comes from run-function-in-
+    // process's own pass-through of its unused optional params, not from
+    // anything these functions themselves receive or compute.
+    "interface-cam-init-by-other",
+    "garage-cinema-init-by-other"
   ],
   // this limits the number of cases in a cond.  The first argument is the name of the function.
   // the second argument is the name of the first condition in the cond. Use print_cfg to find it out.
