@@ -10,8 +10,9 @@
 ;; type-only landing (offline suite rung): process-nettable-method-27's return type
 ;; retype to mem-buffer (process-nettable.gc) needs mem-buffer to be a real type, not
 ;; just process-nettable-h.gc's forward declare, or the-as/the on it cannot compile
-;; (goalc requires a fully defined type for any cast target). No method has a body
-;; yet; this only carries the field layout and method table so the type exists.
+;; (goalc requires a fully defined type for any cast target). Methods 10 and 11 gained
+;; bodies below (dispatched from net-enemy's waiting-respawn state); every other
+;; method, including 28, still has no body.
 (deftype mem-buffer (structure)
   ((base   uint32)
    (ptr    uint32)
@@ -20,8 +21,8 @@
    )
   (:methods
     (mem-buffer-method-9 (_type_ object) none)
-    (mem-buffer-method-10 (_type_ object object) none)
-    (mem-buffer-method-11 (_type_) none)
+    (mem-buffer-method-10 (_type_ pointer int) none)
+    (mem-buffer-method-11 (_type_) uint)
     (mem-buffer-method-12 (_type_) none)
     (mem-buffer-method-13 (_type_) none)
     (mem-buffer-method-14 (_type_ object) none)
@@ -63,5 +64,33 @@
     (mem-buffer-method-50 (_type_) none)
     (mem-buffer-method-51 (_type_ object) none)
     )
+  )
+
+;; og:preserve-this method 10/11: clean decode once the signatures below
+;; retyped from the placeholder object/object and none; net-enemy.gc's own
+;; call (the waiting-respawn state) passes a uint8 array field and a
+;; literal int, and stores straight into base/ptr/limit (all uint32), and
+;; the field-adjacent net-enemy.gc call also feeds method 11's own return
+;; value straight into method 15's arg, so both retypes are call-site
+;; evidenced rather than guessed. Method 28 stays unlanded: its raw body
+;; reads a1 (Couldn't figure out integer subtract: (- a1 #f), Function may
+;; read a register that is not set: a1) while net-enemy.gc's own call site
+;; is a bare (t9-4) with no explicit argument at all; the two decodes
+;; disagree on whether this method takes an argument and nothing in either
+;; object resolves which is right, so it is left held rather than
+;; inventing an argument the call site does not supply.
+
+;; definition for method 10 of type mem-buffer
+(defmethod mem-buffer-method-10 ((this mem-buffer) (arg0 pointer) (arg1 int))
+  (set! (-> this base) (the-as uint arg0))
+  (set! (-> this ptr) (the-as uint arg0))
+  (set! (-> this limit) (the-as uint (&+ arg0 arg1)))
+  0
+  (none)
+  )
+
+;; definition for method 11 of type mem-buffer
+(defmethod mem-buffer-method-11 ((this mem-buffer))
+  (- (-> this ptr) (-> this base))
   )
 
