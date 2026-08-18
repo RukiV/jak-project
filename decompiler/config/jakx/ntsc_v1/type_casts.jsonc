@@ -6148,5 +6148,38 @@
   // 64 on collide-shape-prim-group, the +4 basics shift) and raw offset 64
   // (the child inline-array, offset 68), both collide-shape-prim-group's own
   // fields, not collide-shape-prim's.
-  "find-closest-solid-sphere-prim": [[[11, 15], "v1", "collide-shape-prim-group"]]
+  "find-closest-solid-sphere-prim": [[[11, 15], "v1", "collide-shape-prim-group"]],
+  // (method 62 des-plant): s4/a0 (the attacker resolved from attack-info's own
+  // handle field) is type?-checked against process-nettable at op 16-19, then
+  // dispatches method 22 at op 25, exactly process-nettable's own declared
+  // slot 22 (its own trailing comment already names this call site: "truthy
+  // gate on the attacker in nsd method 62").
+  "(method 62 des-plant)": [[24, "a0", "process-nettable"]],
+  // (enter explode des-plant): s6 (self) is properly des-plant at op 0 but
+  // loses its type by op 86, deep in this large function's own exploder
+  // handle-construction block (raw offset 300, exploder's own +4 basics
+  // offset 304, already declared handle); reasserting self's type here
+  // lets the sd/ld through it resolve.
+  "(enter explode des-plant)": [[[86, 92], "s6", "des-plant"]],
+  // (method 72 des-plant): s5 (root-prim, a generic collide-shape-prim)
+  // reads raw offset 64 twice, exactly collide-shape-prim-mesh's own mesh
+  // field (offset 64), copying 16 bytes starting at its own +44/+124 as
+  // scratch (the mesh's own internal geometry pointers).
+  // (method 72 des-plant): s5 (root-prim, a generic collide-shape-prim)
+  // reads raw offset 64 twice as a base for further +44/+124 pointer math;
+  // neither collide-shape-prim's own fields nor collide-shape-prim-mesh's
+  // declared layout resolve a usable field there (raw 64 lands on
+  // mesh-id, a plain int32, not a pointer), so this treats it as an
+  // opaque scratch pointer rather than inventing a field.
+  "(method 72 des-plant)": [[[8, 17], "s5", "(pointer uint32)"]],
+  // (method 70 des-plant): gp (self) is properly des-plant at op 0 but
+  // loses its type shortly after, deep in this function's own attack-vel/
+  // spring-pos/spring-vel scratch math (raw offsets 332/348, the +4
+  // basics offsets of spring-pos/spring-vel).
+  "(method 70 des-plant)": [
+    [[11, 43], "gp", "des-plant"],
+    [[73, 174], "s5", "(pointer float)"],
+    [119, "v1", "(pointer uint128)"],
+    [148, "v1", "(pointer uint128)"]
+  ]
 }
