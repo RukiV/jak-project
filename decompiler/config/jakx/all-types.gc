@@ -70017,7 +70017,15 @@
   :flag-assert         #x1c00000040
   (:methods
     (hud-cash-stats-method-24 (_type_ object object) none) ;; 24
-    (hud-cash-stats-method-25 (_type_ object) none) ;; 25
+    ;; hud-widgets-tier rung: arg0 retyped object -> float. Its only call
+    ;; site (hud-cash-stats-method-24, the same file, held unlanded this
+    ;; rung for an unrelated reason) passes (the float ...) explicitly, and
+    ;; the body's own first use is (gpr->fpr arg0), the standard
+    ;; bit-reinterpret idiom for a float value that arrived in a plain
+    ;; register; goalc rejects that verbatim under the old object typing
+    ;; ("No method or function named gpr->fpr for type object"), same class
+    ;; as hud-item-method-17's own arg0 fix below.
+    (hud-cash-stats-method-25 (_type_ float) none) ;; 25
     ;; hud-cash rung: return type retyped to float, not the bare "none"
     ;; placeholder; its own body (this rung's own hud-cash_ir2.asm) ends
     ;; every cond arm by converting a computed float into v0 via

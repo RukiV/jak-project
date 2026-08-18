@@ -991,6 +991,33 @@
     // virtual-dispatch behavior for an unfilled vtable slot, not a jump to
     // zero.
     "(method 19 hud-headset-talker)",
+    // hud-widgets-tier rung: (method 19 end-menu)'s own fresh decode does
+    // not convert to expressions at all ("function was not converted to
+    // expressions. Cannot decompile."); a prior "hud-cash rung" traced the
+    // cause to a hud-item-string-method-27 dispatch that cannot be cast
+    // alongside an existing cast in the same function without regressing
+    // unrelated ops (type_casts.jsonc comment on this method). No landed
+    // body; see the og:preserve-this comment in goal_src.
+    "(method 19 end-menu)",
+    // hud-widgets-tier rung: (method 19 hud-cash-stats), (method 24
+    // hud-cash-stats) and (method 26 hud-cash-stats) held together.
+    // Method 26's own op 288 net-player read is the same prior-rung-
+    // documented blocker as above; methods 19 and 24 call 24 and 26
+    // directly by name, so none of the three can land independently of
+    // it. Beyond the held op, method 26's decode also leaks raw
+    // register-emulation forms goalc rejects outright ("Unrecognized
+    // symbol call! as head of form"). No landed bodies; see the
+    // og:preserve-this comments in goal_src.
+    "(method 19 hud-cash-stats)",
+    "(method 24 hud-cash-stats)",
+    "(method 26 hud-cash-stats)",
+    // hud-widgets-tier rung: (method 19 cash-hud) dispatches net-game-mgr-
+    // method-50 and net-game-mgr-method-51 by name; net-game-mgr itself is
+    // only a name-only declare-type in this tree (hud-results-grand-
+    // prix.gc), the same out-of-scope boundary an earlier "hud-static-
+    // literals rung" drew for net-game-mgr generally. No landed body; see
+    // the og:preserve-this comment in goal_src.
+    "(method 19 cash-hud)",
     // engine-quick-tier-6 rung: print-default-collision (collision-editor.gc)
     // walks a process-drawable's node-list several times over (once per
     // prim-type debug print block: sphere/mesh/group), and the decompiler
