@@ -1,80 +1,385 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: net-enemy.gc
-;; name in dgo: net-enemy
-;; dgos: COMMON, GAME
+;; definition for function play-anim-along-path
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch symbol vs object.
+(defbehavior play-anim-along-path net-enemy ((arg0 object) (arg1 object) (arg2 object))
+  (net-anim-control-method-9
+    (-> self net-anim)
+    self
+    (- (- (if *net-mgr*
+              (-> *net-mgr* game-state time)
+              0
+              )
+          (if *net-world*
+              (-> *net-world* net-state game-start-time)
+              0
+              )
+          )
+       (if *net-world*
+           (-> *net-world* net-state total-pause-time)
+           0
+           )
+       )
+    #f
+    )
+  (if (and arg0 (-> self net-anim result path-wrapped))
+      (return (the-as object #t))
+      )
+  (if (and arg1 (-> self net-anim result anim-wrapped))
+      (return (the-as object #t))
+      )
+  (when (not arg2)
+    (let ((a0-2 (-> self skel root-channel 0)))
+      (set! (-> a0-2 param 0) (-> self net-anim result cur-frame))
+      (joint-control-channel-group-eval! a0-2 (the-as art-joint-anim #f) num-func-loop-set!)
+      )
+    )
+  (let ((gp-1 (the-as object (new 'stack-no-clear 'vector)))
+        (v1-20 (shr (shl (-> self net-anim active path-info) 57) 57))
+        )
+    (when (!= v1-20 127)
+      (let ((s5-1 (-> self paths (shr (shl (-> self net-anim active path-info) 57) 57)))
+            (f30-0 (-> self net-anim result path-pos))
+            )
+        (get-point-at-percent-along-path! s5-1 (&+ (the-as vector gp-1) 16) f30-0 'interp)
+        (displacement-between-points-at-percent-normalized! s5-1 (the-as vector (-> (the-as vector gp-1) data)) f30-0)
+        )
+      (set! (-> self forward-path-vector quad) (-> (the-as vector (-> (the-as vector gp-1) data)) quad))
+      (if (= (shr (shl (-> self net-anim active path-info) 56) 63) 1)
+          (vector-float*!
+            (the-as vector (-> (the-as vector gp-1) data))
+            (the-as vector (-> (the-as vector gp-1) data))
+            -1.0
+            )
+          )
+      (forward-up->quaternion
+        (the-as quaternion (&-> (the-as (pointer uint8) gp-1) 32))
+        (the-as vector (-> (the-as vector gp-1) data))
+        (new 'static 'vector :data (new 'static 'array float 4 0.0 1.0 0.0 1.0))
+        )
+      (net-enemy-method-74
+        self
+        (&+ (the-as vector gp-1) 16)
+        (the-as quaternion (&-> (the-as (pointer uint8) gp-1) 32))
+        )
+      (vector-float*! (-> self root transv) (-> self forward-path-vector) (-> self net-anim active vel z))
+      )
+    )
+  #f
+  )
 
-;; DECOMP BEGINS
+;; definition for function advance-anim-by-motion
+;; WARN: Return type mismatch int vs none.
+(defbehavior advance-anim-by-motion net-enemy ((arg0 float) (arg1 int))
+  (let* ((a2-2 (the-as art-joint-anim (-> self draw art-group data (-> self net-anim active anim-idx))))
+         (v1-5 (+ (-> a2-2 frames num-frames) -1))
+         (f0-2 (* 60.0 (-> self net-anim active anim-rate) (-> a2-2 speed)))
+         (f1-2 (-> self info anim-info arg1 forward-vel z))
+         (f0-3 (* f0-2 (/ arg0 f1-2)))
+         (a0-1 (-> self net-anim result))
+         (f0-4 (+ (-> a0-1 cur-frame) f0-3))
+         (f1-6 (the float v1-5))
+         )
+    (set! (-> a0-1 cur-frame) (- f0-4 (* (the float (the int (/ f0-4 f1-6))) f1-6)))
+    )
+  (let ((a0-2 (-> self skel root-channel 0)))
+    (set! (-> a0-2 param 0) (-> self net-anim result cur-frame))
+    (joint-control-channel-group-eval! a0-2 (the-as art-joint-anim #f) num-func-loop-set!)
+    )
+  0
+  (none)
+  )
 
-;; og:preserve-this: this rung lands most of net-enemy's own held-error
-;; surface (46 -> 10 errors on this worktree's own scoped decode; the
-;; remaining 10 span exactly the methods and states held below) but leaves
-;; several groups withheld, each for a concrete boot-safety reason rather
-;; than a live decode error:
-;;
-;; 1. net-enemy-method-83 calls the extern find-first-containing-nav-mesh,
-;;    which has no defun anywhere in goal_src and is not even an active
-;;    extern (all-types.gc keeps it commented); its own vtable slot, if
-;;    ever reached, jumps to address 0 (the extern-no-defun class recorded
-;;    against find-nearest-camera-distance). This transitively holds every
-;;    method that reaches it: net-enemy-method-82 (calls 83 when
-;;    this.info.flags bit 0 is set), net-enemy-method-62 (calls 82
-;;    unconditionally; this is the object's own init), net-enemy-method-70's
-;;    own 'respawn case (calls 82), net-enemy-method-69 (calls 70),
-;;    net-enemy-method-81 (calls 69), and the two named virtual overrides
-;;    init-from-entity! and process-nettable-method-35 (both call 62
-;;    directly). Landing any of these as decoded would fill a vtable slot
-;;    with code that itself jumps to a still-empty slot the moment its
-;;    branch is taken; not landing the two named overrides is safe, since a
-;;    named override that is not landed simply falls back to its parent's
-;;    own implementation instead of linking to zero. waiting-respawn's own
-;;    :post (landed in an earlier tier, unchanged here) already calls
-;;    net-enemy-method-81 unconditionally; that call was already a jump to
-;;    zero before this rung touched anything and remains one now. Retire
-;;    this whole group once find-first-containing-nav-mesh is landed.
-;;
-;; 2. net-enemy-method-74 and net-enemy-method-85 each dispatch a
-;;    collide-shape vtable slot collide-shape does not declare (55 and 57;
-;;    collide-shape's own :method-count-assert is 55, so both sit past its
-;;    current end). Extending collide-shape's own method table is shared,
-;;    corpus-wide surgery, out of scope for this rung. This holds
-;;    net-enemy-method-74 itself and its two known callers within this
-;;    file: play-anim-along-path and (post in-ragdoll net-enemy).
-;;
-;; 3. net-enemy-method-84's own arg1 reads raw offset 112 (a quaternion 144
-;;    bytes further in) against no type this rung could identify from
-;;    call-site or field evidence; it has no known caller within this file
-;;    and is held on its own.
-;;
-;; (enter in-ragdoll net-enemy) and (event in-ragdoll net-enemy) are held
-;; for a fourth, independent reason. net-enemy's own ragdoll-proc field
-;; (uint64, matching plow's own (method 74 plow) precedent, all commented
-;; "handle") is a handle to a spawned ragdoll-proc process; :enter runs
-;; ragdoll-proc-init-by-other in that process via run-function-in-process,
-;; and that function is an active extern with no defun anywhere in
-;; goal_src, the same class as point 1, so the spawn call links to zero if
-;; ever taken. :event's own handle-deref sequence against ragdoll-proc sits
-;; inside a CFG this rung could not get the decompiler to fold into
-;; (handle->process ...), the same irreducible shape (method 74 plow)'s own
-;; note describes; hand-folding it by hand without a landed :enter to ever
-;; populate the handle was judged not worth the risk this rung. (exit
-;; in-ragdoll net-enemy), (trans in-ragdoll net-enemy) and (code in-ragdoll
-;; net-enemy) decode clean and touch neither blocker, so they are landed
-;; below; the state stays virtual and partial by design until both
-;; blockers clear.
-;;
-;; net-enemy-method-66 lands with one cosmetic wart: the type_casts.jsonc
-;; entry needed to resolve its own *net-players* vtable dispatch reaches
-;; back onto the array-index expression at its own first call site,
-;; degrading it from (-> *net-players* idx) to raw pointer arithmetic; the
-;; method still builds and compiles, matching this rung's own decode
-;; verbatim (a second, identical call site a few lines down resolves to the
-;; clean form untouched).
-;;
-;; Retire this whole comment once every held method and handler above is
-;; landed for real.
+;; definition for method 74 of type net-enemy
+;; ERROR: function was not converted to expressions. Cannot decompile.
 
+;; definition for method 62 of type net-enemy
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod net-enemy-method-62 ((this net-enemy))
+  (with-pp
+    (set! (-> this flags) (the-as uint 0))
+    (net-enemy-method-78 this)
+    (net-enemy-method-75 this)
+    (process-drawable-from-entity! this (-> this entity))
+    (set! (-> pp level) (get-level (-> this entity)))
+    (logior! (-> this mask) (process-mask enemy))
+    (cond
+      ((>= (-> *attackable-hash* length) (-> *attackable-hash* allocated-length))
+       (format 0 "Attackable hash has been overfilled. Tell Elan.~%")
+       (break!)
+       0
+       )
+      (else
+        (let ((s5-0 (-> *attackable-hash* length)))
+          (+! (-> *attackable-hash* length) 1)
+          (set! (-> *attackable-hash* procs s5-0) (process->handle this))
+          (set! (-> *attackable-hash* trans s5-0 quad) (-> (get-trans this 3) quad))
+          (set! (-> *attackable-hash* masks s5-0) (process-focusable-method-50 this))
+          )
+        )
+      )
+    (set! (-> this ragdoll-proc) (the-as uint #f))
+    (net-enemy-method-76 this)
+    (net-enemy-method-77 this)
+    (set! (-> this net-anim path-array) (the-as uint (-> this paths data)))
+    (set! (-> this minimap) #f)
+    (set! (-> this nav-poly) #f)
+    (set! (-> this nav) #f)
+    (net-enemy-method-82 this)
+    (if (not (process-nettable-method-25 this))
+        (process-nettable-method-34 this 8 (new 'static 'rgba :r #xff :g #xff))
+        )
+    (linked-list-method-10 *net-enemy-list* (-> this enemy-link))
+    0
+    (none)
+    )
+  )
+
+;; definition for method 82 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+(defmethod net-enemy-method-82 ((this net-enemy))
+  (set! (-> this pending-impulse-valid) #f)
+  (set! (-> this health) (-> this info max-health))
+  (set! (-> this last-health-send-time) (+ (- (- -1500 (if *net-world*
+                                                           (-> *net-world* net-state total-pause-time)
+                                                           0
+                                                           )
+                                                 )
+                                              (if *net-world*
+                                                  (-> *net-world* net-state game-start-time)
+                                                  0
+                                                  )
+                                              )
+                                           (if *net-mgr*
+                                               (-> *net-mgr* game-state time)
+                                               0
+                                               )
+                                           )
+        )
+  (set! (-> this local-damage) 0.0)
+  (set! (-> this killed-by) -1)
+  (set! (-> this last-attack-time) (+ (- (- -1500 (if *net-world*
+                                                      (-> *net-world* net-state total-pause-time)
+                                                      0
+                                                      )
+                                            )
+                                         (if *net-world*
+                                             (-> *net-world* net-state game-start-time)
+                                             0
+                                             )
+                                         )
+                                      (if *net-mgr*
+                                          (-> *net-mgr* game-state time)
+                                          0
+                                          )
+                                      )
+        )
+  (set! (-> this vehicle-penetrate-time) (+ (- (- -1500 (if *net-world*
+                                                            (-> *net-world* net-state total-pause-time)
+                                                            0
+                                                            )
+                                                  )
+                                               (if *net-world*
+                                                   (-> *net-world* net-state game-start-time)
+                                                   0
+                                                   )
+                                               )
+                                            (if *net-mgr*
+                                                (-> *net-mgr* game-state time)
+                                                0
+                                                )
+                                            )
+        )
+  (set! (-> this transition-ct) 0)
+  (set! (-> this last-transition-time) 0)
+  (logior! (-> this mask) (process-mask enemy))
+  (logclear! (-> this focus-status) (focus-status dead))
+  (if (logtest? (-> this info flags) 1)
+      (net-enemy-method-83 this)
+      )
+  0
+  (none)
+  )
+
+;; definition for method 7 of type net-enemy
+;; WARN: Return type mismatch process-focusable vs net-enemy.
+(defmethod relocate ((this net-enemy) (offset int))
+  (when (nonzero? (-> this paths))
+    (dotimes (v1-2 (-> this paths length))
+      (if (nonzero? (-> this paths v1-2))
+          (&+! (-> this paths v1-2) offset)
+          )
+      )
+    (if (nonzero? (-> this paths))
+        (&+! (-> this paths) offset)
+        )
+    (set! (-> this net-anim path-array) (the-as uint (-> this paths data)))
+    )
+  (fixup-relocated-link (the-as linked-list (-> this enemy-link)) (the-as int *net-enemy-list*) offset)
+  (the-as net-enemy ((method-of-type process-focusable relocate) this offset))
+  )
+
+;; definition for method 10 of type net-enemy
+(defmethod deactivate ((this net-enemy))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (linked-list-method-11 *net-enemy-list* (-> this enemy-link))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for method 83 of type net-enemy
+;; ERROR: failed type prop at 1: Unknown symbol: find-first-containing-nav-mesh
+(defmethod net-enemy-method-83 ((a0-0 net-enemy))
+  (local-vars
+    (v0-0 none)
+    (v0-1 none)
+    (v0-2 none)
+    (v1-0 none)
+    (v1-2 none)
+    (v1-4 none)
+    (v1-5 none)
+    (v1-6 none)
+    (v1-7 none)
+    (v1-8 none)
+    (v1-9 none)
+    (v1-10 none)
+    (v1-11 none)
+    (v1-12 none)
+    (v1-13 none)
+    (v1-14 none)
+    (v1-15 none)
+    (v1-16 none)
+    (a0-1 none)
+    (a0-2 none)
+    (a0-3 none)
+    (a0-4 none)
+    (a0-5 none)
+    (a0-6 none)
+    (a0-7 none)
+    (a1-0 none)
+    (a2-0 none)
+    (a2-1 none)
+    (t9-0 none)
+    (t9-1 none)
+    (f0-0 none)
+    (f0-1 none)
+    (f0-2 none)
+    (f0-3 none)
+    )
+  (when (begin
+          (set! t9-0 (the-as none find-first-containing-nav-mesh))
+          (set! v1-0 (the-as none (-> a0-0 root)))
+          (set! a0-1 (the-as none (+ v1-0 12)))
+          (set! a1-0 (the-as none #x47c34ff3))
+          (set! a2-0 (the-as none (&-> a0-0 nav-poly)))
+          (set! v0-0 (the-as none (call!)))
+          (set! a0-2 (the-as none v0-0))
+          a0-2
+          )
+    (set! v1-2 (the-as none (l.wu (+ a0-2 -4))))
+    (set! t9-1 (the-as none (l.wu (+ v1-2 124))))
+    (set! a1-1 (the-as none a0-0))
+    (set! a2-1 (the-as none #t))
+    (call!)
+    (set! v1-3 (the-as none v0-1))
+    (set! v1-4 (the-as none (l.wu (+ a0-0 200))))
+    (set! v1-5 (the-as none (+ v1-4 112)))
+    (set! f0-0 (the-as none 0))
+    (s.f! (+ v1-5 36) f0-0)
+    (set! v1-6 (the-as none 0))
+    (set! v1-7 (the-as none (l.wu (+ a0-0 200))))
+    (set! a0-3 (the-as none #x45800000))
+    (set! f0-1 (the-as none (gpr->fpr a0-3)))
+    (s.f! (+ v1-7 36) f0-1)
+    (set! v1-8 (the-as none 0))
+    (set! v1-9 (the-as none (l.wu (+ a0-0 200))))
+    (set! a0-4 (the-as none #x48960000))
+    (set! f0-2 (the-as none (gpr->fpr a0-4)))
+    (s.f! (+ v1-9 32) f0-2)
+    (set! v1-10 (the-as none 0))
+    (set! v1-11 (the-as none (l.wu (+ a0-0 200))))
+    (set! a0-5 (the-as none #x48960000))
+    (set! f0-3 (the-as none (gpr->fpr a0-5)))
+    (s.f! (+ v1-11 40) f0-3)
+    (set! v1-12 (the-as none 0))
+    (set! v1-13 (the-as none (l.wu (+ a0-0 200))))
+    (set! v1-14 (the-as none (l.wu v1-13)))
+    (set! v1-15 (the-as none (logior v1-14 8)))
+    (set! a0-6 (the-as none (l.wu (+ a0-0 200))))
+    (s.w! a0-6 v1-15)
+    (set! v1-16 (the-as none *default-nav-callback-info*))
+    (set! a0-7 (the-as none (l.wu (+ a0-0 200))))
+    (s.w! (+ a0-7 4) v1-16)
+    )
+  (set! v0-2 (the-as none 0))
+  (ret-none)
+  )
+
+;; definition for method 11 of type net-enemy
+(defmethod init-from-entity! ((this net-enemy) (arg0 entity-actor))
+  (set! (-> this entity) arg0)
+  (net-enemy-method-62 this)
+  (go (method-of-object this startup))
+  )
+
+;; definition for method 35 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+(defmethod process-nettable-method-35 ((this net-enemy) (arg0 int))
+  (net-enemy-method-62 this)
+  0
+  (none)
+  )
+
+;; definition for method 36 of type net-enemy
+;; WARN: Return type mismatch object vs none.
+(defmethod process-nettable-method-36 ((this net-enemy))
+  (go (method-of-object this startup))
+  (none)
+  )
+
+;; definition for method 81 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+(defmethod net-enemy-method-81 ((this net-enemy))
+  (when (and (!= (-> this vehicle-penetrate-time) -1) (>= (- (- (- (if *net-mgr*
+                                                                       (-> *net-mgr* game-state time)
+                                                                       0
+                                                                       )
+                                                                   (if *net-world*
+                                                                       (-> *net-world* net-state game-start-time)
+                                                                       0
+                                                                       )
+                                                                   )
+                                                                (if *net-world*
+                                                                    (-> *net-world* net-state total-pause-time)
+                                                                    0
+                                                                    )
+                                                                )
+                                                             (-> this vehicle-penetrate-time)
+                                                             )
+                                                          0
+                                                          )
+             )
+    (set! (-> this vehicle-penetrate-time) -1)
+    (logclear! (-> this root penetrated-by) (penetrate vehicle))
+    )
+  (if (logtest? (-> this flags) 2)
+      (process-nettable-method-31 this #f)
+      (process-nettable-method-26 this 8 #f)
+      )
+  (net-enemy-method-69 this)
+  (if (logtest? (-> this flags) 16)
+      (net-enemy-method-64 this)
+      )
+  (update-transforms (-> this root))
+  (ja-post)
+  0
+  (none)
+  )
+
+;; failed to figure out what this is:
 (defstate startup (net-enemy)
   :virtual #t
   :enter (behavior ()
@@ -84,14 +389,66 @@
   )
 
 ;; definition for method 71 of type net-enemy
+;; WARN: Return type mismatch symbol vs none.
 (defmethod net-enemy-method-71 ((this net-enemy))
   (nonzero? (-> this transition-ct))
   (none)
   )
 
+;; definition for symbol *tmp-transition*, type net-enemy-transition
 (define *tmp-transition* (new 'static 'net-enemy-transition))
 
+;; definition for method 69 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+(defmethod net-enemy-method-69 ((this net-enemy))
+  (dotimes (s5-0 (-> this transition-ct))
+    (when (and (!= (-> this transitions s5-0 timestamp) -1) (>= (- (- (- (if *net-mgr*
+                                                                             (-> *net-mgr* game-state time)
+                                                                             0
+                                                                             )
+                                                                         (if *net-world*
+                                                                             (-> *net-world* net-state game-start-time)
+                                                                             0
+                                                                             )
+                                                                         )
+                                                                      (if *net-world*
+                                                                          (-> *net-world* net-state total-pause-time)
+                                                                          0
+                                                                          )
+                                                                      )
+                                                                   (-> this transitions s5-0 timestamp)
+                                                                   )
+                                                                0
+                                                                )
+               )
+      (mem-copy! (the-as pointer *tmp-transition*) (the-as pointer (-> this transitions s5-0)) 80)
+      (dotimes (s4-0 (+ (- -1 s5-0) (-> this transition-ct)))
+        (mem-copy!
+          (the-as pointer (-> this transitions (+ s5-0 s4-0)))
+          (the-as pointer (-> this transitions (+ s4-0 1 s5-0)))
+          80
+          )
+        )
+      (+! (-> this transition-ct) -1)
+      (+! s5-0 -1)
+      (let ((s4-1 (new 'stack-no-clear 'mem-buffer)))
+        ((method-of-type mem-buffer mem-buffer-method-10)
+         (the-as mem-buffer (&-> s4-1 base))
+         (-> *tmp-transition* buf-data)
+         (-> *tmp-transition* data-len)
+         )
+        (set! (-> this last-transition-time) (-> *tmp-transition* timestamp))
+        (net-enemy-method-70 this (&-> s4-1 base) (-> *tmp-transition* timestamp) (-> *tmp-transition* name))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
 ;; definition for method 72 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+;; WARN: Function (method 72 net-enemy) has a return type of none, but the expression builder found a return statement.
 (defmethod net-enemy-method-72 ((this net-enemy) (arg0 net-enemy-transition))
   (when (-> arg0 preempt)
     (set! (-> this transition-ct) 0)
@@ -111,14 +468,49 @@
   (none)
   )
 
-;; og:preserve-this: encode-net-anim-state is declared in decompiler config
-;; only (net-anim.gc has no goal_src home of its own for it yet); a real
-;; extern is required here for goalc, matching decode-net-anim-state's own
-;; provisional-extern hygiene precedent in raptor.gc and plow.gc. Retire
-;; this once net-anim.gc lands and declares it for real.
-(define-extern encode-net-anim-state (function net-anim-control object none))
+;; definition for method 70 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+(defmethod net-enemy-method-70 ((this net-enemy) (arg0 object) (arg1 object) (arg2 object))
+  (case arg2
+    (('fatal-impact)
+     (when (logtest? (-> this flags) 32)
+       (decode-net-anim-state (-> this net-anim))
+       (net-anim-control-method-9 (-> this net-anim) this arg1 #t)
+       (let ((s4-1 (new 'stack-no-clear 'rigid-body-impact))
+             (s3-0 ((method-of-type mem-buffer mem-buffer-method-32) (the-as mem-buffer arg0)))
+             )
+         (mem-clear! (the-as pointer (-> s4-1 point)) 68)
+         (set! (-> s4-1 impulse) ((method-of-type mem-buffer mem-buffer-method-40) (the-as mem-buffer arg0)))
+         ((method-of-type mem-buffer mem-buffer-method-41) (the-as mem-buffer arg0) (-> s4-1 point))
+         ((method-of-type mem-buffer mem-buffer-method-41) (the-as mem-buffer arg0) (-> s4-1 velocity))
+         (net-enemy-method-68 this (the-as rigid-body-impact (-> s4-1 point)) (the-as int s3-0))
+         )
+       )
+     )
+    (('fatal-attack)
+     (when (logtest? (-> this flags) 16)
+       (decode-net-anim-state (-> this net-anim))
+       (net-anim-control-method-9 (-> this net-anim) this arg1 #t)
+       (let ((a1-9 ((method-of-type mem-buffer mem-buffer-method-32) (the-as mem-buffer arg0))))
+         (net-enemy-method-66 this a1-9 -1)
+         )
+       )
+     )
+    (('respawn)
+     (net-enemy-method-82 this)
+     (go (method-of-object this startup))
+     )
+    (else
+      (format 0 "~A is ignoring ~A~%" this arg2)
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 65 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+;; WARN: Function (method 65 net-enemy) has a return type of none, but the expression builder found a return statement.
 (defmethod net-enemy-method-65 ((this net-enemy) (arg0 attack-info))
   (if (not (logtest? (-> this flags) 16))
       (return #f)
@@ -333,6 +725,7 @@
   )
 
 ;; definition for method 64 of type net-enemy
+;; WARN: Return type mismatch int vs none.
 (defmethod net-enemy-method-64 ((this net-enemy))
   (when (and (< 0.0 (-> this local-damage)) (< 300 (- (- (- (if *net-mgr*
                                                                 (-> *net-mgr* game-state time)
@@ -379,6 +772,7 @@
   (none)
   )
 
+;; failed to figure out what this is:
 (defstate in-ragdoll (net-enemy)
   :virtual #t
   :exit (behavior ()
@@ -425,9 +819,14 @@
       )
     (send-event self 'death-end)
     )
+  :post (behavior ()
+    (net-enemy-method-74 self (-> self root trans) (the-as quaternion (-> self root rot)))
+    (net-enemy-method-81 self)
+    (ja-post)
+    )
   )
 
-;; definition for state waiting-respawn of type net-enemy
+;; failed to figure out what this is:
 (defstate waiting-respawn (net-enemy)
   :virtual #t
   :enter (behavior ()
@@ -512,6 +911,7 @@
   )
 
 ;; definition for method 79 of type net-enemy
+;; INFO: Used lq/sq
 (defmethod net-enemy-method-79 ((this net-enemy) (arg0 vector) (arg1 vector) (arg2 float))
   (set! (-> arg0 quad) (-> arg1 quad))
   (vector-normalize! arg0 arg2)
@@ -524,6 +924,8 @@
   )
 
 ;; definition for method 80 of type net-enemy
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
 (defmethod net-enemy-method-80 ((this net-enemy) (arg0 process-focusable) (arg1 attack-info))
   (let ((s3-0 (as-type arg0 process-focusable))
         (f30-1 (* (-> arg1 intersection x) (process-focusable-method-57 this)))
@@ -573,6 +975,7 @@
   )
 
 ;; definition for method 73 of type net-enemy
+;; WARN: Return type mismatch int vs none.
 (defmethod net-enemy-method-73 ((this net-enemy))
   (set! (-> this transition-ct) 0)
   0
@@ -580,6 +983,8 @@
   )
 
 ;; definition for method 67 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+;; WARN: Function (method 67 net-enemy) has a return type of none, but the expression builder found a return statement.
 (defmethod net-enemy-method-67 ((this net-enemy) (arg0 rigid-body-impact))
   (local-vars (v1-33 float))
   (rlet ((acc :class vf)
@@ -718,6 +1123,7 @@
   )
 
 ;; definition for method 68 of type net-enemy
+;; WARN: Return type mismatch int vs none.
 (defmethod net-enemy-method-68 ((this net-enemy) (arg0 rigid-body-impact) (arg1 int))
   (mem-copy! (the-as pointer (-> this pending-impulse)) (the-as pointer arg0) 68)
   (set! (-> this pending-impulse-valid) (the-as basic #t))
@@ -739,11 +1145,13 @@
   )
 
 ;; definition for method 66 of type net-enemy
+;; WARN: Return type mismatch int vs none.
+;; ERROR: Failed load: (set! a0-3 (l.wu (+ v1-8 12))) at op 23
 (defmethod net-enemy-method-66 ((this net-enemy) (arg0 object) (arg1 object))
   (set! (-> this killed-by) (the-as int arg0))
   (when (>= (-> this killed-by) 0)
     (send-event
-      (net-player-method-49 (the-as net-player (l.wu (+ (* (the-as int arg0) 4) (the-as int *net-players*) 12))))
+      (net-player-method-49 (l.wu (+ (* arg0 4) (the-as int *net-players*) 12)))
       'you-killed
       this
       (-> this info max-health)
@@ -755,6 +1163,7 @@
   )
 
 ;; definition for method 17 of type net-enemy
+;; WARN: Return type mismatch int vs none.
 (defmethod process-nettable-method-17 ((this net-enemy) (arg0 symbol) (arg1 mem-buffer))
   (case arg0
     (('transition)
@@ -776,6 +1185,78 @@
   (none)
   )
 
+;; definition for method 84 of type net-enemy
+;; INFO: Used lq/sq
+;; ERROR: failed type prop at 2: add failed: object <integer 112>
+
+;; ERROR: Failed to guess stack use for 16 in (method 84 net-enemy):1
+(defmethod net-enemy-method-84 ((a0-0 net-enemy) (a1-0 object))
+  (local-vars
+    (v0-0 none)
+    (v0-1 none)
+    (v0-2 none)
+    (v0-3 none)
+    (v1-0 none)
+    (v1-1 none)
+    (v1-2 none)
+    (v1-3 none)
+    (a0-1 none)
+    (a0-3 none)
+    (a0-4 none)
+    (a1-1 none)
+    (a1-2 none)
+    (a1-3 none)
+    (a1-4 none)
+    (a1-5 none)
+    (a3-0 none)
+    (s5-0 none)
+    (t9-0 none)
+    (t9-1 none)
+    (t9-2 none)
+    (sp-0 none)
+    (f0-0 none)
+    (f0-1 none)
+    (f0-2 none)
+    (f0-3 none)
+    (f1-0 none)
+    )
+  (set! s5-0 (the-as none (+ sp-0 16)))
+  (set! a1-1 (the-as none (+ a1-0 112)))
+  (set! a0-1 (the-as none s5-0))
+  (set! v1-0 (the-as none a0-1))
+  (set! a1-2 (the-as none (+ a1-1 144)))
+  (set! a1-3 (the-as none (l.q a1-2)))
+  (s.q! v1-0 a1-3)
+  (set! f0-0 (the-as none 0))
+  (s.f! (+ s5-0 4) f0-0)
+  (set! t9-0 (the-as none vector-normalize!))
+  (set! a0-2 (the-as none s5-0))
+  (set! a1-4 (the-as none #x3f800000))
+  (call!)
+  (set! t9-1 (the-as none quaternion-set!))
+  (set! v1-1 (the-as none (-> a0-0 root)))
+  (set! a0-3 (the-as none (+ v1-1 28)))
+  (set! a1-5 (the-as none 0))
+  (set! f0-1 (the-as none (l.f s5-0)))
+  (set! a2-0 (the-as none (fpr->gpr f0-1)))
+  (set! a3-0 (the-as none 0))
+  (set! v1-2 (the-as none #x3f800000))
+  (set! f0-2 (the-as none (gpr->fpr v1-2)))
+  (set! f1-0 (the-as none (l.f (+ s5-0 8))))
+  (set! f0-3 (the-as none (+.s f0-2 f1-0)))
+  (set! t0-0 (the-as none (fpr->gpr f0-3)))
+  (call!)
+  (set! t9-2 (the-as none quaternion-normalize!))
+  (set! v1-3 (the-as none (-> a0-0 root)))
+  (set! a0-4 (the-as none (+ v1-3 28)))
+  (call!)
+  (set! v0-3 (the-as none 0))
+  (ret-none)
+  )
+
+;; definition for method 85 of type net-enemy
+;; ERROR: function was not converted to expressions. Cannot decompile.
+
 ;; definition for method 58 of type net-enemy
 (defmethod process-focusable-method-58 ((this net-enemy))
   (-> this health)
@@ -789,32 +1270,8 @@
       )
   )
 
-;; og:preserve-this: method 7 (relocate) is held. Its own clean decode calls
-;; fixup-relocated-link (goal_src/jakx/engine/util/obj-list.gc), which is
-;; itself an unlanded stub ("ERROR: failed type prop at 7: add failed:
-;; list-link int" there); its own extern is active in decompiler config only
-;; (the compiler needs its own goal_src define-extern, the same class as
-;; encode-net-anim-state above) and even with one added it would still link
-;; to zero at runtime since no defun exists anywhere. relocate methods are
-;; kernel-invoked during heap compaction, not user-triggered, so an unfilled
-;; slot here would crash on the next relocation while any net-enemy exists;
-;; retire once obj-list.gc lands fixup-relocated-link for real.
-
-;; definition for method 10 of type net-enemy
-(defmethod deactivate ((this net-enemy))
-  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
-  (linked-list-method-11 *net-enemy-list* (-> this enemy-link))
-  (call-parent-method this)
-  (none)
-  )
-
-;; definition for method 36 of type net-enemy
-(defmethod process-nettable-method-36 ((this net-enemy))
-  (go (method-of-object this startup))
-  (none)
-  )
-
 ;; definition for function kill-all-enemies
+;; WARN: Return type mismatch int vs none.
 (defun kill-all-enemies ()
   (execute-process-tree
     *active-pool*
@@ -823,27 +1280,6 @@
                                 )
             )
     *kernel-context*
-    )
-  0
-  (none)
-  )
-
-;; definition for function advance-anim-by-motion
-(defbehavior advance-anim-by-motion net-enemy ((arg0 float) (arg1 int))
-  (let* ((a2-2 (the-as art-joint-anim (-> self draw art-group data (-> self net-anim active anim-idx))))
-         (v1-5 (+ (-> a2-2 frames num-frames) -1))
-         (f0-2 (* 60.0 (-> self net-anim active anim-rate) (-> a2-2 speed)))
-         (f1-2 (-> self info anim-info arg1 forward-vel z))
-         (f0-3 (* f0-2 (/ arg0 f1-2)))
-         (a0-1 (-> self net-anim result))
-         (f0-4 (+ (-> a0-1 cur-frame) f0-3))
-         (f1-6 (the float v1-5))
-         )
-    (set! (-> a0-1 cur-frame) (- f0-4 (* (the float (the int (/ f0-4 f1-6))) f1-6)))
-    )
-  (let ((a0-2 (-> self skel root-channel 0)))
-    (set! (-> a0-2 param 0) (-> self net-anim result cur-frame))
-    (joint-control-channel-group-eval! a0-2 (the-as art-joint-anim #f) num-func-loop-set!)
     )
   0
   (none)

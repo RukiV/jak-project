@@ -1318,6 +1318,44 @@
   // method 10 (byte offset 56, id (56-16)/4=10) as its this-arg, the exact
   // same idiom as (code startup plow) above.
   "(enter waiting-respawn net-enemy)": [[16, "mem-buffer"]],
+  // (method 69 net-enemy): sp+16 is handed to mem-buffer's own method 10
+  // (byte offset 56, id (56-16)/4=10) as its this-arg against
+  // *tmp-transition*'s own buf-data/data-len fields, the exact same idiom as
+  // (enter waiting-respawn net-enemy) above ("Failed to guess stack use for
+  // 16").
+  "(method 69 net-enemy)": [[16, "mem-buffer"]],
+  // (method 70 net-enemy): sp+16 is mem-clear!'d to 68 bytes then handed to
+  // net-enemy-method-68 as its first arg (rigid-body-impact, per that
+  // method's own :size-assert of 68 confirmed by method 68's mem-copy!
+  // call), filled via mem-buffer decode calls immediately before ("Failed to
+  // guess stack use for 16").
+  "(method 70 net-enemy)": [[16, "rigid-body-impact"]],
+  // (method 74 net-enemy): sp+16 is filled by a whole-quadword copy from
+  // this.root's own position (collide-shape offset 12) before being read
+  // back at op33; same 16-byte vector shape as (method 74 plow) above
+  // ("Failed to guess stack use for 16").
+  "(method 74 net-enemy)": [[16, "vector"]],
+  // (method 80 net-enemy): sp+16 is built up as a shove-derived attack-info
+  // (mask/mode at 88/92, attacker handle at 64, id at 128, penetrate-using
+  // at 136, trans copied whole from arg1's own intersection field at 48),
+  // the same field-for-field match net-enemy-method-65's own arg0 already
+  // established ("Failed to guess stack use for 16").
+  "(method 80 net-enemy)": [[16, "attack-info"]],
+  // (method 65 net-enemy): sp+16 is a send-event-function event-message-block
+  // (same shape as (method 10 race-state) above); sp+96 is a mem-buffer,
+  // filled via mem-buffer-method-9 (new) sized 64 exactly, the same idiom as
+  // (enter waiting-respawn net-enemy) above.
+  "(method 65 net-enemy)": [[16, "event-message-block"], [96, "mem-buffer"]],
+  // (method 67 net-enemy): sp+16 is a mem-buffer, the same idiom as
+  // (method 65 net-enemy)'s own sp+96 above (mem-buffer-method-9 new,
+  // then decoded via method-10/60 dispatches) ("Failed to guess stack use
+  // for 16").
+  "(method 67 net-enemy)": [[16, "mem-buffer"]],
+  // play-anim-along-path: sp+16 stages two adjacent 16-byte vectors (path
+  // position at +0, a second path-relative vector at +16), each filled by a
+  // path-control vmethod call before being copied into this.forward-path-
+  // vector (offset 844) ("Failed to guess stack use for 16").
+  "play-anim-along-path": [[16, "vector"], [32, "vector"], [48, "quaternion"]],
   // (method 16 collide-cache), probe-using-line-sphere: sp+16 is filled by
   // three sequential VU stores (ignore-pat at +0 from a scalar s.w!, bsphere
   // at +16, move-dist at +32, all quad-width) then walked by the prim loop's

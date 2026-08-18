@@ -35637,7 +35637,7 @@
     (process-focusable-method-55 (_type_) meters) ;; 55 ;; jak3 get-water-height(25)+30; result consumed as float
     (process-focusable-method-56 (_type_) time-frame) ;; 56 ;; jak3 get-notice-time(26)+30
     (process-focusable-method-57 (_type_) float) ;; 57 ;; jak3 27 shifted; nsd's impl returns a constant scale that impact-destroys? multiplies into the impulse
-    (process-focusable-method-58 () none) ;; 58
+    (process-focusable-method-58 (_type_) float) ;; 58 ;; missing _type_ was an arity bug: both net-enemy's own override (offset 276, +4 convention resolving to its own health field) and vehicle's own override (test/decompiler/reference/jakx/engine/vehicle/vehicle-util_REF.gc, offsets 684/688, a health/max-health ratio) read this as this-only, returning float; a0 typed <uninitialized> is the direct symptom
     )
   )
 
@@ -67938,7 +67938,7 @@
    (min-fatal-impact-enemy-vel float          :offset-assert 40)
    (time-before-evaporate      int32          :offset-assert 44)
    (time-before-respawn        int32          :offset-assert 48)
-   (anim-info                  basic          :offset-assert 52)
+   (anim-info                  (array net-enemy-anim-info)  :offset-assert 52) ;; confirmed by this rung's own scoped decode (advance-anim-by-motion, (method 86 net-enemy)): indexed by anim-idx*4 then dereferenced at the boxed-array-of-references data start (+12, the same *net-players*-established convention), the returned element's own offset-8 read matches net-enemy-anim-info's own non-inline forward-vel field exactly
    (kill-score                 int32          :offset-assert 56)
    (wound-score-scale          float          :offset-assert 60)
    (allow-vehicle-penetrate    symbol         :offset-assert 64) ;; confirmed by *raptor-enemy-info*'s own static data (L167+64: .symbol #t); plain basic was too generic for the decompiler's static-data resolver, the same class as net-enemy-anim-info's own name field
@@ -67989,28 +67989,28 @@
     (net-enemy-method-62 (_type_) none) ;; 62
     (net-enemy-method-63 (_type_) none) ;; 63 ;; raptor's own override reads self at op0 without an arg0 binding; the drift-editor-method-18 class defect
     (net-enemy-method-64 (_type_) none) ;; 64
-    (net-enemy-method-65 (_type_ object) none) ;; 65
-    (net-enemy-method-66 (_type_ object object) none) ;; 66
-    (net-enemy-method-67 (_type_ object) none) ;; 67
-    (net-enemy-method-68 (_type_) none) ;; 68 ;; same class; raptor's override dereferences its own type pointer at -4 for a vtable dispatch, which needs self bound
+    (net-enemy-method-65 (_type_ attack-info) none) ;; 65 ;; confirmed by this rung's own scoped decode: arg0 reads offsets 64 (attacker, handle), 88 (mask, attack-mask), 128 (id, uint32) and 144 (damage, float), an exact field-for-field match to attack-info's own layout; applies the vehicle-scaled damage to this.health
+    (net-enemy-method-66 (_type_ object object) none) ;; 66 ;; arg0 used as a *net-players* index (killed-by); arg1 forwarded opaque into the event message, no further evidence to narrow past object
+    (net-enemy-method-67 (_type_ rigid-body-impact) none) ;; 67 ;; confirmed by this rung's own scoped decode: arg0 reads raw offset 56, matching rigid-body-impact's own declared process field exactly (structure, no +4 basics adjustment), type-checked against vehicle; net-enemy-default-handler's own 'impact-impulse case passes arg3's own param 0 straight through
+    (net-enemy-method-68 (_type_ rigid-body-impact int) none) ;; 68 ;; confirmed by this rung's own scoped decode: arg0 is mem-copy!'d (size 68, matching rigid-body-impact's own :size-assert) into this.pending-impulse; arg1 is stored to this.killed-by (int8) and used as a *net-players* index, the same class net-enemy-method-66 uses
     (net-enemy-method-69 (_type_) none) ;; 69
     (net-enemy-method-70 (_type_ object object object) none) ;; 70
     (net-enemy-method-71 (_type_) none) ;; 71
-    (net-enemy-method-72 (_type_ object) none) ;; 72
+    (net-enemy-method-72 (_type_ net-enemy-transition) none) ;; 72 ;; confirmed by two already-landed call sites ((enter waiting-respawn net-enemy) and process-nettable-method-17), both of which pass *tmp-construct-transition*; arg0's own offset-8 read (preempt) matches net-enemy-transition's own layout
     (net-enemy-method-73 (_type_) none) ;; 73
-    (net-enemy-method-74 (_type_ object object) none) ;; 74
+    (net-enemy-method-74 (_type_ vector quaternion) none) ;; 74 ;; confirmed by this rung's own scoped decode: arg0 is a raw quadword copied whole into this.root's own position (collide-shape offset 12); arg1 is passed straight through to quaternion-copy!/quaternion-smooth-seek! against this.root's own quaternion (offset 28)
     (net-enemy-method-75 (_type_) none) ;; 75 ;; same class
     (net-enemy-method-76 (_type_) none) ;; 76 ;; same class
     (net-enemy-method-77 (_type_) none) ;; 77 ;; same class
     (net-enemy-method-78 (_type_) none) ;; 78 ;; same class
-    (net-enemy-method-79 (_type_) none) ;; 79 ;; same class
-    (net-enemy-method-80 (_type_ object object) none) ;; 80
+    (net-enemy-method-79 (_type_ vector vector float) vector) ;; 79 ;; confirmed by this rung's own scoped decode: missing arity (declared zero args but the body reads a1/a2/a3), copies arg1 into arg0 then calls vector-normalize! arg0 arg2, returning arg0; does not touch self at all
+    (net-enemy-method-80 (_type_ process-focusable attack-info) none) ;; 80 ;; confirmed by this rung's own scoped decode: arg0 is type-checked against process-focusable and dispatches process-focusable-method-57 (offset 244) on it; arg1 reads attack-info's own trans (0), attacker-velocity (32) and intersection.x (48) fields, building a derived attack-info sent onward as a shove
     (net-enemy-method-81 (_type_) none) ;; 81
     (net-enemy-method-82 (_type_) none) ;; 82
     (net-enemy-method-83 (_type_) none) ;; 83
     (net-enemy-method-84 (_type_ object) none) ;; 84
     (net-enemy-method-85 (_type_) none) ;; 85
-    (net-enemy-method-86 (_type_ object object) none) ;; 86
+    (net-enemy-method-86 (_type_ int int) int) ;; 86 ;; confirmed by this rung's own scoped decode: arg0 is subtracted against an int field of this.net-anim (net-anim-state's own timestamp), arg1 is added to a computed frame delta and returned; no evidence either is a stronger int subtype
     )
   )
 
@@ -68273,11 +68273,11 @@
 ;; net-enemy                      ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-extern play-anim-along-path (function object object object object))
-(define-extern advance-anim-by-motion (function float int none)) ;; confirmed by call site: (post chase raptor) passes a distance (fpr->gpr of a veclength result) and a raw integer 1, and never consumes the call's own return
+(define-extern play-anim-along-path (function object object object object :behavior net-enemy)) ;; this rung's own scoped decode reads offset 400 off self (s6) at op32, unresolved until self is typed net-enemy; matches advance-anim-by-motion's own fix below
+(define-extern advance-anim-by-motion (function float int none :behavior net-enemy)) ;; confirmed by call site: (post chase raptor) passes a distance (fpr->gpr of a veclength result) and a raw integer 1, and never consumes the call's own return; this rung's own scoped decode reads self.net-anim.active.anim-idx (raw offset 304, +4 convention) at op0, unresolved without :behavior net-enemy typing self
 ;; (define-extern *tmp-transition* object)
 (define-extern net-enemy-default-handler (function process int symbol event-message-block object :behavior net-enemy))
-;; (define-extern kill-all-enemies function)
+(define-extern kill-all-enemies (function none)) ;; confirmed by this rung's own scoped decode: walks *active-pool* via execute-process-tree sending 'instant-death to every net-enemy instance (anon-function 1), reads and sets no registers beyond the call, returns 0
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; explosion                      ;;
@@ -86627,7 +86627,14 @@
 ;; `(s.w! *tmp-vehicle-info* #f)` is the usual pointer-global nil-init and
 ;; is compatible with any basic/structure type.
 (define-extern *tmp-vehicle-info* rigid-body-vehicle-constants)
-(define-extern *tmp-transition* object) ;; provisional: call-site evidence only
+;; og:preserve-this net-enemy rung: retyped object -> net-enemy-transition
+;; from this worktree's own net-enemy_ir2.asm ((method 69 net-enemy)'s own
+;; body): mem-copy! target sized 80 (net-enemy-transition's own :size-assert),
+;; then dereferenced at +12 (data-len), +16 (buf-data start) and +0
+;; (timestamp) via mem-buffer-method-10, matching sibling
+;; *tmp-construct-transition*'s own already-landed net-enemy-transition type
+;; exactly.
+(define-extern *tmp-transition* net-enemy-transition)
 (define-extern *total-pts-at-stake* object) ;; provisional: call-site evidence only
 ;; redundant with the train-obs reservoir activation above (same object
 ;; typing, both entries agree); commented out to remove the duplicate name.

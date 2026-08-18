@@ -7844,5 +7844,76 @@
   // vtable byte offset 112 (method id 24) on items-array element 2 (offset
   // 20) immediately after formatting into *temp-string* via format/"", the
   // same hud-item-string text-setter class.
-  "(method 19 hud-vehicle-ammo)": [[4, "s4", "hud-item-string"]]
+  "(method 19 hud-vehicle-ammo)": [[4, "s4", "hud-item-string"]],
+  // net-enemy rung: (method 66 net-enemy) and (method 68 net-enemy) both
+  // index *net-players* by a raw byte (killed-by) shifted and added to the
+  // array base, then read the element at +12 and dispatch vtable byte 212
+  // (method id 49); the same net-player-method-49 match already established
+  // for launch-nearby-players and (method 74 plow) above. Casting the
+  // element load's own destination register to net-player at the op where
+  // it is assigned resolves both the vtable dispatch and its duplicate
+  // "Type Error" line; the second element+12 load further down each
+  // function (op 50 in method 66, op 64 in method 68) is only ever passed
+  // on as an opaque argument to send-event-function, never re-dispatched,
+  // so it is left uncast.
+  "(method 66 net-enemy)": [[24, "a0", "net-player"]],
+  "(method 68 net-enemy)": [[38, "a0", "net-player"]],
+  // (method 65 net-enemy): the attack-info's own attacker handle derefs
+  // cleanly to process once arg0 is typed attack-info (see the deftype
+  // comment); the returned process is then re-dispatched at byte 104
+  // (method id 22, zero args, symbol return), the same net-player-adjacent
+  // process-nettable-method-22 match already established for
+  // launch-nearby-players above. Cast at the consuming op (one past the
+  // defining op), matching reset-hud-cash-time's own documented rule above.
+  "(method 65 net-enemy)": [
+    [36, "a0", "process-nettable"],
+    // s5 is the same attacker process, narrowed further to vehicle once its
+    // own type? check against the vehicle etype (op31) passes; op64 reads
+    // raw offset 2116, a driver-pad-index byte past net-enemy-method-67's
+    // own vehicle-typed s4 (see that method's own note), so this rung
+    // narrows it the same way.
+    [64, "s5", "vehicle"],
+    [109, "s5", "vehicle"],
+    [273, "s5", "vehicle"]
+  ],
+  // (method 67 net-enemy): arg0's own process field (rigid-body-impact,
+  // offset 56) type-checked against vehicle, then re-dispatched at byte 104
+  // (method id 22), the same process-nettable-method-22 match as
+  // (method 65 net-enemy) above; op23 reads the same driver-pad-index byte
+  // at raw offset 2116 once narrowed to vehicle.
+  "(method 67 net-enemy)": [
+    [17, "a0", "process-nettable"],
+    [23, "s4", "vehicle"],
+    [30, "s4", "vehicle"],
+    [34, "s4", "vehicle"],
+    [38, "s4", "vehicle"],
+    [115, "s4", "vehicle"],
+    [275, "s4", "vehicle"],
+    [80, "s4", "process-focusable"]
+  ],
+  // (method 86 net-enemy) and advance-anim-by-motion both walk the same
+  // art-group element chain (draw-control -> art-group -> element array,
+  // raw offset 28) to the current animation; the element itself is
+  // art-joint-anim, not the generic art-element the array's own declared
+  // content type implies, confirmed by its own frames field (raw 32,
+  // declared 36, joint-anim-compressed-control) and speed field (raw 44,
+  // declared 48, float) both matching art-joint-anim's own layout exactly.
+  "(method 86 net-enemy)": [[14, "a1", "art-joint-anim"], [21, "a1", "art-joint-anim"]],
+  "advance-anim-by-motion": [[6, "a2", "art-joint-anim"], [13, "a2", "art-joint-anim"]],
+  // play-anim-along-path: the final whole-vector copy from sp+16 (declared
+  // vector above) into this.forward-path-vector decays to (pointer float)
+  // through its own "add zero" address computation (daddu a0, r0, gp), so
+  // the quadword load needs a cast back to vector to succeed.
+  "play-anim-along-path": [
+    [88, "a0", "vector"],
+    // op101 computes gp+32 to reach the quaternion staged at raw stack
+    // offset 48 (declared above); gp is typed vector there (its own
+    // declared offset-16 type), which does not support scalar pointer
+    // arithmetic past its own 16-byte bounds, so it is widened to a raw
+    // byte pointer for this one op only, matching (pointer uint8)'s own
+    // established use elsewhere in this file for the same "reach a sibling
+    // stack region via relative math" shape.
+    [101, "gp", "(pointer uint8)"],
+    [109, "gp", "(pointer uint8)"]
+  ]
 }

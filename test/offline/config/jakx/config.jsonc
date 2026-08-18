@@ -1175,7 +1175,42 @@
     "(method 19 collide-cache)",
     "(method 20 collide-cache)",
     "(method 21 collide-cache)",
-    "(method 23 collide-cache)"
+    "(method 23 collide-cache)",
+    // net-enemy: (method 83 net-enemy) calls find-first-containing-nav-mesh,
+    // which is declared nowhere in goal_src and not even an active extern in
+    // decompiler config (all-types.gc keeps it commented out); the fresh
+    // decode's own fallback body still emits the bare symbol reference,
+    // which fails to compile ("looked up as a global variable, but it does
+    // not exist"). (method 84 net-enemy) does raw pointer math against a
+    // value typed object ("Cannot do math on a object" on (+ a1-0 112)), the
+    // same class as collide-cache's own methods 14/18 above. (method 7
+    // net-enemy) (relocate) calls fixup-relocated-link
+    // (goal_src/jakx/engine/util/obj-list.gc), itself an unlanded stub with
+    // no defun or goal_src extern anywhere, the same undeclared-symbol class
+    // as method 83. None of the three has a landed body; the og:preserve-
+    // this note at the top of goal_src/jakx/levels/common/net-enemy.gc
+    // covers all three plus the transitive chain that also holds net-enemy-
+    // method-62/69/70/81/82.
+    "(method 83 net-enemy)",
+    "(method 84 net-enemy)",
+    "(method 7 net-enemy)",
+    // net-enemy: (method 70 net-enemy)'s own 'fatal-impact case dispatches
+    // mem-buffer-method-32/40/41, three more of mem-buffer's own unfilled
+    // methods (mem-buffer.gc lands only methods 10/11); mem-buffer-method-32
+    // has no landed return type, so the compiler cannot pick a register
+    // class for its result ("get_preferred_reg_class called on NullType").
+    // Held un-landed the same as the rest of the net-enemy-method-62/69/
+    // 70/81/82 transitive chain the og:preserve-this note at the top of
+    // goal_src/jakx/levels/common/net-enemy.gc covers.
+    "(method 70 net-enemy)",
+    // net-enemy: (method 66 net-enemy)'s own type_casts.jsonc fix (needed to
+    // resolve a *net-players* vtable dispatch at its second call site)
+    // reaches back onto the first call site's own array-index expression,
+    // degrading it to raw pointer arithmetic against a value still typed
+    // object ("Cannot do math on a object" on (* arg0 4)); the landed
+    // goal_src hand-touches this one spot with (the-as int arg0) to compile,
+    // an og:preserve-this hand-touch the raw decode does not carry.
+    "(method 66 net-enemy)"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the
@@ -1258,6 +1293,15 @@
     // ...)'s :enter handler is the same class as "(explode wvehicle)" above
     // (asm-parked as "(anon-function 16 wvehicle-states)"); goal_src omits
     // the key entirely and carries the full analysis for :code/:post.
-    "(explode-into-nothing wvehicle)": ["enter"]
+    "(explode-into-nothing wvehicle)": ["enter"],
+    // net-enemy: (defstate in-ragdoll (net-enemy) :virtual #t ...)'s :event
+    // and :enter handlers both decode as raw label references (L92, L126);
+    // :enter's own body run-function-in-process's ragdoll-proc-init-by-
+    // other, an active extern with no defun anywhere in goal_src, and
+    // :event's own handle-deref sequence against ragdoll-proc sits inside a
+    // CFG the decompiler could not fold into a real behavior form either.
+    // goal_src omits both keys entirely (credits-obs precedent) and carries
+    // the full analysis for :exit/:trans/:code.
+    "(in-ragdoll net-enemy)": ["event", "enter"]
   }
 }
