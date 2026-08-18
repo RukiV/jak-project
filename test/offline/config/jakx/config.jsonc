@@ -847,7 +847,22 @@
     // explicit casts at those sites instead.
     "(method 19 in-game-menu-hud)",
     "(method 19 in-game-menu-hud-options)",
-    "(method 9 in-game-menu-hud-options)"
+    "(method 9 in-game-menu-hud-options)",
+    // hud-widgets-2 rung: (method 24 hud-indicate-death) and (method 23
+    // hud-indicate-death) both dispatch hud-item-string-method-24 through a
+    // hud-item-group items array access (a constant index in method 24's own
+    // 32 spots, and both a constant and a nested access in method 23's two);
+    // the raw decode's own type_casts-driven analysis resolves the dispatch
+    // method name correctly (it prints hud-item-string-method-24 by name
+    // rather than a raw vtable offset) but casts the self argument to the
+    // generic hud-item, not hud-item-string, so a fresh compile of the raw
+    // decode rejects it as "No method or function named
+    // hud-item-string-method-24 for type hud-item". The landed goal_src
+    // carries the explicit (the-as hud-item-string ...) casts at all 35
+    // sites instead, the same class already skipped for in-game-menu-hud's
+    // own two methods above.
+    "(method 24 hud-indicate-death)",
+    "(method 23 hud-indicate-death)"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the

@@ -68257,10 +68257,19 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-widgets-2 rung: fade-out-on retyped basic -> symbol, the
+;; same hud-static-literals defect class already fixed on hud-effect's own
+;; message/active/pending above. hud-widgets-2_ir2.asm's static hud-effect-fade
+;; instances (L368 and siblings, the death-indicator-view-N family's own
+;; hud-indicate-death effect lists) store a real symbol ('exit/'enter) at this
+;; exact offset, and jakx's own symbol type derives from object directly, not
+;; from basic, so decompile_structure's static-field decoder cannot place a
+;; SYM_PTR into the old basic-typed field; the bytes were silently skipped and
+;; the structure decode failed with "there was unknown data" at offset 36.
 (deftype hud-effect-fade (hud-effect)
   ((fade-time   float  :offset-assert 28)
    (start-time  int32  :offset-assert 32)
-   (fade-out-on basic  :offset-assert 36)
+   (fade-out-on symbol :offset-assert 36)
    )
   :method-count-assert 15
   :size-assert         #x28
@@ -69767,9 +69776,19 @@
 ;; inline at offset 8, not 16-aligned; :allow-misaligned relaxes the inline-array
 ;; start alignment (own-field alignment 8 from handle's uint64, stride stays the
 ;; normal 16-rounded align(24,16)=32)
+;; og:preserve-this hud-widgets-2 rung: handle retyped uint64 -> handle. (method
+;; 10 hud-manager-death-indicator)'s own three handle->process reconstructions
+;; (hud-widgets-2_ir2.asm) read this exact field, then feed it through the
+;; canonical sllv/lwu/dsra32 handle->process expansion (gkernel-h.gc); under the
+;; plain uint64 typing the decompiler's own macro-idiom matcher never recognizes
+;; that sequence ("Unsupported inline assembly instruction kind"), but (method 14
+;; hud-manager-death-indicator)'s twin process->handle construction resolved with
+;; zero manual casts once its own source value was typed (pointer process)
+;; instead of a bare integer, so the field itself was the missing type, not the
+;; consuming ops.
 (deftype death-indicator-record (structure)
   ((on            basic   :offset-assert 0)
-   (handle        uint64  :offset-assert 8)
+   (handle        handle  :offset-assert 8)
    (spawn-time    int32   :offset-assert 16)
    (previous-time int32   :offset-assert 20)
    )
@@ -69796,6 +69815,14 @@
   )
 |#
 ;; resurrected from the dead block above (medius bulk field wave)
+;; og:preserve-this hud-widgets-2 rung, arity sweep: methods 13/14 read self
+;; (a0, reaching it via gp) unconditionally on entry for their own byte field
+;; at machine offset 644 (declared death-indicators-queue-size, offset 648,
+;; the same +4 basic-tag shift as every other basic-derived field access in
+;; this file), failing register dependency with the old () signature; the
+;; same arity-sweep class already fixed on hud-effect and hud-manager above.
+;; Method 12 keeps () unchanged: its own body (hud-widgets-2_ir2.asm) never
+;; reads self at all, operating purely on net-mgr/net-world globals.
 (deftype hud-manager-death-indicator (hud-manager)
   ((death-indicators-queue      death-indicator-record 20 :inline :offset-assert 8)
    (death-indicators-queue-size int8                   :offset-assert 648)
@@ -69804,9 +69831,9 @@
   :size-assert         #x289
   :flag-assert         #xf00000289
   (:methods
-    (hud-manager-death-indicator-method-12 () none) ;; 12
-    (hud-manager-death-indicator-method-13 () none) ;; 13
-    (hud-manager-death-indicator-method-14 () none) ;; 14
+    (hud-manager-death-indicator-method-12 (_type_ in-game-hud death-indicator-record) none) ;; 12 ;; og:preserve-this hud-widgets-2 rung: gains _type_ (unused but reserved, matching hud-item-string-method-24's own precedent) plus its own real two args; the old () signature flagged "may read a1"/"may read a2" plus an unresolved -4(a0) vtable dispatch off a1 (hud-widgets-2_ir2.asm). arg1 is *current-hud* at this method's only call site (method 14's own a1 setup immediately before the call); arg2 writes exactly death-indicator-record's own on/spawn-time/previous-time fields (offsets 0/16/20) and, at that same call site, is a stale a2 left over from method 14's own new-record address computation a few ops earlier, never re-set before the call, so the original source passes that same record pointer through explicitly.
+    (hud-manager-death-indicator-method-13 (_type_) none) ;; 13
+    (hud-manager-death-indicator-method-14 (_type_) none) ;; 14
     )
   )
 
