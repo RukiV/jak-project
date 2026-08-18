@@ -38,7 +38,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (190)
+### Never written (188)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -96,7 +96,6 @@ written is read-only by design and not a finding.
 | `*display-actor-graph*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-actor-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-actor-pointer*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-actor-vis*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-ai-tuning*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-art-control*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-battle-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -148,7 +147,6 @@ written is read-only by design and not a finding.
 | `*display-trail-graph*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-tri-stats*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-water-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-xyz-axes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*dma-disasm*` | 1 | `goal_src/jakx/engine/dma/dma-disasm.gc` |
 | `*dnas-is-running*` | 1 | `goal_src/jakx/engine/sound/gsound.gc` |
 | `*draw-debug-boxes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
