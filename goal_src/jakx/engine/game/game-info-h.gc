@@ -72,9 +72,74 @@
 ;; forward declarations for types defined later in the build
 (declare-type continue-point basic)
 (declare-type entity-perm-array inline-array-class)
-(declare-type game-save basic)
 (declare-type resetter-spec structure)
 (declare-type entity-perm structure)
+
+;; og:preserve-this game-save/game-save-tag: mirrored from all-types.gc's own
+;; reconstruction (jak3-inferred, not proven; see all-types.gc's own citation
+;; immediately above its deftype) so game-info-method-23's declared slot
+;; signature (game-save argument and return) has a fully-defined type to
+;; attach to. defmethod requires this; a declare-type-only forward reference
+;; is not enough ("Type game-save is not fully defined", the exact wall the
+;; method-set! stub below this file's initialize! was originally installed to
+;; route around.
+(deftype game-save-tag (structure)
+  ((user-object object 2 :offset-assert 0) ;; guessed by decompiler
+   (user-uint64 uint64   :offset 0)
+   (user-float0 float    :offset 0)
+   (user-float  float  2 :offset 0) ;; guessed by decompiler
+   (user-int32  int32  2 :offset 0) ;; guessed by decompiler
+   (user-uint32 uint32 2 :offset 0) ;; guessed by decompiler
+   (user-int16  int16  4 :offset 0) ;; guessed by decompiler
+   (user-uint16 uint16 4 :offset 0) ;; guessed by decompiler
+   (user-int8   int8   8 :offset 0) ;; guessed by decompiler
+   (user-int80  int8     :offset 0)
+   (user-int81  int8     :offset 1)
+   (user-uint8  uint8  8 :offset 0) ;; guessed by decompiler
+   (elt-count   int32    :offset-assert 8)
+   (elt-size    uint16   :offset-assert 12)
+   (elt-type    uint16   :offset-assert 14) ;; game-save-elt
+   )
+  :method-count-assert 9
+  :size-assert         #x10
+  :flag-assert         #x900000010
+  )
+
+(deftype game-save (basic)
+  ((version               int32                       :offset-assert 4)
+   (allocated-length      int32                       :offset-assert 8)
+   (length                int32                       :offset-assert 12)
+   (info-int32            int32         24            :offset-assert 16) ;; guessed by decompiler
+   (info-int8             int8          96            :overlay-at info-int32) ;; guessed by decompiler
+   (level-index           int32                       :offset 16)
+   (gem-count             float                       :offset 20)
+   (skill-count           float                       :offset 24)
+   (completion-percentage float                       :offset 28)
+   (minute                uint8                       :offset 36)
+   (hour                  uint8                       :offset 37)
+   (week                  uint8                       :offset 38)
+   (day                   uint8                       :offset 39)
+   (month                 uint8                       :offset 40)
+   (year                  uint8                       :offset 41)
+   (language              uint8                       :offset 42)
+   (new-game              int32                       :offset 44)
+   (game-time             time-frame                  :offset 48)
+   (purchase-secrets      uint32        2             :offset 56)
+   (secrets               uint32        2             :offset 64)
+   (features              uint32        2             :offset 72)
+   (name                  int8          16            :offset 80)
+   (tag                   game-save-tag :inline :dynamic :offset-assert 112) ;; guessed by decompiler
+   )
+  :method-count-assert 12
+  :size-assert         #x70
+  :flag-assert         #xc00000070
+  (:methods
+    (new (symbol type) _type_) ;; 0 ;; (new (symbol type int) _type_)
+    (game-save-method-9 () none) ;; 9 ;; (save-to-file (_type_ string) _type_)
+    (game-save-method-10 () none) ;; 10 ;; (load-from-file (_type_ string) _type_)
+    (game-save-method-11 () none) ;; 11 ;; (debug-inspect (_type_ symbol) _type_)
+    )
+  )
 
 ;; +++continue-flags
 (defenum continue-flags

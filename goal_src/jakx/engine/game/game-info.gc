@@ -92,18 +92,19 @@
 (defmethod set-continue! ((this game-info) (arg0 basic) (arg1 int))
   (the-as continue-point #f)
   )
-;; og:preserve-this method 23's declared slot signature takes and returns game-save,
-;; which is declare-type only (game-info-h.gc:75, "not sure if this actually exists in
-;; jakx" per an earlier caveat on its sibling resetter-spec). defmethod requires the
-;; type to be fully defined to install into a per-slot-typed vtable entry ("Type
-;; game-save is not fully defined", TypeSystem.cpp:434's lookup_type, confirmed by
-;; direct compile attempt); a plain defun has no such requirement, so the stub is
-;; installed via method-set! (already-landed idiom throughout this leg, e.g. R1/R5a's
-;; own top-level-logins), typed loosely as object rather than game-save.
-(defun game-info-method-23-stub ((this game-info) (arg0 object))
+;; og:preserve-this method 23's declared slot signature takes and returns
+;; game-save, which was declare-type only here until this rung (game-save
+;; and game-save-tag both gained a type-only landing in game-info-h.gc,
+;; mirrored from all-types.gc's own reconstruction, the same class of gap
+;; mem-buffer-h.gc hit for process-nettable-method-27's return type). With
+;; the type fully defined, TypeSystem.cpp:434's lookup_type wall is gone and
+;; this installs as a real defmethod. The body itself is unchanged from the
+;; method-set! stub it replaces: identity pass-through, no field access, so
+;; game-save's own "jak3-inferred, not proven" field layout does not matter
+;; here yet.
+(defmethod game-info-method-23 ((this game-info) (arg0 game-save))
   arg0
   )
-(method-set! game-info 23 game-info-method-23-stub)
 
 ;; og:preserve-this guard set, R3a (#122): (method 9 game-info) / initialize! reaches
 ;; into three families of unlanded code. all-types.gc carries the type-level
