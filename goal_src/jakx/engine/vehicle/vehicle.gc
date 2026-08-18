@@ -7,3 +7,175 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this vehicle rung: the top-level killer was the config, not
+;; goal_src. top-level-login referenced two commented-out types
+;; (debug-vehicle-work, unused anywhere else in this file's own top level)
+;; and two commented-out externs (*tmp-vehicle-info*, *vehicle-shadow-
+;; control*/*-disabled*); all four are landed in all-types.gc and
+;; vehicle-h.gc from direct evidence in this worktree's own decode (see
+;; those files' own og:preserve-this notes). This landing covers only the
+;; methods/functions that reach a clean decode; rigid-body-object-method-71
+;; (vehicle's own override) and vehicle-method-155/157 are held out even
+;; though their own bodies decode clean: they dispatch vehicle-method-142,
+;; -143 and -134, none of which is landed anywhere in this worktree (142
+;; and 143 do decode cleanly, but only inside vehicle-util.gc, out of this
+;; rung's file list; 134 has no clean decode anywhere in the full-corpus
+;; baseline). wvehicle-race.gc and vehicle-states.gc already call
+;; vehicle-method-155 and -157 respectively; that is a pre-existing
+;; check_method_slots FAIL, not one this landing introduces, and landing
+;; either 155 or 157 here without their own callees would be the AGENTS.md
+;; section 5 hazard the other way around. Every other broken function in
+;; this file (roughly half of it) is held with its own failing op unnamed
+;; here; see this commit's message for the per-function breakdown.
+
+;; definition for symbol *debug-vehicle-work*, type debug-vehicle-work
+(define *debug-vehicle-work* (new 'static 'debug-vehicle-work))
+
+;; definition for symbol *tmp-vehicle-info*, type rigid-body-vehicle-constants
+(define *tmp-vehicle-info* (the-as rigid-body-vehicle-constants #f))
+
+;; definition for symbol *tmp-rigid-body-control*, type object
+(define *tmp-rigid-body-control* (the-as object #f))
+
+;; definition for symbol *vehicle-shadow-control*, type shadow-control
+(define *vehicle-shadow-control*
+  (new 'static 'shadow-control
+    :settings (new 'static 'shadow-settings
+      :center (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 (the-as float #xa)))
+      :shadow-dir (new 'static 'vector :data (new 'static 'array float 4 0.0 -1.0 0.0 163840.0))
+      :bot-plane (new 'static 'plane :data (new 'static 'array float 4 0.0 1.0 0.0 40960.0))
+      :top-plane (new 'static 'plane :data (new 'static 'array float 4 0.0 1.0 0.0 2048.0))
+      )
+    )
+  )
+
+;; definition for symbol *vehicle-shadow-control-disabled*, type shadow-control
+(define *vehicle-shadow-control-disabled*
+  (new 'static 'shadow-control
+    :settings (new 'static 'shadow-settings
+      :center (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 (the-as float #x2a)))
+      :shadow-dir (new 'static 'vector :data (new 'static 'array float 4 0.0 -1.0 0.0 163840.0))
+      :bot-plane (new 'static 'plane :data (new 'static 'array float 4 0.0 1.0 0.0 40960.0))
+      :top-plane (new 'static 'plane :data (new 'static 'array float 4 0.0 1.0 0.0 2048.0))
+      )
+    )
+  )
+
+;; definition for function vehicle-event-handler
+(defbehavior vehicle-event-handler vehicle ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  (rigid-body-object-method-81 self arg0 arg1 arg2 arg3)
+  )
+
+;; definition for function get-player-id
+;; WARN: Return type mismatch int vs int8.
+(defun get-player-id ((arg0 vehicle))
+  (the-as int8 (-> arg0 player-id))
+  )
+
+;; definition for method 85 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-85 ((this vehicle))
+  (set! (-> this sum-impact-impulse) 0.0)
+  (set! (-> this max-impact-impulse) 0.0)
+  0
+  (none)
+  )
+
+;; definition for method 180 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-180 vehicle () 0
+  (none)
+  )
+
+;; definition for method 141 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-141 vehicle () 0
+  (none)
+  )
+
+;; definition for method 87 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-87 ((this vehicle))
+  (set! *tmp-rigid-body-control* (-> this rbody))
+  (let ((s5-0 #x70000000))
+    (let ((a1-0 (&-> this rbody type)))
+      (quad-copy! (the-as pointer s5-0) a1-0 19)
+      )
+    (set! (-> this rbody) (the-as rigid-body-control (+ s5-0 4)))
+    )
+  (set! *tmp-vehicle-info* (-> this info))
+  (let ((s5-1 #x70000130))
+    (quad-copy! (the-as pointer s5-1) (the-as pointer (-> this info)) 204)
+    (rigid-body-object-method-68 this s5-1 #f)
+    )
+  (breakpoint-range-set! (the-as uint #x20200000) (the-as uint #x70000800) (the-as uint #xfffff800))
+  (rigid-body-control-method-10 (-> this rbody) this (-> this rbody time-remaining) (-> this max-time-step))
+  0
+  (none)
+  )
+
+;; definition for method 112 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-112 ((this vehicle))
+  (if (logtest? (-> this rbody flags) 256)
+      ((method-of-object this vehicle-method-180))
+      )
+  (when (< (-> this health) 0.0)
+    (logior! (-> this flags) 8)
+    (if (not (focus-test? this dead))
+        (go (method-of-object this explode))
+        )
+    )
+  (let ((v1-15 (-> this rbody)))
+    (cond
+      ((logtest? (-> this flags) 8)
+       (set! (-> v1-15 max-ang-momentum) (-> v1-15 info max-ang-momentum))
+       (logand! (-> v1-15 flags) -33)
+       )
+      (else
+        (set! (-> v1-15 max-ang-momentum) (* 500000000.0 (-> this info info mass)))
+        )
+      )
+    )
+  (if (and (logtest? (-> this draw status) (draw-control-status on-screen)) (< (-> this camera-dist) 819200.0))
+      (calc-vu1-lights (-> this car-info lights) (-> this draw) #f)
+      )
+  0
+  (none)
+  )
+
+;; definition for method 129 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-129 ((this vehicle) (arg0 vehicle-controls))
+  0
+  (none)
+  )
+
+;; definition for method 83 of type vehicle
+(defmethod rigid-body-object-method-83 ((this vehicle) (arg0 process-focusable) (arg1 touching-shapes-entry))
+  #t
+  )
+
+;; definition for method 81 of type vehicle
+(defmethod rigid-body-object-method-81 ((this vehicle) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  ((method-of-type rigid-body-object rigid-body-object-method-81) this arg0 arg1 arg2 arg3)
+  )
+
+;; definition for method 165 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-165 vehicle () 0
+  (none)
+  )
+
+;; definition for method 175 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-175 vehicle () 0
+  (none)
+  )
+
+;; definition for function get-vehicle-player-id
+;; WARN: Return type mismatch int vs int8.
+(defun get-vehicle-player-id ((arg0 vehicle))
+  (the-as int8 (-> arg0 player-id))
+  )
+

@@ -985,3 +985,29 @@
     (vehicle-method-203 (_type_ object) none) ;; 203
     )
   )
+
+;; og:preserve-this vehicle rung: landed from raw offset evidence in this
+;; worktree's own vehicle_ir2.asm (top-level-login and (method 82 vehicle)'s
+;; own B123 block). Under the +4 basics load convention: `(sd v1, 4(a0))`
+;; binds impact-time at placement 8 (an 8-byte time-frame store matches);
+;; `(daddiu a0, v1, 12); mem-copy! a0 s5 68` binds impact at placement 16,
+;; copying exactly 68 bytes, jakx's own rigid-body-impact size (0x44,
+;; already landed, one field wider than jak3's 0x40 twin); `(daddiu a0, a0,
+;; 92)` and `(daddiu a0, a0, 108)` bind two quadword (sphere) stores at
+;; placements 96 and 112, 16-byte-aligned right after the wider impact
+;; field (16+68=84, rounds up to 96), not an extra field: the jak3 twin
+;; (decompiler/config/jak3/all-types.gc) has the identical four fields at
+;; 8/16/80/96 in a 0x70 (112-byte) struct; jakx's extra 4 bytes in
+;; rigid-body-impact push prim-sphere1/prim-sphere2 up by 16 and the total
+;; size to 0x80 (128), matching the config stub's own pre-computed
+;; flag-assert.
+(deftype debug-vehicle-work (basic)
+  ((impact-time  time-frame               :offset-assert 8)
+   (impact       rigid-body-impact :inline :offset-assert 16)
+   (prim-sphere1 sphere            :inline :offset-assert 96)
+   (prim-sphere2 sphere            :inline :offset-assert 112)
+   )
+  :method-count-assert 9
+  :size-assert         #x80
+  :flag-assert         #x900000080
+  )

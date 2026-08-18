@@ -54087,10 +54087,30 @@
   )
 
 
-;; (deftype debug-vehicle-work (basic)
-;;   ()
-;;   :flag-assert #x900000080
-;;   )
+;; og:preserve-this vehicle rung: landed from raw offset evidence in this
+;; worktree's own vehicle_ir2.asm (top-level-login and (method 82 vehicle)'s
+;; own B123 block). Under the +4 basics load convention: `(sd v1, 4(a0))`
+;; binds impact-time at placement 8 (an 8-byte time-frame store matches);
+;; `(daddiu a0, v1, 12); mem-copy! a0 s5 68` binds impact at placement 16,
+;; copying exactly 68 bytes, jakx's own rigid-body-impact size (0x44,
+;; already landed, one field wider than jak3's 0x40 twin); `(daddiu a0, a0,
+;; 92)` and `(daddiu a0, a0, 108)` bind two quadword (sphere) stores at
+;; placements 96 and 112, 16-byte-aligned right after the wider impact
+;; field (16+68=84, rounds up to 96), not an extra field: the jak3 twin
+;; (decompiler/config/jak3/all-types.gc) has the identical four fields at
+;; 8/16/80/96 in a 0x70 (112-byte) struct; jakx's extra 4 bytes in
+;; rigid-body-impact push prim-sphere1/prim-sphere2 up by 16 and the total
+;; size to 0x80 (128), matching this stub's own pre-computed flag-assert.
+(deftype debug-vehicle-work (basic)
+  ((impact-time  time-frame               :offset-assert 8)
+   (impact       rigid-body-impact :inline :offset-assert 16)
+   (prim-sphere1 sphere            :inline :offset-assert 96)
+   (prim-sphere2 sphere            :inline :offset-assert 112)
+   )
+  :method-count-assert 9
+  :size-assert         #x80
+  :flag-assert         #x900000080
+  )
 
 ;; (define-extern vehicle-init-remote function)
 ;; (define-extern *msg-map-vehicle* array)
@@ -63129,8 +63149,13 @@
 ;; (define-extern *debug-vehicle-work* debug-vehicle-work) ;; debug-vehicle-work
 ;; (define-extern *tmp-vehicle-info* object)
 ;; (define-extern *tmp-rigid-body-control* object)
-;; (define-extern *vehicle-shadow-control* shadow-control) ;; shadow-control
-;; (define-extern *vehicle-shadow-control-disabled* shadow-control) ;; shadow-control
+;; og:preserve-this vehicle rung: activated, both confirmed by direct
+;; register type propagation in this worktree's own vehicle_ir2.asm
+;; top-level-login (ops 4-7): both stores tag their source register as
+;; shadow-control (an already-landed type), just as the trailing comment
+;; already recorded.
+(define-extern *vehicle-shadow-control* shadow-control)
+(define-extern *vehicle-shadow-control-disabled* shadow-control)
 (define-extern vehicle-event-handler (function process int symbol event-message-block object :behavior vehicle))
 ;; og:preserve-this wv-*-handler/handle-weapon-*-event: wvehicle-events.gc
 ;; rung. All eight are plain functions (not methods), stored into wvehicle's
@@ -63156,11 +63181,31 @@
 (define-extern wv-weapon-pickup-helper (function process int event-message-block object :behavior wvehicle))
 (define-extern handle-weapon-moved-event (function process int event-message-block object :behavior wvehicle))
 (define-extern handle-weapon-removed-event (function process int event-message-block object :behavior wvehicle))
-;; (define-extern get-player-id function)
+;; og:preserve-this vehicle rung: get-player-id and get-vehicle-player-id
+;; are byte-for-byte identical bodies in this worktree's own vehicle_ir2.asm
+;; (`(l.b (+ a0 2116))`, ret-value), both matching raw offset 2116 under the
+;; +4 basics convention, vehicle-h.gc's own player-id field (int8, placement
+;; 2120). net-ctf and net-game-mgr both call get-player-id through the
+;; symbol slot against a per-player array element; typed vehicle by domain
+;; (each net player's own game object is their car) rather than proven at
+;; those call sites, which are opaque symbol dispatches. Support-level
+;; evidence, not proof; flag if a narrower/wider caller type surfaces.
+;; Return type is int, not int8: goal_src's own body ((the-as int8 (-> arg0
+;; player-id))) casts the load, but the compiler's own build-first pass
+;; infers the function's return as int (the v0 register's conventional
+;; width) and rejects a narrower declared extern with a hard redefine
+;; error, not just the WARN a looser mismatch would give.
+(define-extern get-player-id (function vehicle int))
+(define-extern get-vehicle-player-id (function vehicle int))
 ;; (define-extern twiddle-collision-cache-verts function)
 ;; (define-extern vehicle-damage-local-space-0 function)
+;; og:preserve-this vehicle rung: vehicle-damage-local-space-0/1 both open on
+;; `(.sllv a0 v1 r0)` chasing a handle-style pointer out of an 8-byte field
+;; (raw offset 160), the sllv ppointer-chase fold this campaign's own facts
+;; call a parked-asm class (rigid-body-queue.gc's held methods hit the same
+;; shape). Left commented, held alongside the other parked-asm functions in
+;; this file rather than chased individually.
 ;; (define-extern vehicle-damage-local-space-1 function)
-;; (define-extern get-vehicle-player-id function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wcar-skel-template             ;;
@@ -85310,7 +85355,10 @@
 ;; only resolves against a real type ("The method with id 15 of type object
 ;; could not be found").
 (define-extern *debug-save-memcard-dead-pool* dead-pool)
-(define-extern *debug-vehicle-work* object) ;; provisional: call-site evidence only
+;; og:preserve-this vehicle rung: retyped object -> debug-vehicle-work now
+;; that the type is landed above; top-level-login's own store is a plain
+;; `(s.w! *debug-vehicle-work* v1-0)` of a debug-vehicle-work-tagged label.
+(define-extern *debug-vehicle-work* debug-vehicle-work)
 (define-extern *decoder-queue-3-buf* object) ;; provisional: call-site evidence only
 (define-extern *default-continue* continue-point)
 ;; og:preserve-this net-hud rung: net-hud's top-level-login points it at a static
@@ -86015,6 +86063,14 @@
 (define-extern *tmp-player* object) ;; provisional: call-site evidence only
 (define-extern *tmp-powerup-motion-info* object) ;; provisional: call-site evidence only
 (define-extern *tmp-rigid-body-control* object) ;; provisional: call-site evidence only
+;; og:preserve-this vehicle rung: retyped object -> rigid-body-vehicle-
+;; constants from direct register type propagation in this worktree's own
+;; vehicle_ir2.asm ((method 86 vehicle)'s own B13 block): `(sw v1,
+;; *tmp-vehicle-info*(s7))` with v1 already resolved to rigid-body-vehicle-
+;; constants by the decompiler itself, not a guess. top-level-login's own
+;; `(s.w! *tmp-vehicle-info* #f)` is the usual pointer-global nil-init and
+;; is compatible with any basic/structure type.
+(define-extern *tmp-vehicle-info* rigid-body-vehicle-constants)
 (define-extern *tmp-transition* object) ;; provisional: call-site evidence only
 (define-extern *total-pts-at-stake* object) ;; provisional: call-site evidence only
 ;; redundant with the train-obs reservoir activation above (same object
