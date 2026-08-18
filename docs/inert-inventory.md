@@ -28,6 +28,7 @@ written is read-only by design and not a finding.
 
 | symbol | reading files | switch commented in |
 |---|---:|---|
+| `*gui-control*` | 7 | `goal_src/jakx/engine/ambient/ambient.gc` |
 | `*jakx-boot-task*` | 2 | `goal_src/jakx/engine/level/level-h.gc` |
 | `*display-bug-report*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-level-border*` | 1 | `goal_src/jakx/engine/game/main.gc` |
