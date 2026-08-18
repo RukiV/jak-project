@@ -7,9 +7,14 @@
 
 ;; og:preserve-this landing notes: all twelve texture-anim arrays land as their
 ;; static data (the jakx sky array is 4 entries: clouds clut, fog x2 per
-;; viewport, ocean-sky - no jak3 noise octaves). The car layer func and the
-;; debug car-highlight setter carry decomp errors and stay commented; the car
-;; array is never init!'d on the bring-up so their symbols are not resolved.
+;; viewport, ocean-sky - no jak3 noise octaves). set-car-highlight! lands live
+;; as of the 2026-08-18 rung (the jak3-transplant placement repair already
+;; resolved it, a fresh scoped decode confirms zero errors); the car array is
+;; never init!'d on the bring-up so this stays unreachable, same as texture-anim
+;; rung notes for the layer-compositing path. car-texture-anim-layer-func still
+;; carries real decode errors (raw VIF/GIF DMA packing, no jak3 twin to
+;; transplant against, same class as texture-anim.gc's held functions) and
+;; stays commented.
 
 ;; DECOMP BEGINS
 
@@ -401,20 +406,23 @@
 
 ;; definition (debug) for function set-car-highlight!
 ;; WARN: Return type mismatch object vs none.
-;; og:preserve-this commented: PS2-only GS path or decomp errors above
-; (defun-debug set-car-highlight! ((arg0 object) (arg1 object) (arg2 object))
-;   (let ((v1-2 (-> *default-car-texture-anim-array* array-data 0 data 2)))
-;     (set! (-> v1-2 start-offset x) (the-as float (gpr->fpr arg0)))
-;     (set! (-> v1-2 end-offset x) (the-as float (gpr->fpr arg0)))
-;     (set! (-> v1-2 start-offset y) (the-as float (gpr->fpr arg1)))
-;     (set! (-> v1-2 end-offset y) (the-as float (gpr->fpr arg1)))
-;     (set! (-> v1-2 start-scale x) (the-as float (gpr->fpr arg2)))
-;     (set! (-> v1-2 end-scale x) (the-as float (gpr->fpr arg2)))
-;     (set! (-> v1-2 start-scale y) (the-as float (gpr->fpr arg2)))
-;     (set! (-> v1-2 end-scale y) (the-as float (gpr->fpr arg2)))
-;     )
-;   (none)
-;   )
+(defun-debug set-car-highlight! ((arg0 object) (arg1 object) (arg2 object))
+  ;; og:preserve-this: gpr->fpr is a decompiler-only pseudo-op with no compiler
+  ;; definition (goal_src/jakx/engine/gfx/mood/mood-funcs2.gc:480, the
+  ;; "hand-converted gpr->fpr bit store" precedent); the-as already does the
+  ;; same raw bit reinterpretation directly on the object-typed arg.
+  (let ((v1-2 (-> *default-car-texture-anim-array* array-data 0 data 2)))
+    (set! (-> v1-2 start-offset x) (the-as float arg0))
+    (set! (-> v1-2 end-offset x) (the-as float arg0))
+    (set! (-> v1-2 start-offset y) (the-as float arg1))
+    (set! (-> v1-2 end-offset y) (the-as float arg1))
+    (set! (-> v1-2 start-scale x) (the-as float arg2))
+    (set! (-> v1-2 end-scale x) (the-as float arg2))
+    (set! (-> v1-2 start-scale y) (the-as float arg2))
+    (set! (-> v1-2 end-scale y) (the-as float arg2))
+    )
+  (none)
+  )
 
 ;; definition for function update-car-texture-anim-array
 (defun update-car-texture-anim-array ()
