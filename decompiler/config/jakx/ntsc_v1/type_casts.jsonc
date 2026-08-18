@@ -4268,7 +4268,20 @@
     [40, "t1", "(pointer uint128)"],
     // Same shape again at op 73: t1 (op 72, math-camera plus 320, landing
     // on isometric.trans) quad-copied whole.
-    [73, "t1", "(pointer uint128)"]
+    [73, "t1", "(pointer uint128)"],
+    // v1 (op 17, l.wu of arg0's dma-buffer base) is the *shadow-globals*
+    // bucket's own constants pointer being built up field by field: every
+    // offset it is walked by (0/16/32/36/48/64/80/96/112/128/144/160/176/
+    // 192) matches shadow-vu1-constants's own table exactly, including the
+    // op-64 float load at +32 (texoffset.x) that the raw decode could not
+    // resolve without this cast. jak3's own shadow-vu1-add-constants casts
+    // its analogous v1-1 to the same type at the same point (its own field
+    // order differs: jakx's own table has texoffset before hvdfoff, so the
+    // op-64/67 floats land on texoffset x/y here rather than jak3's
+    // hvdfoff x/y, confirmed against this worktree's own shadow-vu1-constants
+    // declaration). v1 is reassigned at op 92 back to a plain dma-buffer
+    // base read, so the cast ends there.
+    [[18, 92], "v1", "shadow-vu1-constants"]
   ],
   // update-eyes and dirty-eyes: v1 is eye-control's own process field
   // (l.d offset 0, declared uint64 "handle" in its own table), then
