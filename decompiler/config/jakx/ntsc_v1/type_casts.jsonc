@@ -5016,5 +5016,50 @@
   // 271 (its definition) had no effect; not isolated further.
   "(method 9 prim-strip)": [
     [34, "a0", "texture"]
+  ],
+  // (method 16 car-info-full): car-layer-textures's own "dest" field
+  // (offset-assert 0, declared basic) holds a texture pointer; reading its
+  // own w field (offset-assert 4, machine offset 0, int16) needs the real
+  // texture type ("Could not figure out load").
+  // reads the same texture's w (offset 0) then h (offset 2) fields, each
+  // through a separate stack-reload, hence two op sites.
+  // The same w/h/dest triple check (offsets 0/2/10) repeats six times in
+  // this function, once per texture layer; each repeat re-loads the
+  // pointer from the stack into a fresh SSA value that needs its own cast
+  // (same shape as (method 7 process)'s own per-site connection casts
+  // above; the loop does not carry the cast across reloads).
+  "(method 16 car-info-full)": [
+    [36, "v1", "texture"],
+    [41, "a0", "texture"],
+    [67, "v1", "texture"],
+    [70, "v1", "texture"],
+    [72, "v1", "texture"],
+    [98, "v1", "texture"],
+    [100, "v1", "texture"],
+    [119, "v1", "texture"],
+    [124, "a0", "texture"],
+    [150, "v1", "texture"],
+    [153, "v1", "texture"],
+    [155, "v1", "texture"],
+    [181, "v1", "texture"],
+    [183, "v1", "texture"],
+    [203, "v1", "texture"],
+    [208, "a0", "texture"],
+    [234, "v1", "texture"],
+    [237, "v1", "texture"],
+    [239, "v1", "texture"],
+    [277, "v1", "texture"],
+    [279, "v1", "texture"]
+  ],
+  // A held error remains at op 254: this (s4) plus loop index s2 (op
+  // 253's daddu), then +76 (damage's own offset-assert, int8 x14) read as
+  // a byte. Casting the add result to car-info-full or to a raw
+  // (pointer int8) both leave the same op erroring; not isolated further.
+  // (method 15 car-info-full): same shape as method 16 above, a
+  // car-layer-textures pointer field read as w then h (offsets 0/2,
+  // int16) needing the real texture type.
+  "(method 15 car-info-full)": [
+    [117, "a0", "texture"],
+    [119, "a0", "texture"]
   ]
 }

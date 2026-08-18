@@ -7,3 +7,423 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this runtime-link extern: vu-lights<-light-group! is
+;; already declared in the landed foreground-h.gc, but that file compiles
+;; after car-textures.gc in the real build order, matching cam-
+;; interface.gc's own entity-by-name precedent.
+(define-extern vu-lights<-light-group! (function vu-lights light-group none))
+
+;; definition of type car-texture-work
+(deftype car-texture-work (structure)
+  ((adgif-tmpl   dma-gif-packet  :inline)
+   (sprite-tmpl  dma-gif-packet  :inline)
+   (white        vector4w        :inline)
+   (blur         vector4w        :inline)
+   )
+  )
+
+;; definition for method 3 of type car-texture-work
+(defmethod inspect ((this car-texture-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'car-texture-work)
+  (format #t "~1Tadgif-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this adgif-tmpl))
+  (format #t "~1Tsprite-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this sprite-tmpl))
+  (format #t "~1Twhite: #<vector4w @ #x~X>~%" (-> this white))
+  (format #t "~1Tblur: #<vector4w @ #x~X>~%" (-> this blur))
+  (label cfg-4)
+  this
+  )
+
+;; definition for symbol *car-texture-work*, type car-texture-work
+(define *car-texture-work* (new 'static 'car-texture-work
+                             :adgif-tmpl (new 'static 'dma-gif-packet
+                               :dma-vif (new 'static 'dma-packet
+                                 :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                                 :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                                 )
+                               :gif (new 'static 'array uint64 2 #x1000000000008005 #xe)
+                               )
+                             :sprite-tmpl (new 'static 'dma-gif-packet
+                               :dma-vif (new 'static 'dma-packet
+                                 :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                                 :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                                 )
+                               :gif (new 'static 'array uint64 2 #x502b400000008001 #x52521)
+                               )
+                             :white (new 'static 'vector4w :x #x80 :y #x80 :z #x80 :w #x80)
+                             :blur (new 'static 'vector4w :x #x80 :y #x80 :z #x80 :w #x80)
+                             )
+        )
+
+;; definition for method 9 of type car-rgb-color
+;; WARN: Return type mismatch int vs none.
+(defmethod car-rgb-color-method-9 ((this car-rgb-color) (arg0 car-hsv-color))
+  (local-vars (v1-4 int) (a0-4 int) (a1-3 int) (a2-1 int))
+  (let ((f0-0 (-> arg0 x))
+        (f30-0 (-> arg0 y))
+        (s5-0 (the int (* 128.0 (-> arg0 z))))
+        )
+    (cond
+      ((= f30-0 0.0)
+       (set-vector! this s5-0 s5-0 s5-0 1)
+       )
+      ((begin
+         (let* ((f28-0 (* 0.000091552734 f0-0))
+                (f0-1 (floor f28-0))
+                )
+           (let ((f1-5 (- f28-0 f0-1)))
+             (set! v1-4 (the int (* (the float s5-0) (- 1.0 f30-0))))
+             (set! a0-4 (the int (* (the float s5-0) (- 1.0 (* f30-0 f1-5)))))
+             (set! a1-3 (the int (* (the float s5-0) (- 1.0 (* f30-0 (- 1.0 f1-5))))))
+             )
+           (set! (-> this w) 1)
+           (set! a2-1 (the int f0-1))
+           )
+         (zero? a2-1)
+         )
+       (set! (-> this x) s5-0)
+       (set! (-> this y) a1-3)
+       (set! (-> this z) v1-4)
+       )
+      ((= a2-1 1)
+       (set! (-> this x) a0-4)
+       (set! (-> this y) s5-0)
+       (set! (-> this z) v1-4)
+       )
+      ((= a2-1 2)
+       (set! (-> this x) v1-4)
+       (set! (-> this y) s5-0)
+       (set! (-> this z) a1-3)
+       )
+      ((= a2-1 3)
+       (set! (-> this x) v1-4)
+       (set! (-> this y) a0-4)
+       (set! (-> this z) s5-0)
+       )
+      ((= a2-1 4)
+       (set! (-> this x) a1-3)
+       (set! (-> this y) v1-4)
+       (set! (-> this z) s5-0)
+       )
+      (else
+        (set! (-> this x) s5-0)
+        (set! (-> this y) v1-4)
+        (set! (-> this z) a0-4)
+        )
+      )
+    )
+  (set! (-> this w) 128)
+  0
+  (none)
+  )
+
+;; definition for method 10 of type car-rgb-color
+;; WARN: Return type mismatch int vs none.
+(defmethod car-rgb-color-method-10 ((this car-rgb-color))
+  (let ((v0-0 0))
+    (if this
+        (logior (logand (logior (logand (logior (logand (logior (logand v0-0 -256) (shr (shl (-> this x) 56) 56)) -65281)
+                                                (shr (shl (-> this y) 56) 48)
+                                                )
+                                        -16711681
+                                        )
+                                (shr (shl (-> this z) 56) 40)
+                                )
+                        (the-as uint #xffffffff00ffffff)
+                        )
+                (shr (shl (-> this w) 56) 32)
+                )
+        )
+    )
+  (none)
+  )
+
+;; definition for method 11 of type car-rgb-color
+;; WARN: Return type mismatch int vs none.
+;; og:preserve-this: the raw decode emits (.srl v1-6 arg0 24), a plain
+;; 32-bit shift the compiler does not recognize as a callable form ("No
+;; method or function named .srl for type int"), unlike the 64-bit
+;; dsll32/dsrl32 pairs the other three fields use (which do compile as
+;; shl/shr). The original MIPS used the shorter single-shift form here
+;; because the fourth byte needs no upper masking, but that form has no
+;; GOAL equivalent; hand-folded to the same shl/shr idiom the other three
+;; fields already use (shl 32 then shr 56 moves bits 24-31 to bits 0-7,
+;; the same result as a plain arg0 >> 24).
+(defmethod car-rgb-color-method-11 ((this car-rgb-color) (arg0 uint))
+  (set! (-> this x) (the-as int (shr (shl arg0 56) 56)))
+  (set! (-> this y) (the-as int (shr (shl arg0 48) 56)))
+  (set! (-> this z) (the-as int (shr (shl arg0 40) 56)))
+  (set! (-> this w) (the-as int (shr (shl arg0 32) 56)))
+  0
+  (none)
+  )
+
+;; definition for method 9 of type car-hsv-color
+;; WARN: Return type mismatch float vs none.
+(defmethod car-hsv-color-method-9 ((this car-hsv-color) (arg0 car-rgb-color))
+  (let* ((f0-1 (* 0.0078125 (the float (-> arg0 x))))
+         (f1-3 (* 0.0078125 (the float (-> arg0 y))))
+         (f4-0 (* 0.0078125 (the float (-> arg0 z))))
+         (f3-2 (fmin (fmin f0-1 f1-3) f4-0))
+         (f2-5 (fmax (fmax f0-1 f1-3) f4-0))
+         (f3-3 (- f2-5 f3-2))
+         )
+    (set! (-> this z) f2-5)
+    (cond
+      ((= f3-3 0.0)
+       (set! (-> this y) 0.0)
+       (set! (-> this x) 0.0)
+       )
+      (else
+        (set! (-> this y) (/ f3-3 f2-5))
+        (let ((f5-5 (/ (+ (* 0.16666667 (- f2-5 f0-1)) (/ f3-3 2)) f3-3))
+              (f6-6 (/ (+ (* 0.16666667 (- f2-5 f1-3)) (/ f3-3 2)) f3-3))
+              (f3-4 (/ (+ (* 0.16666667 (- f2-5 f4-0)) (/ f3-3 2)) f3-3))
+              )
+          (cond
+            ((= f2-5 f0-1)
+             (set! (-> this x) (- f3-4 f6-6))
+             )
+            ((= f2-5 f1-3)
+             (set! (-> this x) (+ (- 0.33333334 f3-4) f5-5))
+             )
+            (else
+              (set! (-> this x) (+ (- 0.6666667 f5-5) f6-6))
+              )
+            )
+          )
+        (cond
+          ((< (-> this x) 0.0)
+           (+! (-> this x) 1.0)
+           )
+          ((< 1.0 (-> this x))
+           (+! (-> this x) -1.0)
+           )
+          )
+        (set! (-> this x) (* 65536.0 (-> this x)))
+        )
+      )
+    )
+  (none)
+  )
+
+;; definition for method 9 of type car-info-full
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-9 ((this car-info-full) (arg0 object))
+  (car-rgb-color-method-9 (-> this base-color) (the-as car-hsv-color arg0))
+  0
+  (none)
+  )
+
+;; definition for method 10 of type car-info-full
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-10 ((this car-info-full) (arg0 object))
+  (car-rgb-color-method-9 (-> this stripe-color) (the-as car-hsv-color arg0))
+  0
+  (none)
+  )
+
+;; definition for method 11 of type car-info-full
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-11 ((this car-info-full) (arg0 object))
+  ((method-of-type car-hsv-color car-hsv-color-method-9) (the-as car-hsv-color arg0) (-> this base-color))
+  0
+  (none)
+  )
+
+;; definition for method 12 of type car-info-full
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-12 ((this car-info-full) (arg0 object))
+  ((method-of-type car-hsv-color car-hsv-color-method-9) (the-as car-hsv-color arg0) (-> this stripe-color))
+  0
+  (none)
+  )
+
+;; definition for method 13 of type car-info-full
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-13 ((this car-info-full))
+  (dotimes (v1-0 14)
+    (set! (-> this damage v1-0) 0)
+    )
+  0
+  (none)
+  )
+
+;; definition for method 14 of type car-info-full
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-14 ((this car-info-full) (arg0 int))
+  (set! (-> this damage arg0) 1)
+  0
+  (none)
+  )
+
+;; definition of type car-name-info
+(deftype car-name-info (structure)
+  ((name              basic)
+   (part-dest-name    basic)
+   (part-source-name  basic)
+   (look-name         basic)
+   (layer-name        basic)
+   (damage            int32)
+   )
+  )
+
+;; definition for method 3 of type car-name-info
+(defmethod inspect ((this car-name-info))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'car-name-info)
+  (format #t "~1Tname: ~A~%" (-> this name))
+  (format #t "~1Tpart-dest-name: ~A~%" (-> this part-dest-name))
+  (format #t "~1Tpart-source-name: ~A~%" (-> this part-source-name))
+  (format #t "~1Tlook-name: ~A~%" (-> this look-name))
+  (format #t "~1Tlayer-name: ~A~%" (-> this layer-name))
+  (format #t "~1Tdamage: ~D~%" (-> this damage))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 15 of type car-info-full
+;; ERROR: function was not converted to expressions. Cannot decompile.
+;;
+;; og:preserve-this: (method 15 car-info-full) breaks at op 123: a
+;; growable write-cursor pointer (built one adgif-shader-sized template
+;; at a time, the same shape all-types.gc's own car-info-full deftype
+;; comment documents for methods 20/21 below) is read back at its own
+;; offset 0 ("Could not figure out load: (set! a0 (l.h v1))"); the same
+;; comment records that typing this cursor as car-layer-textures was
+;; tried and reverted for methods 20/21 because the identical field is
+;; read both as a fixed struct member and as a raw growable cursor, and
+;; no structure type resolves both. The fallout collapses this whole
+;; function to a flat, non-SSA local-vars form (physical registers
+;; reused across many logical purposes rather than clean per-use
+;; bindings), and the method-of-type dispatch to texture-pool's own
+;; lay-out-car-tex fails under (mi) as a direct symptom ("The method
+;; lay-out-car-tex of type object could not be found"). Held un-landed
+;; until the write-cursor field ambiguity is resolved; the raw decode
+;; is preserved in the REF file for reference.
+
+;; definition for method 20 of type car-info-full
+;; ERROR: function was not converted to expressions. Cannot decompile.
+;;
+;; og:preserve-this: (method 20 car-info-full) and (method 21
+;; car-info-full) (jak3 twin shape: both build one adgif-shader-sized,
+;; 112-byte texture-layer template into a growing pointer read from
+;; arg1's own offset 4) share the exact defect all-types.gc's own
+;; car-info-full deftype comment documents in full: arg1 looks like a
+;; car-layer-textures element by its offset-4 field read, but typing it
+;; that way was tried and reverted because the SAME field is read here
+;; as a raw, growable write cursor, and no structure type both resolves
+;; the field lookup and survives the subsequent pointer math. The
+;; offset-4 load itself stays an open "could not figure out load"
+;; defect on arg1 pending disambiguation. Held un-landed; the raw
+;; decode is preserved in the REF file for reference.
+
+;; definition for method 21 of type car-info-full
+;; ERROR: function was not converted to expressions. Cannot decompile.
+;; og:preserve-this: see (method 20 car-info-full) above, identical
+;; defect and identical shape.
+
+;; definition for method 16 of type car-info-full
+;; ERROR: function was not converted to expressions. Cannot decompile.
+;;
+;; og:preserve-this: (method 16 car-info-full) is the source-side twin
+;; of the write-cursor pattern held above (method 15 and methods 20/21):
+;; every read of this, indexed s2, into its own damage array (offset-
+;; assert 76, int8 x14) fails at op 254 ("Could not figure out load:
+;; (set! a0 (l.bu (+ a0 76)))"); casting the add result to car-info-
+;; full itself, and separately to a raw (pointer int8), both leave the
+;; same op erroring. The fallout collapses the rest of this large
+;; function (roughly 600 lines) to raw MIPS fallback forms (sll on a
+;; plain int, first hit at op 356 of the fresh decode) that are not
+;; valid GOAL and will not compile. Held un-landed until the damage-
+;; array indexing defect is resolved; the raw decode is preserved in
+;; the REF file for reference.
+
+;; definition for method 17 of type car-info-full
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-17 ((this car-info-full))
+  (vu-lights<-light-group! (-> this shield-vu-lights) (-> this shield-light-group))
+  (seek! (-> this shield-light-group dir1 extra x) 0.0 (* 8.0 (seconds-per-frame)))
+  (seek! (-> this shield-light-group dir2 extra x) 0.0 (* 8.0 (seconds-per-frame)))
+  0
+  (none)
+  )
+
+;; definition for method 18 of type car-info-full
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-18 ((this car-info-full) (arg0 vector))
+  (set-vector! (-> this shield-light-group ambi color) 0.0 0.0 0.0 1.0)
+  (set! (-> this shield-light-group dir0 color quad) (-> arg0 quad))
+  (let* ((f1-2 (fmax (fmax (-> arg0 x) (-> arg0 y)) (-> arg0 z)))
+         (f0-7 (* 0.5 (+ (-> arg0 x) f1-2)))
+         (f2-3 (* 0.5 (+ (-> arg0 y) f1-2)))
+         (f1-4 (* 0.5 (+ (-> arg0 z) f1-2)))
+         )
+    (set-vector! (-> this shield-light-group dir1 color) f0-7 f2-3 f1-4 1.0)
+    (set-vector! (-> this shield-light-group dir2 color) f0-7 f2-3 f1-4 1.0)
+    )
+  (set! (-> this shield-light-group ambi extra x) 0.0)
+  (set! (-> this shield-light-group dir0 extra x) 1.0)
+  0
+  (none)
+  )
+
+;; definition for method 19 of type car-info-full
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-19 ((this car-info-full) (arg0 vector) (arg1 vector))
+  (let ((gp-0 0)
+        (f0-0 100.0)
+        (s5-0 (-> this shield-light-group))
+        )
+    (let ((v1-1 1)
+          (a0-1 2)
+          )
+      (while (>= a0-1 v1-1)
+        (when (< (-> s5-0 lights v1-1 extra x) f0-0)
+          (set! gp-0 v1-1)
+          (set! f0-0 (-> s5-0 lights v1-1 extra x))
+          )
+        (+! v1-1 1)
+        )
+      )
+    (let ((a0-4 (+ (the-as uint (-> s5-0 dir0)) (* 48 gp-0))))
+      (vector-! (the-as vector a0-4) arg1 arg0)
+      (vector-normalize! (the-as vector a0-4) 1.0)
+      )
+    (set! (-> s5-0 lights gp-0 extra x) 2.0)
+    )
+  0
+  (none)
+  )
+
+;; definition for method 9 of type car-level-array
+;; WARN: Return type mismatch int vs none.
+;; og:preserve-this: this method's :methods declaration is a genuine
+;; zero-arg signature (all-types.gc: "(car-level-array-method-9 () none)",
+;; registered by the compiler as (function none) with no implicit this),
+;; and the body never references self. defmethod itself cannot express a
+;; truly argument-less method ("Method type must be a symbol, got ()" when
+;; tried with an empty list; a (this car-level-array) binding then trips
+;; "was originally defined as (function none), but has been redefined as
+;; (function car-level-array none)"). The raw decode's own shape is a
+;; plain function registered by hand via method-set!, matching how the
+;; compiled top level actually built it
+;; ((method-set! car-level-array 9 L1) then calling the registered method
+;; immediately); landed the same way instead of forcing defmethod syntax.
+(defun car-level-array-method-9-body ()
+  (dotimes (v1-0 6)
+    (set! (-> *car-level-array* data v1-0 level) (-> *level* level (+ v1-0 6)))
+    (set! (-> *car-level-array* data v1-0 textures) (-> *car-level-array* textures v1-0))
+    )
+  0
+  (none)
+  )
+(method-set! car-level-array 9 car-level-array-method-9-body)
+((method-of-object *car-level-array* car-level-array-method-9))
