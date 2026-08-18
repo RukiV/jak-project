@@ -144,9 +144,24 @@
   )
 
 ;; definition for method 82 of type construction-object
-(defmethod rigid-body-object-method-82 ((this construction-object) (arg0 object) (arg1 rigid-body-info))
-  (set! (-> arg1 inertial-tensor fvec x) (/ (-> arg1 inertial-tensor fvec x) 1000))
-  ((method-of-type rigid-body-object rigid-body-object-method-82) this arg0 arg1)
+;; og:preserve-this rigid-body rung (second target): RESTORED the real 4-arg
+;; attack-handler shape, reversing the rigid-body-object rung's own hold.
+;; rigid-body-object-method-82 (the parent) now lands its own body in
+;; rigid-body-object.gc, matching jak3's attack-handler exactly
+;; (process-drawable attack-info touching-shapes-entry penetrate); a fresh
+;; decode of this override under the widened base signature shows arg1
+;; (attack-info) mutated directly (its own damage field scaled down by
+;; 1000, not the rigid-body-info inertial-tensor field the old two-arg
+;; decode had mistyped this same offset as) before tail-calling the parent
+;; with all four arguments.
+(defmethod rigid-body-object-method-82 ((this construction-object)
+                                       (arg0 process-drawable)
+                                       (arg1 attack-info)
+                                       (arg2 touching-shapes-entry)
+                                       (arg3 penetrate)
+                                       )
+  (set! (-> arg1 damage) (/ (-> arg1 damage) 1000))
+  ((method-of-type rigid-body-object rigid-body-object-method-82) this arg0 arg1 arg2 arg3)
   (none)
   )
 

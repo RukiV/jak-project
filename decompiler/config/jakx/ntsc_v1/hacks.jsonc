@@ -3,17 +3,11 @@
   // HACKS and ASM FUNCTIONS
   ////////////////////////////
   "types_with_bad_inspect_methods": ["game-task-event", "game-task-control"],
-  // (method 82 rigid-body-object): the raw machine code reads two more
-  // registers (a3, t0) than the currently-declared two-arg signature
-  // provides, matching jak3's attack-handler (slot 50, +32 shift) at four
-  // args, but construction-obs-h.gc's already-landed override tail-calls
-  // this base with only two explicit args and method-of-type calls are
-  // arity-checked at compile time, so the signature cannot widen without
-  // touching that file in the same change (rigid-body-object rung, held
-  // pending a coordinated fix; see this rung's report). With type analysis
-  // left on, the leftover unresolved a3/t0 reads make the decompiler abort
-  // this whole object once every other function's errors clear; skipping
-  // analysis here keeps the rest of the object decoding.
+  // (method 82 rigid-body-object): UNHELD (rigid-body rung, second target).
+  // Widened to the full four-arg attack-handler shape (process-drawable
+  // attack-info touching-shapes-entry penetrate) and construction-obs-h.gc's
+  // own override and tail-call updated in the same change; both objects
+  // decode clean under the new signature.
   // (method 210 wvehicle), (method 211 wvehicle), (method 62 wvehicle) and
   // (method 216 wvehicle): a related cluster of debug/network telemetry
   // methods, most writing into a shared fixed scratchpad address
@@ -76,7 +70,6 @@
   // moving, defined elsewhere), so retyping it outright is also out of scope
   // for this rung, same as (method 66 collide-shape-moving).
   "no_type_analysis_functions_by_name": [
-    "(method 82 rigid-body-object)",
     "(method 210 wvehicle)",
     "(method 211 wvehicle)",
     "(method 62 wvehicle)",

@@ -348,7 +348,44 @@
   )
 
 ;; definition for method 82 of type rigid-body-object
-;; ERROR: function has no type analysis. Cannot decompile.
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch symbol vs none.
+(defmethod rigid-body-object-method-82 ((this rigid-body-object)
+                                       (arg0 process-drawable)
+                                       (arg1 attack-info)
+                                       (arg2 touching-shapes-entry)
+                                       (arg3 penetrate)
+                                       )
+  (when arg2
+    (let ((s5-0 (new 'stack-no-clear 'rigid-body-impact)))
+      (rigid-body-object-method-84 this s5-0 arg2)
+      (if (logtest? (attack-mask attacker-velocity) (-> arg1 mask))
+          (set! (-> s5-0 velocity quad) (-> arg1 attacker-velocity quad))
+          (vector-! (-> s5-0 velocity) (-> s5-0 point) (-> arg0 root trans))
+          )
+      (rigid-body-object-method-79 this s5-0 arg1)
+      (rigid-body-object-method-76 this)
+      (let ((s4-1 (new 'stack-no-clear 'vector)))
+        (set! (-> s4-1 quad) (-> s5-0 velocity quad))
+        (vector-normalize! s4-1 1.0)
+        (vector-float*! s4-1 s4-1 (-> s5-0 impulse))
+        (rigid-body-control-method-18 (-> this rbody) (-> s5-0 point) s4-1)
+        (rigid-body-control-method-12 (-> this rbody) 1.0)
+        (rigid-body-control-method-13 (-> this rbody))
+        (when #f
+          (add-debug-x #t (bucket-id bucket785) (-> s5-0 point) *color-blue*)
+          (add-debug-vector #t (bucket-id bucket785) (-> s5-0 point) s4-1 (meters 0.00024414062) *color-blue*)
+          )
+        )
+      (rigid-body-object-method-80 this s5-0)
+      )
+    (if (and (-> this next-state) (= (-> this next-state name) 'idle))
+        (rigid-body-object-method-77 this)
+        )
+    #t
+    )
+  (none)
+  )
 
 ;; definition for method 83 of type rigid-body-object
 ;; INFO: Used lq/sq
@@ -420,16 +457,17 @@
        )
      )
     (('attack)
-     (let ((s3-0 (the-as object (-> arg3 param 1))))
-       (get-penetrate-using-from-attack-event (the-as process-drawable arg0) arg3)
+     (let ((s3-0 (the-as object (-> arg3 param 1)))
+           (t0-1 (get-penetrate-using-from-attack-event (the-as process-drawable arg0) arg3))
+           )
        (when (!= (-> (the-as attack-info s3-0) id) (-> this incoming-attack-id))
          (set! (-> this incoming-attack-id) (-> (the-as attack-info s3-0) id))
-         (let* ((a0-18 this)
-                (t9-7 (method-of-object a0-18 rigid-body-object-method-82))
-                (a1-6 arg0)
-                )
-           (-> arg3 param 0)
-           (t9-7 a0-18 a1-6 (the-as rigid-body-info s3-0))
+         (rigid-body-object-method-82
+           this
+           (the-as process-drawable arg0)
+           (the-as attack-info s3-0)
+           (the-as touching-shapes-entry (-> arg3 param 0))
+           t0-1
            )
          )
        )

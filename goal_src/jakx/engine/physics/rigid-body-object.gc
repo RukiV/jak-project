@@ -21,8 +21,13 @@
 ;; arguments, the same bootstrapping-decode-artifact class documented at
 ;; each fixed method below (62, 63, 64, 72, 87). rigid-body-control-method-9
 ;; and (method 9 rigid-body-info) stay held (hacks.jsonc), so calls that
-;; reach them (through method 10, landed) still link as zero at runtime;
-;; flagged for the boot smoke.
+;; reach them (through method 10, landed) still link as zero at runtime.
+;; Second target, same rung: method 82 (attack-handler) is UNHELD and
+;; landed below, its own 4-arg shape confirmed by a clean decode, and
+;; method 81's own 'attack-case dispatch to it is restored the same way;
+;; construction-obs-h.gc's override and tail-call are widened together
+;; with this change. Flagged for the boot smoke, since this touches a
+;; GAME.CGO object.
 
 ;; definition for method 57 of type rigid-body-object
 (defmethod process-focusable-method-57 ((this rigid-body-object))
@@ -419,30 +424,54 @@
   (none)
   )
 
-;; og:preserve-this rigid-body-object rung (held): the raw machine code for
-;; this method reads two more registers than the currently-declared two-arg
-;; signature provides (a3, checked for truthiness, and t0, moved to a
-;; callee-saved register and read through the rest of the body), matching
-;; jak3's attack-handler (slot 50, +32 shift: process-drawable attack-info
-;; touching-shapes-entry penetrate) at four args. But construction-obs-h.gc's
-;; already-landed override
-;;   (defmethod rigid-body-object-method-82 ((this construction-object)
-;;     (arg0 object) (arg1 rigid-body-info)))
-;;     (set! (-> arg1 inertial-tensor fvec x) (/ (-> arg1 inertial-tensor fvec x) 1000))
-;;     ((method-of-type rigid-body-object rigid-body-object-method-82) this arg0 arg1)
-;;     (none))
-;; tail-calls this base with only two explicit args, and method-of-type calls
-;; are arity-checked at compile time, so widening this signature to four args
-;; breaks that file without touching it in the same change. hacks.jsonc's
-;; no_type_analysis_functions_by_name carries "(method 82 rigid-body-object)"
-;; so the rest of this object still decodes (leaving it under normal
-;; analysis made the decompiler abort the whole object once every other
-;; function's errors cleared). Left undefined here rather than landed wrong;
-;; needs a coordinated fix that retypes this signature and construction-obs-h.gc's
-;; override and tail-call together. Not reached by anything in this rung's
-;; own landed text: rigid-body-object-method-81's 'attack case dispatches to
-;; it, but that path is unexercised by a default boot the same way it was
-;; before this rung (method-82 was equally undefined then).
+;; definition for method 82 of type rigid-body-object
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch symbol vs none.
+;; og:preserve-this rigid-body rung (second target): RESTORED to the full
+;; 4-arg attack-handler shape, reversing the rigid-body-object rung's own
+;; hold. That rung's own raw evidence (two extra registers read past the
+;; held two-arg signature) already matched jak3's attack-handler (slot 50,
+;; +32 shift) at four args; this rung lands the body from a clean decode
+;; under the widened signature and updates construction-obs-h.gc's own
+;; override and tail-call together in the same change, so the arity-checked
+;; method-of-type call there stays consistent. Reached through
+;; rigid-body-object-method-81's own 'attack case.
+(defmethod rigid-body-object-method-82 ((this rigid-body-object)
+                                       (arg0 process-drawable)
+                                       (arg1 attack-info)
+                                       (arg2 touching-shapes-entry)
+                                       (arg3 penetrate)
+                                       )
+  (when arg2
+    (let ((s5-0 (new 'stack-no-clear 'rigid-body-impact)))
+      (rigid-body-object-method-84 this s5-0 arg2)
+      (if (logtest? (attack-mask attacker-velocity) (-> arg1 mask))
+          (set! (-> s5-0 velocity quad) (-> arg1 attacker-velocity quad))
+          (vector-! (-> s5-0 velocity) (-> s5-0 point) (-> arg0 root trans))
+          )
+      (rigid-body-object-method-79 this s5-0 arg1)
+      (rigid-body-object-method-76 this)
+      (let ((s4-1 (new 'stack-no-clear 'vector)))
+        (set! (-> s4-1 quad) (-> s5-0 velocity quad))
+        (vector-normalize! s4-1 1.0)
+        (vector-float*! s4-1 s4-1 (-> s5-0 impulse))
+        (rigid-body-control-method-18 (-> this rbody) (-> s5-0 point) s4-1)
+        (rigid-body-control-method-12 (-> this rbody) 1.0)
+        (rigid-body-control-method-13 (-> this rbody))
+        (when #f
+          (add-debug-x #t (bucket-id bucket785) (-> s5-0 point) *color-blue*)
+          (add-debug-vector #t (bucket-id bucket785) (-> s5-0 point) s4-1 (meters 0.00024414062) *color-blue*)
+          )
+        )
+      (rigid-body-object-method-80 this s5-0)
+      )
+    (if (and (-> this next-state) (= (-> this next-state name) 'idle))
+        (rigid-body-object-method-77 this)
+        )
+    #t
+    )
+  (none)
+  )
 
 ;; definition for method 83 of type rigid-body-object
 ;; INFO: Used lq/sq
@@ -483,6 +512,12 @@
   )
 
 ;; definition for method 81 of type rigid-body-object
+;; og:preserve-this rigid-body rung (second target): the 'attack case's own
+;; dispatch to method 82 is RESTORED to its real 5-arg call shape (t0-1, the
+;; penetrate result, moved into the let-binding rather than a discarded bare
+;; call, and the vtable indirection replaced with a direct call now that
+;; method 82 has a real signature), the same bootstrapping-decode-artifact
+;; class as rigid-body-control's own fixed call sites in the first target.
 (defmethod rigid-body-object-method-81 ((this rigid-body-object) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
   (case arg2
     (('impact-impulse)
@@ -514,16 +549,17 @@
        )
      )
     (('attack)
-     (let ((s3-0 (the-as object (-> arg3 param 1))))
-       (get-penetrate-using-from-attack-event (the-as process-drawable arg0) arg3)
+     (let ((s3-0 (the-as object (-> arg3 param 1)))
+           (t0-1 (get-penetrate-using-from-attack-event (the-as process-drawable arg0) arg3))
+           )
        (when (!= (-> (the-as attack-info s3-0) id) (-> this incoming-attack-id))
          (set! (-> this incoming-attack-id) (-> (the-as attack-info s3-0) id))
-         (let* ((a0-18 this)
-                (t9-7 (method-of-object a0-18 rigid-body-object-method-82))
-                (a1-6 arg0)
-                )
-           (-> arg3 param 0)
-           (t9-7 a0-18 a1-6 (the-as rigid-body-info s3-0))
+         (rigid-body-object-method-82
+           this
+           (the-as process-drawable arg0)
+           (the-as attack-info s3-0)
+           (the-as touching-shapes-entry (-> arg3 param 0))
+           t0-1
            )
          )
        )
