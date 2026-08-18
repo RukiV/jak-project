@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: hud-widgets-3.gc
-;; name in dgo: hud-widgets-3
-;; dgos: COMMON, GAME
-
-;; DECOMP BEGINS
-
 ;; definition of type hud-points-combo
 (deftype hud-points-combo (hud-item-group)
   ((combo-points       int32)
@@ -76,7 +70,7 @@
 
 ;; definition for method 19 of type hud-points-combo
 (defmethod hud-item-method-19 ((this hud-points-combo))
-  (hud-item-string-method-26 (the-as hud-item-string (-> this items 1)) (-> this combo-size))
+  (hud-item-string-method-26 (-> this items 1) (-> this combo-size))
   (when (and (= -1 (-> this since-exit-time)) (< 600 (- (- (- (if *net-mgr*
                                                                   (-> *net-mgr* game-state time)
                                                                   0
@@ -133,19 +127,13 @@
              (not (-> this sent-exit-event))
              )
     (set! (-> this sent-exit-event) (the-as basic #t))
-    ;; og:preserve-this hud-widgets-3 rung: *net-game-mgr*'s own type is
-    ;; only a name-only declare-type (hud-results-grand-prix.gc), no real
-    ;; field layout landed, so its own stats-hud field (a 2-entry handle
-    ;; array, declared offset 256, indexed by the active viewport) is read
-    ;; as a raw pointer here rather than forward-declaring the full,
-    ;; still-partially-provisional net-game-mgr type for one field.
     (send-event
-      (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index)))
+      (handle->process (-> *net-game-mgr* stats-hud (view-get-active-index)))
       'update-score
       (view-get-active-index)
       (-> this combo-points)
       )
-    (send-event (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index))) 'update-score-sound2)
+    (send-event (handle->process (-> *net-game-mgr* stats-hud (view-get-active-index))) 'update-score-sound2)
     )
   ((method-of-type hud-item-group hud-item-method-19) this)
   (none)
@@ -1909,12 +1897,12 @@
         )
       (when (and (not (-> this sent-update)) (< 150 s5-0))
         (send-event
-          (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index)))
+          (handle->process (-> *net-game-mgr* stats-hud (view-get-active-index)))
           'update-score
           (view-get-active-index)
           (-> this points)
           )
-        (send-event (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index))) 'update-score-sound1)
+        (send-event (handle->process (-> *net-game-mgr* stats-hud (view-get-active-index))) 'update-score-sound1)
         (send-event *net-game-mgr* 'update-score (view-get-active-index) (-> this points))
         (set! (-> this sent-update) (the-as basic #t))
         )
@@ -2073,13 +2061,13 @@
                  )
   )
 
+;; definition for symbol *hud-points-icon-display0-proc*, type hud-points-icon-display0
+(define *hud-points-icon-display0-proc* (the-as hud-points-icon-display0 #f))
+
 ;; definition of type hud-points-icon-display0
 (deftype hud-points-icon-display0 (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-points-icon-display0-proc*, type hud-points-icon-display0
-(define *hud-points-icon-display0-proc* (the-as hud-points-icon-display0 #f))
 
 ;; definition for method 3 of type hud-points-icon-display0
 (defmethod inspect ((this hud-points-icon-display0))
@@ -2191,13 +2179,13 @@
                  )
   )
 
+;; definition for symbol *hud-points-icon-display1-proc*, type hud-points-icon-display1
+(define *hud-points-icon-display1-proc* (the-as hud-points-icon-display1 #f))
+
 ;; definition of type hud-points-icon-display1
 (deftype hud-points-icon-display1 (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-points-icon-display1-proc*, type hud-points-icon-display1
-(define *hud-points-icon-display1-proc* (the-as hud-points-icon-display1 #f))
 
 ;; definition for method 3 of type hud-points-icon-display1
 (defmethod inspect ((this hud-points-icon-display1))
@@ -2309,13 +2297,13 @@
                  )
   )
 
+;; definition for symbol *hud-points-icon-display2-proc*, type hud-points-icon-display2
+(define *hud-points-icon-display2-proc* (the-as hud-points-icon-display2 #f))
+
 ;; definition of type hud-points-icon-display2
 (deftype hud-points-icon-display2 (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-points-icon-display2-proc*, type hud-points-icon-display2
-(define *hud-points-icon-display2-proc* (the-as hud-points-icon-display2 #f))
 
 ;; definition for method 3 of type hud-points-icon-display2
 (defmethod inspect ((this hud-points-icon-display2))
@@ -2427,13 +2415,13 @@
                  )
   )
 
+;; definition for symbol *hud-points-icon-display3-proc*, type hud-points-icon-display3
+(define *hud-points-icon-display3-proc* (the-as hud-points-icon-display3 #f))
+
 ;; definition of type hud-points-icon-display3
 (deftype hud-points-icon-display3 (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-points-icon-display3-proc*, type hud-points-icon-display3
-(define *hud-points-icon-display3-proc* (the-as hud-points-icon-display3 #f))
 
 ;; definition for method 3 of type hud-points-icon-display3
 (defmethod inspect ((this hud-points-icon-display3))
@@ -2545,13 +2533,13 @@
                  )
   )
 
+;; definition for symbol *hud-points-icon-display4-proc*, type hud-points-icon-display4
+(define *hud-points-icon-display4-proc* (the-as hud-points-icon-display4 #f))
+
 ;; definition of type hud-points-icon-display4
 (deftype hud-points-icon-display4 (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-points-icon-display4-proc*, type hud-points-icon-display4
-(define *hud-points-icon-display4-proc* (the-as hud-points-icon-display4 #f))
 
 ;; definition for method 3 of type hud-points-icon-display4
 (defmethod inspect ((this hud-points-icon-display4))
@@ -2736,7 +2724,3 @@
       )
     )
   )
-
-
-
-

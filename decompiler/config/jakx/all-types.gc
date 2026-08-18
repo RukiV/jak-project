@@ -56259,6 +56259,13 @@
   )
 |#
 ;; resurrected from the dead block above (medius bulk field wave)
+;; og:preserve-this hud-widgets-3 rung: stats-hud retyped uint64 -> handle.
+;; (method 19 hud-points-icon) reads this exact field (index by the active
+;; viewport, machine offset 252, declared 256 via the +4 basic-tag trap)
+;; and feeds it straight into the canonical sllv/lwu/dsra32 handle->process
+;; expansion (gkernel-h.gc); the same fix and evidence class already
+;; landed on hud-indicator's own target field and death-indicator-
+;; record's own handle field.
 (deftype net-game-mgr (process-nettable)
   ((scheduled-finish-time int32  :offset-assert 188)
    (scheduled-finish-mode basic  :offset-assert 192)
@@ -56268,7 +56275,7 @@
    (intro-end-time        int32  :offset-assert 224)
    (hud-player-indicators uint64 2 :offset-assert 232)
    (net-players           basic  :offset-assert 248)
-   (stats-hud             uint64 2 :offset-assert 256)
+   (stats-hud             handle 2 :offset-assert 256)
    (intro-handle          uint64 2 :offset-assert 272)
    (cheats                uint16 4 :offset-assert 288)
    (state-time            uint64 :offset-assert 296)
@@ -70612,15 +70619,30 @@
 ;; (define-extern *text-display-sblastered-view-2* array)
 ;; (define-extern *text-display-sblastered-view-2-proc* object)
 (define-extern spawn-text-display-sblastered-view-2 (function object))
-;; (define-extern display-sblastered-text-to-view function)
+;; og:preserve-this hud-widgets-3 rung: activated from the bare provisional
+;; function placeholder, defined in hud-widgets-3_ir2.asm. arg0 is an int
+;; selector (compared against the literal 1) choosing which of the two
+;; sibling text-display-sblastered-view-N processes to spawn; the return
+;; value is whichever spawn-X call's own object return, or #f.
+(define-extern display-sblastered-text-to-view (function int object))
 ;; (define-extern *text-display-supernova-backfire-view-1* array)
 ;; (define-extern *text-display-supernova-backfire-view-1-proc* object)
 (define-extern spawn-text-display-supernova-backfire-view-1 (function object))
 ;; (define-extern *text-display-supernova-backfire-view-2* array)
 ;; (define-extern *text-display-supernova-backfire-view-2-proc* object)
 (define-extern spawn-text-display-supernova-backfire-view-2 (function object))
-;; (define-extern display-supernova-backfire-text-to-view function)
-;; (define-extern change-to-screen-space function)
+;; og:preserve-this hud-widgets-3 rung: activated from the bare provisional
+;; function placeholder, defined in hud-widgets-3_ir2.asm, same shape and
+;; same evidence as display-sblastered-text-to-view above.
+(define-extern display-supernova-backfire-text-to-view (function int object))
+;; og:preserve-this hud-widgets-3 rung: activated from the bare provisional
+;; function placeholder, defined in hud-widgets-3_ir2.asm. arg0 is a
+;; vector, transformed in place through transform-point-vector! (passed as
+;; both src and dst) then screen-projected; arg1 is a float scale factor
+;; converted straight into an fpr with no other use; the return value
+;; (mfc1 from the same float register the projected y component lands in)
+;; is float.
+(define-extern change-to-screen-space (function vector float float))
 ;; (define-extern *hud-points-icon-display0* array)
 ;; (define-extern *hud-points-icon-display0-proc* object)
 (define-extern spawn-hud-points-icon-display0 (function object))
@@ -70637,14 +70659,36 @@
 ;; (define-extern *hud-points-icon-display4-proc* object)
 (define-extern spawn-hud-points-icon-display4 (function object))
 (define-extern spawn-unused-hud-points-icon-display (function object))
-;; (define-extern set-to-upper-right function)
+;; og:preserve-this hud-widgets-3 rung: activated from the bare provisional
+;; function placeholder, defined in hud-widgets-3_ir2.asm. arg0 is a plain
+;; vector, written as four sequential floats (a fixed upper-right screen
+;; anchor, w=1.0); the return value is unused at its own call site.
+(define-extern set-to-upper-right (function vector object))
 ;; hud-and-levels-misc rung: activated from provisional comment. (method 14
 ;; hud-effect-emit-score-icon) builds a stack-scratch vector2 (two floats,
 ;; sp+16, stack_structures.jsonc) from an item's own position-x/position-y
 ;; fields, passes it as arg0, a signed halfword field as arg1 (int), and #f
 ;; as arg2; the return value is unused (no evidence beyond object for it).
-(define-extern create-points-icon-from-screen-pos (function vector2 int object object))
-;; (define-extern create-points-icon function)
+;; og:preserve-this hud-widgets-3 rung: arg2 retyped object -> vector.
+;; create-points-icon-from-screen-pos's own body (hud-widgets-3_ir2.asm)
+;; quad-copies it directly into a stack scratch vector when present
+;; (fed straight into send-event-function as an event-message-block
+;; param), which a fresh compile of the landed text rejects under the old
+;; object typing ("The symbol quad was looked up as a global variable").
+(define-extern create-points-icon-from-screen-pos (function vector2 int vector object))
+;; og:preserve-this hud-widgets-3 rung: activated from the bare provisional
+;; function placeholder, the sibling of create-points-icon-from-screen-pos
+;; just above and defined in this same file (hud-widgets-3_ir2.asm). arg0
+;; retyped object -> process-drawable: it reads its own root field
+;; (declared 188, machine 184 via the +4 basic-tag trap) then that root's
+;; own inherited trans field (trsq's own :offset-assert 16, machine 12,
+;; same shift), the standard root/trans quad access, passed by reference;
+;; arg1 (gp) is forwarded wholesale as an opaque event-message-block quad
+;; param, never dereferenced in this function; arg2 retyped object ->
+;; vector for the same reason as create-points-icon-from-screen-pos's own
+;; arg2 just above; the return value is unused at this function's own
+;; call site.
+(define-extern create-points-icon (function process-drawable object vector object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-widgets-4                  ;;
