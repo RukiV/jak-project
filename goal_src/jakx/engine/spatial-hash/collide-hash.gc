@@ -110,11 +110,19 @@
 ;; declaration in the printed text. The decompiler's own decode does not flag this
 ;; as a decode error (it is a real compile-time gap, not a decode ambiguity), so
 ;; the earlier partial hand-fix is not enough on its own; reverted to fully
-;; deferred rather than land a function proven not to compile under (mi). Nothing
-;; else in this file calls this function.
+;; deferred rather than land a function proven not to compile under (mi).
 ;;   (defun collide-list-fill-bg-using-box ((arg0 collide-cache) (arg1 collide-list) (arg2 collide-query))
 ;;     ...
 ;;     )
+;; The collide-cache rung activated the extern below (matching the hinted
+;; signature already carried in all-types.gc): collide-cache-method-12
+;; (fill-using-bounding-box, goal_src/jakx/engine/collide/collide-cache.gc)
+;; passes this symbol by name as fill-from-bg's own arg1 callback, the same
+;; shape as jak3's own twin. That call site is unreachable today (method 12's
+;; own vtable target, collide-cache-method-18/fill-from-bg, is itself held),
+;; so this stays a bare declaration, not a landing; retire this note once the
+;; vitof12.xyzw gap above is fixed and the real defun replaces it.
+(define-extern collide-list-fill-bg-using-box (function collide-cache collide-list collide-query none))
 
 
 ;; og:preserve-this function collide-list-fill-bg-using-line-sphere is deferred,

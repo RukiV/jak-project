@@ -7,3 +7,270 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this the functions and methods below are held, not landed.
+;; Each still reports its own decode error from the scoped decode at the
+;; levels-other-three tip (311671212, ntsc_v1), cited by its own failing op.
+;; Retirement condition for each: land once its own decode clears (a config
+;; fix or a hand-fix), or once a jakx C++ implementation exists for the
+;; mips2c-flagged pair.
+;;
+;; collide-puss-work (the probe-using-spheres scratch struct), both of its
+;; own methods:
+;;   (method 9 collide-puss-work) check-mesh-prim-against-spheres: "CFG
+;;   building failed: Could not fully resolve CFG" / "Function ... has
+;;   unknown type".
+;;   (method 10 collide-puss-work) check-sphere-prim-against-spheres: the
+;;   same CFG/unknown-type pair.
+;;
+;; test-closest-pt-in-triangle: "Function test-closest-pt-in-triangle has
+;; unknown type".
+;;
+;; collide-cache-prim's own two mips2c-flagged methods, resolve-moving-
+;; sphere-tri (method 9) and resolve-moving-sphere-sphere (method 10):
+;; flagged as mips2c by config with no jakx C++ implementation registered
+;; (no method_9_collide_cache_prim/method_10_collide_cache_prim callback in
+;; game/mips2c). Per the bones-mtx-calc precedent, a def-mips2c with no C++
+;; impl kills the boot at kernel link, so these stay unlanded until one
+;; exists.
+;;
+;; collide-shape-prim-group/-sphere/-mesh's own overrides of methods 10 and
+;; 11 (add-fg-prim-using-box, add-fg-prim-using-line-sphere), six functions
+;; total: -group and -mesh both fail CFG building on both methods ("Could
+;; not fully resolve CFG" / "unknown type"); -sphere fails type prop at op 2
+;; on both ("Could not figure out load: (set! a3 (l.wu (+ a1 8)))") plus a
+;; dead-code-after-return error citing a fabricated (the-as none format)
+;; call through label L222. Landing collide-shape-prim's own base fallback
+;; below without these six is safe (dispatch on a real prim instance goes
+;; through these unfilled overrides, never the base method), but that base
+;; fallback will essentially never fire in real gameplay until these six
+;; land.
+;;
+;; collide-cache's own remaining unfilled methods:
+;;   (method 11) fill-and-probe-using-spheres: decodes with zero errors but
+;;   held anyway. It calls (collide-cache-method-14 this arg0) (unlanded,
+;;   below) then ((method-of-object this collide-cache-method-17)) with no
+;;   visible argument list, even though the raw asm still loads this/arg0
+;;   into a0/a1 immediately before that call; method 17's own declared
+;;   signature is "() none" (zero args, an unconfirmed guess), a mismatch
+;;   against the real call site that needs resolving before this is safe.
+;;   (method 13) fill-using-line-sphere: no defmethod text emitted at all
+;;   ("failed to recognize dead code after return, got (begin (set! v1-9
+;;   (the-as none 0)) (nop!))"); named and dispatched live already from
+;;   collide-shape.gc, construction-obs-h.gc, weather-part.gc, train-obs.gc
+;;   and peak-obs.gc, all currently jumping to zero if reached.
+;;   (method 14) fill-using-spheres: "failed type prop at 3: add failed:
+;;   object <integer 128>" and "Failed to guess stack use for 16"; the
+;;   "<integer 128>" add failure recurs verbatim in method 18 below, likely
+;;   one shared root cause.
+;;   (method 16) probe-using-line-sphere: one remaining error, "failed type
+;;   prop at 51: Could not figure out load: (set! a1 (l.wu (+ a1 60)))",
+;;   after this rung's own stack_structures.jsonc fix (collide-puls-work at
+;;   sp+16) cleared a second, independent stack-use error. The remaining op
+;;   is a collide-cache-prim.prim read narrowed into collide-shape-prim-
+;;   sphere's own pat field (declared offset 64, matching jak3's own twin at
+;;   collide-cache.gc:808; machine offset 60 is declared offset 64 via the
+;;   +4 basic-tag trap). Two type_casts.jsonc attempts (casting a1 at op 50,
+;;   then at op 51, to collide-shape-prim-sphere) were tried and reverted:
+;;   op 50 had no effect, op 51 cleared this error but broke a previously
+;;   clean read at op 21 elsewhere in the same function (a1 at machine
+;;   offset 16, the collide-with mask check), the exact op-renumbering
+;;   non-convergence collide-debug.gc already documented for this same
+;;   field-access class (collide-debug.gc's own og:preserve-this note on
+;;   method 9 of collide-cache).
+;;   (method 17) probe-using-spheres: flagged as mips2c by config, no jakx
+;;   C++ implementation; same class as collide-cache-prim's pair above.
+;;   (method 18) fill-from-bg: "failed type prop at 12: add failed: object
+;;   <integer 128>", the same signature as method 14's own error above.
+;;   (method 19) fill-from-fg-boxes: "failed type prop at 26: Could not
+;;   figure out load: (set! a0 (l.w (+ a0 20)))".
+;;   (method 20) fill-from-fg-line-sphere: "failed type prop at 2: Could not
+;;   figure out load: (set! s4 (l.wu (+ s5 100)))".
+;;   (method 21) fill-from-water: "failed type prop at 46: Could not figure
+;;   out load: (set! f0 (l.f (+ a1 80)))".
+;;   (method 22): CFG building failed, unknown type; no jak3 twin (jakx
+;;   grew two extra method slots, 26 and 27, past jak3's own 26-method
+;;   table).
+;;   (method 23): a jakx-specific nav-mesh query with no jak3 twin (its own
+;;   caller in method 12 below gates it on (collide-spec nav-mesh), a flag
+;;   jak3's own collide-with does not carry); "failed type prop at 1: Could
+;;   not figure out load: (set! v1 (l.wu (+ a1 116)))".
+;;
+;; collide-cache-method-10 and collide-cache-method-12, landed below, both
+;; dispatch virtually into several of the held methods above (10 into 13
+;; and 16 itself; 12 into 18, 19 and 23), and 12's own fill-from-bg argument
+;; passes the still-deferred collide-list-fill-bg-using-box extern by name
+;; (collide-hash.gc; compiles clean, proven not to pass (mi) on its own
+;; vitof12.xyzw gap). None of these paths are reachable through a filled
+;; slot yet, so exercising them at runtime still jumps to zero until the
+;; chain above lands.
+
+;; og:preserve-this lsmi-work and collide-puls-work are real GOAL types in
+;; jak1/jak2/jak3's own twin (goal_src/jak3/engine/collide/collide-cache.gc)
+;; but jakx has only ever "resurrected" them into decompiler/config/jakx/
+;; all-types.gc for decode purposes; goalc's own (mi) rejected the inspect
+;; methods below with "Type lsmi-work is unknown" until these two deftype
+;; forms, transcribed verbatim from all-types.gc's own resurrected fields
+;; (both surfaces must move together), were added here to make the type
+;; real for compilation, matching the file jak3 declares them in.
+
+(deftype lsmi-work (structure)
+  ((best-u      float)
+   (orig-best-u float)
+   (action      uint32)
+   (cquery      collide-query :inline)
+   )
+  )
+
+(deftype collide-puls-work (structure)
+  ((ignore-pat pat-surface)
+   (bsphere    sphere :inline)
+   (move-dist  vector :inline)
+   )
+  )
+
+(defmethod inspect ((this lsmi-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'lsmi-work)
+  (format #t "~1Tbest-u: ~f~%" (-> this best-u))
+  (format #t "~1Torig-best-u: ~f~%" (-> this orig-best-u))
+  (format #t "~1Taction: ~D~%" (-> this action))
+  (format #t "~1Tcquery: #<collide-query @ #x~X>~%" (-> this cquery))
+  (label cfg-4)
+  this
+  )
+
+(defmethod inspect ((this collide-puls-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'collide-puls-work)
+  (format #t "~1Tignore-pat: ~D~%" (-> this ignore-pat))
+  (format #t "~1Tbsphere: #<sphere @ #x~X>~%" (-> this bsphere))
+  (format #t "~1Tmove-dist: #<vector @ #x~X>~%" (-> this move-dist))
+  (label cfg-4)
+  this
+  )
+
+(defmethod reset ((this collide-cache))
+  (set! (-> this num-tris) 0)
+  (set! (-> this num-prims) 0)
+  (set! (-> this ignore-processes 0) #f)
+  (set! (-> this ignore-processes 1) #f)
+  (set! *already-printed-exeeded-max-cache-tris* #f)
+  0
+  (none)
+  )
+
+(defmethod collide-cache-method-10 ((this collide-cache) (arg0 collide-query))
+  (fill-using-line-sphere this arg0)
+  (collide-cache-method-16 this arg0)
+  )
+
+(defmethod collide-cache-method-12 ((this collide-cache) (arg0 collide-query))
+  (rlet ((vf0 :class vf)
+         (vf1 :class vf)
+         (vf2 :class vf)
+         (vf3 :class vf)
+         (vf4 :class vf)
+         )
+    (init-vf0-vector)
+    (+! (-> *collide-stats* calls) 1)
+    (new 'static 'vector :data (new 'static 'array float 4 0.5 0.0 0.0 0.0))
+    (nop!)
+    (nop!)
+    (let ((v1-4 (-> arg0 collide-with-s32)))
+      (nop!)
+      (let ((a0-2 (-> arg0 ignore-process0)))
+        (nop!)
+        (let ((a1-1 (-> arg0 ignore-process1)))
+          (nop!)
+          (let ((a2-0 (-> arg0 ignore-pat-s32)))
+            (nop!)
+            (.lvf vf1 (&-> arg0 bbox min quad))
+            (nop!)
+            (.lvf vf2 (&-> arg0 bbox max quad))
+            (nop!)
+            (set! (-> this ignore-processes 0) (the-as process a0-2))
+            (nop!)
+            (set! (-> this ignore-processes 1) (the-as process a1-1))
+            (.mov.vf.w vf1 vf0)
+            (nop!)
+            (.mov.vf.w vf2 vf0)
+            (set! (-> this ignore-mask) (the-as pat-surface a2-0))
+            )
+          )
+        )
+      (.ftoi.vf vf3 vf1)
+      (nop!)
+      (.ftoi.vf vf4 vf2)
+      (set! (-> this num-tris) 0)
+      (nop!)
+      (.svf (&-> this collide-box min quad) vf1)
+      (nop!)
+      (.svf (&-> this collide-box max quad) vf2)
+      (nop!)
+      (.svf (&-> this collide-box4w min quad) vf3)
+      (nop!)
+      (.svf (&-> this collide-box4w max quad) vf4)
+      (nop!)
+      (.svf (&-> arg0 bbox4w min quad) vf3)
+      (nop!)
+      (.svf (&-> arg0 bbox4w max quad) vf4)
+      (nop!)
+      (set! (-> this num-prims) 0)
+      (nop!)
+      (set! (-> this collide-with) (the-as collide-spec v1-4))
+      )
+    0
+    (when (logtest? (-> arg0 collide-with) (collide-spec backgnd))
+      (collide-cache-method-18
+        this
+        (method-of-type collide-hash drawable-method-11)
+        collide-list-fill-bg-using-box
+        arg0
+        )
+      (let ((v1-12 (-> this num-tris)))
+        (when (> v1-12 0)
+          (let ((a0-5 (the-as structure (-> this prims 0 prim-core)))
+                (a1-4 *collide-shape-prim-backgnd*)
+                )
+            (set! (-> (the-as collide-cache-prim a0-5) num-tris) (the-as uint v1-12))
+            (set! (-> (the-as collide-cache-prim a0-5) prim) a1-4)
+            (set! (-> this num-prims) 1)
+            (set! (-> (the-as collide-cache-prim a0-5) first-tri) (the-as uint 0))
+            (set! (-> (the-as collide-cache-prim a0-5) ccache) this)
+            (set! (-> (the-as collide-prim-core a0-5) world-sphere quad) (-> a1-4 prim-core world-sphere quad))
+            (set! (-> (the-as collide-prim-core a0-5) quad 1) (-> a1-4 prim-core quad 1))
+            )
+          )
+        )
+      (+! (-> *collide-stats* output) (-> this num-tris))
+      )
+    (if (logtest? (-> arg0 collide-with) (collide-spec hit-by-player-list hit-by-others-list player-list))
+        (collide-cache-method-19 this)
+        )
+    (if (logtest? (collide-spec nav-mesh) (-> arg0 collide-with))
+        (collide-cache-method-23 this arg0)
+        )
+    0
+    (none)
+    )
+  )
+
+(defmethod add-fg-prim-using-box ((this collide-shape-prim) (arg0 collide-cache))
+  (format 0 "ERROR: Illegal collide-shape-prim type passed to collide-shape-prim::add-fg-prim-using-box!~%")
+  (none)
+  )
+
+(defmethod add-fg-prim-using-line-sphere ((this collide-shape-prim) (arg0 collide-cache) (arg1 object))
+  (format
+    0
+    "ERROR: Illegal collide-shape-prim type passed to collide-shape-prim::add-fg-prim-using-line-sphere!~%"
+    )
+  (none)
+  )
+

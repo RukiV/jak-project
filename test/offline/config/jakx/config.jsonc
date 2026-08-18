@@ -981,7 +981,24 @@
     // placeholder rather than a real call form for it (a0-1 never resolves
     // to a callable clear-strip typespec). Retire alongside the
     // og:preserve-this note once wvehicle-weapons-oil lands.
-    "(method 9 camera-facing-quad)"
+    "(method 9 camera-facing-quad)",
+    // collide-cache: seven of the object's own unfilled methods emit a
+    // defmethod from their raw decode (each still carries a decode error,
+    // see the og:preserve-this note at the top of goal_src/jakx/engine/
+    // collide/collide-cache.gc) but the fallback body itself does not
+    // compile: methods 14 and 18 both do raw pointer math against a value
+    // typed object ("Cannot do math on a object" on (+ a3-0 128)/(+ a2-1
+    // 128)); methods 16, 19, 20, 21 and 23 each carry an unresolved load
+    // that the expression builder turns into a (the-as none ...) cast used
+    // where a real type is required. goal_src omits all seven; the
+    // decomp-vs-REF diff still gates the rest of the object.
+    "(method 14 collide-cache)",
+    "(method 16 collide-cache)",
+    "(method 18 collide-cache)",
+    "(method 19 collide-cache)",
+    "(method 20 collide-cache)",
+    "(method 21 collide-cache)",
+    "(method 23 collide-cache)"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the

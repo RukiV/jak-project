@@ -1237,5 +1237,16 @@
   // (enter waiting-respawn net-enemy): sp+16 is handed to mem-buffer's own
   // method 10 (byte offset 56, id (56-16)/4=10) as its this-arg, the exact
   // same idiom as (code startup plow) above.
-  "(enter waiting-respawn net-enemy)": [[16, "mem-buffer"]]
+  "(enter waiting-respawn net-enemy)": [[16, "mem-buffer"]],
+  // (method 16 collide-cache), probe-using-line-sphere: sp+16 is filled by
+  // three sequential VU stores (ignore-pat at +0 from a scalar s.w!, bsphere
+  // at +16, move-dist at +32, all quad-width) then walked by the prim loop's
+  // resolve-moving-sphere-tri/-sphere calls as arg2/arg3; this is the same
+  // 48-byte (ignore-pat, bsphere :inline, move-dist :inline) layout already
+  // resurrected as collide-puls-work in all-types.gc (collide-cache section)
+  // and landed identically in jak3's own probe-using-line-sphere
+  // (goal_src/jak3/engine/collide/collide-cache.gc:774, a stack-allocated
+  // collide-puls-work). The raw stack address's own type never resolved on
+  // its own ("Failed to guess stack use for 16").
+  "(method 16 collide-cache)": [[16, "collide-puls-work"]]
 }
