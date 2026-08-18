@@ -4689,6 +4689,59 @@
     [[19, 28], "a3", "matrix"],
     [[46, 50], "a3", "matrix"]
   ],
+  // (method 9 collide-mesh): s5 (op 1, this's own tris field, raw
+  // offset 28, declared 32 on a basic per the +4 convention) resolves
+  // its own offset-4 pat field automatically once evidence accumulates
+  // (op 32) and its stride-8 advance (op 62) already infers
+  // collide-mesh-tri on its own, but the very first use, the offset-0
+  // vertex-index array read at op 17, runs before that evidence exists
+  // and fails on its own. Cast s5 to collide-mesh-tri from right after
+  // its assignment through the last read before the stride advance.
+  "(method 9 collide-mesh)": [[[2, 63], "s5", "collide-mesh-tri"]],
+  // (method 10 collide-mesh): s4 (op 2, arg1 itself, already typed
+  // collide-mesh-cache-tri, confirmed again at op 15's own bbox4w
+  // field) shows as the weaker object at the op 13 loop head (L2's
+  // delay-slot load merges the entry edge with the not-yet-analyzed
+  // loop-back edge), even though every other use in the loop body
+  // resolves on its own. Re-assert collide-mesh-cache-tri across the
+  // loop's own live range.
+  "(method 10 collide-mesh)": [[[3, 48], "s4", "collide-mesh-cache-tri"]],
+  // (method 13 collide-mesh): a2 (a caller-supplied collide-mesh-cache-
+  // entry-shaped destination) is typed matrix throughout a four-matrix
+  // batch of raw sqc2 stores (ops 54-113, all of which resolve without
+  // a cast since stores do not need a declared field), but the op 124
+  // add advancing to the next four-matrix batch (+256, four matrix-
+  // strides) fails on a plain matrix, which has no array-index
+  // arithmetic. Cast to (pointer matrix) for just that one op so the
+  // pointer-stride add resolves; the batch of stores before and after
+  // both use the same raw-offset shape regardless of this cast.
+  //
+  // v1 (op 2, this's own vertex-data field, already typed inline-array
+  // vector) is walked by the same kind of advance twice: op 65's +128
+  // resolves on its own since v1 is still inline-array vector at that
+  // point, but the result degrades to plain vector, so a second +128 at
+  // op 159 fails the same way a2 did ("add failed: vector <integer
+  // 128>"). A local cast at op 159 alone clears that add but destabilizes
+  // an earlier, otherwise-clean read at op 69/71 (l.vf on v1 right after
+  // the first advance) into two different failure shapes depending on
+  // the exact type tried, which is a whole-function type-prop
+  // interaction I could not pin down with a further-scoped cast. Held:
+  // the op 159 add stays unresolved rather than trade one error for a
+  // worse one elsewhere in the same function.
+  "(method 13 collide-mesh)": [[[124, 125], "a2", "(pointer matrix)"]],
+  // should-push-away-test-mesh: s2 (op 5, arg0 itself) shows the same
+  // loop-head weakening as (method 10 collide-mesh) above, at op 19's
+  // delay-slot load, and again at op 46's pat field read once the loop
+  // body's own evidence is available; both resolve with the range
+  // below. A third site at op 54 (the outer loop's own +96 stride
+  // advance, the same shape (method 10 collide-mesh) resolves at its
+  // own op 47) stays unresolved: extending the cast to cover it turns
+  // the plain "add failed" at op 54 into a hard "Unhandled branch delay"
+  // expression-building failure instead, bisected to the op 54 boundary
+  // itself (the reassignment op), not the width of the range. Held at
+  // op 54 rather than trade a field-typing gap for a structural
+  // decompile failure.
+  "should-push-away-test-mesh": [[[6, 53], "s2", "collide-mesh-cache-tri"]],
   // free-eye-index: a2 is eye-control's own array-indexed pointer (eye
   // index times 80, eye's own inline stride, plus inner index times 4,
   // added onto the eye-control base), matching jak3's identical
