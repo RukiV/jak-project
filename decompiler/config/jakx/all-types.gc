@@ -55837,11 +55837,19 @@
 ;; every OTHER read/write of the same fields) rather than raw-offset-patch
 ;; individual call sites, which would make the corpus internally
 ;; inconsistent for no compile-time benefit.
+;;
+;; vehicle retyped uint64 -> handle: (method 49 net-player) reads it,
+;; truthy-checks it against #f (subu-s7), then validates it through the
+;; canonical sllv/lwu/dsra32 handle->process idiom (goalc's own
+;; handle->process builtin does exactly this dance; see generic-obs.gc's own
+;; "og:preserve-this hand-fold" precedent for the same unrecognized triple).
+;; Same size as uint64 (handle extends it), so this does not disturb any
+;; other field's offset.
 (deftype net-player (process-nettable)
   ((last-known-pos          vector :inline :offset 192)
    (last-known-pos-valid    basic          :offset 208)
    (mgr                     basic          :offset 212)
-   (vehicle                 uint64         :offset 216)
+   (vehicle                 handle         :offset 216)
    (rev-mgr                 uint64         :offset 224)
    (score                   int32          :offset 236)
    (player-num              int8           :offset 240)
