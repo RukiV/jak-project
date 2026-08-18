@@ -1,0 +1,63 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; definition for method 11 of type racer-state
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod racer-state-method-11 ((this racer-state) (arg0 race-state))
+  (let ((a2-0 arg0))
+    (set! (-> this racer) (the-as uint (ppointer->handle (if a2-0
+                                                             (the-as (pointer process) (-> a2-0 start-dir w))
+                                                             )
+                                                         )
+                                  )
+          )
+    )
+  (when arg0
+    (set! (-> this position quad)
+          (-> (&+ (the-as (pointer uint128) (-> arg0 racer-array 0 end-of-race-dist)) 12) 0)
+          )
+    (set! (-> this last-race-mesh-position quad)
+          (-> (&+ (the-as (pointer uint128) (-> arg0 racer-array 0 end-of-race-dist)) 12) 0)
+          )
+    )
+  (set! (-> this flags) (the-as uint 40))
+  (set! (-> this lap-count) 0)
+  (set! (-> this lap-distance) 0.0)
+  (set! (-> this lap-quadrant) 3)
+  (set! (-> this lap) 0.0)
+  (set! (-> this prev-racer-lap) 0.0)
+  (set! (-> this next-racer-lap) 0.0)
+  (set! (-> this last-slice) 0)
+  (set! (-> this last-race-line) #f)
+  0
+  (none)
+  )
+
+;; definition for method 9 of type race-state
+;; WARN: Return type mismatch int vs none.
+(defmethod race-state-method-9 ((this race-state) (arg0 process-drawable) (arg1 int))
+  (if (< arg1 10)
+      (racer-state-method-11 (-> this racer-array arg1) (the-as race-state arg0))
+      )
+  0
+  (none)
+  )
+
+;; definition for method 10 of type race-state
+;; WARN: Return type mismatch symbol vs none.
+(defmethod race-state-method-10 ((this race-state))
+  (dotimes (s5-0 (-> this racer-count))
+    (let ((v1-3 (-> this racer-array s5-0)))
+      (send-event (handle->process (-> v1-3 racer)) 'race-deactivate)
+      )
+    )
+  (none)
+  )
+
+;; definition for symbol *race-state*, type object
+(define *race-state* <static-data L15>)
+
+
+
+
