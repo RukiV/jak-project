@@ -56545,6 +56545,23 @@
     )
   )
 |#
+;; resurrected from the dead block above (hud-player-indicators rung):
+;; needed as the parent of net-game-mgr-assassin and net-game-mgr-artifact,
+;; both resurrected below for the same rung's own evidence.
+(deftype net-game-mgr-deathmatch (net-game-mgr)
+  ((spawner-array basic  :offset-assert 304)
+   (spawner-count int8   :offset-assert 308)
+   )
+  :method-count-assert 84
+  :size-assert         #x135
+  :flag-assert         #x5400b00135
+  (:methods
+    (net-game-mgr-deathmatch-method-80 () none) ;; 80
+    (net-game-mgr-deathmatch-method-81 () none) ;; 81
+    (net-game-mgr-deathmatch-method-82 () none) ;; 82
+    (net-game-mgr-deathmatch-method-83 () none) ;; 83
+    )
+  )
 
 #|
 (deftype net-player-assassin (net-player-deathmatch)
@@ -56577,6 +56594,30 @@
     )
   )
 |#
+;; resurrected from the dead block above (hud-player-indicators rung): the
+;; mark field is exactly what (method 19 hud-assassin-indicators) reads
+;; (hud-player-indicators_ir2.asm), a per-player byte indexed directly by
+;; the same net-mgr-relative player index the sibling *net-players* read
+;; uses ("Failed load: (l.b (+ v1-5 305))" without this type, since
+;; net-game-mgr's own base declaration ends at 304). Offset corrected from
+;; the dead block's own captured 305 to 309, the +4 basic-tag shift
+;; already established throughout this rung and confirmed independently
+;; by the type system's own placement (parent net-game-mgr-deathmatch's
+;; own size-assert ends at 309, so a field at raw 305 would overlap its
+;; own spawner-count). The trailing UNKNOWN field stays unread; this rung
+;; only needs mark's own offset, so the struct's own tail is left as
+;; future work rather than guessed here.
+(deftype net-game-mgr-assassin (net-game-mgr-deathmatch)
+  ((mark    uint8 24 :offset-assert 309)
+   )
+  :method-count-assert 86
+  :size-assert         #x14d
+  :flag-assert         #x5600c0014d
+  (:methods
+    (net-game-mgr-assassin-method-84 () none) ;; 84
+    (net-game-mgr-assassin-method-85 () none) ;; 85
+    )
+  )
 
 #|
 (deftype net-player-deathrace (net-player-race)
@@ -56790,6 +56831,31 @@
     )
   )
 |#
+;; resurrected from the dead block above (hud-player-indicators rung): the
+;; artifact field is exactly what (method 19 hud-artifact-indicators)
+;; reads (hud-player-indicators_ir2.asm), a per-artifact uint64 array
+;; indexed by the same net-mgr-relative loop index used elsewhere in this
+;; file's own artifact/assassin sibling methods, machine offset 316
+;; reaching this field's own declared 320 via the +4 basic-tag trap
+;; ("Failed load: (l.d (+ v1-1 316))" without this type, since net-game-
+;; mgr's own base declaration ends at 304).
+(deftype net-game-mgr-artifact (net-game-mgr-deathmatch)
+  ((artifact-location-array basic     :offset-assert 312)
+   (artifact-location-count int8      :offset-assert 316)
+   (artifact                uint64 6 :offset-assert 320)
+   (num-artifacts           int32     :offset-assert 368)
+   (last-artifact-index     int32     :offset-assert 372)
+   (last-position-index     uint32 6 :offset-assert 376)
+   (special-rule            basic     :offset-assert 400)
+   )
+  :method-count-assert 86
+  :size-assert         #x194
+  :flag-assert         #x5601100194
+  (:methods
+    (net-game-mgr-artifact-method-84 () none) ;; 84
+    (net-game-mgr-artifact-method-85 () none) ;; 85
+    )
+  )
 
 #|
 (deftype net-player-beasthunt (net-player-deathmatch)
@@ -73675,6 +73741,13 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-player-indicators rung: method 24 gains real arg
+;; types. hud-player-indicators_ir2.asm's own body converts arg0 straight
+;; into an fpr with no other use (the same object -> float defect class
+;; already fixed on hud-item-method-17/20), and dispatches net-player-
+;; method-53 through arg1 (vtable slot 212, matching that method's own
+;; declared signature) to read the returned rigid-body-object-family
+;; process's own field at offset 704.
 (deftype hud-health (hud-item-group)
   ((health float  :offset-assert 44)
    )
@@ -73682,7 +73755,7 @@
   :size-assert         #x30
   :flag-assert         #x1900000030
   (:methods
-    (hud-health-method-24 (_type_ object object) none) ;; 24
+    (hud-health-method-24 (_type_ float net-player) none) ;; 24
     )
   )
 
@@ -73712,8 +73785,16 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-player-indicators rung: target retyped uint64 ->
+;; handle, the same fix and evidence class as death-indicator-record's own
+;; handle field: (method 19 hud-assassin-indicators) builds this exact
+;; field via the canonical sllv/lwu/dsra32 process->handle expansion
+;; (gkernel-h.gc) from a net-player's own process, and (method 14 hud-
+;; manager-death-indicator) already proved the construction auto-resolves
+;; with zero manual op casts once the destination field itself carries the
+;; handle type instead of a bare integer.
 (deftype hud-indicator (hud-item-group)
-  ((target                 uint64         :offset-assert 48)
+  ((target                 handle         :offset-assert 48)
    (target-position        vector :inline :offset-assert 64)
    (id                     int32          :offset-assert 80)
    (enemy-distance         float          :offset-assert 84)
@@ -73731,7 +73812,7 @@
   (:methods
     (hud-indicator-method-24 (_type_) none) ;; 24
     (hud-indicator-method-25 (_type_ object object) none) ;; 25
-    (hud-indicator-method-26 (_type_ vector vector float) none) ;; 26
+    (hud-indicator-method-26 (_type_ vector vector float float) none) ;; 26 ;; og:preserve-this hud-player-indicators rung: gains a second float arg, landing in t0; the old three-arg signature flagged "may read a register that is not set: t0" (hud-player-indicators_ir2.asm), the body converts it straight into an fpr for a min/max clamp against the same on-screen bounds box the first float already clamps
     )
   )
 
@@ -73748,13 +73829,22 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-player-indicators rung: method 24 gains its own
+;; real arg (net-player) and return (symbol). hud-player-indicators_ir2.asm's
+;; own body reads a1 directly (self, a0, is never touched, matching the
+;; hud-item-string-method-24/28 arity-sweep precedent of giving self a
+;; type only where it is actually read), dispatches net-player-method-53
+;; through it (vtable slot 212, matching that method's own declared
+;; signature), and tests the returned rigid-body-object's own flags field
+;; (declared 264, the same field already landed on death-indicator's own
+;; twin read in (method 19 hud-assassin-indicators)), returning #t/#f.
 (deftype hud-player-indicators (hud-item-group)
   ()
   :method-count-assert 25
   :size-assert         #x2c
   :flag-assert         #x190000002c
   (:methods
-    (hud-player-indicators-method-24 () none) ;; 24
+    (hud-player-indicators-method-24 (_type_ net-player) symbol) ;; 24
     )
   )
 
@@ -73916,7 +74006,13 @@
 ;; (define-extern *hud-assassin-indicators-view1-proc* object)
 (define-extern spawn-hud-assassin-indicators-view1 (function object))
 (define-extern spawn-unused-hud-assassin-indicators-view (function object))
-;; (define-extern hud-indicators-spawn function)
+;; og:preserve-this hud-player-indicators rung: activated from the bare
+;; provisional function placeholder. hud-player-indicators_ir2.asm's own
+;; body is a net-play-mode dispatcher that returns whatever its own chosen
+;; spawn-hud-*-indicators-view0 call returns (or #f on the mode with no
+;; indicator), the same object-typed return every sibling spawn-X function
+;; above already carries; no args are read.
+(define-extern hud-indicators-spawn (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wvehicle-race                  ;;
@@ -75958,8 +76054,15 @@
 ;; (define-extern artifact-draw-init-remote function)
 ;; (define-extern *msg-map-artifact-draw* array)
 ;; (define-extern *net-process-class-info-artifact-draw* object)
-;; (define-extern get-artifact-position function)
-;; (define-extern get-artifact-color function)
+;; og:preserve-this hud-player-indicators rung: activated from the bare
+;; provisional function placeholders. hud-player-indicators_ir2.asm's own
+;; (method 19 hud-artifact-indicators) calls get-artifact-position with an
+;; out-param vector pointer (this artifact's own indicator, &target-
+;; position, hud-indicator's declared offset 64) then an int index, no
+;; useful return read; get-artifact-color takes only the same int index
+;; and its return feeds hud-indicator-method-25's own untyped object arg.
+(define-extern get-artifact-position (function vector int none))
+(define-extern get-artifact-color (function int object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; ctf-part                       ;;
@@ -76161,11 +76264,18 @@
 
 ;; (define-extern *hud-ctf-indicators-view0* array)
 ;; (define-extern *hud-ctf-indicators-view0-proc* object)
-;; (define-extern spawn-hud-ctf-indicators-view0 function)
+;; og:preserve-this hud-player-indicators rung: activated from the bare
+;; provisional function placeholder. hud-indicators-spawn's own body (this
+;; file's dispatcher) calls it with no args on the ctf net-play-mode
+;; branch; hud-ctf-indicators's own type homes to a different, unlanded
+;; file, matching every sibling spawn-X function's own object return.
+(define-extern spawn-hud-ctf-indicators-view0 (function object))
 ;; (define-extern *hud-ctf-indicators-view1* array)
 ;; (define-extern *hud-ctf-indicators-view1-proc* object)
 ;; (define-extern spawn-hud-ctf-indicators-view1 function)
-;; (define-extern spawn-unused-hud-ctf-indicators-view function)
+;; og:preserve-this hud-player-indicators rung: activated alongside spawn-
+;; hud-ctf-indicators-view0 above, same reason and same object return.
+(define-extern spawn-unused-hud-ctf-indicators-view (function object))
 ;; (define-extern net-player-ctf-init-local function)
 ;; (define-extern set-flag-event function)
 
@@ -76228,11 +76338,16 @@
 
 ;; (define-extern *hud-hunt-indicators-view0* array)
 ;; (define-extern *hud-hunt-indicators-view0-proc* object)
-;; (define-extern spawn-hud-hunt-indicators-view0 function)
+;; og:preserve-this hud-player-indicators rung: activated alongside spawn-
+;; hud-ctf-indicators-view0 above, same reason (hud-indicators-spawn's own
+;; hunt net-play-mode branch, this file's dispatcher).
+(define-extern spawn-hud-hunt-indicators-view0 (function object))
 ;; (define-extern *hud-hunt-indicators-view1* array)
 ;; (define-extern *hud-hunt-indicators-view1-proc* object)
 ;; (define-extern spawn-hud-hunt-indicators-view1 function)
-;; (define-extern spawn-unused-hud-hunt-indicators-view function)
+;; og:preserve-this hud-player-indicators rung: activated alongside spawn-
+;; hud-hunt-indicators-view0 above, same reason and same object return.
+(define-extern spawn-unused-hud-hunt-indicators-view (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; plow                           ;;
@@ -84480,7 +84595,13 @@
 (define-extern *accessorize-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *active-net-non-spectator-count* object) ;; provisional: call-site evidence only
 (define-extern *active-net-player-count* object) ;; provisional: call-site evidence only
-(define-extern *active-net-players* object) ;; provisional: call-site evidence only
+;; og:preserve-this hud-player-indicators rung: retyped object -> (array
+;; net-player) from the provisional-extern placeholder. hud-player-
+;; indicators_ir2.asm's own (method 19 hud-player-indicators) reads it
+;; with the standard boxed-array element access (offset 12, same shape as
+;; the already-typed *net-players*), then dereferences the element
+;; directly as a net-player.
+(define-extern *active-net-players* (array net-player))
 (define-extern *actor-hash-buckets* object) ;; provisional: call-site evidence only
 (define-extern *adv-coming-back-from-game* object) ;; provisional: call-site evidence only
 (define-extern *adventure-bottom-bar-ids* object) ;; provisional: call-site evidence only
@@ -85437,12 +85558,12 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier nav-graph-editor deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern net-connect-in-params object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier net-game-mgr deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
-(define-extern net-game-mgr-artifact object) ;; provisional: call-site evidence only
-(define-extern net-game-mgr-assassin object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the resurrected net-game-mgr-artifact deftype (hud-player-indicators rung, scripts/check_alltypes_shadowing.py)
+;; og:preserve-this provisional extern removed: shadowed the resurrected net-game-mgr-assassin deftype (hud-player-indicators rung, scripts/check_alltypes_shadowing.py)
 (define-extern net-game-mgr-beasthunt object) ;; provisional: call-site evidence only
 (define-extern net-game-mgr-boss-battle object) ;; provisional: call-site evidence only
 (define-extern net-game-mgr-ctf object) ;; provisional: call-site evidence only
-(define-extern net-game-mgr-deathmatch object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the resurrected net-game-mgr-deathmatch deftype (hud-player-indicators rung, scripts/check_alltypes_shadowing.py)
 (define-extern net-game-mgr-deathrace object) ;; provisional: call-site evidence only
 (define-extern net-game-mgr-football object) ;; provisional: call-site evidence only
 (define-extern net-game-mgr-race object) ;; provisional: call-site evidence only
