@@ -1,0 +1,2357 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; definition for symbol *in-game-menu-process*, type (pointer process)
+(define *in-game-menu-process* (the-as (pointer process) #f))
+
+;; definition for symbol *in-game-menu-on?*, type object
+(define *in-game-menu-on?* (the-as object #f))
+
+;; definition for function in-game-menu-allowed?
+(defun in-game-menu-allowed? ()
+  (not (or (-> *setting-control* user-current movie)
+           (movie?)
+           (handle->process (-> *game-info* pov-camera-handle))
+           (handle->process (-> *game-info* other-camera-handle))
+           (< (-> *display* base-clock frame-counter) (the-as time-frame (-> *game-info* letterbox-time)))
+           (< (-> *display* base-clock frame-counter) (the-as time-frame (-> *game-info* blackout-time)))
+           (!= (-> *setting-control* user-current bg-a) 0.0)
+           (!= (-> *setting-control* user-current bg-a-force) 0.0)
+           (not (-> *setting-control* user-current allow-in-game-menu))
+           (or (and (handle->process (-> *game-info* auto-save-proc))
+                    (not (send-event (handle->process (-> *game-info* auto-save-proc)) 'progress-allowed?))
+                    )
+               (= *cheat-mode* 'camera)
+               (= *master-mode* 'freeze)
+               *master-exit*
+               (not *common-text*)
+               (< (memory-free *nk-dead-pool*) #x8000)
+               (and (current-finish-mode) *net-mgr* (= (-> *net-mgr* game-type) 4))
+               (in-game-menu-on?)
+               )
+           )
+       )
+  )
+
+;; definition of type in-game-menu-struct
+(deftype in-game-menu-struct (structure)
+  ((last-selection-index  int8)
+   (confirmation-sym      basic)
+   )
+  (:methods
+    (in-game-menu-struct-method-9 (_type_) none)
+    )
+  )
+
+;; definition for method 3 of type in-game-menu-struct
+(defmethod inspect ((this in-game-menu-struct))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'in-game-menu-struct)
+  (format #t "~1Tlast-selection-index: ~D~%" (-> this last-selection-index))
+  (format #t "~1Tconfirmation-sym: ~A~%" (-> this confirmation-sym))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 9 of type in-game-menu-struct
+;; WARN: Return type mismatch int vs none.
+(defmethod in-game-menu-struct-method-9 ((this in-game-menu-struct))
+  (set! (-> this last-selection-index) 0)
+  (set! (-> this confirmation-sym) #f)
+  0
+  (none)
+  )
+
+;; definition for symbol *in-game-menu-struct*, type in-game-menu-struct
+(define *in-game-menu-struct* (new 'static 'in-game-menu-struct))
+
+;; definition of type hud-bar-slider
+(deftype hud-bar-slider (hud-item-group)
+  ()
+  (:methods
+    (hud-bar-slider-method-24 (_type_ float) none)
+    )
+  )
+
+;; definition for method 3 of type hud-bar-slider
+(defmethod inspect ((this hud-bar-slider))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~1Talpha: ~D~%" (-> this alpha))
+  (format #t "~1Treal-alpha: ~D~%" (-> this real-alpha))
+  (format #t "~1Tposition-x: ~D~%" (-> this position-x))
+  (format #t "~1Tposition-y: ~D~%" (-> this position-y))
+  (format #t "~1Treal-position-x: ~D~%" (-> this real-position-x))
+  (format #t "~1Treal-position-y: ~D~%" (-> this real-position-y))
+  (format #t "~1Twidth: ~D~%" (-> this width))
+  (format #t "~1Theight: ~D~%" (-> this height))
+  (format #t "~1Treal-width: ~D~%" (-> this real-width))
+  (format #t "~1Treal-height: ~D~%" (-> this real-height))
+  (format #t "~1Tzval: ~D~%" (-> this zval))
+  (format #t "~1Treal-scale: ~D~%" (-> this real-scale))
+  (format #t "~1Tscale: ~D~%" (-> this scale))
+  (format #t "~1Tflags: ~D~%" (-> this flags))
+  (format #t "~1Teffect: ~A~%" (-> this effect))
+  (format #t "~1Tparent: ~A~%" (-> this parent))
+  (format #t "~1Titems: ~A~%" (-> this items))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 24 of type hud-bar-slider
+(defmethod hud-bar-slider-method-24 ((this hud-bar-slider) (arg0 float))
+  (let ((v1-3 (-> (the-as hud-item-group (-> this items 1)) items 1)))
+    (set! (-> v1-3 scale) (the int (* 12288.0 arg0)))
+    )
+  (hud-item-method-14 this)
+  (hud-item-method-12 this)
+  (none)
+  )
+
+;; definition of type in-game-menu-hud
+(deftype in-game-menu-hud (hud-item-group)
+  ((start-time       uint64)
+   (selection-index  int8)
+   (old-clock-ratio  float  22)
+   (sound-id         uint32)
+   )
+  (:methods
+    (in-game-menu-hud-method-24 (_type_) none)
+    (in-game-menu-hud-method-25 (_type_) none)
+    )
+  )
+
+;; definition for method 3 of type in-game-menu-hud
+(defmethod inspect ((this in-game-menu-hud))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~1Talpha: ~D~%" (-> this alpha))
+  (format #t "~1Treal-alpha: ~D~%" (-> this real-alpha))
+  (format #t "~1Tposition-x: ~D~%" (-> this position-x))
+  (format #t "~1Tposition-y: ~D~%" (-> this position-y))
+  (format #t "~1Treal-position-x: ~D~%" (-> this real-position-x))
+  (format #t "~1Treal-position-y: ~D~%" (-> this real-position-y))
+  (format #t "~1Twidth: ~D~%" (-> this width))
+  (format #t "~1Theight: ~D~%" (-> this height))
+  (format #t "~1Treal-width: ~D~%" (-> this real-width))
+  (format #t "~1Treal-height: ~D~%" (-> this real-height))
+  (format #t "~1Tzval: ~D~%" (-> this zval))
+  (format #t "~1Treal-scale: ~D~%" (-> this real-scale))
+  (format #t "~1Tscale: ~D~%" (-> this scale))
+  (format #t "~1Tflags: ~D~%" (-> this flags))
+  (format #t "~1Teffect: ~A~%" (-> this effect))
+  (format #t "~1Tparent: ~A~%" (-> this parent))
+  (format #t "~1Titems: ~A~%" (-> this items))
+  (format #t "~1Tstart-time: ~D~%" (-> this start-time))
+  (format #t "~1Tselection-index: ~D~%" (-> this selection-index))
+  (format #t "~1Told-clock-ratio[22] @ #x~X~%" (-> this old-clock-ratio))
+  (format #t "~1Tsound-id: ~D~%" (-> this sound-id))
+  (label cfg-4)
+  this
+  )
+
+;; definition of type in-game-menu-hud-options
+(deftype in-game-menu-hud-options (in-game-menu-hud)
+  ()
+  )
+
+;; definition for method 3 of type in-game-menu-hud-options
+(defmethod inspect ((this in-game-menu-hud-options))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~1Talpha: ~D~%" (-> this alpha))
+  (format #t "~1Treal-alpha: ~D~%" (-> this real-alpha))
+  (format #t "~1Tposition-x: ~D~%" (-> this position-x))
+  (format #t "~1Tposition-y: ~D~%" (-> this position-y))
+  (format #t "~1Treal-position-x: ~D~%" (-> this real-position-x))
+  (format #t "~1Treal-position-y: ~D~%" (-> this real-position-y))
+  (format #t "~1Twidth: ~D~%" (-> this width))
+  (format #t "~1Theight: ~D~%" (-> this height))
+  (format #t "~1Treal-width: ~D~%" (-> this real-width))
+  (format #t "~1Treal-height: ~D~%" (-> this real-height))
+  (format #t "~1Tzval: ~D~%" (-> this zval))
+  (format #t "~1Treal-scale: ~D~%" (-> this real-scale))
+  (format #t "~1Tscale: ~D~%" (-> this scale))
+  (format #t "~1Tflags: ~D~%" (-> this flags))
+  (format #t "~1Teffect: ~A~%" (-> this effect))
+  (format #t "~1Tparent: ~A~%" (-> this parent))
+  (format #t "~1Titems: ~A~%" (-> this items))
+  (format #t "~1Tstart-time: ~D~%" (-> this start-time))
+  (format #t "~1Tselection-index: ~D~%" (-> this selection-index))
+  (format #t "~1Told-clock-ratio[22] @ #x~X~%" (-> this old-clock-ratio))
+  (format #t "~1Tsound-id: ~D~%" (-> this sound-id))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 9 of type in-game-menu-hud
+(defmethod hud-item-method-9 ((this in-game-menu-hud))
+  (set! (-> this sound-id) (the-as uint (new-sound-id)))
+  (in-game-menu-hud-method-24 this)
+  (logclear! (-> *current-hud* mask) (process-mask pause menu))
+  (set! (-> this start-time) (the-as uint (+ (current-time) (seconds 0.5))))
+  (set! (-> this selection-index) (-> *in-game-menu-struct* last-selection-index))
+  (send-event (handle->process (-> *game-info* player-info (view-get-active-index) vehicle)) 'set 'grabbed #t)
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for method 24 of type in-game-menu-hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod in-game-menu-hud-method-24 ((this in-game-menu-hud))
+  (dotimes (v1-0 22)
+    (set! (-> this old-clock-ratio v1-0) (-> *display* clock v1-0 clock-ratio))
+    (set! (-> *display* clock v1-0 clock-ratio) 1.0)
+    )
+  (none)
+  )
+
+;; definition for method 25 of type in-game-menu-hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod in-game-menu-hud-method-25 ((this in-game-menu-hud))
+  (dotimes (v1-0 22)
+    (set! (-> *display* clock v1-0 clock-ratio) (-> this old-clock-ratio v1-0))
+    )
+  (none)
+  )
+
+;; definition for method 11 of type in-game-menu-hud
+(defmethod hud-item-method-11 ((this in-game-menu-hud))
+  (send-event (handle->process (-> *game-info* player-info (view-get-active-index) vehicle)) 'set 'grabbed #f)
+  (sound-stop (the-as sound-id (-> this sound-id)) #t)
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for symbol *hud-in-game-menu-view-0*, type object
+(define *hud-in-game-menu-view-0*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #x100 :flags #x21082 :items (new 'static 'boxed-array :type hud-item
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x20e
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #x12c
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x7f
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #x12c
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x1c
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x5e6
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-view-0-proc*, type object
+(define *hud-in-game-menu-view-0-proc* (the-as object #f))
+
+;; definition of type hud-in-game-menu-view-0
+(deftype hud-in-game-menu-view-0 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-view-0
+(defmethod inspect ((this hud-in-game-menu-view-0))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-view-0
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-view-0.
+(defmethod relocate ((this hud-in-game-menu-view-0) (offset int))
+  (set! *hud-in-game-menu-view-0-proc* this)
+  (if (nonzero? *hud-in-game-menu-view-0-proc*)
+      (set! *hud-in-game-menu-view-0-proc* (+ (the-as uint *hud-in-game-menu-view-0-proc*) offset))
+      )
+  (the-as hud-in-game-menu-view-0 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-view-0
+(defmethod hud-method-26 ((this hud-in-game-menu-view-0))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-view-0*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-view-0-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-0
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-0))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-0-proc* (the-as object #f))
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-view-0
+(defmethod hud-method-24 ((this hud-in-game-menu-view-0))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-view-0*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-view-0
+;; WARN: Return type mismatch object vs hud-in-game-menu-view-0.
+(defun spawn-hud-in-game-menu-view-0 ()
+  (the-as
+    hud-in-game-menu-view-0
+    (cond
+      (*hud-in-game-menu-view-0-proc*
+        *hud-in-game-menu-view-0-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as hud-in-game-menu-view-0 (get-process *default-dead-pool* hud-in-game-menu-view-0 #x4000 1)))
+               (v0-0
+                 (ppointer->process (when gp-0
+                                      (let ((t9-1 (method-of-type hud-in-game-menu-view-0 activate)))
+                                        (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-view-0" (the-as pointer #x70004000))
+                                        )
+                                      (run-now-in-process gp-0 hud-init-by-other)
+                                      (-> gp-0 ppointer)
+                                      )
+                                    )
+                 )
+               )
+          (when (the-as hud-in-game-menu-view-0 v0-0)
+            (set! (-> (the-as hud-in-game-menu-view-0 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        #f
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-view-0))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-0
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-0))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-0-proc* (the-as object #f))
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for symbol *hud-in-game-menu-view-1*, type object
+(define *hud-in-game-menu-view-1*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #xd9 :flags #x21080 :items (new 'static 'boxed-array :type hud-item
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x20e
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #x12c
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x7f
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #x12c
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x1c
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x5e6
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-view-1-proc*, type object
+(define *hud-in-game-menu-view-1-proc* (the-as object #f))
+
+;; definition of type hud-in-game-menu-view-1
+(deftype hud-in-game-menu-view-1 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-view-1
+(defmethod inspect ((this hud-in-game-menu-view-1))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-view-1
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-view-1.
+(defmethod relocate ((this hud-in-game-menu-view-1) (offset int))
+  (set! *hud-in-game-menu-view-1-proc* this)
+  (if (nonzero? *hud-in-game-menu-view-1-proc*)
+      (set! *hud-in-game-menu-view-1-proc* (+ (the-as uint *hud-in-game-menu-view-1-proc*) offset))
+      )
+  (the-as hud-in-game-menu-view-1 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-view-1
+(defmethod hud-method-26 ((this hud-in-game-menu-view-1))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-view-1*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-view-1-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-1
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-1))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-1-proc* (the-as object #f))
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-view-1
+(defmethod hud-method-24 ((this hud-in-game-menu-view-1))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-view-1*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-view-1
+;; WARN: Return type mismatch object vs hud-in-game-menu-view-1.
+(defun spawn-hud-in-game-menu-view-1 ()
+  (the-as
+    hud-in-game-menu-view-1
+    (cond
+      (*hud-in-game-menu-view-1-proc*
+        *hud-in-game-menu-view-1-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as hud-in-game-menu-view-1 (get-process *default-dead-pool* hud-in-game-menu-view-1 #x4000 1)))
+               (v0-0
+                 (ppointer->process (when gp-0
+                                      (let ((t9-1 (method-of-type hud-in-game-menu-view-1 activate)))
+                                        (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-view-1" (the-as pointer #x70004000))
+                                        )
+                                      (run-now-in-process gp-0 hud-init-by-other)
+                                      (-> gp-0 ppointer)
+                                      )
+                                    )
+                 )
+               )
+          (when (the-as hud-in-game-menu-view-1 v0-0)
+            (set! (-> (the-as hud-in-game-menu-view-1 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        #f
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-view-1))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-1
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-1))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-1-proc* (the-as object #f))
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for symbol *hud-in-game-menu-view-2*, type object
+(define *hud-in-game-menu-view-2*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #xd9 :flags #x21080 :items (new 'static 'boxed-array :type hud-item
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x20e
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #x12c
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x7f
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #x12c
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x1c
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x5e6
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-view-2-proc*, type object
+(define *hud-in-game-menu-view-2-proc* (the-as object #f))
+
+;; definition of type hud-in-game-menu-view-2
+(deftype hud-in-game-menu-view-2 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-view-2
+(defmethod inspect ((this hud-in-game-menu-view-2))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-view-2
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-view-2.
+(defmethod relocate ((this hud-in-game-menu-view-2) (offset int))
+  (set! *hud-in-game-menu-view-2-proc* this)
+  (if (nonzero? *hud-in-game-menu-view-2-proc*)
+      (set! *hud-in-game-menu-view-2-proc* (+ (the-as uint *hud-in-game-menu-view-2-proc*) offset))
+      )
+  (the-as hud-in-game-menu-view-2 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-view-2
+(defmethod hud-method-26 ((this hud-in-game-menu-view-2))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-view-2*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-view-2-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-2
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-2))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-2-proc* (the-as object #f))
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-view-2
+(defmethod hud-method-24 ((this hud-in-game-menu-view-2))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-view-2*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-view-2
+;; WARN: Return type mismatch object vs hud-in-game-menu-view-2.
+(defun spawn-hud-in-game-menu-view-2 ()
+  (the-as
+    hud-in-game-menu-view-2
+    (cond
+      (*hud-in-game-menu-view-2-proc*
+        *hud-in-game-menu-view-2-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as hud-in-game-menu-view-2 (get-process *default-dead-pool* hud-in-game-menu-view-2 #x4000 1)))
+               (v0-0
+                 (ppointer->process (when gp-0
+                                      (let ((t9-1 (method-of-type hud-in-game-menu-view-2 activate)))
+                                        (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-view-2" (the-as pointer #x70004000))
+                                        )
+                                      (run-now-in-process gp-0 hud-init-by-other)
+                                      (-> gp-0 ppointer)
+                                      )
+                                    )
+                 )
+               )
+          (when (the-as hud-in-game-menu-view-2 v0-0)
+            (set! (-> (the-as hud-in-game-menu-view-2 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        #f
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-view-2))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-2
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-2))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-2-proc* (the-as object #f))
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for symbol *hud-in-game-menu-view-shared-0*, type object
+(define *hud-in-game-menu-view-shared-0*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #x100 :flags #x21082 :items (new 'static 'boxed-array :type hud-item
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x20e
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #x12c
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x7f
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #x12c
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x1c
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x5e6
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x34
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-view-shared-0-proc*, type object
+(define *hud-in-game-menu-view-shared-0-proc* (the-as object #f))
+
+;; definition of type hud-in-game-menu-view-shared-0
+(deftype hud-in-game-menu-view-shared-0 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-view-shared-0
+(defmethod inspect ((this hud-in-game-menu-view-shared-0))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-view-shared-0
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-view-shared-0.
+(defmethod relocate ((this hud-in-game-menu-view-shared-0) (offset int))
+  (set! *hud-in-game-menu-view-shared-0-proc* this)
+  (if (nonzero? *hud-in-game-menu-view-shared-0-proc*)
+      (set! *hud-in-game-menu-view-shared-0-proc* (+ (the-as uint *hud-in-game-menu-view-shared-0-proc*) offset))
+      )
+  (the-as hud-in-game-menu-view-shared-0 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-view-shared-0
+(defmethod hud-method-26 ((this hud-in-game-menu-view-shared-0))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-view-shared-0*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-view-shared-0-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-shared-0
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-shared-0))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-shared-0-proc* (the-as object #f))
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-view-shared-0
+(defmethod hud-method-24 ((this hud-in-game-menu-view-shared-0))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-view-shared-0*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-view-shared-0
+;; WARN: Return type mismatch object vs hud-in-game-menu-view-shared-0.
+(defun spawn-hud-in-game-menu-view-shared-0 ()
+  (the-as
+    hud-in-game-menu-view-shared-0
+    (cond
+      (*hud-in-game-menu-view-shared-0-proc*
+        *hud-in-game-menu-view-shared-0-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as
+                       hud-in-game-menu-view-shared-0
+                       (get-process *default-dead-pool* hud-in-game-menu-view-shared-0 #x4000 1)
+                       )
+                     )
+               (v0-0 (ppointer->process
+                       (when gp-0
+                         (let ((t9-1 (method-of-type hud-in-game-menu-view-shared-0 activate)))
+                           (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-view-shared-0" (the-as pointer #x70004000))
+                           )
+                         (run-now-in-process gp-0 hud-init-by-other)
+                         (-> gp-0 ppointer)
+                         )
+                       )
+                     )
+               )
+          (when (the-as hud-in-game-menu-view-shared-0 v0-0)
+            (set! (-> (the-as hud-in-game-menu-view-shared-0 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        #f
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-view-shared-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-view-shared-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-view-shared-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-view-shared-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-view-shared-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-view-shared-0))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-shared-0
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-shared-0))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-shared-0-proc* (the-as object #f))
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for symbol *hud-in-game-menu-view-shared-1*, type object
+(define *hud-in-game-menu-view-shared-1*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #xd9 :flags #x21080 :items (new 'static 'boxed-array :type hud-item
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x20e
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #x12c
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x7f
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #x12c
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x1c
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x5e6
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x34
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-view-shared-1-proc*, type hud-in-game-menu-view-shared-1
+(define *hud-in-game-menu-view-shared-1-proc* (the-as hud-in-game-menu-view-shared-1 #f))
+
+;; definition of type hud-in-game-menu-view-shared-1
+(deftype hud-in-game-menu-view-shared-1 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-view-shared-1
+(defmethod inspect ((this hud-in-game-menu-view-shared-1))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-view-shared-1
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-view-shared-1.
+(defmethod relocate ((this hud-in-game-menu-view-shared-1) (offset int))
+  (set! *hud-in-game-menu-view-shared-1-proc* this)
+  (if (nonzero? *hud-in-game-menu-view-shared-1-proc*)
+      (set! *hud-in-game-menu-view-shared-1-proc* (&+ *hud-in-game-menu-view-shared-1-proc* offset))
+      )
+  (the-as hud-in-game-menu-view-shared-1 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-view-shared-1
+(defmethod hud-method-26 ((this hud-in-game-menu-view-shared-1))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-view-shared-1*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-view-shared-1-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-shared-1
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-shared-1))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-shared-1-proc* #f)
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-view-shared-1
+(defmethod hud-method-24 ((this hud-in-game-menu-view-shared-1))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-view-shared-1*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-view-shared-1
+;; WARN: Return type mismatch process vs hud-in-game-menu-view-shared-1.
+(defun spawn-hud-in-game-menu-view-shared-1 ()
+  (the-as
+    hud-in-game-menu-view-shared-1
+    (cond
+      (*hud-in-game-menu-view-shared-1-proc*
+        *hud-in-game-menu-view-shared-1-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as
+                       hud-in-game-menu-view-shared-1
+                       (get-process *default-dead-pool* hud-in-game-menu-view-shared-1 #x4000 1)
+                       )
+                     )
+               (v0-0 (ppointer->process
+                       (when gp-0
+                         (let ((t9-1 (method-of-type hud-in-game-menu-view-shared-1 activate)))
+                           (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-view-shared-1" (the-as pointer #x70004000))
+                           )
+                         (run-now-in-process gp-0 hud-init-by-other)
+                         (-> gp-0 ppointer)
+                         )
+                       )
+                     )
+               )
+          (when (the-as hud-in-game-menu-view-shared-1 v0-0)
+            (set! (-> (the-as hud-in-game-menu-view-shared-1 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        (the-as process #f)
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-view-shared-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-view-shared-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-view-shared-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-view-shared-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-view-shared-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-view-shared-1))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-shared-1
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-shared-1))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-shared-1-proc* #f)
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for symbol *hud-in-game-menu-view-shared-2*, type object
+(define *hud-in-game-menu-view-shared-2*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #xd9 :flags #x21080 :items (new 'static 'boxed-array :type hud-item
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x20e
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #x12c
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x7f
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #x12c
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x1c
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x5e6
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x34
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-view-shared-2-proc*, type hud-in-game-menu-view-shared-2
+(define *hud-in-game-menu-view-shared-2-proc* (the-as hud-in-game-menu-view-shared-2 #f))
+
+;; definition of type hud-in-game-menu-view-shared-2
+(deftype hud-in-game-menu-view-shared-2 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-view-shared-2
+(defmethod inspect ((this hud-in-game-menu-view-shared-2))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-view-shared-2
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-view-shared-2.
+(defmethod relocate ((this hud-in-game-menu-view-shared-2) (offset int))
+  (set! *hud-in-game-menu-view-shared-2-proc* this)
+  (if (nonzero? *hud-in-game-menu-view-shared-2-proc*)
+      (set! *hud-in-game-menu-view-shared-2-proc* (&+ *hud-in-game-menu-view-shared-2-proc* offset))
+      )
+  (the-as hud-in-game-menu-view-shared-2 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-view-shared-2
+(defmethod hud-method-26 ((this hud-in-game-menu-view-shared-2))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-view-shared-2*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-view-shared-2-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-shared-2
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-shared-2))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-shared-2-proc* #f)
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-view-shared-2
+(defmethod hud-method-24 ((this hud-in-game-menu-view-shared-2))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-view-shared-2*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-view-shared-2
+;; WARN: Return type mismatch process vs hud-in-game-menu-view-shared-2.
+(defun spawn-hud-in-game-menu-view-shared-2 ()
+  (the-as
+    hud-in-game-menu-view-shared-2
+    (cond
+      (*hud-in-game-menu-view-shared-2-proc*
+        *hud-in-game-menu-view-shared-2-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as
+                       hud-in-game-menu-view-shared-2
+                       (get-process *default-dead-pool* hud-in-game-menu-view-shared-2 #x4000 1)
+                       )
+                     )
+               (v0-0 (ppointer->process
+                       (when gp-0
+                         (let ((t9-1 (method-of-type hud-in-game-menu-view-shared-2 activate)))
+                           (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-view-shared-2" (the-as pointer #x70004000))
+                           )
+                         (run-now-in-process gp-0 hud-init-by-other)
+                         (-> gp-0 ppointer)
+                         )
+                       )
+                     )
+               )
+          (when (the-as hud-in-game-menu-view-shared-2 v0-0)
+            (set! (-> (the-as hud-in-game-menu-view-shared-2 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        (the-as process #f)
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-view-shared-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-view-shared-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-view-shared-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-view-shared-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-view-shared-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-view-shared-2))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-view-shared-2
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-view-shared-2))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-view-shared-2-proc* #f)
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu
+(defun spawn-hud-in-game-menu ()
+  (if (and (!= (-> *net-mgr* game-type) 4)
+           (!= (if *net-world*
+                   (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
+                   18
+                   )
+               3
+               )
+           )
+      (return (spawn-hud-in-game-menu-networked))
+      )
+  (cond
+    ((= *kernel-boot-message* 'demo-shared)
+     (cond
+       ((zero? (-> *viewport-array* mode))
+        (spawn-hud-in-game-menu-view-shared-0)
+        )
+       ((zero? (view-get-active-index))
+        (spawn-hud-in-game-menu-view-shared-1)
+        )
+       (else
+         (spawn-hud-in-game-menu-view-shared-2)
+         )
+       )
+     )
+    ((zero? (-> *viewport-array* mode))
+     (spawn-hud-in-game-menu-view-0)
+     )
+    ((zero? (view-get-active-index))
+     (spawn-hud-in-game-menu-view-1)
+     )
+    (else
+      (spawn-hud-in-game-menu-view-2)
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-networked-view-0*, type object
+(define *hud-in-game-menu-networked-view-0*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #x100 :flags #x21080 :items (new 'static 'boxed-array :type hud-item
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x20e
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x1c
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x34
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          (new 'static 'hud-item-string
+                                                                            :alpha #xff
+                                                                            :position-y 20
+                                                                            :width #xc8
+                                                                            :height 32
+                                                                            :zval #xfff0
+                                                                            :scale #xcc
+                                                                            :flags #xa0
+                                                                            :effect #f
+                                                                            :text-id #x5e6
+                                                                            :font-effect #x2
+                                                                            :color #x3
+                                                                            :font-flags #x4
+                                                                            :has-outline #t
+                                                                            )
+                                                                          )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-networked-view-0-proc*, type object
+(define *hud-in-game-menu-networked-view-0-proc* (the-as object #f))
+
+;; definition of type hud-in-game-menu-networked-view-0
+(deftype hud-in-game-menu-networked-view-0 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-networked-view-0
+(defmethod inspect ((this hud-in-game-menu-networked-view-0))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-networked-view-0
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-networked-view-0.
+(defmethod relocate ((this hud-in-game-menu-networked-view-0) (offset int))
+  (set! *hud-in-game-menu-networked-view-0-proc* this)
+  (if (nonzero? *hud-in-game-menu-networked-view-0-proc*)
+      (set! *hud-in-game-menu-networked-view-0-proc*
+            (+ (the-as uint *hud-in-game-menu-networked-view-0-proc*) offset)
+            )
+      )
+  (the-as hud-in-game-menu-networked-view-0 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-networked-view-0
+(defmethod hud-method-26 ((this hud-in-game-menu-networked-view-0))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-networked-view-0*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-networked-view-0-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-networked-view-0
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-networked-view-0))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-networked-view-0-proc* (the-as object #f))
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-networked-view-0
+(defmethod hud-method-24 ((this hud-in-game-menu-networked-view-0))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-networked-view-0*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-networked-view-0
+;; WARN: Return type mismatch object vs hud-in-game-menu-networked-view-0.
+(defun spawn-hud-in-game-menu-networked-view-0 ()
+  (the-as
+    hud-in-game-menu-networked-view-0
+    (cond
+      (*hud-in-game-menu-networked-view-0-proc*
+        *hud-in-game-menu-networked-view-0-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as
+                       hud-in-game-menu-networked-view-0
+                       (get-process *default-dead-pool* hud-in-game-menu-networked-view-0 #x4000 1)
+                       )
+                     )
+               (v0-0 (ppointer->process
+                       (when gp-0
+                         (let ((t9-1 (method-of-type hud-in-game-menu-networked-view-0 activate)))
+                           (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-networked-view-0" (the-as pointer #x70004000))
+                           )
+                         (run-now-in-process gp-0 hud-init-by-other)
+                         (-> gp-0 ppointer)
+                         )
+                       )
+                     )
+               )
+          (when (the-as hud-in-game-menu-networked-view-0 v0-0)
+            (set! (-> (the-as hud-in-game-menu-networked-view-0 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        #f
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-networked-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-networked-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-networked-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-networked-view-0
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-networked-view-0
+;; INFO: this function exists in multiple non-identical object files
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-networked-view-0))
+  (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-networked-view-0
+;; INFO: this function exists in multiple non-identical object files
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-networked-view-0))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-networked-view-0
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-networked-view-0))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-networked-view-0-proc* (the-as object #f))
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for symbol *hud-in-game-menu-networked-view-1*, type object
+(define *hud-in-game-menu-networked-view-1*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #xd9 :flags #x21080 :items (new 'static 'boxed-array :type hud-item
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x20e
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x1c
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x34
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x5e6
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-networked-view-1-proc*, type object
+(define *hud-in-game-menu-networked-view-1-proc* (the-as object #f))
+
+;; definition of type hud-in-game-menu-networked-view-1
+(deftype hud-in-game-menu-networked-view-1 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-networked-view-1
+(defmethod inspect ((this hud-in-game-menu-networked-view-1))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-networked-view-1
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-networked-view-1.
+(defmethod relocate ((this hud-in-game-menu-networked-view-1) (offset int))
+  (set! *hud-in-game-menu-networked-view-1-proc* this)
+  (if (nonzero? *hud-in-game-menu-networked-view-1-proc*)
+      (set! *hud-in-game-menu-networked-view-1-proc*
+            (+ (the-as uint *hud-in-game-menu-networked-view-1-proc*) offset)
+            )
+      )
+  (the-as hud-in-game-menu-networked-view-1 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-networked-view-1
+(defmethod hud-method-26 ((this hud-in-game-menu-networked-view-1))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-networked-view-1*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-networked-view-1-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-networked-view-1
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-networked-view-1))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-networked-view-1-proc* (the-as object #f))
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-networked-view-1
+(defmethod hud-method-24 ((this hud-in-game-menu-networked-view-1))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-networked-view-1*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-networked-view-1
+;; WARN: Return type mismatch object vs hud-in-game-menu-networked-view-1.
+(defun spawn-hud-in-game-menu-networked-view-1 ()
+  (the-as
+    hud-in-game-menu-networked-view-1
+    (cond
+      (*hud-in-game-menu-networked-view-1-proc*
+        *hud-in-game-menu-networked-view-1-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as
+                       hud-in-game-menu-networked-view-1
+                       (get-process *default-dead-pool* hud-in-game-menu-networked-view-1 #x4000 1)
+                       )
+                     )
+               (v0-0 (ppointer->process
+                       (when gp-0
+                         (let ((t9-1 (method-of-type hud-in-game-menu-networked-view-1 activate)))
+                           (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-networked-view-1" (the-as pointer #x70004000))
+                           )
+                         (run-now-in-process gp-0 hud-init-by-other)
+                         (-> gp-0 ppointer)
+                         )
+                       )
+                     )
+               )
+          (when (the-as hud-in-game-menu-networked-view-1 v0-0)
+            (set! (-> (the-as hud-in-game-menu-networked-view-1 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        #f
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-networked-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-networked-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-networked-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-networked-view-1
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-networked-view-1
+;; INFO: this function exists in multiple non-identical object files
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-networked-view-1))
+  (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-networked-view-1
+;; INFO: this function exists in multiple non-identical object files
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-networked-view-1))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-networked-view-1
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-networked-view-1))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-networked-view-1-proc* (the-as object #f))
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for symbol *hud-in-game-menu-networked-view-2*, type object
+(define *hud-in-game-menu-networked-view-2*
+  (the-as object
+    (new 'static 'boxed-array :type hud-item
+      (new 'static 'in-game-menu-hud :scale #xd9 :flags #x21080 :items (new 'static 'boxed-array :type hud-item
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x20e
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x1c
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x34
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         (new 'static 'hud-item-string
+                                                                           :alpha #xff
+                                                                           :position-y 20
+                                                                           :width #xc8
+                                                                           :height 32
+                                                                           :zval #xfff0
+                                                                           :scale #xcc
+                                                                           :flags #xa0
+                                                                           :effect #f
+                                                                           :text-id #x5e6
+                                                                           :font-effect #x2
+                                                                           :color #x3
+                                                                           :font-flags #x4
+                                                                           :has-outline #t
+                                                                           )
+                                                                         )
+                                     )
+      )
+    )
+  )
+
+;; definition for symbol *hud-in-game-menu-networked-view-2-proc*, type object
+(define *hud-in-game-menu-networked-view-2-proc* (the-as object #f))
+
+;; definition of type hud-in-game-menu-networked-view-2
+(deftype hud-in-game-menu-networked-view-2 (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-in-game-menu-networked-view-2
+(defmethod inspect ((this hud-in-game-menu-networked-view-2))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-in-game-menu-networked-view-2
+;; WARN: Return type mismatch in-game-hud vs hud-in-game-menu-networked-view-2.
+(defmethod relocate ((this hud-in-game-menu-networked-view-2) (offset int))
+  (set! *hud-in-game-menu-networked-view-2-proc* this)
+  (if (nonzero? *hud-in-game-menu-networked-view-2-proc*)
+      (set! *hud-in-game-menu-networked-view-2-proc*
+            (+ (the-as uint *hud-in-game-menu-networked-view-2-proc*) offset)
+            )
+      )
+  (the-as hud-in-game-menu-networked-view-2 ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-in-game-menu-networked-view-2
+(defmethod hud-method-26 ((this hud-in-game-menu-networked-view-2))
+  (set! (-> this items) (the-as (array hud-item) *hud-in-game-menu-networked-view-2*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-in-game-menu-networked-view-2-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-networked-view-2
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-networked-view-2))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-networked-view-2-proc* (the-as object #f))
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-in-game-menu-networked-view-2
+(defmethod hud-method-24 ((this hud-in-game-menu-networked-view-2))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-in-game-menu-networked-view-2*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-networked-view-2
+;; WARN: Return type mismatch object vs hud-in-game-menu-networked-view-2.
+(defun spawn-hud-in-game-menu-networked-view-2 ()
+  (the-as
+    hud-in-game-menu-networked-view-2
+    (cond
+      (*hud-in-game-menu-networked-view-2-proc*
+        *hud-in-game-menu-networked-view-2-proc*
+        )
+      (*net-game-mgr*
+        (let* ((gp-0 (the-as
+                       hud-in-game-menu-networked-view-2
+                       (get-process *default-dead-pool* hud-in-game-menu-networked-view-2 #x4000 1)
+                       )
+                     )
+               (v0-0 (ppointer->process
+                       (when gp-0
+                         (let ((t9-1 (method-of-type hud-in-game-menu-networked-view-2 activate)))
+                           (t9-1 gp-0 *net-game-mgr* "hud-in-game-menu-networked-view-2" (the-as pointer #x70004000))
+                           )
+                         (run-now-in-process gp-0 hud-init-by-other)
+                         (-> gp-0 ppointer)
+                         )
+                       )
+                     )
+               )
+          (when (the-as hud-in-game-menu-networked-view-2 v0-0)
+            (set! (-> (the-as hud-in-game-menu-networked-view-2 v0-0) inited-strings-count) 0)
+            0
+            )
+          v0-0
+          )
+        )
+      (else
+        #f
+        )
+      )
+    )
+  )
+
+;; definition for method 19 of type hud-in-game-menu-networked-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 () (none)
+  )
+
+;; definition for method 17 of type hud-in-game-menu-networked-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 () (none)
+  )
+
+;; definition for method 20 of type hud-in-game-menu-networked-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 () (none)
+  )
+
+;; definition for method 18 of type hud-in-game-menu-networked-view-2
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-18 () (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-networked-view-2
+;; INFO: this function exists in multiple non-identical object files
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-networked-view-2))
+  (none)
+  )
+
+;; definition for method 22 of type hud-in-game-menu-networked-view-2
+;; INFO: this function exists in multiple non-identical object files
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud-in-game-menu-networked-view-2))
+  (none)
+  )
+
+;; definition for method 10 of type hud-in-game-menu-networked-view-2
+;; INFO: this function exists in multiple non-identical object files
+(defmethod deactivate ((this hud-in-game-menu-networked-view-2))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-in-game-menu-networked-view-2-proc* (the-as object #f))
+  (set! *in-game-menu-process* (the-as (pointer process) #f))
+  (call-parent-method this)
+  (none)
+  )
+
+;; definition for function spawn-hud-in-game-menu-networked
+;; ERROR: failed type prop at 42: Could not figure out load: (set! a0 (l.wu (+ a0 12)))
+;; WARN: Return type mismatch none vs object.
+(defun spawn-hud-in-game-menu-networked ()
+  (local-vars
+    (v0-0 symbol)
+    (v0-1 none)
+    (v0-2 none)
+    (v1-0 net-mgr)
+    (v1-1 net-mgr)
+    (v1-2 int)
+    (v1-3 symbol)
+    (v1-4 symbol)
+    (v1-5 int)
+    (v1-6 int)
+    (v1-7 none)
+    (v1-8 none)
+    (v1-9 none)
+    (v1-10 none)
+    (v1-11 none)
+    (v1-12 none)
+    (v1-13 none)
+    (v1-14 none)
+    (a0-0 net-mgr)
+    (a0-1 int)
+    (a0-2 symbol)
+    (a0-3 net-mgr)
+    (a0-4 net-mgr)
+    (a0-5 int)
+    (a0-6 int)
+    (a0-7 int)
+    (a0-8 (pointer int32))
+    (a0-9 (pointer int32))
+    (a0-10 none)
+    (a0-11 none)
+    (a0-12 none)
+    (a0-13 none)
+    (a0-14 none)
+    (a0-15 none)
+    (a0-16 none)
+    (a0-17 none)
+    (a0-18 none)
+    (a0-19 none)
+    (a0-20 none)
+    (a0-21 none)
+    (a0-22 none)
+    (a0-23 none)
+    (a0-24 none)
+    (a0-25 none)
+    (a1-0 net-world)
+    (a1-1 net-world)
+    (a1-2 int)
+    (a1-3 net-world)
+    (a1-4 net-world)
+    (a1-5 int)
+    (t9-0 (function symbol))
+    (t9-1 none)
+    (t9-2 none)
+    (t9-3 none)
+    (t9-4 none)
+    )
+  (and (begin
+         (cond
+           ((begin (set! v1-0 *net-mgr*) v1-0)
+            (set! v1-1 *net-mgr*)
+            (set! v1-2 (-> v1-1 game-state local-machine-idx))
+            )
+           (else
+             (set! v1-2 (the-as int 0))
+             )
+           )
+         (set! a0-0 *net-mgr*)
+         (set! a0-1 (-> a0-0 game-state session-master-idx))
+         (set! a0-2 (= v1-2 a0-1))
+         a0-2
+         )
+       (begin
+         (and (begin (set! t9-0 is-clan-challenge) (set! v0-0 (call!)) v0-0)
+              (begin
+                (cond
+                  ((begin (set! v1-5 6000) (set! a0-3 *net-mgr*) a0-3)
+                   (set! a0-4 *net-mgr*)
+                   (set! a0-5 (-> a0-4 game-state time))
+                   )
+                  (else
+                    (set! a0-5 (the-as int 0))
+                    )
+                  )
+                (cond
+                  ((begin (set! a1-0 *net-world*) a1-0)
+                   (set! a1-1 *net-world*)
+                   (set! a1-2 (-> a1-1 net-state game-start-time))
+                   )
+                  (else
+                    (set! a1-2 (the-as int 0))
+                    )
+                  )
+                (cond
+                  ((begin (set! a0-6 (- a0-5 a1-2)) (set! a1-3 *net-world*) a1-3)
+                   (set! a1-4 *net-world*)
+                   (set! a1-5 (-> a1-4 net-state total-pause-time))
+                   )
+                  (else
+                    (set! a1-5 (the-as int 0))
+                    )
+                  )
+                (set! a0-7 (- a0-6 a1-5))
+                (set! v1-4 (<.si v1-5 a0-7))
+                )
+              )
+         (set! v1-3 (not v1-4))
+         )
+       )
+  (cond
+    (v1-3
+      (set! v1-6 4)
+      (set! a0-8 (the-as (pointer int32) *hud-in-game-menu-networked-view-0*))
+      (set! a0-9 (the-as (pointer int32) (l.wu (+ a0-8 12))))
+      (set! a0-10 (the-as none (l.wu (+ a0-9 36))))
+      (s.w! a0-10 v1-6)
+      (set! v1-7 (the-as none 4))
+      (set! a0-11 (the-as none *hud-in-game-menu-networked-view-1*))
+      (set! a0-12 (the-as none (l.wu (+ a0-11 12))))
+      (set! a0-13 (the-as none (l.wu (+ a0-12 36))))
+      (s.w! a0-13 v1-7)
+      (set! v1-8 (the-as none 4))
+      (set! a0-14 (the-as none *hud-in-game-menu-networked-view-2*))
+      (set! a0-15 (the-as none (l.wu (+ a0-14 12))))
+      (set! a0-16 (the-as none (l.wu (+ a0-15 36))))
+      (s.w! a0-16 v1-8)
+      )
+    (else
+      (set! v1-9 (the-as none 3))
+      (set! a0-17 (the-as none *hud-in-game-menu-networked-view-0*))
+      (set! a0-18 (the-as none (l.wu (+ a0-17 12))))
+      (set! a0-19 (the-as none (l.wu (+ a0-18 36))))
+      (s.w! a0-19 v1-9)
+      (set! v1-10 (the-as none 3))
+      (set! a0-20 (the-as none *hud-in-game-menu-networked-view-1*))
+      (set! a0-21 (the-as none (l.wu (+ a0-20 12))))
+      (set! a0-22 (the-as none (l.wu (+ a0-21 36))))
+      (s.w! a0-22 v1-10)
+      (set! v1-11 (the-as none 3))
+      (set! a0-23 (the-as none *hud-in-game-menu-networked-view-2*))
+      (set! a0-24 (the-as none (l.wu (+ a0-23 12))))
+      (set! a0-25 (the-as none (l.wu (+ a0-24 36))))
+      (s.w! a0-25 v1-11)
+      )
+    )
+  (cond
+    ((begin (set! v1-12 (the-as none *viewport-array*)) (set! v1-13 (the-as none (l.wu v1-12))) (zero? v1-13))
+     (set! t9-1 (the-as none spawn-hud-in-game-menu-networked-view-0))
+     (set! v0-1 (the-as none (call!)))
+     )
+    ((begin
+       (set! t9-2 (the-as none view-get-active-index))
+       (set! v0-2 (the-as none (call!)))
+       (set! v1-14 (the-as none v0-2))
+       (zero? v1-14)
+       )
+     (set! t9-3 (the-as none spawn-hud-in-game-menu-networked-view-1))
+     (set! v0-1 (the-as none (call!)))
+     )
+    (else
+      (set! t9-4 (the-as none spawn-hud-in-game-menu-networked-view-2))
+      (set! v0-1 (the-as none (call!)))
+      )
+    )
+  (ret-value v0-1)
+  )
+
+
+
+
