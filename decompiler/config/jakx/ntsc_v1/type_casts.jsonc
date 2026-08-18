@@ -6181,5 +6181,70 @@
     [[73, 174], "s5", "(pointer float)"],
     [119, "v1", "(pointer uint128)"],
     [148, "v1", "(pointer uint128)"]
+  ],
+  // raptor's five state (enter ...) handlers each read net-enemy-info's own
+  // anim-info field (basic, offset 52) at a per-state byte offset (12/16/20,
+  // all word-aligned), then dereference the result at +4 (net-enemy-anim-info's
+  // own anim-idx field). Neither level resolves through anim-info's basic
+  // typing, so both levels are cast as opaque word pointers: (pointer uint32)
+  // for the l.wu outer read, (pointer int32) for the l.w inner read, matching
+  // the l.w/l.wu instruction width per des-plant's own method-72 precedent.
+  "(enter idle-wait raptor)": [
+    [54, "v1", "(pointer uint32)"],
+    [55, "v1", "(pointer int32)"]
+  ],
+  "(enter chase raptor)": [
+    [33, "v1", "(pointer uint32)"],
+    [34, "v1", "(pointer int32)"],
+    [64, "a0", "(pointer uint32)"],
+    [65, "a0", "(pointer uint32)"],
+    [66, "a0", "(pointer uint128)"]
+  ],
+  "(enter reverse raptor)": [
+    [54, "v1", "(pointer uint32)"],
+    [55, "v1", "(pointer int32)"]
+  ],
+  // following-path reads the chain twice: once at op 54/55 (anim-idx, +4) and
+  // again at op 62/63 (forward-vel, +8, also read via l.wu so cast uint32 to
+  // match instruction width rather than the field's own float type).
+  "(enter following-path raptor)": [
+    [54, "v1", "(pointer uint32)"],
+    [55, "v1", "(pointer int32)"],
+    [62, "v1", "(pointer uint32)"],
+    [63, "v1", "(pointer uint32)"]
+  ],
+  // (enter startup raptor)/(enter chase raptor) each read the anim-info
+  // chain twice: once at anim-idx's own offset (op 27/33, resolved above),
+  // and again through anim-info's own offset-16 slot straight into
+  // forward-vel (its own offset 8, now declared (pointer vector)); since the
+  // outer anim-info levels are still opaque word pointers, this second read
+  // is cast the same way, with a third op casting the forward-vel result
+  // itself to a quad pointer for the lqc2 copy that follows.
+  "(enter startup raptor)": [
+    [27, "v1", "(pointer uint32)"],
+    [28, "v1", "(pointer int32)"],
+    [58, "a0", "(pointer uint32)"],
+    [59, "a0", "(pointer uint32)"],
+    [60, "a0", "(pointer uint128)"]
+  ],
+  // (code startup raptor): gp (self) is properly raptor at op 0 but loses its
+  // type deep in this function's own mem-buffer message-building block.
+  "(code startup raptor)": [[[80, 105], "gp", "raptor"]],
+  // (post chase raptor): a0 comes back from net-player's own method-212 typed
+  // as the generic process (the method's own declared return type), then
+  // immediately reads raw offset 184, process-focusable's own root (collide-
+  // shape) field at its +4 basics offset 188; plain process has no such field.
+  "(post chase raptor)": [[12, "a0", "process-focusable"]],
+  // (method 65 raptor): s5 (arg0, declared object) reads raw offset 128 at
+  // op 3, landing inside process's own connection-list field (declared
+  // offset 128, an inline connectable, no +4 shift needed since this is arg0
+  // itself, not a further-dereferenced value); process is the narrowest type
+  // that has it. A second, unrelated read at op 18 (past the L127/L128
+  // branch merge, where the process cast no longer holds) quad-loads s5
+  // itself as a 16-byte value copied straight into a *launch-matrix* slot,
+  // so that op is cast as an opaque quad pointer instead.
+  "(method 65 raptor)": [
+    [3, "s5", "process"],
+    [18, "s5", "(pointer uint128)"]
   ]
 }

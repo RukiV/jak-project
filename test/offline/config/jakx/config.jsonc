@@ -602,7 +602,19 @@
     // explosion-handle-touch-with-ccheck and -without-ccheck (parked as
     // whole-function asm skips in the same hacks.jsonc, not a file-level
     // one)
-    "explosion"
+    "explosion",
+    // raptor: four defstate slots ((code startup raptor), (trans
+    // following-path raptor), (trans idle-wait raptor), (post chase raptor))
+    // each decode to a bare label reference, not a compiler-visible symbol,
+    // because expression building fails part way through and the decompiler
+    // falls back to an internal (state-handler ...) dump that is not real
+    // GOAL syntax (hacks.jsonc parks all four as asm, the same
+    // asm-plus-named-extern shape as explosion above). goal_src declares
+    // raptor-startup-code/raptor-following-path-trans/
+    // raptor-idle-wait-trans/raptor-chase-post as externs and references
+    // them by name in the four slots instead. The decomp-vs-REF diff still
+    // gates the rest of the object.
+    "raptor"
     // "tie-methods",
     // "scene-actor" // top level lambda that defines a type
   ],

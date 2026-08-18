@@ -1,12 +1,7 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: raptor.gc
-;; name in dgo: raptor
-;; dgos: CLIFHUNT, DESHUNT, DESHUNT2, DESRAPT
-
-;; DECOMP BEGINS
-
+;; failed to figure out what this is:
 (defskelgroup skel-raptor metal-raptor metal-raptor-lod0-jg metal-raptor-idle-ja
               ((metal-raptor-lod0-mg (meters 20)) (metal-raptor-lod1-mg (meters 999999)))
               :bounds (static-spherem 0 7 0 24)
@@ -295,6 +290,7 @@
     )
   )
 
+;; failed to figure out what this is:
 (set! (-> *raptor-enemy-info* ragdoll-info) *raptor-ragdoll-info*)
 
 ;; definition of type raptor
@@ -336,6 +332,7 @@
   (none)
   )
 
+;; failed to figure out what this is:
 (defpartgroup group-raptor-damage
   :id 312
   :flags (sp0 sp4)
@@ -343,6 +340,7 @@
   :parts ((sp-item 1115 :flags (sp6) :period (seconds 10) :length (seconds 0.1)))
   )
 
+;; failed to figure out what this is:
 (defpart 1115
   :init-specs ((:texture (water-drops level-default-sprite))
     (:birth-func 'spt-birth-func-brightness-raptor-blood)
@@ -447,13 +445,6 @@
   0
   (none)
   )
-
-;; og:preserve-this: decode-net-anim-state is declared in decompiler config
-;; only (net-anim.gc has no goal_src home of its own for it yet); a real
-;; extern is required here for goalc, matching the provisional-extern
-;; hygiene rule (a symbol external to this file needs a real define-extern
-;; inside it). Retire this once net-anim.gc lands and declares it for real.
-(define-extern decode-net-anim-state (function net-anim-control symbol))
 
 ;; definition for method 70 of type raptor
 ;; WARN: Return type mismatch int vs none.
@@ -562,14 +553,6 @@
 ;; WARN: Return type mismatch object vs none.
 ;; ERROR: Function may read a register that is not set: a1
 ;; ERROR: Function may read a register that is not set: a2
-;; og:preserve-this: the a1/a2 reads above are a genuine machine-code
-;; artifact, not a decode defect. raptor's own override copies its entry
-;; a1/a2 registers unconditionally (the same entry-register-copy idiom as
-;; the near-identical method 66 body just below), but the delegate call to
-;; net-enemy's own method 68 forwards only self, matching that method's own
-;; declared (_type_) signature; the copies are dead reads of whatever
-;; garbage sits in a1/a2 at call time, not a real 2-arg method. Landable via
-;; the local-vars fallback below (retirement: none needed, this is correct).
 (defmethod net-enemy-method-68 ((this raptor))
   (local-vars (a1-0 none) (a2-0 none))
   (let ((v1-1 (make-sound-instance (-> *sound-info* 560) (new 'static 'sound-id) (the-as handle #f))))
@@ -601,35 +584,7 @@
   (none)
   )
 
-;; og:preserve-this: four defstate slots below (code startup, trans
-;; following-path, trans idle-wait, post chase) each decode to a bare label
-;; reference because expression building fails part way through and the
-;; decompiler falls back to an internal (state-handler ...) dump that is not
-;; real GOAL syntax; decompiler/config/jakx/ntsc_v1/hacks.jsonc parks all
-;; four as asm ((anon-function 13/9/3/0 raptor)), the same
-;; asm-plus-named-extern shape as explosion-explode-event-handler
-;; (goal_src/jakx/levels/common/explosion.gc). These four externs
-;; stand in for the raw labels the affected slots would otherwise hold, and
-;; are declared here (not just in decompiler config) because goalc needs a
-;; real symbol, not a decompiler-only hint.
-(define-extern raptor-startup-code (function symbol :behavior raptor))
-(define-extern raptor-following-path-trans (function none :behavior raptor))
-(define-extern raptor-idle-wait-trans (function none :behavior raptor))
-(define-extern raptor-chase-post (function none :behavior raptor))
-;; og:preserve-this: net-enemy-default-handler is declared in decompiler
-;; config only; net-enemy-h.gc (its natural type-level home) has not landed
-;; an event-handler implementation yet, so a real extern is needed here for
-;; goalc, matching the same provisional-extern hygiene rule as
-;; decode-net-anim-state above. Retire once net-enemy-h.gc (or wherever the
-;; real body lives) declares it for real.
-(define-extern net-enemy-default-handler (function process int symbol event-message-block object :behavior net-enemy))
-;; og:preserve-this: play-anim-along-path is declared in decompiler config
-;; only; called directly by (trans reverse raptor) below (a real inlined
-;; behavior, not asm-parked), so a real extern is needed here for goalc,
-;; matching the same provisional-extern hygiene rule as decode-net-anim-state
-;; above.
-(define-extern play-anim-along-path (function object object object object))
-
+;; failed to figure out what this is:
 (defstate startup (raptor)
   :virtual #t
   :enter (behavior ()
@@ -701,12 +656,13 @@
           )
       )
     )
-  :code raptor-startup-code
+  :code L93
   :post (behavior ()
     (net-enemy-method-81 self)
     )
   )
 
+;; failed to figure out what this is:
 (defstate following-path (raptor)
   :virtual #t
   :event net-enemy-default-handler
@@ -747,13 +703,14 @@
     (ja-channel-push! 1 0)
     (ja :group! (-> self draw art-group data (-> self net-anim active anim-idx)))
     )
-  :trans raptor-following-path-trans
+  :trans L54
   :code sleep-code
   :post (behavior ()
     (net-enemy-method-81 self)
     )
   )
 
+;; failed to figure out what this is:
 (defstate reverse (raptor)
   :virtual #t
   :event net-enemy-default-handler
@@ -813,6 +770,7 @@
     )
   )
 
+;; failed to figure out what this is:
 (defstate idle-wait (raptor)
   :virtual #t
   :event net-enemy-default-handler
@@ -853,13 +811,14 @@
     (ja-channel-push! 1 (seconds 0.2))
     (ja :group! (-> self draw art-group data (-> self net-anim active anim-idx)))
     )
-  :trans raptor-idle-wait-trans
+  :trans L15
   :code sleep-code
   :post (behavior ()
     (net-enemy-method-81 self)
     )
   )
 
+;; failed to figure out what this is:
 (defstate chase (raptor)
   :virtual #t
   :event net-enemy-default-handler
@@ -929,5 +888,5 @@
     (ja :group! (-> self draw art-group data (-> self net-anim active anim-idx)))
     )
   :code sleep-code
-  :post raptor-chase-post
+  :post L1
   )

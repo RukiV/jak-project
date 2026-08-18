@@ -33316,7 +33316,7 @@
    (desired-owner-idx    int8              :offset-assert 160)
    (net-id               uint16            :offset-assert 162)
    (jump-in-send-pending uint16            :offset-assert 164)
-   (prox                 basic             :offset-assert 168)
+   (prox                 proximity-ownership-params :offset-assert 168) ;; confirmed: (method 78 raptor) constructs one via (new 'process proximity-ownership-params) and stores it straight into this field's own raw offset, and proximity-ownership-params' own method 9 is exactly the id method 78 later dispatches through it
    (owner-link           list-link :inline :offset-assert 172)
    (active-link          list-link :inline :offset-assert 180)
    )
@@ -61164,9 +61164,9 @@
   )
 
 
-;; (define-extern *closest-player-dist-sq* object)
+(define-extern *closest-player-dist-sq* float) ;; confirmed: mtc1'd into a float compare register against a squared-distance threshold in (trans idle-wait raptor)/(trans following-path raptor)
 ;; (define-extern get-closest-human-player function)
-;; (define-extern get-closest-human-or-ai-player function)
+(define-extern get-closest-human-or-ai-player (function vector object)) ;; confirmed by call site: raptor's own root-prim trans (root-prim+12, a vector) is the sole arg in both (trans idle-wait raptor) and (trans following-path raptor); return value is not consumed by either call site, so kept as the conservative object
 ;; (define-extern search-for-code function)
 ;; (define-extern *poop* object)
 ;; (define-extern *pooplen* object)
@@ -67361,12 +67361,12 @@
   (:methods
     (net-anim-control-method-9 (_type_ object object object) none) ;; 9
     (net-anim-control-method-10 (_type_ int32 int32 int32 int32) none) ;; 10
-    (net-anim-control-method-11 (_type_ int32 int32 int32 int32 int32 int32) none) ;; 11
+    (net-anim-control-method-11 (_type_ int int int int int int) none) ;; 11 ;; all 6 confirmed int not int32 by raptor's own call sites: goalc's own typecheck rejects int32 uniformly here, both for the *net-mgr*/*net-world* time-frame subtraction (arg0) and for values read through a (pointer int32) cast (arg1+), so int32 is a storage-width detail, not the expression type goalc infers for a register-held value
     )
   )
 
-;; (define-extern encode-net-anim-state function)
-;; (define-extern decode-net-anim-state function)
+(define-extern encode-net-anim-state (function net-anim-control object none)) ;; confirmed by call site: (trans following-path raptor) passes self's own net-anim (a0) and the closest-player result from get-closest-human-or-ai-player (a1); the call's own return is not consumed
+(define-extern decode-net-anim-state (function net-anim-control symbol))
 ;; (define-extern safe-mod function)
 ;; (define-extern get-dist-based-path-pos function)
 ;; (define-extern get-anim-offset function)
@@ -67388,9 +67388,9 @@
   )
 
 (deftype net-enemy-anim-info (structure)
-  ((name        basic   :offset-assert 0)
-   (anim-idx    int32   :offset-assert 4)
-   (forward-vel vector  :offset-assert 8)
+  ((name        symbol           :offset-assert 0) ;; confirmed by raptor's own static data (L169/L171/L173: .symbol turn180/run/idle); plain basic was too generic for the decompiler's static-data resolver even though it is fine at runtime
+   (anim-idx    int32            :offset-assert 4)
+   (forward-vel vector                :offset-assert 8) ;; a full inline vector would overrun size-assert #xc by 8 bytes; not :inline, so this structure field is a pointer to a vector stored elsewhere by GOAL's own default convention, matching raptor's own l.wu-then-lqc2 read chain and its own static data (L174 etc, a separate plain 4-word vector referenced by pointer)
    )
   :method-count-assert 9
   :size-assert         #xc
@@ -67413,7 +67413,7 @@
    (anim-info                  basic          :offset-assert 52)
    (kill-score                 int32          :offset-assert 56)
    (wound-score-scale          float          :offset-assert 60)
-   (allow-vehicle-penetrate    basic          :offset-assert 64)
+   (allow-vehicle-penetrate    symbol         :offset-assert 64) ;; confirmed by *raptor-enemy-info*'s own static data (L167+64: .symbol #t); plain basic was too generic for the decompiler's static-data resolver, the same class as net-enemy-anim-info's own name field
    (min-ground-offset          float          :offset-assert 68)
    (ground-probe-lod-dist      float          :offset-assert 72)
    (show-kill-score            int32          :offset-assert 76)
@@ -67437,7 +67437,7 @@
    (transition-ct          int32                      :offset-assert 688)
    (last-attack-time       int32                      :offset-assert 692)
    (vehicle-penetrate-time int32                      :offset-assert 696)
-   (paths                  basic                      :offset-assert 700)
+   (paths                  (array path-control)       :offset-assert 700) ;; confirmed: (method 77 raptor) constructs it via (new 'process 'array path-control 2) and writes the two path-control results straight into its own element 0/1 slots (raw offsets 16/20, the boxed array's own data-start convention)
    (pending-impulse-valid  basic                      :offset-assert 704)
    (pending-impulse        rigid-body-impact  :inline :offset-assert 720)
    (last-transition-time   int32                      :offset-assert 788)
@@ -67459,23 +67459,23 @@
     )
   (:methods
     (net-enemy-method-62 (_type_) none) ;; 62
-    (net-enemy-method-63 () none) ;; 63
+    (net-enemy-method-63 (_type_) none) ;; 63 ;; raptor's own override reads self at op0 without an arg0 binding; the drift-editor-method-18 class defect
     (net-enemy-method-64 (_type_) none) ;; 64
     (net-enemy-method-65 (_type_ object) none) ;; 65
     (net-enemy-method-66 (_type_ object object) none) ;; 66
     (net-enemy-method-67 (_type_ object) none) ;; 67
-    (net-enemy-method-68 () none) ;; 68
+    (net-enemy-method-68 (_type_) none) ;; 68 ;; same class; raptor's override dereferences its own type pointer at -4 for a vtable dispatch, which needs self bound
     (net-enemy-method-69 (_type_) none) ;; 69
     (net-enemy-method-70 (_type_ object object object) none) ;; 70
     (net-enemy-method-71 (_type_) none) ;; 71
     (net-enemy-method-72 (_type_ object) none) ;; 72
     (net-enemy-method-73 (_type_) none) ;; 73
     (net-enemy-method-74 (_type_ object object) none) ;; 74
-    (net-enemy-method-75 () none) ;; 75
-    (net-enemy-method-76 () none) ;; 76
-    (net-enemy-method-77 () none) ;; 77
-    (net-enemy-method-78 () none) ;; 78
-    (net-enemy-method-79 () none) ;; 79
+    (net-enemy-method-75 (_type_) none) ;; 75 ;; same class
+    (net-enemy-method-76 (_type_) none) ;; 76 ;; same class
+    (net-enemy-method-77 (_type_) none) ;; 77 ;; same class
+    (net-enemy-method-78 (_type_) none) ;; 78 ;; same class
+    (net-enemy-method-79 (_type_) none) ;; 79 ;; same class
     (net-enemy-method-80 (_type_ object object) none) ;; 80
     (net-enemy-method-81 (_type_) none) ;; 81
     (net-enemy-method-82 (_type_) none) ;; 82
@@ -67745,10 +67745,10 @@
 ;; net-enemy                      ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern play-anim-along-path function)
-;; (define-extern advance-anim-by-motion function)
+(define-extern play-anim-along-path (function object object object object))
+(define-extern advance-anim-by-motion (function float int none)) ;; confirmed by call site: (post chase raptor) passes a distance (fpr->gpr of a veclength result) and a raw integer 1, and never consumes the call's own return
 ;; (define-extern *tmp-transition* object)
-;; (define-extern net-enemy-default-handler function)
+(define-extern net-enemy-default-handler (function process int symbol event-message-block object :behavior net-enemy))
 ;; (define-extern kill-all-enemies function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -78132,9 +78132,18 @@
   )
 
 
-;; (define-extern *raptor-ragdoll-info* object)
-;; (define-extern *raptor-enemy-info* object)
-;; (define-extern spt-birth-func-brightness-raptor-blood (function sparticle-system sparticle-cpuinfo sparticle-launchinfo none))
+(define-extern *raptor-ragdoll-info* ragdoll-setup)
+(define-extern *raptor-enemy-info* net-enemy-info)
+(define-extern spt-birth-func-brightness-raptor-blood (function sparticle-system sparticle-cpuinfo sparticle-launchinfo none))
+;; asm-parked state-handler slots (hacks.jsonc asm_functions_by_name); see
+;; the comment there for why these four never resolve past a raw
+;; (state-handler ...) dump. Signatures follow sleep-code's own :behavior
+;; convention (function symbol/none :behavior raptor), matching the shape
+;; every other zero-explicit-arg defstate slot in this corpus uses.
+(define-extern raptor-startup-code (function symbol :behavior raptor))
+(define-extern raptor-following-path-trans (function none :behavior raptor))
+(define-extern raptor-idle-wait-trans (function none :behavior raptor))
+(define-extern raptor-chase-post (function none :behavior raptor))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-training                   ;;
@@ -84859,7 +84868,11 @@
 (define-extern *cliffs-wood-fence-b-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *cliffs-wood-fence-c-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *cliffs-wood-fence-d-debris-params* object) ;; provisional: call-site evidence only
-(define-extern *closest-player-dist-sq* object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the earlier float
+;; extern (raptor rung, scripts/check_alltypes_shadowing.py); *closest-
+;; player-dist-sq* is a plain float, confirmed by raptor's own mtc1-into-
+;; float-compare read in (trans idle-wait raptor)/(trans following-path
+;; raptor).
 (define-extern *coli-gate-a-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *coli-gate-b-debris-params* object) ;; provisional: call-site evidence only
 (define-extern *coli-pillar-debris-params* object) ;; provisional: call-site evidence only
@@ -85577,8 +85590,8 @@
 (define-extern *race-map-info-array* (inline-array race-map-info))
 (define-extern *race-state* object) ;; provisional: call-site evidence only
 (define-extern *ragdoll-test-ragdoll-setup* object) ;; provisional: call-site evidence only
-(define-extern *raptor-enemy-info* object) ;; provisional: call-site evidence only
-(define-extern *raptor-ragdoll-info* object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the earlier *raptor-enemy-info* extern (raptor rung, scripts/check_alltypes_shadowing.py)
+;; og:preserve-this provisional extern removed: shadowed the earlier *raptor-ragdoll-info* extern (raptor rung, scripts/check_alltypes_shadowing.py)
 (define-extern *ready-room-human-ct* object) ;; provisional: call-site evidence only
 (define-extern *real-sm* object) ;; provisional: call-site evidence only
 (define-extern *remove-buddy-id* object) ;; provisional: call-site evidence only
