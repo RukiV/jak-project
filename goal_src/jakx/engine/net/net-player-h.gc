@@ -41,6 +41,19 @@
   )
 
 ;; definition of type net-player
+;; og:preserve-this: this deftype's field offsets are the census declaration,
+;; kept even though this file's own (method 3 net-player) (inspect) and
+;; (method 50 net-player) both independently prove every field from
+;; last-known-pos on is 4 bytes lower in the retail binary (self-consistent,
+;; zero gaps between fields at the corrected offsets). The fix is blocked by
+;; goalc's own type system: last-known-pos and dead-camera-pos are :inline
+;; vector fields, and their corrected offsets (188, 380) are not 16-aligned,
+;; which StructureType::get_inline_array_start_alignment hard-rejects;
+;; :allow-misaligned does not help (tested), since vector's own "quad"
+;; uint128 alt-view forces 16-byte alignment regardless. Full writeup and
+;; the exact byte evidence are in decompiler/config/jakx/all-types.gc next
+;; to this type's declaration; task-arrow's own deftype comment documents
+;; the identical class of defect left unresolved for the same reason.
 (deftype net-player (process-nettable)
   ((last-known-pos           vector  :inline :offset 192)
    (last-known-pos-valid     basic           :offset 208)

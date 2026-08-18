@@ -55804,6 +55804,39 @@
     )
   )
 
+;; og:preserve-this offsets kept at the census declaration despite strong
+;; evidence they are 4 bytes too high, across the board: process-nettable's
+;; own :size-assert is #xbc (188), so net-player's own fields should start
+;; there, not at 192, and net-player-h's own landed (method 3 net-player)
+;; (inspect) proves it two ways. First, (-> this last-known-pos) compiles to
+;; a literal (+ this 188) (not a guess), and every subsequent field load in
+;; that same function (last-known-pos-valid at 204, mgr at 208, vehicle at
+;; 212, rev-mgr at 220, ... dead-camera-pos at 380) is consistently 4 less
+;; than declared here, with zero gaps between fields at the corrected
+;; offsets. Second, (method 50 net-player) independently confirms the same
+;; -4 at the same two fields: it lq/sq-copies 16 bytes from this+188 (not
+;; 192) into its output arg, then immediately reads this+204 (not 208) for
+;; the trailing valid flag, again zero gap. Applying the correction hits
+;; the exact same wall task-arrow's own deferred pos/theta/phi dispute did
+;; (see that type's comment above, "an inline vector's 16-byte alignment
+;; requirement"): last-known-pos and dead-camera-pos are both :inline
+;; vector fields, and 188/380 are not 16-aligned (188 mod 16 = 380 mod 16 =
+;; 12), so goalc's own StructureType::get_inline_array_start_alignment
+;; rejects the placement outright. :allow-misaligned does not help either,
+;; tested directly: it is vector's own placement in TypeSystem.cpp that
+;; matters, not net-player's, and vector's "quad" uint128 alt-view (needed
+;; for lq/sq) forces 16-byte alignment even when :allow-misaligned makes
+;; the checker fall back to max-of-fields instead of the flat constant.
+;; Fixing this for real needs a decision about vector itself (or a
+;; jakx-only replacement type without the quad view) that is out of scope
+;; for a single object's landing; recorded here rather than guessed around,
+;; per AGENTS.md 8 and to save whoever picks this up the same archaeology.
+;; This also means every net-player method touching these fields by name
+;; compiles 4 bytes off from what the retail binary actually reads; landed
+;; net-player methods in this file keep the field names (consistent with
+;; every OTHER read/write of the same fields) rather than raw-offset-patch
+;; individual call sites, which would make the corpus internally
+;; inconsistent for no compile-time benefit.
 (deftype net-player (process-nettable)
   ((last-known-pos          vector :inline :offset 192)
    (last-known-pos-valid    basic          :offset 208)
