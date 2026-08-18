@@ -37,14 +37,14 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (189)
+### Never written (188)
 
 | symbol | reading files | defined in |
 |---|---:|---|
+| `*display-camera-marks*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-reverb*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-camera-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-entity-errors*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-path-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-vol-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -111,7 +111,6 @@ written is read-only by design and not a finding.
 | `*display-cam-other*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-info*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-last-attacker*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-camera-old-stats*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-collide-cache*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-collide-history*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-collision-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
