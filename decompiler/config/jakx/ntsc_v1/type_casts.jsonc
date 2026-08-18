@@ -6742,5 +6742,43 @@
     [[32, 35], "v1", "gui-connection"],
     [[110, 131], "v1", "gui-connection"],
     [[125, 127], "a0", "gui-connection"]
+  ],
+  // hud-widgets-tier rung: spawn-hud-side-split-bar, spawn-hud-top-split-bar
+  // and spawn-hud-slowmo each store 0 at machine offset 6372 of the newly
+  // spawned child process (clearing the manager field before the caller
+  // uses it), matching in-game-hud's own declared manager field (net-hud.gc
+  // og:preserve-this comment: machine offset 6368, declared 6372, the
+  // standard +4 basic offset). v0 stays the generic process the vtable call
+  // returns; cast at the store op itself, not the preceding load, per the
+  // hud-cash rung's own reset-hud-cash-time precedent (a cast at the load op
+  // instead reaches back onto the load's own input).
+  "spawn-hud-side-split-bar": [[31, "v0", "in-game-hud"]],
+  "spawn-hud-top-split-bar": [[31, "v0", "in-game-hud"]],
+  "spawn-hud-slowmo": [[31, "v0", "in-game-hud"]],
+  // hud-widgets-tier rung: (method 9 hud-item-score) stores through two
+  // items-array elements at machine offset 60, which under the machine-
+  // offset-N-binds-declared-N+4 offset-assert convention lands on
+  // hud-item-sprite's own tex-id field (declared offset 64, uint32), not
+  // the generic hud-item the array element type gives; both stored values
+  // come from net-driver's own icon-texture-id fields (offsets 16/20),
+  // corroborating a texture id, not hud-item-number's own value field
+  // (first guess, wrong: hud-item-number's own size-assert is exactly 64,
+  // so its declared offset 64 would be one byte past its own end).
+  "(method 9 hud-item-score)": [
+    [7, "a1", "hud-item-sprite"],
+    [11, "a1", "hud-item-sprite"]
+  ],
+  // hud-widgets-tier rung: (method 9 hud-player-icon-name) and (method 9
+  // hud-player-icon), same hud-item-sprite offset-60/tex-id class; both
+  // store a literal texture-id-shaped constant (#x100300).
+  "(method 9 hud-player-icon-name)": [
+    [9, "a3", "hud-item-sprite"],
+    [11, "a2", "hud-item-sprite"],
+    [13, "a1", "hud-item-sprite"],
+    [15, "v1", "hud-item-sprite"]
+  ],
+  "(method 9 hud-player-icon)": [
+    [5, "a1", "hud-item-sprite"],
+    [7, "v1", "hud-item-sprite"]
   ]
 }
