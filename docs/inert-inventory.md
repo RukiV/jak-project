@@ -64,6 +64,7 @@ written is read-only by design and not a finding.
 | `*artist-fix-visible*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-flip-visible*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-use-menu-subdiv*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*auto-continue*` | 1 | `goal_src/jakx/engine/target/target-death.gc` |
 | `*bot-record-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*camera-no-mip-correction*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*camera-turbo-free*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
