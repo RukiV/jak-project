@@ -300,18 +300,41 @@
 ;; definition for symbol *car-appearance-hack*, type int
 (define *car-appearance-hack* 0)
 
+;; definition (debug) for function find-vehicle
+;; WARN: Return type mismatch process-tree vs object.
+(defun-debug find-vehicle ((arg0 int))
+  (let ((v0-0 (the-as process-tree #f)))
+    (let ((v1-1 (-> *vehicle-manager* child)))
+      (when v1-1
+        (set! v0-0 (-> v1-1 0))
+        (dotimes (v1-2 arg0)
+          (let ((a1-1 (-> v0-0 brother)))
+            (if a1-1
+                (set! v0-0 (-> a1-1 0))
+                )
+            )
+          )
+        )
+      )
+    v0-0
+    )
+  )
+
 ;; og:preserve-this the rest of this object is omitted rather than
 ;; landed. *car-info-default* is a raw <static-data L78> blob (a
 ;; (pointer uint32) with no confirmed element count or reader anywhere
-;; in this file). vehicle-init-by-other, vehicle-in-level?, vehicle-spawn
-;; and find-vehicle all still have no type analysis at all; the first
-;; three are an already-documented cross-band blocker (see the
-;; commented-out vehicle-spawn extern's own note in all-types.gc):
-;; their real signatures need traffic-object-spawn-params, an entirely
-;; undeclared struct whose fields cascade into traffic-type/nav-mesh/
-;; nav-branch/entity/traffic-spawn-flags, the race/vehicle band's own
-;; typing territory. find-vehicle is a debug function in the same
-;; cluster. vehicle-idx-from-level-name (already active, given a real
+;; in this file). vehicle-init-by-other, vehicle-in-level? and
+;; vehicle-spawn still have no type analysis at all; this is an
+;; already-documented cross-band blocker (see the commented-out
+;; vehicle-spawn extern's own note in all-types.gc): their real
+;; signatures need traffic-object-spawn-params, an entirely undeclared
+;; struct whose fields cascade into traffic-type/nav-mesh/nav-branch/
+;; entity/traffic-spawn-flags, the race/vehicle band's own typing
+;; territory. find-vehicle (above) was in the same cluster but decoded
+;; clean once the jakx-menu-pair band gave it a real extern signature
+;; (default-menu rung, evidenced from that file's own call site: a
+;; single int arg, return read at offset 184 by trsq->continue-point).
+;; vehicle-idx-from-level-name (already active, given a real
 ;; signature) is omitted too: its own dynamic net-vehicle array indexing
 ;; decodes to an unresolved (dynamic-array-field-access v1-1 PLACEHOLDER)
 ;; token, a decompiler-side gap in dynamic field access, not a config
