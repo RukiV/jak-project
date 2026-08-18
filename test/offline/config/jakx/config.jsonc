@@ -490,18 +490,40 @@
     // find-vehicle (an already-documented cross-band blocker needing
     // traffic-object-spawn-params, the race/vehicle band's own typing
     // territory) and vehicle-idx-from-level-name (a decompiler-side
-    // dynamic-array-field-access gap). vehicle-manager-init-by-other is
-    // also omitted: it calls rigid-body-queue-manager-spawn, whose
-    // signature needs rigid-body-queue, a type declared in all-types.gc but
-    // not landed anywhere in goal_src yet (rigid-body-queue-manager's own
-    // debug-cluster territory); process-spawn resolves init-by-other by
-    // naming convention at the kernel level, so nothing else needs it
-    // defined. goal_src keeps the rest (the type, method 3, methods
-    // 7/10/18/17, vehicle-manager-event-handler/-start/-kill, the
-    // idle/active states, and *car-appearance-hack*); whole-file skip is
-    // used rather than per-function entries because the omitted symbol has
-    // none available.
+    // dynamic-array-field-access gap). vehicle-manager-init-by-other and
+    // vehicle-manager-start are also omitted (rigid-body-queue rung,
+    // 2026-08-17): rigid-body-queue now lands its own deftype, spawn
+    // wrapper and most methods, but rigid-body-queue-manager's own init-by-
+    // other/idle-state/post cluster stays held there because method 10 (the
+    // physics tick idle:post reaches on the first frame) diverges from
+    // jak3's twin in ways that rung could not verify; landing vehicle-
+    // manager-init-by-other here would activate that unverified chain via
+    // rigid-body-queue-manager-spawn. See rigid-body-queue.gc's own held-
+    // method notes. goal_src keeps the rest (the type, method 3, methods
+    // 7/10/18/17, vehicle-manager-event-handler/-kill, the idle/active
+    // states, and *car-appearance-hack*); whole-file skip is used rather
+    // than per-function entries because the omitted symbol has none
+    // available.
     "vehicle-manager",
+    // rigid-body-queue (rigid-body-queue rung): rigid-body-queue-manager's
+    // own init-by-other/idle-state/rigid-body-queue-manager-post cluster and
+    // rigid-body-queue's methods 10/11/13/15 are held; see this file's own
+    // og:preserve-this notes (method 10's raw decode diverges from jak3's
+    // twin: missing blocked-by/step-count writes, a virtual dispatch where
+    // jak3 calls a named function directly, and an unnamed rigid-body-flag
+    // bitfield, none of which this rung could verify; methods 11/13/15
+    // inline the same process<->handle triple as method 9 but break CFG
+    // resolution outright, "CFG building failed", confirmed by reverting the
+    // asm-park and re-decoding). rb-line-sphere-test-update is also held (a
+    // ~600 op debug-draw dump with no rendered expression tree and no call
+    // site in this rung's corpus). goal_src keeps the rest (both real
+    // types, rb-line-sphere-test's own type and inspect method, the perf
+    // helpers, rigid-body-queue methods 9/12/14/16, rigid-body-queue-
+    // manager's inspect/relocate/deactivate overrides, rb-perf-data methods
+    // 9/10/11, and rigid-body-queue-manager-spawn); whole-file skip is used
+    // rather than per-function entries because the held cluster spans both
+    // types and has no skip mechanism of its own.
+    "rigid-body-queue",
     // vehicle-effects (vehicle band): methods 101 and 113 of vehicle and
     // the free function vehicle-draw-thruster each fail early (ops 31, 686
     // and 77) and decode as a large the-as-none raw-offset fallback

@@ -7,3 +7,347 @@
 
 ;; DECOMP BEGINS
 
+;; definition of type rigid-body-queue
+(deftype rigid-body-queue (structure)
+  ((count   int8       :offset-assert 0)
+   (manager uint64     :offset-assert 8) ;; handle
+   (array   handle 128 :offset-assert 16) ;; guessed by decompiler
+   )
+  :method-count-assert 17
+  :size-assert         #x410
+  :flag-assert         #x1100000410
+  (:methods
+    (rigid-body-queue-method-9 (_type_ process) none) ;; 9 ;; init-queue!
+    (rigid-body-queue-method-10 (_type_) none) ;; 10
+    (rigid-body-queue-method-11 (_type_ process) none) ;; 11
+    (rigid-body-queue-method-12 (_type_ int int) none) ;; 12
+    (rigid-body-queue-method-13 (_type_ int process) none) ;; 13
+    (rigid-body-queue-method-14 (_type_ int) none) ;; 14
+    (rigid-body-queue-method-15 (_type_ process) none) ;; 15
+    (rigid-body-queue-method-16 (_type_) none) ;; 16
+    )
+  )
+
+;; definition of type rigid-body-queue-manager
+(deftype rigid-body-queue-manager (process)
+  ((queue      rigid-body-queue   :offset-assert 144)
+   (time-val   uint32             :offset-assert 148)
+   (pad        uint32             :offset-assert 152)
+   (state-time uint64             :offset-assert 160)
+   (delay      uint32             :offset-assert 168)
+   (times      uint32          4  :offset-assert 172)
+   )
+  :method-count-assert 16
+  :size-assert         #xbc
+  :flag-assert         #x10003000bc
+  (:state-methods
+    idle ;; 15
+    )
+  )
+
+;; definition of type rb-line-sphere-test
+(deftype rb-line-sphere-test (structure)
+  ((params ray-tube-intersect-params :inline :offset-assert 0)
+   )
+  :method-count-assert 9
+  :size-assert         #x70
+  :flag-assert         #x900000070
+  )
+
+;; og:preserve-this forward declaration for rigid-body-queue-manager-init-by-
+;; other, this file's own function held below (its body diverges from jak3's
+;; twin in ways this rung cannot verify, see the note below rigid-body-queue-
+;; manager's method 10 override): rigid-body-queue-manager-spawn's own
+;; process-spawn expansion embeds this symbol by name at compile time, so
+;; spawn needs the declaration even though nothing calls it directly. Drop
+;; this line and land the real body once method 10 below is verified.
+(define-extern rigid-body-queue-manager-init-by-other (function rigid-body-queue object :behavior rigid-body-queue-manager))
+
+;; definition for symbol *rigid-body-queue*, type rigid-body-queue
+(define *rigid-body-queue* (new 'static 'rigid-body-queue))
+
+;; definition for symbol *rigid-body-queue-manager*, type rigid-body-queue-manager
+(define *rigid-body-queue-manager* (the-as rigid-body-queue-manager #f))
+
+;; definition for method 3 of type rb-line-sphere-test
+(defmethod inspect ((this rb-line-sphere-test))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'rb-line-sphere-test)
+  (format #t "~1Tparams: #<ray-tube-intersect-params @ #x~X>~%" (-> this params))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this rigid-body-queue rung (held): rb-line-sphere-test-update
+;; is a large (~600 op) debug-draw dump that never reaches the compiler's
+;; normal expression-building path in this rung's own decode (no OpenGOAL-
+;; Start/End block at all, raw register names throughout), heavy VU math
+;; (draw-debug-line-sphere/-vector/-sphere/-x, vecplusfloattimes) with no
+;; call site anywhere in this rung's corpus (only conditionally installed
+;; into its own symbol slot behind *debug-segment*, never invoked). The
+;; type's own inspect method above decodes clean and does not need it.
+;; Re-derive from the framework's own dump (offline-test -f rigid-body-queue
+;; -d) if debug-segment work ever needs it.
+
+;; definition for function rb-reset-perf-array
+(defun rb-reset-perf-array ()
+  0
+  (none)
+  )
+
+;; definition for function rb-reset-perf-times
+(defun rb-reset-perf-times ()
+  0
+  (none)
+  )
+
+;; definition for function rb-get-perf
+;; WARN: Return type mismatch symbol vs object.
+(defun rb-get-perf ()
+  #f
+  )
+
+;; definition for method 9 of type rigid-body-queue
+(defmethod rigid-body-queue-method-9 ((this rigid-body-queue) (arg0 process))
+  (set! (-> this count) 0)
+  (set! (-> this manager) (the-as uint (process->handle arg0)))
+  (dotimes (v1-3 128)
+    (set! (-> this array v1-3) (the-as handle #f))
+    )
+  (rb-reset-perf-array)
+  0
+  (none)
+  )
+
+;; definition for method 16 of type rigid-body-queue
+;; WARN: Return type mismatch symbol vs none.
+(defmethod rigid-body-queue-method-16 ((this rigid-body-queue))
+  (let ((gp-0 0))
+    (dotimes (v1-0 (-> this count))
+      (let ((a1-2 (-> this array v1-0))
+            (a2-0 (+ v1-0 1))
+            )
+        (while (< a2-0 (-> this count))
+          (if (= a1-2 (-> this array a2-0))
+              (+! gp-0 1)
+              )
+          (+! a2-0 1)
+          )
+        )
+      )
+    (if (> gp-0 0)
+        (format 0 "rigid-body-queue::validate: duplicate count ~d~%" gp-0)
+        )
+    (zero? gp-0)
+    )
+  (none)
+  )
+
+;; definition for symbol *rb-raw-time-val*, type int
+(define *rb-raw-time-val* 0)
+
+;; og:preserve-this rigid-body-queue rung (held): method 10, the per-frame
+;; physics tick, called from rigid-body-queue-manager's idle :post. This
+;; rung's own raw decode of it diverges from jak3's twin in ways this rung
+;; cannot verify: jak3's per-rbody reset touches time-remaining, blocked-by
+;; and step-count, but this rung's own raw ops touch only time-remaining and
+;; a raw flags mask (rigid-body-flag has no landed enum to name the cleared
+;; bits against), and the two per-body callbacks dispatch through a virtual
+;; method at a machine offset this rung has no other evidence for, where
+;; jak3 calls a named function directly. It also inlines process<->handle
+;; three times via a raw "sllv reg, reg, r0" triple the decompiler's macro
+;; matcher does not recognize (the same idiom hand-folded elsewhere in this
+;; tree, see generic-obs.gc's 'mirror case), which here also blocks the type
+;; prop needed to resolve the rbody-flags read. Parked in decompiler/config/
+;; jakx/ntsc_v1/hacks.jsonc's asm_functions_by_name for future reference;
+;; landing a guessed body would be presenting a guess as a finding. Re-derive
+;; from the framework's own dump (offline-test -f rigid-body-queue -d) with
+;; independent field-offset verification before landing.
+
+;; og:preserve-this rigid-body-queue rung (held): methods 11, 13 and 15 all
+;; inline the same process<->handle triple as method 9 above, but here it
+;; breaks CFG resolution outright ("CFG building failed", no expression tree
+;; at all, confirmed by reverting the asm-park and re-decoding, still red)
+;; rather than merely leaving unfolded syntax the way method 9 did. Not
+;; reached by anything this rung lands (rigid-body-queue-manager's own idle
+;; :post only calls method 10, itself held above); parked in decompiler/
+;; config/jakx/ntsc_v1/hacks.jsonc's asm_functions_by_name rather than
+;; hand-written from the jak3 twin blind, since this rung has no rendered
+;; jakx expression tree to check field offsets against. Re-derive once a
+;; caller needs them.
+
+;; definition for method 14 of type rigid-body-queue
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-queue-method-14 ((this rigid-body-queue) (arg0 int))
+  (let ((v1-0 arg0)
+        (a1-1 (+ arg0 1))
+        )
+    (while (< a1-1 (-> this count))
+      (set! (-> this array v1-0) (-> this array a1-1))
+      (+! a1-1 1)
+      (+! v1-0 1)
+      )
+    )
+  (+! (-> this count) -1)
+  0
+  (none)
+  )
+
+;; definition for method 12 of type rigid-body-queue
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-queue-method-12 ((this rigid-body-queue) (arg0 int) (arg1 int))
+  (when (< arg0 arg1)
+    (let ((v1-1 arg1)
+          (a3-0 (+ arg1 -1))
+          (a2-3 (-> this array arg1))
+          )
+      (while (>= a3-0 arg0)
+        (set! (-> this array v1-1) (-> this array a3-0))
+        (+! a3-0 -1)
+        (+! v1-1 -1)
+        )
+      (set! (-> this array arg0) a2-3)
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for method 3 of type rigid-body-queue-manager
+(defmethod inspect ((this rigid-body-queue-manager))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type process inspect)))
+    (t9-0 this)
+    )
+  (format #t "~2Tqueue: #<rigid-body-queue @ #x~X>~%" (-> this queue))
+  (format #t "~2Ttime-val: ~D~%" (-> this time-val))
+  (format #t "~2Tpad: ~D~%" (-> this pad))
+  (format #t "~2Tstate-time: ~D~%" (-> this state-time))
+  (format #t "~2Tdelay: ~D~%" (-> this delay))
+  (format #t "~2Ttimes[4] @ #x~X~%" (-> this times))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type rigid-body-queue-manager
+;; WARN: Return type mismatch process vs rigid-body-queue-manager.
+(defmethod relocate ((this rigid-body-queue-manager) (offset int))
+  (set! *rigid-body-queue-manager* this)
+  (if *rigid-body-queue-manager*
+      (set! *rigid-body-queue-manager* (&+ *rigid-body-queue-manager* offset))
+      )
+  (the-as rigid-body-queue-manager ((method-of-type process relocate) this offset))
+  )
+
+;; definition for function rb-cpu-delay
+;; WARN: Return type mismatch int vs none.
+(defun rb-cpu-delay ((arg0 int))
+  (local-vars (v1-2 int) (a1-0 int) (a1-1 int))
+  0
+  0
+  (.mfc0 v1-2 Count)
+  (until (>= (the-as uint a1-1) (the-as uint arg0))
+    (.mfc0 a1-0 Count)
+    (nop!)
+    (set! a1-1 (- a1-0 v1-2))
+    (nop!)
+    )
+  0
+  (none)
+  )
+
+;; og:preserve-this rigid-body-queue rung (held): rigid-body-queue-manager-
+;; init-by-other, the idle state and rigid-body-queue-manager-post are
+;; omitted as one cluster. Their own decode is clean (init-by-other's
+;; stack-size-set!/queue-assign/init-queue!/go-virtual idle body, the idle
+;; state's :exit/:code sleep-code/:post shape, and rigid-body-queue-manager-
+;; post's own call into rigid-body-queue's method 10, all render without
+;; error once given the :behavior tag), but idle's :post reaches method 10
+;; (the physics tick) on the very first frame, and method 10 is the function
+;; held above with the unverified body. Landing this cluster without a
+;; verified tick body would activate a guarded caller
+;; (vehicle-manager-init-by-other, see vehicle-manager.gc) into a state that
+;; runs unverified code every frame. Nothing in this rung calls rigid-body-
+;; queue-manager-spawn (vehicle-manager-init-by-other, its only caller, is
+;; held for the same reason), so leaving this cluster undefined is
+;; boot-safe today; retire together with method 10 above once its own tick
+;; body is independently verified (offline-test -f rigid-body-queue -d).
+
+;; definition for method 10 of type rigid-body-queue-manager
+(defmethod deactivate ((this rigid-body-queue-manager))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *rigid-body-queue-manager* #f)
+  ((method-of-type process deactivate) this)
+  (none)
+  )
+
+;; definition for method 11 of type rb-perf-data
+;; WARN: Return type mismatch int vs none.
+(defmethod rb-perf-data-method-11 ((this rb-perf-data) (arg0 int))
+  (local-vars (v1-0 int))
+  (.mfc0 v1-0 Count)
+  (let ((v1-2 (+ (l.wu (+ (* arg0 4) (the-as int this) 8))
+                 (- v1-0 (the-as int (l.wu (+ (* arg0 4) (the-as int this) 136))))
+                 )
+              )
+        (a2-4 (+ (* arg0 4) (the-as int this)))
+        )
+    (s.w! (+ a2-4 8) v1-2)
+    )
+  (let ((v1-6 (+ (l.wu (+ (* arg0 4) (the-as int this) 392)) 1))
+        (a0-1 (+ (* arg0 4) (the-as int this)))
+        )
+    (s.w! (+ a0-1 392) v1-6)
+    )
+  0
+  (none)
+  )
+
+;; definition for method 10 of type rb-perf-data
+;; WARN: Return type mismatch int vs none.
+(defmethod rb-perf-data-method-10 ((this rb-perf-data) (arg0 int))
+  (local-vars (v1-0 int))
+  (.mfc0 v1-0 Count)
+  (let ((a2-1 (+ (* arg0 4) (the-as int this))))
+    (s.w! (+ a2-1 136) v1-0)
+    )
+  (let ((v1-4 (+ (l.wu (+ (* arg0 4) (the-as int this) 264)) 1))
+        (a0-1 (+ (* arg0 4) (the-as int this)))
+        )
+    (s.w! (+ a0-1 264) v1-4)
+    )
+  0
+  (none)
+  )
+
+;; definition for method 9 of type rb-perf-data
+;; WARN: Return type mismatch int vs none.
+(defmethod rb-perf-data-method-9 ((this rb-perf-data))
+  (dotimes (v1-0 32)
+    (let ((a1-1 (+ (* v1-0 4) (the-as int this))))
+      (s.w! (+ a1-1 8) 0)
+      )
+    (set! (-> this begin-counts v1-0) (the-as uint 0))
+    (set! (-> this end-counts v1-0) (the-as uint 0))
+    )
+  0
+  (none)
+  )
+
+;; definition for function rigid-body-queue-manager-spawn
+(defun rigid-body-queue-manager-spawn ((arg0 rigid-body-queue) (arg1 process-tree))
+  (let ((gp-0 (the-as process #f)))
+    (let ((v1-1 (process-spawn rigid-body-queue-manager arg0 :name "rigid-body-queue-manager" :to arg1)))
+      (if v1-1
+          (set! gp-0 (-> v1-1 0))
+          )
+      )
+    gp-0
+    )
+  )

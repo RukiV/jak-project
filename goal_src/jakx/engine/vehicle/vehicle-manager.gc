@@ -7,17 +7,16 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this forward declaration for a function this file calls but
-;; does not define, still a stub in the rigid-body-queue-manager debug
-;; cluster. Signature copied from decompiler/config/jakx/all-types.gc. Drop
-;; this line when the real object lands.
-(define-extern rb-reset-perf-times (function none))
 ;; og:preserve-this forward declaration for vehicle-manager-init-by-other,
-;; this file's own function held below (rigid-body-queue is not landed
-;; yet): process-spawn's own run-now-in-process expansion embeds this
+;; this file's own function held below: rigid-body-queue.gc now lands
+;; rigid-body-queue's own deftype and most methods plus rigid-body-queue-
+;; manager-spawn, but rigid-body-queue-manager's own init-by-other/idle-
+;; state/post cluster stays held there (method 10, its idle:post reaches on
+;; the first frame, diverges from jak3's twin in ways that rung could not
+;; verify). process-spawn's own run-now-in-process expansion embeds this
 ;; symbol by name at compile time, so vehicle-manager-start needs the
 ;; declaration even though nothing calls it directly. Drop this line and
-;; land the real body once rigid-body-queue lands.
+;; land the real body once rigid-body-queue.gc's held cluster is verified.
 (define-extern vehicle-manager-init-by-other (function object :behavior vehicle-manager))
 
 ;; definition of type vehicle-manager
@@ -231,16 +230,21 @@
 ;; og:preserve-this vehicle-manager-init-by-other is omitted rather than
 ;; landed. Its own body is otherwise clean (stack-size-set!, the
 ;; vehicle-manager-method-17/setting-control-method-13 setup, the
-;; event-hook assignment, go-virtual idle all decode without error), but
-;; it calls rigid-body-queue-manager-spawn, whose signature needs
-;; rigid-body-queue, a type declared in decompiler/config/jakx/all-types.gc
-;; but not landed anywhere in goal_src yet ("Type rigid-body-queue is
-;; unknown" at build-first); landing that type is rigid-body-queue-manager's
-;; own debug-cluster territory, not this band's. process-spawn resolves
-;; init-by-other by naming convention at the kernel level, not a compile-
-;; time symbol reference, so nothing else in this file needs this defined.
-;; Re-derive from the framework's own dump (offline-test -f vehicle-manager
-;; -d) once rigid-body-queue lands.
+;; event-hook assignment, go-virtual idle all decode without error), but it
+;; calls rigid-body-queue-manager-spawn, which process-spawns rigid-body-
+;; queue-manager. rigid-body-queue.gc (rigid-body-queue rung) now lands
+;; rigid-body-queue's own deftype and most methods plus rigid-body-queue-
+;; manager-spawn itself, but rigid-body-queue-manager's own init-by-other/
+;; idle-state/post cluster stays held there: that cluster's idle:post
+;; reaches rigid-body-queue's method 10 (the physics tick) on the first
+;; frame, and that method's own raw decode diverges from jak3's twin in
+;; ways that rung could not verify (see rigid-body-queue.gc's own notes).
+;; Landing vehicle-manager-init-by-other here would activate that unverified
+;; chain via rigid-body-queue-manager-spawn's process-spawn. process-spawn
+;; resolves init-by-other by naming convention at the kernel level, not a
+;; compile-time symbol reference, so nothing else in this file needs this
+;; defined. Re-derive from the framework's own dump (offline-test -f
+;; vehicle-manager -d) once rigid-body-queue.gc's held cluster is verified.
 
 ;; failed to figure out what this is:
 (defstate idle (vehicle-manager)
@@ -274,7 +278,8 @@
 ;; "attempting to run nullptr function!" (vehicle-manager+0xff7 on the
 ;; stack). Leaving the symbol undefined keeps the guard skipping as it
 ;; did while this file was a stub. Retires together with the init-by-other
-;; note when rigid-body-queue lands; the body is:
+;; note once rigid-body-queue.gc's held init-by-other/idle/post cluster is
+;; verified; the body is:
 ;; (defun vehicle-manager-start ((arg0 process))
 ;;   (vehicle-particle-common-info-method-9 *vehicle-particle-common-info*)
 ;;   (if *vehicle-manager*

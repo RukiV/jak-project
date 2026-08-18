@@ -48590,8 +48590,13 @@
   :flag-assert         #xc00000208
   (:methods
     (rb-perf-data-method-9 (_type_) none) ;; 9
-    (rb-perf-data-method-10 (_type_ object) none) ;; 10
-    (rb-perf-data-method-11 (_type_ object) none) ;; 11
+    ;; og:preserve-this rigid-body-queue rung: promoted object -> int (both
+    ;; methods). This rung's own decode of both bodies does raw arithmetic on
+    ;; arg0 (sll 2, i.e. multiply by 4 for a uint32 array index) that fails
+    ;; to compile under object ("Cannot do math on a object"); the same
+    ;; class of fix rigid-body-queue-method-12's own arg0/arg1 needed.
+    (rb-perf-data-method-10 (_type_ int) none) ;; 10
+    (rb-perf-data-method-11 (_type_ int) none) ;; 11
     )
   )
 
@@ -48737,14 +48742,38 @@
   :size-assert         #x410
   :flag-assert         #x1100000410
   (:methods
-    (rigid-body-queue-method-9 (_type_ object) none) ;; 9 ;; (init-queue! (_type_ object) none)
-    (rigid-body-queue-method-10 (_type_) none) ;; 10 ;; (rigid-body-queue-method-10 (_type_) none)
-    (rigid-body-queue-method-11 () none) ;; 11 ;; (rigid-body-queue-method-11 (_type_ process) none)
-    (rigid-body-queue-method-12 (_type_ object object) none) ;; 12 ;; (rigid-body-queue-method-12 (_type_ object object) none)
-    (rigid-body-queue-method-13 () none) ;; 13 ;; (rigid-body-queue-method-13 (_type_ int process) none)
-    (rigid-body-queue-method-14 (_type_ object) none) ;; 14 ;; (rigid-body-queue-method-14 (_type_ object) none)
-    (rigid-body-queue-method-15 () none) ;; 15 ;; (rigid-body-queue-method-15 (_type_ process) none)
-    (rigid-body-queue-method-16 (_type_) none) ;; 16 ;; (rigid-body-queue-method-16 (_type_) none)
+    ;; og:preserve-this rigid-body-queue rung: promoted object -> process. This
+    ;; rung's own decode of this slot (init-queue!) computes process->handle
+    ;; from arg0 (ppointer deref at raw+4=32, pid at raw+4=52, both
+    ;; process-tree/process fields, unreachable through plain object) and
+    ;; stores it into the manager field; matches jak3's own init-queue! (this
+    ;; process) body-for-body.
+    (rigid-body-queue-method-9 (_type_ process) none) ;; 9 ;; init-queue!
+    (rigid-body-queue-method-10 (_type_) none) ;; 10
+    ;; og:preserve-this rigid-body-queue rung: promoted from the trailing-
+    ;; comment guess; this rung's own decode reads arg0 as a process for a
+    ;; handle->process comparison against each queued handle, matching jak3's
+    ;; own slot 11 body-for-body.
+    (rigid-body-queue-method-11 (_type_ process) none) ;; 11
+    ;; og:preserve-this rigid-body-queue rung: promoted object -> int (both
+    ;; args). This rung's own decode does raw arithmetic on both (daddiu -1,
+    ;; shift-by-3 array indexing, slt compares) that fails under object
+    ;; ("add failed: object <integer -1>"); matches jak3's own slot 12 body
+    ;; (a shift-down-by-one array splice) exactly.
+    (rigid-body-queue-method-12 (_type_ int int) none) ;; 12
+    ;; og:preserve-this rigid-body-queue rung: promoted from the trailing-
+    ;; comment guess; matches jak3's own slot 13 (find arg1's handle from
+    ;; arg0 onward, splice via slot 12) body-for-body.
+    (rigid-body-queue-method-13 (_type_ int process) none) ;; 13
+    ;; og:preserve-this rigid-body-queue rung: promoted object -> int; this
+    ;; rung's own decode uses arg0 as a raw array index (shift-by-3, no field
+    ;; access), matching jak3's own slot 14 (remove-by-index) body-for-body.
+    (rigid-body-queue-method-14 (_type_ int) none) ;; 14
+    ;; og:preserve-this rigid-body-queue rung: promoted from the trailing-
+    ;; comment guess; matches jak3's own slot 15 (find arg0's handle, remove
+    ;; via slot 14) body-for-body.
+    (rigid-body-queue-method-15 (_type_ process) none) ;; 15
+    (rigid-body-queue-method-16 (_type_) none) ;; 16
     )
   )
 
@@ -61810,47 +61839,103 @@
   )
 
 
-#|
+;; og:preserve-this activated (rigid-body-queue rung): the dead block's method
+;; table (rigid-body-queue-manager-method-9 through -14, six new slots plus
+;; state-methods idle at 15) cannot be right: process itself is method-count-
+;; assert 15 (slots 0-14 already taken), so a first NEW slot on a process
+;; subtype starts at 15, not 9. method-count-assert 16 (15 inherited + 1 new)
+;; only has room for ONE new slot, matching this rung's own decode: the only
+;; bodies this file defines for rigid-body-queue-manager are method 3
+;; (inspect, overriding process's own), method 7 (relocate, override) and
+;; method 10 (deactivate, override), the same three slots vehicle-manager.gc
+;; overrides too, plus the idle state itself. The six phantom methods are
+;; dropped; the fields are kept as-is, confirmed against this rung's own
+;; (method 3 rigid-body-queue-manager) inspect body, which prints the exact
+;; retail debug strings "time-val", "pad", "state-time", "delay" and
+;; "times[4]" at raw loads 140/144/148/156/164, each binding to the field
+;; PLACED at raw+4 (the basics load convention this campaign already uses
+;; elsewhere): queue@144 (a plain pointer field, printed with ~X not
+;; dereferenced further, not :inline), time-val@148, pad@152, state-time@160
+;; (the only 8-byte ld), delay@168, times@172.
 (deftype rigid-body-queue-manager (process)
   ((queue      rigid-body-queue   :offset-assert 144)
    (time-val   uint32             :offset-assert 148)
    (pad        uint32             :offset-assert 152)
    (state-time uint64             :offset-assert 160)
    (delay      uint32             :offset-assert 168)
-   (times      uint32          4 :offset-assert 172)
+   (times      uint32          4  :offset-assert 172)
    )
   :method-count-assert 16
   :size-assert         #xbc
   :flag-assert         #x10003000bc
-  (:methods
-    (rigid-body-queue-manager-method-9 () none) ;; 9
-    (rigid-body-queue-manager-method-10 () none) ;; 10
-    (rigid-body-queue-manager-method-11 () none) ;; 11
-    (rigid-body-queue-manager-method-12 () none) ;; 12
-    (rigid-body-queue-manager-method-13 () none) ;; 13
-    (rigid-body-queue-manager-method-14 () none) ;; 14 ;; (idle () _type_ :state)
-    )
   (:state-methods
     idle ;; 15
     )
   )
-|#
 
-;; (define-extern *rigid-body-queue* object)
-;; (define-extern *rigid-body-queue-manager* object) ;; rigid-body-queue-manager
-;; (define-extern *rb-line-sphere-test* object)
-;; (define-extern rb-line-sphere-test-update function)
-;; (define-extern rb-reset-perf-array function)
+;; og:preserve-this activated (rigid-body-queue rung): this file's own
+;; top-level-login stores a static rigid-body-queue instance here directly
+;; (raw s.w! of a static label, no cast), the same single-global-instance
+;; shape jak2/jak3 both use.
+(define-extern *rigid-body-queue* rigid-body-queue)
+;; og:preserve-this activated (rigid-body-queue rung): set to #f at
+;; top-level-login and reassigned by (method 7 rigid-body-queue-manager)
+;; (relocate) and cleared by (method 10 rigid-body-queue-manager)
+;; (deactivate), the same process-holder-global shape *vehicle-manager*
+;; uses in vehicle-manager.gc.
+(define-extern *rigid-body-queue-manager* rigid-body-queue-manager)
+;; og:preserve-this activated (rigid-body-queue rung): top-level-login sets
+;; this to a static rb-line-sphere-test instance; the type itself is already
+;; live above (dead-type sweep).
+(define-extern *rb-line-sphere-test* rb-line-sphere-test)
+;; og:preserve-this rigid-body-queue rung (held): this rung's own decode of
+;; rb-line-sphere-test-update is a large (~600 op) debug-draw dump that never
+;; reaches the compiler's normal expression-building path (no OpenGOAL-Start/
+;; End block at all, raw register names throughout), heavy VU math
+;; (draw-debug-line-sphere/-vector/-sphere/-x, vecplusfloattimes) with no
+;; call site anywhere in this rung's corpus (only conditionally installed
+;; into its own symbol slot behind *debug-segment*, never invoked). Held as
+;; a forward declaration only; the type's own inspect method ((method 3
+;; rb-line-sphere-test), landed this rung) decodes clean and does not need
+;; it. Re-derive from the framework's own dump (offline-test -f
+;; rigid-body-queue -d) if debug-segment work ever needs it.
+(define-extern rb-line-sphere-test-update (function none))
+(define-extern rb-reset-perf-array (function none))
 ;; og:preserve-this activated (vehicle band): vehicle-manager-method-16's
 ;; body calls it with the zero-argument form (t9-0 (the-as none
 ;; rb-reset-perf-times)) (call!)); no args passed, name matches the
 ;; zero-arg reset-style siblings in this same debug cluster.
 (define-extern rb-reset-perf-times (function none))
-;; (define-extern rb-get-perf function)
-;; (define-extern *rb-raw-time-val* object)
-;; (define-extern rb-cpu-delay function)
-;; (define-extern rigid-body-queue-manager-post function)
-;; (define-extern rigid-body-queue-manager-init-by-other function) ;; (function rigid-body-queue object :behavior rigid-body-queue-manager)
+;; og:preserve-this activated (rigid-body-queue rung): this rung's own decode
+;; is a trivial "(set! v0 #f) (ret-value v0)" body, no arguments read; not
+;; called anywhere in this rung's corpus.
+(define-extern rb-get-perf (function object))
+;; og:preserve-this activated (rigid-body-queue rung): set to 0 at
+;; top-level-login, never read anywhere in this rung's corpus; typed int to
+;; match the Count-register cycle values rb-perf-data's own fields hold.
+(define-extern *rb-raw-time-val* int)
+;; og:preserve-this activated (rigid-body-queue rung): this rung's own decode
+;; spins reading the Count coprocessor register until the elapsed cycle count
+;; (an unsigned compare, sltu) reaches arg0, then returns 0; not called
+;; anywhere in this rung's corpus.
+(define-extern rb-cpu-delay (function int none))
+;; og:preserve-this activated (rigid-body-queue rung): the anon-function this
+;; rung installs into the idle state's own post-hook wraps this with zero
+;; args; this rung's own decode calls rigid-body-queue's method 10 (the tick)
+;; on self's queue field, matching jak3's own idle :post body. Reads s6-0
+;; (self) directly with no explicit process argument, so it needs the
+;; :behavior tag, not a plain (function none): a bare defun cannot resolve
+;; self, which is exactly the "Could not figure out load (+ s6 140)" this
+;; rung's own decode hit under the untagged declaration.
+(define-extern rigid-body-queue-manager-post (function none :behavior rigid-body-queue-manager))
+;; og:preserve-this activated (rigid-body-queue rung): promoted from the
+;; trailing-comment guess (object -> rigid-body-queue for arg0), matching
+;; this rung's own call site in rigid-body-queue-manager-spawn exactly:
+;; run-function-in-process's third argument is spawn's own a0-0
+;; (rigid-body-queue), and the body itself (stack-size-set!, sets self's
+;; queue field to arg0, calls init-queue! on it, go-virtual idle) matches
+;; jak3's own rigid-body-queue-manager-init-by-other body-for-body.
+(define-extern rigid-body-queue-manager-init-by-other (function rigid-body-queue object :behavior rigid-body-queue-manager))
 ;; og:preserve-this activated (vehicle band): vehicle-manager-init-by-other's
 ;; own call site matches this signature exactly, a0-3 = *rigid-body-queue*
 ;; (rigid-body-queue), a1-2 = s6-0 (this vehicle-manager process, as
@@ -85032,8 +85117,12 @@
 (define-extern *remove-buddy-id* object) ;; provisional: call-site evidence only
 (define-extern *return-to-secrets* object) ;; provisional: call-site evidence only
 (define-extern *rigid-body-object-constants* rigid-body-object-constants)
-(define-extern *rigid-body-queue* object) ;; provisional: call-site evidence only
-(define-extern *rigid-body-queue-manager* object) ;; provisional: call-site evidence only
+;; later-duplicate-wins: superseded by the correctly-typed define-extern
+;; near the rigid-body-queue-manager deftype (rigid-body-queue rung); this
+;; provisional placeholder was the later-weaker duplicate the shadowing
+;; check flags.
+;; (define-extern *rigid-body-queue* object) ;; provisional: call-site evidence only
+;; (define-extern *rigid-body-queue-manager* object) ;; provisional: call-site evidence only
 (define-extern *rushhour-drone-colors* object) ;; provisional: call-site evidence only
 (define-extern *scert-extra-params* object) ;; provisional: call-site evidence only
 ;; later-duplicate-wins: superseded by the correctly-typed define-extern
@@ -85267,7 +85356,8 @@
 (define-extern reticle-wad-on-me-base object) ;; provisional: call-site evidence only
 (define-extern reticle-wad-on-me-peacemaker-converge object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the rigid-body-control deftype and broke goal_src's (declare-type rigid-body-control ...) in JakXTypeConsistency
-(define-extern rigid-body-queue-manager object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the rigid-body-queue-manager deftype (rigid-body-queue rung) and broke goal_src's deftype in JakXTypeConsistency ("deftype will redefine rigid-body-queue-manager from object to a type")
+;; (define-extern rigid-body-queue-manager object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the rigid-body-vehicle-constants deftype, resurrected above, and would break goal_src in JakXTypeConsistency
 ;; og:preserve-this provisional extern removed: shadowed the earlier save-memcard deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern sce-stat object) ;; provisional: call-site evidence only

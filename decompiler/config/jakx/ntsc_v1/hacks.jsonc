@@ -128,6 +128,31 @@
   // currently it just leaves pcpyld as an asm op.
   "hint_inline_assembly_functions": [],
   "asm_functions_by_name": [
+    // (method 10 rigid-body-queue): the per-frame physics tick, called from
+    // rigid-body-queue-manager's idle :post. Inlines process<->handle
+    // conversion three times (once per loop) via a raw "sllv reg, reg, r0"
+    // triple the decompiler's macro matcher does not recognize (the exact
+    // idiom already hand-folded elsewhere in this tree, see generic-obs.gc's
+    // 'mirror case and rigid-body-debug.gc), which here also blocks the type
+    // prop needed to resolve a downstream rigid-body-flag bitfield read
+    // (offset 228, an undefined-enum raw uint16 with no landed bit constants
+    // to fold against). Parked as asm rather than hand-folded like the
+    // simpler rigid-body-queue methods in this same rung: this body needs a
+    // process-drawable cast plus an unverified bitfield mask, out of this
+    // rung's evidence.
+    "(method 10 rigid-body-queue)",
+    // (method 11/13/15 rigid-body-queue): the same inlined handle<->process
+    // triple as method 9 above, but here it breaks CFG resolution outright
+    // ("CFG building failed", no expression tree at all) even after the
+    // same object->process retype that let method 9 decode clean; measured
+    // by reverting the asm-park and re-decoding, still red. Not on the
+    // vehicle-manager boot chain this rung is landing (rigid-body-queue-
+    // manager's idle :post only calls method 10); parked rather than
+    // hand-written from the jak3 twin blind, since this rung has no
+    // rendered jakx expression tree to check field offsets against.
+    "(method 11 rigid-body-queue)",
+    "(method 13 rigid-body-queue)",
+    "(method 15 rigid-body-queue)",
     // checking boxed type is different now - these make the cfg stuff sad
     "name=",
     // disabled to get decomp to work
