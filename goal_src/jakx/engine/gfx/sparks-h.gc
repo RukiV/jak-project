@@ -99,16 +99,16 @@
    (data       spark            512 :inline)
    )
   (:methods
-    (sparks-work-method-9 (_type_) none)
-    (sparks-work-method-10 (_type_ object) none)
+    (sparks-work-method-9 (_type_) spark) ;; 9 ;; confirmed by (method 10 sparks-work)'s own call site: the returned value is nonzero-checked then written through with three 16-byte quad copies (pos/vel/accel, spark's own 48-byte layout exactly), a real pointer, not none
+    (sparks-work-method-10 (_type_ spark-launch-params) none) ;; 10 ;; arg0 read at 0/16/32 (three quads, pos/vel/accel) and 56/60 (float fields), matching spark-launch-params' own layout
     (sparks-work-method-11 (_type_) none)
     (sparks-work-method-12 (_type_) none)
     (sparks-work-method-13 (_type_ int32) none)
     (sparks-work-method-14 (_type_) none)
-    (sparks-work-method-15 (_type_ int32 int32 int32) none)
-    (sparks-work-method-16 (_type_ object) none)
-    (sparks-work-method-17 () none)
-    (sparks-work-method-18 (_type_ object object) none)
+    (sparks-work-method-15 (_type_ int32 spark-vport spark-vport) none) ;; 15 ;; arg1/arg2 confirmed by their own mem-copy!/quad-copy chain at offsets up to 336, matching spark-vport's own field layout (mat/hvdf-offset/hmge-scale/frame/zbuf/scissor) exactly
+    (sparks-work-method-16 (_type_ dma-buffer) none) ;; 16 ;; arg0 read at raw offset 4 (declared 8, the +4 basics convention), matching dma-buffer's own base field, then written through the same base-advance idiom dma-buffer-add-base-type's own macro expands to
+    (sparks-work-method-17 (_type_ dma-buffer int) none) ;; 17 ;; missing arity: declared zero args but the body reads a1 (dma-buffer, same base-field idiom as method 16) and a2 (a value masked to 16 bits); this is not self-touching, this/_type_ is never read
+    (sparks-work-method-18 (_type_ dma-buffer int) none) ;; 18 ;; arg0 confirmed dma-buffer by the same base-field idiom as methods 16/17; arg1 used in a plain integer multiply (48 * arg1), confirmed int
     (sparks-work-method-19 (_type_) none)
     )
   )
