@@ -1178,5 +1178,31 @@
   // ["inline-array", "vector", N] shape as update-camera/cam-helper-temp
   // above; the raw stack address's own type never resolved on its own
   // ("Failed to guess stack use for 16").
-  "plot-x-with-transform": [[16, ["inline-array", "vector", 4]]]
+  "plot-x-with-transform": [[16, ["inline-array", "vector", 4]]],
+  // (method 53 task-arrow): sp+16 (s5) holds collide-query-shaped data (op
+  // 9's s5+208 write matches collide-query's own start-pos field at
+  // offset-assert 208 exactly, op 15's s5+224 write matches move-dist at
+  // offset-assert 224, op 29's s5+268 write matches radius at offset 268)
+  // followed by an appended scratch vector at sp+544 (op 5/8's quad copies
+  // of the input position, op 51's vecplusfloattimes result), ending at
+  // sp+560; the same explosion-handle-touch-with-ccheck shape (declaring
+  // the whole region as collide-query fails past its own 540-byte end), so
+  // this declares only the byte-array and leaves the collide-query-shaped
+  // reads to per-op type_casts.
+  "(method 53 task-arrow)": [[16, ["array", "uint8", 560]]],
+  // (method 54 task-arrow): sp+16 is a plain 16-byte vector scratch (op
+  // 383-384 copies a full quad from the trsqv start-pos field into it, ops
+  // 385/390 read and rewrite its y-component with a rod-of-god-scale blend);
+  // the raw stack address's own type never resolved on its own ("Failed to
+  // guess stack use for 16").
+  "(method 54 task-arrow)": [[16, "vector"]],
+  // (method 9 camera-facing-quad): sp+16 is a 160-byte scratch (a 64-byte
+  // camera-matrix copy at +0, then four 16-byte quad-corner vectors at +64,
+  // +80, +96, +112, plus one more at +128 and +144 built from those via
+  // vecplusfloattimes, one per quad corner); the raw stack address's own
+  // type never resolved on its own ("Failed to guess stack use for 16").
+  // Config-only: method 9's own landing is held (see camera-facing-quad.gc),
+  // this just keeps the object's decode error-free for the next lane that
+  // resolves the clear-strip dependency.
+  "(method 9 camera-facing-quad)": [[16, ["array", "uint8", 160]]]
 }

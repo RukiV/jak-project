@@ -6464,5 +6464,75 @@
   // here rather than a literal #f).
   "(enter explode wvehicle)": [
     [[129, 130], "a0", "process"]
+  ],
+  // (event idle task-arrow): op 4 loads the event-message-block's own u64
+  // param 0 (a vector's raw bits) via l.d, typed uint; op 6 immediately
+  // treats it as a quad-copy source. Cast at the consuming op (the l.q
+  // itself), not the producing op: a cast at op 4 attached to op 3's branch
+  // merge instead and left op 6 unresolved.
+  // op 54 (and its set-alpha twin, if it also errors): the set-scale/
+  // set-alpha branches load the event-message-block's u64 param 0 as uint,
+  // mtc1 it into an FPR to store as a float field, then mfc1 the same FPR
+  // back out as the branch's return value; the merged type at the mfc1
+  // stays uint, so "FPR -> GPR applied to a uint". Same fix and same shape
+  // as collide-planes-test0's f30 cast just above: cast the FPR at the
+  // mfc1 op itself.
+  "(event idle task-arrow)": [
+    [6, "a0", "(pointer uint128)"],
+    [54, "f0", "float"],
+    [61, "f0", "float"]
+  ],
+  // (method 53 task-arrow): the sp+16 byte-array declaration (see
+  // stack_structures.jsonc) types s5 as (pointer uint8), which does not
+  // support a raw quadword load; op 8 and op 53 each l.q through it (the
+  // scratch-vector copy at s5+544, read back after the collide-cache probe).
+  // Cast at the consuming (load) op each time, the same idiom as the event
+  // handler above.
+  // (method 53 task-arrow): resolving the loads (above) let type propagation
+  // reach the stores into the same sp+16 byte-array region, which then
+  // failed the same way; casts follow the same per-op, cast-at-the-
+  // consuming-instruction convention. op 5/9 are whole-quad copies (the
+  // input-vector-into-scratch and scratch-into-start-pos copies), same
+  // (pointer uint128) class as the loads. op 12/14 read/write start-pos.y
+  // (offset 212) directly off s5. ops 17-25 write move-dist's four floats
+  // through v1 (= s5+224, defined at op 15). ops 29-38 write the rest of
+  // the collide-query fields (radius/collide-with/ignore-process0-1/
+  // ignore-pat/action-mask/num-spheres, offsets 268/100/88/92/96/352/116,
+  // all matching collide-query's own offset-asserts) through v1 (= s5+0,
+  // defined at op 26 via "daddu v1, r0, s5"); casting that occurrence to
+  // the real struct type resolves every field in the range at once, the
+  // same one-cast-covers-many-fields idiom as the collide-query casts
+  // elsewhere in this file.
+  "(method 53 task-arrow)": [
+    [8, "a0", "(pointer uint128)"],
+    [53, "v1", "(pointer uint128)"],
+    [12, "s5", "(pointer float)"],
+    [5, "v1", "(pointer uint128)"],
+    [9, "v1", "(pointer uint128)"],
+    [14, "s5", "(pointer float)"],
+    [[17, 26], "v1", "(pointer float)"],
+    [[29, 39], "v1", "collide-query"]
+  ],
+  // (method 12 camera-facing-quad): a1 (typed object per its own arg
+  // declaration) is a raw struct base read and rewritten at offset 82
+  // (ops 0, 12, 14) and used for address arithmetic feeding the offset-12
+  // word store and the offset-16 quad store (op 3, base for ops 4/7); cast
+  // at each consuming op, the same per-op idiom used throughout this file.
+  "(method 12 camera-facing-quad)": [
+    [0, "a1", "(pointer uint16)"],
+    [3, "a1", "(pointer uint8)"],
+    [12, "a1", "(pointer uint16)"],
+    [14, "a1", "(pointer uint16)"],
+    [5, "a2", "(pointer uint128)"],
+    [6, "a0", "(pointer uint128)"],
+    [7, "v1", "(pointer int32)"],
+    [9, "v1", "(pointer float)"],
+    [11, "v1", "(pointer float)"]
+  ],
+  // (method 13 camera-facing-quad): a1 (object) is dereferenced whole via
+  // l.q, the same by-reference-vector-argument idiom as task-arrow's event
+  // handler above.
+  "(method 13 camera-facing-quad)": [
+    [1, "a1", "(pointer uint128)"]
   ]
 }

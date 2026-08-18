@@ -35294,6 +35294,11 @@
   (taf6 6)
   (taf7 7)
   (taf8 8)
+  ;; jakx-only bit: jak3's own task-arrow-flags (decompiler/config/jak3/
+  ;; all-types.gc) stops at taf8; method 54 here logands the flags field
+  ;; against 0x200 (bit 9), a jakx addition with no jak3 twin to name it
+  ;; from.
+  (taf9 9)
   )
 ;; ---generic-obs-h:task-arrow-flags
 
@@ -67332,7 +67337,12 @@
   ((pos    vector :inline :offset-assert 16)
    (height float          :offset-assert 32)
    (width  float          :offset-assert 36)
-   (strip  basic          :offset-assert 40)
+   ;; retyped from basic: method 10 stores a fresh (new 'process 'prim-strip
+   ;; ...) result straight into this field, then writes its texture-index
+   ;; (offset 84), level (offset 80) and tex-id (offset 16) fields by raw
+   ;; offset off the same value; all three match prim-strip's own
+   ;; offset-asserts once the field carries the real type.
+   (strip  prim-strip     :offset-assert 40)
    (color  uint32         :offset-assert 44)
    )
   :method-count-assert 14
@@ -67341,8 +67351,22 @@
   (:methods
     (camera-facing-quad-method-10 (_type_ object) none) ;; 10
     (camera-facing-quad-method-11 (_type_) none) ;; 11
-    (camera-facing-quad-method-12 () none) ;; 12
-    (camera-facing-quad-method-13 (_type_ object float float) none) ;; 13
+    ;; jakx slot verified against camera-facing-quad's own ir2 ("Function may
+    ;; read a register that is not set: a1/a2/a3/t0/t1" against the old
+    ;; zero-arg declaration); self (a0) goes unread in the body, which reads
+    ;; a1 (a struct base with a uint16 counter at +82, incremented at the
+    ;; end), a2 (dereferenced as a full quad, so a pointer to one), a3 (a
+    ;; raw word) and t0/t1 (moved through the FPU, so floats): the same
+    ;; append-and-bump-count shape as engine's own add-connection.
+    (camera-facing-quad-method-12 (_type_ object object int float float) int) ;; 12
+    ;; jakx slot verified against camera-facing-quad's own ir2 ("Function may
+    ;; read a register that is not set: t0" against the old 3-arg
+    ;; declaration); task-arrow's own call site (method 54) sets a fourth
+    ;; register (t0, loaded from task-arrow's own color field, uint32) before
+    ;; the call, which the old declaration silently dropped since caller-side
+    ;; type-checking does not flag unconsumed argument registers. The body
+    ;; both stores t0 into this quad's own color field and returns it.
+    (camera-facing-quad-method-13 (_type_ object float float uint) uint) ;; 13
     )
   )
 
@@ -67423,7 +67447,17 @@
    (death-pending?   symbol                     :offset-assert 332) ;; guessed by decompiler
    (alpha            float                      :offset-assert 336)
    (choir-sound      ambient-sound              :offset-assert 340) ;; guessed by decompiler
-   (rod-quad         basic                      :offset-assert 344)
+   ;; retyped from basic: task-arrow-init-by-other op 180 stores a fresh
+   ;; (new 'process 'camera-facing-quad) result straight into this field (raw
+   ;; store offset 340, the N+4 basics shift onto this field's offset-assert
+   ;; 344), and method 54 dispatches method 10 and method 13 back off the
+   ;; same field (raw loads at offset 340, vtable offsets 56/68 = ids 10/13),
+   ;; both declared on camera-facing-quad's own :methods block with matching
+   ;; arg shapes (object; object float float). basic has neither slot, hence
+   ;; the "method with id 10/13 of type basic could not be found" errors this
+   ;; retype clears. Offset is unaffected: this is a type-only fix, separate
+   ;; from the still-disputed color/pos/theta/phi region above.
+   (rod-quad         camera-facing-quad         :offset-assert 344)
    )
   :method-count-assert 55
   :size-assert         #x15c
@@ -75215,7 +75249,14 @@
 ;; (define-extern smoke-system-local-space function)
 ;; (define-extern sift-down function)
 ;; (define-extern heap-sort function)
-;; (define-extern clear-strip function)
+;; clear-strip's own definition (unlanded, wvehicle-weapons-oil.gc, label
+;; L514 in this rung's baseline decode) resets a prim-strip's num-verts
+;; (raw offset 82 = offset-assert 86 with the N+4 basics shift), flags (raw
+;; 0 = offset-assert 4), reg0 (raw 36 = offset-assert 40) and adnops[0]
+;; (raw 28 = offset-assert 32); every call site (camera-facing-quad,
+;; oil-trail, particle-buffer) passes a strip field's stored value directly.
+;; camera-facing-quad's own method 9 is held unlanded pending this dependency.
+(define-extern clear-strip (function prim-strip int))
 ;; (define-extern lightning-sphere-init-by-other function)
 ;; (define-extern lightning-sphere-spawn function)
 ;; (define-extern vector+float*-ignore-w! function)

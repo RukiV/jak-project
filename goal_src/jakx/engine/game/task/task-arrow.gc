@@ -7,3 +7,19 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this landing held: this rung's own scoped decode reaches 0
+;; ir2 errors (config fixes below), but method 53 dispatches
+;; collide-cache-method-10 on *collide-cache*, and collide-cache.gc is a
+;; 9-line stub (30 decode errors of its own, out of this rung's tier and
+;; scope). method 53 is reachable on the boot path from both
+;; task-arrow-init-by-other and the idle event's set-position handler
+;; whenever the taf3 flag is set on a live task-arrow, so landing it here
+;; would be a runtime jump to an unlanded vtable slot that
+;; scripts/check_method_slots.py does not catch (it only regex-matches
+;; (method-of-type ...) and (method-of-object ...) text, not the bare
+;; typename-method-N call-by-synthesized-name shape this site uses).
+;; Retirement condition: land collide-cache.gc (or at least its own method
+;; 10), then land this object from decompiler/config/jakx scoped decode of
+;; task-arrow (0 decode errors already; camera-facing-quad, this object's
+;; other dependency, is landed separately in this same rung).
+
