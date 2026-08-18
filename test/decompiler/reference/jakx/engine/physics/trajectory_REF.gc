@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: trajectory.gc
-;; name in dgo: trajectory
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
 ;; definition for method 9 of type trajectory
 (defmethod compute-trans-at-time ((this trajectory) (arg0 float) (arg1 vector))
   (vector+float*! arg1 (-> this initial-position) (-> this initial-velocity) arg0)
@@ -250,24 +244,40 @@
 
 ;; definition for method 13 of type combo-tracker
 ;; WARN: Return type mismatch process vs process-focusable.
-;; og:preserve-this bring-up park: retail's else branch calls find-nearest-
-;; focusable with a search-info-flag literal (crate enemy combo, or crate
-;; enemy prefer-angle cull-angle combo), but neither search-info-flag (a
-;; defenum, not just a decompiler-config extern; landed in process-
-;; focusable.gc) nor find-nearest-focusable itself (landed in find-
-;; nearest.gc) exist anywhere in goal_src/jakx yet, so this cannot compile
-;; today ("The symbol crate was looked up as a global variable"). The
-;; 'combo send-event branch above it is unaffected by either dependency and
-;; stays intact; only the fallback search is parked. Re-derive the else
-;; branch from decompiler_out/jakx/trajectory_disasm.gc once process-
-;; focusable.gc and find-nearest.gc land.
 (defmethod combo-tracker-method-13 ((this combo-tracker) (arg0 handle) (arg1 vector) (arg2 float) (arg3 vector) (arg4 float))
   (the-as process-focusable (cond
                               ((send-event (handle->process arg0) 'combo)
                                (as-type (handle->process arg0) process-focusable)
                                )
                               (else
-                                (the-as process-focusable #f)
+                                (let ((s1-0 (new 'stack-no-clear 'vector))
+                                      (s2-1 (new 'stack 'boxed-array collide-shape 32))
+                                      )
+                                  (sphere<-vector+r! (the-as sphere s1-0) arg1 arg2)
+                                  (set! (-> s2-1 length) (fill-actor-list-for-vec+r
+                                                           *actor-hash*
+                                                           s1-0
+                                                           (the-as (pointer collide-shape) (-> s2-1 data))
+                                                           (-> s2-1 allocated-length)
+                                                           )
+                                        )
+                                  (as-type
+                                    (find-nearest-focusable
+                                      (the-as (array collide-shape) s2-1)
+                                      arg1
+                                      arg2
+                                      (if (= arg4 65536.0)
+                                          (search-info-flag crate enemy combo)
+                                          (search-info-flag crate enemy prefer-angle cull-angle combo)
+                                          )
+                                      (search-info-flag)
+                                      arg3
+                                      (the-as vector #f)
+                                      arg4
+                                      )
+                                    process-focusable
+                                    )
+                                  )
                                 )
                               )
           )
