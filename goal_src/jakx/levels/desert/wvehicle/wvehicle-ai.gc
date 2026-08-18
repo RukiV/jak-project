@@ -7,3 +7,83 @@
 
 ;; DECOMP BEGINS
 
+;; vehicle rung: wvehicle-method-226 decodes clean but is held rather than
+;; landed. Its own body calls (vehicle-method-155 this), the same unfilled
+;; slot vehicle.gc's own rung held vehicle-method-71/155/157 for (vehicle-
+;; method-142/143/134 unlanded anywhere in this worktree); wvehicle-race.gc
+;; already calls vehicle-method-155 too, a pre-existing check_method_slots
+;; FAIL, but landing another live caller here would add a second reachable
+;; path to the same zero-link crash rather than resolving it. Held pending
+;; vehicle-method-155 itself landing.
+
+;; definition for method 173 of type wvehicle
+;; WARN: Return type mismatch symbol vs none.
+(defmethod vehicle-method-173 ((this wvehicle))
+  (logtest? (-> this flags) 6664)
+  (none)
+  )
+
+;; definition for method 267 of type wvehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod wvehicle-method-267 ((this wvehicle))
+  (set! (-> this ai destination handle) (the-as uint #f))
+  (set! (-> this ai destination nav-location nav-mesh) #f)
+  (set! (-> this ai destination nav-location nav-poly) #f)
+  (set! (-> this ai blocked-timer) 0.0)
+  (set! (-> this ai reverse-timer) 0.0)
+  (cond
+    ((-> this nav)
+     (set! (-> this ai nav-location nav-mesh) (-> this nav state mesh))
+     (set! (-> this ai nav-location nav-poly) (-> this nav state current-poly))
+     )
+    (else
+      (set! (-> this ai nav-location nav-mesh) #f)
+      (set! (-> this ai nav-location nav-poly) #f)
+      )
+    )
+  (set! (-> this ai current-travel quad) (-> this rbody lin-velocity quad))
+  (set! (-> this ai previous-steering-error) 0.0)
+  (set! (-> this ai no-physics-speed) (vector-length (-> this ai current-travel)))
+  (set! (-> this ai desired-speed) (-> this max-speed))
+  (set! (-> this ai weapon-timer) (the-as uint 0))
+  (set! (-> this ai weapon-aggression) 0.5)
+  0
+  (none)
+  )
+
+;; definition of type spring-tracker
+(deftype spring-tracker (structure)
+  ((speed           float)
+   (spring-constant float)
+   )
+  (:methods
+    (spring-tracker-method-9 (_type_ object object) none) ;; 9
+    )
+  )
+
+;; definition for method 3 of type spring-tracker
+(defmethod inspect ((this spring-tracker))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'spring-tracker)
+  (format #t "~1Tspeed: ~f~%" (-> this speed))
+  (format #t "~1Tspring-constant: ~f~%" (-> this spring-constant))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this vehicle rung (held): (method 9 spring-tracker) fails
+;; expression building ("Floating point math attempted on invalid types:
+;; object and object") at its own op 7; not this rung's own named target
+;; and not chased further.
+
+;; definition for symbol *wvehicle-ai-steering-params*, type (array vector)
+(define *wvehicle-ai-steering-params*
+  (new 'static 'boxed-array :type vector
+    (new 'static 'vector :data (new 'static 'array float 4 1.0 0.05 0.12 1.0))
+    (new 'static 'vector :data (new 'static 'array float 4 0.8 0.05 0.4 1.0))
+    )
+  )
+
