@@ -7350,5 +7350,248 @@
   // (this rung's own decode has the read at op 62, the failing arithmetic
   // at op 63, not jak3's 56-63 range), found by rerunning this rung's own
   // scoped decode rather than assumed from jak3's op numbers directly.
-  "shadow-execute-all": [[63, "v1", "shadow-dcache"]]
+  "shadow-execute-all": [[63, "v1", "shadow-dcache"]],
+  // script.gc / (nav-control twin band) rung: script-context's `param` field
+  // (declared object, 16-wide array) frequently holds pair values at
+  // runtime (script command arg lists); jak3's own script.gc landing casts
+  // the identical car/cdr loads to pair via type_casts (its own decompiler
+  // build tolerated the ambiguity without an override, this worktree's does
+  // not), confirmed op-for-op identical against the jak3 ir2 corpus
+  // (fingerprint/out-jak3/jak3/script_ir2.asm) for every entry below unless
+  // noted otherwise.
+  "(anon-function 13 script)": [
+    [17, "v1", "pair"],
+    [30, "v1", "pair"],
+    [31, "v1", "pair"]
+  ],
+  // (anon-function 18 script): type? entity-actor check on s5 (the entity
+  // returned by command-get-entity) does not narrow a0 for the later
+  // vtable dispatch of method 30 (toggle-status, entity-actor only, entity
+  // itself asserts only 27 methods); jak3's anon-function 38 casts the
+  // identical op sequence to entity-actor at the same two ops.
+  "(anon-function 18 script)": [
+    [16, "a0", "entity-actor"],
+    [20, "a0", "entity-actor"]
+  ],
+  // (anon-function 22 script): symbol-value load ((-> v1 value), the -1
+  // byte offset convention) on v1 after a param car access; matches jak3's
+  // anon-function 42 op for op.
+  "(anon-function 22 script)": [[5, "v1", "symbol"]],
+  // (anon-function 23 script): reads its own arg0's basic type-tag
+  // (l.wu arg0 -4) for a raw compare against *global-search-name*; arg0 is
+  // declared script-context (a structure, no runtime type tag) in the
+  // outer signature, so the generic type-tag heuristic needs an explicit
+  // object cast to resolve at this local op. jak3 needed no override for
+  // the two matching candidates found (anon-function 43/98 script), so
+  // this worktree's decompiler is stricter here; verified by re-decode.
+  // round 2: "object" alone did not resolve the type-tag load (still fails
+  // as a raw basic type-tag read); "basic" resolves it since the -4 offset
+  // heuristic is keyed off basic-kind types specifically.
+  "(anon-function 23 script)": [[0, "a0", "basic"]],
+  // (anon-function 24 script): process-drawable casts, adopted wholesale
+  // from jak3's anon-function 47 (op 44 confirmed identical against this
+  // worktree's own error; the remaining ops are jak3's full set for the
+  // same function, applied preemptively since decompile errors commonly
+  // cascade past the first hard failure).
+  "(anon-function 24 script)": [
+    [44, "s4", "process-drawable"],
+    [48, "s4", "process-drawable"],
+    [53, "s4", "process-drawable"],
+    [59, "v0", "joint"],
+    [65, "s4", "process-drawable"],
+    [79, "s4", "process-drawable"],
+    [81, "s4", "process-drawable"],
+    [84, "s4", "process-drawable"],
+    [86, "s4", "process-drawable"],
+    [94, "gp", "(function process-drawable cspace none)"]
+  ],
+  // (anon-function 25 script): adopted wholesale from jak3's
+  // anon-function 49 (op 131 confirmed identical against this worktree's
+  // own error).
+  "(anon-function 25 script)": [
+    [131, "a0", "process-drawable"],
+    [137, "v1", "process-drawable"],
+    [140, "v1", "process-drawable"],
+    [146, "v0", "joint"],
+    [155, "a0", "process-drawable"],
+    [183, "a0", "process-drawable"],
+    [191, "a0", "process-drawable"],
+    [91, "s3", "drawable-region-prim"]
+  ],
+  // (anon-function 34 script) / (anon-function 35 script): both copy
+  // (-> arg0 trans) (a vector field) via a raw quadword load/store; the
+  // field's own declared vector type does not propagate through the local
+  // alias, so the load site itself needs the explicit cast.
+  "(anon-function 34 script)": [[64, "a0", "vector"]],
+  "(anon-function 35 script)": [[61, "a0", "vector"]],
+  // (anon-function 44 script): builds a stack event-message-block (see the
+  // matching stack_structures.jsonc entry) then walks the target process's
+  // child connection list to relay the event; v1 at the op that reads
+  // param1 (offset 20, matching connection's own field layout) needs the
+  // explicit cast.
+  "(anon-function 44 script)": [[66, "v1", "connection"]],
+  // (anon-function 57 script): bfloat unboxing after a bfloat type-tag
+  // check, same op number jak3 uses for its own anon-function 84's
+  // equivalent bfloat cast.
+  "(anon-function 57 script)": [[21, "v1", "bfloat"]],
+  // (anon-function 62 script): calls (-> arg0 param 1) directly as a
+  // zero-arg function pointer; jak3's own anon-function 89 casts the same
+  // idiom to (function none) at the call op.
+  "(anon-function 62 script)": [[3, "t9", "(function none)"]],
+  // (anon-function 64 script): (-> arg0 param 1) is stored through as a
+  // symbol-value write ((-> v1 value), the -1 offset convention), same
+  // idiom as (anon-function 22 script) above but on a store.
+  "(anon-function 64 script)": [[4, "v1", "symbol"]],
+  // (anon-function 65/66/67/68/69/70/74 script): each is a small
+  // command-param car-walk handler (script command dispatch on a single
+  // param), the same generic pair-car idiom; op numbers are each
+  // function's own "failed type prop at N" op from this worktree's
+  // baseline decode.
+  // round 2: each of these also walks a nested list (car of a car, or a
+  // loop-back cdr of the same register), needing a second cast at the
+  // deeper op; op numbers are each function's own round-1-residual
+  // "failed type prop at N" from the re-decode after the round-1 fix.
+  "(anon-function 65 script)": [
+    [4, "s3", "pair"],
+    [7, "s2", "pair"],
+    [25, "s2", "pair"],
+    [26, "s4", "pair"],
+    [33, "s4", "pair"],
+    [34, "s4", "pair"],
+    [43, "s3", "pair"],
+    [44, "s3", "pair"]
+  ],
+  "(anon-function 66 script)": [
+    [3, "s4", "pair"],
+    [6, "s3", "pair"],
+    [17, "s3", "pair"],
+    [18, "s4", "pair"],
+    [25, "s4", "pair"],
+    [26, "s4", "pair"],
+    [35, "s4", "pair"],
+    [36, "s4", "pair"]
+  ],
+  "(anon-function 67 script)": [[5, "s5", "pair"], [11, "s5", "pair"], [12, "s5", "pair"]],
+  "(anon-function 68 script)": [[5, "s5", "pair"], [11, "s5", "pair"], [12, "s5", "pair"]],
+  "(anon-function 69 script)": [[3, "s5", "pair"], [14, "s5", "pair"], [15, "s5", "pair"]],
+  "(anon-function 70 script)": [[3, "s5", "pair"], [13, "s5", "pair"], [14, "s5", "pair"]],
+  "(anon-function 74 script)": [[3, "s5", "pair"], [9, "s5", "pair"], [10, "s5", "pair"]],
+  // (method 9 script-context): symbol-value load on the walked param list,
+  // same -1 offset convention as above.
+  "(method 9 script-context)": [[162, "s5", "symbol"]],
+  // (method 10 script-context): op22 is jak3's own cast for this method,
+  // op-for-op identical; op31 is this worktree's own additional residual,
+  // the loop-back cdr walk (l.w s4 2) losing its pair typing at the merge
+  // point, re-cast at the next car access.
+  "(method 10 script-context)": [
+    [22, "s3", "symbol"],
+    [30, "s4", "pair"],
+    [31, "s4", "pair"]
+  ],
+  // (method 11 script-context): same generic pair-car idiom, plus a
+  // loop-back cdr walk residual at op39.
+  "(method 11 script-context)": [
+    [11, "s3", "pair"],
+    [39, "v1", "pair"],
+    [43, "a0", "pair"],
+    [93, "v1", "pair"],
+    [100, "v1", "pair"],
+    [105, "v1", "pair"],
+    [118, "v1", "pair"],
+    [119, "v1", "pair"],
+    [148, "v1", "pair"],
+    [149, "v1", "pair"],
+    [168, "v1", "pair"]
+  ],
+  // key-assoc: walks a pair-valued association list via cdr; op11's own
+  // register (v1, not a1) confirmed by re-decode after the first attempt,
+  // plus residual car accesses at op12 and op18.
+  "key-assoc": [
+    [6, "v1", "pair"],
+    [11, "v1", "pair"],
+    [12, "a1", "pair"],
+    [18, "v1", "pair"]
+  ],
+  // command-get-quoted-param: arg0 is car'd directly to check for a
+  // ('quote ...) wrapper before delegating to command-get-param; jak3
+  // needed no override for the identical code (this worktree's decompiler
+  // is stricter here, matching the (anon-function 23 script) note above).
+  // op9 is the cdr access for the same arg0 once the quote check passes.
+  "command-get-quoted-param": [[4, "a0", "pair"], [9, "a0", "pair"], [10, "v1", "pair"]],
+  // command-get-trans / command-get-entity / command-get-process /
+  // command-get-param / command-get-time / command-get-float /
+  // command-get-int: adopted wholesale from jak3's identically-named
+  // entries (script-context's own field layout is byte-identical between
+  // the two games, confirmed above); command-get-trans's op 43 and
+  // command-get-float/int's ops 20/17 verified identical against this
+  // worktree's own baseline errors before adopting the rest of each list.
+  // command-get-trans's op46 is this worktree's own residual (a second
+  // read of the same trsqv field after the first branch), not present in
+  // jak3's list; found by re-decode after adopting jak3's set.
+  "command-get-trans": [
+    [40, "v1", "process-drawable"],
+    [43, "v1", "process-drawable"],
+    [46, "v1", "process-drawable"],
+    [52, "s5", "pair"],
+    [66, "s5", "pair"],
+    [67, "v1", "pair"],
+    [63, "s4", "process-drawable"],
+    [67, "s4", "process-drawable"],
+    [70, "s4", "process-drawable"],
+    [74, "s4", "process-drawable"],
+    [77, "s4", "process-drawable"],
+    [85, "s4", "process-drawable"],
+    [86, "a0", "trsqv"],
+    [76, "v0", "joint"],
+    [78, "s4", "process-drawable"]
+  ],
+  "command-get-entity": [[10, "gp", "process"]],
+  // command-get-process's op56 is this worktree's own residual (gp, not
+  // op37's g/a0 pairing jak3 casts; a second read of the entity-actor
+  // typed value after the type? check), found by re-decode.
+  "command-get-process": [
+    [37, "gp", "entity-actor"],
+    [56, "gp", "entity-actor"],
+    [83, "v1", "connection"],
+    [84, "a2", "game-task-node-info"],
+    [86, "v1", "setting-control"],
+    [96, "v1", "connection"],
+    [97, "a2", "(pointer uint8)"],
+    [99, "v1", "connection"],
+    [104, "v1", "connection"],
+    [117, "v1", "connection"],
+    [195, "s4", "process-drawable"],
+    [198, "s4", "process-drawable"],
+    [197, "s4", "process-drawable"],
+    [200, "s4", "process-drawable"],
+    [206, "s4", "process-drawable"],
+    [213, "s4", "process-drawable"],
+    [218, "s4", "process-drawable"]
+  ],
+  "command-get-param": [
+    [9, "gp", "pair"],
+    [16, "gp", "pair"],
+    [17, "v1", "pair"],
+    [29, "gp", "pair"],
+    [36, "gp", "pair"],
+    [37, "v1", "pair"],
+    [48, "gp", "pair"],
+    [55, "gp", "pair"],
+    [56, "v1", "pair"],
+    [122, "gp", "bfloat"]
+  ],
+  "command-get-time": [
+    [9, "gp", "pair"],
+    [16, "gp", "pair"],
+    [17, "v1", "pair"],
+    [29, "gp", "pair"],
+    [36, "gp", "pair"],
+    [37, "v1", "pair"],
+    [49, "gp", "pair"],
+    [56, "gp", "pair"],
+    [57, "v1", "pair"],
+    [119, "gp", "bfloat"]
+  ],
+  "command-get-float": [[20, "gp", "bfloat"]],
+  "command-get-int": [[17, "gp", "bfloat"]]
 }
