@@ -48463,11 +48463,14 @@
     ;; cross products, two vec3dot calls and a matrix reference at +236 inside
     ;; the passed-in rigid-body-control's own matrix field. This does not match
     ;; any single jak3 rigid-body-control method body-for-body and looks closer
-    ;; to a fragment of jak3's own rbody-collision than to a plain accessor;
-    ;; landed as a placeholder pending a dedicated rung. hacks.jsonc's
-    ;; no_type_analysis_functions_by_name carries "(method 25 rigid-body-control)"
-    ;; so the rest of the object still decodes.
-    (rigid-body-control-method-25 () none) ;; 25
+    ;; to a fragment of jak3's own rbody-collision than to a plain accessor.
+    ;; rigid-body-control-integrator rung: landed. Confirmed and completed by
+    ;; a real call site, rbody-collision's own body, which dispatches gp's
+    ;; vtable at machine offset 116 with a1 = rigid-body-move-work's rbody2
+    ;; field (declared rigid-body-control) and a2 = its impact-info2 field
+    ;; (declared rigid-body-impact), then runs the integer return through
+    ;; gpr->fpr and multiplies by 0.5, proving a float return.
+    (rigid-body-control-method-25 (_type_ rigid-body-control rigid-body-impact) float) ;; 25
     (rigid-body-control-method-26 (_type_ vector vector) none) ;; 26 ;; matches jak3's own slot 24 (get-force-at-point, WITH the length-squared division) body-for-body, not slot 26 by number
     ;; og:preserve-this rigid-body rung: no direct jak3 twin found by body
     ;; match; this rung's own decode shows 2 args (self, vector) and a body
@@ -61748,11 +61751,21 @@
 ;; takes and returns matrix; damping-time-adjust takes two floats and
 ;; returns float; transform-rigid-body-prims takes collide-shape-prim and
 ;; matrix and returns symbol, its own body ending in a bare #f). The
-;; remaining five (debug-draw-rigid-body-move, apply-overlap-penalty-forces,
-;; ray-tube-intersect, collide-sphere-with-line-sphere-hack,
-;; check-vehicle-line-spheres-hack) have no jak3 twin and stay commented
-;; until this rung's own scoped decode of rigid-body.gc supplies register
-;; evidence for their arities.
+;; remaining four (debug-draw-rigid-body-move, apply-overlap-penalty-forces,
+;; ray-tube-intersect, collide-sphere-with-line-sphere-hack) have no jak3
+;; twin and stay commented until this rung's own scoped decode of
+;; rigid-body.gc supplies register evidence for their arities.
+;; rigid-body-control-integrator rung: check-vehicle-line-spheres-hack
+;; activated from (method 62 collide-shape-moving)'s own call site (still
+;; held, see hacks.jsonc): arg0 is collide-shape-moving (raw a0, the caller's
+;; own self), arg1 is a stack-allocated check-line-spheres-hack-params built
+;; immediately before the call (time-step*time-step-scale into offset 0,
+;; &work.mat into offset 4, &work.cquery into offset 8, the rigid-body-
+;; control into offset 12, matching that struct's own four fields
+;; field-for-field). The call site's own return value is computed into v1
+;; then unconditionally overwritten with 0 before either control path reads
+;; it again, so nothing here proves a return type; declared none rather than
+;; guessed, since the only observed use is to discard it.
 (define-extern *rigid-body-work* rigid-body-work)
 (define-extern matrix-3x3-triple-transpose-product (function matrix matrix matrix matrix))
 (define-extern damping-time-adjust (function float float float))
@@ -61761,7 +61774,7 @@
 ;; (define-extern apply-overlap-penalty-forces function)
 ;; (define-extern ray-tube-intersect function)
 ;; (define-extern collide-sphere-with-line-sphere-hack function)
-;; (define-extern check-vehicle-line-spheres-hack function)
+(define-extern check-vehicle-line-spheres-hack (function collide-shape-moving check-line-spheres-hack-params none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; rigid-body-queue               ;;

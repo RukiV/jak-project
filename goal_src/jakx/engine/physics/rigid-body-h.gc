@@ -395,16 +395,19 @@
     (rigid-body-control-method-22 (_type_ vector vector float) none) ;; 22 ;; matches jak3's own slot 21 (apply-force-at-point-with-torque-limit), not slot 22 by number
     (rigid-body-control-method-23 (_type_ vector vector) none) ;; 23 ;; matches jak3's own slot 22 (apply-torque-at-point), not slot 23 by number
     (rigid-body-control-method-24 (_type_ vector vector) none) ;; 24 ;; matches jak3's own slot 23 (get-velocity-at-point, no division), verified also against vehicle-method-136's own call site (rigid-vehicle rung), two vectors
-    ;; og:preserve-this rigid-body rung (held): at least 3 explicit registers
-    ;; (self, a nullable vector-or-rigid-body-control, and a second structure
-    ;; matching rigid-body-impact's normal/velocity fields), building a local
-    ;; work buffer via vector-rotate*!, two cross products, two vec3dot calls
-    ;; and a matrix reference inside the passed-in rigid-body-control's own
-    ;; matrix field. Does not match any single jak3 rigid-body-control method
-    ;; body-for-body; closer to a fragment of jak3's own rbody-collision than
-    ;; a plain accessor. hacks.jsonc's no_type_analysis_functions_by_name
-    ;; carries "(method 25 rigid-body-control)".
-    (rigid-body-control-method-25 () none) ;; 25
+    ;; og:preserve-this rigid-body-control-integrator rung: landed. The prior
+    ;; rung's own arity guess (self, a nullable vector-or-rigid-body-control,
+    ;; a second structure matching rigid-body-impact's normal/velocity
+    ;; fields) is confirmed and completed by a real call site: rbody-
+    ;; collision's own body (goal_src/jakx/engine/physics/rigid-body.gc)
+    ;; dispatches gp's (rigid-body-control) vtable at machine offset 116 with
+    ;; a1 = rigid-body-move-work's own rbody2 field (offset 884, declared
+    ;; rigid-body-control) and a2 = its impact-info2 field (offset 688,
+    ;; declared rigid-body-impact), then feeds the integer return through
+    ;; gpr->fpr and multiplies it by 0.5, proving a float return. Its own
+    ;; body needed a stack_structures.jsonc entry (sp+16, a local rigid-
+    ;; body-impact scratch copy) once this signature was set.
+    (rigid-body-control-method-25 (_type_ rigid-body-control rigid-body-impact) float) ;; 25
     (rigid-body-control-method-26 (_type_ vector vector) none) ;; 26 ;; matches jak3's own slot 24 (get-force-at-point, WITH the length-squared division), not slot 26 by number
     ;; og:preserve-this rigid-body rung: no direct jak3 twin found by body
     ;; match; body computes position minus the cm-offset-joint rotated by

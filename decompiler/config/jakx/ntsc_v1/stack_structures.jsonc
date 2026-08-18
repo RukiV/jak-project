@@ -942,5 +942,22 @@
   // rigid-body rung: sp+16 is a single matrix, the matrix-3x3-triple-
   // transpose-product output this method passes by pointer before rotating
   // ang-momentum through it; "Failed to guess stack use for 16" on its own.
-  "(method 32 rigid-body-control)": [[16, "matrix"]]
+  "(method 32 rigid-body-control)": [[16, "matrix"]],
+  // rigid-body-control-integrator rung: sp+112 in (method 62 collide-shape-
+  // moving) is a 2-element inline-array of vector (op 610-618: vector-!2
+  // into offset 0, veccross into offset 16), the same
+  // "(new 'stack-no-clear 'inline-array 'vector 2)" shape rigid-body-
+  // control-method-18 already uses elsewhere in this same file for an
+  // identical torque-arm cross-product pattern; "Failed to guess stack use
+  // for 112" on its own.
+  "(method 62 collide-shape-moving)": [[112, ["inline-array", "vector", 2]]],
+  // rigid-body-control-integrator rung: sp+16 in (method 25 rigid-body-
+  // control) is a local rigid-body-impact scratch copy: op 12 writes
+  // gp+32 (velocity.x, a vec3dot of arg1's own velocity/normal fields
+  // scaled by -4096.0), ops 14/16/18 zero gp+44/36/40 (velocity.w/y/z,
+  // matching rigid-body-impact's own velocity field at offset 32), then
+  // op 22-25 passes gp+0 as a vector-!2 destination (rigid-body-impact's
+  // own point field at offset 0); "Failed to guess stack use for 16" on
+  // its own.
+  "(method 25 rigid-body-control)": [[16, "rigid-body-impact"]]
 }

@@ -139,15 +139,48 @@
   this
   )
 
-;; og:preserve-this rigid-body rung (held): rigid-body-info's own inspect
-;; method, untouched by this rung's own type edits (rigid-body-info is not
-;; part of the rigid-body-control table this rung's band covers) but the
-;; decompiler's own "Failed load" past extensive float/matrix arithmetic
-;; leaves it unrecovered once the object's other errors clear enough to
-;; reach it. hacks.jsonc's no_type_analysis_functions_by_name carries
-;; "(method 9 rigid-body-info)". Not called from anything this rung lands
-;; directly (rigid-body-control-method-29/init! calls it, and stays
-;; undefined here too pending a future rung).
+;; og:preserve-this rigid-body-control-integrator rung: config-cured. The
+;; prior rung's "Failed load" (a 3-iteration loop reading this + v1*20 + 112,
+;; the inv-inertial-tensor's three diagonal entries at offsets 112/132/152)
+;; needed only a type_casts.jsonc cast of the loop-index pointer arithmetic
+;; to "(pointer float)"; the raw decode is otherwise clean and matches the
+;; diagonal-inertia-tensor derivation its own field names describe. Called
+;; from rigid-body-control-method-29/init! below.
+(defmethod rigid-body-info-method-9 ((this rigid-body-info))
+  (let ((f24-0 (-> this mass))
+        (f28-0 (-> this inertial-tensor-box 0))
+        (f30-0 (-> this inertial-tensor-box 1))
+        (f26-0 (-> this inertial-tensor-box 2))
+        )
+    (let ((f0-0 f24-0))
+      (set! (-> this inv-mass) (/ 1.0 f0-0))
+      )
+    (matrix-identity! (-> this inertial-tensor))
+    (matrix-identity! (-> this inv-inertial-tensor))
+    (let ((f0-4 (/ f24-0 12)))
+      (set! (-> this inertial-tensor rvec x) (* f0-4 (+ (square f30-0) (square f26-0))))
+      (set! (-> this inertial-tensor uvec y) (* f0-4 (+ (square f28-0) (square f26-0))))
+      (set! (-> this inertial-tensor fvec z) (* f0-4 (+ (square f28-0) (square f30-0))))
+      )
+    )
+  (let ((f0-6 (-> this inertial-tensor rvec x)))
+    (set! (-> this inv-inertial-tensor rvec x) (/ 1.0 f0-6))
+    )
+  (let ((f0-9 (-> this inertial-tensor uvec y)))
+    (set! (-> this inv-inertial-tensor uvec y) (/ 1.0 f0-9))
+    )
+  (let ((f0-12 (-> this inertial-tensor fvec z)))
+    (set! (-> this inv-inertial-tensor fvec z) (/ 1.0 f0-12))
+    )
+  (let ((f0-15 0.0))
+    (dotimes (v1-17 3)
+      (set! f0-15 (fmax f0-15 (-> (the-as (pointer float) (+ (+ (* v1-17 4) (* v1-17 16)) (the-as int this))) 28)))
+      )
+    (set! (-> this max-ang-momentum) (* 50.26548 f0-15))
+    )
+  0
+  (none)
+  )
 
 ;; og:preserve-this rigid-body-object rung: retyped from a bare "none"
 ;; return, which fails to compile ("get_preferred_reg_class called on
@@ -479,15 +512,58 @@
   (none)
   )
 
-;; og:preserve-this rigid-body rung (held): matches jak3's own slot 14
-;; body-for-body (a stack quaternion built from ang-velocity with w zeroed,
-;; then quaternion*!/quaternion-float*! against it in place, then this file's
-;; own method 28 called self-only), but a local stack quaternion address
-;; computed as a plain pointer offset ("(+ s4-0 0)") rather than a
-;; field-address-of fails a "s.q!" store the decompiler cannot type ("Failed
-;; store"), a decompiler expression-building limitation, not an arity gap.
-;; hacks.jsonc's no_type_analysis_functions_by_name carries
-;; "(method 14 rigid-body-control)".
+;; og:preserve-this rigid-body-control-integrator rung: config-cured, matches
+;; jak3's own slot 14 body-for-body (a stack quaternion built from
+;; ang-velocity with w zeroed, then quaternion*!/quaternion-float*! against
+;; it in place, then this file's own method 28 called self-only). The prior
+;; rung's "Failed store" (a local stack quaternion address computed as a
+;; plain pointer offset rather than a field-address-of) needed a
+;; type_casts.jsonc range-cast to "(pointer uint128)" for the whole-quad copy
+;; at the top; a single-op cast at the same point left it unresolved.
+(defmethod rigid-body-control-method-14 ((this rigid-body-control) (arg0 float))
+  (rlet ((acc :class vf)
+         (vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         (vf7 :class vf)
+         )
+    (init-vf0-vector)
+    (let ((a1-1 (-> this position)))
+      (let ((v1-0 (-> this position)))
+        (let ((a0-1 (-> this lin-velocity)))
+          (let ((a2-0 arg0))
+            (.mov vf7 a2-0)
+            )
+          (.lvf vf5 (&-> a0-1 quad))
+          )
+        (.lvf vf4 (&-> v1-0 quad))
+        )
+      (.add.x.vf.w vf6 vf0 vf0)
+      (.mul.x.vf.xyz acc vf5 vf7)
+      (.add.mul.w.vf.xyz vf6 vf4 vf0 acc)
+      (.svf (&-> a1-1 quad) vf6)
+      )
+    (let ((s4-0 (new 'stack-no-clear 'quaternion)))
+      (set! (-> (the-as (pointer uint128) (&-> s4-0 x)) 0) (-> this ang-velocity quad))
+      (set! (-> s4-0 w) 0.0)
+      (quaternion*!
+        (the-as quaternion (&-> s4-0 x))
+        (the-as quaternion (&-> s4-0 x))
+        (the-as quaternion (-> this rot))
+        )
+      (quaternion-float*! (the-as quaternion (&-> s4-0 x)) (the-as quaternion (&-> s4-0 x)) 0.5)
+      (+! (-> this rot x) (* (-> s4-0 x) arg0))
+      (+! (-> this rot y) (* (-> s4-0 y) arg0))
+      (+! (-> this rot z) (* (-> s4-0 z) arg0))
+      (+! (-> this rot w) (* (-> s4-0 w) arg0))
+      )
+    (quaternion-normalize! (the-as quaternion (-> this rot)))
+    (rigid-body-control-method-28 this)
+    0
+    (none)
+    )
+  )
 
 (defun damping-time-adjust ((arg0 float) (arg1 float))
   (let ((f0-0 0.0)
@@ -544,24 +620,95 @@
   this
   )
 
-;; og:preserve-this rigid-body rung (held): a standalone, loop-heavy overlap-
-;; penalty-force resolver against rb-penalty-forces-work; the decompiler's
-;; own "CFG building failed: Could not fully resolve CFG" leaves it
-;; unrecovered this rung. hacks.jsonc's no_type_analysis_functions_by_name
-;; carries "apply-overlap-penalty-forces". Called from (method 62
-;; collide-shape-moving) below (also held), not from anything this rung
-;; lands.
+;; og:preserve-this rigid-body-control-integrator rung (held): a standalone,
+;; loop-heavy overlap-penalty-force resolver against rb-penalty-forces-work;
+;; the decompiler's own "CFG building failed: Could not fully resolve CFG"
+;; leaves it unrecovered this rung. hacks.jsonc's no_type_analysis_functions_
+;; by_name carries "apply-overlap-penalty-forces". Not called from anywhere
+;; in this file's own clean decode: (method 62 collide-shape-moving), landed
+;; this rung as rbody-collision below, does not call it, correcting the
+;; rigid-body rung's own guess that it did.
 
-;; og:preserve-this rigid-body rung (held): nests two "call!" invocations
-;; inside an (and (begin ...) (begin ...)) short-circuit condition (zeroing
-;; small lin/ang-momentum values before the main body); the decompiler's own
-;; "expression building failed part way through" leaves register liveness
-;; wrong past the first call even though the signature itself
-;; (collide-shape-moving, float) matches jak3's own slot 9 body-for-body
-;; exactly. hacks.jsonc's no_type_analysis_functions_by_name carries
-;; "(method 9 rigid-body-control)". Called from method 10 below (landed) and
-;; from (method 62 collide-shape-moving) below (held); a runtime jump to zero
-;; through the landed method-10 call site until a future rung lands this.
+;; og:preserve-this rigid-body-control-integrator rung: config-cured, matches
+;; jak3's own slot 9 body-for-body for the method-12 call, the two damping
+;; vector-float*! blocks and the init-velocities! call, but adds a
+;; near-rest-momentum zeroing step (test lin-velocity and ang-velocity
+;; squared-length against 1638.4^2 and 0.02^2; if both are below threshold,
+;; reset lin-momentum/ang-momentum/lin-velocity/ang-velocity to zero) that
+;; has no jak3 twin, and drops jak3's own trailing "flags enable-collision ?
+;; rbody-collision : rigid-body-control-method-14" branch down to an
+;; unconditional rbody-collision call. The prior rung's "expression building
+;; failed part way through" needed no config beyond un-holding: full type
+;; analysis structures the near-rest AND-condition and resolves rbody-
+;; collision's own signature on its own. Called from method 10 below
+;; (landed) and from rbody-collision below (landed this rung).
+(defmethod rigid-body-control-method-9 ((this rigid-body-control) (arg0 collide-shape-moving) (arg1 float))
+  (local-vars (v1-10 float) (v1-15 float))
+  (rlet ((acc :class vf)
+         (vf0 :class vf)
+         (vf1 :class vf)
+         (vf2 :class vf)
+         )
+    (init-vf0-vector)
+    (rigid-body-control-method-12 this arg1)
+    (-> this info)
+    (let* ((v1-3 (-> this lin-momentum))
+           (a0-2 (-> this lin-momentum))
+           (f3-0 (-> this linear-damping))
+           (f2-0 arg1)
+           (f0-0 0.0)
+           (f1-0 1.0)
+           (f2-1 (* -1.0 f3-0 f2-0))
+           (f3-2 0.016666668)
+           )
+      (vector-float*! v1-3 a0-2 (fmax f0-0 (+ f1-0 (* f2-1 (/ 1.0 f3-2)))))
+      )
+    (let* ((v1-5 (-> this ang-momentum))
+           (a0-3 (-> this ang-momentum))
+           (f3-5 (-> this angular-damping))
+           (f2-3 arg1)
+           (f0-3 0.0)
+           (f1-2 1.0)
+           (f2-4 (* -1.0 f3-5 f2-3))
+           (f3-7 0.016666668)
+           )
+      (vector-float*! v1-5 a0-3 (fmax f0-3 (+ f1-2 (* f2-4 (/ 1.0 f3-7)))))
+      )
+    (rigid-body-control-method-13 this)
+    (let ((v1-9 (-> this lin-velocity))
+          (f1-4 1638.4)
+          )
+      (.lvf vf1 (&-> v1-9 quad))
+      (.add.w.vf.x vf2 vf0 vf0)
+      (.mul.vf vf1 vf1 vf1)
+      (.mul.x.vf.x acc vf2 vf1)
+      (.add.mul.y.vf.x acc vf2 vf1 acc)
+      (.add.mul.z.vf.x vf1 vf2 vf1 acc)
+      (.mov v1-10 vf1)
+      (when (and (< v1-10 (square f1-4)) (let ((v1-14 (-> this ang-velocity))
+                                               (f1-7 0.02)
+                                               )
+                                           (.lvf vf1 (&-> v1-14 quad))
+                                           (.add.w.vf.x vf2 vf0 vf0)
+                                           (.mul.vf vf1 vf1 vf1)
+                                           (.mul.x.vf.x acc vf2 vf1)
+                                           (.add.mul.y.vf.x acc vf2 vf1 acc)
+                                           (.add.mul.z.vf.x vf1 vf2 vf1 acc)
+                                           (.mov v1-15 vf1)
+                                           (< v1-15 (square f1-7))
+                                           )
+                 )
+        (vector-reset! (-> this lin-momentum))
+        (vector-reset! (-> this ang-momentum))
+        (vector-reset! (-> this lin-velocity))
+        (vector-reset! (-> this ang-velocity))
+        )
+      )
+    (rbody-collision arg0 this arg1)
+    0
+    (none)
+    )
+  )
 
 (deftype check-line-spheres-hack-params (structure)
   ((time-step float          :offset-assert 0)
@@ -695,11 +842,17 @@
 ;; no_type_analysis_functions_by_name carries
 ;; "collide-sphere-with-line-sphere-hack".
 
-;; og:preserve-this rigid-body rung (held): a standalone vehicle-specific
-;; line-sphere check against check-line-spheres-hack-work; the decompiler's
-;; own "function was not converted to expressions" leaves it unrecovered this
-;; rung. hacks.jsonc's no_type_analysis_functions_by_name carries
-;; "check-vehicle-line-spheres-hack".
+;; og:preserve-this rigid-body-control-integrator rung (held): a standalone
+;; vehicle-specific line-sphere check against check-line-spheres-hack-work;
+;; the decompiler's own "function was not converted to expressions" leaves
+;; it unrecovered. hacks.jsonc's no_type_analysis_functions_by_name still
+;; carries "check-vehicle-line-spheres-hack". Its own extern signature is
+;; now activated: rbody-collision below calls it (arg0 collide-shape-moving,
+;; arg1 check-line-spheres-hack-params, evidence at that call site), and
+;; goalc resolves externs from goal_src only, never all-types.gc (see
+;; rigid-body-object-event-handler's own precedent in rigid-body-h.gc), so
+;; the signature is copied here verbatim from all-types.gc's own copy.
+(define-extern check-vehicle-line-spheres-hack (function collide-shape-moving check-line-spheres-hack-params none))
 
 ;; og:preserve-this rigid-body rung (held): a collide-shape-moving method
 ;; (not part of rigid-body-control's own table; out of scope to retype
@@ -818,26 +971,408 @@
   this
   )
 
-;; og:preserve-this rigid-body rung (held): at least 3 explicit registers
-;; (self, a nullable vector-or-rigid-body-control, and a second structure
-;; matching rigid-body-impact's normal/velocity fields), building a local
-;; work buffer via vector-rotate*!, two cross products, two vec3dot calls
-;; and a matrix reference inside the passed-in rigid-body-control's own
-;; matrix field. Does not match any single jak3 rigid-body-control method
-;; body-for-body; closer to a fragment of jak3's own rbody-collision than a
-;; plain accessor. hacks.jsonc's no_type_analysis_functions_by_name carries
-;; "(method 25 rigid-body-control)".
+;; og:preserve-this rigid-body-control-integrator rung: the rigid-body
+;; rung's own arity guess (at least 3 explicit registers, unresolved past
+;; that) is superseded by a real call site: rbody-collision below dispatches
+;; this at machine offset 116 with arg0 = its own rbody2 field (a nullable
+;; rigid-body-control) and arg1 = its own impact-info2 field (a rigid-body-
+;; impact), then runs the integer return through gpr->fpr and multiplies by
+;; 0.5, proving a float return; rigid-body-h.gc's own :methods entry carries
+;; the corrected signature. The prior rung's "Failed to guess stack use for
+;; 16" needed a stack_structures.jsonc entry (a local rigid-body-impact
+;; scratch copy) once the signature was fixed. Still does not match any
+;; single jak3 rigid-body-control method body-for-body; closer to a fragment
+;; of jak3's own rbody-collision than a plain accessor.
+(defmethod rigid-body-control-method-25 ((this rigid-body-control) (arg0 rigid-body-control) (arg1 rigid-body-impact))
+  (let ((gp-0 (new 'stack-no-clear 'rigid-body-impact)))
+    (set! (-> gp-0 velocity x) (+ -4096.0 (vector-dot (-> arg1 velocity) (-> arg1 normal))))
+    (set! (-> gp-0 velocity w) 0.0)
+    (set! (-> gp-0 velocity y) 0.0)
+    (set! (-> gp-0 velocity z) 0.0)
+    (when (< (-> gp-0 velocity x) 0.0)
+      (vector-! (-> gp-0 point) (-> arg1 point) (-> this position))
+      (vector-cross! (-> gp-0 normal) (-> gp-0 point) (-> arg1 normal))
+      (vector-rotate*! (-> gp-0 normal) (-> gp-0 normal) (-> this inv-i-world))
+      (vector-cross! (-> gp-0 normal) (-> gp-0 normal) (-> gp-0 point))
+      (set! (-> gp-0 velocity y) (+ (-> this info inv-mass) (vector-dot (-> arg1 normal) (-> gp-0 normal))))
+      (when arg0
+        (vector-! (-> gp-0 point) (-> arg1 point) (-> arg0 position))
+        (vector-cross! (-> gp-0 normal) (-> gp-0 point) (-> arg1 normal))
+        (vector-rotate*! (-> gp-0 normal) (-> gp-0 normal) (-> arg0 inv-i-world))
+        (vector-cross! (-> gp-0 normal) (-> gp-0 normal) (-> gp-0 point))
+        (set! (-> gp-0 velocity z) (+ (-> arg0 info inv-mass) (vector-dot (-> arg1 normal) (-> gp-0 normal))))
+        )
+      (set! (-> gp-0 velocity w) (* (- (-> gp-0 velocity x)) (/ 1.0 (+ (-> gp-0 velocity y) (-> gp-0 velocity z)))))
+      )
+    (-> gp-0 velocity w)
+    )
+  )
 
-;; og:preserve-this rigid-body rung (held): jak3's own named rbody-collision
-;; (goal_src/jak3/engine/physics/rigid-body.gc), the core collision-
-;; resolution body method 9 above (held) calls; it reads and writes a fixed
-;; scratchpad address (0x70002000, offset 908-912+) past what this rung's
-;; own scoped decode can type, the same class the wvehicle debug/telemetry
-;; cluster elsewhere in hacks.jsonc is held for. A different type's own
-;; method table (collide-shape-moving, defined elsewhere), so retyping it
-;; outright is also out of scope for this rung. hacks.jsonc's
-;; no_type_analysis_functions_by_name carries
-;; "(method 62 collide-shape-moving)".
+;; og:preserve-this rigid-body-control-integrator rung: config-cured. jak3's
+;; own named rbody-collision (goal_src/jak3/engine/physics/rigid-body.gc),
+;; the core collision-resolution body rigid-body-control-method-9 above
+;; calls. s5 is the same fixed scratchpad address (0x70002000) the wvehicle
+;; debug/telemetry cluster elsewhere in hacks.jsonc uses, but its own field
+;; offsets (908, 912, 936, 768, 784, 544, ...) match rigid-body-move-work's
+;; own :offset-assert layout exactly (time-step, time-step-scale, step-
+;; count, orig-position, orig-rotation, mat); a type_casts.jsonc cast of s5
+;; to rigid-body-move-work across its whole live range, a stack_structures
+;; entry for a local 2-vector torque-arm array, a cast for the
+;; *rigid-body-surfaces* array-index pointer, and check-vehicle-line-
+;; spheres-hack's own extern signature (still held itself) plus (method 25
+;; rigid-body-control)'s own corrected signature above were what the prior
+;; rung's "unknown type" needed. A different type's own method table
+;; (collide-shape-moving, defined elsewhere), so retyping it outright was
+;; out of scope for the rigid-body rung; this rung's own band covers it.
+(defmethod rbody-collision ((this collide-shape-moving) (arg0 rigid-body-control) (arg1 float))
+  (rlet ((acc :class vf)
+         (Q :class vf)
+         (vf0 :class vf)
+         (vf10 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         (vf7 :class vf)
+         (vf8 :class vf)
+         (vf9 :class vf)
+         )
+    (init-vf0-vector)
+    (logand! (-> arg0 flags) -1025)
+    (let ((s5-0 (the-as rigid-body-move-work #x70002000)))
+      (set! (-> s5-0 time-step) arg1)
+      (set! (-> s5-0 time-step-scale) 1.0)
+      (set! (-> s5-0 step-count) 0)
+      (label cfg-1)
+      (set! (-> s5-0 cquery best-dist) -100000000.0)
+      (set! (-> s5-0 cquery best-my-prim) #f)
+      (set! (-> s5-0 cquery best-other-prim) #f)
+      (set! (-> s5-0 orig-position quad) (-> arg0 position quad))
+      (quaternion-copy! (-> s5-0 orig-rotation) (the-as quaternion (-> arg0 rot)))
+      (rigid-body-control-method-14 arg0 (* (-> s5-0 time-step-scale) (-> s5-0 time-step)))
+      (matrix-copy! (-> s5-0 mat) (-> arg0 matrix))
+      (set! (-> arg0 position quad) (-> s5-0 orig-position quad))
+      (quaternion-copy! (the-as quaternion (-> arg0 rot)) (-> s5-0 orig-rotation))
+      (rigid-body-control-method-28 arg0)
+      (transform-rigid-body-prims (-> this root-prim) (-> arg0 matrix))
+      (when (and (logtest? (-> arg0 flags) 4096) (not (logtest? (-> arg0 flags) 1024)))
+        (let ((a1-6 (new 'stack-no-clear 'check-line-spheres-hack-params)))
+          (set! (-> a1-6 rbody) arg0)
+          (set! (-> a1-6 mat) (-> s5-0 mat))
+          (set! (-> a1-6 cquery) (-> s5-0 cquery))
+          (set! (-> a1-6 time-step) (* (-> s5-0 time-step-scale) (-> s5-0 time-step)))
+          (check-vehicle-line-spheres-hack this a1-6)
+          )
+        0
+        )
+      (let* ((a0-15 this)
+             (t9-6 (method-of-object a0-15 collide-with-all-collide-cache-prims))
+             (a1-7 arg0)
+             (a2-2 (-> s5-0 mat))
+             )
+        (-> s5-0 cquery)
+        (t9-6 a0-15 (the-as matrix a1-7) (the-as collide-query a2-2))
+        )
+      (let ((f30-0 (-> s5-0 cquery best-dist)))
+        (cond
+          ((< f30-0 0.0)
+           (rigid-body-control-method-14 arg0 (* (-> s5-0 time-step-scale) (-> s5-0 time-step)))
+           (rigid-body-control-method-13 arg0)
+           (transform-rigid-body-prims (-> this root-prim) (-> arg0 matrix))
+           (set! (-> s5-0 time-step-scale) 0.0)
+           )
+          ((begin
+             (update-from-step-size *touching-list* f30-0)
+             (rigid-body-control-method-14 arg0 (* (-> s5-0 time-step-scale) (-> s5-0 time-step) f30-0))
+             (set! (-> s5-0 time-step-scale) (- (-> s5-0 time-step-scale) (* f30-0 (-> s5-0 time-step-scale))))
+             (rigid-body-control-method-13 arg0)
+             (transform-rigid-body-prims (-> this root-prim) (-> arg0 matrix))
+             (set! (-> s5-0 rbody2) #f)
+             (set! (-> s5-0 proc2) #f)
+             (when (-> s5-0 cquery best-other-prim)
+               (set! (-> s5-0 proc2) (the-as process-focusable (-> s5-0 cquery best-other-prim cshape process)))
+               (let ((v1-40 (-> s5-0 proc2 rbody)))
+                 (when (nonzero? v1-40)
+                   (set! (-> s5-0 rbody2) v1-40)
+                   (cond
+                     ((logtest? (-> v1-40 flags) 16)
+                      (if (not (logtest? (-> v1-40 flags) 2))
+                          (send-event (-> s5-0 proc2) 'enable-physics)
+                          )
+                      )
+                     (else
+                       (set! (-> s5-0 rbody2) #f)
+                       )
+                     )
+                   )
+                 )
+               )
+             (let ((v1-45 (-> s5-0 cquery best-my-prim)))
+               (.lvf vf7 (&-> (-> s5-0 cquery) best-other-tri intersect quad))
+               (.lvf vf6 (&-> v1-45 prim-core world-sphere quad))
+               (.sub.vf vf9 vf6 vf7)
+               (.mul.vf.xyz vf10 vf9 vf9)
+               (.mul.x.vf.w acc vf0 vf10)
+               (.add.mul.y.vf.w acc vf0 vf10 acc)
+               (.add.mul.z.vf.w vf10 vf0 vf10 acc)
+               (.isqrt.vf Q vf0 vf10 :fsf #b11 :ftf #b11)
+               (.mov.vf.w vf8 vf0)
+               (.mov.vf.w vf7 vf0)
+               (.wait.vf)
+               (.mul.vf.xyz vf8 vf9 Q)
+               (.nop.vf)
+               (.nop.vf)
+               (.nop.vf)
+               (.svf (&-> s5-0 impact-info normal quad) vf8)
+               (.svf (&-> s5-0 impact-info point quad) vf7)
+               (.svf (&-> s5-0 tmp quad) vf9)
+               (set! (-> s5-0 impact-info prim-id) (-> v1-45 prim-id))
+               (set! (-> s5-0 penetrate-depth)
+                     (- (-> v1-45 prim-core world-sphere w) (vector-dot (-> s5-0 tmp) (-> s5-0 impact-info normal)))
+                     )
+               )
+             (vector-float*! (-> s5-0 tmp) (-> s5-0 impact-info normal) 40.96)
+             (let ((a1-15 (-> arg0 position)))
+               (let ((v1-51 (-> arg0 position))
+                     (a0-35 (-> s5-0 tmp))
+                     )
+                 (.lvf vf4 (&-> v1-51 quad))
+                 (.lvf vf5 (&-> a0-35 quad))
+                 )
+               (.mov.vf.w vf6 vf0)
+               (.add.vf.xyz vf6 vf4 vf5)
+               (.svf (&-> a1-15 quad) vf6)
+               )
+             (let ((a1-16 (-> arg0 matrix trans)))
+               (let ((v1-52 (-> arg0 matrix trans))
+                     (a0-36 (-> s5-0 tmp))
+                     )
+                 (.lvf vf4 (&-> v1-52 quad))
+                 (.lvf vf5 (&-> a0-36 quad))
+                 )
+               (.mov.vf.w vf6 vf0)
+               (.add.vf.xyz vf6 vf4 vf5)
+               (.svf (&-> a1-16 quad) vf6)
+               )
+             (set! (-> s5-0 impact-info pat) (-> s5-0 cquery best-other-tri pat))
+             (rigid-body-control-method-24 arg0 (-> s5-0 impact-info point) (-> s5-0 impact-info velocity))
+             (vector+float*!
+               (-> s5-0 impact-info velocity)
+               (-> s5-0 impact-info velocity)
+               (-> s5-0 impact-info normal)
+               (* -10.0 (-> s5-0 penetrate-depth))
+               )
+             (when (-> s5-0 rbody2)
+               (rigid-body-control-method-13 (-> s5-0 rbody2))
+               (rigid-body-control-method-24 (-> s5-0 rbody2) (-> s5-0 impact-info point) (-> s5-0 vel))
+               (vector-! (-> s5-0 impact-info velocity) (-> s5-0 impact-info velocity) (-> s5-0 vel))
+               )
+             (set! (-> s5-0 impact-info impulse) 0.0)
+             (set! (-> s5-0 vel-dot-norm) (vector-dot (-> s5-0 impact-info velocity) (-> s5-0 impact-info normal)))
+             (set! (-> s5-0 denom) 0.0)
+             (set! (-> s5-0 denom2) 0.0)
+             (cond
+               ((< (-> s5-0 vel-dot-norm) 0.0)
+                (+! (-> s5-0 vel-dot-norm) -409.6)
+                (vector-! (-> s5-0 p-body) (-> s5-0 impact-info point) (-> arg0 position))
+                (vector-cross! (-> s5-0 tmp) (-> s5-0 p-body) (-> s5-0 impact-info normal))
+                (vector-rotate*! (-> s5-0 tmp) (-> s5-0 tmp) (-> arg0 inv-i-world))
+                (vector-cross! (-> s5-0 tmp) (-> s5-0 tmp) (-> s5-0 p-body))
+                (set! (-> s5-0 denom) (+ (-> arg0 info inv-mass) (vector-dot (-> s5-0 impact-info normal) (-> s5-0 tmp))))
+                (set! (-> s5-0 bounce-factor) (-> arg0 bounce-factor))
+                (set! (-> s5-0 friction-factor) (-> arg0 friction-factor))
+                (when (-> s5-0 proc2)
+                  (cond
+                    ((-> s5-0 rbody2)
+                     (cond
+                       ((logtest? (-> arg0 flags) 64)
+                        (set! (-> s5-0 denom) (-> arg0 info inv-mass))
+                        (set! (-> s5-0 denom2) (-> s5-0 rbody2 info inv-mass))
+                        )
+                       (else
+                         (vector-! (-> s5-0 p-body) (-> s5-0 impact-info point) (-> s5-0 rbody2 position))
+                         (vector-cross! (-> s5-0 tmp) (-> s5-0 p-body) (-> s5-0 impact-info normal))
+                         (vector-rotate*! (-> s5-0 tmp) (-> s5-0 tmp) (-> s5-0 rbody2 inv-i-world))
+                         (vector-cross! (-> s5-0 tmp) (-> s5-0 tmp) (-> s5-0 p-body))
+                         (set! (-> s5-0 denom2)
+                               (+ (-> s5-0 rbody2 info inv-mass) (vector-dot (-> s5-0 impact-info normal) (-> s5-0 tmp)))
+                               )
+                         )
+                       )
+                     (set! (-> s5-0 bounce-factor)
+                           (fmax
+                             (* (-> s5-0 bounce-factor) (-> s5-0 rbody2 bounce-factor))
+                             (* (-> arg0 info bounce-mult-factor) (-> s5-0 rbody2 info bounce-mult-factor))
+                             )
+                           )
+                     (set! (-> s5-0 friction-factor) (* (-> s5-0 friction-factor) (-> s5-0 rbody2 friction-factor)))
+                     (set! (-> s5-0 friction-factor) (/ (-> s5-0 friction-factor) 40))
+                     )
+                    (else
+                      (let ((a0-55 (as-type (-> s5-0 proc2) process-focusable)))
+                        (if a0-55
+                            (set! (-> s5-0 denom2) (process-focusable-method-57 a0-55))
+                            )
+                        )
+                      )
+                    )
+                  )
+                (set! (-> s5-0 impact-info surface) (the-as basic (&-> *rigid-body-surfaces* 96)))
+                (when (or (not (-> s5-0 proc2)) (= (-> s5-0 cquery best-other-prim prim-core prim-type) 1))
+                  (set! (-> s5-0 material) (the-as uint (-> s5-0 cquery best-other-tri pat material)))
+                  (let ((a0-57 (-> s5-0 material))
+                        (v1-113 7)
+                        )
+                    (let ((a0-58 (logand a0-57 63)))
+                      (if (< (the-as int a0-58) 34)
+                          (set! v1-113 (the-as int (-> *material-to-rb-material-table* a0-58)))
+                          )
+                      )
+                    (set! (-> s5-0 surface-type) (the-as uint v1-113))
+                    )
+                  (if (or (= (-> s5-0 cquery best-other-tri pat mode) (pat-mode wall))
+                          (= (-> s5-0 cquery best-other-tri pat event) (pat-event slippery))
+                          )
+                      (set! (-> s5-0 surface-type) (the-as uint 6))
+                      )
+                  (let ((v1-127 (the-as rigid-body-surface (&+ *rigid-body-surfaces* (* (-> s5-0 surface-type) 64)))))
+                    (set! (-> s5-0 impact-info surface) (the-as basic v1-127))
+                    (set! (-> s5-0 friction-factor) (* (-> s5-0 friction-factor) (-> v1-127 friction)))
+                    (set! (-> s5-0 bounce-factor) (* (-> s5-0 bounce-factor) (-> v1-127 bounce)))
+                    )
+                  )
+                (set! (-> s5-0 impact-info impulse)
+                      (* (+ 1.0 (-> s5-0 bounce-factor)) (- (-> s5-0 vel-dot-norm)) (/ 1.0 (+ (-> s5-0 denom) (-> s5-0 denom2))))
+                      )
+                (set! (-> s5-0 impact-info process) (-> s5-0 proc2))
+                (when (-> s5-0 proc2)
+                  (set! (-> s5-0 impact-info2 point quad) (-> s5-0 impact-info point quad))
+                  (vector-float*! (-> s5-0 impact-info2 normal) (-> s5-0 impact-info normal) -1.0)
+                  (vector-float*! (-> s5-0 impact-info2 velocity) (-> s5-0 impact-info velocity) -1.0)
+                  (set! (-> s5-0 impact-info2 impulse) (-> s5-0 impact-info impulse))
+                  (set! (-> s5-0 impact-info2 pat) (-> s5-0 impact-info pat))
+                  (set! (-> s5-0 impact-info2 prim-id) (-> s5-0 cquery best-other-prim prim-id))
+                  (set! (-> s5-0 impact-info2 process) (-> arg0 process))
+                  (set! (-> s5-0 impact-info2 surface) (-> s5-0 impact-info surface))
+                  (send-event (-> s5-0 proc2) 'impact-impulse :from (-> arg0 process) (-> s5-0 impact-info2))
+                  (if (or (-> s5-0 rbody2) (let ((a0-70 (-> s5-0 proc2 root)))
+                                             (logtest? (-> a0-70 penetrated-by) (penetrate vehicle))
+                                             )
+                          )
+                      0
+                      (set! (-> s5-0 impact-info impulse)
+                            (* (-> s5-0 impact-info impulse) (/ (+ (-> s5-0 denom) (-> s5-0 denom2)) (-> s5-0 denom)))
+                            )
+                      )
+                  )
+                (send-event (-> arg0 process) 'impact-impulse :from (-> arg0 process) (-> s5-0 impact-info))
+                (vector-float*! (-> s5-0 force) (-> s5-0 impact-info normal) (-> s5-0 impact-info impulse))
+                (vector+float*!
+                  (-> s5-0 tangent-dir)
+                  (-> s5-0 impact-info velocity)
+                  (-> s5-0 impact-info normal)
+                  (- (-> s5-0 vel-dot-norm))
+                  )
+                (vector-normalize! (-> s5-0 tangent-dir) -1.0)
+                (mem-copy! (the-as pointer (-> s5-0 impact-info2)) (the-as pointer (-> s5-0 impact-info)) 68)
+                (set! (-> s5-0 impact-info2 normal quad) (-> s5-0 tangent-dir quad))
+                (let ((f0-63 (fmin
+                               (* 0.5 (rigid-body-control-method-25 arg0 (-> s5-0 rbody2) (-> s5-0 impact-info2)))
+                               (* (-> s5-0 friction-factor) (-> s5-0 impact-info impulse))
+                               )
+                             )
+                      )
+                  (vector+float*! (-> s5-0 force) (-> s5-0 force) (-> s5-0 tangent-dir) f0-63)
+                  )
+                (let ((a1-47 (-> arg0 force)))
+                  (let ((v1-170 (-> arg0 force))
+                        (a0-83 (-> s5-0 force))
+                        )
+                    (.lvf vf4 (&-> v1-170 quad))
+                    (.lvf vf5 (&-> a0-83 quad))
+                    )
+                  (.mov.vf.w vf6 vf0)
+                  (.add.vf.xyz vf6 vf4 vf5)
+                  (.svf (&-> a1-47 quad) vf6)
+                  )
+                (when (not (and (-> s5-0 rbody2) (logtest? (-> arg0 flags) 64)))
+                  (let ((v1-175 (new 'stack-no-clear 'inline-array 'vector 2)))
+                    (vector-! (-> v1-175 0) (-> s5-0 impact-info point) (-> arg0 position))
+                    (vector-cross! (-> v1-175 1) (-> v1-175 0) (-> s5-0 force))
+                    (when (and (logtest? (-> arg0 flags) 32) (= (-> s5-0 cquery best-other-tri pat mode) (pat-mode wall)))
+                      (vector+float*!
+                        (-> v1-175 1)
+                        (-> v1-175 1)
+                        (-> arg0 matrix fvec)
+                        (- (vector-dot (-> v1-175 1) (-> arg0 matrix fvec)))
+                        )
+                      0
+                      )
+                    (let ((a1-52 (-> arg0 torque)))
+                      (let ((a0-98 (-> arg0 torque))
+                            (v1-176 (-> v1-175 1))
+                            )
+                        (.lvf vf4 (&-> a0-98 quad))
+                        (.lvf vf5 (&-> v1-176 quad))
+                        )
+                      (.mov.vf.w vf6 vf0)
+                      (.add.vf.xyz vf6 vf4 vf5)
+                      (.svf (&-> a1-52 quad) vf6)
+                      )
+                    )
+                  )
+                (when (-> s5-0 rbody2)
+                  (vector-float*! (-> s5-0 force) (-> s5-0 force) -1.0)
+                  (if (logtest? (-> arg0 flags) 64)
+                      (rigid-body-control-method-20 (-> s5-0 rbody2) (-> s5-0 force))
+                      (rigid-body-control-method-18 (-> s5-0 rbody2) (-> s5-0 impact-info point) (-> s5-0 force))
+                      )
+                  )
+                (rigid-body-control-method-12 arg0 1.0)
+                (rigid-body-control-method-13 arg0)
+                (when (-> s5-0 rbody2)
+                  (rigid-body-control-method-12 (-> s5-0 rbody2) 1.0)
+                  (rigid-body-control-method-13 (-> s5-0 rbody2))
+                  )
+                (when (and (< 0.0 (-> s5-0 time-step-scale)) (< (-> s5-0 step-count) (the-as int (-> this max-iteration-count))))
+                  (+! (-> s5-0 step-count) 1)
+                  (goto cfg-1)
+                  )
+                )
+               (else
+                 (when (not (-> s5-0 proc2))
+                   (rigid-body-control-method-14 arg0 (* (-> s5-0 time-step-scale) (-> s5-0 time-step)))
+                   (rigid-body-control-method-13 arg0)
+                   (transform-rigid-body-prims (-> this root-prim) (-> arg0 matrix))
+                   (set! (-> s5-0 time-step-scale) 0.0)
+                   )
+                 (rigid-body-control-method-28 arg0)
+                 0
+                 )
+               )
+             (+! (-> s5-0 step-count) 1)
+             (logtest? (-> arg0 flags) 8)
+             )
+           (when (< 0.0 (-> s5-0 time-step-scale))
+             (when (not (logtest? (-> arg0 flags) 1024))
+               (logior! (-> arg0 flags) 1024)
+               (goto cfg-1)
+               )
+             (if (< 0.5 (-> s5-0 time-step-scale))
+                 (logior! (-> arg0 flags) 512)
+                 )
+             0
+             )
+           )
+          )
+        )
+      (let ((f0-76 (* (- 1.0 (-> s5-0 time-step-scale)) (-> s5-0 time-step))))
+        (set! (-> arg0 time-remaining) (- (-> arg0 time-remaining) f0-76))
+        )
+      )
+    0
+    (none)
+    )
+  )
 
 (defmethod rigid-body-control-method-18 ((this rigid-body-control) (arg0 vector) (arg1 vector))
   (rlet ((vf0 :class vf)

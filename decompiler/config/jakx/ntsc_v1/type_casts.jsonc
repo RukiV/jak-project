@@ -4785,5 +4785,47 @@
   "(method 11 impact-control)": [
     [59, "v1", "collide-shape-prim"],
     [67, "v1", "collide-shape-prim"]
+  ],
+  // (method 62 collide-shape-moving): s5 is loaded once at op 6 as the raw
+  // constant #x70002000 and held for the rest of the function as the base of
+  // a fixed scratchpad buffer; the field offsets it indexes (908, 912, 936,
+  // 768, 784, 544, ...) match rigid-body-move-work's own :offset-assert
+  // layout exactly (time-step, time-step-scale, step-count, orig-position,
+  // orig-rotation, mat), the same type this file's own debug-draw-rigid-
+  // body-move companion already uses for the identical scratch buffer. Cast
+  // across the whole live range of s5 (op 6 through its last read at 768).
+  // op 446 computes v1 = *rigid-body-surfaces* + (surface-index << 6), a raw
+  // pointer-arithmetic array index (rigid-body-surface's own :size-assert is
+  // #x40 = 64, the shift amount); the surface pointer is stored through
+  // impact-info's own surface field (op 447, offset 672 = 608 + 64, matching
+  // rigid-body-impact's own surface field at offset 64) and its friction/
+  // bounce floats are read at +4/+8 (rigid-body-surface-h.gc's own field
+  // layout) to scale friction-factor/bounce-factor; the raw index arithmetic
+  // does not resolve to the array's own element type on its own ("Floating
+  // point math attempted on invalid types: float and rigid-body-surface").
+  "(method 62 collide-shape-moving)": [
+    [[6, 769], "s5", "rigid-body-move-work"],
+    [[447, 454], "v1", "rigid-body-surface"]
+  ],
+  // (method 14 rigid-body-control): sp+16 is already declared quaternion in
+  // stack_structures.jsonc; op 15 takes its address as a plain "+0" pointer
+  // offset (rather than a recognized field-address-of) ahead of a whole-quad
+  // "sq" store at op 18, which the store matcher cannot type on its own
+  // ("Failed store: (s.q! v1-1 a0-3) at op 18"); casting to plain
+  // "quaternion" left it as "(pointer float)" (a quaternion has no declared
+  // offset-0 pointer field to narrow into), so this uses the raw-quad-copy
+  // idiom (method 212 wvehicle)'s own type_casts entry already establishes
+  // for the identical "whole 16-byte struct clobbered via sq" shape.
+  "(method 14 rigid-body-control)": [
+    [[15, 19], "v1", "(pointer uint128)"]
+  ],
+  // (method 9 rigid-body-info): a 3-iteration loop (op 77-83) computes
+  // this + v1*20 for v1 in 0,1,2, then reads +112 off that address (op 81),
+  // landing on this+112/132/152, the three diagonal entries of the
+  // inv-inertial-tensor matrix this same method writes at ops 31/41/50; the
+  // 20-byte stride does not match any single declared array element size on
+  // its own ("Failed load").
+  "(method 9 rigid-body-info)": [
+    [81, "a0", "(pointer float)"]
   ]
 }
