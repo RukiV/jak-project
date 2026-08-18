@@ -61,6 +61,65 @@
     [15, "a2", "(pointer uint128)"],
     [20, "a1", "(pointer uint128)"]
   ],
+  // sabotage-sequence-start/init-by-other/trans: run via run-function-in-process
+  // with s6 pre-set to the sabotage-sequence process, so the decompiler's
+  // default s6 typing (plain process) is wrong for any access past process's
+  // own method-count-assert of 15 (op 25's own type-object method-15 lookup,
+  // the auto-generated idle state-dispatch slot, is exactly such an access)
+  // or for named-field resolution on sabotage-sequence's own fields.
+  // init-by-other's gp (a0) is process->handle'd (offset 28's genuine child
+  // field, no shift, then the standard two-read ppointer/pid handle
+  // construction, the same shape (method 11 racer-state) above resolves)
+  // into this.net-player (raw 140, +4 basics convention resolving to
+  // net-player's own declared offset 144).
+  "sabotage-sequence-init-by-other": [
+    [[0, 30], "s6", "sabotage-sequence"],
+    [[8, 15], "v1", "(pointer process)"]
+  ],
+  // sabotage-sequence-trans: reads this.net-player back (same raw-140/+4
+  // evidence) and splits it, the handle->process shape (method 10
+  // race-state) above already established the cast recipe for.
+  "sabotage-sequence-trans": [
+    [[0, 200], "s6", "sabotage-sequence"],
+    [[1, 8], "v1", "handle"],
+    [[18, 25], "v1", "handle"],
+    [[29, 54], "gp", "process-drawable"],
+    [[53, 60], "v1", "(pointer process)"],
+    [[65, 72], "v1", "handle"],
+    [76, "v1", "wvehicle"],
+    [[89, 96], "v1", "handle"],
+    [[102, 136], "v1", "wvehicle"],
+    [[103, 110], "a0", "handle"],
+    [[126, 133], "a0", "handle"]
+  ],
+  // (code idle sabotage-sequence): a long state loop polling this's own
+  // net-player/vehicle/fire-tracker handles repeatedly (the (method 10
+  // race-state) handle->process shape, over and over). s6's own typing does
+  // not survive past the first couple of (suspend) calls in this
+  // particular function (loses type by op 44, twelve ops after a clean
+  // suspend at op 30 with no suspend between), so it needs a whole-function
+  // cast rather than relying on the defstate wrapper's default.
+  // (code idle sabotage-sequence): the vehicle process obtained from the
+  // handle at offset 148 is wvehicle, not plain process: raw offset 260
+  // (op 62, a flag-word ld immediately andi'd with 8) resolves under the
+  // jakx +4 basics convention to declared offset 264, rigid-body-object's
+  // own "flags" field (wvehicle's grandparent, vehicle -> rigid-body-object),
+  // and raw offsets 4500/4508 (a later block, not reached by this rung's own
+  // casts) resolve to 4504/4512, wvehicle's own wpn-left/wpn-right handle
+  // fields. wvehicle carries method id 49 (evaluate-joint-control, inherited
+  // from process-drawable) too, matching the trans-function fix below.
+  "(code idle sabotage-sequence)": [
+    [[0, 400], "s6", "sabotage-sequence"],
+    [[2, 9], "v1", "handle"],
+    [[32, 39], "v1", "handle"],
+    [[49, 56], "v1", "handle"],
+    [[57, 80], "v1", "wvehicle"],
+    [[67, 74], "a0", "handle"],
+    [[80, 87], "v1", "handle"],
+    [[87, 90], "v1", "wvehicle"],
+    [[117, 124], "v1", "handle"],
+    [[125, 139], "v1", "wvehicle"]
+  ],
   "spawn-hud-headset-talker": [
     [22, "v1", "game-task-node-info"]
   ],

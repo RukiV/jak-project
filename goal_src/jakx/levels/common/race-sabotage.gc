@@ -7,3 +7,293 @@
 
 ;; DECOMP BEGINS
 
+;; definition of type sabotage-sequence
+(deftype sabotage-sequence (process)
+  ((net-player     uint64)
+   (vehicle        uint64)
+   (fire-tracker   uint64)
+   (shoot          basic)
+   (explode        basic)
+   (event-time     uint64)
+   (text-time      uint64)
+   (suppress-text  basic)
+   )
+  (:state-methods
+    idle
+    )
+  (:methods
+    (sabotage-sequence-method-16 (_type_ int font-color float) none)
+    )
+  )
+
+;; definition for method 3 of type sabotage-sequence
+(defmethod inspect ((this sabotage-sequence))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type process inspect)))
+    (t9-0 this)
+    )
+  (format #t "~2Tnet-player: ~D~%" (-> this net-player))
+  (format #t "~2Tvehicle: ~D~%" (-> this vehicle))
+  (format #t "~2Tfire-tracker: ~D~%" (-> this fire-tracker))
+  (format #t "~2Tshoot: ~A~%" (-> this shoot))
+  (format #t "~2Texplode: ~A~%" (-> this explode))
+  (format #t "~2Tevent-time: ~D~%" (-> this event-time))
+  (format #t "~2Ttext-time: ~D~%" (-> this text-time))
+  (format #t "~2Tsuppress-text: ~A~%" (-> this suppress-text))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 16 of type sabotage-sequence
+;; WARN: Return type mismatch int vs none.
+(defmethod sabotage-sequence-method-16 ((this sabotage-sequence) (arg0 int) (arg1 font-color) (arg2 float))
+  (let ((s5-0 (new 'stack 'font-context *font-default-matrix* 70 20 8396850.0 arg1 (font-flags shadow kerning))))
+    (set-scale! s5-0 arg2)
+    (set-width! s5-0 350)
+    (set-height! s5-0 110)
+    (set! (-> s5-0 origin x) (the float (- 256 (the int (/ (-> s5-0 width) 2)))))
+    (set! (-> s5-0 origin y) 240.0)
+    (set! (-> s5-0 origin z) 16711680.0)
+    (set! (-> s5-0 flags) (font-flags shadow kerning middle middle-vert large))
+    (logior! (-> s5-0 flags) (font-flags ff8))
+    (let ((s4-1 print-game-text))
+      (format (clear *temp-string*) (game-text-info-method-9 *common-text* arg0 #f) 1)
+      (let ((a0-9 *temp-string*)
+            (a2-4 #f)
+            (a3-2 44)
+            (t0-1 787)
+            )
+        (s4-1 a0-9 s5-0 a2-4 a3-2 (the-as bucket-id t0-1))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for function sabotage-sequence-trans
+(defun sabotage-sequence-trans ()
+  (with-pp
+    (let ((gp-0 (handle->process (-> (the-as sabotage-sequence pp) net-player))))
+      (if (not gp-0)
+          (deactivate pp)
+          )
+      (when (not (handle->process (-> (the-as sabotage-sequence pp) vehicle)))
+        (let ((gp-1 (the-as process-drawable (evaluate-joint-control (the-as process-drawable gp-0)))))
+          (when gp-1
+            (send-event gp-1 'set 'disable-weapons #t)
+            (set! (-> (the-as sabotage-sequence pp) vehicle) (the-as uint (process->handle gp-1)))
+            )
+          )
+        )
+      )
+    (set! (-> (the-as sabotage-sequence pp) shoot) #f)
+    (let ((v1-22 (handle->process (-> (the-as sabotage-sequence pp) vehicle))))
+      (when (the-as process v1-22)
+        (cond
+          ((logtest? (-> (the-as wvehicle v1-22) flags) 8)
+           (send-event (handle->process (-> (the-as sabotage-sequence pp) fire-tracker)) 'die)
+           )
+          (else
+            (when (or (and (handle->process (-> (the-as wvehicle v1-22) wpn-right))
+                           (not (logtest? (-> (the-as wvehicle v1-22) controls prev-flags) 8))
+                           (logtest? (-> (the-as wvehicle v1-22) controls flags) 8)
+                           )
+                      (and (handle->process (-> (the-as wvehicle v1-22) wpn-left))
+                           (not (logtest? (-> (the-as process v1-22) stack 361) 4))
+                           (logtest? (-> (the-as process v1-22) stack 360) 4)
+                           )
+                      )
+              (set! (-> (the-as sabotage-sequence pp) shoot) (the-as basic #t))
+              (when (not (-> (the-as sabotage-sequence pp) suppress-text))
+                (set! (-> (the-as sabotage-sequence pp) suppress-text) (the-as basic #t))
+                (set! (-> (the-as sabotage-sequence pp) text-time) (the-as uint (current-time)))
+                )
+              )
+            (when (or (and (not (logtest? (-> (the-as process v1-22) stack 361) 8))
+                           (logtest? (-> (the-as process v1-22) stack 360) 8)
+                           )
+                      (and (not (logtest? (-> (the-as process v1-22) stack 361) 4))
+                           (logtest? (-> (the-as process v1-22) stack 360) 4)
+                           )
+                      )
+              (let ((v1-34 (make-sound-instance (-> *sound-info* 320) (new 'static 'sound-id) (the-as handle (-> (the-as sabotage-sequence pp) vehicle)))))
+                (if v1-34
+                    (-> v1-34 id)
+                    0
+                    )
+                )
+              )
+            )
+          )
+        (if (not (time-elapsed? (the-as int (-> (the-as sabotage-sequence pp) text-time)) (seconds 2)))
+            (sabotage-sequence-method-16 (the-as sabotage-sequence pp) 4896 (font-color orange) 0.7)
+            )
+        )
+      )
+    (none)
+    )
+  )
+
+;; failed to figure out what this is:
+(defstate idle (sabotage-sequence)
+  :virtual #t
+  :trans (behavior ()
+    (sabotage-sequence-trans)
+    )
+  :code (behavior ()
+    (local-vars (v1-3 object) (v1-61 object) (v1-74 object) (a0-17 object))
+    (until v1-3
+      (suspend)
+      (let ((v1-1 (handle->process (-> self net-player))))
+        (set! v1-3
+              (and (the-as process v1-1)
+                   (not (and (-> (the-as process v1-1) next-state) (= (-> (the-as process v1-1) next-state name) 'waiting)))
+                   )
+              )
+        )
+      )
+    (format #t "sabotage race start~%")
+    (while (not (handle->process (-> self vehicle)))
+      (suspend)
+      )
+    (set! (-> self event-time) (the-as uint (current-time)))
+    (until a0-17
+      (suspend)
+      (let ((v1-15 (handle->process (-> self vehicle))))
+        (set! a0-17
+              (if (and (the-as wvehicle v1-15) (not (logtest? (-> (the-as wvehicle v1-15) flags) 8)))
+                  (or (handle->process (-> (the-as wvehicle v1-15) wpn-right))
+                      (let ((v1-17 (the-as handle (-> (the-as wvehicle v1-15) wpn-left))))
+                        (or (and (nonzero? (l32-false-check v1-17)) (let ((a0-23 (-> v1-17 process 0)))
+                                                                      (if (= (the-as wvehicle (-> v1-17 pid)) (-> a0-23 pid))
+                                                                          a0-23
+                                                                          )
+                                                                      )
+                                 )
+                            (time-elapsed? (the-as int (-> self event-time)) (seconds 30))
+                            )
+                        )
+                      )
+                  )
+              )
+        )
+      )
+    (format #t "sabotage explode~%")
+    (set! (-> self explode) (the-as basic #t))
+    (let ((v1-26 (make-sound-instance (-> *sound-info* 436) (new 'static 'sound-id) (the-as handle (-> self vehicle))))
+          )
+      (if v1-26
+          (-> v1-26 id)
+          0
+          )
+      )
+    (let ((v1-30 (handle->process (-> self vehicle))))
+      (set! (-> *launch-matrix* trans quad) (-> *null-vector* quad))
+      (set! (-> *part-tracker-params-default* group) (-> *part-group-id-table* 45))
+      (set! (-> *part-tracker-params-default* local-offset quad)
+            (-> (the-as wvehicle v1-30) info hardpoint local-pos-array 2 quad)
+            )
+      (set! (-> *part-tracker-params-default* duration) (the-as uint 600))
+      (set! (-> *part-tracker-params-default* callback) #f)
+      (set! (-> *part-tracker-params-default* userdata) (the-as uint #f))
+      (set! (-> *part-tracker-params-default* target) (the-as process-drawable v1-30))
+      )
+    (set! (-> *part-tracker-params-default* mat-joint) 3)
+    (set! (-> *part-tracker-params-default* local-space-param) 0)
+    (set! (-> *part-tracker-params-default* local-space-callback) #f)
+    (set! (-> *part-tracker-params-default* subsampler-num) 1.0)
+    *part-tracker-params-default*
+    (let ((v1-43 (if (logtest? (-> *part-group-id-table* 45 flags) (sp-group-flag sp13))
+                     (process-spawn
+                       part-tracker-subsampler
+                       :init part-tracker-subsampler-init
+                       *part-tracker-params-default*
+                       :name "part-tracker-subsampler"
+                       :to *entity-pool*
+                       :unk 0
+                       )
+                     (process-spawn
+                       part-tracker
+                       :init part-tracker-init
+                       *part-tracker-params-default*
+                       :name "part-tracker"
+                       :to *entity-pool*
+                       :unk 0
+                       )
+                     )
+                 )
+          )
+      (when v1-43
+        (set! (-> self fire-tracker) (the-as uint (process->handle (-> v1-43 0))))
+        0
+        )
+      )
+    (suspend-for (seconds 0.5)
+      )
+    (talker-spawn-func (-> *talker-speech* 110) *entity-pool* (target-pos 0) (the-as region #f))
+    (set! (-> self event-time) (the-as uint (current-time)))
+    (until v1-61
+      (suspend)
+      (set! v1-61 (or (time-elapsed? (the-as int (-> self event-time)) (seconds 30)) (-> self shoot)))
+      )
+    (talker-spawn-func (-> *talker-speech* 108) *entity-pool* (target-pos 0) (the-as region #f))
+    (suspend-for (seconds 3)
+      )
+    (set! (-> self event-time) (the-as uint (current-time)))
+    (until v1-74
+      (suspend)
+      (set! v1-74 (or (time-elapsed? (the-as int (-> self event-time)) (seconds 10)) (-> self shoot)))
+      )
+    (talker-spawn-func (-> *talker-speech* 109) *entity-pool* (target-pos 0) (the-as region #f))
+    (suspend-for (seconds 3)
+      )
+    (talker-spawn-func (-> *talker-speech* 111) *entity-pool* (target-pos 0) (the-as region #f))
+    (suspend-for (seconds 3)
+      )
+    (talker-spawn-func (-> *talker-speech* 112) *entity-pool* (target-pos 0) (the-as region #f))
+    (suspend-for (seconds 3)
+      )
+    (talker-spawn-func (-> *talker-speech* 113) *entity-pool* (target-pos 0) (the-as region #f))
+    (suspend-for (seconds 10)
+      )
+    (until #f
+      (suspend)
+      )
+    #f
+    )
+  )
+
+;; definition for function sabotage-sequence-init-by-other
+(defun sabotage-sequence-init-by-other ((arg0 process))
+  (with-pp
+    (stack-size-set! (-> pp main-thread) 128)
+    (set! (-> (the-as sabotage-sequence pp) net-player) (the-as uint (process->handle arg0)))
+    (set! (-> (the-as sabotage-sequence pp) vehicle) (the-as uint #f))
+    (set! (-> (the-as sabotage-sequence pp) fire-tracker) (the-as uint #f))
+    (set! (-> (the-as sabotage-sequence pp) shoot) #f)
+    (set! (-> (the-as sabotage-sequence pp) explode) #f)
+    (set! (-> (the-as sabotage-sequence pp) suppress-text) #f)
+    (go (method-of-object (the-as sabotage-sequence pp) idle))
+    )
+  )
+
+;; definition for function sabotage-sequence-start
+;; WARN: Return type mismatch process vs sabotage-sequence.
+(defun sabotage-sequence-start ((arg0 process-tree))
+  (let ((gp-0 (the-as process #f)))
+    (let ((v1-1 (process-spawn sabotage-sequence arg0 :name "sabotage-sequence" :to arg0)))
+      (if v1-1
+          (set! gp-0 (-> v1-1 0))
+          )
+      )
+    (the-as sabotage-sequence gp-0)
+    )
+  )
+
+
+
+

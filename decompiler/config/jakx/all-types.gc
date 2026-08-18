@@ -46885,7 +46885,14 @@
 ;; declaration at ambient-h.gc:24. Retires when ambient.gc lands.
 (define-extern kill-current-talker (function pair pair symbol none))
 ;; (define-extern string->talker-speech function) ;; (function string talker-speech-class)
-;; (define-extern talker-spawn-func function) ;; (function talker-speech-class process-tree vector region sound-id)
+;; levels-other-tier rung: type-visibility fix only (same class as
+;; kill-current-talker above), not an implementation; talker-spawn-func is
+;; NOT landed anywhere in jakx goal_src (only jak2/jak3's own ambient.gc
+;; land it), so a call that actually reaches this on a live path still
+;; links as zero until ambient.gc lands here. race-sabotage's own DGO is
+;; not currently armed (dethrace.gd is commented out in game.gp), so this
+;; is not a live boot-path concern for this landing.
+(define-extern talker-spawn-func (function talker-speech-class process-tree vector region sound-id))
 ;; (define-extern talker-init function) ;; (function talker-speech-class vector region none :behavior talker)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -71370,16 +71377,45 @@
   (:state-methods
     idle ;; 15
     )
+  ;; levels-other-tier rung: method 16 synced from bare "() none" to its own
+  ;; register usage. a2 feeds the font-context constructor's own color arg
+  ;; (the-as font-color); a3 feeds set-scale! via gpr->fpr (a float); a1
+  ;; feeds game-text-info-method-9's own (_type_ object object) string
+  ;; lookup as its text-id argument, typed int here (the common text-id
+  ;; shape used throughout this band) rather than the callee's generic
+  ;; object, since a1 is this method's own explicit argument, not a
+  ;; passthrough. Confirmed by the register-not-set errors clearing once
+  ;; the three-arg body ((defmethod ... () (local-vars (a1-0 none) (a2-0
+  ;; none) (a3-0 none)) ...)) matches a declared arg count.
   (:methods
-    (sabotage-sequence-method-16 () none) ;; 16
+    (sabotage-sequence-method-16 (_type_ int font-color float) none) ;; 16
     )
-  
+
   )
 
 
-;; (define-extern sabotage-sequence-trans function)
-;; (define-extern sabotage-sequence-init-by-other function)
-;; (define-extern sabotage-sequence-start function)
+;; levels-other-tier rung: the three commented-out generic "function" externs
+;; above were the whole cause of race-sabotage's "unknown type" errors; typed
+;; from register evidence, all three run via run-function-in-process with s6
+;; pre-set to the sabotage-sequence process (not a normal argument), so s6
+;; accesses do not appear in the function typespec itself.
+;; sabotage-sequence-start: single explicit arg flows straight into
+;; process-tree-method-9 (activate)'s own a1 (process-tree) slot; returns the
+;; spawned process (ppointer->process of its own child field) or #f.
+(define-extern sabotage-sequence-start (function process-tree sabotage-sequence))
+;; sabotage-sequence-init-by-other: single explicit arg (the other process)
+;; is process->handle'd into this.net-player (raw offset 140, the jakx +4
+;; basics convention resolving to net-player's own declared offset 144); the
+;; five raw #f stores immediately after (148/156/164/168/188) resolve the
+;; same way onto vehicle/fire-tracker/shoot/explode/suppress-text
+;; respectively, a plain field-clearing init. Returns object per this
+;; engine's standard init-by-other convention.
+(define-extern sabotage-sequence-init-by-other (function process object))
+;; sabotage-sequence-trans: no explicit args observed (s6-only); reads its
+;; own net-player handle (same raw-140/+4 evidence as above) and splits it
+;; back to a process pointer, the handle->process shape (method 10
+;; race-state) above already established the cast recipe for.
+(define-extern sabotage-sequence-trans (function none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-oneoff                     ;;
