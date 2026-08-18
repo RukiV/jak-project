@@ -79220,7 +79220,12 @@
     idle ;; 59
     )
   (:methods
-    (coli-object-base-method-70 () none) ;; 70
+    ;; coliseum-obs-female-statue rung (jakx-levels-other-tier-4): this-only
+    ;; (no other explicit args read), but the () form left a0 untyped for
+    ;; every override (eight coli-statue-base-* variants), cascading into a
+    ;; false "Could not figure out load" on the standard type-tag -4 access;
+    ;; the explicit _type_ receiver clears it.
+    (coli-object-base-method-70 (_type_) none) ;; 70
     )
   ;; adjudicated: ASSERTS WERE STALE (proven) -- every offset shifted +4.
   ;; Same defect and same evidence as coli-statue, from the same object file:
@@ -79271,7 +79276,12 @@
   (:methods
     (coli-statue-method-52 (_type_ object) none) ;; 52
     (coli-statue-method-53 (_type_) none) ;; 53
-    (coli-statue-method-54 (_type_) none) ;; 54
+    ;; coliseum-obs-female-statue rung (jakx-levels-other-tier-4):
+    ;; coli-statue-female's own override reads a1 and forwards it verbatim
+    ;; to (process-drawable-from-entity! this (the-as entity-actor a1)); the
+    ;; same call site forwards it unchanged to this parent method too
+    ;; (a call-parent-method through coli-statue's own vtable slot 54).
+    (coli-statue-method-54 (_type_ entity-actor) none) ;; 54
     )
   ;; adjudicated: ASSERTS WERE STALE (proven) -- every offset shifted +4.
   ;; (method 3 coli-statue) in coliseum-obs-atlas_ir2.asm reads
@@ -79694,9 +79704,13 @@
     die ;; 50
     )
   (:methods
-    (coli-break-object-method-51 () none) ;; 51
+    ;; coliseum-obs-female-statue rung (jakx-levels-other-tier-4): this-only,
+    ;; same _type_-missing class as coli-object-base-method-70 above (six
+    ;; coli-statue-female-*-break variants all hit the same false
+    ;; "Could not figure out load" on the -4 type-tag access).
+    (coli-break-object-method-51 (_type_) none) ;; 51
     )
-  
+
   )
 
 
@@ -80001,13 +80015,27 @@
   )
 
 
-;; (define-extern coli-break-object-init-by-other function)
-;; (define-extern coli-statue-female-s-break-spawn function)
-;; (define-extern coli-statue-female-s-break-a-spawn function)
-;; (define-extern coli-statue-female-s-break-b-spawn function)
-;; (define-extern coli-statue-female-c-break-spawn function)
-;; (define-extern coli-statue-female-c-break-a-spawn function)
-;; (define-extern coli-statue-female-c-break-b-spawn function)
+;; coliseum-obs-female-statue rung (jakx-levels-other-tier-4): the six
+;; break-piece spawn helpers all read the same three registers (this-like
+;; object, a vector, a quaternion), proven at their shared call site in
+;; (event idle coli-statue-chain-curved)/(event idle coli-statue-chain-straight):
+;; a0 is the calling statue object, a1 is an entity-relative vector
+;; (entity + 28), a2 is an entity-relative quaternion (entity + 76). The
+;; return value is the spawned piece's ppointer, read directly out of the
+;; allocated object at the end of coli-statue-female-c-break-b-spawn's own
+;; body. coli-break-object-init-by-other is called indirectly through
+;; run-function-in-process, but its own body's register consumption is
+;; unambiguous: a1 is raw-copied (a vector, "trans"), a2 goes through
+;; quaternion-copy! (a quaternion, "quat"), a3 is only ever truthy-checked
+;; (a symbol flag), matching the standard process-drawable init-by-other
+;; shape used throughout this engine.
+(define-extern coli-break-object-init-by-other (function process vector quaternion symbol object))
+(define-extern coli-statue-female-s-break-spawn (function object vector quaternion (pointer process)))
+(define-extern coli-statue-female-s-break-a-spawn (function object vector quaternion (pointer process)))
+(define-extern coli-statue-female-s-break-b-spawn (function object vector quaternion (pointer process)))
+(define-extern coli-statue-female-c-break-spawn (function object vector quaternion (pointer process)))
+(define-extern coli-statue-female-c-break-a-spawn (function object vector quaternion (pointer process)))
+(define-extern coli-statue-female-c-break-b-spawn (function object vector quaternion (pointer process)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-collectable-game           ;;
