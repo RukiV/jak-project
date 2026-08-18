@@ -199,8 +199,11 @@ void load_and_link_dgo_from_c(const char* name,
     strcpy(objName, (dgoObj + 4).cast<char>().c());  // name from dgo object header
     lg::debug("[link and exec] {:18s} {} {:6d} heap-use {:8d} {:8d}: 0x{:x}", objName,
               lastObjectLoaded, objSize, kheapused(kglobalheap),
-              kdebugheap.offset ? kheapused(kdebugheap) : 0, kglobalheap->current.offset);
-    goal_crash_map_record(kglobalheap->current.offset, objName, objSize);
+              kdebugheap.offset ? kheapused(kdebugheap) : 0, heap->current.offset);
+    // Record the target heap's cursor, not kglobalheap: level-heap links would
+    // otherwise record a stale global offset and produce misattributed crash maps
+    // (issue #58).
+    goal_crash_map_record(heap->current.offset, objName, objSize);
     {
       auto p = scoped_prof(fmt::format("link-{}", objName).c_str());
       link_and_exec(obj, objName, objSize, heap, linkFlag, jump_from_c_to_goal);  // link now!
