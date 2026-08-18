@@ -638,6 +638,43 @@
   // entry at op 21-22, then passed to vector-vector-distance-squared as
   // one of the two position arguments.
   "find-sorted-targets-faster!": [[32, "vector"]],
+  // (method 16 nav-mesh-editable), nav wave 2: two scratch vectors holding
+  // sql-query results column-by-column (translate_x/y/z into offsets 0/4/8,
+  // matching the "select translate_x,translate_y,translate_z" query text
+  // at op 13), written then read back at ops 39-99 (sp+16) and 322-380
+  // (sp+48, a second query's result further down the same method).
+  "(method 16 nav-mesh-editable)": [[16, "vector"], [48, "vector"]],
+  // (method 15 nav-mesh-editable), nav wave 2: identical single scratch
+  // vector shape at sp+16 (op 8 sets it up, ops 10-14 and 43-53 write it,
+  // ops 94-120 read it back).
+  "(method 15 nav-mesh-editable)": [[16, "vector"]],
+  // (method 12 nav-mesh-editable), nav wave 2: op 3 sets up sp+16 as a
+  // vector (already resolved by natural inference); op 4 computes sp+32
+  // the identical way (daddiu v1, sp, 32) right beside it but the address
+  // itself is never stored or read again downstream in this scoped decode,
+  // so no direct field-offset evidence is available. Declared vector to
+  // match the sibling allocation's shape and let the stack-use guess
+  // resolve; provisional if this local is genuinely unused on this path.
+  "(method 12 nav-mesh-editable)": [[32, "vector"]],
+  // (method 14 nav-mesh-editable), nav wave 2: op 12 sets up sp+16, zeroed
+  // in a 4-iteration loop at 16-byte stride (op 15-19, "slti a1, a0, 4")
+  // before four separate corner vectors get built from a nav-mesh-tri-quad
+  // and passed to mouse-intersect-triangle; a 4-slot inline-array of vector.
+  "(method 14 nav-mesh-editable)": [[16, ["inline-array", "vector", 4]], [80, ["inline-array", "vector", 4]]],
+  // snap-level-navmesh, nav wave 2: op 29 computes sp+16 the same way as
+  // the function's other scratch vectors (sp+64/80/96/112/128, all already
+  // resolved), but the address is never read or stored again downstream in
+  // this scoped decode; declared vector to match its siblings' shape and
+  // let the stack-use guess resolve. Offset 112 holds a pointer value
+  // (stack-stored at op 37) that gets read back and used directly as a
+  // vector argument to transform-point-vector! (op 42) and field-read at
+  // op 61; declared vector for the same reason as its siblings.
+  "snap-level-navmesh": [[16, "vector"], [64, "vector"], [112, "vector"]],
+  // (method 52 nav-mesh-editor), nav wave 2: a fifth stack vector at sp+80,
+  // same 16-byte-stride sequence as its four siblings (sp+16/32/48/64,
+  // already resolved on their own), copying *up-vector* into it (op 13-14)
+  // exactly like the group before it.
+  "(method 52 nav-mesh-editor)": [[80, "vector"]],
   "(method 37 nav-state)": [[16, "vector"]],
   "(method 32 nav-state)": [[16, "vector"]],
   "(method 34 nav-state)": [[16, "vector"]],

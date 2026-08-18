@@ -974,6 +974,29 @@
   // focus-status field (offset-assert 248, the +4 basics convention),
   // matching find-sorted-targets!'s identical op-26 read one function down.
   "find-sorted-targets-faster!": [[61, "s1", "process-focusable"], [96, "s1", "vehicle"]],
+  // nav-set-flag and nav-set-lev, nav wave 2: both read *nav-mesh-editor*
+  // then its own raw offset-0 (the same basic-type-tag read documented at
+  // nav-mesh-editor-rotate-y above, which that entry casts to process-tree
+  // for its own offset-32 ppointer need). Here the read that follows is
+  // offset 480, current-nav-mesh's own field (offset-assert 484, the +4
+  // basics convention), which only exists on nav-mesh-editor itself, not
+  // the generic process-tree ancestor; jak3's own nav-set-lev and
+  // nav-set-flag read the identical (-> *nav-mesh-editor* 0 current-nav-
+  // mesh) chain. Both functions repeat the same two-load pattern twice
+  // (an existence check, then the real access), so each gets two casts.
+  "nav-set-flag": [[5, "v1", "nav-mesh-editor"], [9, "v1", "nav-mesh-editor"]],
+  "nav-set-lev": [[5, "v1", "nav-mesh-editor"], [9, "v1", "nav-mesh-editor"]],
+  // nav-mesh-editor-set-level and nav-mesh-editor-load, nav wave 2: the
+  // same offset-0-on-*nav-mesh-editor* misread as nav-set-flag/nav-set-lev
+  // above, but reached through a VIRTUAL dispatch instead of a direct
+  // field read: once the misread value is wrongly typed string, its own
+  // vtable slot 228/232 resolves to "method id 53/54 of type string",
+  // which does not exist. Casting to nav-mesh-editor lets the two calls
+  // resolve to their real methods, set-level-info! (53, arg symbol,
+  // matching a1's set-level-info! argument) and select-nav-mesh-by-id
+  // (54, arg int, matching string->int's own result feeding a1 at op 33).
+  "nav-mesh-editor-set-level": [[4, "v1", "nav-mesh-editor"]],
+  "nav-mesh-editor-load": [[28, "gp", "nav-mesh-editor"]],
   // (method 24 nav-mesh), nav rung: op 22 loads the raw scratchpad address
   // 0x70000000 into s4 (the SPR-resident nav-engine singleton is accessed by
   // fixed hardware address rather than a symbol lookup); every read off s4
