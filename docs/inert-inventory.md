@@ -38,7 +38,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (189)
+### Never written (190)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -194,6 +194,7 @@ written is read-only by design and not a finding.
 | `*profile-w*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*profile-x*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*race-record-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*rb-raw-time-val*` | 1 | `goal_src/jakx/engine/physics/rigid-body-queue.gc` |
 | `*record-cam-collide-history*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-end*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-low-res*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
