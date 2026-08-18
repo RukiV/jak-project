@@ -6018,5 +6018,41 @@
     [[481, 486], "a0", "(pointer int32)"],
     [[505, 532], "a1", "(pointer int32)"],
     [[538, 543], "a0", "(pointer int32)"]
+  ],
+  // (trans run-state drift-editor), internal name (anon-function 5 drift)
+  // until other fixes let the decompiler recognize it as a named state
+  // handler (its key here must track that): net-player's
+  // method 212 (handle->process) returns a bare process, but op 38 reads
+  // raw offset 188 (wvehicle's own offset-assert 192, the +4 basics
+  // convention) and op 41 reads raw offset 2484, exactly wvehicle's wheel
+  // array base (offset-assert 2480, raw 2476 for the same reason) plus
+  // vehicle-wheel-state's own offset-assert 8 handle field (structure, no
+  // further shift): wheel[0].handle. Casting v1 to wvehicle at op 38 lets
+  // both reads resolve, and the sllv/dsra32 handle->process split at
+  // op 45-48 (same idiom documented above at update-eyes and
+  // (method 10 race-state)) clears once a0 reads a real handle field.
+  "(trans run-state drift-editor)": [
+    [[38, 67], "v1", "wvehicle"],
+    [[41, 49], "a0", "handle"],
+    [52, "a0", "wvehicle"],
+    // op 122: a raw quad copy off wheel-front-left-data-array's own record
+    // (counter*32+16), the same "whole 16-byte struct clobbered via lq/sq"
+    // shape (method 14 rigid-body-control)'s own entry above resolves with
+    // (pointer uint128); wheel-front-left-data-array is declared (pointer
+    // float) for its per-field float reads elsewhere in this same function,
+    // which does not support a raw l.q on its own.
+    [122, "a0", "(pointer uint128)"],
+    // op 221: the same shape one wheel later, off drive-data-array instead
+    // of wheel-front-left-data-array (both declared (pointer float)).
+    [221, "a0", "(pointer uint128)"],
+    // ops 89/97/144/167/190: the store side of the same five quad copies,
+    // writing into the debug matrix scratch (sp+32/96/160/224/288) through
+    // v1, computed the same raw-offset way and needing the same
+    // (pointer uint128) cast as the load side above.
+    [89, "v1", "(pointer uint128)"],
+    [97, "v1", "(pointer uint128)"],
+    [144, "v1", "(pointer uint128)"],
+    [167, "v1", "(pointer uint128)"],
+    [190, "v1", "(pointer uint128)"]
   ]
 }

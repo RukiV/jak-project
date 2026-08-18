@@ -1062,5 +1062,25 @@
   "(method 19 hud-results)": [[16, "event-message-block"]],
   // (method 19 hud-team-score-results), hud-results rung: sp+16 is the same
   // event-message-block shape as (method 19 hud-medal-results) above.
-  "(method 19 hud-team-score-results)": [[16, "event-message-block"]]
+  "(method 19 hud-team-score-results)": [[16, "event-message-block"]],
+  // (trans run-state drift-editor), internal name (anon-function 5 drift)
+  // until other fixes let the decompiler recognize it as a named state
+  // handler (its key here must track that): a 480-byte
+  // debug scratch frame drawing each wheel's orientation. sp+16 is
+  // matrix->eul's euler-angles output for wheel 0 (op 67-72), immediately
+  // fed to eul->matrix at sp+32 (op 107-115, a 64-byte matrix, so the next
+  // free offset is 96); wheels 1-3 each go straight from quaternion->matrix
+  // to a fresh 64-byte matrix at sp+96/160/224 (op 151-154, 174-177,
+  // 197-200), and the closing average orientation lands at sp+288 via a
+  // fourth eul->matrix call (op 206-214); each of the five matrix slots is
+  // consumed whole by add-debug-matrix or the next quaternion/eul call, so
+  // "Failed to guess stack use for 16" was the tell for the whole chain.
+  "(trans run-state drift-editor)": [
+    [16, "euler-angles"],
+    [32, "matrix"],
+    [96, "matrix"],
+    [160, "matrix"],
+    [224, "matrix"],
+    [288, "matrix"]
+  ]
 }

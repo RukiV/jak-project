@@ -75951,44 +75951,36 @@
   )
 
 
-#|
 (deftype drift-editor (process)
   ((angles                       euler-angles :inline :offset-assert 144)
    (counter                      int32                :offset-assert 160)
    (editor-start-time            uint32               :offset-assert 164)
-   (all-data-array               UNKNOWN      5       :offset-assert 168)
-   (drive-data-array             uint32               :offset-assert 168)
-   (wheel-front-left-data-array  uint32               :offset-assert 172)
-   (wheel-front-right-data-array uint32               :offset-assert 176)
-   (wheel-rear-left-data-array   uint32               :offset-assert 180)
-   (wheel-rear-right-data-array  uint32               :offset-assert 184)
+   (all-data-array               (pointer float) 5    :offset-assert 168)
+   (drive-data-array             (pointer float)      :offset 168)
+   (wheel-front-left-data-array  (pointer float)      :offset 172)
+   (wheel-front-right-data-array (pointer float)      :offset 176)
+   (wheel-rear-left-data-array   (pointer float)      :offset 180)
+   (wheel-rear-right-data-array  (pointer float)      :offset 184)
    (release-start-trigger        basic                :offset-assert 188)
    (odd-even                     int8                 :offset-assert 192)
    )
   :method-count-assert 19
   :size-assert         #xc1
   :flag-assert         #x13004000c1
-  (:methods
-    (drift-editor-method-9 () none) ;; 9
-    (drift-editor-method-10 () none) ;; 10
-    (drift-editor-method-11 () none) ;; 11
-    (drift-editor-method-12 () none) ;; 12
-    (drift-editor-method-13 () none) ;; 13
-    (drift-editor-method-14 () none) ;; 14
-    (drift-editor-method-18 () none) ;; 18
-    )
   (:state-methods
     init-state ;; 15
     run-state ;; 16
     write-file ;; 17
     )
+  (:methods
+    (drift-editor-method-18 (_type_ string int) none) ;; 18
+    )
   )
-|#
 
-;; (define-extern *drift-file-stream* file-stream)
-;; (define-extern *drift-editor* object)
-;; (define-extern drift-editor-init-by-other function)
-;; (define-extern start-drift function)
+(define-extern *drift-file-stream* file-stream)
+(define-extern *drift-editor* drift-editor)
+(define-extern drift-editor-init-by-other (function object :behavior drift-editor))
+(define-extern start-drift (function none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; race-mesh                      ;;
@@ -84950,7 +84942,7 @@
 ;; type-prop failure it flagged was the type system not knowing the symbol
 ;; existed at all, not an arithmetic use.
 (define-extern *dnas-on-success* symbol)
-(define-extern *drift-file-stream* object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the earlier *drift-file-stream* extern (drift rung, scripts/check_alltypes_shadowing.py)
 ;; Tried and reverted: retyping object -> (pointer uint8) plus a
 ;; label_types.jsonc size entry does let the decompiler resolve L98 (a
 ;; 0x4b000-byte all-zero static block, "Unimplemented decompile_at_label for
@@ -85684,7 +85676,7 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier color-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier deathmatch-spawner-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier debug-rigid-body-move deftype (rigid-body rung, scripts/check_alltypes_shadowing.py)
-(define-extern drift-editor object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the earlier drift-editor deftype (drift rung, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier dropdown-cup deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier dropdown-weapon-item-info deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier dynamic-driver-info deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
