@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: hud-widgets-4.gc
-;; name in dgo: hud-widgets-4
-;; dgos: COMMON, GAME
-
-;; DECOMP BEGINS
-
 ;; definition for symbol *text-display-nice-shot*, type (array hud-item)
 (define *text-display-nice-shot*
   (new 'static 'boxed-array :type hud-item
@@ -336,19 +330,13 @@
     )
   )
 
+;; definition for symbol *hud-headset-talker-race-proc*, type hud-headset-talker-race
+(define *hud-headset-talker-race-proc* (the-as hud-headset-talker-race #f))
+
 ;; definition of type hud-headset-talker-race
-;; og:preserve-this hud-widgets-tier rung: moved ahead of *hud-headset-talker-
-;; race-proc* below. The decompiler emits deftype/symbol pairs in the
-;; original binary's data order, which here places the proc symbol (typed
-;; hud-headset-talker-race) before its own type's deftype; goalc requires
-;; declaration before use ("Type hud-headset-talker-race is unknown" at
-;; (mi), this rung's own build). Reordered only, no content changed.
 (deftype hud-headset-talker-race (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-headset-talker-race-proc*, type hud-headset-talker-race
-(define *hud-headset-talker-race-proc* (the-as hud-headset-talker-race #f))
 
 ;; definition for method 3 of type hud-headset-talker-race
 (defmethod inspect ((this hud-headset-talker-race))
@@ -585,16 +573,13 @@
     )
   )
 
+;; definition for symbol *hud-headset-talker-other-proc*, type hud-headset-talker-other
+(define *hud-headset-talker-other-proc* (the-as hud-headset-talker-other #f))
+
 ;; definition of type hud-headset-talker-other
-;; og:preserve-this hud-widgets-tier rung: same reordering as
-;; hud-headset-talker-race above, same evidence (declaration-before-use,
-;; this rung's own (mi) build).
 (deftype hud-headset-talker-other (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-headset-talker-other-proc*, type hud-headset-talker-other
-(define *hud-headset-talker-other-proc* (the-as hud-headset-talker-other #f))
 
 ;; definition for method 3 of type hud-headset-talker-other
 (defmethod inspect ((this hud-headset-talker-other))
@@ -691,111 +676,94 @@
   (none)
   )
 
-;; og:preserve-this hud-widgets-tier rung: (method 19 hud-headset-talker) is held
-;; unlanded, not commented decode text. Its decode is clean (this worktree's own
-;; scoped decode of hud-widgets-4, disasm.gc) but the *headset* decoder-slot
-;; read at op 33 (repeated at op 106) is the addition-result cast class
-;; documented as a wall in type_casts.jsonc precedent (base-plus-index then a
-;; fixed +524 immediate on the load): the decompiler's own fallback renders it
-;; as (l.b (+ s2-0 (the-as int *headset*) 524)), and goalc rejects that
-;; verbatim with "No method or function named l.b for type int", confirmed
-;; under both offline-test's compile and a real (mi) build (this rung), because
-;; the (the-as int ...) cast forces the address expression to plain int, and
-;; l.b has no int overload. A prior rung named this exact site "a headset
-;; byte" and left it unresolved; per this band's brief, addition-result sites
-;; of this shape are held, not config-fixed, so no type_casts entry is
-;; attempted here either. Since hud-item-group's own method 19 is already
-;; landed (net-hud.gc), the vtable slot falls back cleanly to that
-;; implementation with this override absent: headset-talker loses only its
-;; own per-decoder color/highlight logic, not a zero-link crash. Retire this
-;; note if a future rung finds a real fix for the addition-result class.
-;;
-;; (defmethod hud-item-method-19 ((this hud-headset-talker))
-;;   (let ((s5-0 (- (- (if *net-mgr*
-;;                         (-> *net-mgr* game-state time)
-;;                         0
-;;                         )
-;;                     (if *net-world*
-;;                         (-> *net-world* net-state game-start-time)
-;;                         0
-;;                         )
-;;                     )
-;;                  (if *net-world*
-;;                      (-> *net-world* net-state total-pause-time)
-;;                      0
-;;                      )
-;;                  )
-;;               )
-;;         )
-;;     0
-;;     (dotimes (s4-0 4)
-;;       (let* ((s3-0 s4-0)
-;;              (s2-0 (-> *headset* decoders s4-0 client-idx))
-;;              (v1-11 (l.b (+ s2-0 (the-as int *headset*) 524)))
-;;              (a0-10 (the-as hud-item-group (-> this items s3-0)))
-;;              (s1-0 (the-as hud-item-string (-> a0-10 items 0)))
-;;              )
-;;         (let ((s0-0 (-> a0-10 items 1)))
-;;           (set! s2-0 (cond
-;;                        ((and (>= s2-0 0) (< s2-0 8))
-;;                         (cond
-;;                           ((> v1-11 0)
-;;                            (set! (-> this decoder-talk-times s2-0) (the-as uint s5-0))
-;;                            )
-;;                           (else
-;;                             (if (< 450 (- s5-0 (l.w (+ (* s2-0 4) (the-as int this) 40))))
-;;                                 (set! s2-0 -1)
-;;                                 )
-;;                             )
-;;                           )
-;;                         s2-0
-;;                         )
-;;                        (else
-;;                          -1
-;;                          )
-;;                        )
-;;                 )
-;;           (cond
-;;             ((>= s2-0 0)
-;;              (if (!= (-> *last-talker-ids* s4-0) s2-0)
-;;                  (copy-charp<-charp (-> s1-0 string text data) (+ (+ (* 96 (* s2-0 2)) 32) (the-as int *net-player-names*)))
-;;                  )
-;;              (hud-item-method-20 s0-0 1.0)
-;;              )
-;;             (else
-;;               (set! (-> s1-0 string text data 0) (the-as uint 0))
-;;               (hud-item-method-20 s0-0 0.0)
-;;               )
-;;             )
-;;           )
-;;         (set! (-> *last-talker-ids* s4-0) s2-0)
-;;         (when (!= s2-0 -1)
-;;           (let* ((v1-41 (l.b (+ s2-0 (the-as int *headset*) 524)))
-;;                  (a1-8 (+ s3-0 66))
-;;                  (s3-1 (-> *font-work* color-table a1-8))
-;;                  (s2-1 (+ (/ (* (min 128 v1-41) 64) 128) 64))
-;;                  )
-;;             (hud-item-string-method-27 s1-0 a1-8)
-;;             (set! (-> s3-1 color 0 r) (/ s2-1 2))
-;;             (set! (-> s3-1 color 0 g) (/ s2-1 2))
-;;             (set! (-> s3-1 color 0 b) (/ s2-1 2))
-;;             (set! (-> s3-1 color 1 r) s2-1)
-;;             (set! (-> s3-1 color 1 g) s2-1)
-;;             (set! (-> s3-1 color 1 b) s2-1)
-;;             (set! (-> s3-1 color 2 r) s2-1)
-;;             (set! (-> s3-1 color 2 g) s2-1)
-;;             (set! (-> s3-1 color 2 b) s2-1)
-;;             (set! (-> s3-1 color 3 r) s2-1)
-;;             (set! (-> s3-1 color 3 g) s2-1)
-;;             (set! (-> s3-1 color 3 b) s2-1)
-;;             )
-;;           )
-;;         )
-;;       )
-;;     )
-;;   ((method-of-type hud-item-group hud-item-method-19) this)
-;;   (none)
-;;   )
+;; definition for method 19 of type hud-headset-talker
+;; ERROR: Failed load: (set! v1-11 (l.b (+ v1-10 524))) at op 33
+(defmethod hud-item-method-19 ((this hud-headset-talker))
+  (let ((s5-0 (- (- (if *net-mgr*
+                        (-> *net-mgr* game-state time)
+                        0
+                        )
+                    (if *net-world*
+                        (-> *net-world* net-state game-start-time)
+                        0
+                        )
+                    )
+                 (if *net-world*
+                     (-> *net-world* net-state total-pause-time)
+                     0
+                     )
+                 )
+              )
+        )
+    0
+    (dotimes (s4-0 4)
+      (let* ((s3-0 s4-0)
+             (s2-0 (-> *headset* decoders s4-0 client-idx))
+             (v1-11 (l.b (+ s2-0 (the-as int *headset*) 524)))
+             (a0-10 (the-as hud-item-group (-> this items s3-0)))
+             (s1-0 (the-as hud-item-string (-> a0-10 items 0)))
+             )
+        (let ((s0-0 (-> a0-10 items 1)))
+          (set! s2-0 (cond
+                       ((and (>= s2-0 0) (< s2-0 8))
+                        (cond
+                          ((> v1-11 0)
+                           (set! (-> this decoder-talk-times s2-0) (the-as uint s5-0))
+                           )
+                          (else
+                            (if (< 450 (- s5-0 (l.w (+ (* s2-0 4) (the-as int this) 40))))
+                                (set! s2-0 -1)
+                                )
+                            )
+                          )
+                        s2-0
+                        )
+                       (else
+                         -1
+                         )
+                       )
+                )
+          (cond
+            ((>= s2-0 0)
+             (if (!= (-> *last-talker-ids* s4-0) s2-0)
+                 (copy-charp<-charp (-> s1-0 string text data) (+ (+ (* 96 (* s2-0 2)) 32) (the-as int *net-player-names*)))
+                 )
+             (hud-item-method-20 s0-0 1.0)
+             )
+            (else
+              (set! (-> s1-0 string text data 0) (the-as uint 0))
+              (hud-item-method-20 s0-0 0.0)
+              )
+            )
+          )
+        (set! (-> *last-talker-ids* s4-0) s2-0)
+        (when (!= s2-0 -1)
+          (let* ((v1-41 (l.b (+ s2-0 (the-as int *headset*) 524)))
+                 (a1-8 (+ s3-0 66))
+                 (s3-1 (-> *font-work* color-table a1-8))
+                 (s2-1 (+ (/ (* (min 128 v1-41) 64) 128) 64))
+                 )
+            (hud-item-string-method-27 s1-0 a1-8)
+            (set! (-> s3-1 color 0 r) (/ s2-1 2))
+            (set! (-> s3-1 color 0 g) (/ s2-1 2))
+            (set! (-> s3-1 color 0 b) (/ s2-1 2))
+            (set! (-> s3-1 color 1 r) s2-1)
+            (set! (-> s3-1 color 1 g) s2-1)
+            (set! (-> s3-1 color 1 b) s2-1)
+            (set! (-> s3-1 color 2 r) s2-1)
+            (set! (-> s3-1 color 2 g) s2-1)
+            (set! (-> s3-1 color 2 b) s2-1)
+            (set! (-> s3-1 color 3 r) s2-1)
+            (set! (-> s3-1 color 3 g) s2-1)
+            (set! (-> s3-1 color 3 b) s2-1)
+            )
+          )
+        )
+      )
+    )
+  ((method-of-type hud-item-group hud-item-method-19) this)
+  (none)
+  )
 
 ;; definition for function spawn-hud-headset-talker
 (defun spawn-hud-headset-talker ()
@@ -813,3 +781,7 @@
         )
     )
   )
+
+
+
+
