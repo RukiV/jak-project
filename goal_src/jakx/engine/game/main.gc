@@ -2760,6 +2760,14 @@
                                  (bucket-id bucket794)
                                  )
       (when (and (nonzero? draw-string-xy) ;; og:preserve-this runtime-link guard: font.gc not landed
+                 ;; og:preserve-this runtime-link guard (forge issue 376): *common-text* is
+                 ;; (the-as game-text-info #f) and nothing in jakx assigns it yet, so the
+                 ;; method-of-object dispatch below reads [#f - 4] as a type and crashes the
+                 ;; display process whenever the game pauses (both crash faces on the issue).
+                 ;; Retail ships this unguarded because text loading always assigns
+                 ;; *common-text* before pause is reachable. Retire this guard when the
+                 ;; text-loading chain that performs that assignment lands.
+                 *common-text*
                  (= *master-mode* 'pause)
                  (and (!= *cheat-mode* 'camera) (or (zero? *screen-shot-work*) (= (-> *screen-shot-work* count) -1)))
                  )
