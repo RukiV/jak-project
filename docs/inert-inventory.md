@@ -29,12 +29,12 @@ written is read-only by design and not a finding.
 | symbol | reading files | switch commented in |
 |---|---:|---|
 | `*jakx-boot-task*` | 2 | `goal_src/jakx/engine/level/level-h.gc` |
+| `*master-exit*` | 2 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-bug-report*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-level-border*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-scene-control*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*jakx-racer*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*jakx-want-driver*` | 1 | `goal_src/jakx/engine/level/level.gc` |
-| `*master-exit*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
