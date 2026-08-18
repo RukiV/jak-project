@@ -526,5 +526,30 @@
     ["L191", "cloth-params"],
     ["L193", "cloth-params"],
     ["L194", "cloth-params"]
-  ]
+  ],
+  // anim-tester: (top-level-login anim-tester) runtime-registers eight types
+  // (list-control, list-field, DISP_LIST-bank, anim-tester-bank, anim-test-obj,
+  // anim-test-sequence, anim-test-seq-item, anim-tester itself), each fed its
+  // own type-flag doubleword (method-count/heap-base/size packed bits) the
+  // same lui/ori/addu far-label way as the part-tester and scert families
+  // above. L703 (0x50/0x9) was the first "Failed to guess label use" hit
+  // (the decompiler only reports the first per function); L699 (0x8/0x9),
+  // L697 (0x30/0x9), L702 (0x44/0x9), L696 (0x90/0x9), L701 (0x78/0x9) and
+  // L700 (0x2c/0x9) match the size/method-count-9 flag-asserts of the six
+  // plain-structure/basic types already resurrected in all-types.gc
+  // (list-control, DISP_LIST-bank, anim-tester-bank, anim-test-obj,
+  // anim-test-sequence, anim-test-seq-item respectively). L698 (0x16001e8/0x3b)
+  // is the anim-tester process type's own flag word: method-count 59,
+  // heap-base 0x160, size 0x1e8, versus jak3's twin (method-count 28,
+  // heap-base 0x140, size 0x1b8 at decompiler/config/jak3/all-types.gc:39746);
+  // the process type itself is not landed here, this entry only stops the
+  // label-use failure so the rest of the top-level can type-propagate.
+  // L550 (48 words, right after the L703 group) is 12 four-word (16-byte)
+  // groups, each (left, width, 0, 0): list-field's own two int32 fields
+  // (offsets 0/4) padded to the default 16-byte inline-array stride, since
+  // list-field carries no :allow-misaligned. The name
+  // anim-test-field-highlight-lw (left/width) and the small width values
+  // (1, 3, 4, 20) read as UI column spans corroborate (inline-array
+  // list-field) over a raw word dump.
+  "anim-tester": [["L696", "uint64", true], ["L697", "uint64", true], ["L698", "uint64", true], ["L699", "uint64", true], ["L700", "uint64", true], ["L701", "uint64", true], ["L702", "uint64", true], ["L703", "uint64", true], ["L550", "(inline-array list-field)", 12]]
 }

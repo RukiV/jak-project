@@ -63367,8 +63367,10 @@
 ;; (define-extern *DISP_LIST-bank* DISP_LIST-bank)
 ;; (define-extern display-list-control function)
 ;; (define-extern *ANIM_TESTER-bank* anim-tester-bank)
+(define-extern *ANIM_TESTER-bank* anim-tester-bank) ;; confirmed: anim-tester.gc's own top-level-login registers this symbol via a type-new call whose flag word (label_types.jsonc "anim-tester" L702, 0x44/0x9) matches anim-tester-bank's own size-assert #x44 / method-count-assert 9; jak3 twin at decompiler/config/jak3/all-types.gc:39820 has the same commented suggestion
 ;; (define-extern anim-tester-num-print function)
 ;; (define-extern *anim-tester* object) ;; (pointer anim-tester)
+(define-extern anim-tester-process state) ;; confirmed: anim-tester.gc's own top-level-login stores a decompiler-inferred `state` value into this symbol (op (s.w! anim-tester-process v1)); the owning anim-tester process type is not landed here so this stays the bare state type, matching the disc-idle precedent (all-types.gc:49457)
 ;; (define-extern anim-test-obj-init function)
 ;; (define-extern anim-test-sequence-init function)
 ;; (define-extern anim-test-seq-item-copy! function)
@@ -63384,6 +63386,7 @@
 ;; (define-extern anim-test-anim-list-handler function)
 ;; (define-extern anim-test-sequence-list-handler function)
 ;; (define-extern anim-test-field-highlight-lw object)
+(define-extern anim-test-field-highlight-lw (inline-array list-field)) ;; confirmed: label_types.jsonc "anim-tester" L550 is 12 packed (left, width) pairs (list-field's own two int32 fields) at the default 16-byte inline-array stride; the small width values (1, 3, 4, 20) read as UI column spans matching the name (left/width)
 ;; (define-extern anim-tester-adjust-frame function)
 ;; (define-extern anim-tester-pick-item-setup function)
 ;; (define-extern anim-test-seq-mark-as-edited function)
@@ -84270,7 +84273,7 @@
 (define-extern fuel-cell type)
 
 ;; ---- provisional externs: call-site/runtime evidence (extern-synthesis lane) ----
-(define-extern *DISP_LIST-bank* object) ;; provisional: call-site evidence only
+(define-extern *DISP_LIST-bank* DISP_LIST-bank) ;; confirmed: anim-tester.gc's own top-level-login registers this symbol via a type-new call whose flag word (label_types.jsonc "anim-tester" L697, 0x30/0x9) matches DISP_LIST-bank's own size-assert #x30 / method-count-assert 9; was provisional: call-site evidence only; the anim-tester section's own dead comment for this symbol stays dead, this is its one active declaration
 (define-extern *accessorize-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *active-net-non-spectator-count* object) ;; provisional: call-site evidence only
 (define-extern *active-net-player-count* object) ;; provisional: call-site evidence only
