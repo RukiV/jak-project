@@ -48,7 +48,7 @@
   ((info             vehicle-wheel-info               :offset-assert 0)
    (flags            uint8                            :offset-assert 4)
    (prev-flags       uint8                            :offset-assert 5)
-   (handle           uint64                           :offset-assert 8) ;; handle
+   (handle           handle                           :offset-assert 8)
    (probe-local-pos  vector                   :inline :offset-assert 16)
    (probe-local-dir  vector                   :inline :offset-assert 32)
    (local-axis       vector                   :inline :offset-assert 48)
@@ -258,7 +258,7 @@
 (deftype wvehicle (vehicle)
   ((net-extra                      wvehicle-net-extra        :inline :offset-assert 2140)
    (antenna                        uint64                            :offset-assert 2152)
-   (fire-tracker                   uint64                            :offset-assert 2160)
+   (fire-tracker                   handle                            :offset-assert 2160)
    (race                           race-control              :inline :offset-assert 2168)
    (ai                             wvehicle-ai-state         :inline :offset-assert 2192)
    (engine-rev                     float                             :offset-assert 2328)
@@ -333,8 +333,8 @@
    (jump-time                      uint32                            :offset-assert 3912)
    (no-slide-time                  uint32                            :offset-assert 3916)
    (slide-distance                 float                             :offset-assert 3920)
-   (power-slide-hud                uint64                            :offset-assert 3928)
-   (hang-time-hud                  uint64                            :offset-assert 3936)
+   (power-slide-hud                handle                            :offset-assert 3928)
+   (hang-time-hud                  handle                            :offset-assert 3936)
    (hang-time                      float                             :offset-assert 3944)
    (next-slide-sound-play-distance float                             :offset-assert 3948)
    (attached-array                 handle                    16      :offset-assert 3952) ;; guessed by decompiler
@@ -404,12 +404,25 @@
   :size-assert         #x1234
   :flag-assert         #x11011b01234
   (:state-methods
-    wvehicle-state-204 ;; 204
-    wvehicle-state-205 ;; 205
+    hostile ;; 204, disagreement check named it: "the state is named hostile,
+            ;; but the slot is named wvehicle-state-204" (this rung's own
+            ;; scoped decode: wvehicle-states.gc, method-set! wvehicle 204)
+    race-waiting ;; 205, same decode: (method-set! wvehicle 205 gp-6) names
+                 ;; the state 'race-waiting
     )
-  (:methods
-    (wvehicle-method-206 () none) ;; 206
-    (wvehicle-method-207 () none) ;; 207
+  ;; og:preserve-this methods 206/207/209 are virtual states too, same class
+  ;; as 208 below: wvehicle-states.gc's own decode names each one via its own
+  ;; (method-set! wvehicle N ...) call and (new 'static 'state :name ...)
+  ;; literal ('race-racing for 206, 'race-finished for 207, 'sink for 209).
+  ;; The decompiler does not raise its own "Virtual defstate" complaint for
+  ;; these three the way it did for 208 (their (_type_) none signature let
+  ;; the raw decode through without a check failing), but the type system's
+  ;; :methods entry was still wrong: each is a genuine per-vehicle-type
+  ;; state, not a plain method. Moved to keep the type consistent with the
+  ;; decode and so check_state_inherit.py's parent-state coverage sees them.
+  (:state-methods
+    race-racing ;; 206
+    race-finished ;; 207
     )
   ;; og:preserve-this method 208 is a virtual state, not a plain method: the
   ;; decompiler's own virtual-defstate check names it ("Virtual defstate is
@@ -422,8 +435,11 @@
   (:state-methods
     explode-into-nothing ;; 208
     )
+  (:state-methods
+    sink ;; 209, same class as 206/207 above: (method-set! wvehicle 209 gp-5)
+         ;; names the state 'sink in wvehicle-states.gc's own decode
+    )
   (:methods
-    (wvehicle-method-209 () none) ;; 209
     (wvehicle-method-210 (_type_ object object) none) ;; 210
     (wvehicle-method-211 (_type_ object) none) ;; 211
     (wvehicle-method-212 (_type_) none) ;; 212

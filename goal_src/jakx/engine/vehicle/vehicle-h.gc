@@ -707,6 +707,14 @@
    ;; confirmed offset (vehicle-h.o's own inspect, `ld a2, 724(gp)`, +4).
    (controls                        vehicle-controls                    :inline :offset 484)
    (prev-controls                   vehicle-controls                    :inline :offset 508)
+   ;; og:preserve-this unknown-flags-528 (raw capture 528, +4-corrected offset
+   ;; 532): wvehicle-states.gc's own decode of (enter sink) and (post
+   ;; race-finished) both mask this 32-bit load with 8 (bit 3) before gating
+   ;; a splash/sound-instance branch; no inspect method in this rung's scope
+   ;; names it, so kept as a placeholder alongside the rest of the
+   ;; unaccounted 12 bytes between prev-controls and impact.
+   (unknown-flags-528               uint32                               :offset 532)
+   (pad-pre-impact                  uint8                                8     :offset 536)
    (impact                          rigid-body-impact                   :inline :offset 544)
    (target-acceleration             vector                              :inline :offset 624)
    (impact-local-pos                vector                              :inline :offset 640)
@@ -752,14 +760,61 @@
    ;; pred, are all somewhere in here). Not resolvable from this rung's
    ;; scoped decode; a body-landing rung with a wider allowed_objects list
    ;; is the retirement path.
-   (pad-net-payload-gap             uint8                                948   :offset-assert 860)
+   (pad-pre-unknown-sound-id-884    uint8                                28    :offset-assert 860)
+   ;; og:preserve-this unknown-sound-id-884 (raw capture 884, +4-corrected
+   ;; offset 888): wvehicle-states.gc's own decode of (post explode) lazily
+   ;; allocates a sound-id here via new-sound-id the first time it is
+   ;; needed (same idiom as the already-named *-sound-id fields above), then
+   ;; passes it straight to make-sound-instance; no inspect method in this
+   ;; rung's scope names it, so kept as a placeholder inside the still-
+   ;; unaccounted net-payload gap.
+   (unknown-sound-id-884            sound-id                             :offset-assert 888)
+   (pad-pre-unknown-sound-id-892    uint8                                4     :offset-assert 892)
+   ;; og:preserve-this unknown-sound-id-892 (raw capture 892, +4-corrected
+   ;; offset 896): same lazy new-sound-id/make-sound-instance idiom as
+   ;; unknown-sound-id-884 immediately above, a second independent sound-id
+   ;; slot read at wvehicle-states.gc's (post explode).
+   (unknown-sound-id-892            sound-id                             :offset-assert 896)
+   (pad-pre-unknown-float-904       uint8                                8     :offset-assert 900)
+   ;; og:preserve-this unknown-float-904 (raw capture 904, +4-corrected
+   ;; offset 908): wvehicle-states.gc's own decode of (post explode) reads,
+   ;; damps toward zero and writes back this float repeatedly (an
+   ;; ease-toward-target accumulator driving the post-explosion camera
+   ;; shake decay); no inspect method in this rung's scope names it, so kept
+   ;; as a placeholder inside the still-unaccounted net-payload gap.
+   (unknown-float-904               float                                :offset-assert 908)
+   ;; og:preserve-this kept as pad-net-payload-gap (not renamed to a
+   ;; pad-post-* form) even though it now starts 52 bytes later than its
+   ;; original 860: the wcar-* family (wcar-bear, wcar-bobcat, wcar-cheetah,
+   ;; wcar-cougar, wcar-daxtermobile, wcar-falcon, wcar-gila, wcar-leopard,
+   ;; wcar-mongoose, wcar-panther, wcar-possum, wcar-tiger, wcar-wolf,
+   ;; wcar-wombat, wcar-snake) all index into it by name for their own
+   ;; vehicle-section array (12 elements, 64 bytes apart, absolute placed
+   ;; offsets 1024-1792); every one of those indices was shifted down by 52
+   ;; in the same commit that carved unknown-sound-id-884/892 and
+   ;; unknown-float-904 out of this field's front, so the name stays put and
+   ;; only the base offset and remaining size move.
+   (pad-net-payload-gap             uint8                                896   :offset-assert 912)
    (pred                            net-predictor-sphcol                :inline :offset-assert 1808)
    (next-reliable-send-time         int32                                       :offset-assert 2116)
    (player-id                       int8                                        :offset-assert 2120)
    (killed-by                       int8                                        :offset-assert 2121)
    (killed-with                     int8                                        :offset-assert 2122)
-   ;; og:preserve-this 9 bytes unaccounted (2123-2132).
-   (pad-post-killed-with            uint8                                9     :offset-assert 2123)
+   (pad-pre-unknown-int32-2120      uint8                                1     :offset-assert 2123)
+   ;; og:preserve-this unknown-int32-2120 (raw capture 2120, +4-corrected
+   ;; offset 2124): wvehicle-states.gc's own decode of (enter sink) stores a
+   ;; time delta computed from two *net-world* fields here; no inspect
+   ;; method in this rung's scope names it, so kept as a placeholder inside
+   ;; the still-unaccounted pad-post-killed-with span.
+   (unknown-int32-2120              int32                                :offset-assert 2124)
+   ;; og:preserve-this unknown-byte-2124 (raw capture 2124, +4-corrected
+   ;; offset 2128): wvehicle-states.gc's own decode of (enter sink) writes
+   ;; the literal 2 here (a state/enum marker of some kind) right before
+   ;; killed-by/killed-with are set; no inspect method in this rung's scope
+   ;; names it, so kept as a placeholder rather than left inside a pad
+   ;; array the decode would otherwise index into.
+   (unknown-byte-2124               uint8                                :offset-assert 2128)
+   (pad-post-unknown-byte-2124      uint8                                3     :offset-assert 2129)
    (last-warp-time                  int32                                       :offset-assert 2132)
    (last-sent-vehicle-control-flags uint8                                       :offset-assert 2136)
    )

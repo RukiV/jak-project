@@ -1135,5 +1135,25 @@
     // byte-array declaration for the same reason as the sp+608-class
     // regions above.
     [32, ["array", "uint8", 128]]
-  ]
+  ],
+  // (enter explode-into-nothing wvehicle), wvehicle-states rung: sp+16 is
+  // filled with explosion-init-params fields (radius/scale/group/
+  // collide-with/damage/... at +32 through +68, velocity at +80, both
+  // parent-override and target-override handle slots at +96/+104 built
+  // from a literal #f via the process->handle idiom, wpn-type at +112)
+  // then passed straight to explosion-spawn; the raw stack address's own
+  // type never resolved on its own ("Failed to guess stack use for 16").
+  "(enter explode-into-nothing wvehicle)": [[16, "explosion-init-params"]],
+  // (enter explode wvehicle), wvehicle-states rung: sp+16 is the same
+  // explosion-init-params shape as (enter explode-into-nothing wvehicle)
+  // above, this time with both handle slots built from a real (non-#f)
+  // target.
+  "(enter explode wvehicle)": [[16, "explosion-init-params"]],
+  // (post explode wvehicle), wvehicle-states rung: sp+16 is a two-float
+  // scratch pair (a time-since-explosion value at +0, a lerp-scale result
+  // compared against it at +4); the raw stack address's own type never
+  // resolved on its own ("Failed to guess stack use for 16"). sp+32 is a
+  // second, independent two-float scratch pair further down the same
+  // function ("Failed to guess stack use for 32").
+  "(post explode wvehicle)": [[16, "vector"], [32, "vector"]]
 }

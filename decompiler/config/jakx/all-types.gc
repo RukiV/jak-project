@@ -53775,6 +53775,14 @@
    ;; confirmed offset (vehicle-h.o's own inspect, `ld a2, 724(gp)`, +4).
    (controls                        vehicle-controls                    :inline :offset 484)
    (prev-controls                   vehicle-controls                    :inline :offset 508)
+   ;; og:preserve-this unknown-flags-528 (raw capture 528, +4-corrected offset
+   ;; 532): wvehicle-states.gc's own decode of (enter sink) and (post
+   ;; race-finished) both mask this 32-bit load with 8 (bit 3) before gating
+   ;; a splash/sound-instance branch; no inspect method in this rung's scope
+   ;; names it, so kept as a placeholder alongside the rest of the
+   ;; unaccounted 12 bytes between prev-controls and impact.
+   (unknown-flags-528               uint32                               :offset 532)
+   (pad-pre-impact                  uint8                                8     :offset 536)
    (impact                          rigid-body-impact                   :inline :offset 544)
    (target-acceleration             vector                              :inline :offset 624)
    (impact-local-pos                vector                              :inline :offset 640)
@@ -53807,13 +53815,58 @@
    (physics-enabled-time            uint32                                      :offset-assert 824)
    (pad-post-physics-enabled-time   uint8                                28    :offset-assert 828)
    (water-height                    float                                       :offset-assert 856)
-   (pad-net-payload-gap             uint8                                948   :offset-assert 860)
+   (pad-pre-unknown-sound-id-884    uint8                                28    :offset-assert 860)
+   ;; og:preserve-this unknown-sound-id-884 (raw capture 884, +4-corrected
+   ;; offset 888): wvehicle-states.gc's own decode of (post explode) lazily
+   ;; allocates a sound-id here via new-sound-id the first time it is
+   ;; needed (same idiom as the already-named *-sound-id fields above), then
+   ;; passes it straight to make-sound-instance; no inspect method in this
+   ;; rung's scope names it, so kept as a placeholder inside the still-
+   ;; unaccounted net-payload gap.
+   (unknown-sound-id-884            sound-id                             :offset-assert 888)
+   (pad-pre-unknown-sound-id-892    uint8                                4     :offset-assert 892)
+   ;; og:preserve-this unknown-sound-id-892 (raw capture 892, +4-corrected
+   ;; offset 896): same lazy new-sound-id/make-sound-instance idiom as
+   ;; unknown-sound-id-884 immediately above, a second independent sound-id
+   ;; slot read at wvehicle-states.gc's (post explode).
+   (unknown-sound-id-892            sound-id                             :offset-assert 896)
+   (pad-pre-unknown-float-904       uint8                                8     :offset-assert 900)
+   ;; og:preserve-this unknown-float-904 (raw capture 904, +4-corrected
+   ;; offset 908): wvehicle-states.gc's own decode of (post explode) reads,
+   ;; damps toward zero and writes back this float repeatedly (an
+   ;; ease-toward-target accumulator driving the post-explosion camera
+   ;; shake decay); no inspect method in this rung's scope names it, so kept
+   ;; as a placeholder inside the still-unaccounted net-payload gap.
+   (unknown-float-904               float                                :offset-assert 908)
+   ;; og:preserve-this kept as pad-net-payload-gap (not renamed to a
+   ;; pad-post-* form) even though it now starts 52 bytes later than its
+   ;; original 860: the wcar-* family all index into it by name for their
+   ;; own vehicle-section array; every one of those indices was shifted down
+   ;; by 52 in the same commit that carved unknown-sound-id-884/892 and
+   ;; unknown-float-904 out of this field's front (see goal_src's
+   ;; vehicle-h.gc for the full file list), so the name stays put and only
+   ;; the base offset and remaining size move.
+   (pad-net-payload-gap             uint8                                896   :offset-assert 912)
    (pred                            net-predictor-sphcol                :inline :offset-assert 1808)
    (next-reliable-send-time         int32                                       :offset-assert 2116)
    (player-id                       int8                                        :offset-assert 2120)
    (killed-by                       int8                                        :offset-assert 2121)
    (killed-with                     int8                                        :offset-assert 2122)
-   (pad-post-killed-with            uint8                                9     :offset-assert 2123)
+   (pad-pre-unknown-int32-2120      uint8                                1     :offset-assert 2123)
+   ;; og:preserve-this unknown-int32-2120 (raw capture 2120, +4-corrected
+   ;; offset 2124): wvehicle-states.gc's own decode of (enter sink) stores a
+   ;; time delta computed from two *net-world* fields here; no inspect
+   ;; method in this rung's scope names it, so kept as a placeholder inside
+   ;; the still-unaccounted pad-post-killed-with span.
+   (unknown-int32-2120              int32                                :offset-assert 2124)
+   ;; og:preserve-this unknown-byte-2124 (raw capture 2124, +4-corrected
+   ;; offset 2128): wvehicle-states.gc's own decode of (enter sink) writes
+   ;; the literal 2 here (a state/enum marker of some kind) right before
+   ;; killed-by/killed-with are set; no inspect method in this rung's scope
+   ;; names it, so kept as a placeholder rather than left inside a pad
+   ;; array the decode would otherwise index into.
+   (unknown-byte-2124               uint8                                :offset-assert 2128)
+   (pad-post-unknown-byte-2124      uint8                                3     :offset-assert 2129)
    (last-warp-time                  int32                                       :offset-assert 2132)
    (last-sent-vehicle-control-flags uint8                                       :offset-assert 2136)
    )
@@ -55205,7 +55258,7 @@
   ((info             vehicle-wheel-info               :offset-assert 0)
    (flags            uint8                            :offset-assert 4)
    (prev-flags       uint8                            :offset-assert 5)
-   (handle           uint64                           :offset-assert 8) ;; handle
+   (handle           handle                           :offset-assert 8)
    (probe-local-pos  vector                   :inline :offset-assert 16)
    (probe-local-dir  vector                   :inline :offset-assert 32)
    (local-axis       vector                   :inline :offset-assert 48)
@@ -55373,7 +55426,7 @@
 (deftype wvehicle (vehicle)
   ((net-extra                      wvehicle-net-extra        :inline :offset-assert 2140)
    (antenna                        uint64                            :offset-assert 2152)
-   (fire-tracker                   uint64                            :offset-assert 2160)
+   (fire-tracker                   handle                            :offset-assert 2160)
    (race                           race-control              :inline :offset-assert 2168)
    (ai                             wvehicle-ai-state         :inline :offset-assert 2192)
    (engine-rev                     float                             :offset-assert 2328)
@@ -55448,8 +55501,8 @@
    (jump-time                      uint32                            :offset-assert 3912)
    (no-slide-time                  uint32                            :offset-assert 3916)
    (slide-distance                 float                             :offset-assert 3920)
-   (power-slide-hud                uint64                            :offset-assert 3928)
-   (hang-time-hud                  uint64                            :offset-assert 3936)
+   (power-slide-hud                handle                            :offset-assert 3928)
+   (hang-time-hud                  handle                            :offset-assert 3936)
    (hang-time                      float                             :offset-assert 3944)
    (next-slide-sound-play-distance float                             :offset-assert 3948)
    (attached-array                 handle                    16      :offset-assert 3952) ;; guessed by decompiler
@@ -55511,12 +55564,25 @@
   :size-assert         #x1234
   :flag-assert         #x11011b01234
   (:state-methods
-    wvehicle-state-204 ;; 204
-    wvehicle-state-205 ;; 205
+    hostile ;; 204, disagreement check named it: "the state is named hostile,
+            ;; but the slot is named wvehicle-state-204" (this rung's own
+            ;; scoped decode: wvehicle-states.gc, method-set! wvehicle 204)
+    race-waiting ;; 205, same decode: (method-set! wvehicle 205 gp-6) names
+                 ;; the state 'race-waiting
     )
-  (:methods
-    (wvehicle-method-206 () none) ;; 206
-    (wvehicle-method-207 () none) ;; 207
+  ;; og:preserve-this methods 206/207/209 are virtual states too, same class
+  ;; as 208 below: wvehicle-states.gc's own decode names each one via its own
+  ;; (method-set! wvehicle N ...) call and (new 'static 'state :name ...)
+  ;; literal ('race-racing for 206, 'race-finished for 207, 'sink for 209).
+  ;; The decompiler does not raise its own "Virtual defstate" complaint for
+  ;; these three the way it did for 208 (their (_type_) none signature let
+  ;; the raw decode through without a check failing), but the type system's
+  ;; :methods entry was still wrong: each is a genuine per-vehicle-type
+  ;; state, not a plain method. Moved to keep the type consistent with the
+  ;; decode and so check_state_inherit.py's parent-state coverage sees them.
+  (:state-methods
+    race-racing ;; 206
+    race-finished ;; 207
     )
   ;; og:preserve-this method 208 is a virtual state, not a plain method: the
   ;; decompiler's own virtual-defstate check names it ("Virtual defstate is
@@ -55529,8 +55595,11 @@
   (:state-methods
     explode-into-nothing ;; 208
     )
+  (:state-methods
+    sink ;; 209, same class as 206/207 above: (method-set! wvehicle 209 gp-5)
+         ;; names the state 'sink in wvehicle-states.gc's own decode
+    )
   (:methods
-    (wvehicle-method-209 () none) ;; 209
     (wvehicle-method-210 (_type_ object object) none) ;; 210
     (wvehicle-method-211 (_type_ object) none) ;; 211
     (wvehicle-method-212 (_type_) none) ;; 212

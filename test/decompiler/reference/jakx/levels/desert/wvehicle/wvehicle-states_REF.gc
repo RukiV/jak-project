@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: wvehicle-states.gc
-;; name in dgo: wvehicle-states
-;; dgos: COMMON, GAME
-
-;; DECOMP BEGINS
-
 ;; definition for symbol *old-vector*, type object
 (define *old-vector* (the-as object (new 'static 'vector)))
 
@@ -23,20 +17,6 @@
 ;; failed to figure out what this is:
 (defstate explode (wvehicle)
   :virtual #t
-  ;; og:preserve-this explode's :enter is flagged as asm by config
-  ;; (decompiler/config/jakx/ntsc_v1/hacks.jsonc, "(anon-function 18
-  ;; wvehicle-states)"), the same class as (anon-function 6 credits-obs)'s
-  ;; own asm park: it fully builds an explosion-init-params struct (both
-  ;; parent-override and target-override handle fields resolve, the stack
-  ;; struct resolves) and blocks only on the low-level "sllv reg, reg, r0"
-  ;; step that folds a freshly ppointer-chased (pointer process) into a
-  ;; handle's low 32 bits; the decompiler's handle idiom matcher only
-  ;; recognizes that shift when its source is already handle-typed (see
-  ;; (post sink wvehicle)'s wheel-handle loop below for the shape it does
-  ;; recognize), not when the source comes from a ppointer chase. No body
-  ;; lands here since the decode provides none past that point and
-  ;; inventing one would misrepresent what the state actually does;
-  ;; retires when the matcher (or a hand-fold) covers this shape.
   :post (behavior ()
     (let ((gp-0 (new 'stack-no-clear 'vector)))
       (set! (-> gp-0 z) (seconds-per-frame))
@@ -144,13 +124,6 @@
 ;; failed to figure out what this is:
 (defstate explode-into-nothing (wvehicle)
   :virtual #t
-  ;; og:preserve-this explode-into-nothing's :enter is flagged as asm by
-  ;; config (decompiler/config/jakx/ntsc_v1/hacks.jsonc, "(anon-function 16
-  ;; wvehicle-states)"), the same class and same blocker as explode's
-  ;; :enter above (this one only builds one handle field from a literal
-  ;; #f rather than two from real expressions, but hits the identical
-  ;; unrecognized "sllv reg, reg, r0" ppointer-chase fold). No body lands
-  ;; here for the same reason; retires alongside explode's :enter.
   :code sleep-code
   :post (behavior ()
     (rlet ((vf0 :class vf)

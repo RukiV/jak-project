@@ -6333,5 +6333,36 @@
     [40, "a2", "cam-dbg-scratch"],
     [41, "a3", "cam-dbg-scratch"],
     [46, "a1", "cam-dbg-scratch"]
+  ],
+  // (anon-function 8 wvehicle-states), wvehicle-states rung: (post sink)'s
+  // per-wheel loop derefs (-> self wheel i handle) to a process (the
+  // handle->process idiom, now resolved via vehicle-wheel-state's own
+  // handle field), then reads draw-control off it at op 59; the runtime
+  // target is always process-drawable (every wvehicle-spawned wheel prop
+  // is one), not the generic process the handle idiom resolves to.
+  "(post sink wvehicle)": [
+    [[59, 60], "a1", "process-drawable"]
+  ],
+  // (enter explode-into-nothing wvehicle), wvehicle-states rung: builds
+  // explosion-init-params' parent-override and target-override handle
+  // fields from a literal #f (process->handle on a compile-time-nil
+  // process); the branch that would deref it is never actually taken (a0
+  // is set to #f immediately before the test that gates it), but the
+  // decompiler still has to type the dead read at +28 to finish the
+  // function. a0 casts to bare process (not a pointer): offset +28 is
+  // process's own ppointer field, so the read naturally produces (pointer
+  // process) as its result, matching (method 19 hud-medal-results)'s own
+  // documented "(pointer process) at +8 (self's own handle-adjacent field,
+  // offset 28)" shape in stack_structures.jsonc.
+  "(enter explode-into-nothing wvehicle)": [
+    [[49, 50], "a0", "process"],
+    [[61, 62], "a0", "process"]
+  ],
+  // (enter explode wvehicle), wvehicle-states rung: same explosion-init-
+  // params handle-building shape as (enter explode-into-nothing wvehicle)
+  // above, doubled (both handle slots built from real, non-#f expressions
+  // here rather than a literal #f).
+  "(enter explode wvehicle)": [
+    [[129, 130], "a0", "process"]
   ]
 }

@@ -416,7 +416,28 @@
     "(method 35 palm-tree-b)",
     "(method 54 palm-tree-b)",
     "(method 35 palm-tree-c)",
-    "(method 54 palm-tree-c)"
+    "(method 54 palm-tree-c)",
+    // (enter explode-into-nothing wvehicle) and (enter explode wvehicle),
+    // internal names (anon-function 16 wvehicle-states) and (anon-function
+    // 18 wvehicle-states): asm_functions_by_name is consulted before
+    // state-handler recognition renames the function, so the internal name
+    // is the key that matches here (same shape as (anon-function 6
+    // credits-obs) above). Both bodies build an explosion-init-params
+    // struct and fully resolve (stack struct, both handle fields, the
+    // ppointer-chase type prop) except for the low-level "sllv reg, reg,
+    // r0" step that folds the resolved ppointer into the handle's low
+    // 32 bits: the decompiler's handle idiom matcher only recognizes that
+    // shift when its source is already handle-typed (the direct
+    // field-load case, e.g. (post sink wvehicle)'s wheel-handle loop in
+    // this same file), not when the source is a (pointer process) freshly
+    // produced by a ppointer chase, which is what process->handle's own
+    // inline expansion produces here. Same failure class as (method 10
+    // rigid-body-queue) below (raw "sllv reg, reg, r0" triple the macro
+    // matcher does not recognize); parked as asm rather than hand-folded
+    // since both bodies are large (128+ and 352+ stack bytes) and the only
+    // unresolved piece is this one bit-twiddle, not the surrounding logic.
+    "(anon-function 16 wvehicle-states)",
+    "(anon-function 18 wvehicle-states)"
   ],
   // these functions use pairs and the decompiler
   // will be less picky about types related to pairs.
