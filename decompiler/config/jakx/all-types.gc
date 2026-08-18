@@ -38401,7 +38401,7 @@
     (gui-control-method-9 (_type_ process int int string float int) uint) ;; 9 ;; (add-process (_type_ process gui-channel gui-action string float time-frame) sound-id)
     (gui-control-method-10 () none) ;; 10 ;; (remove-process (_type_ process gui-channel) int)
     (gui-control-method-11 (_type_ gui-connection) none) ;; 11 ;; (stop-str (_type_ gui-connection) int)
-    (gui-control-method-12 () none) ;; 12 ;; (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id)
+    (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id) ;; 12
     (gui-control-method-13 () none) ;; 13 ;; (update (_type_ symbol) int)
     (gui-control-method-14 (_type_ string object object) none) ;; 14 ;; (lookup-gui-connection-id (_type_ string gui-channel gui-action) sound-id)
     (gui-control-method-15 (_type_ object object string) none) ;; 15 ;; (lookup-gui-connection (_type_ process gui-channel string sound-id) gui-connection)
@@ -46934,15 +46934,21 @@
 ;; ambient                        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern can-display-query? function) ;; (function process string float symbol)
-;; (define-extern talker-surpress! function) ;; (function int)
-;; (define-extern talker-displayed? function) ;; (function symbol)
+;; engine-quick-tier-9: uncommented to land ambient.gc itself; each signature
+;; verified against jak3's own body/call sites (can-display-query? returns the
+;; gui-connection-id's presence as a symbol, talker-surpress! and talker-init
+;; already matched goal_src's own ambient-h.gc forward declarations before this
+;; landing, talker-displayed? returns #t/#f directly, string->talker-speech
+;; returns the matched talker-speech-class or the table's own element 0 on miss).
+(define-extern can-display-query? (function process string float symbol))
+(define-extern talker-surpress! (function int))
+(define-extern talker-displayed? (function symbol))
 ;; og:preserve-this type visibility fix, R3a (#122): uncommented so the decompiler can
 ;; see past game-info_ir2.asm op 81's call (guarded at the call site in game-info.gc,
 ;; since ambient.o's body is still unlanded); matches goal_src's own already-live
 ;; declaration at ambient-h.gc:24. Retires when ambient.gc lands.
 (define-extern kill-current-talker (function pair pair symbol none))
-;; (define-extern string->talker-speech function) ;; (function string talker-speech-class)
+(define-extern string->talker-speech (function string talker-speech-class))
 ;; levels-other-tier rung: type-visibility fix only (same class as
 ;; kill-current-talker above), not an implementation; talker-spawn-func is
 ;; NOT landed anywhere in jakx goal_src (only jak2/jak3's own ambient.gc
@@ -46951,7 +46957,7 @@
 ;; not currently armed (dethrace.gd is commented out in game.gp), so this
 ;; is not a live boot-path concern for this landing.
 (define-extern talker-spawn-func (function talker-speech-class process-tree vector region sound-id))
-;; (define-extern talker-init function) ;; (function talker-speech-class vector region none :behavior talker)
+(define-extern talker-init (function talker-speech-class vector region none :behavior talker))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; speech                         ;;
@@ -61190,7 +61196,14 @@
 (declare-type auto-save process)
 (define-extern auto-save-command (function symbol int int process-tree symbol (pointer auto-save))) ;; part-tester_ir2.asm: two call sites in save-memcard's own event handlers reference this bare symbol ("Unknown symbol"), matching the dead block's own hint signature
 (define-extern auto-save-check (function int))
-;; (define-extern auto-save-user function) ;; (function (pointer auto-save))
+;; engine-quick-tier-9: uncommented so ambient.gc's (exit active talker) and
+;; (enter active talker) can see auto-save-user (jak3's own game-save.gc:2975
+;; declares it zero-arg returning (pointer auto-save), matching the commented
+;; signature exactly); auto-save-user itself is not landed anywhere in jakx
+;; goal_src yet (game-save.gc is still a stub), so a call that actually
+;; reaches this on a live path still links as zero until game-save.gc lands,
+;; same class as talker-spawn-func's own note above.
+(define-extern auto-save-user (function (pointer auto-save)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; title-obs                      ;;

@@ -2114,7 +2114,7 @@
     [102, "gp", "(array int8)"],
     [121, "gp", "(array uint8)"],
     [141, "gp", "(array int16)"],
-    [161, "gp", "(array uint16)"],
+    [161, "gp", "(pointer uint16)"],
     [186, "gp", "(array uint128)"],
     [204, "gp", "(array int32)"],
     [223, "gp", "(array float)"],
@@ -2130,7 +2130,7 @@
     [122, "gp", "(array int8)"],
     [139, "gp", "(array int8)"],
     [157, "gp", "(array int16)"],
-    [175, "gp", "(array uint16)"],
+    [175, "gp", "(pointer uint16)"],
     [198, "gp", "(array uint128)"],
     [214, "gp", "(array int32)"],
     [233, "gp", "(array float)"],
@@ -7186,5 +7186,64 @@
   "find-nearest-camera-distance": [
     [9, "v1", "camera-combiner"],
     [20, "v1", "camera-combiner"]
-  ]
+  ],
+  // engine-quick-tier-9 (ambient.gc): (exit active talker) and (method 10
+  // talker) (deactivate) both read the talker's own voicebox field (offset
+  // 196, already declared handle) then split it via the standard sllv/dsra32
+  // handle->process idiom (low 32 bits dereferenced as the process pointer,
+  // high 32 bits read back as the pid), the same shape as update-eyes and
+  // dirty-eyes above. Unlike shadow-vu1's held self-referential sllv (source
+  // and destination the same register), both sites here move the value into
+  // a different destination register (sllv a0, v1, r0), matching the
+  // update-eyes precedent's shape rather than the held one; casting the raw
+  // loaded handle value itself over its full live range (load through the
+  // dsra32) lets (method 10 talker)'s own split resolve, but NOT (exit
+  // active talker)'s: that function's own op 22 immediately re-derefs the
+  // sllv result through the SAME register (lwu a0, 0(a0), self-referential),
+  // unlike (method 10 talker)'s op 15 (lwu a2, 0(a0), a different register);
+  // tested and confirmed the cast alone does not clear that function's own
+  // sllv or stack-use errors, matching the shadow-vu1 self-referential class
+  // held on issue 416. Left as a genuine wall; only the separate op-43
+  // process-drawable cast below is a real fix for this function.
+  "(method 10 talker)": [[[10, 18], "v1", "handle"]],
+  // engine-quick-tier-9 (ambient.gc): talker-speech-class's five methods
+  // (should-play?, mark-played!, reset-state!, yes-play!, no-play!) all read
+  // *game-info* then its own raw offset 1168 (declared field 1172 per the
+  // +4 basics convention, game-info's own unnamed game-info-pad2 slot,
+  // landing exactly where jak3's own game-info-h.gc declares talker-state,
+  // an (array uint16), right after task-counter) and index into it exactly
+  // as jak3's own talker-state accesses do (index * 2 logical, doubled
+  // again for the uint16 element stride, plus the array data offset 12).
+  // og:preserve-this: tried and left unresolved. Casting the loaded value
+  // itself at the consuming op (not the load op, which corrupts the base
+  // pointer role instead per the update-eyes-style convention above) does
+  // get the load's own result correctly typed (array uint16) or (pointer
+  // uint16), visible in the op's own output annotation, but the immediately
+  // following daddu combining it with the shifted speech-index value still
+  // resolves to <uninitialized> regardless of whether the index operand is
+  // separately cast to int; the exact same shape as the already-documented
+  // game-info top-level-login task-counter note above (offset 1168, "left
+  // unfixed... a decompiler-internal gap rather than a missing config
+  // idiom"), just reached from a method instead of TOP_LEVEL_INIT, so that
+  // note's FunctionKind theory does not fully explain it either. Held as raw
+  // asm at all five methods per house convention (folds that do not
+  // converge stay asm); not retyping game-info-pad2 itself since these five
+  // methods are the only evidence for what it really holds and every other
+  // reader of game-info near that offset (task-counter's own two confirmed
+  // scalar increments) would need to keep working unchanged.
+  "talker-spawn-func": [
+    [76, "a0", "talker"],
+    [79, "v1", "talker"],
+    [82, "v1", "talker"]
+  ],
+  // engine-quick-tier-9 (ambient.gc): (exit active talker)'s own op 43 reads
+  // process-drawable's own root field (raw offset 184, declared 188 per the
+  // +4 basics convention) off v1, which type? at op 31-32 already confirmed
+  // is a process-drawable at runtime but whose static type stays the plain
+  // process the earlier view-get-active-target/type? chain produced; jak3's
+  // own (exit active talker) reads the identical chain as (-> (the-as
+  // process-drawable v1-9) root trans). This clears the op-43 load error;
+  // the function's own sllv and stack-use errors from the voicebox handle
+  // split (ops 17-25, see the note above (method 10 talker)) stay unfixed.
+  "(exit active talker)": [[43, "v1", "process-drawable"]]
 }
