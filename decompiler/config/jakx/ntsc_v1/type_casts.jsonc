@@ -4524,7 +4524,46 @@
     // hvdfoff x/y, confirmed against this worktree's own shadow-vu1-constants
     // declaration). v1 is reassigned at op 92 back to a plain dma-buffer
     // base read, so the cast ends there.
-    [[18, 92], "v1", "shadow-vu1-constants"]
+    [[18, 92], "v1", "shadow-vu1-constants"],
+    // a3 (op 2, l.wu of arg0's dma-buffer base) writes a dma-tag/vif0/vif1
+    // header at +0/+8/+12 (ops 7/9/14), the same dma-packet shape jak3's
+    // own shadow-vu1-add-constants casts at its equivalent point (its
+    // ops 7-16, register a2). Reassigned at op 15 to the advanced base.
+    [[3, 15], "a3", "dma-packet"],
+    // a1 (op 96, a second dma-buffer base read) writes a second
+    // dma-packet header at +0/+8/+12 (ops 98/100/102), same shape again.
+    // Reassigned at op 103 to the advanced base.
+    [[97, 103], "a1", "dma-packet"],
+    // a1 (op 106, a third dma-buffer base read) writes what raw offsets
+    // 0/8/16/24/32/40/48/56 (ops 108/110/111/113/114/115/117/119) look
+    // like eight doublewords, but each pair is one 16-byte GS register
+    // write: gs-gif-tag and gs-adcmd both declare a 64-bit tag/data
+    // field at +0 and a 64-bit regs/cmd field at +8, so a shadow-vu1-data
+    // cast resolves every store as adgif.tag/adgif.regs, ad.data/ad.cmd,
+    // flush.data/flush.cmd, trigif.tag/trigif.regs in turn, matching
+    // jak3's own shadow-vu1-data cast at its equivalent block. Reassigned
+    // at op 120 to the advanced base.
+    [[107, 120], "a1", "shadow-vu1-data"],
+    // a1 (op 90, an address computed as *shadow-globals* + bucket-view
+    // index * 64 + bucket index * 32) stores v1 (the shadow-vu1-constants
+    // pointer) at +24 (op 91). Initially read as a genuine 8-byte
+    // discrepancy against shadow-bucket's own declared constants field
+    // (offset 16), but shadow-bucket's own retail-decompiled inspect
+    // method (shadow-cpu-h.gc, already landed) reads the same compound
+    // value at relative offset 16 from a direct instance pointer, and
+    // the existing cast on shadow-vu1-patch-consts's v1 (this file,
+    // above) already documents this exact class of access: the raw
+    // *shadow-globals* arithmetic here does not add the 8 bytes for
+    // shadow-globals's own num-buckets/cur-bucket header before scaling
+    // by the view index, so the "+24" observed from the unadjusted base
+    // is the same "+16" the header-adjusted base would show, landing on
+    // constants as already declared, not past it. Matching that
+    // function's own resolution, cast to a raw pointer-to-pointer rather
+    // than reshaping shadow-bucket: (pointer shadow-vu1-constants)
+    // indexed at 6 (6 * 4 = 24) stores the same value shadow-vu1-constants
+    // itself is typed as, without asserting a field name the type's own
+    // declared extent does not support. a1 is used only at this one op.
+    [[91, 92], "a1", "(pointer shadow-vu1-constants)"]
   ],
   // update-eyes and dirty-eyes: v1 is eye-control's own process field
   // (l.d offset 0, declared uint64 "handle" in its own table), then
