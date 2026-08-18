@@ -1,4 +1,23 @@
 {
+  // (method 71 coli-atlas-globe), coliseum-obs-atlas rung: sp+16 is passed
+  // directly as collide-cache's collide-query arg (op 212, the vtable call's
+  // own inferred type is (function collide-cache collide-query none)), and
+  // its own start-pos/move-dist fields (offsets 208/224 off the sp+16 base)
+  // are written directly by raw quad stores matching collide-query's real
+  // declared field offsets exactly. sp+560 (16 + collide-query's own 0x21c
+  // size, rounded to 16) is a rigid-body-impact: offset 0 used as a plain
+  // vector, offset 16 read back as three individual floats at +0/+4/+8
+  // (x/y/z), offset 32 used as a second vector arg to the same call --
+  // exactly rigid-body-impact's point/normal/velocity layout.
+  "(method 71 coli-atlas-globe)": [[16, "collide-query"], [560, "rigid-body-impact"]],
+  // (method 80 coli-atlas-globe), coliseum-obs-atlas rung: sp+32 is used at
+  // its own offsets 0/16/64; sp+112 (16 bytes further at absolute 96 from
+  // sp+32's own base) is already independently typed matrix by the
+  // decompiler on its own (unresolved here), so sp+32's own matrix (64
+  // bytes, covering its 0/16 sub-uses) leaves exactly a 16-byte vector gap
+  // at absolute sp+96 before that already-resolved matrix at sp+112,
+  // matching sp+32's own offset-64 use.
+  "(method 80 coli-atlas-globe)": [[32, "matrix"], [96, "vector"]],
   // (method 14 hud-effect-emit-score-icon), hud-and-levels-misc rung: sp+16
   // is filled by two sequential swc1 float stores at +0/+4 (an item's own
   // position-x/position-y cast to float) then passed straight through to

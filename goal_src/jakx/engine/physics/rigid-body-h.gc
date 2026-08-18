@@ -262,6 +262,19 @@
     ;; explicit penetrate arg this body never reads or references, so the
     ;; third arg is not adopted without call-site evidence for it.
     (rigid-body-object-method-79 (_type_ rigid-body-impact attack-info) none) ;; 79
+    ;; coliseum-obs-atlas rung: coli-atlas-globe's own override of this
+    ;; method sets v0 to the symbol #t on an early-return path and to the
+    ;; literal integer 0 on its normal-completion path, which the
+    ;; decompiler cannot reconcile against the none declared here
+    ;; ("invalid vector subscript... return type is not none"). Widening
+    ;; the declared return to object was tried and reverted: goalc rejects
+    ;; it outright ("originally defined as returning object, but has been
+    ;; redefined and returns none") because this file's own base body ends
+    ;; in an explicit (none), which is a genuine type error against a
+    ;; non-none declared return, not merely a warning; every override
+    ;; would need its tail rewritten to match before the return type can
+    ;; move. Left at none and the coli-atlas-globe override held out of
+    ;; the coliseum-obs-atlas landing until that is done.
     (rigid-body-object-method-80 (_type_ rigid-body-impact) none) ;; 80
     (rigid-body-object-method-81 (_type_ process int symbol event-message-block) object) ;; 81 ;; jak3's rbody-event-handler shape: the decode reads a0/a1/a2/a3/t0 unset under the bare signature and rigid-body-object-event-handler passes the behavior's four event args straight through
     ;; og:preserve-this arg count corrected from zero (2026-08-16 construction-obs-h
@@ -284,6 +297,20 @@
     ;; for this slot. construction-obs-h.gc's own override and tail-call are
     ;; widened together with this signature in the same change (this rung),
     ;; so the arity-checked method-of-type call there stays consistent.
+    ;; coliseum-obs-atlas rung: coli-atlas-globe's own override of this
+    ;; method sets v0 to the symbol #t on BOTH its early-return path
+    ;; (guarded by a method-104 truthiness check) and its normal-completion
+    ;; path, with no (none)-coercion anywhere in the body, which the
+    ;; decompiler cannot reconcile against the none declared here
+    ;; ("invalid vector subscript... return type is not none"). Widening
+    ;; the declared return to symbol was tried and reverted: goalc rejects
+    ;; it outright ("originally defined as returning symbol, but has been
+    ;; redefined and returns none") because this file's own base body ends
+    ;; in an explicit (none), which is a genuine type error against a
+    ;; non-none declared return, not merely a warning; every override
+    ;; would need its tail rewritten to match before the return type can
+    ;; move. Left at none and the coli-atlas-globe override held out of
+    ;; the coliseum-obs-atlas landing until that is done.
     (rigid-body-object-method-82 (_type_ process-drawable attack-info touching-shapes-entry penetrate) none) ;; 82
     ;; og:preserve-this rigid-body-object rung: arg0 written at offsets 0/16/32
     ;; (vector-sized zero stores, vf0) then 56/60 (single words), matching

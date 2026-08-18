@@ -8,6 +8,117 @@
     [[18, 38], "s6", "coli-break-object"],
     [[62, 67], "s6", "coli-break-object"]
   ],
+  // atlas-collapse (coliseum-obs-atlas rung): s3 is process-by-name's own
+  // generic process return, immediately used at raw offset 228 (rigid-body-
+  // control off coli-atlas-globe, matching the type's declared field) and
+  // offset 60 (entity, process-drawable's own field); the string literal
+  // it was found by ("coli-atlas-globe-1") confirms the real type.
+  "atlas-collapse": [
+    [[20, 35], "s3", "coli-atlas-globe"],
+    [41, "v1", "(pointer float)"]
+  ],
+  // (method 3 coli-statue) / (method 3 coli-object-base) (coliseum-obs-atlas
+  // rung): the inspect method's actor-group-count print loop computes
+  // (-> this actor-group) + index*4 then loads a word from it for the
+  // ~`actor-group`P format arg; the field's own declared type (uint32,
+  // adjudicated at the coliseum-obs-female-statue rung) does not itself
+  // resolve as a pointer for this arithmetic, so the computed address is
+  // cast through a raw word pointer for the load only, same class as
+  // (method 18 race-mesh) below.
+  "(method 3 coli-statue)": [
+    [[22, 24], "v1", "(pointer uint32)"]
+  ],
+  "(method 3 coli-object-base)": [
+    [[22, 24], "v1", "(pointer uint32)"]
+  ],
+  // (method 92 coli-atlas-globe) (coliseum-obs-atlas rung): mem-buffer's
+  // own method at vtable offset 152 (mem-buffer-method-34) is declared
+  // returning none corpus-wide, but this call site immediately stores the
+  // result into last-sync-time (an int32 field) and later subtracts it
+  // from an int; casting the local result register to int here (rather
+  // than widening mem-buffer-method-34's shared return type for every
+  // caller in the corpus) keeps the fix scoped to this one call site.
+  "(method 92 coli-atlas-globe)": [
+    [[10, 67], "s5", "int"]
+  ],
+  // (method 71 coli-atlas-globe) (coliseum-obs-atlas rung): the collide-
+  // query setup phase (same stack region as the stack_structures.jsonc
+  // entry below) writes several of its own fields directly by raw offset
+  // (collide-with, ignore-process0/1, ignore-pat, action-mask, solid-only,
+  // radius); collide-query's own declared layout overlaps several of these
+  // offsets with OTHER guessed fields (e.g. radius at 268 falls inside the
+  // 2-entry exit-planes array declared just before it), so the struct
+  // type alone leaves the stores ambiguous ("Failed store"). Casting the
+  // pointer through a raw word/float pointer per store, the same
+  // technique as *coli-atlas-ball-constants* above, bypasses the overlap
+  // for exactly these seven writes without touching collide-query itself.
+  "(method 71 coli-atlas-globe)": [
+    [198, "a0", "(pointer float)"],
+    [200, "a0", "(pointer uint32)"],
+    [201, "a0", "(pointer uint32)"],
+    [202, "a0", "(pointer uint32)"],
+    [204, "a0", "(pointer uint32)"],
+    [206, "a0", "(pointer uint32)"],
+    [207, "a0", "(pointer uint32)"]
+  ],
+  // (method 80 coli-atlas-globe) (coliseum-obs-atlas rung): same
+  // *coli-atlas-ball-constants* offset-188 float store as atlas-collapse
+  // above, same fix.
+  "(method 80 coli-atlas-globe)": [
+    [5, "v1", "(pointer float)"]
+  ],
+  // (method 53 coli-statue) / (post idle coli-statue) (coliseum-obs-atlas
+  // rung): both walk (-> this actor-group) with the same raw
+  // pointer-plus-index-times-8 shape the inspect methods hit above, just
+  // over a different field/array combination inside it (an entity-actor
+  // id lookup, matching generic-obs.gc's own
+  // (-> this actor-group N data M id) idiom); cast through a raw word
+  // pointer for the walk rather than re-deriving actor-group's full
+  // nested layout.
+  // og:preserve-this: op 23/24 (this function) and op 51/52 (post idle
+  // coli-statue below) both re-dereference the same (pointer uint32) cast
+  // one level deeper for their while-loop's own count check
+  // ((-> actor-group-ptr 1) as a second word past the base), which the
+  // decompiler cannot resolve even with the pointer cast in place
+  // ("Could not figure out load: (set! v1 (l.w v1))"); the loop count
+  // check is written by hand in the landing text from this same cast
+  // instead of relying on the raw reconstruction for those two ops.
+  "(method 53 coli-statue)": [
+    [[0, 24], "gp", "(pointer uint32)"]
+  ],
+  "(post idle coli-statue)": [
+    [[0, 52], "v1", "(pointer uint32)"]
+  ],
+  // coli-atlas-base-break / coli-atlas-statue-break-a / coli-atlas-statue-
+  // break-b (coliseum-obs-atlas rung): all three siblings share the same
+  // die-handling shape, a type? check confirming (-> this root) is really
+  // a collide-shape before reaching into its root-prim (raw offset 156,
+  // collide-shape's own declared field at 160) to restore the prim's
+  // collide-as/collide-with from the parent's own backed-up
+  // collide-as/collide-with; root itself stays declared as the generic
+  // trsqv process-drawable gives it, so the post-type?-check reload is
+  // cast to collide-shape here instead.
+  "(method 11 coli-atlas-base-break)": [
+    [[41, 45], "v1", "collide-shape"]
+  ],
+  "(event idle coli-atlas-base-break)": [
+    [[8, 16], "v1", "collide-shape"],
+    [[10, 15], "a0", "collide-shape"]
+  ],
+  "(method 11 coli-atlas-statue-break-b)": [
+    [[112, 117], "v1", "collide-shape"]
+  ],
+  "(event idle coli-atlas-statue-break-b)": [
+    [[8, 16], "v1", "collide-shape"],
+    [[10, 15], "a0", "collide-shape"]
+  ],
+  "(method 11 coli-atlas-statue-break-a)": [
+    [[113, 118], "v1", "collide-shape"]
+  ],
+  "(event idle coli-atlas-statue-break-a)": [
+    [[8, 16], "v1", "collide-shape"],
+    [[10, 15], "a0", "collide-shape"]
+  ],
   // (method 9 race-mesh) (race-mesh rung, jakx-levels-other-tier-4): v1's
   // self-referential second load (dest and base both v1, l.h (+ v1 2),
   // end-edge) fails even though v1 is already typed race-mesh-slice at

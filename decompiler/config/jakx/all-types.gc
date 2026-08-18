@@ -48717,6 +48717,20 @@
     ;; explicit penetrate arg this body never reads or references, so the
     ;; third arg is not adopted without call-site evidence for it.
     (rigid-body-object-method-79 (_type_ rigid-body-impact attack-info) none) ;; 79
+    ;; coliseum-obs-atlas rung: coli-atlas-globe's own override sets v0 to
+    ;; the symbol #t on an early-return path (op 23, guarded by a
+    ;; method-104 truthiness check, identical shape to method 82's own
+    ;; early return above) and to the literal integer 0 on its
+    ;; normal-completion path (op 466), which the decompiler cannot
+    ;; reconcile against none ("invalid vector subscript... return type is
+    ;; not none"). Widening the declared return to object was tried and
+    ;; reverted: goalc rejects it ("originally defined as returning
+    ;; object, but has been redefined and returns none") because
+    ;; rigid-body-object.gc's own base body ends in an explicit (none), a
+    ;; genuine type error against a non-none declared return, not a
+    ;; warning; every override needs its tail rewritten first. Left at
+    ;; none and coli-atlas-globe's own override of it held out of the
+    ;; coliseum-obs-atlas landing until that is done.
     (rigid-body-object-method-80 (_type_ rigid-body-impact) none) ;; 80 ;; arg1 read at offset 48 (float) and 56 (process), matching rigid-body-impact's impulse and process fields exactly; (method 80 haven-trashcan) uses it for an impulse-scaled impact sound gated by the causing process's mask bit 27
     (rigid-body-object-method-81 (_type_ process int symbol event-message-block) object) ;; 81 ;; jak3's rbody-event-handler shape: the decode reads a0/a1/a2/a3/t0 unset under the bare signature and rigid-body-object-event-handler passes the behavior's four event args straight through
     ;; og:preserve-this arg count corrected from zero (2026-08-16 construction-obs-h
@@ -48739,6 +48753,22 @@
     ;; for this slot. construction-obs-h.gc's own override and tail-call are
     ;; widened together with this signature in the same change (this rung),
     ;; so the arity-checked method-of-type call there stays consistent.
+    ;; coliseum-obs-atlas rung: coli-atlas-globe's own override
+    ;; (coliseum-obs-atlas_ir2.asm) sets v0 to the symbol #t on BOTH its
+    ;; early-return path (op 12, guarded by a method-104 truthiness check)
+    ;; and its normal-completion path (op 133, the last instruction before
+    ;; the shared return label), with no (none)-coercion anywhere in the
+    ;; body; the decompiler cannot build an expression tree under the old
+    ;; none declaration ("Error while inserting lets: invalid vector
+    ;; subscript. Make sure that the return type is not none if something
+    ;; is actually returned"). Widening the declared return to symbol was
+    ;; tried and reverted: goalc rejects it ("originally defined as
+    ;; returning symbol, but has been redefined and returns none") because
+    ;; rigid-body-object.gc's own base body ends in an explicit (none), a
+    ;; genuine type error against a non-none declared return, not a
+    ;; warning; every override needs its tail rewritten first. Left at
+    ;; none and coli-atlas-globe's own override of it held out of the
+    ;; coliseum-obs-atlas landing until that is done.
     (rigid-body-object-method-82 (_type_ process-drawable attack-info touching-shapes-entry penetrate) none) ;; 82
     ;; og:preserve-this rigid-body-object rung: arg0 written at offsets 0/16/32
     ;; (vector-sized zero stores, vf0) then 56/60 (single words), matching
@@ -79516,13 +79546,25 @@
   ;; dead block's method-count-assert was auto-synced to match the bug
   ;; instead of fixing it). method-count-assert corrected to 95 (89 inherited
   ;; + 6 own), flag-assert's count byte corrected to match (0x5f).
+  ;; coliseum-obs-atlas rung: methods 90-94 all read their receiver (a0)
+  ;; before writing it (field arithmetic straight off a0 at raw offsets
+  ;; that resolve to real declared fields above once shifted +4, e.g.
+  ;; method-91's raw a0+300 = last-sent-position at 304), which the bare
+  ;; "()" placeholder left untyped; the same class coli-object-base-method-70
+  ;; hit at the coliseum-obs-female-statue rung, same fix (_type_ receiver).
+  ;; methods 91/92 additionally read a1 before writing it, reused as the
+  ;; receiver for mem-buffer vtable dispatches (offsets 80/108/152/180 off
+  ;; mem-buffer's own type, coliseum-obs-atlas_ir2.asm methods 91/92 bodies).
+  ;; method 93 ends in the standard #t/#f movz idiom
+  ;; ((<.si v1-0 a0-2), then daddiu v0 s7 4 / movz v0 s7 v1), a genuine
+  ;; boolean return, not the placeholder's none.
   (:methods
     (coli-atlas-globe-method-89 () none) ;; 89
-    (coli-atlas-globe-method-90 () none) ;; 90
-    (coli-atlas-globe-method-91 () none) ;; 91
-    (coli-atlas-globe-method-92 () none) ;; 92
-    (coli-atlas-globe-method-93 () none) ;; 93
-    (coli-atlas-globe-method-94 () none) ;; 94
+    (coli-atlas-globe-method-90 (_type_) none) ;; 90
+    (coli-atlas-globe-method-91 (_type_ mem-buffer) none) ;; 91
+    (coli-atlas-globe-method-92 (_type_ mem-buffer) none) ;; 92
+    (coli-atlas-globe-method-93 (_type_) symbol) ;; 93
+    (coli-atlas-globe-method-94 (_type_) none) ;; 94
     )
   )
 
@@ -79602,16 +79644,45 @@
   )
 
 
-;; (define-extern restore-self function)
-;; (define-extern coli-statue-init-remote function)
-;; (define-extern *msg-map-coli-statue* array)
-;; (define-extern *net-process-class-info-coli-statue* object)
-;; (define-extern coli-atlas-globe-init-remote function)
-;; (define-extern *msg-map-coli-atlas-globe* array)
-;; (define-extern *net-process-class-info-coli-atlas-globe* object)
-;; (define-extern *coli-atlas-ball-constants* object)
-;; (define-extern atlas-base-fix function)
-;; (define-extern atlas-collapse function)
+;; coliseum-obs-atlas rung: the five function symbols below were only ever
+;; commented placeholders (generic "function" type), which the decompiler
+;; cannot type-check a caller against ("has unknown type") and which also
+;; broke process-nettable-method-41's run-function-in-process call (its
+;; a1 argument reads coli-atlas-globe-init-remote/coli-statue-init-remote
+;; through the symbol table, and a bare "function" type there fails
+;; validation). All five bodies are visible in this rung's own
+;; coliseum-obs-atlas_ir2.asm.
+;; restore-self: reads no args (only s6/pp), calls enter-state and returns
+;; its result; enter-state itself is declared (function object object
+;; object object object object object). Both of its two callers
+;; (coliseum-obs-atlas_ir2.asm's net-simple-destruct-method-68 override and
+;; its (event idle coli-object-base) revive case) are coli-object-base
+;; contexts, and the dispatch inside it is method 59 off s6's own type,
+;; exactly coli-object-base's own declared idle state id; :behavior
+;; narrows self so that resolves instead of erroring against generic
+;; process (which has no method 59).
+(define-extern restore-self (function object :behavior coli-object-base))
+;; coli-statue-init-remote / coli-atlas-globe-init-remote: identical shape,
+;; one body per type. Each reads exactly one incoming register (a0, an
+;; int) before writing it, then dispatches three process-nettable vtable
+;; slots (offsets 152/156/160, methods 38/39/40) on s6/pp and returns a
+;; literal 0. Matches the net-player-init-remote / net-powerup-init-remote
+;; precedent already declared below (function int none :behavior TYPE).
+(define-extern coli-statue-init-remote (function int none :behavior coli-statue))
+;; *msg-map-coli-statue* / *net-process-class-info-coli-statue*: real
+;; provisional externs already declared alphabetically below (object,
+;; call-site evidence only); these placeholder lines are superseded.
+(define-extern coli-atlas-globe-init-remote (function int none :behavior coli-atlas-globe))
+;; *msg-map-coli-atlas-globe* / *net-process-class-info-coli-atlas-globe* /
+;; *coli-atlas-ball-constants*: declared alphabetically below (object,
+;; call-site evidence only), matching the coli-statue precedent.
+;; atlas-base-fix / atlas-collapse: both read zero incoming registers
+;; (every a0/a1 use is a local write before its first read); each calls
+;; process-by-name three times then send-event-function per result,
+;; returning whatever the last send-event-function call returns (object,
+;; matching send-event-function's own declared return type).
+(define-extern atlas-base-fix (function object))
+(define-extern atlas-collapse (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; coliseum-obs-2                 ;;
@@ -85419,6 +85490,14 @@
 
 (define-extern *capture-tga-temp* int)
 (define-extern *car-part-temp-string* string)
+;; coliseum-obs-atlas rung: atlas-collapse and method 80 both write/read a
+;; float field at offset 188 through this pointer, and it is passed
+;; straight through to rigid-body-object-method-64 (itself only declared
+;; (_type_ object), no further evidence there). Generic object left the
+;; offset-188 store unresolvable ("Failed store"); typed as a raw byte
+;; pointer for that arithmetic instead, matching
+;; *medius-policy-formatted-buffer*'s own identical justification above.
+(define-extern *coli-atlas-ball-constants* (pointer uint8))
 (define-extern *coli-center-arch-explode-params* joint-exploder-static-params)
 (define-extern *default-fast-curve* curve2d-fast)
 (define-extern *eye-work* eye-work)
@@ -86115,7 +86194,15 @@
 (define-extern *movie-path-filename* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-artifact* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-chicken-drone* object) ;; provisional: call-site evidence only
-(define-extern *msg-map-coli-statue* object) ;; provisional: call-site evidence only
+;; coliseum-obs-atlas rung: proven, matching *msg-map-net-powerup*'s own
+;; citation (net-process-class-info's own msg-map field, offset 0, is
+;; declared (array symbol)). Typing both as plain object left the later
+;; write-through store (top-level-login op 446, s.w! through
+;; *net-process-class-info-coli-atlas-globe*) and coli-statue's identical
+;; op 85 store both unresolvable ("Failed store"); the real field type
+;; fixes both instead of only the one this rung is landing.
+(define-extern *msg-map-coli-atlas-globe* (array symbol))
+(define-extern *msg-map-coli-statue* (array symbol))
 (define-extern *msg-map-collectoid-draw* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-eco-mgr* object) ;; provisional: call-site evidence only
 ;; later-duplicate-wins: superseded by the correctly-typed define-extern
@@ -86172,7 +86259,19 @@
 (define-extern *net-player-ladder-stats-info* (pointer stat-info))
 (define-extern *net-process-class-info-artifact* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-artifact-draw* object) ;; provisional: call-site evidence only
-(define-extern *net-process-class-info-coli-statue* object) ;; provisional: call-site evidence only
+;; coliseum-obs-atlas rung: top-level-login writes a label here
+;; (coliseum-obs-atlas_ir2.asm op 442) then reads it straight back for
+;; write-msg-map-rec and net-process-class-register, the same shape as
+;; *net-process-class-info-coli-statue* (op 82, same file). Typed as the
+;; real net-process-class-info structure, matching the many other
+;; *net-process-class-info-<type>* externs already declared this way
+;; (e.g. *net-process-class-info-net-world*): top-level-login stores the
+;; msg-map at offset 0 and the owning type symbol at offset 24, exactly
+;; net-process-class-info's own declared msg-map/owner-type fields; the
+;; generic object typing left both this store and coli-statue's identical
+;; op 85 store unresolvable ("Failed store").
+(define-extern *net-process-class-info-coli-atlas-globe* net-process-class-info)
+(define-extern *net-process-class-info-coli-statue* net-process-class-info)
 (define-extern *net-process-class-info-collectoid* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-collectoid-draw* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-ctf-flag* object) ;; provisional: call-site evidence only
