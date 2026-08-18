@@ -44,3 +44,17 @@ void goal_crash_map_format_native_rip_for_test(const char* module_basename,
                                                u64 rip,
                                                char* out,
                                                size_t out_size);
+
+// test seam (issue #376): forwards to the crash handler's pure register-line formatter
+// (format_reg() in goal_crash_map.cpp): "  <name> 0x<value>" plus a goal-address reading
+// symbolized through the recorded objects (absolute r15-relative pointer, or a raw
+// 32-bit goal offset) and a marker when the value, in either reading, is the faulting
+// address or sits less than 0x1000 below it. base_addr 0 disables the absolute reading
+// and fault_addr 0 disables the marker. No behavior change from the crash-handler path.
+void goal_crash_map_format_reg_for_test(const char* name,
+                                        u64 value,
+                                        u64 base_addr,
+                                        u64 mem_size,
+                                        u64 fault_addr,
+                                        char* out,
+                                        size_t out_size);

@@ -8,6 +8,8 @@
 // test's records leak into another's lookups.
 
 #include "game/kernel/common/goal_crash_map.h"
+#include <string>
+
 #include "gtest/gtest.h"
 
 TEST(GoalCrashMap, AttributesInsideExtent) {
@@ -113,4 +115,44 @@ TEST(GoalCrashMap, FormatNativeRipZeroOffsetAtModuleBase) {
   goal_crash_map_format_native_rip_for_test("ntdll.dll", 0x7ffc00000000ULL, 0x7ffc00000000ULL, buf,
                                             sizeof(buf));
   EXPECT_STREQ(buf, "native: ntdll.dll+0");
+}
+
+// issue #376: the register lines. A raw 32-bit goal offset (what a 32-bit load leaves
+// in a register) symbolizes through the same object map, and the register that carries
+// the faulting address, in either reading, is marked with the distance to the fault.
+TEST(GoalCrashMap, FormatRegRawOffsetSymbolizesAndMarksFault) {
+  const u32 obj = 0x00700000;
+  goal_crash_map_record(obj, "obj-r", 0x100);
+  const u64 base_addr = 0x1000000000ull;
+  const u64 mem_size = 0x8000000ull;
+  char line[160];
+  goal_crash_map_format_reg_for_test("r9", obj + 0x10, base_addr, mem_size,
+                                     base_addr + obj + 0x10 + 0x14, line, sizeof(line));
+  EXPECT_NE(std::string(line).find("r9  0x0000000000700010"), std::string::npos) << line;
+  EXPECT_NE(std::string(line).find("(goal-rel 0x700010 obj-r+0x10)"), std::string::npos)
+      << line;
+  EXPECT_NE(std::string(line).find("<- fault address is this + 0x14"), std::string::npos)
+      << line;
+}
+
+TEST(GoalCrashMap, FormatRegAbsolutePointerIsFaultAddress) {
+  const u32 obj = 0x00710000;
+  goal_crash_map_record(obj, "obj-s", 0x100);
+  const u64 base_addr = 0x1000000000ull;
+  const u64 mem_size = 0x8000000ull;
+  char line[160];
+  goal_crash_map_format_reg_for_test("rax", base_addr + obj + 0x20, base_addr, mem_size,
+                                     base_addr + obj + 0x20, line, sizeof(line));
+  EXPECT_NE(std::string(line).find("(goal 0x710020 obj-s+0x20)"), std::string::npos) << line;
+  EXPECT_NE(std::string(line).find("<- fault address"), std::string::npos) << line;
+  EXPECT_EQ(std::string(line).find("is this +"), std::string::npos) << line;
+}
+
+TEST(GoalCrashMap, FormatRegOutsideGoalMemoryHasNoAnnotation) {
+  const u64 base_addr = 0x1000000000ull;
+  const u64 mem_size = 0x8000000ull;
+  char line[160];
+  goal_crash_map_format_reg_for_test("rcx", 0x7ff6deadbeefull, base_addr, mem_size, 0, line,
+                                     sizeof(line));
+  EXPECT_STREQ(line, "  rcx 0x00007ff6deadbeef");
 }

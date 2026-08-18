@@ -82,6 +82,70 @@ void format_native_rip(const char* module_basename,
                 (unsigned long long)(rip - module_base));
 }
 
+// pure formatting for one general-purpose register in the crash report. Two readings of
+// the value are offered because GOAL code holds pointers both ways: a 64-bit absolute
+// address (r15 + goal offset, the form the addressing modes use) and a raw 32-bit goal
+// offset (what a `mov r9d, [..]` load of a symbol or field leaves in the register). Each
+// reading that lands in GOAL memory is symbolized through the same object map as rip.
+// The fault-address hint is the point of the whole line: a register whose value (in
+// either reading) is the faulting address, or sits a small distance below it, is the
+// base of the access that faulted, which turns "reading 0x...14b1" from an unattributed
+// number into "the value held in r9 plus 0" (issue #376, where the same bad address
+// recurred across builds with no way to tell which pointer carried it).
+void format_reg(const char* name,
+                u64 value,
+                u64 base_addr,
+                u64 mem_size,
+                u64 fault_addr,
+                char* out,
+                size_t out_size) {
+  int n = std::snprintf(out, out_size, "  %-3s %#018llx", name, (unsigned long long)value);
+  if (n < 0 || (size_t)n >= out_size) {
+    return;
+  }
+  auto append = [&](const char* fmt, auto... args) {
+    if ((size_t)n < out_size) {
+      int m = std::snprintf(out + n, out_size - n, fmt, args...);
+      if (m > 0) {
+        n += m;
+      }
+    }
+  };
+  auto symbolize = [&](u32 goal_addr) {
+    const ObjRec* o = lookup(goal_addr);
+    if (o) {
+      append(" %s+%#x", o->name, goal_addr - o->start);
+    }
+  };
+  if (base_addr && value >= base_addr && value < base_addr + mem_size) {
+    u32 g = (u32)(value - base_addr);
+    append(" (goal %#x", g);
+    symbolize(g);
+    append("%s", ")");
+  } else if (value && value < mem_size) {
+    append(" (goal-rel %#llx", (unsigned long long)value);
+    symbolize((u32)value);
+    append("%s", ")");
+  }
+  if (fault_addr) {
+    // absolute reading first, then the raw-offset reading (r15-relative)
+    u64 candidates[2] = {value, base_addr ? base_addr + value : 0};
+    for (u64 c : candidates) {
+      if (!c) {
+        continue;
+      }
+      if (c == fault_addr) {
+        append("%s", "  <- fault address");
+        break;
+      }
+      if (fault_addr > c && fault_addr - c < 0x1000) {
+        append("  <- fault address is this + %#llx", (unsigned long long)(fault_addr - c));
+        break;
+      }
+    }
+  }
+}
+
 #ifdef _WIN32
 
 // SEH-guarded reads so a corrupt pointer chain cannot re-fault inside the handler.
@@ -205,6 +269,32 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   fprintf(stderr, "rsp: %#llx (rsp mod 16 = %llu)\n", (unsigned long long)ctx->Rsp,
           (unsigned long long)(ctx->Rsp % 16));
 
+  // general-purpose registers, each read both as an absolute pointer and as a raw goal
+  // offset, with the one that carries the faulting address marked (issue #376). r15 is
+  // the GOAL base and r13 the current process in this ABI, so both symbolize as
+  // themselves; the rest is what the faulting instruction was actually working with.
+  {
+    const u64 base_addr_r = (u64)(uintptr_t)base;
+    u64 fault_addr = 0;
+    if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && er->NumberParameters >= 2 &&
+        er->ExceptionInformation[1] != (ULONG_PTR)-1) {
+      fault_addr = (u64)er->ExceptionInformation[1];
+    }
+    struct {
+      const char* name;
+      u64 value;
+    } regs[] = {{"rax", ctx->Rax}, {"rbx", ctx->Rbx}, {"rcx", ctx->Rcx}, {"rdx", ctx->Rdx},
+                {"rsi", ctx->Rsi}, {"rdi", ctx->Rdi}, {"rbp", ctx->Rbp}, {"r8", ctx->R8},
+                {"r9", ctx->R9},   {"r10", ctx->R10}, {"r11", ctx->R11}, {"r12", ctx->R12},
+                {"r13", ctx->R13}, {"r14", ctx->R14}, {"r15", ctx->R15}};
+    fprintf(stderr, "registers:\n");
+    char line[160];
+    for (const auto& r : regs) {
+      format_reg(r.name, r.value, base ? base_addr_r : 0, mem_size, fault_addr, line, sizeof(line));
+      fprintf(stderr, "%s\n", line);
+    }
+  }
+
   // symbolize rip if it is in GOAL memory
   //
   // skew note (issue #117, from the #115 attribution): the recorded start is the
@@ -302,6 +392,17 @@ void goal_crash_map_format_native_rip_for_test(const char* module_basename,
                                                char* out,
                                                size_t out_size) {
   format_native_rip(module_basename, module_base, rip, out, out_size);
+}
+
+void goal_crash_map_format_reg_for_test(const char* name,
+                                        u64 value,
+                                        u64 base_addr,
+                                        u64 mem_size,
+                                        u64 fault_addr,
+                                        char* out,
+                                        size_t out_size) {
+  std::lock_guard<std::mutex> lock(g_objs_mutex);
+  format_reg(name, value, base_addr, mem_size, fault_addr, out, out_size);
 }
 
 void goal_crash_map_install() {
