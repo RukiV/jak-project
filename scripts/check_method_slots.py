@@ -84,6 +84,9 @@ METHOD_OF_OBJECT_DEREF_RE = re.compile(
     r"\(method-of-object\s+\(->\s+(?:this|self)((?:\s+[^\s()]+)*)\s*\)\s+([^\s()]+)\)"
 )
 BARE_CALL_RE = re.compile(r"\(([A-Za-z][^\s()]*)\s+(?:this|self)\b")
+# (d) below: the decompiler's auto-generated method names carry their type
+AUTO_NAME_CALL_RE = re.compile(r"\((([A-Za-z][A-Za-z0-9-]*?)-method-(\d+))\s")
+DEFTYPE_FORM_RE = re.compile(r"^\(deftype\s", re.M)
 DEREF_CALL_RE = re.compile(r"\(([A-Za-z][^\s()]*)\s+\(->\s+(?:this|self)((?:\s+[^\s()]+)*)\s*\)")
 
 
@@ -390,6 +393,22 @@ def scan_file(text, fields_of, methods_of, states_of, parent_of):
         if ty in parent_of or ty in methods_of or ty in states_of:
             candidates.append((ty, name, "(method-of-type %s %s)" % (ty, name)))
 
+    # (d): auto-generated method names name their type, so a bare
+    # `(TYPE-method-N ARG ...)` call resolves without knowing ARG. Blank every
+    # deftype form first (their :methods lists spell the same names as
+    # declarations, not calls) and skip the method-of-* forms handled above.
+    no_types = stripped
+    for m in list(DEFTYPE_FORM_RE.finditer(stripped)):
+        end = matching_close(stripped, m.start())
+        no_types = no_types[:m.start()] + " " * (end + 1 - m.start()) + no_types[end + 1:]
+    for m in AUTO_NAME_CALL_RE.finditer(no_types):
+        name, ty = m.group(1), m.group(2)
+        pre = no_types[max(0, m.start() - 40):m.start()].rstrip()
+        if pre.endswith("method-of-type " + ty) or pre.endswith("method-of-object"):
+            continue
+        if ty in parent_of or ty in methods_of:
+            candidates.append((ty, name, "(%s ...)" % name))
+
     for ty, body_start, body_end in collect_spans(stripped):
         body = stripped[body_start:body_end]
 
@@ -458,6 +477,12 @@ def main():
 
     file_texts = load_goal_src(goal_src)
 
+    # transitive descendants per type, for the class (d) fill check
+    descendants_of = defaultdict(set)
+    for t in parent_of:
+        for a in ancestors(parent_of, t):
+            descendants_of[a].add(t)
+
     filled_methods = defaultdict(set)
     filled_states = defaultdict(set)
     per_file_candidates = {}
@@ -481,6 +506,11 @@ def main():
             if owner is None:
                 continue  # not a recognized method/state name: not a dispatch we can prove anything about
             filled = chain_any(filled_set, parent_of, target_type, name)
+            if not filled and expr == "(%s ...)" % name:
+                # class (d): the receiver's static type is unknown, so the runtime
+                # object may be any subtype; a defmethod on any descendant fills the
+                # slot that object would dispatch through
+                filled = any(name in filled_set.get(d, ()) for d in descendants_of.get(target_type, ()))
             if args.report:
                 report_rows.append((obj, kind, expr, name, target_type, owner, mid, filled))
                 continue
