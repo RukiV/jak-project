@@ -440,6 +440,17 @@
     // every time, a decompiler limitation on large all-zero static blobs,
     // not a defect in the landing.
     "race-manager",
+    // race-line rung (jakx-levels-other-tier-4): the raw decode's own
+    // reconstruction of test-find-line-info emits
+    // (-> (+ (the-as uint v1-0) 112) query-position quad), chaining a field
+    // access off a freshly-computed raw address; goalc looks up
+    // query-position as a global rather than treating it as a field access
+    // on that address and refuses to compile. goal_src casts the computed
+    // address straight to vector ((-> (the-as vector (+ ...)) quad)),
+    // exactly the same 128 bits query-position/quad would have reached, and
+    // that does compile ((mi) Successfully built all N targets); the
+    // decomp-vs-REF diff still gates the rest of the object.
+    "race-line",
     // levels-other-tier rung: in-game-menu-hud needed a whole cluster of
     // hand touches goalc caught that the raw decode does not surface on its
     // own: the (defmethod hud-method-19/17/20/18 () (none)) blocks that

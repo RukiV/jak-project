@@ -54322,21 +54322,21 @@
    (gap-index-count  int16          :offset-assert 42)
    (slice-count      int16          :offset-assert 44)
    (extra-points     int16          :offset-assert 46)
-   (points           uint32         :offset-assert 48)
+   (points           (pointer uint64) :offset-assert 48)
    (gap-indices      uint32         :offset-assert 52)
-   (slices           uint32         :offset-assert 56)
+   (slices           (pointer int16) :offset-assert 56)
    (pad              uint32         :offset-assert 60)
    )
   :method-count-assert 15
   :size-assert         #x40
   :flag-assert         #xf00000040
   (:methods
-    (race-line-method-9 () none) ;; 9
-    (race-line-method-10 () none) ;; 10
-    (race-line-method-11 () none) ;; 11
-    (race-line-method-12 () none) ;; 12
-    (race-line-method-13 () none) ;; 13
-    (race-line-method-14 () none) ;; 14
+    (race-line-method-9 (_type_ int) int) ;; 9
+    (race-line-method-10 (_type_ int) symbol) ;; 10
+    (race-line-method-11 (_type_ int vector vector) float) ;; 11
+    (race-line-method-12 (_type_ vector vector int symbol) float) ;; 12
+    (race-line-method-13 (_type_ vector vector int symbol) float) ;; 13
+    (race-line-method-14 (_type_) none) ;; 14
     )
   )
 
@@ -76553,8 +76553,13 @@
   :flag-assert         #x900000044
   )
 
-;; (define-extern test-find-line-info function)
-;; (define-extern test-find-closest-point function)
+;; a0 is read only to forward as method 12/13's "this" (never dereferenced by
+;; either function itself), proven by no direct field access to it in either
+;; body; test-find-line-info calls method 12, test-find-closest-point calls
+;; method 13 (both via the type's vtable at their respective offsets);
+;; jakx-levels-other-tier-4, race-line rung
+(define-extern test-find-line-info (function race-line float))
+(define-extern test-find-closest-point (function race-line float))
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

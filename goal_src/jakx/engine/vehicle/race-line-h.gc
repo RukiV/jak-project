@@ -74,18 +74,44 @@
    (gap-index-count   int16)
    (slice-count       int16)
    (extra-points      int16)
-   (points            uint32)
+   (points            (pointer uint64))
    (gap-indices       uint32)
-   (slices            uint32)
+   (slices            (pointer int16))
    (pad               uint32)
    )
   (:methods
-    (race-line-method-9 () none)
-    (race-line-method-10 () none)
-    (race-line-method-11 () none)
-    (race-line-method-12 () none)
-    (race-line-method-13 () none)
-    (race-line-method-14 () none)
+    ;; wraps a raw point index into [0, point-count - extra-points): proven by
+    ;; a0/a1 register reads only (this int), and by the (- (+ index count) count)
+    ;; wrap loops on the returned value; jakx-levels-other-tier-4, race-line rung
+    (race-line-method-9 (_type_ int) int)
+    ;; slices[index] != -1 gap check: a0/a1 reads only (this int), lh from the
+    ;; slices array then (nonzero? (+ value 1)); jakx-levels-other-tier-4
+    (race-line-method-10 (_type_ int) symbol)
+    ;; raw VU asm: reads a2 (an index), t7 (points pointer) and vf12/vf13
+    ;; (scale/offset) without ever loading t7/vf12/vf13 itself, and never
+    ;; reads a0 (this) at all, so it only works when called right after
+    ;; something else (most likely method 12, which loads exactly these three
+    ;; from this's own fields) has warmed those registers; flagged
+    ;; asm_functions_by_name (hacks.jsonc). No caller of this method exists
+    ;; anywhere in this tree yet, so this signature is a guess from the body's
+    ;; own register reads only (a2: index, a1: vector to measure against, a3:
+    ;; optional out-vector guarded by a beq-vs-#f check), not a proven call
+    ;; site; mark accordingly.
+    (race-line-method-11 (_type_ int vector vector) float)
+    ;; raw VU asm: two inline point-array fetches ("Unsupported inline assembly
+    ;; instruction kind" on the index+1/*8 pointer-stride pair) plus a failed
+    ;; stack-use guess at offset 16; flagged asm_functions_by_name. Signature
+    ;; proven from test-find-line-info's call site: this, the address of a
+    ;; local race-line-query-info (read back inside at offsets 88/100, which
+    ;; match current-slice/skip-gaps?), a second vector value, an int and a
+    ;; symbol (both left unset by this particular caller).
+    (race-line-method-12 (_type_ vector vector int symbol) float)
+    ;; raw VU asm, recursive point-array fetch shape identical to method 12;
+    ;; already flagged asm_functions_by_name before this rung. Signature
+    ;; proven from test-find-closest-point's call site: this, two 16-byte
+    ;; vector buffers, an int (9), a symbol (#t).
+    (race-line-method-13 (_type_ vector vector int symbol) float)
+    (race-line-method-14 (_type_) none)
     )
   )
 

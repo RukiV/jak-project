@@ -304,7 +304,35 @@
     // anons 31/32/43 only (the borrow lambda is 43) and nothing here matched (#116)
     "(method 22 level)",
     "(method 11 medius-cache)",
+    // race-line rung (jakx-levels-other-tier-4): already flagged before this
+    // rung; given a real signature this rung ((_type_ vector vector int
+    // symbol) float) proven from test-find-closest-point's call site.
     "(method 13 race-line)",
+    // race-line rung (jakx-levels-other-tier-4): reads vf12/vf13 (the line's
+    // own scale/offset) and t7 (the points pointer) without ever loading them
+    // itself, and never reads a0 (this) at all, so it only produces correct
+    // results when called right after something else (most likely method 12,
+    // which loads exactly these three from this's own fields) has warmed
+    // those same registers; a caller-supplied-VU-state dependency the
+    // decompiler flags as "Bad vector register dependency" and cannot see
+    // through. No caller of this method exists anywhere in this tree yet.
+    "(method 11 race-line)",
+    // race-line rung (jakx-levels-other-tier-4): two inline point-array
+    // fetches, each the same index+1/*8 pointer-stride pair that method 11
+    // and method 13 hit ("Unsupported inline assembly instruction kind"),
+    // plus a stack region at offset 16 reused for three back-to-back
+    // vectors that the automatic stack-var guesser could not unify
+    // ("Failed to guess stack use for 16"). Same shape as method 13 above.
+    // Signature proven from test-find-line-info's call site.
+    "(method 12 race-line)",
+    // race-line rung (jakx-levels-other-tier-4): same index+1/*8 pointer-stride
+    // pair as methods 11-13 above, in the debug-draw loop over this's own
+    // points array. Declaring the remaining stack slot the automatic guesser
+    // could not unify (offset 80, the loop counter's int16-truncation
+    // round-trip through the stack) crashes the decompiler outright rather
+    // than clearing the error, so this is parked as asm instead of chasing
+    // that crash further; unrelated to this rung's scope.
+    "(method 14 race-line)",
     "(method 11 collide-mesh)",
     // dma
     "symlink2",

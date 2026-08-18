@@ -11,6 +11,21 @@
   // own first two failures (offset 16, "Failed to guess stack use", and
   // offset 160, "add failed" past a chain of matrix/vector reads) both fall
   // on jak3's own declared offsets.
+  // (method 14 race-line) (jakx-levels-other-tier-4): sp+16 holds two
+  // back-to-back debug-draw points (a raw lqc2/pextlh/vitof15 unpack writes
+  // vf1 to +0 and vf2 to +16), then sp+96 holds a third point copied in for
+  // add-debug-text-3d's format buffer; "Failed to guess stack use for 16"
+  // without this.
+  "(method 14 race-line)": [[16, ["inline-array", "vector", 2]], [96, "vector"]],
+  // test-find-closest-point (jakx-levels-other-tier-4): sp+16 is built as two
+  // back-to-back vector buffers and passed straight through as method 12's
+  // two vector args.
+  "test-find-closest-point": [[16, ["inline-array", "vector", 2]]],
+  // test-find-line-info (jakx-levels-other-tier-4): sp+16 is a
+  // race-line-query-info built by hand (a zeroed vector copied to +0, then
+  // constant floats/ints/symbols stored at its scalar field offsets) and
+  // passed to method 11 as its query arg.
+  "test-find-line-info": [[16, "race-line-query-info"]],
   "joint-mod-ik-callback": [
     [16, "matrix"],
     [80, "matrix"],

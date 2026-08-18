@@ -7,3 +7,120 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this jakx-levels-other-tier-4, race-line rung: race-line's
+;; custom methods 11, 12, 13 and 14 are raw hand-tuned MIPS/VU assembly, not
+;; recoverable GOAL. Method 11 reads vf12/vf13 (scale/offset) and t7 (the
+;; points pointer) without ever loading them itself and never reads a0
+;; (this) at all, so it only produces correct results immediately after
+;; something else (most likely method 12) has warmed those registers from
+;; this's own fields; the decompiler flags this "Bad vector register
+;; dependency" and cannot see through it. Methods 12 and 13 each do the same
+;; index+1/*8 pointer-stride point-array fetch twice ("Unsupported inline
+;; assembly instruction kind"). Method 14 hits the identical pointer-stride
+;; shape in its own debug-draw loop, and the one remaining stack slot the
+;; automatic stack-var guesser cannot unify (the loop counter's int16
+;; truncation round-trip through the stack) crashes the decompiler outright
+;; when declared, rather than clearing the error. All four are flagged
+;; asm_functions_by_name in decompiler/config/jakx/ntsc_v1/hacks.jsonc.
+;; OpenGOAL's own (declare (asm-func ...)) facility (see gkernel.gc) only
+;; targets the PC port's native x86-64 registers, so it cannot host PS2
+;; MIPS/VU machine code either; writing a body here would be inventing
+;; behavior the decode does not contain, not transcribing it.
+;; Per the raptor.gc precedent (raptor-startup-code and friends: declared,
+;; never given a body), these four methods are left unfilled: their
+;; signatures live in race-line-h.gc's (:methods ...) list so the two real
+;; functions below type-check against them, but no (method-set! ...) is
+;; emitted for any of the four, so calling (method 11/12/13/14 <a race-line>)
+;; jumps to a zero vtable slot until a future rung supplies real bodies. No
+;; caller of any of race-line's custom methods (9 through 14) exists
+;; anywhere in this tree today (a full-tree grep found none), so this
+;; introduces no new boot-time hazard; test-find-line-info and
+;; test-find-closest-point below do call methods 12 and 13 respectively, but
+;; neither test- function is itself called from anywhere, so the gap is
+;; self-contained and inert. Retire this comment once methods 11-14 land for
+;; real.
+
+;; definition of type race-line-get-points
+;; this debug-only helper type exists solely for method 14's inspect-style
+;; dump of a race-line's points array; type-new'd at runtime in the original
+;; top-level-login rather than declared with a static deftype, but landed
+;; here as a plain deftype like every other type in this tree (its
+;; size-assert #x44 and flag-assert #x900000044 already match this shape
+;; exactly, in decompiler/config/jakx/all-types.gc).
+(deftype race-line-get-points (structure)
+  ((points uint128 4)
+   (index  int32)
+   )
+  )
+
+;; definition for method 3 of type race-line-get-points
+(defmethod inspect ((this race-line-get-points))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'race-line-get-points)
+  (format #t "~1Tpoints[4] @ #x~X~%" (-> this points))
+  (format #t "~1Tindex: ~D~%" (-> this index))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 9 of type race-line
+;; wraps a raw point index into [0, point-count - extra-points)
+(defmethod race-line-method-9 ((this race-line) (arg0 int))
+  (let ((v1-1 (- (-> this point-count) (-> this extra-points))))
+    (while (>= arg0 v1-1)
+      (set! arg0 (- arg0 v1-1))
+      )
+    (while (< arg0 0)
+      (set! arg0 (+ arg0 v1-1))
+      )
+    )
+  arg0
+  )
+
+;; definition for method 10 of type race-line
+;; slices[index] != -1 gap check
+(defmethod race-line-method-10 ((this race-line) (arg0 int))
+  (!= (-> this slices arg0) -1)
+  )
+
+;; definition for function test-find-closest-point
+(defun test-find-closest-point ((arg0 race-line))
+  (let ((v1-0 (new 'stack-no-clear 'inline-array 'vector 2)))
+    (vector-reset! (-> v1-0 1))
+    (race-line-method-13 arg0 (-> v1-0 0) (-> v1-0 1) 9 #t)
+    )
+  )
+
+;; definition for function test-find-line-info
+;; a3-0 and t0-0 are read by the underlying call without ever being set by
+;; this function; the raw machine code genuinely passes whatever garbage was
+;; left in those registers, matching this being an informal debug harness
+;; rather than production code. Transcribed as-is rather than inventing
+;; values the decode does not contain.
+(defun test-find-line-info ((arg0 race-line))
+  (local-vars (a3-0 none) (t0-0 none))
+  (let ((v1-0 (new 'stack-no-clear 'race-line-query-info)))
+    (set! (-> (the-as vector (+ (the-as uint v1-0) 112)) quad) (the-as uint128 0))
+    (let ((a1-1 (-> v1-0 query-position))
+          (a2-1 (-> (the-as vector (+ (the-as uint v1-0) 112)) quad))
+          )
+      (set! (-> a1-1 quad) a2-1)
+      (set! (-> v1-0 angle-sum-distance) 163840.0)
+      (set! (-> v1-0 look-ahead-distance) 204800.0)
+      (set! (-> v1-0 current-slice) 10)
+      (set! (-> v1-0 current-line) #f)
+      (set! (-> v1-0 skip-gaps?) (the-as basic #t))
+      (-> v1-0 query-position)
+      (race-line-method-12
+        arg0
+        (-> v1-0 query-position)
+        (the-as vector a2-1)
+        (the-as int a3-0)
+        (the-as symbol t0-0)
+        )
+      )
+    )
+  )
