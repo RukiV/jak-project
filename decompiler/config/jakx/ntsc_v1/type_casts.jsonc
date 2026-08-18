@@ -7593,5 +7593,56 @@
     [119, "gp", "bfloat"]
   ],
   "command-get-float": [[20, "gp", "bfloat"]],
-  "command-get-int": [[17, "gp", "bfloat"]]
+  "command-get-int": [[17, "gp", "bfloat"]],
+  // nav-control.gc (nav twin band rung): (method 24/34/37 nav-state) each
+  // copy a vector-sized quantity into a raw (+ v1 0) pointer that types as
+  // (pointer float) from the arithmetic alone; the store itself is
+  // quadword-sized (s.q!), so the destination pointer needs a vector cast
+  // at both stores. Op numbers differ by one between method 24 and its
+  // twins (55/62 vs 56/63) because method 24's own preceding branch has
+  // one fewer instruction; found per function via this worktree's own
+  // baseline decode, not assumed from a shared offset.
+  "(method 37 nav-state)": [
+    [56, "a0", "vector"],
+    [63, "a0", "vector"]
+  ],
+  "(method 34 nav-state)": [
+    [56, "a0", "vector"],
+    [63, "a0", "vector"]
+  ],
+  "(method 24 nav-state)": [
+    [55, "a0", "vector"],
+    [62, "a0", "vector"]
+  ],
+  // (anon-function 4/9 nav-control): the stack_structures.jsonc vector hint
+  // at offset 16 resolves the "guess stack use" warning but the pointer
+  // arithmetic (+ v1-13 0) still types as none at the two s.q! stores, same
+  // shape as the method 24/34/37 nav-state fix above.
+  "(anon-function 4 nav-control)": [
+    [55, "a0", "vector"],
+    [62, "a0", "vector"]
+  ],
+  "(anon-function 9 nav-control)": [
+    [55, "a0", "vector"],
+    [62, "a0", "vector"]
+  ],
+  // nav-link-search-info's own arg0 (a "search node", per the comment on
+  // method 11's declared signature in all-types.gc) is declared generic
+  // object; offsets 0/4/24 match nav-mesh-link-search-node's own
+  // pprev/next/status fields exactly.
+  "(method 16 nav-link-search-info)": [[3, "s5", "nav-mesh-link-search-node"]],
+  "(method 13 nav-link-search-info)": [[2, "gp", "nav-mesh-link-search-node"]],
+  "(method 12 nav-link-search-info)": [
+    [1, "a1", "nav-mesh-link-search-node"],
+    [3, "a1", "nav-mesh-link-search-node"],
+    [5, "a1", "nav-mesh-link-search-node"]
+  ],
+  "(method 11 nav-link-search-info)": [[0, "a1", "nav-mesh-link-search-node"]],
+  // (method 9 nav-link-search-info): copies two vectors from arg0's own
+  // offsets 64/80 into this's target-pos/current-pos; those offsets match
+  // trsqv's transv/rotv fields exactly (process-drawable's root).
+  "(method 9 nav-link-search-info)": [
+    [3, "a1", "trsqv"],
+    [7, "a1", "trsqv"]
+  ]
 }
