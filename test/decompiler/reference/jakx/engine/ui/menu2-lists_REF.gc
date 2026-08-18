@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: menu2-lists.gc
-;; name in dgo: menu2-lists
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
 ;; definition for symbol *menu-level-info-array*, type array
 (define *menu-level-info-array*
   (the-as array (new 'static 'boxed-array :type menu-option-info
@@ -144,30 +138,6 @@
                                           )
         )
 
-;; definition of type selection-cache
-;; moved ahead of its first use (raw decode order puts this deftype near
-;; insert-selection-cache at the end of the file, but GOAL requires the
-;; type declared before *mirror-mode* below references it as 'selection-
-;; cache; content is unchanged from the decode, only its position moved).
-(deftype selection-cache (structure)
-  ((state           basic)
-   (selection-type  basic)
-   )
-  )
-
-;; definition for method 3 of type selection-cache
-(defmethod inspect ((this selection-cache))
-  (when (not this)
-    (set! this this)
-    (goto cfg-4)
-    )
-  (format #t "[~8x] ~A~%" this 'selection-cache)
-  (format #t "~1Tstate: ~A~%" (-> this state))
-  (format #t "~1Tselection-type: ~A~%" (-> this selection-type))
-  (label cfg-4)
-  this
-  )
-
 ;; definition for symbol *mirror-mode*, type selection-cache
 (define *mirror-mode* (new 'static 'selection-cache :state (new 'static 'boxed-array :type menu-option-info
                                                              (new 'static 'menu-option-info)
@@ -181,25 +151,6 @@
 
 ;; failed to figure out what this is:
 (set! (-> *mirror-mode* selection-type) (the-as basic 0))
-
-;; definition of type menu-range-info
-;; four raw int32 words, no type tag, at each of the nine "-info" statics
-;; below. Positional evidence across all nine instances: field 1 is always
-;; the largest value and matches each field's own natural range ceiling (6
-;; for num-players, 100 for the volume/brightness/contrast sliders), and
-;; field 0 matches each control's natural default (1 local player, 25 for
-;; brightness/contrast, 0 for the volume sliders); fields 2 and 3 are 0 in
-;; every instance except ai-num-players-info (-1, a plausible "no minimum"
-;; sentinel) and num-players-info (1, a plausible unit step). Field names
-;; are this positional read (Support-grade, not Proof): no call site outside
-;; this file's own top-level-login is landed yet to confirm the semantics.
-(deftype menu-range-info (structure)
-  ((default-val  int32)
-   (max-val      int32)
-   (min-val      int32)
-   (step-val     int32)
-   )
-  )
 
 ;; definition for symbol *num-players-info*, type menu-range-info
 (define *num-players-info* (new 'static 'menu-range-info :default-val 1 :max-val 6 :min-val 1 :step-val 1))
@@ -1885,6 +1836,26 @@
   v0-0
   )
 
+;; definition of type selection-cache
+(deftype selection-cache (structure)
+  ((state           basic)
+   (selection-type  basic)
+   )
+  )
+
+;; definition for method 3 of type selection-cache
+(defmethod inspect ((this selection-cache))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'selection-cache)
+  (format #t "~1Tstate: ~A~%" (-> this state))
+  (format #t "~1Tselection-type: ~A~%" (-> this selection-type))
+  (label cfg-4)
+  this
+  )
+
 ;; definition for symbol *selection-cache-array*, type (inline-array selection-cache)
 (define *selection-cache-array* (new 'static 'inline-array selection-cache 3
                                   (new 'static 'selection-cache)
@@ -1906,37 +1877,106 @@
 (set! (-> *selection-cache-array* 0 selection-type) (the-as basic 'adventure))
 
 ;; definition for function insert-selection-cache
+;; ERROR: failed type prop at 16: Could not figure out load: (set! a3 (l.wu (+ a3 68)))
 ;; WARN: Return type mismatch int vs object.
-(defun insert-selection-cache ((arg0 object) (arg1 object))
-  (mod (+ *selection-cache-index* -1) 3)
-  (dotimes (v1-3 3)
-    (let ((a2-4 (mod (+ (- -1 v1-3) *selection-cache-index*) 3)))
-      (if (< a2-4 0)
-          (+! a2-4 3)
+(defun insert-selection-cache ((a0-0 object) (a1-0 object))
+  (local-vars
+    (v0-0 int)
+    (v1-0 int)
+    (v1-1 int)
+    (v1-2 int)
+    (v1-3 int)
+    (v1-4 none)
+    (v1-5 none)
+    (v1-6 none)
+    (v1-7 none)
+    (v1-10 int)
+    (v1-11 int)
+    (v1-12 selection-cache)
+    (v1-13 int)
+    (v1-14 int)
+    (v1-15 selection-cache)
+    (v1-16 int)
+    (v1-17 int)
+    (a0-1 none)
+    (a0-2 (inline-array selection-cache))
+    (a0-3 int)
+    (a2-0 int)
+    (a2-1 int)
+    (a2-2 int)
+    (a2-3 int)
+    (a2-4 int)
+    (a2-5 (inline-array selection-cache))
+    (a3-0 int)
+    (a3-1 int)
+    (a3-4 basic)
+    (a3-5 none)
+    (a3-6 none)
+    (a3-8 none)
+    (t0-0 none)
+    (t0-1 none)
+    (t0-2 none)
+    (t1-0 none)
+    )
+  (set! v1-0 *selection-cache-index*)
+  (set! v1-1 (+ v1-0 -1))
+  (set! a2-0 3)
+  (set! v1-2 (mod.si v1-1 a2-0))
+  (set! v1-3 0)
+  (while (<.si v1-3 3)
+    (if (begin
+          (when (begin
+                  (set! a2-1 -1)
+                  (set! a2-2 (- a2-1 v1-3))
+                  (set! a3-0 *selection-cache-index*)
+                  (set! a2-3 (+ a2-2 a3-0))
+                  (set! a3-1 3)
+                  (set! a2-4 (mod.si a2-3 a3-1))
+                  (<0.si a2-4)
+                  )
+            (set! a2-4 (+ a2-4 3))
+            (set! a3-3 a2-4)
+            )
+          (set! a3-4 *lobby-menu-manager*)
+          (set! a3-5 (the-as none (l.wu (+ a3-4 68))))
+          (set! a3-6 (the-as none (l.wu a3-5)))
+          (set! t0-0 (the-as none (sll a2-4 4)))
+          (set! t1-0 (the-as none *selection-cache-array*))
+          (set! t0-1 (the-as none (+ t0-0 t1-0)))
+          (set! t0-2 (the-as none (l.wu t0-1)))
+          (= t0-2 a3-6)
           )
-      ;; raw offset arithmetic, not a named field chain: *lobby-menu-manager*
-      ;; stays basic (landing its own type is a separate campaign, out of
-      ;; this band's scope), and this decompiler's own field-name guess at
-      ;; process offset 68 ("state") disagrees with its own process deftype
-      ;; text (which puts "level" at 68 and "state" at 72); word[17]=byte 68
-      ;; and word[0]=byte 0 of the result are the raw bytes the machine code
-      ;; actually reads (l.wu +68 then l.wu +0), verified directly against
-      ;; the disassembly rather than the decompiler's inferred field name.
-      (when (= (-> *selection-cache-array* a2-4 state)
-               (the-as basic (-> (the-as (pointer uint32) (-> (the-as (pointer uint32) *lobby-menu-manager*) 17)) 0))
-               )
-        (set! (-> *selection-cache-array* a2-4 state) (the-as basic arg0))
-        (set! (-> *selection-cache-array* a2-4 selection-type) (the-as basic arg1))
-        (return (the-as object #f))
+        (return (begin
+                  (set! v1-4 (the-as none (sll a2-4 4)))
+                  (set! a3-8 (the-as none *selection-cache-array*))
+                  (set! v1-5 (the-as none (+ v1-4 a3-8)))
+                  (s.w! v1-5 a0-0)
+                  (set! v1-6 (the-as none (sll a2-4 4)))
+                  (set! a0-1 (the-as none *selection-cache-array*))
+                  (set! v1-7 (the-as none (+ v1-6 a0-1)))
+                  (s.w! (+ v1-7 4) a1-0)
+                  (set! v0-0 (the-as int #f))
+                  )
+                )
         )
-      )
+    (set! v1-3 (the-as int (+ v1-3 1)))
     )
-  (set! (-> *selection-cache-array* *selection-cache-index* state) (the-as basic arg0))
-  (set! (-> *selection-cache-array* *selection-cache-index* selection-type) (the-as basic arg1))
-  (let ((v0-0 (mod (+ *selection-cache-index* 1) 3)))
-    (set! *selection-cache-index* v0-0)
-    v0-0
-    )
+  (set! v1-10 *selection-cache-index*)
+  (set! v1-11 (sll v1-10 4))
+  (set! a2-5 *selection-cache-array*)
+  (set! v1-12 (+ v1-11 a2-5))
+  (set! (-> v1-12 state) (the-as basic a0-0))
+  (set! v1-13 *selection-cache-index*)
+  (set! v1-14 (sll v1-13 4))
+  (set! a0-2 *selection-cache-array*)
+  (set! v1-15 (+ v1-14 a0-2))
+  (set! (-> v1-15 selection-type) (the-as basic a1-0))
+  (set! v1-16 *selection-cache-index*)
+  (set! v1-17 (+ v1-16 1))
+  (set! a0-3 3)
+  (set! v0-0 (mod.si v1-17 a0-3))
+  (set! *selection-cache-index* v0-0)
+  (ret-value v0-0)
   )
 
 

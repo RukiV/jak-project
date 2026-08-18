@@ -58167,8 +58167,18 @@
 ;; all-types.gc:49878 (dead)
 (deftype menu-option-info (structure)
   ((display-name-id uint32  :offset-assert 0)
-   (sym             basic   :offset-assert 4)
-   (extra           basic   :offset-assert 8)
+   ;; retyped basic -> symbol: menu2-lists rung, every static instance's own
+   ;; offset-4 word is a .symbol reference (kras, adventure, join-game-1p,
+   ;; 1p, on, pal, mono, color, event-hunt, yes, ...), never a boxed object.
+   (sym             symbol  :offset-assert 4)
+   ;; primary swapped basic -> int32 (menu2-lists rung): three static
+   ;; instances (event-deathmatch, event-hunt, and the color option) carry a
+   ;; plain small nonzero int at this offset (4, 5, 1), which the static
+   ;; decompiler cannot read through a basic-typed primary field ("did not
+   ;; have a proper reference"); every zero instance still renders cleanly
+   ;; as int32 0. extra-object stays available as the basic-typed overlay
+   ;; for any future call site that needs the object reading.
+   (extra           int32   :offset-assert 8)
    ;; union: (method 3 menu-option-info) prints "extra", "extra-object" and
    ;; "extra-int" from the SAME `lw a2, 8(gp)`.
    (extra-object    basic   :overlay-at extra  :offset-assert 8)
@@ -59089,113 +59099,167 @@
   )
 
 
-;; (define-extern *menu-level-info-array* array)
-;; (define-extern *menu-level-info-beta-array* array)
+(define-extern *menu-level-info-array* array)
+(define-extern *menu-level-info-beta-array* array)
 (define-extern *game-connection-info-array* array)
 (define-extern *menu-events-info-all* array)
 (define-extern *menu-events-info-beta* array)
-;; (define-extern *lobby-entrance-info-array* array)
-;; (define-extern *num-local-players-info-array* array)
-;; (define-extern *error-lobby-array* array)
+(define-extern *lobby-entrance-info-array* array)
+(define-extern *num-local-players-info-array* array)
+(define-extern *error-lobby-array* array)
 (define-extern *mirror-mode-array* array)
-;; (define-extern *mirror-mode* object)
-;; (define-extern *num-players-info* object)
-;; (define-extern *ai-num-players-info* object)
-;; (define-extern *buddy-num-players-info* object)
-;; (define-extern *clan-num-players-info* object)
-;; (define-extern *sfx-volume-info* object)
-;; (define-extern *music-volume-info* object)
-;; (define-extern *speech-volume-info* object)
-;; (define-extern *brightness-info* object)
-;; (define-extern *contrast-info* object)
-;; (define-extern *menu-events-info-array* object)
-;; (define-extern *menu-level-array* object)
-;; (define-extern *menu-vehicle-array* object)
-;; (define-extern *menu-driver-array* object)
-;; (define-extern *menu-vehicle-parts-array* object)
-;; (define-extern *player-index* array)
-;; (define-extern *menu-ready-room-stats-extra-array* array)
-;; (define-extern *menu-ready-room-instruct-array* array)
-;; (define-extern *menu-ready-room-vehicle-array* array)
-;; (define-extern *menu-ready-room-avatar-array* array)
-;; (define-extern *ready-room-x-string* array)
-;; (define-extern *menu-split-selection-string* array)
-;; (define-extern *player-headphones?-list* array)
-;; (define-extern *player-ready?-list* array)
-;; (define-extern *split-screen-sprite-list* array)
-;; (define-extern *graphic-options-sprite-list* array)
-;; (define-extern *sound-options-sprite-list* array)
-;; (define-extern *adventure-bottom-bar-ids* array)
-;; (define-extern *adventure-bottom-bar-dpad-ids* array)
-;; (define-extern *adventure-bottom-bar-triangle-ids* array)
-;; (define-extern *adventure-top-bar-title-ids* array)
-;; (define-extern *adventure-garage-reminder-ids* array)
-;; (define-extern *adventure-city-ids* array)
-;; (define-extern *adventure-venue-ids* array)
-;; (define-extern *secrets-accept-ids* array)
-;; (define-extern *player-names-extra* array)
-;; (define-extern *driver-owner-dynamic-strings* array)
-;; (define-extern *driver-taken-string* array)
-;; (define-extern *driver-name* array)
-;; (define-extern *driver-height* array)
-;; (define-extern *driver-weight* array)
-;; (define-extern *driver-sex* array)
-;; (define-extern *driver-eyes* array)
-;; (define-extern *driver-age* array)
-;; (define-extern *personal-selection-bottom-bar-ids* array)
-;; (define-extern *garage-string* array)
-;; (define-extern *game-title-extra* array)
-;; (define-extern *player-to-be-kicked-extra* array)
-;; (define-extern *high-score-string* array)
-;; (define-extern *high-score-ranking-string* array)
-;; (define-extern *high-score-title-ids* array)
-;; (define-extern *player-cash-extra* array)
-;; (define-extern *mongoose-configurations* array)
-;; (define-extern *falcon-configurations* array)
-;; (define-extern *wombat-configurations* array)
-;; (define-extern *aspect-ratio-data* array)
-;; (define-extern *aspect-ratio* object)
-;; (define-extern *vibration-menu-data* array)
-;; (define-extern *vibration-menu-info* object)
-;; (define-extern *crash-cam-menu-data* array)
-;; (define-extern *crash-cam-menu-info* object)
-;; (define-extern *kill-cam-menu-data* array)
-;; (define-extern *kill-cam-menu-info* object)
-;; (define-extern *progressive-menu-data* array)
-;; (define-extern *progressive-menu-info* object)
-;; (define-extern *video-mode-menu-data* array)
-;; (define-extern *video-mode-menu-info* object)
-;; (define-extern *stereo-mode-data* array)
-;; (define-extern *stereo-mode-info* object)
-;; (define-extern *languge-text-ids* array)
-;; (define-extern *bottom-bar-ready-room-circle* array)
-;; (define-extern *vehicle-class-ids* array)
-;; (define-extern *screen-mode-ids* array)
-;; (define-extern *video-mode-ids* array)
-;; (define-extern *video-mode-change-ids* array)
-;; (define-extern *advanced-options-button-ids* array)
-;; (define-extern *menu-vehicle-colors-data* array)
-;; (define-extern *menu-vehicle-colors-info* object)
-;; (define-extern *level-texture-string* object)
-;; (define-extern *map-texture-string* object)
-;; (define-extern *icon-texture-string* object)
-;; (define-extern *player-1-name* object)
-;; (define-extern *player-2-name* object)
-;; (define-extern *player-3-name* object)
-;; (define-extern *player-4-name* object)
-;; (define-extern *player-5-name* object)
-;; (define-extern *player-6-name* object)
-(define-extern *player-1-extra* object)
-;; (define-extern *player-2-extra* object)
-;; (define-extern *player-3-extra* object)
-;; (define-extern *player-4-extra* object)
-;; (define-extern *player-5-extra* object)
-;; (define-extern *player-6-extra* object)
+;; typed selection-cache: raw store pair (state=array ptr, selection-type=0) at
+;; top-level-login menu2-lists ops 28-34 matches selection-cache's own two-field
+;; layout exactly (menu2-lists's own resurrected deftype above).
+(define-extern *mirror-mode* selection-cache)
+;; menu2-lists: four raw int32 words, no type tag (a plain untagged
+;; structure, not a basic), at each of the nine "-info" labels below.
+;; Positional evidence across all nine instances: field 1 is always the
+;; largest value and matches each field's own natural range ceiling (6 for
+;; num-players, 100 for the volume/brightness/contrast sliders), and field 0
+;; matches each control's natural default (1 local player, 25 for
+;; brightness/contrast, 0 for the volume sliders); fields 2 and 3 are 0 in
+;; every instance except ai-num-players-info (-1, a plausible "no minimum"
+;; sentinel) and num-players-info (1, a plausible unit step). Field names
+;; are this positional read (Support-grade, not Proof): no call site outside
+;; this file's own top-level-login is landed yet to confirm the semantics.
+(deftype menu-range-info (structure)
+  ((default-val int32  :offset-assert 0)
+   (max-val     int32  :offset-assert 4)
+   (min-val     int32  :offset-assert 8)
+   (step-val    int32  :offset-assert 12)
+   )
+  :method-count-assert 9
+  :size-assert         #x10
+  :flag-assert         #x900000010
+  )
+
+(define-extern *num-players-info* menu-range-info)
+(define-extern *ai-num-players-info* menu-range-info)
+(define-extern *buddy-num-players-info* menu-range-info)
+(define-extern *clan-num-players-info* menu-range-info)
+(define-extern *sfx-volume-info* menu-range-info)
+(define-extern *music-volume-info* menu-range-info)
+(define-extern *speech-volume-info* menu-range-info)
+(define-extern *brightness-info* menu-range-info)
+(define-extern *contrast-info* menu-range-info)
+;; retyped array -> selection-cache: each one's static init is the same
+;; wrapper shape as *mirror-mode* (word0 = pointer to the real (array
+;; menu-option-info), word1 = 0), not the array header directly; the direct
+;; array header reading failed "Invalid alignment in decompile_boxed_array"
+;; (word0 read as an absurd length). Runtime code only ever touches offset 4
+;; (writing 0, matching selection-type), never the array-specific fields, so
+;; this does not regress the one op that dereferences it.
+(define-extern *menu-events-info-array* selection-cache)
+(define-extern *menu-level-array* selection-cache)
+(define-extern *menu-vehicle-array* selection-cache)
+(define-extern *menu-driver-array* selection-cache)
+(define-extern *menu-vehicle-parts-array* selection-cache)
+(define-extern *player-index* array)
+(define-extern *menu-ready-room-stats-extra-array* array)
+(define-extern *menu-ready-room-instruct-array* array)
+(define-extern *menu-ready-room-vehicle-array* array)
+(define-extern *menu-ready-room-avatar-array* array)
+(define-extern *ready-room-x-string* array)
+(define-extern *menu-split-selection-string* array)
+(define-extern *player-headphones?-list* array)
+(define-extern *player-ready?-list* array)
+(define-extern *split-screen-sprite-list* array)
+(define-extern *graphic-options-sprite-list* array)
+(define-extern *sound-options-sprite-list* array)
+(define-extern *adventure-bottom-bar-ids* array)
+(define-extern *adventure-bottom-bar-dpad-ids* array)
+(define-extern *adventure-bottom-bar-triangle-ids* array)
+(define-extern *adventure-top-bar-title-ids* array)
+(define-extern *adventure-garage-reminder-ids* array)
+(define-extern *adventure-city-ids* array)
+(define-extern *adventure-venue-ids* array)
+(define-extern *secrets-accept-ids* array)
+(define-extern *player-names-extra* array)
+(define-extern *driver-owner-dynamic-strings* array)
+(define-extern *driver-taken-string* array)
+(define-extern *driver-name* array)
+(define-extern *driver-height* array)
+(define-extern *driver-weight* array)
+(define-extern *driver-sex* array)
+(define-extern *driver-eyes* array)
+(define-extern *driver-age* array)
+(define-extern *personal-selection-bottom-bar-ids* array)
+(define-extern *garage-string* array)
+(define-extern *game-title-extra* array)
+(define-extern *player-to-be-kicked-extra* array)
+(define-extern *high-score-string* array)
+(define-extern *high-score-ranking-string* array)
+(define-extern *high-score-title-ids* array)
+(define-extern *player-cash-extra* array)
+(define-extern *mongoose-configurations* array)
+(define-extern *falcon-configurations* array)
+(define-extern *wombat-configurations* array)
+(define-extern *aspect-ratio-data* array)
+;; the following "-info" symbols share *mirror-mode*'s selection-cache shape
+;; (raw store pair: state=data-array ptr, selection-type=0); same op-pair
+;; evidence at each site in top-level-login menu2-lists.
+(define-extern *aspect-ratio* selection-cache)
+(define-extern *vibration-menu-data* array)
+(define-extern *vibration-menu-info* selection-cache)
+(define-extern *crash-cam-menu-data* array)
+(define-extern *crash-cam-menu-info* selection-cache)
+(define-extern *kill-cam-menu-data* array)
+(define-extern *kill-cam-menu-info* selection-cache)
+(define-extern *progressive-menu-data* array)
+(define-extern *progressive-menu-info* selection-cache)
+(define-extern *video-mode-menu-data* array)
+(define-extern *video-mode-menu-info* selection-cache)
+(define-extern *stereo-mode-data* array)
+(define-extern *stereo-mode-info* selection-cache)
+(define-extern *languge-text-ids* array)
+(define-extern *bottom-bar-ready-room-circle* array)
+(define-extern *vehicle-class-ids* array)
+(define-extern *screen-mode-ids* array)
+(define-extern *video-mode-ids* array)
+(define-extern *video-mode-change-ids* array)
+(define-extern *advanced-options-button-ids* array)
+(define-extern *menu-vehicle-colors-data* array)
+(define-extern *menu-vehicle-colors-info* selection-cache)
+(define-extern *level-texture-string* object) ;; provisional: call-site evidence only
+(define-extern *map-texture-string* object) ;; provisional: call-site evidence only
+(define-extern *icon-texture-string* object) ;; provisional: call-site evidence only
+;; retyped object -> (pointer uint8): all six -name statics are zero-filled
+;; 128-byte buffers (measured: L27 through L32 each span exactly 32 words
+;; before the next label), a raw byte count with no anchoring non-zero data
+;; to split into named fields; object has no static-render support at all
+;; ("Unimplemented decompile_at_label ... Type: object").
+(define-extern *player-1-name* (pointer uint8))
+(define-extern *player-2-name* (pointer uint8))
+(define-extern *player-3-name* (pointer uint8))
+(define-extern *player-4-name* (pointer uint8))
+(define-extern *player-5-name* (pointer uint8))
+(define-extern *player-6-name* (pointer uint8))
+;; same class: all six -extra statics are zero-filled 32-byte buffers
+;; (L21 through L26, each exactly 8 words).
+(define-extern *player-1-extra* (pointer uint8))
+(define-extern *player-2-extra* (pointer uint8))
+(define-extern *player-3-extra* (pointer uint8))
+(define-extern *player-4-extra* (pointer uint8))
+(define-extern *player-5-extra* (pointer uint8))
+(define-extern *player-6-extra* (pointer uint8))
 (define-extern get-extra-player-string (function int object))
-(define-extern set-index (function (pointer array) object symbol))
-;; (define-extern *selection-cache-array* object)
+;; declared (pointer array) generically at first, but op7-8's own load
+;; (arr-base + idx*4 + 12, then +4) only resolves as a legitimate field
+;; access when the content-type is known: menu-option-info's own sym field
+;; sits at offset 4 (basic), matching the op9 comparison against the search
+;; object exactly; every call site in this file passes a menu-option-info
+;; array (no other caller lands yet corpus-wide).
+(define-extern set-index (function (pointer (array menu-option-info)) object symbol))
+;; insert-selection-cache indexes it by (* idx 16), selection-cache's own
+;; inline-array stride without :pack-me; (pointer selection-cache) reads the
+;; code correctly but the data decompiler has no static support for pointer
+;; statics of a structure type ("not yet supported by the data decompiler"),
+;; so inline-array is used instead for the static render (same raw stride,
+;; the type the OpenGOAL idiom is meant for).
+(define-extern *selection-cache-array* (inline-array selection-cache))
 (define-extern *selection-cache-index* int)
-;; (define-extern *last-lobby-state* object)
+(define-extern *last-lobby-state* object) ;; provisional: call-site evidence only
 (define-extern insert-selection-cache (function object object object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -59637,6 +59701,18 @@
 ;; decompiler. Retires when the MENU2/lobby object that owns it lands.
 (define-extern *lobby-reset-mode* symbol)
 ;; (define-extern *net-mgr-finish-mode* object)
+;; insert-selection-cache dereferences offset 68 off this global (process's
+;; own inherited level field per the lobby-menu-manager deftype above); basic
+;; has no field there, so the raw load failed type prop until retyped.
+;; left basic, matching goal_src's two existing landed declarations
+;; (game-info.gc, main.gc): landing lobby-menu-manager itself is its own
+;; campaign (92 fields, 196 methods, 141 states), out of this band's scope
+;; per the garage-turntable hacks.jsonc precedent, and this decompiler's own
+;; field-name resolution at process offset 68 disagrees with its own
+;; deftype text (reports "state" where the deftype above says "level" is
+;; offset 68 and "state" is offset 72); insert-selection-cache's landing
+;; uses raw offset arithmetic instead of the field-name chain for this one
+;; expression, so the ambiguity does not need resolving here.
 (define-extern *lobby-menu-manager* basic)
 ;; (define-extern get-selected-local-player-count function)
 ;; (define-extern kiosk-code? function)
@@ -85600,12 +85676,14 @@
 (define-extern *active-net-players* (array net-player))
 (define-extern *actor-hash-buckets* object) ;; provisional: call-site evidence only
 (define-extern *adv-coming-back-from-game* object) ;; provisional: call-site evidence only
-(define-extern *adventure-bottom-bar-ids* object) ;; provisional: call-site evidence only
-(define-extern *adventure-garage-reminder-ids* object) ;; provisional: call-site evidence only
-(define-extern *adventure-venue-ids* object) ;; provisional: call-site evidence only
-(define-extern *ai-num-players-info* object) ;; provisional: call-site evidence only
+;; *adventure-bottom-bar-ids*, *adventure-garage-reminder-ids*,
+;; *adventure-venue-ids*, *ai-num-players-info* and *aspect-ratio* stay
+;; declared array / menu-range-info / selection-cache (menu2-lists rung,
+;; evidence above); their stale object-typed duplicates here are removed
+;; rather than kept, since a later define-extern silently wins at actual
+;; compile time (goalc, not the decompiler) and object would have overridden
+;; the typed declaration for every future user of these globals.
 (define-extern *anim-tester* object) ;; provisional: call-site evidence only
-(define-extern *aspect-ratio* object) ;; provisional: call-site evidence only
 (define-extern *auto-continue* symbol) ;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc:37010 (was provisional: call-site evidence only; the target-death section's own dead comment for this symbol stays dead, this is its one active declaration)
 (define-extern *auto-save-info* object) ;; provisional: call-site evidence only
 (define-extern *aux-voice-got-callback* object) ;; provisional: call-site evidence only
@@ -85849,9 +85927,10 @@
 (define-extern *freeze-hangtime* object) ;; provisional: call-site evidence only
 (define-extern *game-launched-from-room* object) ;; provisional: call-site evidence only
 (define-extern *game-menu-array-to-use* object) ;; provisional: call-site evidence only
-(define-extern *game-title-extra* object) ;; provisional: call-site evidence only
+;; *game-title-extra* and *garage-string* stay declared array (menu2-lists
+;; rung, evidence above); stale object-typed duplicates removed, same
+;; later-define-extern-wins-at-compile reason as the blocks above.
 (define-extern *garage-cinema* object) ;; provisional: call-site evidence only
-(define-extern *garage-string* object) ;; provisional: call-site evidence only
 (define-extern *generic-ai-tuning* array) ;; runtime-typed from savestate
 (define-extern *ghost-info-ptr* object) ;; provisional: call-site evidence only
 (define-extern *ghost-rec* object) ;; provisional: call-site evidence only
@@ -86240,13 +86319,12 @@
 (define-extern *medius-room-players* object) ;; provisional: call-site evidence only
 (define-extern *medius-server-session-begin-request* object) ;; provisional: call-site evidence only
 (define-extern *medius-session-key* object) ;; provisional: call-site evidence only
-(define-extern *menu-driver-array* object) ;; provisional: call-site evidence only
+;; *menu-driver-array*, *menu-events-info-array*, *menu-level-array*,
+;; *menu-level-info-array*, *menu-level-info-beta-array* and
+;; *menu-vehicle-array* stay declared selection-cache / array (menu2-lists
+;; rung, evidence above); their stale object-typed duplicates removed for
+;; the same later-define-extern-wins-at-compile reason as the block above.
 (define-extern *menu-events-filter-array* object) ;; provisional: call-site evidence only
-(define-extern *menu-events-info-array* object) ;; provisional: call-site evidence only
-(define-extern *menu-level-array* object) ;; provisional: call-site evidence only
-(define-extern *menu-level-info-array* object) ;; provisional: call-site evidence only
-(define-extern *menu-level-info-beta-array* object) ;; provisional: call-site evidence only
-(define-extern *menu-vehicle-array* object) ;; provisional: call-site evidence only
 (define-extern *menumap-firework-colors* object) ;; provisional: call-site evidence only
 (define-extern *mgcl-init-in-params* object) ;; provisional: call-site evidence only
 (define-extern *mine-b-hack* object) ;; provisional: call-site evidence only
@@ -86384,7 +86462,8 @@
 (define-extern *no-net-hw-warning-shown* object) ;; provisional: call-site evidence only
 (define-extern *normal-array* object) ;; provisional: call-site evidence only
 (define-extern *num-laps* object) ;; provisional: call-site evidence only
-(define-extern *num-players-info* object) ;; provisional: call-site evidence only
+;; *num-players-info* stays declared menu-range-info (menu2-lists rung,
+;; evidence above); stale object-typed duplicate removed, same reason.
 (define-extern *ocean-colors-atoll* ocean-colors)
 (define-extern *ocean-colors-canspar* ocean-colors)
 (define-extern *ocean-colors-cliffs* ocean-colors)
@@ -86478,7 +86557,8 @@
 (define-extern *seat-offset* object) ;; provisional: call-site evidence only
 (define-extern *secret-items* object) ;; provisional: call-site evidence only
 (define-extern *sent-end-of-game-report* object) ;; provisional: call-site evidence only
-(define-extern *sfx-volume-info* object) ;; provisional: call-site evidence only
+;; *sfx-volume-info* stays declared menu-range-info (menu2-lists rung,
+;; evidence above); stale object-typed duplicate removed, same reason.
 (define-extern *shader-pick-menu* object) ;; provisional: call-site evidence only
 (define-extern *should-update-stats* object) ;; provisional: call-site evidence only
 (define-extern *slime-clut* object) ;; provisional: call-site evidence only
@@ -86491,7 +86571,8 @@
 (define-extern *static-continues* object) ;; provisional: call-site evidence only
 (define-extern *stats-blerc* object) ;; provisional: call-site evidence only
 (define-extern *stats-title* object) ;; provisional: call-site evidence only
-(define-extern *stereo-mode-info* object) ;; provisional: call-site evidence only
+;; *stereo-mode-info* stays declared selection-cache (menu2-lists rung,
+;; evidence above); stale object-typed duplicate removed, same reason.
 (define-extern *subtitle-work* object) ;; provisional: call-site evidence only
 (define-extern *subtitles-text* object) ;; provisional: call-site evidence only
 (define-extern *target-cam-off-time* object) ;; provisional: call-site evidence only
@@ -86557,7 +86638,8 @@
 (define-extern *vehicle-wheel-constants* object) ;; provisional: call-site evidence only
 ;; *verts-buf-1* moved: real extern now declared with its own triangulation
 ;; scratch-global siblings (nav rung), fixing the later-weaker duplicate here.
-(define-extern *vibration-menu-info* object) ;; provisional: call-site evidence only
+;; *vibration-menu-info* stays declared selection-cache (menu2-lists rung,
+;; evidence above); stale object-typed duplicate removed, same reason.
 (define-extern *video-change* object) ;; provisional: call-site evidence only
 (define-extern *waiting-for-lock* object) ;; provisional: call-site evidence only
 ;; og:preserve-this typed from object (2026-08-17 water-anim rung): (method 54
