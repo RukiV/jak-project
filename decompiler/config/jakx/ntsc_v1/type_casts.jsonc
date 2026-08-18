@@ -278,6 +278,25 @@
     [15, "a0", "hud-item-string"],
     [22, "a0", "hud-item-string"]
   ],
+  // hud-widgets-tier rung: reset-hud-cash-time reads each of the five
+  // cash-hud view globals' own element 0 (array-index-12 load, itself
+  // (array hud-item)) and stores -1 into a field at machine offset 44,
+  // which resolves under the machine-offset-N-binds-declared-N+4 basic
+  // convention to cash-hud's own start-time field (declared offset 48,
+  // int32), confirmed by this rung's own decode once the cast below is
+  // applied. Cast at the store op, not the load op: a cast at the load op
+  // (5/16/21/30/35) instead retypes the array global itself, since the
+  // decompiler applies a type_casts entry as of the start of that op,
+  // which reaches back onto the load's own input and corrupts the
+  // (array hud-item) element access into an unrelated "uninitialized"
+  // failure at the same site, confirmed by direct experiment this rung.
+  "reset-hud-cash-time": [
+    [6, "a0", "cash-hud"],
+    [17, "a0", "cash-hud"],
+    [22, "a0", "cash-hud"],
+    [31, "a0", "cash-hud"],
+    [36, "a0", "cash-hud"]
+  ],
   // (method 13 hud-effect-emit-score-icon): same event-message-block param
   // shape as the hang-time/power-slide method 23 overrides above; here the
   // loaded param is stored straight through as a halfword with no
