@@ -3875,6 +3875,13 @@
     [20, "a0", "cam-dbg-scratch"],
     [88, "a0", "cam-dbg-scratch"]
   ],
+  // engine-quick-tier-6: tried forcing a0 to (pointer uint64) at op 65 (the
+  // high 64 bits of a GIF tag this same block writes as two halves) to
+  // resolve its own "Failed load" error; it cascaded into six new "Failed
+  // store" errors on a3/a1/a0 elsewhere in the same function instead of
+  // clearing cleanly (ops 13, 15, 24, 37, 51, 70), the same shape as an
+  // unmasked cascade rather than a fix. Reverted; op 65's own error is held
+  // as found rather than chased further this rung
   "cam-line-dma": [
     [32, "t0", "vector"],
     [36, "t0", "vector"],
@@ -6268,5 +6275,63 @@
   "(method 65 raptor)": [
     [3, "s5", "process"],
     [18, "s5", "(pointer uint128)"]
+  ],
+  // engine-quick-tier-6: debug-set-camera-pos-rot! calls view-get-active-
+  // camera-combiner twice and writes through the result both times.
+  // view-get-active-camera-combiner is declared to return plain basic
+  // (all-types.gc's own comment: "basic because camera-combiner parses
+  // later" - camera-combiner's deftype is later in the same file, so the
+  // extern cannot name it directly), and camera-combiner's own field table
+  // confirms the shape: op 12 writes a vector at raw 140 (declared 144,
+  // trans) and op 18 writes a matrix at raw 156 (declared 160,
+  // inv-camera-rot), so both call results need forcing to camera-combiner
+  // at their own point of use
+  "debug-set-camera-pos-rot!": [
+    [12, "v0", "camera-combiner"],
+    [18, "v0", "camera-combiner"]
+  ],
+  // engine-quick-tier-6: cam-collision-record-save calls view-get-active-
+  // camera twice and reads a quad-loaded vector field through each result.
+  // view-get-active-camera is declared plain process (all-types.gc's own
+  // comment: "really camera-master, but that type parses later; cast at use
+  // sites"), and camera-master's own field table confirms both sites: op 29
+  // reads raw 540 (declared 544, tpos-curr-adj, vector) and op 35 reads raw
+  // 524 (declared 528, tpos-old-adj, vector), so both call results need
+  // forcing to camera-master at their own point of use
+  // engine-quick-tier-6: op 59's own view-get-active-camera call (a third
+  // occurrence, reading raw offset 296, declared 300, string-push-z) looked
+  // like the same class as the two casts below and was tried the same way;
+  // it cascaded into fifteen new "Failed store" errors across the rest of
+  // the function instead of resolving cleanly, the same unmasked-cascade
+  // shape cam-line-dma hit above. Reverted; op 59's own error is held as
+  // found rather than chased further this rung
+  "cam-collision-record-save": [
+    [29, "v0", "camera-master"],
+    [35, "v0", "camera-master"]
+  ],
+  // engine-quick-tier-6: camera-slave-debug calls view-get-active-camera and
+  // reads raw offset 144 (declared 148, camera-master's settings field,
+  // cam-setting-data) off the result; same class and same fix as
+  // cam-collision-record-save above, view-get-active-camera cast to
+  // camera-master at its own point of use
+  "camera-slave-debug": [
+    [12, "v0", "camera-master"],
+    [20, "v0", "camera-master"],
+    [33, "v0", "camera-combiner"],
+    [38, "v0", "camera-combiner"],
+    [60, "v0", "camera-combiner"],
+    [189, "v0", "camera-combiner"]
+  ],
+  // engine-quick-tier-6: camera-fov-frame reads a fixed VU-memory address
+  // (416 + 0x70000000) as a 128-bit quad, the identical raw-offset-plus-
+  // 0x70000000 shape cam-line-dma's own existing casts above already cover
+  // (its own ops 32/36/45/50, all forced to vector); same fix here
+  "camera-fov-frame": [
+    [99, "a0", "vector"],
+    [144, "a0", "vector"],
+    [185, "a0", "vector"],
+    [40, "a2", "cam-dbg-scratch"],
+    [41, "a3", "cam-dbg-scratch"],
+    [46, "a1", "cam-dbg-scratch"]
   ]
 }

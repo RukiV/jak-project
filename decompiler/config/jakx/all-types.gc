@@ -46361,9 +46361,22 @@
 ;; (define-extern slave-los-state->string function) ;; (function slave-los-state string)
 (define-extern slave-los-state->string (function slave-los-state string))
 ;; (define-extern cam-line-dma function) ;; (function pointer)
-(define-extern cam-line-dma (function pointer))
+;; engine-quick-tier-6: the provisional (function pointer) guess above
+;; conflicts with cam-line-dma's own goal_src declaration (a bare extern,
+;; the function is held un-landed; see cam-debug.gc's own og:preserve-this
+;; note), which types it (function none) matching jak3's twin (its own
+;; cam-line-dma ends its cond with no trailing (none) either, but nothing
+;; anywhere uses its return value, and every jakx call site here discards
+;; it too); retyped to match and keep both surfaces in sync
+(define-extern cam-line-dma (function none))
 ;; (define-extern camera-line2d function) ;; (function vector4w vector4w pointer)
-(define-extern camera-line2d (function vector4w vector4w pointer))
+;; engine-quick-tier-6: the provisional (function pointer) guess above
+;; conflicts with the landed goal_src body (cam-debug.gc); its own last form
+;; is (cam-line-dma), and cam-line-dma is itself typed (function none) just
+;; above (its own og:preserve-this note in cam-debug.gc), so camera-line2d's
+;; real return type is none, not pointer. Retyped to match and keep both
+;; surfaces in sync
+(define-extern camera-line2d (function vector4w vector4w none))
 ;; (define-extern camera-plot-float-func function) ;; (function float float float float (function float float) vector4w none)
 (define-extern camera-plot-float-func (function float float float float (function float float) vector4w none))
 ;; (define-extern camera-line-setup function) ;; (function vector4w none)

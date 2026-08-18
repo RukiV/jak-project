@@ -1,68 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: cam-debug.gc
-;; name in dgo: cam-debug
-;; dgos: ENGINE, GAME
-
-;; og:preserve-this added (engine-quick-tier-6): (mi) rejected top-level-login
-;; with "*camera-old-cpu* was looked up as a global variable, but it does not
-;; exist"; the three symbols below are set! and read but never define/define-
-;; perm'd anywhere in this file (unlike their four camera-old-* siblings just
-;; below, which decode as define-perm and carry their own storage). jak3's own
-;; cam-debug.gc (goal_src/jak3/engine/camera/cam-debug.gc) declares the
-;; identical three externs in the identical spot, same int type both here
-;; (decompiler/config/jakx/all-types.gc, all three "confirmed"/active
-;; declarations) and there; adopted verbatim
-(define-extern *camera-old-cpu* int)
-(define-extern *camera-old-vu* int)
-(define-extern *camera-old-tfrag-bytes* int)
-
-;; og:preserve-this added (engine-quick-tier-6): (mi) rejected camera-line-draw
-;; (landed, otherwise clean) with "No method or function named
-;; transform-float-point for type vector"; jakx's own goal_src/jakx/engine/
-;; debug/debug.gc does not implement it yet (jak3's twin does, in its own
-;; debug.gc, out of this rung's band), so it is declared here as a bare
-;; extern rather than landing debug.gc's whole file to reach it. Signature
-;; and docstring taken verbatim from decompiler/config/jakx/all-types.gc's
-;; own declaration, which cites the identical jak3 twin confirmation
-(define-extern transform-float-point
-               "Transform a point, using the cached matrix in VU0 registers, set from init-for-transform.
-                The argument order is backward - be careful!
-                After transformation, point is constrained to be within some region, but this is not proper clipping,
-                so you should do this yourself."
-               (function vector vector4w vector4w))
-
-;; og:preserve-this added (engine-quick-tier-6): each of these five functions
-;; is held (commented out) below with its own og:preserve-this note citing an
-;; unresolved decode defect. Landed callers elsewhere in this same file still
-;; call them (camera-line2d calls cam-line-dma twice; camera-master-debug
-;; calls camera-fov-frame and cam-collision-record-draw), and every call site
-;; discards the return value, so a bare extern declaration is enough to keep
-;; those callers compiling without inventing a body. Per AGENTS.md section 5,
-;; this means calling any of the five jumps to a linked-zero address at
-;; runtime until a later rung lands a real body; camera-line2d, camera-
-;; master-debug and every other landed caller in this file are debug-only
-;; (declare-file (debug)) tooling reached only through a manual debug menu or
-;; pad shortcut, never the automatic boot path, so this does not gate a game
-;; boot, but it is a real runtime hazard for whoever next exercises this
-;; debug menu and should not be forgotten. Signatures taken from each
-;; function's own decoded arg list (this file) with return type none,
-;; confirmed by the jak3 twin for three of the five (camera-slave-debug,
-;; cam-collision-record-save, cam-collision-record-draw, each ending 0
-;; (none)) and safe for the remaining two (camera-fov-frame, cam-line-dma)
-;; since every call site in this file discards the return value regardless
-(define-extern cam-line-dma (function none))
-;; return type symbol, not none: matches all-types.gc's own existing
-;; declaration for this symbol (decompiler/config/jakx/all-types.gc), which
-;; predates this landing; kept in sync rather than overridden
-(define-extern camera-fov-frame (function matrix vector float float float vector4w symbol))
-(define-extern camera-slave-debug (function camera-slave none))
-(define-extern cam-collision-record-save (function vector vector int symbol camera-slave none))
-(define-extern cam-collision-record-draw (function none))
-
-;; DECOMP BEGINS
-
 ;; this file is debug only
 (declare-file (debug))
 
@@ -263,18 +201,9 @@
     )
   )
 
-;; og:preserve-this held (engine-quick-tier-6): cam-line-dma's own op 65
-;; reads (+ a0 8), the high 64 bits of a GIF tag this same block writes as two
-;; halves (op 60 reads the low 64 bits at offset 0, no added offset, so it
-;; needs no cast). a0 is a bare pointer, too generic to support offset math;
-;; forcing it to (pointer uint64) at op 65 resolves that one load but
-;; cascades into six new "Failed store" errors elsewhere in the same function
-;; (ops 13, 15, 24, 37, 51, 70) instead of clearing cleanly. Held as found;
-;; retires when a later rung finds the real pointee type for this DMA tag
-;; write without breaking the earlier stores.
-#|
 ;; definition for function cam-line-dma
 ;; INFO: Used lq/sq
+;; WARN: Return type mismatch pointer vs none.
 ;; ERROR: Failed load: (set! t0-20 (l.d (+ a0-1 8))) at op 65
 (defun cam-line-dma ()
   (with-dma-buffer-add-bucket ((v1-5 (-> *display* frames (-> *display* on-screen) debug-buf))
@@ -335,7 +264,6 @@
     )
   (none)
   )
-|#
 
 ;; definition for function camera-line2d
 (defun camera-line2d ((arg0 vector4w) (arg1 vector4w))
@@ -903,19 +831,6 @@
   (none)
   )
 
-;; og:preserve-this held (engine-quick-tier-6): camera-fov-frame draws the
-;; debug frustum wireframe with the same VU-scratchpad quad-load pattern
-;; repeated for every edge (fixed address + 0x70000000, cam-dbg-scratch, the
-;; same idiom cam-debug-draw-tris and camera-line2d already use cleanly
-;; elsewhere in this file). Three occurrences (ops 99, 144, 185) and two more
-;; register variants of a fourth (ops 40, 41) resolve cleanly with a
-;; type_casts.jsonc point cast each, but each subsequent occurrence past that
-;; (ops 46, 114, and more the pattern keeps surfacing) needs its own point
-;; cast in turn with no sign of converging; this rung stopped rather than add
-;; one entry per edge indefinitely. Held as found; the type_casts.jsonc
-;; entries already landed for the first four occurrences are kept since they
-;; are genuine, evidenced progress a later rung can build on.
-#|
 ;; definition for function camera-fov-frame
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch none vs symbol.
@@ -1032,7 +947,6 @@
     (the-as symbol (camera-fov-draw (+ 400 #x70000000) (+ 416 #x70000000) arg1 4096.0 20480.0 arg5))
     )
   )
-|#
 
 ;; definition for method 11 of type tracking-spline
 ;; WARN: Return type mismatch int vs none.
@@ -1218,22 +1132,6 @@
     )
   )
 
-;; og:preserve-this held (engine-quick-tier-6): camera-slave-debug carries two
-;; independent defect classes. First, the same view-get-active-camera and
-;; view-get-active-camera-combiner generic-return-type class documented on
-;; camera-master-debug and cam-collision-record-save elsewhere in this file;
-;; five occurrences (ops 12, 20, 33, 38, 60, 189) resolve cleanly with a
-;; type_casts.jsonc point cast each, but the pattern keeps recurring further
-;; into the function (op 202 confirmed, likely more) with no sign of
-;; converging. Second and separately, op 88 allocates a stack-local structure
-;; ("Failed to guess stack use for 16") this rung did not reverse-engineer;
-;; that failure is independent of the camera-master/camera-combiner chain and
-;; would need its own stack_structures.jsonc entry regardless. Held as found;
-;; the type_casts.jsonc entries already landed for the first five
-;; camera-master/camera-combiner occurrences are kept since they are genuine,
-;; evidenced progress a later rung can build on, but they do not by
-;; themselves get this function to a landable state.
-#|
 ;; definition for function camera-slave-debug
 ;; INFO: Used lq/sq
 ;; ERROR: failed type prop at 202: add failed: basic <integer 316>
@@ -2181,7 +2079,6 @@
     (ret-none)
     )
   )
-|#
 
 ;; definition for function master-draw-coordinates
 ;; INFO: Used lq/sq
@@ -2360,18 +2257,6 @@
 ;; definition for symbol *cam-collision-record*, type cam-collision-record-array
 (define *cam-collision-record* (new 'debug 'cam-collision-record-array 600))
 
-;; og:preserve-this held (engine-quick-tier-6): cam-collision-record-save
-;; calls view-get-active-camera three times and reads a quad- or float-loaded
-;; camera-master field through each result (the same generic-return-type
-;; class documented on camera-master-debug elsewhere in this file). The first
-;; two calls (ops 29, 35, raw offsets 540 and 524, tpos-curr-adj and
-;; tpos-old-adj) resolve cleanly with a type_casts.jsonc point cast each, but
-;; the third (op 59, raw offset 296, string-push-z) cascades into fifteen new
-;; "Failed store" errors across the rest of the function instead of clearing
-;; cleanly. Held as found; the two type_casts.jsonc entries already landed
-;; for the first two calls are kept since they are genuine, evidenced
-;; progress a later rung can build on.
-#|
 ;; definition for function cam-collision-record-save
 ;; INFO: Used lq/sq
 ;; ERROR: failed type prop at 59: Could not figure out load: (set! f0 (l.f (+ v0 296)))
@@ -2524,7 +2409,6 @@
     (ret-none)
     )
   )
-|#
 
 ;; definition for function cam-collision-record-step
 ;; WARN: Return type mismatch int vs none.
@@ -2540,15 +2424,6 @@
   (none)
   )
 
-;; og:preserve-this held (engine-quick-tier-6): cam-collision-record-draw
-;; fails on two independent, unresolved defects this rung did not chase to a
-;; fix. Op 106 allocates a stack-local structure ("Failed to guess stack use
-;; for 48") that would need a stack_structures.jsonc entry with a real type
-;; for whatever gets built at that offset; op 109 loads a quad through a
-;; vector4w-adjacent value this rung did not trace to a concrete type. Held
-;; as found; retires when a later rung reverse-engineers the stack structure
-;; this function builds at sp+48.
-#|
 ;; definition for function cam-collision-record-draw
 ;; INFO: Used lq/sq
 ;; ERROR: failed type prop at 109: Could not figure out load: (set! a0 (l.q a0))
@@ -3068,7 +2943,6 @@
   (set! v0-26 (the-as none 0))
   (ret-none)
   )
-|#
 
 ;; definition for function camera-master-debug
 ;; WARN: Return type mismatch int vs none.
@@ -3239,7 +3113,3 @@
   (set! *display-camera-old-stats* #t)
   (none)
   )
-
-
-
-
