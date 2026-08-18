@@ -85516,7 +85516,34 @@
 (define-extern *engine-sprite-list* object) ;; provisional: call-site evidence only
 (define-extern *enter-pw-acct-name* object) ;; provisional: call-site evidence only
 (define-extern *expand-buf-number* object) ;; provisional: call-site evidence only
-(define-extern *expanded-text-line0* object) ;; provisional: call-site evidence only
+;; og:preserve-this text.gc's top level killed on this exact class (an
+;; extern the decompiler type system did not know at all, not merely an
+;; object-typed guess): its own top-level-login allocates *game-text-word*,
+;; *hyphen-text-word*, *game-text-string*, *expanded-text-line0* and
+;; *expanded-text-line1* in sequence, each via the identical
+;; (new 'global 'string 1024 #f) call (kmemopen global "text-buffers" then
+;; five 1024-byte string news), so all five are string, not the generic
+;; object every other entry in this section carries. *expanded-text-line0*
+;; already had a provisional object entry; retyped here to match its own
+;; siblings' proven construction.
+(define-extern *game-text-word* string)
+(define-extern *hyphen-text-word* string)
+(define-extern *game-text-string* string)
+(define-extern *expanded-text-line0* string)
+(define-extern *expanded-text-line1* string)
+;; text.gc's own top level continues past the five string buffers above into
+;; three more stores, each proven the same way (the raw store's own operand
+;; type, text_ir2.asm ops 52/54/102/128/130): a sixth 1024-byte string
+;; buffer, a boolean load-state flag (*level-text-file-load-flag*, already
+;; declared further down in this alphabetical section as a weaker provisional
+;; object; retyped in place there rather than duplicated here, since a later
+;; duplicate wins silently), and two of its own later-defined functions
+;; installing their own symbol slots (the standard top-level self-registration
+;; idiom, not a real call).
+(define-extern *tmp-convert-string* string)
+(define-extern text-is-loading symbol)
+(define-extern convert-korean-text (function string string))
+(define-extern load-game-text-info (function string (pointer object) kheap int))
 ;; og:preserve-this provisional extern removed: shadowed the earlier *explosion-debug-sphere* extern (explosion rung, scripts/check_alltypes_shadowing.py)
 (define-extern *fake-msg-count* object) ;; provisional: call-site evidence only
 (define-extern *fake-msg-read* object) ;; provisional: call-site evidence only
@@ -85824,7 +85851,11 @@
 (define-extern *last-state-name-game-info-screen* object) ;; provisional: call-site evidence only
 (define-extern *last-state-name-player-info-screen* object) ;; provisional: call-site evidence only
 (define-extern *last-team-setting* object) ;; provisional: call-site evidence only
-(define-extern *level-text-file-load-flag* object) ;; provisional: call-site evidence only
+;; og:preserve-this retyped object -> symbol: text.gc's own top level stores
+;; #t/#f through it (text_ir2.asm op 54, "(s.w! *level-text-file-load-flag* v1-6)"
+;; with v1 typed <sym #t>), a boolean load-state flag, not the generic provisional
+;; guess.
+(define-extern *level-text-file-load-flag* symbol)
 (define-extern *level-texture-page-translate* object) ;; provisional: call-site evidence only
 (define-extern *level-texture-string* object) ;; provisional: call-site evidence only
 (define-extern *lightning* object) ;; provisional: call-site evidence only
