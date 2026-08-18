@@ -3878,8 +3878,82 @@
   // the function body; gp holds the value unchanged from op 1 through its
   // last use at op 702, so one range cast covers the whole span. The range
   // upper bound is exclusive (verified empirically: [1, 702] still left op
-  // 702 itself unresolved), hence 703 here
-  "(method 10 visvol-edit-info)": [[[1, 703], "gp", "process-drawable"]],
+  // 702 itself unresolved), hence 703 here.
+  // Same method: s4 (the res-lump-data return for 'visvol, matches jak3's
+  // own (res-lump-data s4-1 'visvol (pointer float)) macro call) is read as
+  // six consecutive floats at offsets 0/4/8/16/20/24 (two vec3s, one gap
+  // at the 12 pad slot); offset 0 (op 241) resolves on its own, the other
+  // five (ops 243/245/247/249/251) need the explicit (pointer float) cast.
+  // Same method: a res-lump-data return (v1-108, op 460, the 'visvol lookup
+  // for a second actor) grows a running bounding box in place, reading and
+  // writing three float pairs at offsets 0/4/8 and 16/20/24 (min then max)
+  // via plain lwc1/swc1 rather than lqc2/sqc2, so it needs the same
+  // explicit (pointer float) cast at every read and write site; op 476
+  // (offset 16) is the first to fail on its own, the rest cascade the same
+  // way. a2 at op 475 (the vadd.xyz result store back into v1-108 offset
+  // 16, sqc2) resolves to a bare pointer on its own and fails to compile
+  // ("No method or function named s.vf! for type pointer"); its sibling
+  // a0-58 at the same offset auto-resolves for the .lvf read but the s.vf!
+  // write needs the same explicit (pointer int128) cast the water-anim
+  // rung already established for this class (see the cam-vehicle entries
+  // below). The v1-110 block's own vadd store (a2 at op 530, same shape,
+  // offset 0 rather than 16) needs the identical cast; unlike v1-110's
+  // scalar-float reads, casting a2 alone here does not disturb the
+  // pointer-arithmetic base.
+  // A second, near-identical block starting at op 515 (v1-110, the
+  // 'interp lookup) repeats the same shape but its own vector-add target is
+  // offset 0 rather than offset 16 (a2/a0 computed as v1-110 plus zero, not
+  // plus sixteen); casting v1-110 to (pointer float) at any of its scalar
+  // read/write sites, tried at offsets 16/20/24 alone and at all six
+  // offsets, both left the vadd's own sqc2 store at op 530 (and, in the
+  // six-offset attempt, two more stores) newly broken with "Failed store"
+  // where the pre-cast decode had a single clean "Failed load" at op 534;
+  // held un-cast rather than landing a net regression. Root cause not
+  // isolated; suspected same-register atomic-variable unification across
+  // the a2/a0 pointer-arithmetic chain, unlike v1-108's block where the
+  // vector target and the cast offsets both sit at 16 with no conflict.
+  "(method 10 visvol-edit-info)": [
+    [[1, 703], "gp", "process-drawable"],
+    [243, "s4", "(pointer float)"],
+    [245, "s4", "(pointer float)"],
+    [247, "s4", "(pointer float)"],
+    [249, "s4", "(pointer float)"],
+    [251, "s4", "(pointer float)"],
+    [476, "v1", "(pointer float)"],
+    [479, "v1", "(pointer float)"],
+    [482, "v1", "(pointer float)"],
+    [483, "v1", "(pointer float)"],
+    [486, "v1", "(pointer float)"],
+    [489, "v1", "(pointer float)"],
+    [490, "v1", "(pointer float)"],
+    [493, "v1", "(pointer float)"],
+    [496, "v1", "(pointer float)"],
+    [475, "a2", "(pointer int128)"],
+    [530, "a2", "(pointer int128)"],
+    [534, "v1", "(pointer float)"],
+    [538, "v1", "(pointer float)"],
+    [541, "v1", "(pointer float)"],
+    [544, "v1", "(pointer float)"],
+    [545, "v1", "(pointer float)"],
+    [548, "v1", "(pointer float)"],
+    [551, "v1", "(pointer float)"]
+  ],
+  // debug leg: (trans idle visvol-editor) reads self->proc (offset 144,
+  // declared uint64) and extracts its low half via a single sllv/r0, the
+  // same handle->process idiom generic-obs.gc's manipy rung already hand-
+  // folds (goal_src/jakx/engine/common-obs/generic-obs.gc, the
+  // og:preserve-this comment above its own gp-1 deref). Casting v1 to
+  // handle here clears both the sllv "Unsupported inline assembly
+  // instruction kind" and the following l.wu error, but the decompiler
+  // output is still not real GOAL: it renders as a literal ".asm.sllv.r0"
+  // pseudo-op with no compiler implementation ("No method or function
+  // named .asm.sllv.r0 for type handle"). The landed source hand-folds
+  // this one call site to the equivalent (handle->process ...) macro call,
+  // matching gkernel-h.gc's own expansion (process/pid truthy-and-compare)
+  // op for op against the raw asm; the cast stays here so the corpus-wide
+  // error count reflects zero rather than the two markers this class
+  // would otherwise leave.
+  "(trans idle visvol-editor)": [[[7, 9], "v1", "handle"]],
   // (method 10 mem-manager): v1 is (+ arg1 -16), the block header immediately
   // before the freed user pointer (the standard free() layout). The decoder
   // cannot guess this on its own ("Could not figure out load: (l.bu v1)");

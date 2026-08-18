@@ -1009,5 +1009,17 @@
   // op 22-25 passes gp+0 as a vector-!2 destination (rigid-body-impact's
   // own point field at offset 0); "Failed to guess stack use for 16" on
   // its own.
-  "(method 25 rigid-body-control)": [[16, "rigid-body-impact"]]
+  "(method 25 rigid-body-control)": [[16, "rigid-body-impact"]],
+  // visvol-edit rung: sp+16 in (method 10 visvol-edit-info) is a stack
+  // vector4, filled by three sequential swc1 float stores at +0/+4/+8 (a
+  // sampled world-position xyz) plus a constant 1.0 at +12, then read back
+  // as a single lqc2 for a vadd.xyz against the entity's own res-lump
+  // vector; "Failed to guess stack use for 16" on its own. The same shape
+  // repeats at sp+32 a few ops later (a second entity lookup, same
+  // vadd.xyz pattern) and does not resolve on its own once sp+16 is
+  // declared; "Failed to guess stack use for 32" instead.
+  "(method 10 visvol-edit-info)": [
+    [16, "vector"],
+    [32, "vector"]
+  ]
 }
