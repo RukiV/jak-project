@@ -986,6 +986,14 @@
   // (an existence check, then the real access), so each gets two casts.
   "nav-set-flag": [[5, "v1", "nav-mesh-editor"], [9, "v1", "nav-mesh-editor"]],
   "nav-set-lev": [[5, "v1", "nav-mesh-editor"], [9, "v1", "nav-mesh-editor"]],
+  // compute-dir-parm, nav wave 2: op 10 (mtc1 f0, v1) reinterprets a
+  // logand/logior sign-bit copy (the standard copysign(1.0, dot(arg0,
+  // arg2)) idiom) back into float bits; the decompiler keeps f0 typed int
+  // from the integer logior that produced it. jak3's own landed compute-
+  // dir-parm (goal_src/jak3/engine/nav/nav-control.gc) wraps the identical
+  // expression in an explicit (the-as float ...), confirming the
+  // reinterpretation rather than guessing it.
+  "compute-dir-parm": [[[10, 19], "f0", "float"]],
   // nav-mesh-editor-set-level and nav-mesh-editor-load, nav wave 2: the
   // same offset-0-on-*nav-mesh-editor* misread as nav-set-flag/nav-set-lev
   // above, but reached through a VIRTUAL dispatch instead of a direct
