@@ -75,3 +75,39 @@
   0
   (none)
   )
+
+;; og:preserve-this methods 19/30/35/36: verified against the raw asm the same way
+;; as the six methods above, despite the object's top-level still failing expression
+;; conversion. Method 19 dispatches method 30, so both land together to avoid a
+;; goal-0 null jump the moment plow.gc's many sub-part cleanup call sites (eye-left,
+;; eye-right, thrusters, smoke, and their small siblings) reach it.
+(defmethod process-nettable-method-19 ((this process-nettable))
+  (process-nettable-method-30 this #f #f)
+  (deactivate this)
+  0
+  (none)
+  )
+
+;; og:preserve-this bring-up guard: same precedent as method 34 above (retail
+;; dereferences *net-process-mgr* with no null check; net-process-mgr-method-56
+;; is not landed either). Skipping the call reproduces pre-landing behavior.
+(defmethod process-nettable-method-30 ((this process-nettable) (arg0 object) (arg1 object))
+  (when *net-process-mgr*
+    (net-process-mgr-method-56 *net-process-mgr* this arg0 arg1)
+    )
+  0
+  (none)
+  )
+
+;; methods 35/36: clean decode, both no-op stubs that ignore this/arg0 and return
+;; 0/none. method 35's all-types comment ("TODO - guess on the int, find a caller
+;; to net-enemy-init-remote") is now moot: the raw body never reads arg0 at all.
+(defmethod process-nettable-method-35 ((this process-nettable) (arg0 int))
+  0
+  (none)
+  )
+
+(defmethod process-nettable-method-36 ((this process-nettable))
+  0
+  (none)
+  )
