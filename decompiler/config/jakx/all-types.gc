@@ -50403,7 +50403,12 @@
 ;; (define-extern get-medal-reward function)
 ;; (define-extern update-high-scores function)
 (define-extern *last-medal* object)
-;; (define-extern report-score function)
+;; og:preserve-this hud-results rung: activated from the bare provisional
+;; function placeholder. hud-results_ir2.asm's own call sites (method 9
+;; hud-medal-results) pass a single int (a computed score value) and use
+;; the return as an int; homes to a file outside this band, still
+;; unlanded.
+(define-extern report-score (function int int))
 (define-extern task-node-dump (function symbol symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -52234,7 +52239,12 @@
 ;; (define-extern *medius-enemy-clan* medius-cached-info-clan)
 ;; (define-extern *medius-enemy-clan-members* object)
 ;; (define-extern *medius-enemy-clan-id* object)
-;; (define-extern *challenge-clans* array)
+;; hud-results rung: (method 19 hud-team-score-results)'s own body
+;; (hud-results_ir2.asm) reads its data field directly (offset 12, the
+;; generic array base type's own declared data field) then indexes 20
+;; bytes further in for a char-copy source, so the bare array base type
+;; (rather than a guessed element type) is the least-invented fit.
+(define-extern *challenge-clans* array)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-mgr-medius-games-h         ;;
@@ -56444,6 +56454,38 @@
     )
   )
 |#
+;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-results rung: (method 24 hud-rank-name-score)'s own
+;; body (hud-results_ir2.asm) reads *net-game-mgr* at machine offset 356
+;; (declared 360, the +4 basic-tag shift), matching auto-end-time exactly.
+;; goalc's own strict sequential packing places banner at 336 without an
+;; explicit gap-filler, but the dead block's own captured offsets (344,
+;; 352, 360) already match this rung's own raw evidence, so an explicit
+;; 13-byte pad preserves them instead of trusting the naive repack.
+(deftype net-game-mgr-race (net-game-mgr)
+  ((lap-count       int8       :offset-assert 304)
+   (racer-ct        int8       :offset-assert 305)
+   (racer-ids       uint8 24 :offset-assert 306)
+   (race-count-down int8       :offset-assert 330)
+   (pad-to-banner   uint8 13   :offset-assert 331)
+   (banner          uint64     :offset-assert 344)
+   (hud-clock       uint64     :offset-assert 352)
+   (auto-end-time   int32      :offset-assert 360)
+   )
+  :method-count-assert 88
+  :size-assert         #x16c
+  :flag-assert         #x5800e0016c
+  (:methods
+    (net-game-mgr-race-method-80 () none) ;; 80
+    (net-game-mgr-race-method-81 () none) ;; 81
+    (net-game-mgr-race-method-82 () none) ;; 82
+    (net-game-mgr-race-method-83 () none) ;; 83
+    (net-game-mgr-race-method-84 () none) ;; 84
+    (net-game-mgr-race-method-85 () none) ;; 85
+    (net-game-mgr-race-method-86 () none) ;; 86
+    (net-game-mgr-race-method-87 () none) ;; 87
+    )
+  )
 
 ;; (define-extern net-player-race-init-remote function)
 ;; (define-extern *msg-map-net-player-race* array)
@@ -69013,6 +69055,12 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-results rung: method 24 gains real args. hud-
+;; results_ir2.asm's own body reads a1 directly (self is never touched,
+;; the same arity-sweep class already fixed on hud-effect/hud-manager
+;; above), dispatches through it via a -4(reg) vtable lookup, and
+;; converts a2 straight into an fpr with no other use; the old () bare
+;; signature flagged "may read a register that is not set: a1"/"a2".
 (deftype hud-medal-results (hud-results-base)
   ((i-got-medal        uint8  :offset-assert 60)
    (has-sent-inc-event basic  :offset-assert 64)
@@ -69021,7 +69069,7 @@
   :size-assert         #x44
   :flag-assert         #x1900000044
   (:methods
-    (hud-medal-results-method-24 () none) ;; 24
+    (hud-medal-results-method-24 (_type_ object float) none) ;; 24
     )
   )
 
@@ -69213,9 +69261,22 @@
 
 
 (define-extern score-is-time (function object))
-(define-extern set-stats-text (function object))
+;; og:preserve-this hud-results rung: gains its own three real args. hud-
+;; results_ir2.asm's own body reads a0 for a byte store at its own offset
+;; 46 (no further evidence beyond that), a1 as a truthy/falsy flag, and a2
+;; as a net-player-race (its own finish-time field, declared 440, machine
+;; 436 via the +4 basic-tag trap, feeds the print-time/score-is-time
+;; formatting this function performs); the old bare (function object)
+;; declaration left a0/a1/a2 all unbound, flagging "may read a register
+;; that is not set" for all three.
+(define-extern set-stats-text (function object object net-player-race object))
 ;; (define-extern *had-gold* object)
-;; (define-extern is-nonstandard-mode-ignore-split? function)
+;; og:preserve-this hud-results rung: activated from the bare provisional
+;; function placeholder, defined locally in hud-results_ir2.asm alongside
+;; its own sibling is-nonstandard-mode? just below (already activated,
+;; already forward-declared elsewhere for the same object return); no
+;; args, same shape.
+(define-extern is-nonstandard-mode-ignore-split? (function object))
 (define-extern is-nonstandard-mode? (function object))
 ;; og:preserve-this hud-follow-through rung: activated from provisional comment.
 ;; top-level-login only ever writes #f into it ((s.w! *reset-hud-results* #f),
@@ -69227,7 +69288,7 @@
 ;; Only ever set (op 67) then read through a (the-as none ...) cast (hud-results_
 ;; ir2.asm ops 190/237), the same pattern as the already-active
 ;; *last-cash-game-mgr-for-player-0/1*; bare object typing applies unchanged.
-(define-extern *last-game-mgr-grand-prix* object)
+(define-extern *last-game-mgr-grand-prix* (pointer int32)) ;; hud-results rung: (method 9 hud-results)'s own body (hud-results_ir2.asm) indexes it with a raw index*4 add and no data-start offset (not a boxed array), then a plain word dereference compared against a task id, the standard raw lookup-table shape used elsewhere in this band
 ;; (define-extern *hud-results-medal* array)
 ;; (define-extern *hud-results-medal-proc* object)
 (define-extern spawn-hud-results-medal (function object))
@@ -71215,7 +71276,12 @@
 ;; (define-extern cam-event-intro-update function)
 ;; (define-extern do-event-intro function)
 (define-extern cam-event-intro (state camera-slave)) ;; parent assumed; jakx-new state
-;; (define-extern calc-team-score function)
+;; og:preserve-this hud-results rung: activated from the bare provisional
+;; function placeholder. hud-results_ir2.asm's own call sites (calc-
+;; player-rank and its own siblings) pass a single int team index (0 or
+;; 1) and use the return as an int (formatted, compared, summed); homes
+;; to a file outside this band, still unlanded.
+(define-extern calc-team-score (function int int))
 ;; (define-extern net-game-mgr-default-handler function)
 ;; (define-extern reset-game-now function)
 ;; (define-extern check-body-part-award function)
@@ -85073,9 +85139,14 @@
 (define-extern *hud-results-medal-1* hud-results-medal-1)
 (define-extern *hud-results-medal-1-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-results-medal-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-results-team-view-0* object) ;; provisional: call-site evidence only
+;; og:preserve-this hud-results rung: retyped object -> (array hud-item)
+;; from the provisional-extern placeholder. calc-player-rank's own body
+;; (hud-results_ir2.asm) reads it with the standard boxed-array element
+;; access (offset 12), the same shape as *net-players* and the other
+;; already-typed sibling arrays throughout this band.
+(define-extern *hud-results-team-view-0* (array hud-item))
 (define-extern *hud-results-team-view-0-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-results-team-view-1* object) ;; provisional: call-site evidence only
+(define-extern *hud-results-team-view-1* (array hud-item)) ;; hud-results rung: calc-player-rank's own body (hud-results_ir2.asm) reads it with the same standard boxed-array element access as *hud-results-team-view-0*, its own view-1 sibling
 (define-extern *hud-results-team-view-1-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-results-view-0* object) ;; provisional: call-site evidence only
 (define-extern *hud-results-view-0-proc* object) ;; provisional: call-site evidence only
@@ -85610,7 +85681,8 @@
 ;; og:preserve-this provisional extern removed: shadowed the resurrected net-game-mgr-deathmatch deftype (hud-player-indicators rung, scripts/check_alltypes_shadowing.py)
 (define-extern net-game-mgr-deathrace object) ;; provisional: call-site evidence only
 (define-extern net-game-mgr-football object) ;; provisional: call-site evidence only
-(define-extern net-game-mgr-race object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the resurrected
+;; net-game-mgr-race deftype (hud-results rung, scripts/check_alltypes_shadowing.py)
 (define-extern net-game-mgr-rushhour object) ;; provisional: call-site evidence only
 (define-extern net-game-mgr-time-box object) ;; provisional: call-site evidence only
 (define-extern net-game-mgr-time-trial object) ;; provisional: call-site evidence only
