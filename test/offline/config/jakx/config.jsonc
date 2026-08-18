@@ -707,7 +707,22 @@
     // PS2-hardware-packing class as texture-anim above; car-texture-anim-layer-func
     // has no jak3 twin to transplant against) and stay commented; the car
     // array is never init!'d on the bring-up so the symbols are not resolved.
-    "texture-anim-tables"
+    "texture-anim-tables",
+    // engine-quick-tier-9 rung: talker-speech-class's five methods
+    // (should-play?, mark-played!, reset-state!, yes-play!, no-play!) all
+    // read *game-info*'s own raw offset 1168 (game-info's own unnamed
+    // game-info-pad2 slot, landing on jak3's talker-state per the +4 basics
+    // convention) and the decompiler cannot fold the daddu that combines
+    // the loaded pointer with the shifted speech index, the same
+    // decompiler-internal gap already documented at the top-level-login
+    // task-counter note in type_casts.jsonc; goal_src hand-carries these
+    // five using the exact (pointer uint16) plus manual +6/+7 index idiom
+    // game-info.gc's own initialize! already uses for this same slot, and
+    // talker-spawn-func's own zero-check needed a sound-id cast in place of
+    // the decompiler's spurious none cast (the raw dump's own "WARN: Return
+    // type mismatch object vs sound-id" on the same function). The
+    // decomp-vs-REF diff still gates every other function in this object.
+    "ambient"
   ],
   "skip_compile_functions": [
     // rigid-body-debug (rigid-body-object rung): four rb-debugger methods inline
