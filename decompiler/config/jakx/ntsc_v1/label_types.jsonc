@@ -619,5 +619,19 @@
   // 'vector :x 0.5)`); the register holding its address is overwritten
   // before any further use, the same orphaned-constant shape jak3's own
   // decompile shows there.
-  "collide-cache": [["L220", "vector"]]
+  "collide-cache": [["L220", "vector"]],
+  // net-player-h top-level: *team-colors* and *team-font-colors* are typed
+  // (pointer uint32)/(pointer uint8) externs (call-site evidence in method 94
+  // net-player: team-index * 4 word-stride lwu for colors, unshifted lbu for
+  // font colors), so their referenced labels need an explicit array_size
+  // hint or the data decompiler falls back to an unparseable <static-data>
+  // placeholder. L9 is exactly 8 words (6 populated rgba-shaped colors, 2
+  // trailing zero words, the ".type array" tag right after confirms the
+  // block ends there). L8 is exactly 4 words (16 bytes: 8 populated font
+  // color bytes, 8 trailing zero bytes) with no gap before L9; array_size 16
+  // covers the whole block instead of leaning on implicit compiler padding.
+  "net-player-h": [
+    ["L9", "(pointer uint32)", 8],
+    ["L8", "(pointer uint8)", 16]
+  ]
 }

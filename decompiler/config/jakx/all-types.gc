@@ -55778,14 +55778,22 @@
 ;; net-player-h                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-#|
+;; want was guessed as a plain uint32; (method 3 net-player-respawn-info)
+;; (its inspect) indexes it with an 8-byte stride (dsll s5 3) and passes the
+;; unshifted element address straight into format's backtick-quoted
+;; level-buffer-state-small printer, never dereferencing it itself. That
+;; matches level-buffer-state-small's own :size-assert #x8 exactly (see
+;; load-state's identically-shaped want field), so want is a pointer to that
+;; type, not a scalar. The trailing UNKNOWN placeholder at offset -1 is gone:
+;; want-count (int8, offset 48) leaves 3 bytes of ordinary struct padding
+;; before want at 52, not a real field, and 52 + 4 = 0x38 already matches
+;; :size-assert with no gap left to explain.
 (deftype net-player-respawn-info (structure)
-  ((position   vector     :inline :offset-assert 0)
-   (quat       quaternion :inline :offset-assert 16)
-   (velocity   vector     :inline :offset-assert 32)
-   (want-count int8               :offset-assert 48)
-   (want       uint32             :offset-assert 52)
-   (UNKNOWN    UNKNOWN            :offset-assert -1) ;; field could not be read.
+  ((position   vector                          :inline :offset-assert 0)
+   (quat       quaternion                      :inline :offset-assert 16)
+   (velocity   vector                          :inline :offset-assert 32)
+   (want-count int8                                     :offset-assert 48)
+   (want       (pointer level-buffer-state-small)       :offset-assert 52)
    )
   :method-count-assert 11
   :size-assert         #x38
@@ -55795,7 +55803,6 @@
     (net-player-respawn-info-method-10 () none) ;; 10
     )
   )
-|#
 
 (deftype net-player (process-nettable)
   ((last-known-pos          vector :inline :offset 192)
@@ -55904,7 +55911,17 @@
     )
   )
 
-;; (define-extern net-player-init-remote function)
+;; net-player-init-remote: process-nettable-method-41 (net-player's spawner)
+;; passes it to run-function-in-process as the init function, forwarding only
+;; its own int arg (arg1, the launching caller's "other" id) through; the
+;; body itself never reads a1/a2, only self (s6) and the forwarded a0, and
+;; dispatches three self-vtable methods (offsets 152/156/160, i.e. methods
+;; 34/35/36) before returning 0. Typed with the common init-by-other
+;; convention (function <fwd-args> object :behavior <type>), matching
+;; hirez-viewer-init-by-other; a bare "function" here made
+;; run-function-in-process's own special-casing fail with "invalid function
+;; type: function", the same failure class as an unfilled dispatch slot.
+(define-extern net-player-init-remote (function int object :behavior net-player))
 ;; (define-extern *msg-map-net-player* array)
 ;; (define-extern *net-process-class-info-net-player* object)
 (declare-type net-player process)
@@ -55919,8 +55936,15 @@
 ;; the generic pointer width the walk itself proves rather than asserting a
 ;; specific element struct this evidence does not pin down.
 (define-extern *active-net-non-spectators* (pointer int32))
-;; (define-extern *team-colors* object)
-;; (define-extern *team-font-colors* object)
+;; *team-colors*: (method 94 net-player) indexes it by (-> this team) (uint8)
+;; shifted left 2 (word stride) then loads a 32-bit word and stores it
+;; straight into the this's own uint32 color field; a flat word-per-team
+;; color table.
+(define-extern *team-colors* (pointer uint32))
+;; *team-font-colors*: same call site, indexed by the unshifted team value
+;; (byte stride) and loaded with a single byte, stored into the this's own
+;; uint8 font-color field; a flat byte-per-team table.
+(define-extern *team-font-colors* (pointer uint8))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-world-h                    ;;
@@ -86254,7 +86278,9 @@
 (define-extern net-lanpeer-desc object) ;; provisional: call-site evidence only
 (define-extern net-latency-metrics-params object) ;; provisional: call-site evidence only
 (define-extern net-player-football object) ;; provisional: call-site evidence only
-(define-extern net-player-respawn-info object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the earlier net-player-h
+;; deftype (net-player-respawn-info-method-3 evidence), same class as the
+;; nospawn shadow above (scripts/check_alltypes_shadowing.py)
 (define-extern net-race-start (function object)) ;; provisional: call-site evidence only
 (define-extern net-race-stop (function object)) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier nospawn deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
