@@ -37,7 +37,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (188)
+### Never written (189)
 
 | symbol | reading files | defined in |
 |---|---:|---|
