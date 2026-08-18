@@ -43505,9 +43505,11 @@
 ;; (define-extern *default-continue* continue-point) ;; continue-point
 ;; (define-extern task-level->string function) ;; (function int string)
 ;; (define-extern level-name->task-level function) ;; (function symbol int)
-;; (define-extern trsq->continue-point function) ;; (function trsq int)
+;; default-menu rung: activated per the scaffolded comment's own signature.
+(define-extern trsq->continue-point (function trsq int))
 ;; (define-extern position->stream function) ;; (function string symbol symbol none)
-;; (define-extern bug-report-display function) ;; (function symbol int)
+;; default-menu rung: confirmed against jak3 twin (decompiler/config/jak3/all-types.gc:32196).
+(define-extern bug-report-display (function symbol int))
 ;; (define-extern print-continues function) ;; (function int)
 ;; og:preserve-this uncommented rather than left as a bare `array` guess: (method 27
 ;; game-info)'s read at game-info_ir2.asm op 9 (`lw a1, *highscore-info-array*(s7)`) only
@@ -49477,10 +49479,14 @@
 ;; (define-extern find-instance-by-name function) ;; (function string prototype-bucket)
 (define-extern prototypes-game-visible-set! (function pair symbol level none))
 ;; (define-extern find-instance-by-index function) ;; (function type int bsp-header prototype-bucket)
-;; (define-extern prototype-bucket-type function) ;; (function prototype-bucket type)
-;; (define-extern prototype-bucket-recalc-fields function) ;; (function prototype-bucket prototype-bucket)
-;; (define-extern print-prototype-intersection-list function)
-;; (define-extern print-prototype-list function) ;; (function none)
+;; default-menu rung: activated per the scaffolded comment's own signature.
+(define-extern prototype-bucket-type (function prototype-bucket type))
+(define-extern prototype-bucket-recalc-fields (function prototype-bucket prototype-bucket))
+;; default-menu rung: passed as a debug-menu-item-function callback value
+;; (arg4 of debug-menu-item-function's own constructor, (function object
+;; object)), never called directly in this file.
+(define-extern print-prototype-intersection-list (function object object))
+(define-extern print-prototype-list (function none))
 (define-extern draw-instance-info (function string none)) ;; (function string none)
 ;; (define-extern set-shadow-by-name function) ;; (function string int int none)
 ;; (define-extern get-shadow-by-name function) ;; (function string none)
@@ -60819,7 +60825,8 @@
 ;; (define-extern artist-clean-up-net-mgr function)
 ;; (define-extern *artist-continue-busy* object)
 ;; (define-extern artist-continue function)
-;; (define-extern listener-continue function)
+;; default-menu rung: called with a single string arg, return unused.
+(define-extern listener-continue (function string object))
 ;; (define-extern listener-task function)
 ;; og:preserve-this type fix, R3a (#122): game-info_ir2.asm (anon-function 14
 ;; game-info) op 70-78 calls this with the view index (int) and feeds the result into
@@ -60827,7 +60834,9 @@
 ;; is, since neither this global nor its home object are landed. Retirement: whichever
 ;; leg lands the object that defines select-continue-point for real.
 (define-extern select-continue-point (function int basic))
-;; (define-extern set-local-vehicle function)
+;; default-menu rung: called with a single arg, (sra handle-value 3) (the
+;; standard handle-to-process-index shift), no return usage seen.
+(define-extern set-local-vehicle (function int none))
 ;; (define-extern qo function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -61615,7 +61624,8 @@
 ;; (define-extern read-sound-line function)
 ;; (define-extern crappy-atof function)
 ;; (define-extern tweak-sound function)
-;; (define-extern read-sound-info-tweaks function)
+;; default-menu rung: called with zero args, return unused.
+(define-extern read-sound-info-tweaks (function none))
 ;; (define-extern process-is-in-tree function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -63583,7 +63593,9 @@
 ;; pending its own re-decode, out of this band's file list; see its
 ;; skip_compile_functions note in test/offline/config/jakx/config.jsonc.
 (define-extern vehicle-spawn (function vehicle-type vehicle-spawn-params vehicle))
-;; (define-extern find-vehicle function)
+;; default-menu rung: called with a single int arg (0), its return has
+;; offset-184 read via trsq->continue-point, matching a process-family type.
+(define-extern find-vehicle (function int object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; vehicle-hud                    ;;
@@ -64173,7 +64185,8 @@
 ;; (define-extern anim-tester-save-all-objects function)
 ;; (define-extern anim-tester-add-newobj function)
 ;; (define-extern anim-tester-stop function)
-;; (define-extern anim-tester-start function) ;; (function symbol)
+;; default-menu rung: confirmed against jak3 twin (decompiler/config/jak3/all-types.gc:39852).
+(define-extern anim-tester-start (function symbol))
 (define-extern anim-tester-add-object (function string none))
 ;; (define-extern anim-tester-set-name function)
 ;; (define-extern anim-tester-add-sequence function)
@@ -66467,10 +66480,13 @@
 ;;   PROVEN arity; types from jak3 twin (SUPPORT). reads ['a0', 'a1'] -> 2 args, == the jak3 twin's arity.
 (define-extern dm-enable-instance-func (function string debug-menu-msg symbol))
 ;;   PROVEN arity; types from jak3 twin (SUPPORT). reads ['a0', 'a1'] -> 2 args, == the jak3 twin's arity.
-;; (define-extern *instance-shrub-menu* object) ;; debug-menu
-;; (define-extern *instance-tie-menu* object) ;; debug-menu
-;; (define-extern *enable-instance-shrub-menu* object) ;; debug-menu
-;; (define-extern *enable-instance-tie-menu* object) ;; debug-menu
+;; default-menu rung: *instance-tie-menu* is set both to #f and to a value
+;; typed debug-menu at its own call site (op45, default-menu's second
+;; anon-function block); its three siblings share the identical pattern.
+(define-extern *instance-shrub-menu* debug-menu)
+(define-extern *instance-tie-menu* debug-menu)
+(define-extern *enable-instance-shrub-menu* debug-menu)
+(define-extern *enable-instance-tie-menu* debug-menu)
 (define-extern build-instance-list (function object none))
 ;;   STRONG; types from jak3 twin (SUPPORT). reads [] -> 0 args, twin declares 1 (the body never reads the tail args; register reads are a lower bound).
 ;; (define-extern *path-recorder-menu* object)
@@ -67137,8 +67153,9 @@
 ;; source of truth is common-obs's object declaration until spartacus-editor
 ;; itself lands.
 (define-extern *spartacus-editor* object)
-;; (define-extern spartacus-start function)
-;; (define-extern spartacus-stop function)
+;; default-menu rung: both called with zero args, no return used.
+(define-extern spartacus-start (function none))
+(define-extern spartacus-stop (function none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; texture-upload                 ;;
@@ -86213,7 +86230,9 @@
 (define-extern *ice-debris-params-c* object) ;; provisional: call-site evidence only
 (define-extern *in-end-of-race-preload* object) ;; provisional: call-site evidence only
 (define-extern *in-game-menu-on?* object) ;; provisional: call-site evidence only
-(define-extern *instance-shrub-menu* object) ;; provisional: call-site evidence only
+;; *instance-shrub-menu* stays declared debug-menu (default-menu rung,
+;; evidence above); stale object-typed duplicate removed, same
+;; later-define-extern-wins-at-compile reason noted elsewhere in this file.
 (define-extern *interface-cam* object) ;; provisional: call-site evidence only
 (define-extern *intro-hud-view* object) ;; provisional: call-site evidence only
 (define-extern *intro-hud-view-proc* object) ;; provisional: call-site evidence only
