@@ -1,0 +1,185 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; definition for function set-veh-weapon
+;; ERROR: Failed load: (set! v1-5 (l.d (+ v1-4 4500))) at op 24
+;; WARN: .subu (32-bit) used on a uint at idx 25. This probably should be a handle.
+;; WARN: .subu (32-bit) used on a uint at idx 39. This probably should be a handle.
+(defun set-veh-weapon ((arg0 symbol) (arg1 int) (arg2 wvehicle))
+  (let ((s3-0 (if (= arg0 'left)
+                  0
+                  1
+                  )
+              )
+        (s4-0 (as-type arg2 wvehicle))
+        )
+    (when (not s4-0)
+      (format #t "not a valid vehicle!~%")
+      (return #f)
+      )
+    (let ((v1-5 (l.d (+ (* s3-0 8) (the-as int s4-0) 4500))))
+      (when (and (nonzero? (l32-false-check v1-5)) (let ((a0-5 (-> (the-as (pointer process) (.asm.sllv.r0 v1-5)) 0)))
+                                                     (if (= (sar v1-5 32) (-> a0-5 pid))
+                                                         a0-5
+                                                         )
+                                                     )
+                 )
+        (let ((v1-11 (l.d (+ (* s3-0 8) (the-as int s4-0) 4500))))
+          (deactivate
+            (and (nonzero? (l32-false-check v1-11)) (let ((a1-4 (-> (the-as (pointer process) (.asm.sllv.r0 v1-11)) 0)))
+                                                      (if (= (sar v1-11 32) (-> a1-4 pid))
+                                                          a1-4
+                                                          )
+                                                      )
+                 )
+            )
+          )
+        )
+      )
+    (send-event s4-0 'weapon 'equipped arg1 arg0)
+    )
+  )
+
+;; definition for function dm-set-veh-weapon
+;; WARN: Return type mismatch object vs none.
+(defun dm-set-veh-weapon ((arg0 symbol) (arg1 int32))
+  (set-veh-weapon
+    arg0
+    (the-as int arg1)
+    (the-as wvehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                    (-> *net-mgr* game-state local-machine-idx)
+                                                                    0
+                                                                    )
+                                                                2
+                                                                )
+                                               )
+                                           )
+            )
+    )
+  (none)
+  )
+
+;; definition for function set-vehicle-light-eco
+(defun set-vehicle-light-eco ((arg0 float) (arg1 vehicle))
+  (set! (-> arg1 unknown-float-704) (cond
+                                      ((< 1.0 arg0)
+                                       1.0
+                                       )
+                                      ((< arg0 0.0)
+                                       0.0
+                                       )
+                                      (else
+                                        arg0
+                                        )
+                                      )
+        )
+  )
+
+;; definition for function dm-set-veh-leco
+;; WARN: Return type mismatch int vs none.
+(defun dm-set-veh-leco ((arg0 int))
+  (case arg0
+    ((1)
+     (set-vehicle-light-eco
+       0.0
+       (the-as vehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                      (-> *net-mgr* game-state local-machine-idx)
+                                                                      0
+                                                                      )
+                                                                  2
+                                                                  )
+                                                 )
+                                             )
+               )
+       )
+     )
+    ((2)
+     (set-vehicle-light-eco
+       1.0
+       (the-as vehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                      (-> *net-mgr* game-state local-machine-idx)
+                                                                      0
+                                                                      )
+                                                                  2
+                                                                  )
+                                                 )
+                                             )
+               )
+       )
+     )
+    ((3)
+     (set-vehicle-light-eco
+       1.0
+       (the-as vehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                      (-> *net-mgr* game-state local-machine-idx)
+                                                                      0
+                                                                      )
+                                                                  2
+                                                                  )
+                                                 )
+                                             )
+               )
+       )
+     )
+    (else
+      (set-vehicle-light-eco
+        0.0
+        (the-as vehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                       (-> *net-mgr* game-state local-machine-idx)
+                                                                       0
+                                                                       )
+                                                                   2
+                                                                   )
+                                                  )
+                                              )
+                )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for function test-vehicle-weapon
+;; ERROR: Failed load: (set! v1-13 (l.d (+ v1-12 4500))) at op 31
+;; WARN: .subu (32-bit) used on a uint at idx 32. This probably should be a handle.
+(defbehavior test-vehicle-weapon wvehicle ((arg0 symbol))
+  (let ((gp-0 (new 'stack-no-clear 'event-message-block)))
+    (set! (-> gp-0 from) (process->ppointer self))
+    (set! (-> gp-0 num-params) 0)
+    (set! (-> gp-0 message) 'fire)
+    (let ((s5-0 send-event-function)
+          (v1-13
+            (l.d
+              (+ (* (if (= arg0 'left)
+                        0
+                        1
+                        )
+                    8
+                    )
+                 (the-as int (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                            (-> *net-mgr* game-state local-machine-idx)
+                                                                            0
+                                                                            )
+                                                                        2
+                                                                        )
+                                                       )
+                                                   )
+                         )
+                 4500
+                 )
+              )
+            )
+          )
+      (s5-0
+        (and (nonzero? (l32-false-check v1-13)) (let ((a1-1 (-> (the-as (pointer process) (.asm.sllv.r0 v1-13)) 0)))
+                                                  (if (= (sar v1-13 32) (-> a1-1 pid))
+                                                      a1-1
+                                                      )
+                                                  )
+             )
+        gp-0
+        )
+      )
+    )
+  )

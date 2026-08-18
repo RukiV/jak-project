@@ -7,3 +7,100 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this set-veh-weapon and dm-set-veh-weapon (its only
+;; caller in this file, useless without it) are both omitted rather than
+;; landed. This is the wvehicle-small-tier rung's held item: a
+;; compiler-folded 0-or-8 selector picks between the vehicle's left and
+;; right weapon-slot handle before a shared doubleword load at offset
+;; 4500 that no cast expresses (the raw l.d form does not compile;
+;; every other live use of l.d in this corpus is a dead comment, never
+;; compiled code). Re-derive from the framework's own dump (offline-test
+;; -f wvehicle-weapons-debug -d) once the selector has a real fix.
+
+;; definition for function set-vehicle-light-eco
+(defun set-vehicle-light-eco ((arg0 float) (arg1 vehicle))
+  (set! (-> arg1 unknown-float-704) (cond
+                                      ((< 1.0 arg0)
+                                       1.0
+                                       )
+                                      ((< arg0 0.0)
+                                       0.0
+                                       )
+                                      (else
+                                        arg0
+                                        )
+                                      )
+        )
+  )
+
+;; definition for function dm-set-veh-leco
+;; WARN: Return type mismatch int vs none.
+(defun dm-set-veh-leco ((arg0 int))
+  (case arg0
+    ((1)
+     (set-vehicle-light-eco
+       0.0
+       (the-as vehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                      (-> *net-mgr* game-state local-machine-idx)
+                                                                      0
+                                                                      )
+                                                                  2
+                                                                  )
+                                                 )
+                                             )
+               )
+       )
+     )
+    ((2)
+     (set-vehicle-light-eco
+       1.0
+       (the-as vehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                      (-> *net-mgr* game-state local-machine-idx)
+                                                                      0
+                                                                      )
+                                                                  2
+                                                                  )
+                                                 )
+                                             )
+               )
+       )
+     )
+    ((3)
+     (set-vehicle-light-eco
+       1.0
+       (the-as vehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                      (-> *net-mgr* game-state local-machine-idx)
+                                                                      0
+                                                                      )
+                                                                  2
+                                                                  )
+                                                 )
+                                             )
+               )
+       )
+     )
+    (else
+      (set-vehicle-light-eco
+        0.0
+        (the-as vehicle (net-player-method-49 (-> *net-players* (* (if *net-mgr*
+                                                                       (-> *net-mgr* game-state local-machine-idx)
+                                                                       0
+                                                                       )
+                                                                   2
+                                                                   )
+                                                  )
+                                              )
+                )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; og:preserve-this test-vehicle-weapon is omitted rather than landed,
+;; same defect class and same held item as set-veh-weapon above: the
+;; compiler-folded 0-or-8 weapon-slot selector before the shared
+;; doubleword load at offset 4500 that no cast expresses. Re-derive from
+;; the framework's own dump (offline-test -f wvehicle-weapons-debug -d)
+;; once the selector has a real fix.
