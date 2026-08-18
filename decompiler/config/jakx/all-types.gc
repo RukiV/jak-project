@@ -56071,13 +56071,29 @@
 ;; (define-extern *active-net-player-count* object)
 ;; (define-extern *active-net-players* array)
 ;; (define-extern *active-net-non-spectator-count* object)
-;; support (not proof): plow's launch-nearby-players walks this array
-;; multiplying its loop index by 4 (word stride) then reading a further
-;; offset-12 field whose value dispatches net-player-method-49 (vtable byte
-;; offset 212, returning process, an exact id match: (212-16)/4=49); left as
-;; the generic pointer width the walk itself proves rather than asserting a
-;; specific element struct this evidence does not pin down.
-(define-extern *active-net-non-spectators* (pointer int32))
+;; hud-widgets-tier rung: upgraded from the generic (pointer int32) support
+;; evidence below (kept for the record) to proof. net-player-h.gc's own
+;; (define *active-net-non-spectators* ...) constructs it with
+;; (new 'static 'boxed-array :type net-player :length 0 :allocated-length 24),
+;; the byte-identical initializer *net-players* and *active-net-players* use,
+;; then force-casts the result down to (pointer int32) with (the-as ...)
+;; solely to match this symbol's own (now corrected) declared type; the
+;; retail data is a plain (array net-player), same as its two siblings.
+;; get-player-id-by-team, team-has-local-humans? and (method 9/17/19
+;; hud-item-score-list) all walk it with the same index*4-then+12 idiom
+;; *net-players* itself uses (a boxed-array's own 12-byte header before its
+;; data), and casting the loaded element to net-player per read op (rather
+;; than relying on this declared type) hits a distinct "Failed load"
+;; validation error, unlike the generic pointer type's clean per-op casts
+;; that (still-parked) launch-nearby-players relies on below; declaring the
+;; array itself as (array net-player) removes the need for any of those
+;; per-read casts, matching *net-players*'s own zero-cast field access.
+;; support (not proof), kept for context: plow's launch-nearby-players walks
+;; this array multiplying its loop index by 4 (word stride) then reading a
+;; further offset-12 field whose value dispatches net-player-method-49
+;; (vtable byte offset 212, returning process, an exact id match:
+;; (212-16)/4=49).
+(define-extern *active-net-non-spectators* (array net-player))
 ;; *team-colors*: (method 94 net-player) indexes it by (-> this team) (uint8)
 ;; shifted left 2 (word stride) then loads a 32-bit word and stores it
 ;; straight into the this's own uint32 color field; a flat word-per-team
@@ -69122,7 +69138,12 @@
   :size-assert         #x48
   :flag-assert         #x1900000048
   (:methods
-    (hud-clock-method-24 (_type_ object object) none) ;; 24
+    ;; hud-widgets-tier rung: arg0 retyped object -> int. Body stack-stores
+    ;; it, reloads it and divides it by 18000 to split minutes from seconds
+    ;; ("Couldn't figure out integer mod/divide: (/.si v1 a0) (object and
+    ;; <integer 18000>)" with the old object typing); a clock value in
+    ;; milliseconds. hud-widgets_ir2.asm, this rung.
+    (hud-clock-method-24 (_type_ int object) none) ;; 24
     )
   )
 
@@ -69292,7 +69313,14 @@
   :size-assert         #x38
   :flag-assert         #x1900000038
   (:methods
-    (hud-score-single-method-24 () none) ;; 24
+    ;; hud-widgets-tier rung: dropped both its own arg and its own return.
+    ;; Walks *active-net-players*, comparing each entry's own player-id
+    ;; (machine 284, declared 288 via the +4 basics trap) against a1 (a
+    ;; player-id searched for, read with no prior definition: "Function may
+    ;; read a register that is not set: a1"), and returns the matching
+    ;; net-player pointer or #f (WARN: "Return type mismatch net-player vs
+    ;; none" on the same op). hud-widgets_ir2.asm, this rung.
+    (hud-score-single-method-24 (_type_ int) net-player) ;; 24
     )
   )
 
@@ -69445,8 +69473,18 @@
   )
 
 
-(define-extern team-has-local-humans? (function object))
-(define-extern get-player-id-by-team (function object))
+;; hud-widgets-tier rung: both dropped their own arg, machine evidence only
+;; (no landed callers elsewhere in the tree). team-has-local-humans? reads
+;; a0 as the team index searched for (net-player.team, machine 237, declared
+;; 241 via the +4 basics trap) and its own two tail branches return literal
+;; #t/#f (WARN: "Return type mismatch symbol vs object" confirms symbol).
+;; get-player-id-by-team walks the same *active-net-non-spectators* list for
+;; the same team-index arg and returns net-player.player-id (machine 284,
+;; declared 288) or -1 (WARN: "Return type mismatch int vs object" confirms
+;; int). hud-widgets_ir2.asm, this rung; both callers (method 17/19
+;; hud-item-score-list) pass a single int in a0 at every call site.
+(define-extern team-has-local-humans? (function int symbol))
+(define-extern get-player-id-by-team (function int int))
 ;; (define-extern *hud-slowmo* array)
 ;; (define-extern *hud-slowmo-proc* object)
 (define-extern spawn-hud-slowmo (function object))
@@ -73005,7 +73043,13 @@
   :size-assert         #x48
   :flag-assert         #x1a00000048
   (:methods
-    (hud-vehicle-eco-bar-method-24 (_type_ object) none) ;; 24
+    ;; wvehicle-hud-tier rung: arg0 retyped object -> float. Body converts
+    ;; it straight into an fpr and clamps it into [0.0, 1.0] via min.s/max.s
+    ;; with no other use ("Floating point math attempted on invalid types:
+    ;; float and object in op (min.s f1-0 f2-0)" with the old object
+    ;; typing), matching the eco-bar's own fill fraction. wvehicle-hud_ir2.asm,
+    ;; this rung.
+    (hud-vehicle-eco-bar-method-24 (_type_ float) none) ;; 24
     (hud-vehicle-eco-bar-method-25 (_type_ object) none) ;; 25
     )
   )

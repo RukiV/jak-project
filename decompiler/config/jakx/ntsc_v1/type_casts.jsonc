@@ -7187,6 +7187,178 @@
     [5, "a1", "hud-item-sprite"],
     [7, "v1", "hud-item-sprite"]
   ],
+  // hud-widgets-tier rung: the offset-237 mystery. get-player-id-by-team and
+  // team-has-local-humans? both read a byte at raw offset 237 off an
+  // *active-net-non-spectators* element, then a second byte at raw offset
+  // 284 off the same pointer. net-player's own og:preserve-this note already
+  // proves its own declared field offsets from last-known-pos on sit 4
+  // above their retail machine addresses; team (declared 241) and player-id
+  // (declared 288) are exactly 237+4 and 284+4, the ordinary +4 basics trap
+  // rather than a second, separate defect. Resolved by retyping
+  // *active-net-non-spectators* itself to (array net-player) above (proof:
+  // its own og:preserve-this note next to the all-types.gc declaration),
+  // matching *net-players*'s own zero-cast field access; per-op casts here
+  // instead hit a distinct "Failed load" validation error on the element
+  // load itself (a0/a1 is both the load's input and output register, unlike
+  // the other net-player casts in this file that narrow an already-resolved
+  // register), so none are needed or used once the array's own type is
+  // correct. The signature fix above (arg0 retyped object -> int)
+  // separately clears each function's own "Function may read a register
+  // that is not set: a0".
+  // hud-widgets-tier rung: (method 17 hud-item-score-list)'s own max-teams
+  // scan reads the same net-player.team byte (raw 237) as
+  // get-player-id-by-team above; also resolved by the array retype, no cast
+  // needed.
+  // hud-widgets-tier rung: (method 19 hud-item-score-list) stores
+  // get-player-id-by-team's own return into an items-array element's own
+  // player-id field (raw 40, declared 44 via the +4 basics trap), matching
+  // hud-item-score's own player-id field exactly (not the generic hud-item
+  // the array element type gives); the store itself (op 31) resolves on its
+  // own, but the immediate read-back (op 33, "Could not figure out load")
+  // needs the same narrowing. Op numbers here move whenever an earlier fix
+  // in this same function changes how much code folds; re-verify against a
+  // fresh scoped decode before trusting them.
+  "(method 19 hud-item-score-list)": [
+    [31, "s2", "hud-item-score"],
+    [33, "s2", "hud-item-score"],
+    [87, "s2", "hud-item-score"],
+    [89, "s2", "hud-item-score"]
+  ],
+  // hud-widgets-tier rung: (method 23 hud-item-score-list) reads its own
+  // incoming t0 (arg3, moved into gp at op 0) as an event-message-block,
+  // matching (method 13 hud-effect-emit-score-icon)'s own precedent; raw
+  // offset 24 lands on param[1] (event-message-block is a structure, no +4
+  // basics shift).
+  "(method 23 hud-item-score-list)": [
+    [20, "gp", "event-message-block"]
+  ],
+  // hud-widgets-tier rung: (method 19 hud-leader-score) reads a signed byte
+  // at raw net-game-mgr+194 (declared 198), net-game-mgr's own sorted-ids
+  // field (uint8 24); (method 14 hud-text-effect-sound)'s own type_casts
+  // entry documents the identical field under the same signedness mismatch
+  // (uint8 storage, lb signed read) for a dynamically-indexed access. Here
+  // the index is the fixed constant 0 (no summation before the load), so
+  // the base pointer itself is cast to a signed byte pointer at the load.
+  // op 62/93 (both L136/fallthrough branches) dispatch vtable byte offset
+  // 112 (method id (112-16)/4=24) on s4 (items-array element 0, generic
+  // hud-item), then feed the call a *common-text* lookup result (id 3019)
+  // as its own arg0; hud-item-string-method-24's own declared signature
+  // (_type_ object) matches the call's own arg shape, and passing a looked-
+  // up text value fits a text-setter far better than hud-player-icon-
+  // method-24's own icon-only override (same declared signature, no textual
+  // evidence). Narrowed to hud-item-string, not hud-player-icon.
+  "(method 19 hud-leader-score)": [
+    [31, "v1", "(pointer int8)"],
+    [62, "s4", "hud-item-string"],
+    [93, "s4", "hud-item-string"],
+    [76, "s4", "hud-item-string"],
+    [86, "s5", "hud-item-string"],
+    [107, "s4", "hud-item-string"]
+  ],
+  // hud-widgets-tier rung: (method 23 hud-score-single) and (method 23
+  // hud-item-score), same event-message-block param[1] class as (method 23
+  // hud-item-score-list) above.
+  "(method 23 hud-score-single)": [
+    [14, "s2", "event-message-block"],
+    [19, "v1", "hud-item-group"],
+    [21, "a0", "hud-item-string"]
+  ],
+  "(method 23 hud-item-score)": [
+    [26, "gp", "event-message-block"]
+  ],
+  // hud-widgets-tier rung: (method 19 hud-score-single) reads its own
+  // items-array element 1 (v1, hud-item base) as hud-item-group to reach
+  // its own nested items field (raw 36, declared 40 via the +4 basics
+  // trap), the same recipe as (method 19 hud-position)/(method 9
+  // hud-position)/(method 9 hud-lap)/(method 9 hud-clock) below: every
+  // hud-item-group-derived widget nests a second hud-item-group inside its
+  // own items array for icon+text sub-layout.
+  "(method 19 hud-score-single)": [
+    [5, "v1", "hud-item-group"],
+    [34, "s4", "hud-item-string"],
+    [48, "s4", "hud-item-string"]
+  ],
+  // Every hud-item-group cast below needs an entry per read op, not one per
+  // register: this file's own type_casts application is per-instruction,
+  // and a single entry does not carry forward across a second, later read
+  // of the same unreassigned register (measured this rung: the second read
+  // reverts to the array element's generic declared type, "hud-item",
+  // exactly the class of error a fresh cast at that op alone clears).
+  "(method 19 hud-position)": [
+    [22, "v1", "hud-item-group"],
+    [24, "v1", "hud-item-group"],
+    [26, "a0", "hud-item-string"]
+  ],
+  "(method 9 hud-position)": [
+    [9, "s5", "hud-item-group"],
+    [13, "s5", "hud-item-group"],
+    [20, "s5", "hud-item-group"],
+    [24, "s5", "hud-item-group"]
+  ],
+  "(method 9 hud-lap)": [
+    [14, "a1", "hud-item-group"],
+    [21, "a1", "hud-item-group"]
+  ],
+  // hud-widgets-tier rung: (method 9 hud-clock) reads items[1]'s own nested
+  // hud-item-group at op 10 (raw 36, declared 40). WALL: extending this cast
+  // to the function's later, identical-looking reads (ops 14/18/22/26/36)
+  // regresses op 3's own unrelated store ("sw v1, 40(a1)", clean before the
+  // extra casts, "Failed store" after); the mechanism is not understood
+  // (op 3 shares no register with the added casts) and reverting them
+  // restores the clean op-3 store. Held at the single op-10 cast; ops
+  // 14/18/22/26/36 stay unresolved for a follow-up rung.
+  "(method 9 hud-clock)": [
+    [10, "v1", "hud-item-group"]
+  ],
+  // hud-widgets-tier rung: (method 19 hud-lap) reads a net-player-race's own
+  // current-lap field (raw 472, declared 476 via the +4 basics trap,
+  // net-player-race's own field table) off the same *net-players* walk used
+  // throughout this band.
+  "(method 19 hud-lap)": [
+    [18, "v1", "net-player-race"],
+    [30, "s4", "hud-item-group"],
+    [32, "a0", "hud-item-string"]
+  ],
+  // hud-widgets-tier rung: (method 19 hud-medal) reads *net-world*'s own
+  // task-info field (declared basic) as game-task-node-info, matching
+  // (method 19 hud-indicator)'s own precedent exactly (net-play-mode,
+  // declared 9, machine 5 via the +4 basics trap).
+  "(method 19 hud-medal)": [
+    [47, "v1", "game-task-node-info"],
+    [104, "s3", "hud-item-string"],
+    [124, "a0", "hud-item-string"]
+  ],
+  // hud-widgets-tier rung: (method 24 hud-clock) reads items[1]'s own
+  // nested hud-item-group five separate times (raw offset 36, declared 40),
+  // once per digit/separator sub-widget it pulls out (hours, minutes,
+  // seconds, colon x2); every read needs its own cast (see the note above).
+  // Each of the five sub-items then dispatches a text-setter: element 0
+  // (a0-5) at vtable byte 120 (method id 26), elements 1-4 (s0/s1/s2/s3) at
+  // vtable byte 112 (method id 24); hud-item-string declares both, matching
+  // a colon-separated clock readout built from individually-set digit
+  // strings.
+  "(method 24 hud-clock)": [
+    [17, "v1", "hud-item-group"],
+    [19, "v1", "hud-item-group"],
+    [21, "v1", "hud-item-group"],
+    [23, "v1", "hud-item-group"],
+    [25, "v1", "hud-item-group"],
+    [27, "a0", "hud-item-string"],
+    [31, "s0", "hud-item-string"],
+    [46, "s1", "hud-item-string"],
+    [62, "s2", "hud-item-string"],
+    [71, "s3", "hud-item-string"]
+  ],
+  // hud-widgets-tier rung: (method 23 hud-clock) reads its own incoming t0
+  // (arg3, moved into s2 at op 4) as an event-message-block; raw offsets
+  // 68/24/16 land on num-params, param[1] and param[0] respectively
+  // (structure, no +4 basics shift). Cast at the first failing op only (9);
+  // the later reads at the same s2 resolve once the type is established.
+  "(method 23 hud-clock)": [
+    [9, "s2", "event-message-block"],
+    [11, "s2", "event-message-block"],
+    [14, "s2", "event-message-block"]
+  ],
   // view-get-camera-combiner declares a basic return only because camera-combiner's
   // deftype compiles later than view-h (og:preserve-this note in view.gc); the runtime
   // value is the camera-combiner process, and its trans vector sits at machine offset
@@ -7644,5 +7816,33 @@
   "(method 9 nav-link-search-info)": [
     [3, "a1", "trsqv"],
     [7, "a1", "trsqv"]
-  ]
+  ],
+  // wvehicle-hud-tier rung: kill-vehicle-hud and spawn-vehicle-hud both read
+  // *net-world*'s own task-info field (raw offset 1108, declared basic)
+  // then a byte at raw offset 5 off it, the identical game-task-node-info
+  // net-play-mode class already resolved on hud-widgets' own (method 19
+  // hud-medal) and (method 19 hud-indicator) (declared 9, machine 5 via the
+  // +4 basics trap).
+  "kill-vehicle-hud": [[4, "v1", "game-task-node-info"]],
+  "spawn-vehicle-hud": [[4, "v1", "game-task-node-info"]],
+  // wvehicle-hud-tier rung: (method 19 hud-vehicle-right) and (method 19
+  // hud-vehicle-left) each dispatch vtable byte offset 112 (method id 24)
+  // on an items-array element (index 3, offset 20), feeding it a raw float
+  // pulled from a resolved vehicle process (offset 700) via mfc1, not a
+  // text lookup; hud-item-sprite's own method 24 (angle, a float field) is
+  // the match, not hud-item-string's own text-setter used everywhere else
+  // in this band.
+  "(method 19 hud-vehicle-right)": [[25, "s4", "hud-item-sprite"]],
+  "(method 19 hud-vehicle-left)": [[25, "s4", "hud-item-sprite"]],
+  // wvehicle-hud-tier rung: (method 19 hud-weapon-field) dispatches vtable
+  // byte offset 112 (method id 24) on items-array element 4 (offset 28)
+  // immediately after formatting an ammo count into *temp-string* via
+  // format/"~D", the same hud-item-string text-setter class used
+  // throughout hud-widgets.
+  "(method 19 hud-weapon-field)": [[15, "s2", "hud-item-string"]],
+  // wvehicle-hud-tier rung: (method 19 hud-vehicle-ammo) dispatches the same
+  // vtable byte offset 112 (method id 24) on items-array element 2 (offset
+  // 20) immediately after formatting into *temp-string* via format/"", the
+  // same hud-item-string text-setter class.
+  "(method 19 hud-vehicle-ammo)": [[4, "s4", "hud-item-string"]]
 }
