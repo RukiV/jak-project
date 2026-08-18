@@ -7,24 +7,22 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this rigid-body-object rung: this object's own methods are
-;; landed below and compile clean, but almost every one of them dispatches
-;; through (-> this rbody), a rigid-body-control, and rigid-body-control's
-;; own methods (9 through 40, all of them, including the ones with real
-;; call-site-verified signatures already in rigid-body-h.gc) have no landed
-;; defmethod anywhere: rigid-body.gc, the object that carries their bodies,
-;; is still an empty stub. Reached methods: 62 (rigid-body-control-method-20,
-;; add-force!), 63 and 87 (rigid-body-control-method-10), 64
-;; (rigid-body-control-method-29, debug-print-info), 71
-;; (rigid-body-control-method-11, update-rbody-transform!), 72
-;; (rigid-body-control-method-30, debug-print-force-torque), 83
-;; (rigid-body-control-method-24/18/12/13). rigid-body-info-method-9 (method
-;; 68) and rigid-body-object-constants-method-9 (method 69) are the same
-;; class, bodied in the same unlanded rigid-body.gc object. Every one of
-;; these calls jumps to zero at runtime until rigid-body.gc lands; this was
-;; already true before this rung (method 71 itself was undefined), so this
-;; rung does not create the hazard, it just moves the crash one call deeper.
-;; Flagged for the boot smoke and for whoever picks up rigid-body.gc next.
+;; og:preserve-this rigid-body rung: the rigid-body-object rung's own hazard
+;; note above (every rbody dispatch jumping to zero because rigid-body.gc was
+;; an empty stub) is resolved: rigid-body.gc now lands rigid-body-control's
+;; methods 9-40 (see that file's own header and rigid-body-h.gc's :methods
+;; comments for the full per-slot evidence; a handful stay held under
+;; hacks.jsonc's no_type_analysis_functions_by_name, named there). Landing
+;; those bodies changed several of THIS file's own already-compiled call
+;; sites: methods 10, 20, and 30 (numbered by their final, corrected slots,
+;; not the placeholder guesses a prior rung decoded against) all moved from
+;; a zero-arg method-of-object dispatch with dead-looking expressions beside
+;; it to a direct call with those same expressions restored as real
+;; arguments, the same bootstrapping-decode-artifact class documented at
+;; each fixed method below (62, 63, 64, 72, 87). rigid-body-control-method-9
+;; and (method 9 rigid-body-info) stay held (hacks.jsonc), so calls that
+;; reach them (through method 10, landed) still link as zero at runtime;
+;; flagged for the boot smoke.
 
 ;; definition for method 57 of type rigid-body-object
 (defmethod process-focusable-method-57 ((this rigid-body-object))
@@ -60,35 +58,41 @@
 
 ;; definition for method 62 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
-;; og:preserve-this rigid-vehicle-small-tier rung: arg0 added (unused in this
-;; base body, the same class as method 68/79's own unused trailing args).
-;; rigid-body-control's own force-callback field is already declared
-;; (function rigid-body-object float none), and this method is assigned to
-;; it two methods above; a wvehicle-specific override of this same slot
-;; (wvehicle-physics.gc) reads its own explicit arg and forwards it
-;; unchanged to (method 214 wvehicle), proving the slot genuinely carries an
-;; argument through the vtable.
+;; og:preserve-this rigid-body rung: RESTORED the real add-force! call,
+;; reversing the rigid-body-object rung's own hazard note. rigid-body-control-
+;; method-20 was an empty stub at the time of that rung (this file's own
+;; dependency, then unlanded), so its own placeholder "()" arity forced this
+;; call to decode with zero args and left the freshly-built gravity vector
+;; computed and discarded. Now that rigid-body.gc lands add-force!'s real
+;; (_type_ vector) none signature, a fresh decode of this method shows the
+;; vector actually passed through. arg0 stays unused in this base body, the
+;; same class as method 68/79's own unused trailing args; a wvehicle-specific
+;; override of this same force-callback slot (wvehicle-physics.gc) reads its
+;; own explicit arg, proving the slot genuinely carries one.
 (defmethod rigid-body-object-method-62 ((this rigid-body-object) (arg0 float))
-  (let ((a1-0 (new 'stack-no-clear 'vector)))
-    (vector-reset! a1-0)
-    (set! (-> a1-0 y) (* -1.0 (-> this info info gravity) (-> this rbody info mass)))
+  (let ((a1-1 (new 'stack-no-clear 'vector)))
+    (vector-reset! a1-1)
+    (set! (-> a1-1 y) (* -1.0 (-> this info info gravity) (-> this rbody info mass)))
+    (rigid-body-control-method-20 (-> this rbody) a1-1)
     )
-  ((method-of-object (-> this rbody) rigid-body-control-method-20))
   0
   (none)
   )
 
 ;; definition for method 63 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
+;; og:preserve-this rigid-body rung: RESTORED the real call shape. Same root
+;; cause as method 62 above: rigid-body-control-method-10 was declared with a
+;; wrong, too-narrow two-float signature (a prior rung's call-site evidence
+;; was drawn from this exact stale decode, a bootstrapping loop), which
+;; decoded this method's own "this" argument as a bogus float cast and left
+;; max-time-step as a discarded dead expression. rigid-body.gc's rung
+;; restores method-10's real (rigid-body-object float float) shape from the
+;; callee's own body evidence; this call now decodes clean with "this" and
+;; max-time-step as real arguments, matching jak3's own
+;; rigid-body-object-method-32 call shape.
 (defmethod rigid-body-object-method-63 ((this rigid-body-object))
-  (let* ((v1-0 (-> this rbody))
-         (t9-0 (method-of-object v1-0 rigid-body-control-method-10))
-         (a1-1 this)
-         (a2-1 (seconds-per-frame))
-         )
-    (-> this max-time-step)
-    (t9-0 v1-0 (the-as float a1-1) a2-1)
-    )
+  (rigid-body-control-method-10 (-> this rbody) this (seconds-per-frame) (-> this max-time-step))
   0
   (none)
   )
@@ -109,15 +113,12 @@
 
 ;; definition for method 87 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
+;; og:preserve-this rigid-body rung: RESTORED the real call shape, the same
+;; root cause and fix as method 63 above (rigid-body-control-method-10's
+;; corrected signature), matching jak3's own rigid-body-object-method-54
+;; call shape.
 (defmethod rigid-body-object-method-87 ((this rigid-body-object))
-  (let* ((v1-0 (-> this rbody))
-         (t9-0 (method-of-object v1-0 rigid-body-control-method-10))
-         (a1-1 this)
-         (a2-1 (-> this rbody time-remaining))
-         )
-    (-> this max-time-step)
-    (t9-0 v1-0 (the-as float a1-1) a2-1)
-    )
+  (rigid-body-control-method-10 (-> this rbody) this (-> this rbody time-remaining) (-> this max-time-step))
   0
   (none)
   )
@@ -139,16 +140,29 @@
 
 ;; definition for method 64 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
+;; og:preserve-this rigid-body rung: RESTORED the real init! call and the
+;; missing third "new" argument, reversing the rigid-body-object rung's own
+;; hazard note (both callees were unlanded stubs at that rung, forcing this
+;; decode against placeholder zero/two-arg signatures). Two separate
+;; bootstrapping artifacts land together here: "new"'s own process argument
+;; ((-> v0-0 process) arg0, rigid-body.gc's method 0) was silently dropped,
+;; and the call this rung's own decode had labeled "rigid-body-control-
+;; method-29" (a jak3-position guess, then debug-print-info-shaped) is
+;; rigid-body-control's real init! (5 args including self), with what this
+;; rung's own decode had rendered as three dead expressions
+;; ((-> this root trans), (-> this root rot), (method-of-object this
+;; rigid-body-object-method-62)) restored as init!'s own vector/quaternion/
+;; callback arguments, matching jak3's own alloc-rbody-control! call shape.
 (defmethod rigid-body-object-method-64 ((this rigid-body-object) (arg0 object))
   (set! (-> this info) (the-as rigid-body-object-constants arg0))
-  (set! (-> this rbody) (new 'process 'rigid-body-control))
+  (set! (-> this rbody) (new 'process 'rigid-body-control this))
   (update-transforms (-> this root))
-  (let ((t9-2 (method-of-object (-> this rbody) rigid-body-control-method-29)))
+  (rigid-body-control-method-29
+    (-> this rbody)
     (-> (the-as rigid-body-object-constants arg0) info)
     (-> this root trans)
-    (-> this root rot)
-    (method-of-object this rigid-body-object-method-62)
-    (t9-2)
+    (the-as quaternion (-> this root rot))
+    (the-as (function rigid-body-object float) (method-of-object this rigid-body-object-method-62))
     )
   (rigid-body-object-method-68 this (the-as rigid-body-object-constants arg0) #t)
   (rigid-body-object-method-69 this)
@@ -284,14 +298,19 @@
 
 ;; definition for method 72 of type rigid-body-object
 ;; WARN: Return type mismatch int vs none.
+;; og:preserve-this rigid-body rung: RESTORED the real call shape, the same
+;; bootstrapping-decode-artifact class as methods 62/63/64/87 above:
+;; rigid-body-control-method-30 was declared with a wrong, too-narrow
+;; (self+object, 2-arg) signature at the time of the rigid-body-object rung,
+;; which decoded this call as a bare zero-arg dispatch and left the position/
+;; rotation reads as dead expressions. rigid-body.gc's rung restores
+;; method-30's real (vector quaternion) shape from the callee's own body
+;; evidence; those two dead expressions are init!'s own vector/quaternion
+;; arguments, matching jak3's own apply-momentum! call shape.
 (defmethod rigid-body-object-method-72 ((this rigid-body-object))
   (when (not (logtest? (-> this rbody flags) 2))
     (logior! (-> this rbody flags) 2)
-    (let ((t9-0 (method-of-object (-> this rbody) rigid-body-control-method-30)))
-      (-> this root trans)
-      (-> this root rot)
-      (t9-0)
-      )
+    (rigid-body-control-method-30 (-> this rbody) (-> this root trans) (the-as quaternion (-> this root rot)))
     (vector-float*! (-> this rbody lin-momentum) (-> this root transv) (-> this info info mass))
     (vector-reset! (-> this rbody ang-momentum))
     )
@@ -408,7 +427,7 @@
 ;; touching-shapes-entry penetrate) at four args. But construction-obs-h.gc's
 ;; already-landed override
 ;;   (defmethod rigid-body-object-method-82 ((this construction-object)
-;;     (arg0 object) (arg1 rigid-body-info))
+;;     (arg0 object) (arg1 rigid-body-info)))
 ;;     (set! (-> arg1 inertial-tensor fvec x) (/ (-> arg1 inertial-tensor fvec x) 1000))
 ;;     ((method-of-type rigid-body-object rigid-body-object-method-82) this arg0 arg1)
 ;;     (none))

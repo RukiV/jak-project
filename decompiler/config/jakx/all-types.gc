@@ -48341,7 +48341,14 @@
    (debugger-step      int8                                            :offset-assert 7)
    (info               rigid-body-info                                 :offset-assert 8)
    (force-callback     (function rigid-body-object float none)         :offset-assert 12) ;; guessed by decompiler
-   (post-move-callback basic                                           :offset-assert 16)
+   ;; og:preserve-this rigid-body rung: retyped basic -> (function rigid-body-object
+   ;; float none), the exact same shape as force-callback above. (method 10
+   ;; rigid-body-control)'s own body loads this field into t9 and calls it with the
+   ;; same (rigid-body-object, float) argument pair the force-callback call two ops
+   ;; earlier uses ("Called something that was not a function: basic" under the
+   ;; plain basic typing). No jak3 twin (this field does not exist in jak3's own
+   ;; rigid-body-control).
+   (post-move-callback (function rigid-body-object float none)         :offset-assert 16)
    (process            process                                         :offset-assert 20) ;; guessed by decompiler
    (time-remaining     float                                           :offset-assert 24)
    (max-ang-momentum   float                                           :offset-assert 28)
@@ -48366,14 +48373,36 @@
   :flag-assert         #x2900000130
   ;; field rigid-body-flag is likely a value type.
   (:methods
-    (new (symbol type) _type_) ;; 0 ;; (new (symbol type process) _type_)
-    (rigid-body-control-method-9 () none) ;; 9 ;; (rigid-body-control-method-9 (_type_ collide-shape-moving float) none)
-    ;; og:preserve-this method 10's trailing-comment guess claims a third
-    ;; explicit arg (rigid-body-object) ahead of the two floats; both of its
-    ;; real call sites (rigid-body-object-method-63 and -87, this rung's own
-    ;; scoped decode) push exactly two float values and nothing else, so the
-    ;; extra arg is dropped here rather than trusted from the hint.
-    (rigid-body-control-method-10 (_type_ float float) object) ;; 10
+    ;; og:preserve-this rigid-body rung: promoted to the trailing-comment
+    ;; typespec, matching jak3's own new exactly: it writes the third
+    ;; explicit arg into the process field (offset 16, declared 20 with the
+    ;; +4 basic-tag bias) and this rung's own fresh decode reads register a2
+    ;; there ("may read a register that is not set: a2" under the old 2-arg
+    ;; signature). rigid-body-object-method-64's own landed call
+    ;; (`(new 'process 'rigid-body-control)`) is missing this argument and is
+    ;; fixed in this same rung.
+    (new (symbol type process) _type_) ;; 0
+    ;; og:preserve-this rigid-body rung: promoted to the trailing-comment
+    ;; typespec, matching jak3's own slot 9 body-for-body. Held under
+    ;; hacks.jsonc's no_type_analysis_functions_by_name (a nested call-inside-
+    ;; boolean pattern the decompiler's own expression builder cannot resolve
+    ;; past, unrelated to arity), so this signature governs its declared type
+    ;; without governing its own decode.
+    (rigid-body-control-method-9 (_type_ collide-shape-moving float) none) ;; 9
+    ;; og:preserve-this rigid-body rung: RESTORED the trailing-comment's third
+    ;; explicit arg (rigid-body-object), reversing a prior rung's drop. That
+    ;; drop's own evidence (rigid-body-object-method-63/-87 pushing "exactly
+    ;; two float values") was read from a decode taken before rigid-body.gc
+    ;; itself existed to prove the callee's real shape; this rung's own fresh
+    ;; decode of THIS function's raw body reads a rigid-body-object's root
+    ;; field (offset 184, `lwu a1, 184(s5)`) directly through what the
+    ;; two-float signature had forced the decompiler to label a float. Under
+    ;; the restored 3-arg signature, rigid-body-object-method-63 and -87's own
+    ;; decode now shows "this" (not a float cast) as the second call arg and a
+    ;; previously-dead max-time-step/time-remaining expression as the third,
+    ;; matching jak3's own rigid-body-object-method-32/-54 call shape exactly;
+    ;; both landed callers are fixed in this same rung.
+    (rigid-body-control-method-10 (_type_ rigid-body-object float float) object) ;; 10
     (rigid-body-control-method-11 (_type_ collide-shape-moving) none) ;; 11 ;; update-rbody-transform!, verified against rigid-body-object-method-71's call site (this rung)
     ;; og:preserve-this three signatures promoted from the trailing-comment guesses
     ;; (2026-08-16 construction-obs-h rung), the first landed caller for any of them:
@@ -48382,33 +48411,111 @@
     ;; impact point and a locally-built normal-scaled vector).
     (rigid-body-control-method-12 (_type_ float) none) ;; 12
     (rigid-body-control-method-13 (_type_) none) ;; 13 ;; init-velocities!
-    (rigid-body-control-method-14 () none) ;; 14 ;; (rigid-body-control-method-14 (_type_ float) none)
-    (rigid-body-control-method-15 () none) ;; 15 ;; (rigid-body-control-method-15 (_type_) none)
-    (rigid-body-control-method-16 () none) ;; 16 ;; (reset-force-and-torque! (_type_) none)
+    ;; og:preserve-this rigid-body rung: this table is NOT a slot-for-slot match
+    ;; against jak3's own rigid-body-control (goal_src/jak3/engine/physics/
+    ;; rigid-body-h.gc) despite rigid-body-control extending basic directly in
+    ;; both games (no +32 twin-map shift applies to the parent chain itself).
+    ;; jakx's table was independently verified, method by method, against this
+    ;; rung's own scoped decode of rigid-body.gc: several slots implement a
+    ;; DIFFERENT jak3 method than their own slot number would suggest (jak3's
+    ;; own 26/27/28 map to jakx's 28/none/30, and jak3's 29-33 debug-print
+    ;; family sits at jakx 36-40 instead). Each entry below cites the jak3
+    ;; function it matches body-for-body, not just its slot number; entries
+    ;; with no such citation are jakx-only additions (21, 30, 31, 32) or a
+    ;; genuinely new refactor with no direct jak3 twin (27).
+    (rigid-body-control-method-14 (_type_ float) none) ;; 14 ;; matches jak3's own slot 14 body-for-body (calls slot 27 self-only at the end, see 27 below)
+    (rigid-body-control-method-15 (_type_) none) ;; 15 ;; no body in this rung's decode (unbodied slot, never called); kept at jak3's own slot-15 shape, unverified
+    (rigid-body-control-method-16 (_type_) none) ;; 16 ;; reset-force-and-torque!, matches jak3's own slot 16 body-for-body
     (rigid-body-control-method-17 (_type_) none) ;; 17 ;; reset-momentum!, verified against vehicle-util's two call sites (this rung), neither pushes an arg
-    (rigid-body-control-method-18 (_type_ vector vector) none) ;; 18 ;; apply-impact!
-    (rigid-body-control-method-19 () none) ;; 19 ;; (rigid-body-control-method-19 (_type_ vector vector) none)
-    (rigid-body-control-method-20 () none) ;; 20 ;; (add-force! (_type_ vector) none)
-    (rigid-body-control-method-21 () none) ;; 21 ;; (rigid-body-control-method-21 (_type_ vector vector float) none)
-    (rigid-body-control-method-22 () none) ;; 22 ;; (rigid-body-control-method-22 (_type_ vector vector) none)
-    (rigid-body-control-method-23 () none) ;; 23 ;; (rigid-body-control-method-23 (_type_ vector vector) none)
-    (rigid-body-control-method-24 (_type_ vector vector) none) ;; 24 ;; verified against vehicle-method-136's own call site (this rung), two vectors
-    (rigid-body-control-method-25 () none) ;; 25 ;; (rigid-body-control-method-25 (_type_ vector) vector)
-    (rigid-body-control-method-26 () none) ;; 26 ;; (rigid-body-control-method-26 (_type_) none)
-    (rigid-body-control-method-27 () none) ;; 27 ;; (init! (_type_ rigid-body-info vector quaternion (function rigid-body-object float)) none)
-    (rigid-body-control-method-28 () none) ;; 28 ;; (rigid-body-control-method-28 (_type_ vector quaternion) none)
-    (rigid-body-control-method-29 () none) ;; 29 ;; (debug-print-info (_type_ object) none)
-    (rigid-body-control-method-30 () none) ;; 30 ;; (debug-print-force-torque (_type_ object) none)
-    (rigid-body-control-method-31 () none) ;; 31 ;; (debug-print-pos-rot (_type_ object) none)
-    (rigid-body-control-method-32 () none) ;; 32 ;; (debug-print-momentum (_type_ object) none)
-    (rigid-body-control-method-33 () none) ;; 33 ;; (debug-print-velocity (_type_ object) none)
+    (rigid-body-control-method-18 (_type_ vector vector) none) ;; 18 ;; apply-impact!, matches jak3's own slot 18 body-for-body
+    (rigid-body-control-method-19 (_type_ vector vector) none) ;; 19 ;; no body in this rung's decode (unbodied slot, never called); kept at jak3's own slot-19 shape, unverified
+    (rigid-body-control-method-20 (_type_ vector) none) ;; 20 ;; add-force!, matches jak3's own slot 20 body-for-body
+    ;; og:preserve-this rigid-body rung: this rung's own decode of this slot's
+    ;; body reads only one vector register (self, torque += arg0, no cross
+    ;; product); jak3 has no plain "add-torque!" counterpart at any slot, so
+    ;; this is a jakx-only addition, structurally the torque-analog of
+    ;; add-force! above. The trailing-comment guess this replaces (3 args,
+    ;; ported from jak3's own slot 21 by raw position) does not match this
+    ;; slot's body; jak3's slot 21 shape is what jakx's OWN slot 22 implements
+    ;; instead (see below).
+    (rigid-body-control-method-21 (_type_ vector) none) ;; 21
+    ;; og:preserve-this rigid-body rung: this slot's own body matches jak3's
+    ;; rigid-body-control-method-21 (apply-force-at-point-with-torque-limit)
+    ;; body-for-body: force += arg1, torque += cross(arg0 - position, arg1)
+    ;; scaled down when its length exceeds arg2. The trailing-comment guess
+    ;; this replaces (2 vectors, ported from jak3's own slot 22 by raw
+    ;; position) undercounted; the raw decode reads a3 (arg2, float) too.
+    (rigid-body-control-method-22 (_type_ vector vector float) none) ;; 22
+    (rigid-body-control-method-23 (_type_ vector vector) none) ;; 23 ;; matches jak3's own slot 22 (apply-torque-at-point) body-for-body, not slot 23 by number
+    (rigid-body-control-method-24 (_type_ vector vector) none) ;; 24 ;; matches jak3's own slot 23 (get-velocity-at-point, ang-velocity/lin-velocity, no division) body-for-body, verified also against vehicle-method-136's own call site (this rung)
+    ;; og:preserve-this rigid-body rung (held): this rung's own decode shows at
+    ;; least 3 explicit registers (self, a nullable vector-or-rigid-body-control
+    ;; tested for null and whose own +44 offset (position) is read, and a
+    ;; second structure read at offsets matching rigid-body-impact's normal/
+    ;; velocity fields), building a local work buffer via vector-rotate*!, two
+    ;; cross products, two vec3dot calls and a matrix reference at +236 inside
+    ;; the passed-in rigid-body-control's own matrix field. This does not match
+    ;; any single jak3 rigid-body-control method body-for-body and looks closer
+    ;; to a fragment of jak3's own rbody-collision than to a plain accessor;
+    ;; landed as a placeholder pending a dedicated rung. hacks.jsonc's
+    ;; no_type_analysis_functions_by_name carries "(method 25 rigid-body-control)"
+    ;; so the rest of the object still decodes.
+    (rigid-body-control-method-25 () none) ;; 25
+    (rigid-body-control-method-26 (_type_ vector vector) none) ;; 26 ;; matches jak3's own slot 24 (get-force-at-point, WITH the length-squared division) body-for-body, not slot 26 by number
+    ;; og:preserve-this rigid-body rung: no direct jak3 twin found by body
+    ;; match; this rung's own decode shows 2 args (self, vector) and a body
+    ;; computing position minus the cm-offset-joint rotated by this.matrix
+    ;; into the given vector, returning it (structurally close to jak3's own
+    ;; slot-25 trailing guess, "(_type_ vector) vector", which jak3's own
+    ;; source never bodies). Slot 30 below calls this same computation inline
+    ;; rather than through this slot, so this is likely a jakx-only factoring.
+    (rigid-body-control-method-27 (_type_ vector) vector) ;; 27
+    (rigid-body-control-method-28 (_type_) none) ;; 28 ;; matches jak3's own slot 26 (quaternion->matrix + vector-rotate*! + vector-! into matrix.trans, self-only) body-for-body, not slot 28 by number; slot 14 above calls this slot self-only at its own end
+    (rigid-body-control-method-29 (_type_ rigid-body-info vector quaternion (function rigid-body-object float)) none) ;; 29 ;; matches jak3's own init! body-for-body (jak3 slot 27) exactly, not slot 29 by number; calls slot 17 (reset-momentum!), slot 30 below, and slot 13 (init-velocities!) in that order, all matching init!'s own call sequence
+    (rigid-body-control-method-30 (_type_ vector quaternion) none) ;; 30 ;; matches jak3's own slot 28 body-for-body (quaternion->matrix, vector-rotate*!, vector+! into position, quaternion-copy!+normalize!, then calls slot 28 self-only), not slot 30 by number; this rung's slot 29 (init!) calls this slot with its own arg1/arg2
+    ;; og:preserve-this rigid-body rung: no jak3 twin (jak3's slots 29-33 are the
+    ;; debug-print-info family, landed at jakx slots 36-40 instead, see below).
+    ;; This rung's own decode shows 2 args (self, vector): the vector is a raw
+    ;; quad-copy into this.lin-velocity, then scaled by this.info.mass into
+    ;; this.lin-momentum, the linear half of a set-velocity/derive-momentum
+    ;; pair with slot 32 below as its angular counterpart.
+    (rigid-body-control-method-31 (_type_ vector) none) ;; 31
+    ;; og:preserve-this rigid-body rung: angular counterpart of slot 31 above,
+    ;; same evidence class: 2 args (self, vector), quad-copied into
+    ;; this.ang-velocity, then rotated through a matrix-3x3-triple-transpose-
+    ;; product(this.matrix, this.info.inertial-tensor) result into
+    ;; this.ang-momentum.
+    (rigid-body-control-method-32 (_type_ vector) none) ;; 32
+    ;; og:preserve-this rigid-body rung: no jak3 twin found by body match. This
+    ;; rung's own decode shows 3 args (self, vector, float): vector-! against
+    ;; position scaled by 1/arg1 into lin-velocity, and the same source scaled
+    ;; by this.info.mass into lin-momentum, an impulse-from-point-and-time
+    ;; shape distinct from slots 31/32's plain setters.
+    (rigid-body-control-method-33 (_type_ vector float) none) ;; 33
+    ;; og:preserve-this rigid-body rung (held): this rung's own decode shows a
+    ;; self-only call (no explicit a1/a2 register set before the vtable-35
+    ;; dispatch) passing a hidden local vector as a3, immediately followed by a
+    ;; self-only call to slot 13 (init-velocities!); the callee (slot 35) is
+    ;; itself held below with an unresolved arg shape, so this slot's own real
+    ;; arity cannot be pinned down independently. Landed as a placeholder zero-
+    ;; arg signature pending slot 35; hacks.jsonc's no_type_analysis_functions_by_name
+    ;; carries "(method 34 rigid-body-control)" so the rest of the object still
+    ;; decodes.
     (rigid-body-control-method-34 () none) ;; 34
+    ;; og:preserve-this rigid-body rung (held): a quaternion slerp/blend against
+    ;; a target rotation, a matrix-3x3-triple-transpose-product, and a final
+    ;; vector-!2 into a caller-provided destination (at least 4 explicit
+    ;; registers: self, quaternion, float, vector), but the decompiler's own
+    ;; "expression building failed part way through" on this body leaves the
+    ;; exact register-to-arg mapping unconfirmed past the fourth. Landed as a
+    ;; placeholder pending a dedicated rung; hacks.jsonc's
+    ;; no_type_analysis_functions_by_name carries "(method 35 rigid-body-control)".
     (rigid-body-control-method-35 () none) ;; 35
-    (rigid-body-control-method-36 () none) ;; 36
-    (rigid-body-control-method-37 () none) ;; 37
-    (rigid-body-control-method-38 () none) ;; 38
-    (rigid-body-control-method-39 () none) ;; 39
-    (rigid-body-control-method-40 () none) ;; 40
+    (rigid-body-control-method-36 (_type_ object) none) ;; 36 ;; debug-print-info, matches jak3's own slot 29 body-for-body (calls 37-40 below in sequence), not slot 36 by number
+    (rigid-body-control-method-37 (_type_ object) none) ;; 37 ;; debug-print-force-torque, matches jak3's own slot 30 body-for-body (force at 112, torque at 128), not slot 37 by number
+    (rigid-body-control-method-38 (_type_ object) none) ;; 38 ;; debug-print-pos-rot, matches jak3's own slot 31 body-for-body (position at 48, rotation quaternion at 64), not slot 38 by number
+    (rigid-body-control-method-39 (_type_ object) none) ;; 39 ;; debug-print-momentum, matches jak3's own slot 32 body-for-body (lin-momentum at 80, ang-momentum at 96), not slot 39 by number
+    (rigid-body-control-method-40 (_type_ object) none) ;; 40 ;; debug-print-velocity, matches jak3's own slot 33 body-for-body (lin-velocity at 144, ang-velocity at 160), not slot 40 by number
     )
   )
 
@@ -61261,6 +61368,18 @@
 ;; rigid-body                     ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; og:preserve-this landed from jak3's own copy of this file (goal_src/jak3/
+;; engine/physics/rigid-body.gc): a pure local scratch helper, never surfaced
+;; through an inspect method, confirmed field-for-field against this rung's
+;; own scoped decode of (method 30 rigid-body-control): quaternion->matrix
+;; targets sp+16 (mat), vector-rotate*! writes sp+0 (vec). No asserts, matching
+;; jak3's own declaration.
+(deftype rigid-body-stack (structure)
+  ((vec vector :inline)
+   (mat matrix :inline)
+   )
+  )
+
 #|
 (deftype debug-rigid-body-move (structure)
   ((vel-dot-norm    float                      :offset-assert 0)
@@ -61279,6 +61398,46 @@
   :flag-assert         #x9000001b4
   )
 |#
+;; resurrected from the dead block above (rigid-body rung): confirmed field-for-field
+;; against (method 3 debug-rigid-body-move)'s own inspect print in a scoped decode of
+;; this worktree's rigid-body.gc (rigid-body_ir2.asm): vel-dot-norm/time-step-scale/
+;; best-u/i-step print as scalars at 0/4/8/12, proc2/rbody2/best-my-prim print with
+;; ~A (an object reference) at 16/20/24, bsphere/impact-info/rbody print by address
+;; ("#<TYPE @ #x~X>") at 32/48/132 (`daddiu a2, gp, 132`, a direct machine-code
+;; literal, not a guess, and the size-assert below is the raw type-flag literal
+;; the top-level-login's own deftype-construction call loads, L269 in a scoped
+;; decode of rigid-body.gc: `.word 0x1b4` / `.word 0x9`, proof rather than
+;; arithmetic). rbody's own offset (132) plus rigid-body-control's landed size
+;; (0x130) closes the size-assert exactly (132+304=436=0x1b4), but goalc's
+;; aligner requires any :inline rigid-body-control field to sit on a 16-byte
+;; boundary (rigid-body-control's own position/matrix/etc. sub-fields need it)
+;; and rejects 132 outright, with :offset-assert, plain :offset and an explicit
+;; pad field all tried and all rejected the same way ("requires 16"). The retail
+;; binary plainly did not share that constraint: every read in this method is a
+;; scalar load (lwc1/lb/lwu) or a bare address computation, never lqc2/sqc2, so
+;; nothing here actually depends on 16-byte alignment at runtime. Landed as a
+;; flat byte extent rather than a typed inline field goalc will not accept;
+;; debug-only telemetry (the rb-debugger playback scratch copy), not on the M1
+;; path. Retirement condition: a decode of whichever function populates this
+;; field would settle whether a differently-shaped wrapper type could satisfy
+;; both the aligner and the proven offset.
+(deftype debug-rigid-body-move (structure)
+  ((vel-dot-norm    float                      :offset-assert 0)
+   (time-step-scale float                      :offset-assert 4)
+   (best-u          float                      :offset-assert 8)
+   (i-step          int8                       :offset-assert 12)
+   (proc2           basic                      :offset-assert 16)
+   (rbody2          basic                      :offset-assert 20)
+   (best-my-prim    basic                      :offset-assert 24)
+   (bsphere         sphere             :inline :offset-assert 32)
+   (impact-info     rigid-body-impact  :inline :offset-assert 48)
+   (pad-pre-rbody   uint8            16        :offset-assert 116) ;; extent-true, impact-info ends at 116 and rbody-data's own proven offset is 132
+   (rbody-data      uint8            304       :offset-assert 132) ;; rigid-body-control's own byte layout, unaligned copy; see comment above
+   )
+  :method-count-assert 9
+  :size-assert         #x1b4
+  :flag-assert         #x9000001b4
+  )
 
 #|
 (deftype rigid-body-work (structure)
@@ -61293,6 +61452,31 @@
   :flag-assert         #x900001c10
   )
 |#
+;; resurrected from the dead block above (rigid-body rung): max-ang-momentum/
+;; max-ang-velocity/pid/step-count confirmed scalar at 0/4/8/12 against (method 3
+;; rigid-body-work)'s own inspect print in a scoped decode of this worktree's
+;; rigid-body.gc. debug-history itself prints only "debug-history[16] @ #x~X~%"
+;; (address plus a bracketed count, GOAL's boilerplate for an inline array field
+;; whose element type has no scalar formatter), so the element TYPE is not
+;; recoverable from this evidence, only the element COUNT (16) and the total
+;; extent (size-assert 0x1c10 minus the 16-byte header leaves 7168 bytes, exactly
+;; 16 x 448). Landed as a flat byte pad rather than a 16-element array of an
+;; invented 448-byte record type, the same call rb-perf-data's own pad fields
+;; already made for this file family: debug-only telemetry, not on the M1 path.
+;; Retirement condition: a decode of whatever function actually writes into this
+;; range would resolve the per-element layout.
+(deftype rigid-body-work (structure)
+  ((max-ang-momentum float          :offset-assert 0)
+   (max-ang-velocity float          :offset-assert 4)
+   (pid              uint32         :offset-assert 8)
+   (step-count       int8           :offset-assert 12)
+   (pad-pre-history  uint8   3      :offset-assert 13) ;; extent-true, step-count ends at 13 and debug-history's own proven offset is 16
+   (debug-history    uint8   7168   :offset-assert 16)
+   )
+  :method-count-assert 9
+  :size-assert         #x1c10
+  :flag-assert         #x900001c10
+  )
 
 #|
 (deftype rb-penalty-forces-work (structure)
@@ -61528,16 +61712,32 @@
   )
 
 
-;; (define-extern *debug-move-rigid-body* object)
-;; (define-extern *rigid-body-work* object) ;; rigid-body-work
+;; og:preserve-this rigid-body rung: activated with real typespecs, the
+;; provisional *debug-move-rigid-body* entry down in the bulk-sweep block
+;; retyped alongside it (object -> symbol, top-level-login's own
+;; `(s.w! *debug-move-rigid-body* v1-0)` with v1-0 = #t is a symbol store).
+;; *rigid-body-work* typed to its own resurrected deftype above.
+;; matrix-3x3-triple-transpose-product, damping-time-adjust and
+;; transform-rigid-body-prims keep the dead block's own typespecs verbatim:
+;; jak3's own twin defuns of the same name (goal_src/jak3/engine/physics/
+;; rigid-body.gc) match arg-for-arg (matrix-3x3-triple-transpose-product
+;; takes and returns matrix; damping-time-adjust takes two floats and
+;; returns float; transform-rigid-body-prims takes collide-shape-prim and
+;; matrix and returns symbol, its own body ending in a bare #f). The
+;; remaining five (debug-draw-rigid-body-move, apply-overlap-penalty-forces,
+;; ray-tube-intersect, collide-sphere-with-line-sphere-hack,
+;; check-vehicle-line-spheres-hack) have no jak3 twin and stay commented
+;; until this rung's own scoped decode of rigid-body.gc supplies register
+;; evidence for their arities.
+(define-extern *rigid-body-work* rigid-body-work)
+(define-extern matrix-3x3-triple-transpose-product (function matrix matrix matrix matrix))
+(define-extern damping-time-adjust (function float float float))
+(define-extern transform-rigid-body-prims (function collide-shape-prim matrix symbol))
 ;; (define-extern debug-draw-rigid-body-move function)
-;; (define-extern matrix-3x3-triple-transpose-product function) ;; (function matrix matrix matrix matrix)
-;; (define-extern damping-time-adjust function) ;; (function float float float)
 ;; (define-extern apply-overlap-penalty-forces function)
 ;; (define-extern ray-tube-intersect function)
 ;; (define-extern collide-sphere-with-line-sphere-hack function)
 ;; (define-extern check-vehicle-line-spheres-hack function)
-;; (define-extern transform-rigid-body-prims function) ;; (function collide-shape-prim matrix symbol)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; rigid-body-queue               ;;
@@ -84082,7 +84282,10 @@
 (define-extern *death-indicator-view-24-proc* death-indicator-view-24)
 (define-extern *debug-hud* object) ;; provisional: call-site evidence only
 (define-extern *debug-hud-disable* object) ;; provisional: call-site evidence only
-(define-extern *debug-move-rigid-body* object) ;; provisional: call-site evidence only
+;; og:preserve-this rigid-body rung: retyped object -> symbol. top-level-login's
+;; own machine code (rigid-body_ir2.asm) is `(s.w! *debug-move-rigid-body* v1-0)`
+;; with v1-0 = #t, a plain symbol store, not a typed object reference.
+(define-extern *debug-move-rigid-body* symbol)
 (define-extern *debug-nav-control-output* object) ;; provisional: call-site evidence only
 ;; retyped object -> dead-pool: start-save-memcard dispatches vtable method
 ;; 15 off it (kill-by-type-inherited's own slot, same shape as *debug-part-
@@ -84814,7 +85017,7 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier collide-probe-stack deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier color-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier deathmatch-spawner-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
-(define-extern debug-rigid-body-move object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the earlier debug-rigid-body-move deftype (rigid-body rung, scripts/check_alltypes_shadowing.py)
 (define-extern drift-editor object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier dropdown-cup deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier dropdown-weapon-item-info deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)

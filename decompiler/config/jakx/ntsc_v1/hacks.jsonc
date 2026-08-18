@@ -37,6 +37,44 @@
   // region at 0x70003000 distinct from 0x70002000) whose full layout is a
   // bigger derivation than this rung's band covers (rigid-body-small-tier
   // rung, held; see the report).
+  // rigid-body rung: six more held. (method 9 rigid-body-control) nests two
+  // "call!" invocations inside an (and (begin ...) (begin ...)) short-circuit
+  // condition (zeroing small lin/ang-momentum values before the main body);
+  // the decompiler's own "expression building failed part way through"
+  // leaves register liveness wrong past the first call even though the
+  // signature itself (collide-shape-moving, float) matches jak3's own slot 9
+  // body-for-body. (method 25 rigid-body-control) and (method 34/35 rigid-
+  // body-control) are documented at their own :methods entries in
+  // all-types.gc (unresolved arg shape past 3-4 registers). apply-overlap-
+  // penalty-forces, ray-tube-intersect, check-vehicle-line-spheres-hack and
+  // collide-sphere-with-line-sphere-hack are standalone loop-heavy helpers
+  // ("CFG building failed: Could not fully resolve CFG") the resurrected
+  // rb-penalty-forces-work/ray-tube-intersect-params/hack-line-sphere/check-
+  // line-spheres-hack-work types alone were not enough to unblock; a full
+  // derivation is a bigger task than this rung's band. debug-draw-rigid-
+  // body-move (the debug-only companion to debug-rigid-body-move, itself
+  // landed) has the same "unknown type" CFG failure. (method 66 collide-
+  // shape-moving) belongs to a different type's own method table
+  // (collide-shape-moving, defined elsewhere) and retyping it is out of
+  // scope for this rung; (method 62 collide-shape-moving), defined in the
+  // same file, was NOT held: it already decodes clean under its own existing
+  // type. (method 14 rigid-body-control) matches jak3's own slot 14
+  // body-for-body but a local stack quaternion address computed as a plain
+  // pointer offset ("(+ s4-0 0)") rather than a field-address-of fails a
+  // "s.q!" store the decompiler cannot type ("Failed store"), a decompiler
+  // expression-building limitation, not an arity gap. (method 9 rigid-body-
+  // info) is untouched by this rung (a pre-existing type, not part of the
+  // rigid-body-control table) but fails its own "Failed load" past extensive
+  // float/matrix arithmetic once the object's other errors clear enough to
+  // reach it; held rather than guessed at. (method 62 collide-shape-moving)
+  // is jak3's own named rbody-collision (goal_src/jak3/engine/physics/
+  // rigid-body.gc), the core collision-resolution body rigid-body-control-
+  // method-9 (held above) calls; it reads and writes a fixed scratchpad
+  // address (0x70002000, offset 908-912+) past what this rung's own scoped
+  // decode can type, the same class the wvehicle debug/telemetry cluster
+  // above is held for. A different type's own method table (collide-shape-
+  // moving, defined elsewhere), so retyping it outright is also out of scope
+  // for this rung, same as (method 66 collide-shape-moving).
   "no_type_analysis_functions_by_name": [
     "(method 82 rigid-body-object)",
     "(method 210 wvehicle)",
@@ -45,7 +83,20 @@
     "(method 216 wvehicle)",
     "(method 249 wvehicle)",
     "(method 236 wvehicle)",
-    "(method 235 wvehicle)"
+    "(method 235 wvehicle)",
+    "(method 9 rigid-body-control)",
+    "(method 14 rigid-body-control)",
+    "(method 25 rigid-body-control)",
+    "(method 34 rigid-body-control)",
+    "(method 35 rigid-body-control)",
+    "(method 9 rigid-body-info)",
+    "apply-overlap-penalty-forces",
+    "ray-tube-intersect",
+    "check-vehicle-line-spheres-hack",
+    "collide-sphere-with-line-sphere-hack",
+    "debug-draw-rigid-body-move",
+    "(method 66 collide-shape-moving)",
+    "(method 62 collide-shape-moving)"
   ],
   // this limits the number of cases in a cond.  The first argument is the name of the function.
   // the second argument is the name of the first condition in the cond. Use print_cfg to find it out.

@@ -904,5 +904,43 @@
   // path-h.gc's own signature comment for the full mechanism), stepped by a
   // 129-bound loop ("slti v1, s2, 129") in three passes; the auto-guesser
   // cannot resolve it on its own ("Failed to guess stack use for 16").
-  "(method 30 path-control)": [[16, ["array", "float", 129]]]
+  "(method 30 path-control)": [[16, ["array", "float", 129]]],
+  // rigid-body rung: sp+16 through the local matches jak3's own
+  // rigid-body-control-method-14 body one for one (a stack quaternion built
+  // from this.ang-velocity with w zeroed at +12, then quaternion*!/
+  // quaternion-float*! against it in place); "Failed to guess stack use for
+  // 16" on its own.
+  "(method 14 rigid-body-control)": [[16, "quaternion"]],
+  // rigid-body rung: sp+16 holds two consecutive vectors (vector-!2's dest at
+  // +0, a veccross dest at +16), the same "(new 'stack-no-clear 'inline-array
+  // 'vector 2)" idiom jak3's own apply-impact! and rigid-body-control-method-
+  // 22/23/24 all use for this exact point-force/point-torque shape; "Failed
+  // to guess stack use for 16" on its own.
+  "(method 18 rigid-body-control)": [[16, ["inline-array", "vector", 2]]],
+  "(method 23 rigid-body-control)": [[16, ["inline-array", "vector", 2]]],
+  "(method 24 rigid-body-control)": [[16, ["inline-array", "vector", 2]]],
+  "(method 26 rigid-body-control)": [[16, ["inline-array", "vector", 2]]],
+  // rigid-body rung: sp+16 is a single vector, the vector-rotate*! dest that
+  // (method 27 rigid-body-control) immediately subtracts from position; the
+  // same shape (method 28 rigid-body-control)'s own local uses; "Failed to
+  // guess stack use for 16" on its own.
+  "(method 27 rigid-body-control)": [[16, "vector"]],
+  "(method 28 rigid-body-control)": [[16, "vector"]],
+  // rigid-body rung: sp+16 is the rigid-body-stack helper this file now
+  // declares (vec at +0, mat at +16), matching jak3's own rigid-body-control-
+  // method-28 body exactly; "Failed to guess stack use for 16" on its own.
+  "(method 30 rigid-body-control)": [[16, "rigid-body-stack"]],
+  // rigid-body rung: sp+16 is a single vector, the vector-!2 dest this method
+  // scales twice (by 1/arg1 into lin-velocity, by info.mass into
+  // lin-momentum); "Failed to guess stack use for 16" on its own.
+  "(method 33 rigid-body-control)": [[16, "vector"]],
+  // rigid-body rung: sp+16 is a 3-element inline-array of matrix, matching
+  // jak3's own matrix-3x3-triple-transpose-product body exactly
+  // ("(new 'stack-no-clear 'inline-array 'matrix 3)"); "Failed to guess
+  // stack use for 16" on its own.
+  "matrix-3x3-triple-transpose-product": [[16, ["inline-array", "matrix", 3]]],
+  // rigid-body rung: sp+16 is a single matrix, the matrix-3x3-triple-
+  // transpose-product output this method passes by pointer before rotating
+  // ang-momentum through it; "Failed to guess stack use for 16" on its own.
+  "(method 32 rigid-body-control)": [[16, "matrix"]]
 }
