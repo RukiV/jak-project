@@ -309,7 +309,8 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
     u32 goal_ip = (u32)(rip - base_addr);
     const ObjRec* o = lookup(goal_ip);
     if (o) {
-      fprintf(stderr, "GOAL code: %s+%#x (goal %#x)\n", o->name, goal_ip - o->start, goal_ip);
+      fprintf(stderr, "GOAL code: %s+%#x [%#x,+%#x) (goal %#x)\n", o->name, goal_ip - o->start,
+              o->start, o->extent, goal_ip);
     } else {
       fprintf(stderr, "GOAL code: unmapped object (goal %#x)\n", goal_ip);
     }
@@ -349,8 +350,8 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
         u32 g = (u32)(v - base_addr);
         const ObjRec* o = lookup(g);
         if (o) {
-          fprintf(stderr, "  [rsp+%#llx] %s+%#x (goal %#x)\n", (unsigned long long)d, o->name,
-                  g - o->start, g);
+          fprintf(stderr, "  [rsp+%#llx] %s+%#x [%#x,+%#x) (goal %#x)\n", (unsigned long long)d,
+                  o->name, g - o->start, o->start, o->extent, g);
           printed++;
         }
       }

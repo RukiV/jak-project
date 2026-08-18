@@ -17,10 +17,13 @@
 
 #include "common/common_types.h"
 
-// record one linked object's GOAL-space start and size in bytes (call at link time,
-// before exec). A record with extent 0 can never match a lookup; see the tie-break
-// note on lookup() in goal_crash_map.cpp for how bring-up stub objects (which log a
-// shared start with whatever loads next, extent 0 or not) are handled (issue #117).
+// Record one linked object's GOAL-space start and size in bytes. goal_addr should be
+// the target heap's cursor at link time (heap->current.offset), not always
+// kglobalheap: level-heap links would otherwise record a stale global offset and
+// produce misattributed crash maps (issue #58). A record with extent 0 can never
+// match a lookup; see the tie-break note on lookup() in goal_crash_map.cpp for how
+// bring-up stub objects (which log a shared start with whatever loads next, extent 0
+// or not) are handled (issue #117).
 void goal_crash_map_record(u32 goal_addr, const char* name, u32 extent);
 
 // install the fault handler; call once after GOAL main memory is mapped
