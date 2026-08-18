@@ -64432,7 +64432,17 @@
 ;; the dead block listed them out of id order, textual reorder only, no content
 ;; invented).
 (deftype nav-graph-editor (process)
-  ((nav-graph           mysql-nav-graph                 :offset-assert 144) ;; guessed by decompiler
+  ;; nav wave 2: process's own self field :overrides to nav-graph-editor,
+  ;; matching every other derived process type in this file (process-
+  ;; focusable does the same). Without it, every newly-activated top-level
+  ;; function reading (-> *nav-graph-editor* 0 self <field>) resolves self
+  ;; to plain process (raw offset 32, process-tree's own field), which has
+  ;; no field at raw 140 (nav-graph, this type's own field, offset-assert
+  ;; 144, the +4 basics convention). Confirmed against (method 33 nav-
+  ;; graph-editor)'s already-clean direct read of the same offset on this
+  ;; typed value.
+  ((self                nav-graph-editor                :override)
+   (nav-graph           mysql-nav-graph                 :offset-assert 144) ;; guessed by decompiler
    (mode                symbol                          :offset-assert 148) ;; guessed by decompiler
    (command-id          int32                           :offset-assert 152)
    (max-command         int32                           :offset-assert 156)
@@ -64526,21 +64536,44 @@
   )
 
 
-;; (define-extern *nav-graph-editor* object) ;; (pointer nav-graph-editor)
-;; (define-extern get-node-draw-position function) ;; (function vector mysql-nav-node vector)
-;; (define-extern nav-graph-editor-init-by-other function) ;; (function string symbol object :behavior nav-graph-editor)
-;; (define-extern run-nav-graph-editor function) ;; (function symbol symbol (pointer nav-graph-editor))
-;; (define-extern get-nav-graph-editor function) ;; (function nav-graph-editor)
-;; (define-extern exit-nav-graph-editor function) ;; (function none)
-;; (define-extern nav-graph-set-level function) ;; (function symbol object)
-;; (define-extern set-minimap-edge-flag function) ;; (function nav-minimap-edge-flag none)
-;; (define-extern set-vehicle-edit-mode function) ;; (function symbol none)
-;; (define-extern translate-nav-graph function) ;; (function float float float symbol)
-;; (define-extern update-nav-meshes function) ;; (function symbol)
-;; (define-extern delete-node-nav-mesh function) ;; (function int none)
-;; (define-extern smooth-nav-graph function) ;; (function string symbol)
-;; (define-extern update-height function) ;; (function string symbol)
-;; (define-extern update-width function) ;; (function string symbol)
+;; nav wave 2: all fourteen activated verbatim from their own trailing
+;; hints, prepared by an earlier rung alongside the shift-corrected
+;; :methods entries. get-node-draw-position's own body confirms its hint
+;; directly (mysql-nav-node's position field at offset-assert 32, radius
+;; at 56, both structure fields with zero shift; the out-vector argument
+;; is quad-copied from position then its y interpolated toward camera-pos
+;; y and returned). *nav-graph-editor* keeps the pointer wrapper its own
+;; hint already specifies, unlike *nav-mesh-editor* elsewhere in this file
+;; (a prior rung's deliberate choice for that singleton, not reopened here).
+(define-extern *nav-graph-editor* (pointer nav-graph-editor))
+(define-extern get-node-draw-position (function vector mysql-nav-node vector))
+(define-extern nav-graph-editor-init-by-other (function string symbol object :behavior nav-graph-editor))
+(define-extern run-nav-graph-editor (function symbol symbol (pointer nav-graph-editor)))
+(define-extern get-nav-graph-editor (function nav-graph-editor))
+(define-extern exit-nav-graph-editor (function none))
+(define-extern nav-graph-set-level (function symbol object))
+;; nav wave 2: nav-minimap-edge-flag itself is undeclared (only a
+;; trailing-comment annotation on mysql-nav-edge's minimap_edge_flag
+;; field). jak3's own version (goal_src/jak3/engine/debug/nav/mysql-nav-
+;; graph.gc) carries seven bits, but five of them are jak3 Haven Port /
+;; Industrial-district connector names ("pass-port-mh", "pass-indb-
+;; sluma"...) with no jakx call-site evidence; set-minimap-edge-flag's own
+;; body (the only jakx reader found) tests only bit 0. Declared minimally,
+;; naming only what jakx evidence supports; retire the gap once a jakx
+;; call site exercises another bit.
+(defenum nav-minimap-edge-flag
+  :type int32
+  :bitfield #t
+  (blocker 0)
+  )
+(define-extern set-minimap-edge-flag (function nav-minimap-edge-flag none))
+(define-extern set-vehicle-edit-mode (function symbol none))
+(define-extern translate-nav-graph (function float float float symbol))
+(define-extern update-nav-meshes (function symbol))
+(define-extern delete-node-nav-mesh (function int none))
+(define-extern smooth-nav-graph (function string symbol))
+(define-extern update-height (function string symbol))
+(define-extern update-width (function string symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; nav-graph-h                    ;;
@@ -84492,7 +84525,9 @@
 (define-extern *msg-map-red-sentry-bot* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-v-toad-shot* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-vehicle* object) ;; provisional: call-site evidence only
-(define-extern *nav-graph-editor* object) ;; provisional: call-site evidence only
+;; *nav-graph-editor* moved: real extern now declared as (pointer
+;; nav-graph-editor) with its own nav-graph-editor family (nav wave 2),
+;; fixing the later-weaker object-typed duplicate here.
 (define-extern *nav-mesh-editor* nav-mesh-editor) ;; nav rung: retyped from object, the singleton the debug editor commands (nav-set-flag, nav-mesh-editor-new, etc.) all read directly as a nav-mesh-editor pointer
 (define-extern *nav-mesh-work* nav-mesh-work)
 ;; *nav-triangle-test-count* moved: real extern now declared with its own
