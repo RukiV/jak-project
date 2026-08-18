@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: explosion.gc
-;; name in dgo: explosion
-;; dgos: COMMON, GAME
-
-;; DECOMP BEGINS
-
 ;; definition for symbol *explosion-effect-suppress*, type symbol
 (define *explosion-effect-suppress* #f)
 
@@ -150,48 +144,16 @@
 ;; definition for symbol *explosion-debug-sphere*, type sphere
 (define *explosion-debug-sphere* (new 'static 'sphere))
 
-;; og:preserve-this explosion-handle-touch-with-ccheck and
-;; explosion-handle-touch-without-ccheck are flagged as asm by config
-;; (decompiler/config/jakx/ntsc_v1/hacks.jsonc), a deliberate pre-existing decision:
-;; both repeat the same friendly-fire attack-info-plus-net-player-handle idiom
-;; several times, and every config fix shifts every later op index in the same
-;; function, so chasing the next occurrence kept landing the next type_casts entry
-;; on a stale op; not a config-fixable type gap. Declared as externs for symbol
-;; hygiene (nothing in this file references them directly; the collision system
-;; wires touch callbacks by symbol at runtime); no body lands here since the decode
-;; provides none. Same bring-up-extern shape as water-anim-event-handler
-;; (goal_src/jakx/engine/common-obs/water-anim.gc): the symbols are unresolved at
-;; runtime until real implementations land separately. RUNTIME HAZARD: reachable
-;; only once something registers one of these as a touching-list callback, which
-;; nothing landed in this worktree does yet (grep for either name turns up only
-;; their own declarations here), so this is latent rather than reachable today.
-(define-extern explosion-handle-touch-with-ccheck (function explosion process-focusable object object touching-shapes-entry symbol))
-(define-extern explosion-handle-touch-without-ccheck (function explosion process-focusable object object touching-shapes-entry symbol))
+;; definition for function explosion-handle-touch-with-ccheck
+;; ERROR: function was not converted to expressions. Cannot decompile.
 
-;; og:preserve-this explosion-explode-event-handler is flagged as asm by config
-;; (decompiler/config/jakx/ntsc_v1/hacks.jsonc, "(anon-function 3 explosion)"), a
-;; deliberate pre-existing decision: everything up through op 394 (the same
-;; friendly-fire attack-info-plus-net-player-handle idiom as the two functions
-;; above, fixed the same way) resolves cleanly, but the second attack-info's
-;; attacker-velocity quad copy at op 395 (structurally identical to the working
-;; copy at op 212) hard-regresses dozens of unrelated stores elsewhere in the
-;; function the moment any cast touches that op, independent of which register or
-;; type; not a config-fixable type gap. Declared as an extern so the explode
-;; state's :event reference below resolves; no body lands here since the decode
-;; provides none. Same bring-up-extern shape as water-anim-event-handler: the
-;; symbol is unresolved at runtime until a real implementation lands separately.
-;; RUNTIME HAZARD: explosion links into GAME.CGO and every landed explosion-spawn
-;; caller can reach the explode state, so any explosion that receives an event
-;; while active (not merely spawned) crashes on first dispatch; nothing landed in
-;; this worktree yet calls explosion-spawn or explosion-spawn-legacy-version (grep
-;; for either turns up only their own declarations here), so this is latent rather
-;; than reachable today.
-(define-extern explosion-explode-event-handler (function process int symbol event-message-block object :behavior explosion))
+;; definition for function explosion-handle-touch-without-ccheck
+;; ERROR: function was not converted to expressions. Cannot decompile.
 
 ;; failed to figure out what this is:
 (defstate explode (explosion)
   :virtual #t
-  :event explosion-explode-event-handler
+  :event L11
   :enter (behavior ()
     (set! (-> self start-time) (the-as uint (current-time)))
     (when (nonzero? (-> self params collide-with))
@@ -249,4 +211,3 @@
         )
     )
   )
-

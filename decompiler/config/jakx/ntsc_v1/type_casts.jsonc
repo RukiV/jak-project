@@ -6054,5 +6054,99 @@
     [144, "v1", "(pointer uint128)"],
     [167, "v1", "(pointer uint128)"],
     [190, "v1", "(pointer uint128)"]
-  ]
+  ],
+  // explosion band: process-drawable's own root field is declared plain
+  // trsqv (guessed by decompiler, deliberately generic across every
+  // process-drawable), but both of explosion's own handlers dispatch a
+  // method past trsqv's own 28-method count (0-27) straight off it: method
+  // 37 (collide-shape's own slot, method-count-assert 55) and method 46
+  // (also collide-shape). Casting gp/a0 right after each read from root
+  // resolves the vtable dispatch.
+  // explosion's own root field is overridden to collide-shape directly in
+  // its deftype now (matching process-focusable's identical :override), so
+  // the many explosion functions reading (-> self root ...) no longer need
+  // a per-call-site cast; only the two entries below remain, for fields
+  // that are not explosion's own root.
+  // side-x, the float read at raw 684 below in all three functions, is
+  // vehicle's own declared field at that exact offset (:offset 684, no
+  // shift since vehicle is process-drawable-derived but this field list
+  // uses plain :offset already); each read follows its own type? check
+  // against vehicle two ops earlier.
+  // health, the float read at raw 276 below in all three functions, is
+  // net-enemy's own field (offset-assert 280, the +4 basics convention);
+  // each read follows its own type? check against net-enemy two ops
+  // earlier.
+  "(event explode explosion)": [
+    [63, "s2", "process-focusable"],
+    [[253, 258], "v1", "handle"],
+    [278, "v1", "vehicle"],
+    [290, "v1", "net-enemy"],
+    [83, "a0", "process-focusable"],
+    [91, "s2", "process-focusable"],
+    [106, "s2", "process-focusable"],
+    [308, "s2", "process-focusable"],
+    [319, "s2", "process-focusable"],
+    [237, "s1", "attack-info"],
+    [253, "s1", "attack-info"],
+    [442, "s1", "attack-info"],
+    [467, "v1", "vehicle"],
+    [479, "v1", "net-enemy"],
+    [330, "s3", "vector"],
+    [404, "s3", "vector"],
+    // same collide-query-plus-appended-vector scratch as
+    // explosion-handle-touch-with-ccheck (op 128's s3+208, the running
+    // min-distance floats at 572/576/580, and the s3+544 quad copy).
+    [128, "s3", "collide-query"],
+    [[115, 127], "s3", "(pointer float)"],
+    [[156, 159], "s3", "(pointer float)"],
+    [170, "s3", "(pointer float)"],
+    // sp+608 (s2), a fresh direct-from-sp scratch used by vector-!2 (op
+    // 165) then a trailing float at its own offset 16 (ops 175/178).
+    [[175, 212], "s2", "(pointer float)"],
+    [[363, 396], "s2", "(pointer float)"],
+    [212, "v1", "(pointer uint128)"],
+    [219, "v1", "(pointer uint128)"],
+    [130, "a0", "(pointer uint128)"]
+  ],
+  // s3 (from either op 20's collide-shape-prim's own prim-core, offset 12
+  // raw = 16 placed, the +4 basics shift for a basic-typed prim, or op 23's
+  // collide-shape root address) joins as the generic ancestor "structure";
+  // both branches are read the same way downstream (vector-vector-distance
+  // and a raw offset-12 float, the world-sphere.w radius convention), so
+  // vector is the consistent narrowing.
+  "explosion-handle-touch-without-ccheck": [
+    [[145, 150], "v1", "handle"],
+    [170, "v1", "vehicle"],
+    [182, "v1", "net-enemy"],
+    [33, "s3", "vector"],
+    [107, "s3", "vector"],
+    // s1 (from op 86's far-label load) is an attack-info scratch built for
+    // send-event-function (fields written at 128/144/152/156 match
+    // attack-info's own id/damage/shield-damage/vehicle-damage-factor);
+    // op 129's raw offset 64 read is attack-info's own attacker field,
+    // already declared handle. Cast at the read site (matching the
+    // pattern established above, casts on a move/address-compute
+    // destination like op 86 itself do not propagate).
+    [145, "s1", "attack-info"]
+  ],
+  "explosion-handle-touch-with-ccheck": [
+    [[246, 251], "v1", "handle"],
+    [271, "v1", "vehicle"],
+    [283, "v1", "net-enemy"],
+    [121, "s3", "collide-query"],
+    // a running min-distance scratch at sp+572/576/580, three bare floats
+    // (the same shape as find-closest-solid-sphere-prim's own sp+16/20
+    // pair above), read and written through the (pointer uint8) base the
+    // byte-array stack declaration gives s3.
+    [[108, 120], "s3", "(pointer float)"],
+    // op 123: a whole-quad copy off s3+544 (the search-center vector),
+    // same "(pointer uint128)" class as the other quad copies in this file.
+    [123, "a0", "(pointer uint128)"]
+  ],
+  // find-closest-solid-sphere-prim: v1 (from s2, a generic collide-shape-prim
+  // out of cshape's own prim tree) reads raw offset 60 (num-children, offset
+  // 64 on collide-shape-prim-group, the +4 basics shift) and raw offset 64
+  // (the child inline-array, offset 68), both collide-shape-prim-group's own
+  // fields, not collide-shape-prim's.
+  "find-closest-solid-sphere-prim": [[[11, 15], "v1", "collide-shape-prim-group"]]
 }

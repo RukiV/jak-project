@@ -157,6 +157,33 @@
     "name=",
     // disabled to get decomp to work
     "water-anim-event-handler",
+    // explosion rung: both read cleanly narrowed root/vehicle/net-enemy/
+    // attack-info fields for their FIRST few occurrences (fixed via
+    // type_casts.jsonc, see the "explosion band" comment there), but each
+    // repeats the same friendly-fire attack-info-plus-net-player-handle
+    // idiom multiple times per function, and every config fix here shifts
+    // every later op index in the same function, so chasing the next
+    // occurrence kept landing the next type_casts entry on a stale op.
+    // Parked as asm rather than churn indefinitely; each still compiles
+    // and links, so explosion's own touch dispatch is not affected.
+    "explosion-handle-touch-without-ccheck",
+    "explosion-handle-touch-with-ccheck",
+    // explosion's own explode state :event handler: everything up through
+    // op 394 (the same friendly-fire attack-info-plus-net-player-handle
+    // idiom as the two functions above, fixed the same way in
+    // type_casts.jsonc) resolves cleanly, but the second attack-info's
+    // attacker-velocity quad copy at op 395 (structurally identical to the
+    // first attack-info's own copy at op 212, which resolves fine) hard-
+    // regresses dozens of unrelated stores elsewhere in the function the
+    // moment ANY cast (tried v1 and s2, tried (pointer uint128) and
+    // vector) touches that op, independent of which register or type;
+    // isolated by adding and removing one cast at a time. Same
+    // asm-plus-named-extern shape as water-anim-event-handler
+    // (goal_src/jakx/engine/common-obs/water-anim.gc), not the anonymous
+    // asm_functions_by_name treatment above, because a defstate's :event
+    // slot cannot hold a raw label the way a free function's decompile
+    // fallback can: see explosion-explode-event-handler below.
+    "(anon-function 3 explosion)",
     // "(anon-function 55 task-control)" was a jak2 carryover: jakx's task-control has
     // anons 31/32/43 only (the borrow lambda is 43) and nothing here matched (#116)
     "(method 22 level)",

@@ -35220,8 +35220,8 @@
    (vehicle-damage-factor  float                          :offset-assert 64)
    (vehicle-impulse-factor float                          :offset-assert 68)
    (velocity               vector                 :inline :offset-assert 80)
-   (ignore-proc            uint64                         :offset-assert 96) ;; handle
-   (attacker               uint64                         :offset-assert 104)
+   (ignore-proc            handle                         :offset-assert 96)
+   (attacker               handle                         :offset-assert 104)
    (wpn-type               int8                           :offset-assert 112)
    )
   :method-count-assert 9
@@ -35230,7 +35230,8 @@
   )
 
 (deftype explosion (process-drawable)
-  ((start-time      uint64                        :offset-assert 248) ;; time-frame
+  ((root            collide-shape                 :override)
+   (start-time      uint64                        :offset-assert 248) ;; time-frame
    (duration        uint32                        :offset-assert 256)
    (linger-duration uint32                        :offset-assert 260)
    (attack-id       uint32                        :offset-assert 264)
@@ -35243,10 +35244,12 @@
   :method-count-assert 53
   :size-assert         #x1d4
   :flag-assert         #x35015001d4
+  (:state-methods
+    explode ;; 50
+    )
   (:methods
-    (explosion-method-50 () none) ;; 50
-    (explosion-method-51 () none) ;; 51
-    (explosion-method-52 () none) ;; 52
+    (explosion-method-51 (_type_) none) ;; 51
+    (explosion-method-52 (_type_) none) ;; 52
     )
   )
 
@@ -67753,13 +67756,50 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-extern *explosion-effect-suppress* symbol)
-;; (define-extern explosion-init-by-other function) ;; (function explosion-init-params object :behavior explosion)
-;; (define-extern explosion-spawn-legacy-version function) ;; (function process-drawable type explosion-init-params (pointer process))
-;; (define-extern explosion-spawn function) ;; (function explosion-init-params process-drawable none)
-;; (define-extern find-closest-solid-sphere-prim function) ;; (function collide-shape vector collide-spec collide-shape-prim)
-;; (define-extern *explosion-debug-sphere* object) ;; sphere
-;; (define-extern explosion-handle-touch-with-ccheck function)
-;; (define-extern explosion-handle-touch-without-ccheck function)
+;; og:preserve-this explosion-init-by-other: jak3's twin declares only one explicit arg
+;; (explosion-init-params), but this rung's own scoped decode reads a second one (a1, checked
+;; for #f then dereferenced at raw offset 28 through the standard sllv/dsra32 handle-split idiom,
+;; combined with its own type-tag read at -4) to build the spawn-proc/spawn-type pair (raw
+;; 452/460, exactly the +4 basics offsets of explosion's own spawn-proc and spawn-type fields);
+;; jakx-only codegen, not present in jak3's signature. Typed process (nullable, matching the
+;; explicit #f check) rather than a bare handle since raw offset 28 and the -4 type-tag read
+;; both act on a live pointer, not a packed 64-bit value.
+(define-extern explosion-init-by-other (function explosion-init-params process object :behavior explosion))
+(define-extern explosion-spawn-legacy-version (function process-drawable type explosion-init-params (pointer process)))
+(define-extern explosion-spawn (function explosion-init-params process-drawable none))
+(define-extern find-closest-solid-sphere-prim (function collide-shape vector collide-spec collide-shape-prim))
+(define-extern *explosion-debug-sphere* sphere)
+;; og:preserve-this explosion-handle-touch-with-ccheck and -without-ccheck: no jak3 twin and no
+;; existing signature hint. Register evidence (this rung's own scoped decode): a0 (gp) is
+;; explosion itself; a1 (s5) has its own root field read at raw 184 (the +4 basics offset for
+;; process-focusable's inherited root field) then type?-checked against collide-shape, matching
+;; process-focusable rather than plain collide-shape; the fifth arg register t0 (s4), not a2, is
+;; read at raw offset 16, exactly touching-shapes-entry's own handle1 field (offset-assert 16, a
+;; plain structure so no shift). Neither function reads a2 or a3 at all ("may read a register
+;; that is not set" is the tell that only 2 args were declared before this rung's fix), so their
+;; true types are unconfirmed; typed object as the narrowest honest placeholder for an unread
+;; positional slot, matching (method 83 rigid-body-object)'s neighboring touch-handler shape for
+;; the confirmed two args (process-focusable, touching-shapes-entry) and the register gap alone
+;; for the other two.
+(define-extern explosion-handle-touch-with-ccheck (function explosion process-focusable object object touching-shapes-entry symbol))
+(define-extern explosion-handle-touch-without-ccheck (function explosion process-focusable object object touching-shapes-entry symbol))
+;; og:preserve-this explosion-explode-event-handler is flagged as asm by config
+;; (decompiler/config/jakx/ntsc_v1/hacks.jsonc, "(anon-function 3 explosion)"), a
+;; deliberate pre-existing decision: op 395's attack-info attacker-velocity quad copy
+;; (structurally identical to the working copy at op 212) hard-regresses dozens of
+;; unrelated stores elsewhere in the function the moment any cast touches that op,
+;; independent of register or type; not a config-fixable type gap. Declared as an
+;; extern so the explode state's :event reference below resolves; no body lands here
+;; since the decode provides none. Same bring-up-extern shape as
+;; water-anim-event-handler (goal_src/jakx/engine/common-obs/water-anim.gc): the
+;; symbol is unresolved at runtime until a real implementation lands separately.
+;; RUNTIME HAZARD: explosion links into GAME.CGO and every landed explosion-spawn
+;; caller can reach the explode state, so any explosion that receives an event while
+;; active (not merely spawned) crashes on first dispatch; nothing landed in this
+;; worktree yet calls explosion-spawn or explosion-spawn-legacy-version (grep for
+;; either turns up only their own declarations here), so this is latent rather than
+;; reachable today.
+(define-extern explosion-explode-event-handler (function process int symbol event-message-block object :behavior explosion))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wvehicle-weapons-data          ;;
@@ -84972,7 +85012,7 @@
 (define-extern *enter-pw-acct-name* object) ;; provisional: call-site evidence only
 (define-extern *expand-buf-number* object) ;; provisional: call-site evidence only
 (define-extern *expanded-text-line0* object) ;; provisional: call-site evidence only
-(define-extern *explosion-debug-sphere* object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the earlier *explosion-debug-sphere* extern (explosion rung, scripts/check_alltypes_shadowing.py)
 (define-extern *fake-msg-count* object) ;; provisional: call-site evidence only
 (define-extern *fake-msg-read* object) ;; provisional: call-site evidence only
 (define-extern *fmv-work* object) ;; provisional: call-site evidence only

@@ -1082,5 +1082,47 @@
     [160, "matrix"],
     [224, "matrix"],
     [288, "matrix"]
+  ],
+  // find-closest-solid-sphere-prim: sp+16 is a bare two-float scratch pair,
+  // not a named struct (op 6 writes the running best-distance to offset 0;
+  // op 37-48 write and re-read a per-candidate distance at offset 4,
+  // comparing and conditionally copying it into offset 0). Two separate
+  // single-float declarations at adjacent offsets crashed the decompiler
+  // process outright (Windows STATUS_STACK_BUFFER_OVERRUN, confirmed via a
+  // direct PowerShell invocation and isolated by removing every other
+  // change in this commit one at a time); a same-type array declaration
+  // covering both slots avoids whatever internal path that combination hit.
+  "find-closest-solid-sphere-prim": [
+    [16, ["array", "float", 2]]
+  ],
+  // explosion-handle-touch-with-ccheck: sp+16 (s3) holds collide-query-
+  // shaped data (op 121's s3+208 write matches collide-query's own
+  // start-pos field at offset-assert 208 exactly) followed immediately by
+  // an appended scratch vector at sp+544 (s3+544; op 9's sq stores the
+  // collide-prim-core world-sphere quad there, and op 57 reads it back as
+  // the search-center arg to find-closest-solid-sphere-prim), 16 bytes
+  // ending at sp+560; declaring the whole s3 region as collide-query made
+  // the s3+544 address arithmetic fail past its own 540-byte end ("add
+  // failed: collide-query 560"), so this declares only the vector and
+  // leaves the collide-query-shaped reads to per-op type_casts.
+  "explosion-handle-touch-with-ccheck": [
+    [16, ["array", "uint8", 704]]
+  ],
+  // (event explode explosion): same "s3+544/560" collide-query-plus-
+  // appended-vector scratch shape as explosion-handle-touch-with-ccheck
+  // above ("stack_vars: 752 bytes at 16"), same fix.
+  "(event explode explosion)": [
+    [16, ["array", "uint8", 752]],
+    // sp+608 is a fresh direct-from-sp scratch (two vectors' worth,
+    // ops 161-211), a bare byte-array declaration like the sp+16 base
+    // above rather than a single small type that address arithmetic
+    // walks past.
+    [608, ["array", "uint8", 32]],
+    // sp+720, the same two-vector scratch shape as sp+608 above, for the
+    // second (vehicle/net-enemy) branch of this same friendly-fire check.
+    [720, ["array", "uint8", 32]],
+    // sp+640, an event-message-block scratch (op 221's own a1 arg to
+    // send-event-function), the same bare-array treatment.
+    [640, ["array", "uint8", 32]]
   ]
 }
