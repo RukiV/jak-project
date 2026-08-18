@@ -85,16 +85,21 @@
 ;; this same band: method 92 fails at op 0 and reads a0/a1/a2 with none
 ;; set (three unset registers, not a dropped-argument fix, something
 ;; else corrupted this override's decode); method 65 fails at op 41 and
-;; reads a1 unset; method 87 fails a stack-use guess; method 88
-;; references an unactivated find-nearest-camera-distance (the same
-;; missing symbol vehicle-debris's own method 88 hit) but is otherwise
-;; raw-fallback regardless. New discoveries, not in either the
-;; wvehicle-small-tier or rigid-body-object rung's held lists. Re-derive
-;; from the framework's own dump (offline-test -f wvehicle-wheel -d)
-;; once the root cause is found. idle's own :event handler still
-;; dispatches vehicle-wheel-method-92 (unfilled, check_method_slots
-;; flags it); the callee's home is this same object once method 92
-;; lands.
+;; reads a1 unset; method 87 fails a stack-use guess. method 88's own
+;; blocker (the same unactivated find-nearest-camera-distance vehicle-
+;; debris's method 88 hit) was cleared by the race-mesh rung
+;; (jakx-levels-other-tier-4, both the decompiler-config extern and a
+;; real define-extern now live in
+;; goal_src/jakx/levels/common/race/race-mesh.gc); its own decode is now
+;; fully clean (offline-test -f wvehicle-wheel -d, verified this rung)
+;; and it is landable on its own, independent of 92, 65 and 87. Left
+;; un-landed here since wvehicle-wheel is outside this rung's own band;
+;; the REF at test/decompiler/reference/jakx/levels/desert/wvehicle/
+;; wvehicle-wheel_REF.gc was regenerated to the new clean decode so the
+;; offline suite's decomp-vs-REF diff does not regress on this rung's own
+;; extern activation. idle's own :event handler still dispatches
+;; vehicle-wheel-method-92 (unfilled, check_method_slots flags it); the
+;; callee's home is this same object once method 92 lands.
 
 ;; definition for method 61 of type vehicle-wheel
 ;; WARN: Return type mismatch int vs none.
