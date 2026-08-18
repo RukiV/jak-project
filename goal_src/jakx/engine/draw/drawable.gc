@@ -196,7 +196,28 @@
 ;; ERROR: function has no type analysis. Cannot decompile.
 
 ;; definition for function find-nearest-camera-distance
-;; ERROR: function has no type analysis. Cannot decompile.
+;; og:preserve-this landed 2026-08-18 from the clean decode after the camera-combiner
+;; type_casts entry (view-get-camera-combiner's basic return is a compile-order
+;; artifact, see view.gc); this function was previously undefined while race-mesh
+;; method 10 and the vehicle-debris/wvehicle-wheel method 88 overrides called it,
+;; which linked the calls against symbol value 0 (a jump to goal 0 when reached).
+(defun find-nearest-camera-distance ((arg0 vector))
+  (let ((f30-0 0.0))
+    (let ((v1-0 (view-get-camera-combiner 0)))
+      (when v1-0
+        (set! f30-0 (vector-vector-distance-squared arg0 (-> (the-as camera-combiner v1-0) trans)))
+        (when (>= *view-count* 2)
+          (let ((v1-2 (view-get-camera-combiner 1)))
+            (if v1-2
+                (set! f30-0 (fmin f30-0 (vector-vector-distance-squared arg0 (-> (the-as camera-combiner v1-2) trans))))
+                )
+            )
+          )
+        )
+      )
+    (sqrtf f30-0)
+    )
+  )
 
 ;; definition for function vis-cull
 ;; ERROR: function has no type analysis. Cannot decompile.
