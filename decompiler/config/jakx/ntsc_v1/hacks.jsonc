@@ -215,6 +215,37 @@
     // only through the state machinery (defstate's own :code slot),
     // never embedded inline as data, so parking is safe.
     "(anon-function 6 credits-obs)",
+    // (anon-function 21 joint-mod): a compiler-generated trampoline for
+    // storing joint-mod-foot-rot-handler (declared with a :behavior process
+    // tag) into a cspace param0 slot; the trampoline itself is a 0-arg
+    // stub that tail-calls the real handler through a0/a1 without ever
+    // setting them, so type analysis reports both as read-but-unset. The
+    // real handler (joint-mod-foot-rot-handler, typed via this file's own
+    // type_casts.jsonc entry) decompiles cleanly; this wrapper carries no
+    // logic of its own to recover. Parked as asm.
+    "(anon-function 21 joint-mod)",
+    // joint-mod-ik-callback: a large (400+ op) two-bone IK solver. Once its
+    // gp/joint-mod-ik casts are applied (type_casts.jsonc) it fails on a
+    // single remaining register, s5, which is reused across the whole
+    // function body as a rolling base pointer into roughly two dozen stack
+    // slots (offsets 16 through 752, jak3's twin at
+    // decompiler/config/jak3/ntsc_v1/stack_structures.jsonc:58 declares all
+    // of them) rather than being re-derived fresh from sp at each site, the
+    // way collide-planes's own multi-slot stack base is. Typing s5 as its
+    // first declared slot (matrix, offset 16) breaks every later offset
+    // past that type's own size ("add failed: matrix <integer 208>");
+    // forcing a raw pointer type through the whole span (tried (pointer
+    // int32), then (pointer vector)) clears the type-prop errors but
+    // produces implausible scaled offsets in the pretty-printed source
+    // (index 52 where the raw byte offset is 208), evidence the cast changes
+    // what the decompiler infers rather than just permitting the arithmetic.
+    // jak3 needs no equivalent cast for its own twin, so this is jakx-only
+    // codegen, and no evidence in this band distinguishes a genuinely
+    // correct wide pointer type from one that merely silences the checker.
+    // Parked as asm rather than risk a plausible-but-wrong decode; referenced
+    // only through the type's own callback field, never embedded inline as
+    // data.
+    "joint-mod-ik-callback",
     // powerup-draw-method-53 (time-freeze-short-draw/long-draw/med-draw
     // overrides): raw, unconverted register dump; a1/a2 are declared
     // generic object per all-types.gc with no call-site evidence in this

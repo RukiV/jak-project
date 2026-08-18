@@ -5,6 +5,42 @@
   // create-points-icon-from-screen-pos as its vector2 arg; the raw stack
   // address's own type never resolved on its own ("Failed to guess stack
   // use for 16").
+  // joint-mod-ik-callback: a large two-bone IK solver scratch frame. jak3's
+  // twin declares the identical 29-slot layout at
+  // decompiler/config/jak3/ntsc_v1/stack_structures.jsonc:58; this rung's
+  // own first two failures (offset 16, "Failed to guess stack use", and
+  // offset 160, "add failed" past a chain of matrix/vector reads) both fall
+  // on jak3's own declared offsets.
+  "joint-mod-ik-callback": [
+    [16, "matrix"],
+    [80, "matrix"],
+    [144, "vector"],
+    [160, "vector"],
+    [176, "vector"],
+    [192, "vector"],
+    [208, "vector"],
+    [224, "vector"],
+    [240, "matrix"],
+    [272, "vector"],
+    [256, "vector"],
+    [288, "vector"],
+    [304, "vector"],
+    [320, "quaternion"],
+    [336, "quaternion"],
+    [352, "vector"],
+    [384, "vector"],
+    [448, "vector"],
+    [464, "vector"],
+    [480, "vector"],
+    [496, "quaternion"],
+    [512, "matrix"],
+    [576, "vector"],
+    [592, "matrix"],
+    [608, "matrix"],
+    [656, "matrix"],
+    [720, "matrix"],
+    [752, "matrix"]
+  ],
   "(method 14 hud-effect-emit-score-icon)": [[16, "vector2"]],
   // (method 10 race-state), hud-and-levels-misc rung: sp+16 is written at
   // offset 8 (a (pointer process), from-handle), 64 (the 'race-deactivate
@@ -327,6 +363,20 @@
   "joint-mod-joint-set-world-handler": [
     [32, "vector"],
     [48, "vector"]
+  ],
+  // joint-mod-look-at-handler: jak3's twin
+  // (decompiler/config/jak3/ntsc_v1/stack_structures.jsonc) declares the
+  // identical five-slot shape; this rung's own scoped decode shows the same
+  // four pointer stores (sp+144/148/152/156 holding sp+16/80/96/112) feeding
+  // a try-to-look-at style call, matching matrix(16)/quaternion(80)/
+  // vector(96)/vector(112) before this fix; vector(128) is jak3's fifth slot,
+  // adopted on the same corroboration.
+  "joint-mod-look-at-handler": [
+    [16, "matrix"],
+    [80, "quaternion"],
+    [96, "vector"],
+    [112, "vector"],
+    [128, "vector"]
   ],
   "joint-mod-blend-world-callback": [[16, "joint-mod-blend-world-work"]],
   "(method 20 lightning-bolt)": [[16, "vector"]],

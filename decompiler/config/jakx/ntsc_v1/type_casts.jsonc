@@ -1523,10 +1523,40 @@
   ],
   "joint-mod-joint-set-handler": [[[2, 23], "s4", "joint-mod"]],
   "joint-mod-joint-set-world-handler": [[[6, 197], "s5", "joint-mod"]],
+  // joint-mod-joint-set*-handler, joint-mod-joint-set*-world-handler,
+  // joint-mod-rotate-handler, joint-mod-look-at-handler and
+  // joint-mod-world-look-at-handler: jak3's twin
+  // (decompiler/config/jak3/ntsc_v1/type_casts.jsonc) carries the identical
+  // key with the same register for every one of these joint-mod-mode
+  // handlers, and the start op matches this rung's own first "Could not
+  // figure out load" op against s5/gp (param1 read at cspace offset 24)
+  // verbatim in every case. joint-mod-joint-set*-world-handler's own upper
+  // bound is widened from jak3's 53 to 57: this rung's own scoped decode
+  // still used s5 as joint-mod through op 56 (the shutting-down? read at
+  // offset 164), past jak3's own last use.
+  "joint-mod-joint-set*-handler": [[[2, 39], "s5", "joint-mod"]],
+  "joint-mod-joint-set*-world-handler": [[[4, 57], "s5", "joint-mod"]],
+  "joint-mod-rotate-handler": [[[2, 114], "s5", "joint-mod"]],
+  "joint-mod-look-at-handler": [
+    [[2, 406], "gp", "joint-mod"],
+    [409, "a3", "float"]
+  ],
+  "joint-mod-world-look-at-handler": [
+    [[0, 217], "gp", "joint-mod"],
+    [220, "a3", "float"]
+  ],
   "joint-mod-polar-look-at-callback": [
     [[0, 363], "s5", "joint-mod-polar-look-at"]
   ],
   "joint-mod-scale-handler": [[[1, 14], "s5", "joint-mod"]],
+  // (method 11 joint-mod): jak3's twin declares the identical cast (a
+  // look-at! target's owning process cast to process-drawable, then its
+  // fact-info-enemy check), and this rung's own first failure (op 14, l.wu
+  // +212 off s1) matches jak3's own op start exactly.
+  "(method 11 joint-mod)": [
+    [[0, 27], "s1", "process-drawable"],
+    [[19, 62], "s2", "fact-info-enemy"]
+  ],
   "real-joint-mod-gun-look-at-handler": [
     [1, "v1", "joint-mod"],
     [2, "v1", "joint-mod"]
