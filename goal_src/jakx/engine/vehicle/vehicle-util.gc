@@ -7,3 +7,128 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this this rung lands only vehicle-section's own clean
+;; methods (7, 9, 14, 15, 16, 18, 19; see the individual method notes
+;; below). vehicle-section methods 10/11/12/13 and every vehicle-type
+;; method this file also implements (dozens, per the baseline scoped
+;; decode: methods including 78, 103, 138, 172, 182, 183 and
+;; debug-draw-merc among them) are entirely unsurveyed and unlanded
+;; this rung; the file's own scoped decode still carries roughly 45
+;; ERROR markers outside the vehicle-section methods landed here, none
+;; of them examined. check_method_slots's own vehicle-section-method-9
+;; dispatch sites (wcar-wolf, wcar-wombat and others, 180 of 212
+;; standing findings before this rung) are what motivated landing this
+;; subset; the rest is a future rung's own scoped decode and typing
+;; pass.
+
+;; definition for method 9 of type vehicle-section
+(defmethod vehicle-section-method-9 ((this vehicle-section) (arg0 object) (arg1 object) (arg2 object))
+  (set! (-> this node-index) (the-as int arg2))
+  (let ((v1-0 (skeleton-group->draw-control
+                (the-as process-drawable arg0)
+                (the-as skeleton-group arg1)
+                (the-as (pointer cspace-array) (&-> this node-list))
+                )
+              )
+        )
+    (set! (-> this draw) v1-0)
+    (vector-reset! (-> v1-0 skeleton bones 0 transform trans))
+    )
+  0
+  (none)
+  )
+
+;; definition for method 7 of type vehicle-section
+(defmethod relocate ((this vehicle-section) (offset int))
+  (when (nonzero? (-> this draw))
+    (if (nonzero? (-> this node-list))
+        (&+! (-> this node-list) offset)
+        )
+    (if (nonzero? (-> this draw))
+        (&+! (-> this draw) offset)
+        )
+    )
+  this
+  )
+
+;; definition for method 19 of type vehicle-section
+(defmethod vehicle-section-method-19 ((this vehicle-section))
+  (when (nonzero? (-> this draw))
+    (if (nonzero? (logand (-> this flags) 6))
+        (logior! (-> this draw status) 2)
+        (logand! (-> this draw status) -3)
+        )
+    )
+  0
+  (none)
+  )
+
+;; definition for method 18 of type vehicle-section
+(defmethod vehicle-section-method-18 ((this vehicle-section))
+  (logior! (-> this flags) 4)
+  (vehicle-section-method-19 this)
+  0
+  (none)
+  )
+
+;; definition for method 15 of type vehicle-section
+(defmethod vehicle-section-method-15 ((this vehicle-section))
+  (logior! (-> this flags) 1)
+  (set! (-> this damage) 0.0)
+  (set! (-> this angle) 0.0)
+  (when (nonzero? (-> this draw))
+    (car-info-full-method-13 (-> this car-info))
+    (logand! (-> this flags) -3)
+    (vehicle-section-method-19 this)
+    )
+  0
+  (none)
+  )
+
+;; definition for method 14 of type vehicle-section
+(defmethod vehicle-section-method-14 ((this vehicle-section))
+  (let ((f30-0 (fmin 1.0 (* 0.1 (fabs (-> this d-angle))))))
+    (when (< 0.2 f30-0)
+      (let ((v1-8
+              (make-sound-instance (-> *sound-info* (-> this info rattle-sound)) (new 'static 'sound-id) (the-as handle #f))
+              )
+            )
+        (cond
+          (v1-8
+            (set! (-> v1-8 volume) (the int (* 1024.0 f30-0)))
+            (logior! (-> v1-8 flags) 64)
+            (-> v1-8 id)
+            )
+          (else
+            0
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for method 16 of type vehicle-section
+;; WARN: Return type mismatch symbol vs none.
+(defmethod vehicle-section-method-16 ((this vehicle-section) (arg0 draw-control-status) (arg1 draw-control-status))
+  (when (nonzero? (-> this draw))
+    (set! (-> this draw status) (the-as draw-control-status (logand (logior (-> this draw status) arg0) (lognot arg1))))
+    )
+  (none)
+  )
+
+;; og:preserve-this vehicle-util rung (held): vehicle-section methods 10,
+;; 11, 12 and 13 are held. Method 10 (this rung's own decode) reads a
+;; second object argument at offsets 188/192/284, cascading into a
+;; matrix-identity! setup and this.draw's own status/mgeo fields, with no
+;; call-site or type evidence in this rung's corpus for what that argument
+;; actually is (looks like a construction/spawn-params struct, not proven).
+;; Method 11 is a CFG building failure (no expression tree). Method 12
+;; still fails type prop at a raw offset load (228) after the sllv
+;; handle-style idiom, the same inlined-macro class rigid-body-queue.gc's
+;; own held methods hit. Method 13 fails on a float-math op against an
+;; untyped operand. None of the four isolate to a quick, evidence-backed
+;; fix within this rung's remaining budget. Re-derive from the framework's
+;; own dump (offline-test -f vehicle-util -d) in a future rung.

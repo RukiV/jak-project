@@ -53551,11 +53551,18 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this vehicle-util rung: draw retyped basic -> draw-control.
+;; method 9's own decode assigns this field the direct return of
+;; skeleton-group->draw-control (a draw-control); method 19's own decode
+;; reads offset 4 of this field's basic-tagged pointer under the +4 load
+;; convention (declared offset 8, draw-control's own status field) to
+;; logior!/logand! a status bit, which fails to resolve under plain basic
+;; ("Could not figure out load: (l.wu (+ v1 4))").
 (deftype vehicle-section (structure)
   ((vel               vector               :inline :offset-assert 0)
    (info              vehicle-section-info         :offset-assert 16)
    (node-list         basic                        :offset-assert 20)
-   (draw              basic                        :offset-assert 24)
+   (draw              draw-control                 :offset-assert 24)
    (car-info          car-info-full                :offset-assert 28)
    (debris            uint64                       :offset-assert 32)
    (damage            float                        :offset-assert 40)
@@ -53577,7 +53584,11 @@
     (vehicle-section-method-13 (_type_ object) none) ;; 13
     (vehicle-section-method-14 (_type_) none) ;; 14
     (vehicle-section-method-15 (_type_) none) ;; 15
-    (vehicle-section-method-16 (_type_ object object) none) ;; 16
+    ;; og:preserve-this vehicle-util rung: promoted object -> draw-control-
+    ;; status (both args). This slot's own decode reads this.draw.status,
+    ;; ORs in arg0 and ANDs OUT arg1 (a set-some/clear-some status update),
+    ;; both operands used as the same enum as the field itself.
+    (vehicle-section-method-16 (_type_ draw-control-status draw-control-status) none) ;; 16
     (vehicle-section-method-17 () none) ;; 17
     (vehicle-section-method-18 (_type_) none) ;; 18
     (vehicle-section-method-19 (_type_) none) ;; 19
@@ -53773,7 +53784,14 @@
     (vehicle-method-108 (_type_ object) none) ;; 108 ;; (vehicle-method-108 (_type_ object) none)
     (vehicle-method-109 (_type_) none) ;; 109 ;; (vehicle-method-109 (_type_) none)
     (vehicle-method-110 (_type_) none) ;; 110 ;; (vehicle-method-110 (_type_) none)
-    (vehicle-method-111 (_type_) none) ;; 111 ;; (get-linear-accel! (_type_) none)
+    ;; og:preserve-this vehicle-util rung: promoted (_type_) -> (_type_ vector
+    ;; quaternion), both pass-through args. vehicle-util.gc's own decode of
+    ;; this slot reads a1/a2 directly without ever setting them ("may read a
+    ;; register that is not set: a1/a2") and forwards them unchanged into
+    ;; rigid-body-control-method-30, whose own signature this campaign
+    ;; already widened to (_type_ vector quaternion) none (rigid-body rung);
+    ;; this slot is the pass-through wrapper, not a zero-arg call.
+    (vehicle-method-111 (_type_ vector quaternion) none) ;; 111
     (vehicle-method-112 (_type_) none) ;; 112 ;; (copy-vehicle-controls! (_type_) none)
     (vehicle-method-113 (_type_) none) ;; 113 ;; (vehicle-method-113 (_type_) none)
     (vehicle-method-114 (_type_ int) none) ;; 114
