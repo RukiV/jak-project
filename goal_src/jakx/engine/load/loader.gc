@@ -15,12 +15,198 @@
 
 ;; DECOMP BEGINS
 
-;; og:note only the art slice of loader.o lands here: the load-dir mem-usage,
+;; og:note the art slice of loader.o lands here (the load-dir mem-usage,
 ;; lookup and record methods, the art-group master link pair and the art load
-;; helpers. The rest of the object (the gui-control implementation, the spooler
-;; block, the ja-play-spooled-* family and the external-art-control/buffer
-;; machinery) is the streaming-anim leg and stays parked: its decomp still
-;; carries CFG and type-prop errors, and nothing landed calls it.
+;; helpers) plus gui-control methods 9 and 16, its two dispatched slots
+;; (add-process and set-action!, four call sites total: cam-states.gc,
+;; generic-obs.gc, hud-classes.gc, net-hud.gc). The rest of gui-control, the
+;; spooler block, the ja-play-spooled-* family and the external-art-control/
+;; buffer machinery stay parked: their decomp still carries CFG and
+;; type-prop errors.
+
+;; og:preserve-this gui-control carries the full reconstructed field layout,
+;; matching all-types, gui-h.gc and cam-states.gc (each file that dispatches
+;; a method on it redeclares it locally rather than requiring one another,
+;; matching the existing gui-h.gc/cam-states.gc precedent) so the
+;; JakXTypeConsistency gate agrees. Method 16's sixth arg was declared
+;; plain basic here and in all-types and gui-h.gc until this rung retyped it
+;; to (function gui-connection symbol): the raw decode calls it directly at
+;; op 51 of method 16's body (jalr through a value read straight from the
+;; arg register), and casting it to basic left an unresolved "Called
+;; something that was not a function: basic" failure; every other call site
+;; passing a real basic there was never possible, only (the-as ... #f)
+;; literals (cam-states.gc's slow-mo gui-control-method-16 call), so the
+;; retype is a pure signature widening.
+(deftype gui-control (basic)
+  ((engine             engine)
+   (update-time        time-frame)
+   (connections        gui-connection  32  :inline)
+   (spool-connections  gui-connection  4   :inline)
+   (ids                sound-id        112)
+   (times              time-frame      112)
+   (cmd                pair            112)
+   (group              uint8           112)
+   )
+  (:methods
+    (new (symbol type) _type_)
+    (gui-control-method-9 (_type_ process int int string float int) uint) ;; add-request
+    (gui-control-method-10 () none)
+    (gui-control-method-11 (_type_ gui-connection) none)
+    (gui-control-method-12 () none)
+    (gui-control-method-13 () none)
+    (gui-control-method-14 (_type_ string object object) none)
+    (gui-control-method-15 (_type_ object object string) none)
+    (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; set-action!
+    (gui-control-method-17 (_type_ uint) uint) ;; get-status
+    (gui-control-method-18 () none)
+    (gui-control-method-19 () none)
+    (gui-control-method-20 (_type_ uint symbol int int int float) object) ;; sound-params-set!
+    (gui-control-method-21 () none)
+    (gui-control-method-22 () none)
+    (gui-control-method-23 () none)
+    (gui-control-method-24 () none)
+    (gui-control-method-25 (_type_ gui-connection object) none)
+    )
+  )
+(define-extern *gui-control* gui-control)
+
+;; og:preserve-this add-process: clean decode, no config edits needed on the
+;; body itself (the connectable-list-walk-as-connection idiom needed
+;; type_casts.jsonc entries to resolve, not a source-level change). Searches
+;; the engine's alive-list for a live gui-connection matching channel and
+;; name owned by arg0; on a miss, reuses a free-standing slot with a
+;; matching channel/name/priority sentinel out of this's own connections
+;; array, or mints a new-sound-id, then calls engine's own add-connection.
+(defmethod gui-control-method-9 ((this gui-control) (arg0 process) (arg1 int) (arg2 int) (arg3 string) (arg4 float) (arg5 int))
+  (let ((sv-32 (the-as connectable #f)))
+    (let ((sv-48 (-> this engine alive-list next0)))
+      (-> this engine)
+      (let ((sv-64 (-> sv-48 next0)))
+        (while (!= sv-48 (-> this engine alive-list-end))
+          (when (the-as
+                  gui-connection
+                  (and (= arg1 (the-as gui-connection (-> (the-as gui-connection sv-48) channel)))
+                       (string= arg3 (-> (the-as gui-connection sv-48) name))
+                       (the-as gui-connection (= ((method-of-type gui-connection get-process) (the-as connection sv-48)) arg0))
+                       )
+                  )
+            (set! sv-32 sv-48)
+            (goto cfg-12)
+            )
+          (set! sv-48 sv-64)
+          (-> this engine)
+          (set! sv-64 (-> sv-64 next0))
+          )
+        )
+      )
+    (label cfg-12)
+    (when (not sv-32)
+      (let ((sv-16 0))
+        (let ((sv-80 32))
+          (while (nonzero? sv-80)
+            (+! sv-80 -1)
+            (let ((sv-20 (-> this connections sv-80)))
+              (if (and (nonzero? (-> sv-20 id))
+                       (= arg1 (-> sv-20 channel))
+                       (string= arg3 (-> sv-20 name))
+                       (>= (-> sv-20 priority) -1.0)
+                       )
+                  (set! sv-16 (the-as int (-> sv-20 id)))
+                  )
+              )
+            )
+          )
+        (if (zero? sv-16)
+            (set! sv-16 (the-as int (new-sound-id)))
+            )
+        (set! sv-32 (add-connection (-> this engine) arg0 arg4 0 arg3 sv-16))
+        )
+      (the-as gui-connection (the-as connection sv-32))
+      )
+    (the-as
+      uint
+      (cond
+        ((the-as gui-connection sv-32)
+         (set! (-> (the-as gui-connection sv-32) priority) arg4)
+         (set! (-> (the-as gui-connection sv-32) channel) (the-as gui-channel arg1))
+         (set! (-> (the-as gui-connection sv-32) action) (the-as gui-action arg2))
+         (set! (-> (the-as gui-connection sv-32) param2) (the-as int arg3))
+         (set! (-> (the-as gui-connection sv-32) hold-time) (the-as time-frame arg5))
+         (set! (-> (the-as gui-connection sv-32) flags) (the-as gui-connection-flags (the-as gui-connection 1)))
+         (set! (-> (the-as gui-connection sv-32) fade) (the-as uint 0))
+         (the-as int (-> (the-as gui-connection sv-32) id))
+         )
+        (else
+          (format 0 "ERROR: could not connection ~A to gui engine.~%" arg0)
+          0
+          )
+        )
+      )
+    )
+  )
+
+;; og:preserve-this set-action!: clean decode once the arg5 callback retype
+;; above landed (see the deftype note); the body itself needed no further
+;; config work. Walks the alive-list applying arg0 (the new gui-action) to
+;; every live gui-connection matching id/channel/action/name/predicate
+;; (arg5)/owner (arg6), with special-cased hide-on-mismatched-id and
+;; already-playing-is-a-noop branches, and kicks method 25 (channel-id-set!)
+;; when the new action is 'play and method 19 gates it open.
+(defmethod gui-control-method-16 ((this gui-control)
+                                 (arg0 int)
+                                 (arg1 uint)
+                                 (arg2 int)
+                                 (arg3 int)
+                                 (arg4 string)
+                                 (arg5 (function gui-connection symbol))
+                                 (arg6 process)
+                                 )
+  (let ((sv-16 arg0)
+        (sv-17 arg3)
+        (sv-20 arg4)
+        )
+    (let ((sv-24 arg5))
+      )
+    (let ((s1-0 (-> this engine alive-list next0)))
+      (-> this engine)
+      (let ((s0-0 (-> s1-0 next0)))
+        (while (!= s1-0 (-> this engine alive-list-end))
+          (when (and (or (= arg1 1) (= arg1 (-> (the-as gui-connection s1-0) id)))
+                     (or (zero? arg2) (= arg2 (-> (the-as gui-connection s1-0) channel)))
+                     (or (zero? sv-17) (= sv-17 (-> (the-as gui-connection s1-0) action)))
+                     (or (not sv-20) (string= sv-20 (-> (the-as gui-connection s1-0) name)))
+                     (or (not arg5) (arg5 (the-as gui-connection s1-0)))
+                     (or (not arg6) (= arg6 (get-process (the-as gui-connection s1-0))))
+                     )
+            (cond
+              ((and (= sv-16 7)
+                    (!= (-> this ids (-> (the-as gui-connection s1-0) channel)) (-> (the-as gui-connection s1-0) id))
+                    )
+               (set! (-> (the-as gui-connection s1-0) action) (gui-action hidden))
+               )
+              ((and (= sv-16 2) (= (-> (the-as gui-connection s1-0) action) (gui-action playing)))
+               )
+              (else
+                (set! (-> (the-as gui-connection s1-0) action) (the-as gui-action sv-16))
+                (if (and (= sv-16 'play) (let ((t9-3 (method-of-object this gui-control-method-19)))
+                                           (-> (the-as gui-connection s1-0) channel)
+                                           (t9-3)
+                                           )
+                         )
+                    (gui-control-method-25 this (the-as gui-connection s1-0) (-> (the-as gui-connection s1-0) id))
+                    )
+                )
+              )
+            )
+          (set! s1-0 s0-0)
+          (-> this engine)
+          (set! s0-0 (-> s0-0 next0))
+          )
+        )
+      )
+    )
+  0
+  )
 
 ;; WARN: Return type mismatch symbol vs load-dir.
 (defmethod mem-usage ((this load-dir) (usage memory-usage-block) (flags int))

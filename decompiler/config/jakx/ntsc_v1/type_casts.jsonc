@@ -6689,5 +6689,39 @@
   // 72).
   "(method 12 collide-cache)": [
     [[67, 73], "a0", "collide-cache-prim"]
+  ],
+  // (method 16 gui-control): s1 walks the engine's connectable alive-list
+  // (op 10 reads it off engine's own connectable field), but every entry
+  // visited is read for param0-3 (offsets 20/21/24/28), which only exist on
+  // connection, the connectable subtype that owns them; the exact same
+  // sentinel-vs-payload shape as (method 12 nav-engine) above. Casting to
+  // plain connection alone leaves op 19's own load unresolved: connection's
+  // param3 (offset 28) is declared int32 (a signed field) while the raw
+  // instruction is lwu (unsigned), a signedness mismatch the decompiler
+  // will not auto-resolve. gui-connection's own id field at the identical
+  // offset 28 is sound-id, a uint32 wrapper, matching lwu exactly, so the
+  // cast targets gui-connection instead. s1 is reset to the raw connectable
+  // cursor at op 112 for the loop's own advance and termination test (op
+  // 118 compares it against alive-list-end), so the cast is scoped to the
+  // field-read window only.
+  "(method 16 gui-control)": [[[19, 110], "s1", "gui-connection"]],
+  // (method 9 gui-control): sp+32 (via v1/a0 stack reloads) holds the
+  // candidate connection slot walked out of the engine's connectable
+  // alive-list and, once no live match is found, the freshly allocated
+  // connection from the vtable call at op 108. The decompiler infers
+  // "connection" for the reload on its own (from the call's own declared
+  // return type), so a stack_structures override never engages here, but
+  // op 130's own load off it (offset 28, lwu) hits the identical
+  // signed-field-vs-unsigned-load mismatch as method 16 above: connection's
+  // param3 is int32, gui-connection's id (same offset) is sound-id
+  // (uint32). Every store past op 108 (name@24, id@28... wait 32 8-byte
+  // hold-time, fade@52) also exceeds connection's own 0x20 size-assert and
+  // lines up field-for-field with gui-connection instead, so the whole
+  // reload window is retyped, not just the failing read.
+  "(method 9 gui-control)": [
+    [[16, 29], "v1", "gui-connection"],
+    [[32, 35], "v1", "gui-connection"],
+    [[110, 131], "v1", "gui-connection"],
+    [[125, 127], "a0", "gui-connection"]
   ]
 }
