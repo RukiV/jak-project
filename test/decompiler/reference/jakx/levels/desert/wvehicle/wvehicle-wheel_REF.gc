@@ -3,7 +3,7 @@
 
 ;; definition of type vehicle-wheel-init-params
 (deftype vehicle-wheel-init-params (structure)
-  ((vehicle   basic)
+  ((vehicle   vehicle)
    (skel      skeleton-group)
    (level     symbol)
    (radius    float)
@@ -596,7 +596,52 @@
   )
 
 ;; definition for function vehicle-wheel-init-by-other
-;; ERROR: function has no type analysis. Cannot decompile.
+;; INFO: Used lq/sq
+(defbehavior vehicle-wheel-init-by-other vehicle-wheel ((arg0 vehicle-wheel-init-params))
+  (rigid-body-object-method-65 self)
+  (set! (-> self root trans quad) (-> arg0 position quad))
+  (quaternion-copy! (the-as quaternion (-> self root rot)) (-> arg0 rotation))
+  (set! (-> self root scale quad) (-> arg0 scale quad))
+  (set! (-> self level) (the-as level (-> arg0 level)))
+  (initialize-skeleton self (-> arg0 skel) (the-as pair 0))
+  (let ((v1-10 (-> self draw)))
+    (set! (-> v1-10 lod-set lod 0 dist) 4096.0)
+    (set! (-> v1-10 lod-set lod 1 dist) 81920.0)
+    (set! (-> v1-10 lod-set lod 2 dist) 163840.0)
+    (set! (-> v1-10 lod-set lod (-> v1-10 lod-set max-lod) dist) 819200.0)
+    )
+  (let ((f0-7 (fmax (fmax (fabs (-> arg0 scale x)) (fabs (-> arg0 scale y))) (fabs (-> arg0 scale z)))))
+    (set! (-> self draw bounds w) (* (-> arg0 skel bounds w) f0-7))
+    (set! (-> self draw longest-edge) (* (-> arg0 skel longest-edge) f0-7))
+    )
+  (set! (-> self draw lights) (-> arg0 vehicle draw lights))
+  (when (and (nonzero? (-> self draw)) (= *lobby-local-players* 2))
+    (logior! (-> self draw global-effect) (draw-control-global-effect rim-lights3))
+    (set! (-> self draw lod-set lod 0 dist) (/ (-> self draw lod-set lod 0 dist) 2))
+    (set! (-> self draw lod-set lod 1 dist) (/ (-> self draw lod-set lod 1 dist) 2))
+    )
+  (rigid-body-object-method-66 self)
+  (go-virtual idle)
+  )
 
 ;; definition for function vehicle-wheel-spawn
-;; ERROR: function has no type analysis. Cannot decompile.
+;; WARN: Return type mismatch process vs vehicle-wheel.
+(defun vehicle-wheel-spawn ((arg0 process) (arg1 vehicle-wheel-init-params))
+  (let ((gp-0 (the-as process #f)))
+    (let* ((s3-0 (get-process *default-dead-pool* vehicle-wheel #x4000 1))
+           (v1-1 (when s3-0
+                   (let ((t9-1 (method-of-type process activate)))
+                     (t9-1 s3-0 arg0 "vehicle-wheel" (the-as pointer #x70004000))
+                     )
+                   (run-now-in-process s3-0 vehicle-wheel-init-by-other arg1)
+                   (-> s3-0 ppointer)
+                   )
+                 )
+           )
+      (if v1-1
+          (set! gp-0 (-> v1-1 0))
+          )
+      )
+    (the-as vehicle-wheel gp-0)
+    )
+  )

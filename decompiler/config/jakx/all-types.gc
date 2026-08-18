@@ -73118,8 +73118,15 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this vehicle rung: retyped vehicle field basic -> vehicle.
+;; vehicle-wheel-init-by-other's own decode reads raw offset 192 of this
+;; field (placement 196 under the +4 basics convention, process-drawable's
+;; own inherited draw field) and then raw offset 248 of THAT (placement
+;; 252, draw-control's own lights field), copying the parent vehicle's own
+;; vu-lights into the spawned wheel's own draw-control at the identical
+;; offset; neither read resolves under plain basic.
 (deftype vehicle-wheel-init-params (structure)
-  ((vehicle  basic                  :offset-assert 0)
+  ((vehicle  vehicle                 :offset-assert 0)
    (skel     skeleton-group         :offset-assert 4) ;; guessed by decompiler
    (level    symbol                 :offset-assert 8) ;; guessed by decompiler
    (radius   float                  :offset-assert 12)
@@ -73175,8 +73182,14 @@
   )
 
 ;; (define-extern *vehicle-wheel-constants* object) ;; rigid-body-object-constants
-;; (define-extern vehicle-wheel-init-by-other function) ;; (function vehicle-wheel-init-params object :behavior vehicle-wheel)
-;; (define-extern vehicle-wheel-spawn function) ;; (function process vehicle-wheel-init-params vehicle-wheel)
+;; og:preserve-this vehicle rung: activated, unblocking wvehicle-method-213's
+;; own call site (wvehicle-util.gc). Both decode clean once landed together
+;; (vehicle-wheel-spawn's own run-now-in-process call needs its callee);
+;; neither references *vehicle-wheel-constants* (left commented, an
+;; unrelated already-active duplicate exists later in this file with the
+;; same "object" type, so no shadowing conflict either way).
+(define-extern vehicle-wheel-init-by-other (function vehicle-wheel-init-params object :behavior vehicle-wheel))
+(define-extern vehicle-wheel-spawn (function process vehicle-wheel-init-params vehicle-wheel))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wvehicle-part                  ;;
