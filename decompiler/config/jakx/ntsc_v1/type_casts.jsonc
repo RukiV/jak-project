@@ -7339,5 +7339,16 @@
   "cam-layout-entity-info": [
     [202, "v1", "vector"],
     [487, "v0", "vector"]
-  ]
+  ],
+  // engine-quick-tier-9 (shadow-cpu.gc): shadow-execute-all reads
+  // *gsf-buffer* (declared plain object) then does raw pointer arithmetic
+  // on it (+48) to zero a stats-block region; jak3's own shadow-execute-all
+  // explicitly casts the identical read to shadow-dcache ((the-as
+  // shadow-dcache *gsf-buffer*), goal_src/jak3/engine/gfx/foreground/
+  // shadow-cpu.gc:689), and jak3's own type_casts.jsonc casts its own v1 to
+  // shadow-dcache at the equivalent point; jakx's own op numbering differs
+  // (this rung's own decode has the read at op 62, the failing arithmetic
+  // at op 63, not jak3's 56-63 range), found by rerunning this rung's own
+  // scoped decode rather than assumed from jak3's op numbers directly.
+  "shadow-execute-all": [[63, "v1", "shadow-dcache"]]
 }
