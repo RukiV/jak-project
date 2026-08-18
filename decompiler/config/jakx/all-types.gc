@@ -53103,19 +53103,86 @@
     )
   )
 |#
-;; resurrected via offset-fix package (2026-08-13 adjudication)
+;; og:preserve-this wvehicle small-tier rung: the four raw-padding regions
+;; below are now real fields, derived from (method 9 vehicle-particle-
+;; common-info)'s own constructor body (vehicle-effects.gc, this rung's
+;; scoped decode) plus every other reader in a full-corpus decode (none
+;; found beyond the constructor itself and vehicle-draw-thruster, which
+;; only touches the fields already named below). Every one of the
+;; constructor's twenty-six stores lands on one of these offsets; none are
+;; a guess.
+;;   * 0/4: sparticle-system pointers, read straight from
+;;     *sp-particle-system-2d*/*sp-particle-system-3d*.
+;;   * 8: a sparticle-launcher pointer, part-id-table[262].
+;;   * 12/16/20/24/28/32: sp-field-init-spec pointers, six of
+;;     part-id-table[262]'s own init-specs (indices 0, 2, 3, 4, 5, 6;
+;;     index 1 is never read).
+;;   * 48/52/56: sp-field-init-spec pointers, part-id-table[247]'s
+;;     init-specs (indices 2, 13, 3).
+;;   * 60/64/68: sp-field-init-spec pointers, part-id-table[248]'s
+;;     init-specs (indices 2, 11, 3).
+;;   * 80/84/88/92/96/100/104/108/112: nine more sparticle-launcher
+;;     pointers, part-id-table[248, 247, 249, 293, 294, 295, 296, 297, 298]
+;;     respectively (248 and 247 repeat the same two launchers the specs
+;;     above already cache field-init-specs from; the other seven are
+;;     cached only as bare pointers, nothing in the corpus reads their own
+;;     specs).
+;;   * 148/152: vehicle-draw-thruster's own two reads (this rung), a
+;;     quaternion pointer and a vector-array pointer, both taken from
+;;     *particle-birth-work* (quat at its own offset 0, vel-range at its
+;;     own offset 16); 152 is typed (inline-array vector) rather than a
+;;     bare vector, matching the decode's own inferred type for that read
+;;     (particle-birth-work's vel-range field is itself a 2-element inline
+;;     vector array, and this field points at its start, not a copy).
+;; jak3's own vehicle-particle-common-info (goal_src/jak3/levels/city/
+;; traffic/vehicle/vehicle-h.gc:502) names the analogous cluster
+;; sp-system2d/sp-system3d/part-thruster/part-thruster-x/part-spec2/
+;; part-quat/part-vel, all unqualified pointers (no :inline) exactly like
+;; the fields below; jakx's own copy reorders part-quat/part-vel to the
+;; tail (148/152, past rgb/lights) instead of keeping them up front, and
+;; widens the single "part-spec2" to six (part-spec2 through part-spec6,
+;; continuing jak3's own naming for the ones jak3 also has), so field names
+;; are borrowed where jak3's shape matches and left as raw table-index
+;; names (part-247, part-293, etc.) where jakx's own machine code is the
+;; only evidence.
+;; Three words remain undeclared padding (116/120/124, the tail of the
+;; former 48-byte pad-pre-rgb block): no reader or writer in a full-corpus
+;; decode touches them, on either side of this rung's own change.
 (deftype vehicle-particle-common-info (structure)
-  ((pad-pre-headlight-glow-template uint8            36       :offset-assert 0)
-   (headlight-glow-template sprite-glow-data         :offset-assert 36)
-   (taillight-glow-template sprite-glow-data         :offset-assert 40)
-   (thruster-glow-template  sprite-glow-data         :offset-assert 44)
-   (pad-pre-thrust-tex-id   uint8                    24       :offset-assert 48)
-   (thrust-tex-id           uint32                   :offset-assert 72)
-   (dark-thrust-tex-id      uint32                   :offset-assert 76)
-   (pad-pre-rgb             uint8                    48       :offset-assert 80)
-   (rgb                     rgbaf            :inline :offset-assert 128)
-   (lights                  vu-lights                :offset-assert 144)
-   (pad-tail                uint8                    8        :offset-assert 148)
+  ((sp-system2d             sparticle-system                  :offset-assert 0)
+   (sp-system3d             sparticle-system                  :offset-assert 4)
+   (part-thruster           sparticle-launcher                :offset-assert 8)
+   (part-thruster-x         sp-field-init-spec                :offset-assert 12)
+   (part-spec2              sp-field-init-spec                :offset-assert 16)
+   (part-spec3              sp-field-init-spec                :offset-assert 20)
+   (part-spec4              sp-field-init-spec                :offset-assert 24)
+   (part-spec5              sp-field-init-spec                :offset-assert 28)
+   (part-spec6              sp-field-init-spec                :offset-assert 32)
+   (headlight-glow-template sprite-glow-data                  :offset-assert 36)
+   (taillight-glow-template sprite-glow-data                  :offset-assert 40)
+   (thruster-glow-template  sprite-glow-data                  :offset-assert 44)
+   (part-247-spec-2         sp-field-init-spec                :offset-assert 48)
+   (part-247-spec-13        sp-field-init-spec                :offset-assert 52)
+   (part-247-spec-3         sp-field-init-spec                :offset-assert 56)
+   (part-248-spec-2         sp-field-init-spec                :offset-assert 60)
+   (part-248-spec-11        sp-field-init-spec                :offset-assert 64)
+   (part-248-spec-3         sp-field-init-spec                :offset-assert 68)
+   (thrust-tex-id           uint32                            :offset-assert 72)
+   (dark-thrust-tex-id      uint32                            :offset-assert 76)
+   (part-248                sparticle-launcher                :offset-assert 80)
+   (part-247                sparticle-launcher                :offset-assert 84)
+   (part-249                sparticle-launcher                :offset-assert 88)
+   (part-293                sparticle-launcher                :offset-assert 92)
+   (part-294                sparticle-launcher                :offset-assert 96)
+   (part-295                sparticle-launcher                :offset-assert 100)
+   (part-296                sparticle-launcher                :offset-assert 104)
+   (part-297                sparticle-launcher                :offset-assert 108)
+   (part-298                sparticle-launcher                :offset-assert 112)
+   (pad-pre-rgb             uint8                    12       :offset-assert 116)
+   (rgb                     rgbaf                     :inline :offset-assert 128)
+   (lights                  vu-lights                         :offset-assert 144)
+   (part-quat               quaternion                        :offset-assert 148)
+   (part-vel                (inline-array vector)             :offset-assert 152)
    )
   :method-count-assert 10
   :size-assert         #x9c
@@ -53123,25 +53190,6 @@
   (:methods
     (vehicle-particle-common-info-method-9 (_type_) none) ;; 9 ;; (init! (_type_) none)
     )
-  ;; adjudicated: ASSERTS RIGHT (proven), FIELD LIST short four holes.
-  ;; This is a structure, so no pointer bias applies and the inspect offsets are
-  ;; the all-types offsets directly. (method 3 vehicle-particle-common-info) in
-  ;; vehicle-h_ir2.asm loads 36 / 40 / 44 / 72 / 76, computes +128 and loads 144
-  ;; -- the dead block's seven offsets verbatim, with the first field at 36 and
-  ;; not at 0, which is why the parser (which auto-places the first field of a
-  ;; structure at 0) rejected it.
-  ;; The jak3 twin corroborates the shape: jak3's vehicle-particle-common-info
-  ;; (jak3 all-types.gc:53701, goal_src/jak3/.../vehicle-h.gc:502) is the same
-  ;; three consecutive 4-byte glow templates preceded by seven more 4-byte
-  ;; references -- headlight/taillight/thruster at 28/32/36 there vs 36/40/44
-  ;; here, i.e. jakx's copy carries 2 extra leading words and then keeps going
-  ;; where jak3 stops (jak3 size 0x28 = 40, jakx size 0x9c = 156).
-  ;; Four regions the inspect never prints, all forced by the surrounding proven
-  ;; offsets and by the size-assert: 0..35, 48..71, 80..127, 148..155. The
-  ;; boundaries are proven; the pads' contents are not (the first 36 bytes are
-  ;; almost certainly jak3's sp-system2d/sp-system3d/part-thruster/
-  ;; part-thruster-x/part-spec2/part-quat/part-vel plus two more words, but
-  ;; nothing in the jakx machine code names them).
   )
 
 
