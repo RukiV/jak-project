@@ -34,6 +34,8 @@ written is read-only by design and not a finding.
 | `*display-scene-control*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*jakx-racer*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*jakx-want-driver*` | 1 | `goal_src/jakx/engine/level/level.gc` |
+| `*last-cash-game-mgr-for-player-0*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
+| `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
@@ -42,13 +44,13 @@ written is read-only by design and not a finding.
 | symbol | reading files | defined in |
 |---|---:|---|
 | `*display-camera-marks*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*game-mode*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-reverb*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-entity-errors*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-path-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-vol-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*game-mode*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*music-lock*` | 2 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*settings-dialog-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
