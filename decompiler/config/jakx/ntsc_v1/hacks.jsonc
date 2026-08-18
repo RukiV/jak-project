@@ -92,6 +92,73 @@
   // safely needs that vtable slot's own real signature nailed down first.
   // (method 62 collide-shape-moving), defined in the same file, was NOT
   // held: it already decodes clean under its own existing type.
+  //
+  // wvehicle-core rung: twelve more held in wvehicle.gc itself, none of
+  // them the four named-target methods (214/215/218/219) this rung lands.
+  // plot-engine-torque-curve: debug-only (behind *debug-segment*, only
+  // called when it is #t), its own sp+16 scratch mixes four vectors with
+  // four trailing floats and a halfword no existing structure covers and
+  // this rung did not derive one for; plot-x-with-transform, the sibling
+  // debug plotter in the same file, DOES land (stack_structures.jsonc, a
+  // plain four-vector array).
+  // (method 224 wvehicle): the same offset-720-on-self class as (method 62
+  // wvehicle) above ("Could not figure out load: (set! f1 (l.f (+ a0
+  // 720)))"); its declared signature is fixed in this same commit (float
+  // float -> float, proven by all three of its own callers), only the body
+  // is held. vehicle-handle->net-player: a byte field at process+2116 no
+  // ancestor this rung can edit declares (vehicle.gc is out of this rung's
+  // scope), plus the sllv ppointer-chase-to-handle fold; cam-states.gc
+  // already calls it and gets an unset symbol today (wvehicle.gc is still
+  // a stub), so holding it is not a regression, only an unclosed gap.
+  // find-nearest-camera and (method 61 wvehicle): (method 61 wvehicle)'s
+  // own body is find-nearest-camera's only caller, and both hit the same
+  // wall, a `basic` value (view-get-camera-combiner's own declared return,
+  // not this rung's to change) accessed at +140; camera-combiner's own
+  // trans field lands at +144, four bytes off, so this rung has no proof
+  // for what's actually at +140 rather than a guess. Nothing else in the
+  // landed corpus calls find-nearest-camera. wv-player-post-move-update
+  // and (method 112 wvehicle): (method 112 wvehicle) is the only caller of
+  // wv-player-post-move-update, whose own 2065-line body hits a field at
+  // process-or-vehicle-ancestor+796 this rung cannot attribute plus twelve
+  // more sllv ppointer-chase-to-handle folds, both out of a single rung's
+  // band. (method 64 wvehicle), (method 134 wvehicle), (method 129
+  // wvehicle), (method 220 wvehicle) and (method 217 wvehicle): each its
+  // own independent field-offset or sllv-fold wall (respectively: s5+312
+  // plus five sllv folds; gp+252 plus an unset-a0 read plus a sllv fold;
+  // s5+832 buried at op 270 of a 1500-line body behind an 80-byte unresolved
+  // stack struct; s2+192 plus a stack-use failure plus a sllv fold; a
+  // 264-byte arg2 struct with fields at 16/32/36/40/44/48/52/56/80 this
+  // rung's own evidence does not cover). None of these five are new-to-
+  // wvehicle methods (each overrides an ancestor slot), so an unlanded
+  // override just leaves the ancestor's own default running, not a jump to
+  // zero.
+  // (method 218 wvehicle): one of this rung's own named targets, held
+  // rather than landed. Its own local sp+16 scratch is the same
+  // matrix-plus-composed-quaternions shape as (method 219 wvehicle),
+  // landed above, but roughly twice the size (up to offset 336, against
+  // 219's 224) with a field read at offset 144 this rung cannot attribute
+  // to any write inside the function's own body (every other 16-byte
+  // region in the struct is either a matrix, a quaternion built by a
+  // named quaternion-* call, or a vector fed to vector-matrix*!/
+  // vecplusfloattimes; 144 is read once, at op 111, by nothing else).
+  // Landing a guessed field there would be presenting a guess as a
+  // finding; held pending a second rung's own evidence.
+  // (method 133 wvehicle): arg1 (a type_casts.jsonc cast, not a signature
+  // change, since it is declared on vehicle) reads clean as rigid-body-
+  // vehicle-constants at offsets 0/12/212/224/228/240/244/264/268/312/316
+  // (all float, matching that type's own nested rigid-body-info and
+  // vehicle-transmission-info/vehicle-handling-info fields), but its very
+  // last op (186) reads offset 20 as an unsigned byte, and rigid-body-info
+  // declares offset 20 a float (bounce-factor); this rung has no evidence
+  // for what byte-sized field actually lives there instead, so the cast
+  // that fixes every other read breaks this one.
+  // (method 157 wvehicle): decodes clean on its own but calls
+  // meters-per-sec->mph, whose real signature this rung can prove (float
+  // float, the jak3 twin plus this method's own call site) but whose
+  // implementation is not defined anywhere in the jakx corpus; activating
+  // the extern without a landed body is the AGENTS.md section 5 hazard (a
+  // symbol that is not landed links as zero), so held alongside its own
+  // only unresolved callee rather than landed on a zero-linking call.
   "no_type_analysis_functions_by_name": [
     "(method 210 wvehicle)",
     "(method 211 wvehicle)",
@@ -100,6 +167,21 @@
     "(method 249 wvehicle)",
     "(method 236 wvehicle)",
     "(method 235 wvehicle)",
+    "(method 224 wvehicle)",
+    "plot-engine-torque-curve",
+    "vehicle-handle->net-player",
+    "find-nearest-camera",
+    "(method 61 wvehicle)",
+    "wv-player-post-move-update",
+    "(method 112 wvehicle)",
+    "(method 64 wvehicle)",
+    "(method 134 wvehicle)",
+    "(method 129 wvehicle)",
+    "(method 220 wvehicle)",
+    "(method 217 wvehicle)",
+    "(method 218 wvehicle)",
+    "(method 133 wvehicle)",
+    "(method 157 wvehicle)",
     "(method 34 rigid-body-control)",
     "(method 35 rigid-body-control)",
     "apply-overlap-penalty-forces",
