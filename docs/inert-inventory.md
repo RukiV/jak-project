@@ -49,6 +49,7 @@ written is read-only by design and not a finding.
 | `*display-entity-errors*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-path-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-vol-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*game-mode*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*music-lock*` | 2 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*settings-dialog-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
@@ -152,7 +153,6 @@ written is read-only by design and not a finding.
 | `*draw-debug-boxes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*execute-regions*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*first-boot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*game-mode*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*generate-actor-vis*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
 | `*generate-actor-vis-output*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
 | `*generate-actor-vis-start*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
