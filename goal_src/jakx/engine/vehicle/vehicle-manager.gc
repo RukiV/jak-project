@@ -265,15 +265,25 @@
 
 ;; definition for function vehicle-manager-start
 ;; WARN: Return type mismatch int vs none.
-(defun vehicle-manager-start ((arg0 process))
-  (vehicle-particle-common-info-method-9 *vehicle-particle-common-info*)
-  (if *vehicle-manager*
-      (change-parent *vehicle-manager* arg0)
-      (process-spawn vehicle-manager :name "vehicle-manager" :to arg0)
-      )
-  0
-  (none)
-  )
+;; og:preserve-this vehicle-manager-start is omitted rather than landed,
+;; for the same reason vehicle-manager-init-by-other below is omitted:
+;; jakx-init calls vehicle-manager-start behind a runtime (nonzero?)
+;; guard, and its process-spawn resolves vehicle-manager-init-by-other by
+;; name at the kernel level, so with the init function omitted the very
+;; first boot after landing this function died at jakx-init with
+;; "attempting to run nullptr function!" (vehicle-manager+0xff7 on the
+;; stack). Leaving the symbol undefined keeps the guard skipping as it
+;; did while this file was a stub. Retires together with the init-by-other
+;; note when rigid-body-queue lands; the body is:
+;; (defun vehicle-manager-start ((arg0 process))
+;;   (vehicle-particle-common-info-method-9 *vehicle-particle-common-info*)
+;;   (if *vehicle-manager*
+;;       (change-parent *vehicle-manager* arg0)
+;;       (process-spawn vehicle-manager :name "vehicle-manager" :to arg0)
+;;       )
+;;   0
+;;   (none)
+;;   )
 
 ;; definition for function vehicle-manager-kill
 ;; WARN: Return type mismatch symbol vs none.
