@@ -54592,7 +54592,15 @@
     (vehicle-weapon-slot-method-51 () none) ;; 51
     (vehicle-weapon-slot-method-52 () none) ;; 52
     (vehicle-weapon-slot-method-53 (_type_) none) ;; 53
-    (vehicle-weapon-slot-method-54 () none) ;; 54
+    ;; og:preserve-this (vehicle band, wvehicle-weapons-h): v-wpn-event-base's
+    ;; 'refill-ammo case fetches this method's pointer via method-of-object
+    ;; and calls it with zero arguments (self is used only to resolve the
+    ;; slot, never passed through), then casts the result with (the-as int
+    ;; v1-4) and compares/stores it into ammunition (int8); none crashes
+    ;; goalc ("get_preferred_reg_class called on NullType") the moment the
+    ;; result is used. int is the only return type the call site's own usage
+    ;; supports.
+    (vehicle-weapon-slot-method-54 () int) ;; 54
     (vehicle-weapon-slot-method-55 () none) ;; 55
     (vehicle-weapon-slot-method-56 () none) ;; 56
     (vehicle-weapon-slot-method-57 () none) ;; 57
@@ -54679,13 +54687,20 @@
   :flag-assert         #x900000044
   )
 |#
-;; resurrected from the dead block above (dead-type sweep)
+;; resurrected from the dead block above (dead-type sweep); :methods clause
+;; added (vehicle band, wvehicle-weapons-h): method 0's own body sets six
+;; hsprite fields including a texture-id lookup, not the default object-new
+;; passthrough, so TypeConsistencyWithBuildFirst needs the slot declared
+;; explicitly to match the compiled signature.
 (deftype warning-hud-icon (basic)
   ((hsprite hud-sprite :inline :offset-assert 16)
    )
   :method-count-assert 9
   :size-assert         #x44
   :flag-assert         #x900000044
+  (:methods
+    (new (symbol type) warning-hud-icon) ;; 0
+    )
   )
 
 

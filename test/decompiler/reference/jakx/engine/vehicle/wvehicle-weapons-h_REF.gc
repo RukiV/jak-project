@@ -1,43 +1,21 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: wvehicle-weapons-h.gc
-;; name in dgo: wvehicle-weapons-h
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
-;; og:preserve-this two forward declarations for functions this file calls
-;; but does not define. Both targets are still stubs; build-first needs the
-;; declarations here regardless of which file eventually lands them, since
-;; engine/vehicle compiles ahead of both engine/vehicle/vehicle.gc's own body
-;; pass and levels/common in this tree's link order. Signatures copied from
-;; decompiler/config/jakx/all-types.gc. Drop each line when its real object
-;; lands.
-;; vehicle-get-weapon-level: defined by vehicle.gc (this band's own object).
-(define-extern vehicle-get-weapon-level (function vehicle int int))
-;; v-wpn-type->color: defined by wvehicle-weapons-util.gc (not in this band).
-(define-extern v-wpn-type->color (function int int))
-
 ;; definition for symbol V_R_MINE1_ARMED?, type object
 (define V_R_MINE1_ARMED? (the-as object #t))
 
-;; og:preserve-this: weapon-mask->type and *weapon-suppression-table* are
-;; both omitted rather than landed. weapon-mask->type has no type: giving it
-;; a concrete (function int int) signature crashes the decompiler outright
-;; ("Assertion failed: 'is_var()'", decompiler/IR2/AtomicOp.h:156) while
-;; processing this object, isolated by toggling only this extern against an
-;; otherwise-unchanged config; a decompiler bug, not a config gap (see the
-;; note on the commented-out extern in all-types.gc). *weapon-suppression-
-;; table*'s own static data (L34, 21 back-to-back separately-boxed (array
-;; symbol) records) fails static-ref in decompile_boxed_array's alignment
-;; check and every label_types path tried (data_decompile.cpp:1838-1839,
-;; 318-324, 98-99); the decompiler emits an unparseable <static-data L34>
-;; placeholder in its place instead of an error line. Neither symbol has a
-;; caller anywhere else in the corpus, so both are omitted entirely rather
-;; than given an invented value, matching the credits-obs precedent for the
-;; same defect class. Re-derive both from the framework's own dump (offline-
-;; test -f wvehicle-weapons-h -d) once the two decompiler-side gaps close.
+;; definition for function weapon-mask->type
+;; ERROR: function has no type analysis. Cannot decompile.
+
+;; definition for symbol *weapon-suppression-table*, type (pointer symbol)
+(define *weapon-suppression-table* <static-data L34>)
+
+;; failed to figure out what this is:
+(dotimes (v1-3 21)
+  (dotimes (a0-0 17)
+    (set! (-> (+ (+ (* v1-3 16) (* a0-0 4)) (the-as int *weapon-suppression-table*)) 3) #f)
+    )
+  )
 
 ;; definition of type vehicle-weapon-slot
 (deftype vehicle-weapon-slot (process-drawable)
@@ -87,13 +65,16 @@
 ;; WARN: Return type mismatch uint vs object.
 ;; WARN: .subu (32-bit) used on a uint at idx 1. This probably should be a handle.
 (defbehavior v-wpn-base-common-trans vehicle-weapon-slot ()
-  ;; og:preserve-this compile-only substitution: the decoder prints its own
-  ;; pseudo-op (.asm.sllv.r0) for the raw sllv reinterpretation, which is not
-  ;; valid GOAL (rigid-body-debug precedent, same defect class). The
-  ;; surrounding nonzero?/pid-compare shape is handle->process's own
-  ;; expansion (gkernel-h.gc) verbatim; owning-vehicle is read as a handle
-  ;; here even though its own field is declared uint64.
-  (let ((gp-0 (handle->process (-> self owning-vehicle))))
+  (let* ((v1-0 (-> self owning-vehicle))
+         (gp-0
+           (and (nonzero? (l32-false-check v1-0)) (let ((a0-2 (-> (the-as (pointer process) (.asm.sllv.r0 v1-0)) 0)))
+                                                    (if (= (sar v1-0 32) (-> a0-2 pid))
+                                                        a0-2
+                                                        )
+                                                    )
+                )
+           )
+         )
     (if (or (not gp-0) (focus-test? (the-as vehicle gp-0) dead))
         (go empty-state)
         )
@@ -236,9 +217,6 @@
 (deftype warning-hud-icon (basic)
   ((hsprite  hud-sprite  :inline)
    )
-  (:methods
-    (new (symbol type) warning-hud-icon)
-    )
   )
 
 ;; definition for method 3 of type warning-hud-icon
@@ -509,15 +487,6 @@
 
 ;; definition for method 3 of type v-wpn-net-info
 ;; INFO: this function exists in multiple non-identical object files
-;; og:preserve-this the raw decode carries two non-identical bodies for this
-;; method (duplicate-object-file class, same as attackable-hash and
-;; hud-widgets-powerhang); goalc refuses the codegen duplicate outright
-;; ("Failed to codegen, there are two functions with internal names"). goal_src
-;; keeps the fuller of the two: this one matches the type's own field names
-;; and calls the standard (when (not this) ...) guard shape every other
-;; inspect method in this file uses; the dropped body used mismatched
-;; open-coded labels ("left type"/"right type") and had its own WARN (Return
-;; type mismatch object vs v-wpn-net-info).
 (defmethod inspect ((this v-wpn-net-info))
   (when (not this)
     (set! this this)
@@ -530,6 +499,15 @@
   (format #t "~1Tright-power: ~D~%" (-> this right-power))
   (label cfg-4)
   this
+  )
+
+;; definition for method 3 of type v-wpn-net-info
+;; INFO: this function exists in multiple non-identical object files
+;; WARN: Return type mismatch object vs v-wpn-net-info.
+(defmethod inspect ((this v-wpn-net-info))
+  (format #t "[~8x] v-wpn-net info~%" this)
+  (format #t "~Tleft  type: ~D~Tpow: ~D~%" (-> this left-type) (-> this left-power))
+  (the-as v-wpn-net-info (format #t "~Tright type: ~D~Tpow: ~D~%" (-> this right-type) (-> this right-power)))
   )
 
 ;; definition for symbol *cheat-defaultgun-in-race*, type object
