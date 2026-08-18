@@ -972,7 +972,23 @@
   // connectable subtype that owns them per connection's own deftype. v1 holds
   // the current list entry at this op range on every iteration (op 122 resets
   // it to the s3 cursor each pass, same static instruction).
-  "(method 12 nav-engine)": [[[25, 28], "v1", "connection"]],
+  // Second entry, nav wave 2: op 29's raw load (+ a0 200) is connection's
+  // param1 (declared basic) read at process-drawable's own nav field
+  // (:offset-assert 204 in all-types.gc, which is the +4 basics convention's
+  // pair for machine load 200). Every downstream read off the result (s1)
+  // matches nav-control's own field layout exactly (sec-per-frame at 28,
+  // root-sphere-id at 60, root-nav-sphere at 96/108, the bit-128 test at op
+  // 40 is nav-control-flag's own output-sphere-hash, bit 7). A prior attempt
+  // cast a0 itself straight to nav-control and read raw offset 200 inside
+  // THAT type instead, landing inside nav-state's inline current-pos vector
+  // (the "add failed: float <integer 96>" regression); a second candidate,
+  // process-drawable's own offset-assert-200 field, is skel (joint-control),
+  // one field short of nav. process-drawable is the correct cast. Range
+  // extends through op 30 (raw offset 8, process-tree's own clock field, +4
+  // convention pair for offset-assert 12): op 31 then reads clock's own
+  // seconds-per-frame (offset-assert 80, raw 76) and op 32 stores it straight
+  // into the nav-control's sec-per-frame, a per-frame cache-copy.
+  "(method 12 nav-engine)": [[[25, 28], "v1", "connection"], [[25, 31], "a0", "process-drawable"], [[26, 85], "s2", "collide-shape"]],
   // nav-mesh-editor-rotate-y, nav rung: send-event-function's first arg needs
   // process-tree; op 15 reads *nav-mesh-editor* offset 0 (basic's own type
   // field), which the decompiler cannot resolve further on its own, so the
