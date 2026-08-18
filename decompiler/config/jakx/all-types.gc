@@ -66423,21 +66423,23 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep)
-;; hud-and-levels-misc rung: (anon-function 3 intro-scenes2) stores this
-;; field's raw value straight into joint-control-channel's own frame-group
-;; field (declared offset-assert 4, art-joint-anim), then separately
-;; dereferences it at offset 32 (art-joint-anim's own blend-shape-anim,
-;; (pointer int8)) and reads a halfword off that; a plain uint32 does not
-;; fit either access. Retyping this field to art-joint-anim was tried and
-;; measured to have zero effect on the field's own read type at either
-;; access, byte for byte identical output to declaring it plain int32
-;; (confirmed by directly swapping the declared type and rerunning the
-;; scoped decode), for a reason this rung could not determine; left at its
-;; original type rather than landing an unproven change.
+;; resurrected from the dead block above (dead-type sweep); levels-other-tier
+;; rung retype (issue 335 left this a mystery: retyping the field DECLARED at
+;; 248, extra-id, to art-joint-anim measured zero effect). The raw read is
+;; (l.wu (+ s6-0 248)), and under the jakx +4 basics convention that machine
+;; offset resolves to the field PLACED at 252, not 248: this type's own
+;; "anim" field, not "extra-id". That is why retyping extra-id was a no-op,
+;; and confirmed by the ir2.asm's own type annotation for the read already
+;; showing [v1: basic] (anim's declared type), not uint32 (extra-id's). anim
+;; retyped to art-joint-anim instead: (anon-function 3 intro-scenes2) stores
+;; this value straight into joint-control-channel's own frame-group field
+;; (declared offset-assert 4, art-joint-anim), then separately dereferences
+;; it at offset 32 (art-joint-anim's own blend-shape-anim, (pointer int8))
+;; and reads a halfword off that, matching art-joint-anim's own shape
+;; exactly.
 (deftype krasmale (process-drawable)
-  ((extra-id uint32  :offset-assert 248)
-   (anim     basic   :offset-assert 252)
+  ((extra-id uint32        :offset-assert 248)
+   (anim     art-joint-anim :offset-assert 252)
    )
   :method-count-assert 51
   :size-assert         #x100
@@ -66461,14 +66463,14 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep)
-;; hud-and-levels-misc rung: krasfemale's own sibling function
-;; ((anon-function 7 intro-scenes2)) shows the identical shape as
-;; krasmale's; see krasmale's own comment above for the evidence and the
-;; measured zero-effect retype attempt.
+;; resurrected from the dead block above (dead-type sweep); levels-other-tier
+;; rung: krasfemale's own sibling function ((anon-function 3 intro-scenes2))
+;; shows the identical shape as krasmale's; see krasmale's own comment above
+;; for the +4 basics evidence (anim, not extra-id, is the field the raw
+;; offset-248 read actually resolves to) and the art-joint-anim retype.
 (deftype krasfemale (process-drawable)
-  ((extra-id uint32  :offset-assert 248)
-   (anim     basic   :offset-assert 252)
+  ((extra-id uint32        :offset-assert 248)
+   (anim     art-joint-anim :offset-assert 252)
    )
   :method-count-assert 51
   :size-assert         #x100
