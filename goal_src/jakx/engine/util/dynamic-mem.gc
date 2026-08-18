@@ -7,3 +7,393 @@
 
 ;; DECOMP BEGINS
 
+;; definition of type memblock
+(deftype memblock (structure)
+  ((tp      uint8)
+   (flavor  uint8)
+   (pad2    int16)
+   (paras   int32)
+   (prev    memblock)
+   (next    memblock)
+   )
+  )
+
+;; definition for method 3 of type memblock
+(defmethod inspect ((this memblock))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'memblock)
+  (format #t "~1Ttp: ~D~%" (-> this tp))
+  (format #t "~1Tflavor: ~D~%" (-> this flavor))
+  (format #t "~1Tpad2: ~D~%" (-> this pad2))
+  (format #t "~1Tparas: ~D~%" (-> this paras))
+  (format #t "~1Tprev: #<memblock @ #x~X>~%" (-> this prev))
+  (format #t "~1Tnext: #<memblock @ #x~X>~%" (-> this next))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this *dynamic-alloc-pool* is a 0x4b000-byte (307200) all-zero
+;; static block in the retail binary: dynamic-mem_ir2.asm's label L98 holds
+;; 76800 consecutive ".word 0x0" entries (76800 * 4 = 0x4b000 bytes, verified
+;; against this worktree's own scoped decode, zero non-zero words found), but
+;; the decompiler cannot render it ("WARN: Failed static ref for label L98:
+;; Unimplemented decompile_at_label for Label: L98 and Type: object") because
+;; its extern stays typed object (decompiler/config/jakx/all-types.gc: a prior
+;; retype to (pointer uint8) was tried and reverted there, since it makes the
+;; decompiler print all 307200 entries as a literal, which is what a size-only
+;; (new 'static 'array ...) below avoids while still producing byte-identical
+;; content: fill_static_array (goalc/compiler/compilation/Static.cpp) sizes the
+;; backing buffer to the declared min-size and only writes the literals given,
+;; leaving the rest zero. mem-manager-method-12 below writes every meaningful
+;; field of the first three memblock headers itself, so nothing here depends on
+;; more than "zeroed and the right size". Retire this note if the decompiler
+;; ever gains a compact zero-run literal for label L98.
+(define *dynamic-alloc-pool* (new 'static 'array uint8 #x4b000))
+
+;; definition of type mem-manager
+(deftype mem-manager (structure)
+  ((pool     memblock)
+   (pool-sz  int32)
+   )
+  (:methods
+    (mem-manager-method-9 (_type_ int int) pointer)
+    (mem-manager-method-10 (_type_ pointer) none)
+    (mem-manager-method-11 (_type_ pointer int int) pointer)
+    (mem-manager-method-12 (_type_ memblock int) none)
+    (mem-manager-method-13 (_type_) none)
+    (mem-manager-method-14 (_type_) none)
+    (mem-manager-method-15 (_type_) none)
+    )
+  )
+
+;; definition for method 3 of type mem-manager
+(defmethod inspect ((this mem-manager))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'mem-manager)
+  (format #t "~1Tpool: #<memblock @ #x~X>~%" (-> this pool))
+  (format #t "~1Tpool-sz: ~D~%" (-> this pool-sz))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 15 of type mem-manager
+;; WARN: Return type mismatch int vs none.
+(defmethod mem-manager-method-15 ((this mem-manager))
+  (let ((a0-1 (-> this pool))
+        (v1-0 0)
+        )
+    (while a0-1
+      (if (= (-> a0-1 tp) 2)
+          (set! v1-0 (max v1-0 (-> a0-1 paras)))
+          )
+      (set! a0-1 (-> a0-1 next))
+      )
+    (* v1-0 16)
+    )
+  (none)
+  )
+
+;; definition for method 13 of type mem-manager
+;; WARN: Return type mismatch int vs none.
+(defmethod mem-manager-method-13 ((this mem-manager))
+  (let ((s5-0 (-> this pool)))
+    (when (nonzero? (-> s5-0 tp))
+      (mem-manager-method-14 this)
+      (break!)
+      0
+      )
+    (while (!= (-> s5-0 tp) 1)
+      (when (not (or (= s5-0 (-> this pool)) (= (-> s5-0 tp) 3) (= (-> s5-0 tp) 2)))
+        (mem-manager-method-14 this)
+        (break!)
+        0
+        )
+      (when (!= (-> s5-0 next) (+ (the-as uint s5-0) (* (+ (-> s5-0 paras) 1) 16)))
+        (mem-manager-method-14 this)
+        (break!)
+        0
+        )
+      (when (!= (-> s5-0 next prev) s5-0)
+        (mem-manager-method-14 this)
+        (break!)
+        0
+        )
+      (set! s5-0 (-> s5-0 next))
+      )
+    (when (-> s5-0 next)
+      (mem-manager-method-14 this)
+      (break!)
+      0
+      )
+    )
+  (none)
+  )
+
+;; definition for method 11 of type mem-manager
+(defmethod mem-manager-method-11 ((this mem-manager) (arg0 pointer) (arg1 int) (arg2 int))
+  (if (nonzero? arg0)
+      (mem-manager-method-10 this arg0)
+      )
+  (let ((s4-1 (mem-manager-method-9 this arg1 arg2)))
+    (if (and (nonzero? arg0) (nonzero? s4-1))
+        (mem-copy! s4-1 arg0 arg1)
+        )
+    s4-1
+    )
+  )
+
+;; definition for method 12 of type mem-manager
+;; WARN: Return type mismatch int vs none.
+(defmethod mem-manager-method-12 ((this mem-manager) (arg0 memblock) (arg1 int))
+  (set! (-> this pool) arg0)
+  (set! (-> this pool-sz) (/ arg1 16))
+  (let ((v1-1 (-> this pool)))
+    (set! (-> v1-1 tp) (the-as uint 0))
+    (set! (-> v1-1 paras) 0)
+    (set! (-> v1-1 flavor) (the-as uint 0))
+    (set! (-> v1-1 prev) #f)
+    (set! (-> v1-1 next) (the-as memblock (+ (the-as uint v1-1) (* (+ (-> v1-1 paras) 1) 16))))
+    (let ((v1-2 (-> v1-1 next)))
+      (set! (-> v1-2 tp) (the-as uint 2))
+      (set! (-> v1-2 paras) (+ (-> this pool-sz) -3))
+      (set! (-> v1-2 flavor) (the-as uint 0))
+      (set! (-> v1-2 prev) (-> this pool))
+      (set! (-> v1-2 next) (the-as memblock (+ (the-as uint v1-2) (* (+ (-> v1-2 paras) 1) 16))))
+      (let ((v1-3 (-> v1-2 next)))
+        (set! (-> v1-3 tp) (the-as uint 1))
+        (set! (-> v1-3 paras) 0)
+        (set! (-> v1-3 flavor) (the-as uint 0))
+        (set! (-> v1-3 prev) (-> this pool next))
+        (set! (-> v1-3 next) #f)
+        )
+      )
+    )
+  (mem-manager-method-13 this)
+  0
+  (none)
+  )
+
+;; definition for method 9 of type mem-manager
+;; WARN: Return type mismatch object vs pointer.
+(defmethod mem-manager-method-9 ((this mem-manager) (arg0 int) (arg1 int))
+  (let ((v1-1 (/ (+ arg0 15) 16))
+        (a1-1 (-> this pool))
+        (a3-0 #x98967f)
+        (a0-1 (the-as memblock #f))
+        )
+    (while a1-1
+      (when (and (= (-> a1-1 tp) 2) (>= (-> a1-1 paras) v1-1))
+        (when (< (-> a1-1 paras) a3-0)
+          (set! a3-0 (-> a1-1 paras))
+          (set! a0-1 a1-1)
+          )
+        )
+      (set! a1-1 (-> a1-1 next))
+      )
+    (let ((s5-0 a0-1))
+      (when (not s5-0)
+        (format 0 "dynamic mem-allocator ran out trying to allocate ~D paras~%" v1-1)
+        (mem-manager-method-14 this)
+        (mem-manager-method-13 this)
+        (return (the-as pointer 0))
+        )
+      (set! (-> s5-0 tp) (the-as uint 3))
+      (when (< (+ v1-1 1) (-> s5-0 paras))
+        (let ((a0-5 (the-as memblock (+ (the-as uint a0-1) (* (+ v1-1 1) 16)))))
+          (set! (-> a0-5 next) (-> s5-0 next))
+          (set! (-> a0-5 next prev) a0-5)
+          (set! (-> s5-0 next) a0-5)
+          (set! (-> a0-5 prev) s5-0)
+          (set! (-> a0-5 tp) (the-as uint 2))
+          (set! (-> a0-5 paras) (+ (- -1 v1-1) (-> s5-0 paras)))
+          )
+        (set! (-> s5-0 paras) v1-1)
+        )
+      (set! (-> s5-0 flavor) (the-as uint arg1))
+      (mem-manager-method-13 this)
+      (the-as pointer (&+ s5-0 16))
+      )
+    )
+  )
+
+;; definition for method 10 of type mem-manager
+;; WARN: Return type mismatch int vs none.
+;; WARN: Function (method 10 mem-manager) has a return type of none, but the expression builder found a return statement.
+(defmethod mem-manager-method-10 ((this mem-manager) (arg0 pointer))
+  (let ((v1-0 (the-as memblock (&+ arg0 -16))))
+    (when (!= (-> v1-0 tp) 3)
+      (format 0 "attempt to free a bad block!~%")
+      (return #f)
+      )
+    (set! (-> v1-0 tp) (the-as uint 2))
+    (when (= (-> v1-0 next tp) 2)
+      (set! (-> v1-0 paras) (+ (-> v1-0 next paras) 1 (-> v1-0 paras)))
+      (set! (-> v1-0 next) (the-as memblock (+ (the-as uint v1-0) (* (+ (-> v1-0 paras) 1) 16))))
+      (set! (-> v1-0 next prev) v1-0)
+      )
+    (let ((v1-1 (-> v1-0 prev)))
+      (when (= (-> v1-1 tp) 2)
+        (set! (-> v1-1 paras) (+ (-> v1-1 next paras) 1 (-> v1-1 paras)))
+        (set! (-> v1-1 next) (the-as memblock (+ (the-as uint v1-1) (* (+ (-> v1-1 paras) 1) 16))))
+        (set! (-> v1-1 next prev) v1-1)
+        )
+      )
+    )
+  (mem-manager-method-13 this)
+  0
+  (none)
+  )
+
+;; definition for method 14 of type mem-manager
+;; WARN: Return type mismatch int vs none.
+(defmethod mem-manager-method-14 ((this mem-manager))
+  (let ((gp-0 (-> this pool)))
+    (while gp-0
+      (format 0 "blk@~08X : " gp-0)
+      (format 0 "~8D bytes  " (* (-> gp-0 paras) 16))
+      (let ((v1-1 (-> gp-0 tp)))
+        (cond
+          ((= v1-1 2)
+           (format 0 "free ")
+           )
+          ((= v1-1 3)
+           (format 0 "used ")
+           )
+          ((zero? v1-1)
+           (format 0 "first ")
+           )
+          ((= v1-1 1)
+           (format 0 "last ")
+           )
+          (else
+            (format 0 "????~%")
+            (break!)
+            0
+            )
+          )
+        )
+      (when (= (-> gp-0 tp) 3)
+        (let ((v1-9 (-> gp-0 flavor)))
+          (cond
+            ((zero? v1-9)
+             (format 0 "unknown ")
+             )
+            ((= v1-9 1)
+             (format 0 "lgaud ")
+             )
+            ((= v1-9 2)
+             (format 0 "nelly ")
+             )
+            ((= v1-9 3)
+             (format 0 "scert ")
+             )
+            (else
+              (format 0 "<unknown flavor> ")
+              (break!)
+              0
+              )
+            )
+          )
+        )
+      (format 0 "~%")
+      (set! gp-0 (-> gp-0 next))
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for symbol *mem-manager*, type mem-manager
+(define *mem-manager* (new 'static 'mem-manager))
+
+;; failed to figure out what this is:
+(mem-manager-method-12 *mem-manager* (the-as memblock *dynamic-alloc-pool*) #x4b000)
+
+;; og:preserve-this the twelve functions below (scert/nelly/lgaud/flash times
+;; alloc/free/realloc) are flagged asm by the decoder's own automatic
+;; heuristic, not by hacks.jsonc config: each compiles a self-relocating
+;; prologue (bgezal r0 to itself to recover ra, then fp = ra - 20, then a
+;; fp-relative load through an embedded pointer to recover s7) so it can find
+;; *mem-manager* without assuming s7 is already valid on entry, and the CFG
+;; builder refuses to convert any function that explicitly saves s7 to the
+;; stack ("BAD PROLOGUE... WARN: Flagged as asm because of sd s7, 16(sp)"; no
+;; ^;; ERROR: line is emitted for this class, it shows only in the disasm.gc
+;; body as "function was not converted to expressions"). A prior lane tried
+;; hacks.jsonc's asm_functions_by_name for all twelve and made things worse
+;; (explicit "Flagged as asm by config" errors, no working body); reverted in
+;; d5b8646df. Register evidence in this worktree's own scoped decode
+;; (dynamic-mem_ir2.asm) shows every one of the twelve is a plain forwarder:
+;; it loads *mem-manager*, calls the matching mem-manager-methodN through that
+;; method's own vtable slot (offset 52/56/60 = method 9/10/11 respectively,
+;; 16-byte type header + 4 bytes per method), and for alloc/realloc appends a
+;; hardcoded flavor byte matching mem-manager-method-14's own flavor table
+;; above (lgaud 1, nelly 2, scert 3; flash's 4 falls outside that table in the
+;; original and hits its "<unknown flavor>" branch unchanged here). Hand-
+;; transcribed from that evidence, not decoded; retire if the decompiler ever
+;; follows this prologue shape on its own.
+
+;; definition for function mem-alloc-scert
+(defun mem-alloc-scert ((arg0 int))
+  (mem-manager-method-9 *mem-manager* arg0 3)
+  )
+
+;; definition for function mem-free-scert
+(defun mem-free-scert ((arg0 pointer))
+  (mem-manager-method-10 *mem-manager* arg0)
+  )
+
+;; definition for function mem-realloc-scert
+(defun mem-realloc-scert ((arg0 pointer) (arg1 int))
+  (mem-manager-method-11 *mem-manager* arg0 arg1 3)
+  )
+
+;; definition for function mem-alloc-nelly
+(defun mem-alloc-nelly ((arg0 int))
+  (mem-manager-method-9 *mem-manager* arg0 2)
+  )
+
+;; definition for function mem-free-nelly
+(defun mem-free-nelly ((arg0 pointer))
+  (mem-manager-method-10 *mem-manager* arg0)
+  )
+
+;; definition for function mem-realloc-nelly
+(defun mem-realloc-nelly ((arg0 pointer) (arg1 int))
+  (mem-manager-method-11 *mem-manager* arg0 arg1 2)
+  )
+
+;; definition for function mem-alloc-lgaud
+(defun mem-alloc-lgaud ((arg0 int))
+  (mem-manager-method-9 *mem-manager* arg0 1)
+  )
+
+;; definition for function mem-free-lgaud
+(defun mem-free-lgaud ((arg0 pointer))
+  (mem-manager-method-10 *mem-manager* arg0)
+  )
+
+;; definition for function mem-realloc-lgaud
+(defun mem-realloc-lgaud ((arg0 pointer) (arg1 int))
+  (mem-manager-method-11 *mem-manager* arg0 arg1 1)
+  )
+
+;; definition for function mem-alloc-flash
+(defun mem-alloc-flash ((arg0 int))
+  (mem-manager-method-9 *mem-manager* arg0 4)
+  )
+
+;; definition for function mem-free-flash
+(defun mem-free-flash ((arg0 pointer))
+  (mem-manager-method-10 *mem-manager* arg0)
+  )
+
+;; definition for function mem-realloc-flash
+(defun mem-realloc-flash ((arg0 pointer) (arg1 int))
+  (mem-manager-method-11 *mem-manager* arg0 arg1 4)
+  )
