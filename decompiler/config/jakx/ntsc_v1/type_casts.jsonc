@@ -4428,7 +4428,16 @@
     [[88, 93], "s0", "adgif-shader"],
     [[132, 164], "v1", "(inline-array vector4w)"],
     [[244, 274], "a1", "(inline-array vector4w)"],
-    [[284, 292], "v1", "dma-gif-packet"],
+    // op 285-287 read/add/write the dma-buffer's own "base" field (declared
+    // pointer), the &+! 112 step; the inherited [284,292] range forced them
+    // to dma-gif-packet (0x20 bytes) too, which fails the +112 add since it
+    // does not land on a valid field or scaled index ("add failed: dma-gif-
+    // packet <integer 112>"); narrowed to the two ops that actually read
+    // dma-gif-packet-shaped constants (283, the tag-kind literal 66, and
+    // 288-291, the second macro's own literal-and-shift block), leaving
+    // 284-287 to resolve on their own as pointer.
+    [284, "v1", "dma-gif-packet"],
+    [[288, 292], "v1", "dma-gif-packet"],
     [[298, 303], "s0", "adgif-shader"],
     [[376, 406], "a1", "(inline-array vector4w)"],
     [[442, 450], "v1", "dma-gif-packet"],
@@ -4448,6 +4457,17 @@
     [310, "a0", "int"],
     [318, "a1", "int"],
     [468, "a0", "int"],
+    // op 476: held. This is the third of three sequential "a1 = gp;
+    // (l.wu (+ a1 4))" dma-buffer-base reads in this macro block (the
+    // other two, ops 457 and 466, resolve to dma-buffer on their own);
+    // the inherited "int" cast here reads wrong against dma-buffer's own
+    // base field (declared pointer) and is the source of "Could not
+    // figure out load: (set! a2 (l.wu (+ a1 4)))". Retyping a1 to
+    // dma-buffer at this op clears that one error but cascades into
+    // roughly 100 new "Failed store" errors throughout the rest of the
+    // function (every later block that reuses a1/a2/t2 for its own GIF-
+    // tag writes); tried and reverted. Held as the census's own
+    // "unresolved l.wu load" rather than landing a net regression.
     [476, "a1", "int"],
     [598, "a0", "int"],
     [606, "a1", "int"],
@@ -4483,6 +4503,9 @@
     [310, "a0", "int"],
     [318, "a1", "int"],
     [468, "a0", "int"],
+    // op 476: held, same shape and same regression as render-eyes-64's own
+    // op 476 above (see that entry's comment); the census's "unresolved
+    // l.wu load" error for this object.
     [476, "a1", "int"],
     [598, "a0", "int"],
     [606, "a1", "int"],

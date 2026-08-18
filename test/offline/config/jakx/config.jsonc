@@ -604,6 +604,28 @@
     "(method 18 rb-debugger)",
     "(method 19 rb-debugger)",
     "(method 20 rb-debugger)",
+    // eye: dirty-eyes inlines the identical handle->process check by hand
+    // (self->process is uint64, same class as visvol-edit.gc's (trans idle
+    // visvol-editor)); the decoder prints the same uncompilable
+    // .asm.sllv.r0 pseudo-op, and the landed goal_src carries the real
+    // handle->process macro at the same site. update-eyes decodes the
+    // identical shape but is held un-landed (calls render-eyes-32/64,
+    // neither of which has a landed body; see the render-eyes-32 comment
+    // in goal_src/jakx/engine/gfx/foreground/eye.gc), so it carries no
+    // entry here. render-eyes-32 and render-eyes-64 are both held un-
+    // landed (a dma-buffer-base type-tracking cascade past op 475, see the
+    // same goal_src comment); the fresh decode's own compile attempt still
+    // hits the raw MIPS fallback (sll on an int), so both need an entry
+    // even though goal_src carries no body for them at all.
+    "dirty-eyes",
+    "update-eyes",
+    "render-eyes-32",
+    "render-eyes-64",
+    // eye: convert-eye-data's own fresh decode is clean GOAL but (mi)
+    // rejects vitof15.xyzw for the same reason collide-hash.gc's own
+    // collide-list-fill-bg-using-box comment documents; declared as a bare
+    // extern in goal_src instead of a body.
+    "convert-eye-data",
     // generic-obs: the decompiler applies these casts internally but drops the
     // printed the-as (mat-joint as matrix / pf get-trans dispatch / editor float
     // event result); the landed goal_src carries hand-casts at the same sites
