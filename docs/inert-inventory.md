@@ -37,7 +37,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (189)
+### Never written (192)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -153,6 +153,8 @@ written is read-only by design and not a finding.
 | `*draw-debug-boxes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*execute-regions*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*first-boot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*flip-blend*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
+| `*flip-speed*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
 | `*generate-actor-vis*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
 | `*generate-actor-vis-output*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
 | `*generate-actor-vis-start*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
@@ -184,6 +186,7 @@ written is read-only by design and not a finding.
 | `*merc-vu1-init-ready*` | 1 | `goal_src/jakx/engine/gfx/foreground/merc/merc.gc` |
 | `*music-volume-ducked-by-sound*` | 1 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*music-volume-during-speech*` | 1 | `goal_src/jakx/engine/sound/speech-h.gc` |
+| `*plow-ignore-if-above*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
 | `*previous-angle*` | 1 | `goal_src/jakx/levels/desert/wvehicle/wvehicle-race.gc` |
 | `*profile-h*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*profile-interrupt-start*` | 1 | `goal_src/jakx/engine/util/profile-h.gc` |
