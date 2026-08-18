@@ -70713,6 +70713,12 @@
   :size-assert         #x2c
   :flag-assert         #x190000002c
   (:methods
+    ;; in-game-menu-hud rung: arg0 retyped float, not the bare "object"
+    ;; placeholder; the body (this rung's own in-game-menu-hud_ir2.asm)
+    ;; converts it straight into an fpr and multiplies it against a scale
+    ;; factor with no other use, flagged "Floating point math attempted on
+    ;; invalid types" under the old object typing, the same defect class as
+    ;; (method 17 hud-item) fixed earlier this session.
     (hud-bar-slider-method-24 (_type_ float) none) ;; 24
     )
   )
@@ -70999,16 +71005,18 @@
   )
 
 
+;; in-game-menu-hud2 rung: same zero-arg (function object) activation as
+;; the spawn-hud-in-game-menu-* family above.
 ;; (define-extern *hud-in-game-menu-options-view-0* array)
 ;; (define-extern *hud-in-game-menu-options-view-0-proc* object)
-;; (define-extern spawn-hud-in-game-menu-options-view-0 function)
+(define-extern spawn-hud-in-game-menu-options-view-0 (function object))
 ;; (define-extern *hud-in-game-menu-options-view-1* array)
 ;; (define-extern *hud-in-game-menu-options-view-1-proc* object)
-;; (define-extern spawn-hud-in-game-menu-options-view-1 function)
+(define-extern spawn-hud-in-game-menu-options-view-1 (function object))
 ;; (define-extern *hud-in-game-menu-options-view-2* array)
 ;; (define-extern *hud-in-game-menu-options-view-2-proc* object)
-;; (define-extern spawn-hud-in-game-menu-options-view-2 function)
-;; (define-extern spawn-hud-in-game-menu-options function)
+(define-extern spawn-hud-in-game-menu-options-view-2 (function object))
+(define-extern spawn-hud-in-game-menu-options (function object))
 (define-extern in-game-menu-startup (function none))
 ;; levels-other-tier rung: zero-arg predicate, register evidence only (no
 ;; args read as input, return used only in a truthy check).
@@ -71086,7 +71094,11 @@
 ;; (define-extern overall-score-amount-to-gamble function)
 ;; (define-extern award-overall-score function)
 ;; (define-extern got-other-players function)
-;; (define-extern quit-game-stats-update function)
+;; in-game-menu-hud2 rung: zero-arg activation, own call site
+;; ((method 19 in-game-menu-hud), this rung) sets up no args before the
+;; call and only tests truthiness of a later stack value, not this call's
+;; own return.
+(define-extern quit-game-stats-update (function object))
 ;; (define-extern current-level-difficulty function)
 ;; (define-extern difficulty-stats function)
 ;; update-eyes (op 23-25): called with zero args (t9 set, immediate jalr, no
@@ -73417,7 +73429,10 @@
 ;; (define-extern vehicle-respawn-invul-init-by-other function)
 ;; (define-extern vehicle-respawn-invul-spawn function)
 ;; (define-extern vehicle-suppress-look-init-by-other function)
-;; (define-extern suppress-look-start function)
+;; in-game-menu-hud2 rung: zero-arg activation, same evidence class as
+;; quit-game-stats-update above ((method 19 in-game-menu-hud)'s own call
+;; site sets up no args before the call).
+(define-extern suppress-look-start (function object))
 ;; (define-extern local-space-proc-vehicle-turbo function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -84784,29 +84799,35 @@
 (define-extern *hud-hunt-indicators-view0-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-hunt-indicators-view1* object) ;; provisional: call-site evidence only
 (define-extern *hud-hunt-indicators-view1-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-in-game-menu-networked-view-0* object) ;; provisional: call-site evidence only
+;; in-game-menu-hud/hud2 rung: retyped from the provisional "object"
+;; placeholder to (array hud-item); each global is explicitly cast via
+;; (the-as (array hud-item) *global*) at its own type's real-items/items
+;; assignment sites (in-game-menu-hud_ir2.asm and in-game-menu-hud2_ir2.asm,
+;; this rung's own worktree decode), the same evidence class as
+;; *hud-cash-stats-single* above.
+(define-extern *hud-in-game-menu-networked-view-0* (array hud-item))
 (define-extern *hud-in-game-menu-networked-view-0-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-in-game-menu-networked-view-1* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-networked-view-1* (array hud-item))
 (define-extern *hud-in-game-menu-networked-view-1-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-in-game-menu-networked-view-2* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-networked-view-2* (array hud-item))
 (define-extern *hud-in-game-menu-networked-view-2-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-in-game-menu-options-view-0* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-options-view-0* (array hud-item))
 (define-extern *hud-in-game-menu-options-view-0-proc* hud-in-game-menu-options-view-0)
-(define-extern *hud-in-game-menu-options-view-1* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-options-view-1* (array hud-item))
 (define-extern *hud-in-game-menu-options-view-1-proc* hud-in-game-menu-options-view-1)
-(define-extern *hud-in-game-menu-options-view-2* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-options-view-2* (array hud-item))
 (define-extern *hud-in-game-menu-options-view-2-proc* hud-in-game-menu-options-view-2)
-(define-extern *hud-in-game-menu-view-0* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-view-0* (array hud-item))
 (define-extern *hud-in-game-menu-view-0-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-in-game-menu-view-1* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-view-1* (array hud-item))
 (define-extern *hud-in-game-menu-view-1-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-in-game-menu-view-2* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-view-2* (array hud-item))
 (define-extern *hud-in-game-menu-view-2-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-in-game-menu-view-shared-0* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-view-shared-0* (array hud-item))
 (define-extern *hud-in-game-menu-view-shared-0-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-in-game-menu-view-shared-1* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-view-shared-1* (array hud-item))
 (define-extern *hud-in-game-menu-view-shared-1-proc* hud-in-game-menu-view-shared-1)
-(define-extern *hud-in-game-menu-view-shared-2* object) ;; provisional: call-site evidence only
+(define-extern *hud-in-game-menu-view-shared-2* (array hud-item))
 (define-extern *hud-in-game-menu-view-shared-2-proc* hud-in-game-menu-view-shared-2)
 (define-extern *hud-intro-turbo-meter* object) ;; provisional: call-site evidence only
 (define-extern *hud-manager-death-indicator-1* object) ;; provisional: call-site evidence only

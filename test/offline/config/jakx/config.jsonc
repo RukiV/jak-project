@@ -826,7 +826,28 @@
     // accumulator reassigned to a uint-cast sum shape as
     // debug-merc-highres-runtime above, on its own sv-48; same hand cast at
     // the same site.
-    "debug-merc-size-runtime"
+    "debug-merc-size-runtime",
+    // in-game-menu-hud2 rung: in-game-menu-startup keeps its pre-existing
+    // og:preserve-this bring-up stub (forge #115) instead of its own clean
+    // decode; the stub is a deliberate no-op documented as a fix for a
+    // goal-0 crash on the pause path, tracked to retire with the menu leg
+    // (forge #98), not something this rung's clean decode of the
+    // surrounding file should silently override. The REF records the raw
+    // decode's real body so the rest of the object still gates.
+    "in-game-menu-startup",
+    // in-game-menu-hud2 rung: three more methods on the two types forward-
+    // declared in this file's own header (in-game-menu-hud and
+    // in-game-menu-hud-options, both really homed in the still-unlanded
+    // in-game-menu-hud.gc) dispatch a hud-item-string method through a
+    // dynamic or nested array index; the raw decode prints the resolved
+    // method name directly (its own type_casts-driven analysis already
+    // knows the concrete type) but does not insert the (the-as
+    // hud-item-string ...) cast a fresh compile needs for a non-constant
+    // or doubly-indexed access, so the landed goal_src carries the
+    // explicit casts at those sites instead.
+    "(method 19 in-game-menu-hud)",
+    "(method 19 in-game-menu-hud-options)",
+    "(method 9 in-game-menu-hud-options)"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the
