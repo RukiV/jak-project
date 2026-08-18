@@ -56243,7 +56243,9 @@
 ;; (define-extern *net-game-mgr* object)
 ;; (define-extern *should-update-stats* object)
 ;; (define-extern *stats-adjusted* object)
-;; (define-extern current-finish-mode function)
+;; levels-other-tier rung: zero-arg predicate, register evidence only (no
+;; args read as input, return used only in a truthy check).
+(define-extern current-finish-mode (function symbol))
 ;; (define-extern *fake-continue* continue-point)
 ;; (define-extern *overall-score-penalty* object)
 ;; (define-extern *total-pts-at-stake* object)
@@ -59611,7 +59613,9 @@
 ;; (define-extern get-clan-challenge-pair-status function)
 ;; (define-extern transfer-clan-leadership function)
 ;; (define-extern set-clan-msg function)
-;; (define-extern is-clan-challenge function)
+;; levels-other-tier rung: zero-arg predicate, register evidence only (no
+;; args read as input, return used only in truthy checks).
+(define-extern is-clan-challenge (function symbol))
 ;; (define-extern can-start-clan-challenge function)
 ;; (define-extern *clan-update-stats-request* object)
 ;; (define-extern *clan-get-stats-request* object)
@@ -70486,13 +70490,16 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; levels-other-tier rung: method 24's own arg0 is used directly in
+;; gpr->fpr float math (a slider fraction multiplier), retyped from the
+;; generic object already declared here to float on that evidence.
 (deftype hud-bar-slider (hud-item-group)
   ()
   :method-count-assert 25
   :size-assert         #x2c
   :flag-assert         #x190000002c
   (:methods
-    (hud-bar-slider-method-24 (_type_ object) none) ;; 24
+    (hud-bar-slider-method-24 (_type_ float) none) ;; 24
     )
   )
 
@@ -70675,37 +70682,53 @@
 
 (define-extern *in-game-menu-process* (pointer process))
 ;; (define-extern *in-game-menu-on?* object)
-;; (define-extern in-game-menu-allowed? function)
+;; levels-other-tier rung: zero-arg predicate, register evidence only
+;; (no a0-a3 read as input before being set).
+(define-extern in-game-menu-allowed? (function symbol))
 (define-extern *in-game-menu-struct* in-game-menu-struct)
+;; levels-other-tier rung: the eleven spawn-hud-in-game-menu* functions
+;; below are all the same zero-arg cached-singleton spawner shape (check the
+;; cached *...-proc* global, return it if set, else get-process from
+;; *default-dead-pool*, activate against *net-game-mgr*, cache and return);
+;; register evidence only (no a0-a3 read as input). The nine per-view
+;; spawners activate against their own already-declared hud-in-game-menu-*
+;; type (proven by the activate call's own vtable signature, e.g.
+;; "(function hud-in-game-menu-networked-view-2 process-tree string pointer
+;; process-tree)"), so they return that type, not generic object: a plain
+;; object return left the later (s.w! ... 6372 ...) unresolvable (in-game-hud
+;; subtypes are far larger than process). The two dispatchers
+;; (spawn-hud-in-game-menu, spawn-hud-in-game-menu-networked) only forward to
+;; the per-view spawners and never dereference the result themselves, so
+;; they stay the generic union return.
 ;; (define-extern *hud-in-game-menu-view-0* array)
 ;; (define-extern *hud-in-game-menu-view-0-proc* object)
-;; (define-extern spawn-hud-in-game-menu-view-0 function)
+(define-extern spawn-hud-in-game-menu-view-0 (function hud-in-game-menu-view-0))
 ;; (define-extern *hud-in-game-menu-view-1* array)
 ;; (define-extern *hud-in-game-menu-view-1-proc* object)
-;; (define-extern spawn-hud-in-game-menu-view-1 function)
+(define-extern spawn-hud-in-game-menu-view-1 (function hud-in-game-menu-view-1))
 ;; (define-extern *hud-in-game-menu-view-2* array)
 ;; (define-extern *hud-in-game-menu-view-2-proc* object)
-;; (define-extern spawn-hud-in-game-menu-view-2 function)
+(define-extern spawn-hud-in-game-menu-view-2 (function hud-in-game-menu-view-2))
 ;; (define-extern *hud-in-game-menu-view-shared-0* array)
 ;; (define-extern *hud-in-game-menu-view-shared-0-proc* object)
-;; (define-extern spawn-hud-in-game-menu-view-shared-0 function)
+(define-extern spawn-hud-in-game-menu-view-shared-0 (function hud-in-game-menu-view-shared-0))
 ;; (define-extern *hud-in-game-menu-view-shared-1* array)
 ;; (define-extern *hud-in-game-menu-view-shared-1-proc* object)
-;; (define-extern spawn-hud-in-game-menu-view-shared-1 function)
+(define-extern spawn-hud-in-game-menu-view-shared-1 (function hud-in-game-menu-view-shared-1))
 ;; (define-extern *hud-in-game-menu-view-shared-2* array)
 ;; (define-extern *hud-in-game-menu-view-shared-2-proc* object)
-;; (define-extern spawn-hud-in-game-menu-view-shared-2 function)
-;; (define-extern spawn-hud-in-game-menu function)
+(define-extern spawn-hud-in-game-menu-view-shared-2 (function hud-in-game-menu-view-shared-2))
+(define-extern spawn-hud-in-game-menu (function object))
 ;; (define-extern *hud-in-game-menu-networked-view-0* array)
 ;; (define-extern *hud-in-game-menu-networked-view-0-proc* object)
-;; (define-extern spawn-hud-in-game-menu-networked-view-0 function)
+(define-extern spawn-hud-in-game-menu-networked-view-0 (function hud-in-game-menu-networked-view-0))
 ;; (define-extern *hud-in-game-menu-networked-view-1* array)
 ;; (define-extern *hud-in-game-menu-networked-view-1-proc* object)
-;; (define-extern spawn-hud-in-game-menu-networked-view-1 function)
+(define-extern spawn-hud-in-game-menu-networked-view-1 (function hud-in-game-menu-networked-view-1))
 ;; (define-extern *hud-in-game-menu-networked-view-2* array)
 ;; (define-extern *hud-in-game-menu-networked-view-2-proc* object)
-;; (define-extern spawn-hud-in-game-menu-networked-view-2 function)
-;; (define-extern spawn-hud-in-game-menu-networked function)
+(define-extern spawn-hud-in-game-menu-networked-view-2 (function hud-in-game-menu-networked-view-2))
+(define-extern spawn-hud-in-game-menu-networked (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; in-game-menu-hud2              ;;
@@ -70773,7 +70796,9 @@
 ;; (define-extern spawn-hud-in-game-menu-options-view-2 function)
 ;; (define-extern spawn-hud-in-game-menu-options function)
 (define-extern in-game-menu-startup (function none))
-;; (define-extern in-game-menu-on? function)
+;; levels-other-tier rung: zero-arg predicate, register evidence only (no
+;; args read as input, return used only in a truthy check).
+(define-extern in-game-menu-on? (function symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-game-mgr                   ;;
