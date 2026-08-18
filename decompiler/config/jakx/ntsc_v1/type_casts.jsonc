@@ -5969,5 +5969,54 @@
     [118, "s5", "hud-item-string"],
     [111, "v1", "(pointer int32)"],
     [128, "v1", "(pointer int32)"]
+  ],
+  // hud rung: (method 24 hud) manually builds seven raw dma-buffer packets
+  // (FRAME/ZBUF/SCISSOR-style GS register sets and CNT dma tags) rather than
+  // using a helper macro. Two shapes recur: a genuine 16-byte dma-packet
+  // (8-byte dma tag + two 4-byte vif tags, matching dma-packet's own
+  // :offset-assert layout) for the CNT-tag blocks, and a raw
+  // (pointer uint64) run of 8-byte value/register-id pairs for the pcpyld
+  // GIF-tag copies and the per-register FRAME/ZBUF/SCISSOR writes (which use
+  // 8-byte sd stores at every offset, not dma-packet's 4-byte vif fields).
+  "(method 24 hud)": [
+    [[48, 55], "a3", "dma-packet"],
+    [[57, 64], "a3", "(pointer uint64)"],
+    [[65, 79], "a2", "(pointer uint64)"],
+    [[89, 96], "a3", "dma-packet"],
+    [[98, 105], "a3", "(pointer uint64)"],
+    [[106, 112], "a2", "(pointer uint64)"],
+    [[253, 259], "v1", "dma-packet"]
+  ],
+  // hud rung: hud-init-by-other's sprite-color init loop stores four raw
+  // int32 words (128 128 128 128) through a computed
+  // (-> self sprites v1-19 color) address; the base store at offset 0
+  // resolves through vector4w's own field naming but the +4/+8/+12 raw sw
+  // stores do not, the same class as (method 24 hud)'s dma-packet blocks.
+  "hud-init-by-other": [[[82, 91], "a0", "(pointer int32)"]],
+  // hud rung: (method 9 hud-sprite) copies a stack-allocated hud-corners
+  // instance's raw data words (the uint64 4 array's low/high halves at
+  // offsets 0/4 and 24/28) into a dma packet; the pointer is reloaded fresh
+  // from the stack before each raw word read, so each read gets its own cast
+  // rather than one covering range.
+  "(method 9 hud-sprite)": [
+    [[218, 220], "a1", "(pointer int32)"],
+    [[221, 223], "a1", "(pointer int32)"],
+    [[229, 231], "a0", "(pointer int32)"],
+    [[232, 234], "a0", "(pointer int32)"],
+    // second occurrence: the four hud-corners quadrant pointers copied into
+    // the mask-tmpl/box2-tmpl/scan-tmpl packet slots; each is auto-typed
+    // (pointer uint64) from its own daddu/daddiu, but the low/high 32-bit
+    // half reads need (pointer int32) the same as the first occurrence.
+    [[267, 322], "a3", "(pointer int32)"],
+    [[269, 331], "a2", "(pointer int32)"],
+    [[271, 340], "a1", "(pointer int32)"],
+    [[272, 349], "a0", "(pointer int32)"],
+    // third and fourth occurrences: two more corner-copy blocks further into
+    // the same template chain, past the two legitimate hud-corners method-9
+    // dispatch call sites at ops 109 and 358 (left untouched, real self args).
+    [[470, 475], "a1", "(pointer int32)"],
+    [[481, 486], "a0", "(pointer int32)"],
+    [[505, 532], "a1", "(pointer int32)"],
+    [[538, 543], "a0", "(pointer int32)"]
   ]
 }

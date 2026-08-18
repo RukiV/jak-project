@@ -39644,7 +39644,14 @@
   :size-assert         #x34
   :flag-assert         #xb00000034
   (:methods
-    (hud-sprite-method-9 (_type_ object object) none) ;; 9 ;; (draw (_type_ object object) none)
+    ;; og:preserve-this hud rung: retyped object object -> dma-buffer level.
+    ;; (method 24 hud) calls this slot with a1=dma-buffer (its own s4, reused
+    ;; from the dma-buffer used for its own packet writes) and a2=level (its
+    ;; own s2, (-> this level)); the method's own body then reads arg0
+    ;; (l.wu (+ arg0 4)), dma-buffer's own base field at machine offset 4,
+    ;; confirming arg0 is dma-buffer. Matches the sibling hud-sprite-method-10
+    ;; slot's own trailing comment shape (dma-buffer level ...).
+    (hud-sprite-method-9 (_type_ dma-buffer level) none) ;; 9
     (hud-sprite-method-10 () none) ;; 10 ;; (hud-sprite-method-10 (_type_ dma-buffer level int int int int) object)
     )
   )
@@ -39703,8 +39710,8 @@
   :size-assert         #x18dc
   :flag-assert         #x1e185018dc
   (:state-methods
-    hud-state-15 ;; 15
-    hud-state-16 ;; 16
+    hud-hidden ;; 15 ;; hud rung: renamed off the placeholder slot name, hud.gc's own top-level constructs this state literally as (new 'static 'state :name 'hud-hidden ...) (hud_ir2.asm op 174-183)
+    hud-in ;; 16 ;; hud rung: renamed off the placeholder slot name, matching evidence class to hud-hidden above (hud_ir2.asm op 186-199, :name 'hud-in)
     )
   (:methods
     (hud-method-17 (_type_) none) ;; 17 ;; hud-high-scores rung: synced from this line's own trailing (init-callback (_type_) none) comment, same defect class as hud-method-22/23 below (bare () made every override decode as a self-less (defmethod NAME () ...) that GOALC's defmethod macro rejects); jak3's own hud type (goal_src/jak3/engine/ui/hud-h.gc) names this slot init-callback with the identical (_type_) arg list at the same unshifted method index, corroborating the arg count without adopting the jak3 name.
@@ -39715,14 +39722,26 @@
     (hud-method-22 (_type_) none) ;; 22 ;; og:preserve-this hud-static-literals rung: synced from this line's own trailing (hud-method-22 (_type_) none) comment. The bare () declaration made the decompiler pretty-print every override (hud-results-grand-prix and its two siblings) as a self-less (defmethod NAME () ...) form that GOALC's real defmethod macro rejects.
     (hud-method-23 (_type_) none) ;; 23 ;; og:preserve-this hud-static-literals rung: synced from this line's own trailing (hud-method-23 (_type_) none) comment, same reason and evidence class as hud-method-22 above (hud-results-grand-prix-totals's own override).
     (hud-method-24 (_type_) none) ;; 24 ;; (check-ready-and-maybe-show (_type_) symbol)
-    (hud-method-25 (_type_) none) ;; 25 ;; (update-value-callback (_type_) none)
+    ;; og:preserve-this hud rung: retyped none -> symbol. hud.gc's own
+    ;; :trans handlers for both hud-hidden and hud-in use this method's
+    ;; result directly as an (if ...) condition (hud_ir2.asm), and its own
+    ;; body computes (not (or ...)), a genuine boolean, not none; a fresh
+    ;; compile of the landed :trans handlers rejects "Cannot use none-typed
+    ;; variable in a condition" against the old declaration.
+    (hud-method-25 (_type_) symbol) ;; 25
     ;; og:preserve-this net-hud rung: see the matching comment in goal_src's hud-h.gc
     (hud-method-26 (_type_) none) ;; 26
     ;; og:preserve-this net-hud rung: see the matching comment in goal_src's hud-h.gc
     (hud-method-27 (_type_ object object object object) none) ;; 27
     (hud-method-28 () none) ;; 28
-    ;; og:preserve-this net-hud rung: see the matching comment in goal_src's hud-h.gc
-    (hud-method-29 (_type_ object object) none) ;; 29
+    ;; og:preserve-this hud rung: retyped object object -> int int. hud.gc's
+    ;; own body (hud_ir2.asm, L22) uses arg0 directly as a strings-array index
+    ;; (`(sll arg0 6)`, matching hud-string's own 64-byte stride), and
+    ;; hud-item-string-method-28's call site (net-hud.gc) passes
+    ;; (-> *current-hud* num-strings) (an int32 field) and the literal 128 for
+    ;; the two args, confirming both are int, not the previously landed
+    ;; provisional object object.
+    (hud-method-29 (_type_ int int) none) ;; 29
     )
   )
 
@@ -50607,19 +50626,59 @@
   )
 
 
-;; (define-extern *hud-string-array* object)
-;; (define-extern *hud-string-used-list* object)
-;; (define-extern *hud-string-free-list* object)
-;; (define-extern *font-hud-context* object)
+;; og:preserve-this hud rung: activated from the commented-out object stub.
+;; hud's own top-level (hud_ir2.asm op 33) stores the result of (new 'global
+;; 'font-context *font-default-matrix* 0 0 ...) directly into this symbol; the
+;; decompiler's own type inference on the new call's return value is
+;; font-context, matching jak3's analogous *font-work* being typed to its own
+;; concrete font-work type rather than left as object. *hud-string-array*,
+;; *hud-string-used-list*, *hud-string-free-list*, *hud-sprite-work* and
+;; *debug-hud-disable* moved to their own resolved declarations further down
+;; this file (provisional-sweep block), each carrying its own evidence.
+(define-extern *font-hud-context* font-context)
 (define-extern hud-string-init (function int))
-;; (define-extern hud-string-add function)
+;; og:preserve-this hud rung: activated from the commented-out bare-function
+;; stub. hud-string-add's own body (hud_ir2.asm, L129) pops a node off
+;; *hud-string-free-list*, reads its own arg's hud-string.text field through
+;; (method 8 string) (a length query, matching the store into the record's
+;; text-length field) and pushes it onto *hud-string-used-list*, returning the
+;; record it just filled (or the free-list head unchanged on the out-of-
+;; records fallback path, which is why #f is also a legal return).
+(define-extern hud-string-add (function hud-string hud-string-record))
 (define-extern hud-string-draw-all (function dma-buffer int))
-;; (define-extern *hud-sprite-work* object) ;; hud-sprite-work
-;; (define-extern hud-sprite-add function)
-;; (define-extern *debug-hud-disable* object)
-;; (define-extern hud-create-icon function) ;; (function hud int int (pointer manipy))
-;; (define-extern hud-post function)
-;; (define-extern hud-handler function)
+;; og:preserve-this hud rung: hud-sprite-add's entire body (hud_ir2.asm, L72)
+;; is `(set! v0 #f) (ret-value v0)`; it reads no argument register at all, and
+;; no call site anywhere in the corpus was found (grepped every _ir2.asm).
+;; Declared with zero args since the body proves none are read; this is a
+;; guess by absence of evidence rather than a derived signature, marked here
+;; so it is not mistaken for one.
+(define-extern hud-sprite-add (function object))
+;; og:preserve-this hud rung: hud-create-icon's body (hud_ir2.asm, L24) reads
+;; three explicit args (arg0 used as `(+ arg0 6252 (* 48 arg1))`, matching
+;; hud's own icons field at placed offset 6256 under the +4 basic-offset
+;; convention, so arg0 is hud and arg1 is the icon slot index; arg2 is
+;; threaded through to run-function-in-process untyped) and also reads self
+;; (s6, the reserved process-self register) for `(-> self ppointer)`, used as
+;; the spawned manipy's parent. Reading self at all requires :behavior; that
+;; the explicit hud arg and self are the same instance in every known caller
+;; is inferred, not machine-code-proven (no cross-file call site exists to
+;; check), so the :behavior tag here is a lower-confidence guess than the arg
+;; types themselves. Returns the spawned (pointer manipy), matching the
+;; existing config comment's own prior guess.
+(define-extern hud-create-icon (function hud int int (pointer manipy) :behavior hud))
+;; og:preserve-this hud rung: hud-post's body (hud_ir2.asm, L19) reads no
+;; explicit argument register at all, only self (s6) and globals, matching
+;; hud-init-by-other's own zero-explicit-arg :behavior shape; installed
+;; directly into a state's post slot (hud_ir2.asm op 202-203).
+(define-extern hud-post (function object :behavior hud))
+;; og:preserve-this hud rung: hud-handler's body (hud_ir2.asm, L16) reads all
+;; four argument registers (a0-a3) plus self (s6), matching the standard
+;; process event-handler shape already used for hud-method-18 and installed
+;; directly into both states' event slots, cast through exactly this
+;; signature at the install site
+;; ((the-as (function process int symbol event-message-block object)
+;; hud-handler)).
+(define-extern hud-handler (function process int symbol event-message-block object :behavior hud))
 ;; og:preserve-this hud-follow-through rung: activated from provisional
 ;; comment; the base hud :behavior init, called with no explicit args by
 ;; hud-map-init-by-other and every spawn-hud-results-* callsite in this band.
@@ -84841,7 +84900,11 @@
 (define-extern *death-indicator-view-24* object) ;; provisional: call-site evidence only
 (define-extern *death-indicator-view-24-proc* death-indicator-view-24)
 (define-extern *debug-hud* object) ;; provisional: call-site evidence only
-(define-extern *debug-hud-disable* object) ;; provisional: call-site evidence only
+;; og:preserve-this hud rung: retyped object -> symbol. hud.gc's top-level
+;; stores #f directly (op 112) and (method 24 hud) reads it in a plain
+;; `(or *debug-hud-disable* ...)` boolean context, the same plain-symbol-flag
+;; shape as *debug-move-rigid-body* above.
+(define-extern *debug-hud-disable* symbol)
 ;; og:preserve-this rigid-body rung: retyped object -> symbol. top-level-login's
 ;; own machine code (rigid-body_ir2.asm) is `(s.w! *debug-move-rigid-body* v1-0)`
 ;; with v1-0 = #t, a plain symbol store, not a typed object reference.
@@ -85160,10 +85223,31 @@
 (define-extern *hud-side-split-bar-proc* hud-side-split-bar)
 (define-extern *hud-slowmo* object) ;; provisional: call-site evidence only
 (define-extern *hud-slowmo-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-sprite-work* object) ;; provisional: call-site evidence only
-(define-extern *hud-string-array* object) ;; provisional: call-site evidence only
-(define-extern *hud-string-free-list* object) ;; provisional: call-site evidence only
-(define-extern *hud-string-used-list* object) ;; provisional: call-site evidence only
+;; og:preserve-this hud rung: retyped off the provisional-sweep object stub.
+;; hud.gc's own top-level (op 68) loads a static label directly into this
+;; symbol right after registering hud-sprite-work's own inspect method, the
+;; standard single-static-instance pattern; the label's size (L147, 0x354)
+;; matches hud-sprite-work's own :size-assert exactly.
+(define-extern *hud-sprite-work* hud-sprite-work)
+;; og:preserve-this hud rung: retyped off the provisional-sweep object stub.
+;; hud.gc's top-level mallocs this as 768 bytes (op 11-15) and hud-string-init
+;; (hud_ir2.asm, dotimes 96) indexes it with a fixed 8-byte stride, which is
+;; hud-string-record's own :size-assert; 768 / 8 = 96 records.
+(define-extern *hud-string-array* (pointer hud-string-record))
+;; og:preserve-this hud rung: retyped off the provisional-sweep object stub.
+;; hud-string-add (hud_ir2.asm) treats this as the singly linked free-list
+;; head: it reads (-> *hud-string-free-list* next) to pop, and hud-string-init
+;; threads new nodes through the same next field to build the list, matching
+;; hud-string-record's own (str next) shape.
+(define-extern *hud-string-free-list* hud-string-record)
+;; og:preserve-this hud rung: retyped off the provisional-sweep object stub.
+;; hud.gc's top-level mallocs this as 8 bytes (2 pointers, one per
+;; view-get-active-index slot) then mallocs two further 12-byte blocks (3
+;; pointers each, one per hud-string effect type) and stores their addresses
+;; into those 2 slots (op 34-45); hud-string-add and hud-string-init both
+;; double-dereference it (view index, then effect index) to reach a
+;; hud-string-record list head, confirming the two-level pointer shape.
+(define-extern *hud-string-used-list* (pointer (pointer hud-string-record)))
 (define-extern *hud-time-box-stats* object) ;; provisional: call-site evidence only
 (define-extern *hud-time-box-stats-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-time-collected-items* object) ;; provisional: call-site evidence only

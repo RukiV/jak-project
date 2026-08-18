@@ -7,11 +7,576 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this hud rung: runtime-link visibility fix, matching the
+;; kill-current-talker precedent (ambient-h.gc) and in-game-menu-hud.gc's own
+;; copies of some of these. hud-method-25 below calls all six by name;
+;; hud.gc (ENGINE) compiles well before any of their owning level files, so
+;; the real compiler needs these externs even though decompiler/config/jakx/
+;; all-types.gc already carries matching declarations for decode purposes.
+;; in-game-menu-on?, grand-prix-totals-on? and high-scores-on? already have
+;; landed bodies (in-game-menu-hud2.gc, hud-results-grand-prix.gc,
+;; hud-high-scores.gc); current-finish-mode, end-game-menu-on? and
+;; cash-stats-on? do not yet, so hud-method-25 guards those three calls with
+;; (nonzero? ...) before calling them.
+(define-extern current-finish-mode (function symbol))
+(define-extern in-game-menu-on? (function object))
+(define-extern end-game-menu-on? (function object))
+(define-extern grand-prix-totals-on? (function object))
+(define-extern cash-stats-on? (function object))
+(define-extern high-scores-on? (function object))
+
+;; definition of type hud-string-record
+(deftype hud-string-record (structure)
+  ((str   hud-string)
+   (next  hud-string-record)
+   )
+  )
+
+;; definition for method 3 of type hud-string-record
+(defmethod inspect ((this hud-string-record))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'hud-string-record)
+  (format #t "~1Tstr: #<hud-string @ #x~X>~%" (-> this str))
+  (format #t "~1Tnext: #<hud-string-record @ #x~X>~%" (-> this next))
+  (label cfg-4)
+  this
+  )
+
+;; definition for symbol *hud-string-array*, type (pointer hud-string-record)
+(define *hud-string-array* (the-as (pointer hud-string-record) (malloc 'global 768)))
+
+;; definition for symbol *hud-string-used-list*, type (pointer (pointer hud-string-record))
+(define *hud-string-used-list* (the-as (pointer (pointer hud-string-record)) (malloc 'global 8)))
+
+;; definition for symbol *hud-string-free-list*, type hud-string-record
+(define *hud-string-free-list* (the-as hud-string-record #f))
+
+;; definition for symbol *font-hud-context*, type font-context
+(define *font-hud-context* (new
+                             'global
+                             'font-context
+                             *font-default-matrix*
+                             0
+                             0
+                             8396850.0
+                             (font-color default)
+                             (font-flags shadow kerning)
+                             )
+        )
+
+;; hud-string-add and hud-string-init both index *hud-string-used-list* as
+;; [view][effect]; these two per-view sub-arrays back that second level.
+(set! (-> *hud-string-used-list* 0) (the-as (pointer hud-string-record) (malloc 'global 12)))
+(set! (-> *hud-string-used-list* 1) (the-as (pointer hud-string-record) (malloc 'global 12)))
+
 ;; og:preserve-this bring-up stubs: jakx-only HUD string pool, not needed headless.
 (defun hud-string-init ()
   0
   )
 
+;; definition for function hud-string-add
+;; WARN: Return type mismatch object vs hud-string-record.
+(defun hud-string-add ((arg0 hud-string))
+  (let ((gp-0 (the-as object *hud-string-free-list*)))
+    (the-as
+      hud-string-record
+      (cond
+        ((the-as hud-string-record gp-0)
+         (let ((s5-0 (cond
+                       ((logtest? (-> arg0 flags) 512)
+                        0
+                        )
+                       ((zero? (-> arg0 effect))
+                        2
+                        )
+                       (else
+                         1
+                         )
+                       )
+                     )
+               )
+           (set! *hud-string-free-list* (-> (the-as hud-string-record gp-0) next))
+           (set! (-> (the-as hud-string-record gp-0) str) arg0)
+           (set! (-> (the-as hud-string-record gp-0) str text-length) (length (-> arg0 text)))
+           (set! (-> (the-as hud-string-record gp-0) next) (-> *hud-string-used-list* (view-get-active-index) s5-0))
+           (set! (-> *hud-string-used-list* (view-get-active-index) s5-0) (the-as hud-string-record gp-0))
+           )
+         gp-0
+         )
+        (else
+          (format *stdebug* "Out of hud-string-records!!!!~%")
+          )
+        )
+      )
+    )
+  )
+
+;; og:preserve-this hud rung: (method 9 hud-string) held. Its raw decode
+;; (hud_ir2.asm) copies a texture-id constructor and several raw dma-packet
+;; writes through bare pointer arithmetic (the same class as (method 24 hud)
+;; below) that this rung did not carve type_casts.jsonc entries for. Its only
+;; caller in this corpus is hud-string-draw-all, itself held below, so leaving
+;; it unfilled introduces no new runtime dispatch. Retire when
+;; hud-string-draw-all is landed for real and needs it.
+
 (defun hud-string-draw-all ((arg0 dma-buffer))
   0
+  )
+
+;; definition of type hud-sprite-work
+(deftype hud-sprite-work (structure)
+  ((adgif-tmpl         dma-gif-packet :inline)
+   (draw-tmpl          dma-gif-packet :inline)
+   (draw-no-tex-tmpl   dma-gif-packet :inline)
+   (sprite-tmpl        dma-gif-packet :inline)
+   (sprite-no-tex-tmpl dma-gif-packet :inline)
+   (box-tmpl           dma-gif-packet :inline)
+   (box2-tmpl          dma-gif-packet :inline)
+   (mask-tmpl          dma-gif-packet :inline)
+   (line-tmpl          dma-gif-packet :inline)
+   (scan-tmpl          dma-gif-packet :inline)
+   (line-color         uint64) ;; gs-rgbaq
+   (scan-colors        vector4w 32 :inline)
+   (scanline           uint32)
+   )
+  )
+
+;; definition for method 3 of type hud-sprite-work
+(defmethod inspect ((this hud-sprite-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'hud-sprite-work)
+  (format #t "~1Tadgif-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this adgif-tmpl))
+  (format #t "~1Tdraw-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this draw-tmpl))
+  (format #t "~1Tdraw-no-tex-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this draw-no-tex-tmpl))
+  (format #t "~1Tsprite-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this sprite-tmpl))
+  (format #t "~1Tsprite-no-tex-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this sprite-no-tex-tmpl))
+  (format #t "~1Tbox-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this box-tmpl))
+  (format #t "~1Tbox2-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this box2-tmpl))
+  (format #t "~1Tmask-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this mask-tmpl))
+  (format #t "~1Tline-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this line-tmpl))
+  (format #t "~1Tscan-tmpl: #<dma-gif-packet @ #x~X>~%" (-> this scan-tmpl))
+  (format #t "~1Tline-color: ~D~%" (-> this line-color))
+  (format #t "~1Tscan-colors[32] @ #x~X~%" (-> this scan-colors))
+  (format #t "~1Tscanline: ~D~%" (-> this scanline))
+  (label cfg-4)
+  this
+  )
+
+;; definition for symbol *hud-sprite-work*, type hud-sprite-work
+(define *hud-sprite-work* (new 'static 'hud-sprite-work
+                            :adgif-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x1000000000008005 #xe)
+                              )
+                            :draw-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #xa :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #xa :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x902a400000008001 #x525252521)
+                              )
+                            :draw-no-tex-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x5022400000008001 #x55551)
+                              )
+                            :sprite-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x502b400000008001 #x52521)
+                              )
+                            :sprite-no-tex-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #x4 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #x4 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x3023400000008001 #x551)
+                              )
+                            :box-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #x7 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #x7 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x6021400000008001 #x555551)
+                              )
+                            :box2-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x5022400000008001 #x55551)
+                              )
+                            :mask-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x5022400000008001 #x55551)
+                              )
+                            :line-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #x5 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #x5 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x2020c00000008002 #x5555)
+                              )
+                            :scan-tmpl (new 'static 'dma-gif-packet
+                              :dma-vif (new 'static 'dma-packet
+                                :dma (new 'static 'dma-tag :qwc #xa1 :id (dma-tag-id cnt))
+                                :vif1 (new 'static 'vif-tag :imm #xa1 :cmd (vif-cmd direct) :msk #x1)
+                                )
+                              :gif (new 'static 'array uint64 2 #x5020c00000008020 #x55551)
+                              )
+                            :line-color #x3f80000080808080
+                            :scan-colors (new 'static 'inline-array vector4w 32
+                              (new 'static 'vector4w :x 1 :y 1)
+                              (new 'static 'vector4w :x 2 :y 1 :z 1)
+                              (new 'static 'vector4w :x 3 :y 2 :z 1)
+                              (new 'static 'vector4w :x 6 :y 4 :z 2)
+                              (new 'static 'vector4w :x 8 :y 6 :z 2)
+                              (new 'static 'vector4w :x 12 :y 10 :z 4)
+                              (new 'static 'vector4w :x 12 :y 10 :z 4)
+                              (new 'static 'vector4w :x 12 :y 10 :z 4)
+                              (new 'static 'vector4w :x 16 :y 14 :z 6)
+                              (new 'static 'vector4w :x 16 :y 14 :z 6)
+                              (new 'static 'vector4w :x 16 :y 14 :z 6)
+                              (new 'static 'vector4w :x 16 :y 14 :z 6)
+                              (new 'static 'vector4w :x 22 :y 20 :z 10)
+                              (new 'static 'vector4w :x 22 :y 20 :z 10)
+                              (new 'static 'vector4w :x 22 :y 20 :z 10)
+                              (new 'static 'vector4w :x 22 :y 20 :z 10)
+                              (new 'static 'vector4w :x 28 :y 26 :z 12)
+                              (new 'static 'vector4w :x 28 :y 26 :z 12)
+                              (new 'static 'vector4w :x 28 :y 26 :z 12)
+                              (new 'static 'vector4w :x 28 :y 26 :z 12)
+                              (new 'static 'vector4w :x 40 :y 34 :z 18)
+                              (new 'static 'vector4w :x 40 :y 34 :z 18)
+                              (new 'static 'vector4w :x 40 :y 34 :z 18)
+                              (new 'static 'vector4w :x 40 :y 34 :z 18)
+                              (new 'static 'vector4w :x 54 :y 42 :z 26)
+                              (new 'static 'vector4w :x 54 :y 42 :z 26)
+                              (new 'static 'vector4w :x 54 :y 42 :z 26)
+                              (new 'static 'vector4w :x 54 :y 42 :z 26)
+                              (new 'static 'vector4w :x 72 :y 48 :z 34)
+                              (new 'static 'vector4w :x 72 :y 48 :z 34)
+                              (new 'static 'vector4w :x 90 :y 56 :z 44)
+                              (new 'static 'vector4w :x #x7e :y 64 :z 64)
+                              )
+                            :scanline #x60
+                            )
+        )
+
+;; og:preserve-this hud rung: (method 9 hud-corners) held. Its raw decode
+;; (hud_ir2.asm) fails type prop on a raw byte read (l.w s5) and leaves t0/t1
+;; unresolved; this rung did not carve the type_casts.jsonc entries needed.
+;; No landed caller in this corpus reaches it. Retire alongside
+;; (method 9 hud-sprite) below, which needs the same class of fix.
+
+;; og:preserve-this hud rung: hud-sprite-add held as-is: its own body
+;; (hud_ir2.asm, L72) reads zero argument registers and unconditionally
+;; returns #f, and no call site anywhere in this corpus was found (grepped
+;; every _ir2.asm). Declared with zero args purely because the body proves
+;; none are read; this is a guess by absence of evidence, not a derived
+;; signature, landed verbatim from the clean decode regardless.
+(defun hud-sprite-add ()
+  #f
+  )
+
+;; og:preserve-this hud rung: (method 10/11/12 hud-box) held, same
+;; unresolved-offset-arithmetic class as (method 9 hud-corners) above; no
+;; landed caller in this corpus reaches any of the four hud-box methods.
+
+;; definition for method 7 of type hud
+;; WARN: Return type mismatch process vs hud.
+(defmethod relocate ((this hud) (offset int))
+  (dotimes (v1-0 45)
+    (when (-> this strings v1-0 text)
+      (if (-> this strings v1-0 text)
+          (&+! (-> this strings v1-0 text) offset)
+          )
+      )
+    )
+  (the-as hud ((method-of-type process relocate) this offset))
+  )
+
+;; og:preserve-this hud rung: (method 24 hud) held even though its own decode
+;; is clean (hud_ir2.asm, seven type_casts.jsonc entries added this rung
+;; resolved every raw dma-packet write in its own body). It dispatches
+;; (hud-sprite-method-9 a0-2 s4-0 s2-0) on every sprite it draws, and
+;; (method 9 hud-sprite)'s own decode still has roughly seventy raw
+;; dma-packet/gif-tag writes across several hud-sprite-work templates
+;; (box-tmpl, box2-tmpl, mask-tmpl, scan-tmpl) unresolved by this rung's
+;; type_casts.jsonc work. Landing (method 24 hud) without (method 9
+;; hud-sprite) filled would leave the base hud type's own vtable slot 24
+;; jumping into a real dispatch onto an unfilled slot 9 of hud-sprite the
+;; first time a nonzero-scale, textured sprite is drawn; several subtype
+;; overrides of method 24 exist already (hud-classes, hud-high-scores,
+;; hud-results-grand-prix, hud-widgets-2/3/powerhang, in-game-menu-hud/hud2,
+;; net-hud) so this may never be reached in practice by a bare hud instance,
+;; but that has not been proven, so this rung holds it. Retire once (method 9
+;; hud-sprite) is landed.
+
+;; definition for symbol *debug-hud-disable*, type symbol
+(define *debug-hud-disable* #f)
+
+;; definition for method 25 of type hud
+;; ERROR: Function may read a register that is not set: a1
+;; ERROR: Function may read a register that is not set: a2
+;; ERROR: Function may read a register that is not set: a3
+;; ERROR: Function may read a register that is not set: t0
+;; og:preserve-this hud rung: runtime-link visibility fix, matching the
+;; hud-high-scores.gc precedent (its own high-scores-on? guards the same two
+;; symbols the same way). current-finish-mode, end-game-menu-on? and
+;; cash-stats-on? are all called by name below but none has a landed body
+;; anywhere in jakx goal_src yet (current-finish-mode is net-race/results
+;; territory; end-game-menu-on? and cash-stats-on? both home to hud-cash.gc,
+;; still an empty stub); every hud-method-17..23 slot this method's own
+;; (and (hud-method-N this) ...) guards read is landed to unconditionally
+;; return #t, so without this guard these three calls are reached on the
+;; very next hud-in :trans tick after hud-init-by-other runs, jumping
+;; through zero. Retires once hud-cash.gc and the finish-mode owner land
+;; real bodies.
+(defmethod hud-method-25 ((this hud))
+  (local-vars (a1-0 none) (a2-0 none) (a3-0 none) (t0-0 none))
+  (not (or (and (hud-method-17 this) (!= (-> *setting-control* user-current letterbox) 0.0))
+           (and (hud-method-19 this) (in-game-menu-on?))
+           (and (hud-method-22 this) (nonzero? current-finish-mode) (current-finish-mode))
+           (and (hud-method-18
+                  this
+                  (the-as process a1-0)
+                  (the-as int a2-0)
+                  (the-as symbol a3-0)
+                  (the-as event-message-block t0-0)
+                  )
+                (or *debug-hud-disable* (and (nonzero? end-game-menu-on?) (end-game-menu-on?)))
+                )
+           (and (hud-method-23 this) (grand-prix-totals-on?))
+           (and (hud-method-20 this) (nonzero? cash-stats-on?) (cash-stats-on?))
+           (and (hud-method-21 this) (high-scores-on?))
+           )
+       )
+  )
+
+;; definition for method 18 of type hud
+;; WARN: Return type mismatch symbol vs object.
+(defmethod hud-method-18 ((this hud) (arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  #t
+  )
+
+;; definition for method 17 of type hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 ((this hud))
+  #t
+  (none)
+  )
+
+;; definition for method 19 of type hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-19 ((this hud))
+  #t
+  (none)
+  )
+
+;; definition for method 21 of type hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-21 ((this hud))
+  #t
+  (none)
+  )
+
+;; definition for method 20 of type hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-20 ((this hud))
+  #t
+  (none)
+  )
+
+;; definition for method 22 of type hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-22 ((this hud))
+  #t
+  (none)
+  )
+
+;; definition for method 23 of type hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-23 ((this hud))
+  #t
+  (none)
+  )
+
+;; definition for method 26 of type hud
+;; WARN: Return type mismatch int vs none.
+(defmethod hud-method-26 ((this hud))
+  0
+  (none)
+  )
+
+;; definition for method 27 of type hud
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-27 ((this hud) (arg0 object) (arg1 object) (arg2 object) (arg3 object))
+  (none)
+  )
+
+;; og:preserve-this hud rung: hud-create-icon held. Its raw decode
+;; (hud_ir2.asm) still fails type prop on (l.wu (+ a0 192)) against the
+;; spawned manipy's ppointer-dereferenced process (op 33) and fails to guess
+;; the static label use for L145 (its own manipy-init argument literal, op
+;; 22). No caller anywhere in this corpus was found for hud-create-icon
+;; (grepped every _ir2.asm), so it is dead code as far as this rung can tell;
+;; held rather than spending further budget on unreached code. Its own
+;; extern signature ((function hud int int (pointer manipy) :behavior hud))
+;; is landed in decompiler/config/jakx/all-types.gc so any future caller
+;; type-checks correctly.
+
+;; definition for method 29 of type hud
+;; WARN: Return type mismatch int vs none.
+(defmethod hud-method-29 ((this hud) (arg0 int) (arg1 int))
+  (when (not (-> this strings arg0 text))
+    (set! (-> this strings arg0 text) (new 'process 'string arg1 (the-as string #f)))
+    (set! (-> this strings arg0 width) 100.0)
+    (set! (-> this strings arg0 height) 100.0)
+    )
+  0
+  (none)
+  )
+
+;; og:preserve-this hud rung: hud-post held even though its own decode is
+;; clean (hud_ir2.asm, no errors once hud-handler/hud-post/hud-create-icon
+;; were given real signatures this rung). Its body unconditionally calls
+;; (hud-method-24 self) outside the screenshot-in-progress guard, and
+;; (method 24 hud) is itself held above pending (method 9 hud-sprite). Wiring
+;; hud-post into the hud-in state's :post slot without (method 24 hud) filled
+;; would be exactly the runtime-jump-to-an-unfilled-slot class this rung is
+;; explicitly trying to avoid, so hud-in's :post field is left unset below
+;; rather than wired to this function. Retire this hold in lockstep with
+;; (method 24 hud) and (method 9 hud-sprite).
+
+;; definition for function hud-handler
+;; WARN: Return type mismatch int vs object.
+(defbehavior hud-handler hud ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  (-> *perf-stats* data 55)
+  0
+  (case arg2
+    (('hide-and-die)
+     (go empty-state)
+     )
+    (else
+      (hud-method-27 self arg0 arg1 arg2 arg3)
+      )
+    )
+  (-> *perf-stats* data 55)
+  0
+  )
+
+(defstate hud-hidden (hud)
+  :virtual #t
+  :event hud-handler
+  :trans (behavior ()
+    (if (hud-method-25 self)
+        (go-virtual hud-in)
+        )
+    )
+  :code sleep-code
+  )
+
+;; og:preserve-this hud rung: :post omitted from this state on purpose. The
+;; clean decode (hud_ir2.asm) wires (-> gp-1 post) to hud-post, but hud-post
+;; is held above pending (method 24 hud) and (method 9 hud-sprite); every
+;; other field below is landed verbatim from the decode. Retire together with
+;; the hud-post hold above.
+(defstate hud-in (hud)
+  :virtual #t
+  :event hud-handler
+  :enter (behavior ()
+    '()
+    )
+  :exit (behavior ()
+    '()
+    )
+  :trans (behavior ()
+    (if (not (hud-method-25 self))
+        (go-virtual hud-hidden)
+        )
+    )
+  :code sleep-code
+  )
+
+;; definition for function hud-init-by-other
+(defbehavior hud-init-by-other hud ()
+  (add-connection *hud-engine* self #f self (-> self type symbol) #f)
+  (set! (-> self mask) (process-mask menu))
+  (+! (-> self clock ref-count) -1)
+  (+! (-> *display* real-clock ref-count) 1)
+  (set! (-> self clock) (-> *display* real-clock))
+  (set! (-> self flags) (hud-flags))
+  (set! (-> self last-hide-time) (the-as uint (current-time)))
+  (set! (-> self offset) 1.0)
+  (dotimes (v1-16 45)
+    (set! (-> self strings v1-16 text) #f)
+    (set! (-> self strings v1-16 scale) 0.0)
+    (set! (-> self strings v1-16 color) (font-color white))
+    (set! (-> self strings v1-16 alpha) 1.0)
+    (set! (-> self strings v1-16 flags) (the-as uint 35))
+    (set! (-> self strings v1-16 pos x) 0)
+    (set! (-> self strings v1-16 pos z) #xfffffff)
+    (set! (-> self strings v1-16 pos w) 0)
+    (set! (-> self strings v1-16 time) 0.0)
+    (set! (-> self strings v1-16 effect) (the-as uint 0))
+    )
+  (dotimes (v1-19 50)
+    (let ((a0-23 (&+ (the-as (pointer int32) (-> self sprites 0 color)) (* v1-19 64))))
+      (set! (-> a0-23 0) 128)
+      (set! (-> a0-23 1) 128)
+      (set! (-> a0-23 2) 128)
+      (set! (-> a0-23 3) 128)
+      )
+    (set! (-> self sprites v1-19 pos z) #xffffff)
+    (set! (-> self sprites v1-19 pos w) 0)
+    (set! (-> self sprites v1-19 scale-x) 0.0)
+    (set! (-> self sprites v1-19 scale-y) 0.0)
+    (set! (-> self sprites v1-19 angle) 0.0)
+    (set! (-> self sprites v1-19 flags) (hud-sprite-flags))
+    (set! (-> self sprites v1-19 tex) #f)
+    )
+  (dotimes (v1-22 2)
+    (set! (-> self icons v1-22 icon) (the-as (pointer manipy) #f))
+    (set! (-> self icons v1-22 pos z) 1024)
+    (set! (-> self icons v1-22 scale-x) 1.0)
+    (set! (-> self icons v1-22 scale-y) 1.0)
+    )
+  (hud-method-26 self)
+  (set! (-> self event-hook) (-> (method-of-type hud hud-in) event))
+  (go-virtual hud-in)
+  )
+
+;; definition for function set-hud-piece-position!
+;; WARN: Return type mismatch int vs none.
+(defun set-hud-piece-position! ((arg0 hud-sprite) (arg1 int) (arg2 int))
+  (set! (-> arg0 pos x) arg1)
+  (set! (-> arg0 pos y) arg2)
+  0
+  (none)
+  )
+
+;; definition for function set-as-offset-from!
+;; WARN: Return type mismatch int vs none.
+(defun set-as-offset-from! ((arg0 hud-sprite) (arg1 vector4w) (arg2 int) (arg3 int))
+  (set! (-> arg0 pos x) (+ (-> arg1 x) (the int (* (the float arg2) (-> *video-params* relative-x-scale)))))
+  (set! (-> arg0 pos y) (+ (-> arg1 y) arg3))
+  0
+  (none)
   )

@@ -120,7 +120,14 @@
    (tid       texture-id  :overlay-at tex)
    )
   (:methods
-    (hud-sprite-method-9 (_type_ object object) none)
+    ;; og:preserve-this hud rung: retyped object object -> dma-buffer level.
+    ;; (method 24 hud) calls this slot with a1=dma-buffer (its own s4, reused
+    ;; from the dma-buffer used for its own packet writes) and a2=level (its
+    ;; own s2, (-> this level)); the method's own body then reads arg0
+    ;; (l.wu (+ arg0 4)), dma-buffer's own base field at machine offset 4,
+    ;; confirming arg0 is dma-buffer. Matches the sibling hud-sprite-method-10
+    ;; slot's own trailing comment shape (dma-buffer level ...).
+    (hud-sprite-method-9 (_type_ dma-buffer level) none)
     (hud-sprite-method-10 () none)
     )
   )
@@ -216,8 +223,8 @@
    (gui-id          sound-id)
    )
   (:state-methods
-    hud-state-15
-    hud-state-16
+    hud-hidden
+    hud-in
     )
   (:methods
     ;; og:preserve-this hud-high-scores rung: gains _type_, synced from this
@@ -258,7 +265,13 @@
     ;; totals's own override, hud-results-grand-prix.gc).
     (hud-method-23 (_type_) none)
     (hud-method-24 (_type_) none)
-    (hud-method-25 (_type_) none)
+    ;; og:preserve-this hud rung: retyped none -> symbol. hud.gc's own
+    ;; :trans handlers for both hud-hidden and hud-in use this method's
+    ;; result directly as an (if ...) condition (hud_ir2.asm), and its own
+    ;; body computes (not (or ...)), a genuine boolean, not none; a fresh
+    ;; compile of the landed :trans handlers rejects "Cannot use none-typed
+    ;; variable in a condition" against the old declaration.
+    (hud-method-25 (_type_) symbol)
     ;; og:preserve-this net-hud rung: in-game-hud-method-26 (net-hud.gc) overrides
     ;; this slot reading only self (gp) to touch its own instance fields; the old
     ;; () signature left self untyped and the override's chain of field accesses
@@ -272,11 +285,14 @@
     ;; decode, net-hud_ir2.asm, this rung.
     (hud-method-27 (_type_ object object object object) none)
     (hud-method-28 () none)
-    ;; og:preserve-this net-hud rung: hud-item-string-method-28 (net-hud.gc) calls
-    ;; this slot on *current-hud* with two explicit args (a field read off the hud
-    ;; itself, and the constant 128), one more than the previously landed single
-    ;; object arg. Scoped decode, net-hud_ir2.asm, this rung.
-    (hud-method-29 (_type_ object object) none)
+    ;; og:preserve-this hud rung: retyped object object -> int int. hud.gc's
+    ;; own body (hud_ir2.asm, L22) uses arg0 directly as a strings-array index
+    ;; (`(sll arg0 6)`, matching hud-string's own 64-byte stride), and
+    ;; hud-item-string-method-28's call site (net-hud.gc) passes
+    ;; (-> *current-hud* num-strings) (an int32 field) and the literal 128 for
+    ;; the two args, confirming both are int, not the previously landed
+    ;; provisional object object.
+    (hud-method-29 (_type_ int int) none)
     )
   )
 
