@@ -5,6 +5,13 @@
 ;; name in dgo: wvehicle-wheel
 ;; dgos: COMMON, GAME
 
+;; og:preserve-this find-nearest-camera-distance is redeclared here rather
+;; than required from race-mesh.gc, matching that file's own precedent
+;; (each caller redeclares locally rather than requiring one another) and
+;; vehicle-debris.gc's own copy of this same declaration, this rung.
+
+(define-extern find-nearest-camera-distance (function vector float))
+
 ;; DECOMP BEGINS
 
 ;; og:preserve-this vehicle rung: retyped vehicle field basic -> vehicle.
@@ -80,26 +87,22 @@
   this
   )
 
-;; og:preserve-this methods 92, 65, 87 and 88 are omitted rather than
-;; landed. Same defect class as vehicle-debris's methods 65/87/88 in
-;; this same band: method 92 fails at op 0 and reads a0/a1/a2 with none
-;; set (three unset registers, not a dropped-argument fix, something
-;; else corrupted this override's decode); method 65 fails at op 41 and
-;; reads a1 unset; method 87 fails a stack-use guess. method 88's own
-;; blocker (the same unactivated find-nearest-camera-distance vehicle-
-;; debris's method 88 hit) was cleared by the race-mesh rung
-;; (jakx-levels-other-tier-4, both the decompiler-config extern and a
-;; real define-extern now live in
-;; goal_src/jakx/levels/common/race/race-mesh.gc); its own decode is now
-;; fully clean (offline-test -f wvehicle-wheel -d, verified this rung)
-;; and it is landable on its own, independent of 92, 65 and 87. Left
-;; un-landed here since wvehicle-wheel is outside this rung's own band;
-;; the REF at test/decompiler/reference/jakx/levels/desert/wvehicle/
-;; wvehicle-wheel_REF.gc was regenerated to the new clean decode so the
-;; offline suite's decomp-vs-REF diff does not regress on this rung's own
-;; extern activation. idle's own :event handler still dispatches
-;; vehicle-wheel-method-92 (unfilled, check_method_slots flags it); the
-;; callee's home is this same object once method 92 lands.
+;; og:preserve-this methods 92, 65 and 87 are omitted rather than
+;; landed. Same defect class as vehicle-debris's methods 65/87 in this
+;; same band: method 92 fails at op 0 and reads a0/a1/a2 with none set
+;; (three unset registers, not a dropped-argument fix, something else
+;; corrupted this override's decode); method 65 fails at op 41 and reads
+;; a1 unset; method 87 fails a stack-use guess. idle's own :event
+;; handler still dispatches vehicle-wheel-method-92 (unfilled,
+;; check_method_slots flags it); the callee's home is this same object
+;; once method 92 lands.
+;;
+;; method 88 was in this same held state until its own blocker (the same
+;; unactivated find-nearest-camera-distance vehicle-debris's method 88
+;; hit) was cleared by the race-mesh rung (jakx-levels-other-tier-4, both
+;; the decompiler-config extern and a real define-extern now live in
+;; goal_src/jakx/levels/common/race/race-mesh.gc). Its decode was
+;; already fully clean at that point; this rung landed it below.
 
 ;; definition for method 61 of type vehicle-wheel
 ;; WARN: Return type mismatch int vs none.
@@ -108,6 +111,20 @@
   (if (logtest? (-> this rbody flags) 1)
       (update-transforms (-> this root))
       )
+  0
+  (none)
+  )
+
+;; definition for method 88 of type vehicle-wheel
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-88 ((this vehicle-wheel))
+  (set! (-> this camera-dist) (find-nearest-camera-distance (-> this rbody position)))
+  (if (< 901120.0 (-> this camera-dist))
+      (go (method-of-object this die))
+      )
+  (rigid-body-object-method-70 this)
+  (rigid-body-control-method-11 (-> this rbody) (the-as collide-shape-moving (-> this root)))
+  (rigid-body-object-method-61 this)
   0
   (none)
   )
