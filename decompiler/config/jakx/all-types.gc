@@ -36157,16 +36157,27 @@
   ((ragdoll        ragdoll  :offset-assert 144) ;; guessed by decompiler
    (last-attack-id uint32   :offset-assert 148)
    )
-  :method-count-assert 21
+  :method-count-assert 22
   :size-assert         #x98
-  :flag-assert         #x1500100098
+  :flag-assert         #x1600100098
+  ;; method-count-assert raised 21 -> 22 and every slot below shifted +1 from
+  ;; its own trailing name: process's own last method is 14 (method-count 15
+  ;; at all-types.gc:892+25), one more than jak3's process, so ragdoll-proc's
+  ;; first new slot here is 15, not jak3's 14. The idle state and
+  ;; ragdoll-proc-method-15 were merged into a single bad "() none" entry at
+  ;; slot 15 (the "Virtual defstate is defining a virtual state idle... which
+  ;; is not a valid virtual state type" class); splitting them into their own
+  ;; slots is what pushes every following method up by one.
+  (:state-methods
+    idle ;; 15
+    )
   (:methods
-    (ragdoll-proc-method-15 () none) ;; 14 ;; (idle () _type_ :state) 15 ;; (ragdoll-proc-method-15 (_type_ symbol vector symbol) none)
-    (ragdoll-proc-method-16 (_type_ object object object) none) ;; 16 ;; (disable-for-duration (_type_ object object object) none)
-    (ragdoll-proc-method-17 (_type_) none) ;; 17 ;; (ragdoll-proc-method-17 (_type_) none)
-    (ragdoll-proc-method-18 (_type_ object) none) ;; 18 ;; (ragdoll-proc-method-18 (_type_ object) none)
-    (ragdoll-proc-method-19 (_type_ object) none) ;; 19 ;; (ragdoll-proc-method-19 (_type_ object) symbol)
-    (ragdoll-proc-method-20 (_type_) none) ;; 20
+    (ragdoll-proc-method-15 (_type_ symbol vector symbol) none) ;; 16 ;; confirmed against jak3 twin (decompiler/config/jak3/all-types.gc:23405, its own method 15)
+    (ragdoll-proc-method-16 (_type_ object object object) none) ;; 17 ;; (disable-for-duration (_type_ object object object) none)
+    (ragdoll-proc-method-17 (_type_) none) ;; 18 ;; (ragdoll-proc-method-17 (_type_) none)
+    (ragdoll-proc-method-18 (_type_ object) none) ;; 19 ;; (ragdoll-proc-method-18 (_type_ object) none)
+    (ragdoll-proc-method-19 (_type_ object) none) ;; 20 ;; (ragdoll-proc-method-19 (_type_ object) symbol)
+    (ragdoll-proc-method-20 (_type_) none) ;; 21
     )
   )
 
@@ -77579,10 +77590,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern ragdoll-matrix-interp function) ;; (function matrix matrix matrix float matrix)
+(define-extern ragdoll-matrix-interp (function matrix matrix matrix float matrix)) ;; confirmed: matches jak3 twin exactly (goal_src/jak3/engine/physics/ragdoll.gc:418), and this rung's own decompiler heuristic independently suggested the identical signature
 ;; (define-extern ragdoll-joint-callback function) ;; (function cspace transformq process-drawable ragdoll-proc none)
+(define-extern ragdoll-joint-callback (function cspace transformq process-drawable ragdoll-proc none)) ;; confirmed: matches jak3 twin exactly (goal_src/jak3/engine/physics/ragdoll.gc:496), and this rung's own decompiler heuristic independently suggested the identical signature
 ;; (define-extern ragdoll-other-joint-callback function) ;; (function cspace transformq none :behavior ragdoll-proc)
+(define-extern ragdoll-other-joint-callback (function cspace transformq none :behavior ragdoll-proc)) ;; confirmed: matches jak3 twin exactly (goal_src/jak3/engine/physics/ragdoll.gc:620), and this rung's own decompiler heuristic independently suggested the identical signature
 ;; (define-extern ragdoll-reflect-matrix function) ;; (function matrix vector vector vector)
+(define-extern ragdoll-reflect-matrix (function matrix vector vector vector)) ;; confirmed: matches jak3 twin exactly (goal_src/jak3/engine/physics/ragdoll.gc:645), and this rung's own decompiler heuristic independently suggested the identical signature
 ;; (define-extern ragdoll-proc-init-by-other function) ;; (function ragdoll-setup object :behavior ragdoll-proc)
+(define-extern ragdoll-proc-init-by-other (function ragdoll-setup object :behavior ragdoll-proc)) ;; confirmed: this rung's own scoped decode shows a single-arg behavior function on ragdoll-proc (self=s6, one arg in a0); matches jak3's twin exactly (goal_src/jak3/engine/physics/ragdoll.gc:1531, (defbehavior ragdoll-proc-init-by-other ragdoll-proc ((arg0 ragdoll-setup))))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; raptor                         ;;
