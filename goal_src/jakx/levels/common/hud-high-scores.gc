@@ -5,16 +5,6 @@
 ;; name in dgo: hud-high-scores
 ;; dgos: COMMON, GAME
 
-;; og:preserve-this hud-high-scores rung: spawn-hud-game-end,
-;; spawn-hud-cash-stats, cash-stats-on? and end-game-menu-on? home to
-;; hud-cash.gc, still an empty stub this rung (its decode carries four
-;; unresolved residual errors, tracked separately), so all four symbols
-;; link as 0 until it lands. Every call site below (spawn-high-score-hud and
-;; high-scores-on?, this rung) gained a (nonzero? ...) runtime-link guard
-;; around the existing decoded call, matching the vehicle-manager-start
-;; precedent in jakx-init.gc, so a boot before hud-cash lands skips the call
-;; instead of jumping through zero. Retires when hud-cash.gc lands these
-;; functions for real.
 (define-extern spawn-hud-game-end (function object))
 (define-extern spawn-hud-cash-stats (function object))
 (define-extern cash-stats-on? (function object))
@@ -247,7 +237,7 @@
               18
               )
       ((3)
-       (when (and (nonzero? spawn-hud-game-end) (spawn-hud-game-end))
+       (when (spawn-hud-game-end)
          (let ((v1-27 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
            (cond
              (v1-27
@@ -262,7 +252,7 @@
          )
        )
       (else
-        (when (and (nonzero? spawn-hud-cash-stats) (spawn-hud-cash-stats))
+        (when (spawn-hud-cash-stats)
           (let ((v1-32 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
             (cond
               (v1-32
@@ -852,16 +842,14 @@
         )
       )
     )
-  (if (nonzero? spawn-hud-cash-stats)
-      (spawn-hud-cash-stats)
-      )
+  (spawn-hud-cash-stats)
   )
 
 ;; definition for function high-scores-on?
 (defun high-scores-on? ()
   (and *high-scores-list-proc*
-       (not (and (nonzero? cash-stats-on?) (cash-stats-on?)))
-       (not (and (nonzero? end-game-menu-on?) (end-game-menu-on?)))
+       (not (cash-stats-on?))
+       (not (end-game-menu-on?))
        )
   )
 
