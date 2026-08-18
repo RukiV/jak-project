@@ -1598,7 +1598,15 @@
   "cam-layout-function-call": [
     [15, "gp", "(function string int basic object)"]
   ],
-  "cam-layout-save-cam-rot": [[13, "v0", "vector"]],
+  // engine-quick-tier-9: extended with op 2 (s3 = a2+60, entity-actor's own
+  // quat field, offset-assert 64 per the +4 basics convention, declared
+  // vector4h; the auto field lookup mis-resolved it as a bare (pointer
+  // game-task), so the address itself needs casting to vector for the x/y/
+  // z/w component reads at op 18 onward to resolve).
+  "cam-layout-save-cam-rot": [
+    [13, "v0", "vector"],
+    [[2, 30], "s3", "vector"]
+  ],
   "cam-layout-save-campointsoffset": [[12, "v0", "vector"]],
   "cam-layout-save-splineoffset": [
     [37, "v0", "vector"],
@@ -7245,5 +7253,91 @@
   // process-drawable v1-9) root trans). This clears the op-43 load error;
   // the function's own sllv and stack-use errors from the voicebox handle
   // split (ops 17-25, see the note above (method 10 talker)) stay unfixed.
-  "(exit active talker)": [[43, "v1", "process-drawable"]]
+  "(exit active talker)": [[43, "v1", "process-drawable"]],
+  // engine-quick-tier-9 (cam-layout.gc): cam-layout-entity-info's own op 202
+  // reads back the get-property-struct result as a vector (the pivot/align/
+  // interesting blocks' own s5-N locals); jak3's own type_casts.jsonc casts
+  // the identical spot ("cam-layout-entity-info": [[202, "v1", "vector"]]),
+  // and this rung's own op numbering lands on the same op. op 487 is one
+  // level deeper into the same function's spline section, the identical
+  // get-property-struct-result class needed for this rung's own build (see
+  // the full entry consolidated further below).
+  // engine-quick-tier-9 (cam-layout.gc): cam-layout-entity-volume-info-
+  // create's own res-tag/get-property-data call (matching jak3's own sv-16
+  // res-tag and the inline-array vector result cast) and its own stack-
+  // spilled float accumulator at offset 164 (a running abs-value compare,
+  // read/written across loop iterations via swc1/lwc1 rather than staying
+  // in a register); both match jak3's own type_casts.jsonc entry for this
+  // function via the "_stack_" sentinel exactly.
+  "cam-layout-entity-volume-info-create": [
+    ["_stack_", 16, "res-tag"],
+    ["_stack_", 164, "float"],
+    [16, "v0", "(inline-array vector)"]
+  ],
+  // engine-quick-tier-9 (cam-layout.gc): the four cam-layout-save-X
+  // functions each call res-lump-struct/get-property-struct twice, both
+  // returning the generic structure type rather than vector; jak3's own
+  // type_casts.jsonc casts v0 to vector at both call results for each of
+  // these four functions, and this rung's own op numbering matches jak3's
+  // exactly (confirmed against this rung's own cam-layout_ir2.asm).
+  "cam-layout-save-interesting": [
+    [13, "v0", "vector"],
+    [38, "v0", "vector"]
+  ],
+  "cam-layout-save-align": [
+    [13, "v0", "vector"],
+    [38, "v0", "vector"]
+  ],
+  "cam-layout-save-pivot": [
+    [13, "v0", "vector"],
+    [38, "v0", "vector"]
+  ],
+  "cam-layout-save-cam-trans": [
+    [29, "v0", "vector"],
+    [40, "v0", "vector"]
+  ],
+  // engine-quick-tier-9 (cam-layout.gc): the remaining cam-layout functions
+  // below all match jak3's own type_casts.jsonc entries exactly, confirmed
+  // against this rung's own cam-layout_ir2.asm op numbering.
+  "cam-layout-init": [[10, "v1", "connection"]],
+  "cam-layout-do-action": [[99, "s5", "(function int symbol object)"]],
+  // op 272 extends jak3's own [280, 363] start earlier: jakx's own s4 (the
+  // same array clm-basic element, cast to clm-list downstream) is read at
+  // offset 0 eight ops before jak3's own range begins.
+  "cam-layout-do-menu": [
+    [[272, 363], "s4", "clm-list"],
+    [[201, 203], "a0", "clm-item"],
+    [[211, 213], "v1", "clm-item"],
+    [[231, 233], "v1", "clm-item"],
+    [[366, 374], "v1", "clm-item"],
+    [374, "v1", "clm-item"],
+    [[136, 182], "s3", "clm-list"],
+    [219, "v1", "clm-list-item"],
+    [[220, 250], "s3", "clm-list-item"],
+    [239, "v1", "clm-item"]
+  ],
+  "clmf-next-entity": [[38, "a0", "connection"]],
+  // cam-layout-save-cam-rot already had a pre-existing entry above (op 13);
+  // extended there rather than duplicated here.
+  // engine-quick-tier-9 (cam-layout.gc): clmf-input has no jak3 twin body
+  // for this specific access (jakx-original camera-lookup logic); view-get-
+  // active-camera's own all-types.gc declaration already documents it as
+  // "really camera-master, but that type parses later; cast at use sites",
+  // and camera-master's own settings field (offset-assert 148, the +4
+  // basics convention landing on the raw offset-144 read) matches the
+  // established cast pattern used elsewhere for this same function's return
+  // value (see (event active movie-path), (method 16 movie-path) above).
+  "clmf-input": [
+    [78, "v0", "camera-master"],
+    [110, "v0", "camera-master"]
+  ],
+  // engine-quick-tier-9 (cam-layout.gc): cam-layout-entity-info's own spline
+  // section (matching jak3's own get-curve-data!/vector-with-offset chain)
+  // reads a get-property-struct-style result typed generic structure at op
+  // 487, the same class as the cam-layout-save-X casts above, needed one
+  // level deeper into this larger function.
+  "cam-layout-entity-info": [
+    [202, "v1", "vector"],
+    [487, "v0", "vector"]
+  ]
 }

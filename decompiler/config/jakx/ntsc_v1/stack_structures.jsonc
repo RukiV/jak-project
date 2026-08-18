@@ -1324,5 +1324,49 @@
   // (goal_src/jak3/engine/collide/collide-cache.gc:774, a stack-allocated
   // collide-puls-work). The raw stack address's own type never resolved on
   // its own ("Failed to guess stack use for 16").
-  "(method 16 collide-cache)": [[16, "collide-puls-work"]]
+  "(method 16 collide-cache)": [[16, "collide-puls-work"]],
+  // engine-quick-tier-9 (cam-layout.gc): four cam-layout-save-X functions
+  // each stack-allocate a single zeroed vector via the standard
+  // new-stack-vector0 idiom (daddiu s/sp,16 then a single sq r0 zeroing
+  // quad), matching jak3's own cam-layout-save-interesting, -align, -pivot
+  // and -cam-trans, all of which carry a (new-stack-vector0) local.
+  "cam-layout-save-interesting": [[16, "vector"]],
+  "cam-layout-save-align": [[16, "vector"]],
+  "cam-layout-save-pivot": [[16, "vector"]],
+  "cam-layout-save-cam-trans": [[16, "vector"]],
+  // engine-quick-tier-9 (cam-layout.gc): cam-layout-entity-volume-info-create
+  // matches jak3's own defbehavior of the same name almost exactly; jak3's
+  // own decompiler/config/jak3/ntsc_v1/stack_structures.jsonc declares eight
+  // vectors at 32/48/64/80/96/112/128/144 for this function (the sv-192/
+  // sv-208/sv-224/sv-240 chain of (new 'stack-no-clear 'vector) locals plus
+  // the two more that follow it), and jakx's own smaller stack frame lands
+  // on the identical offsets confirmed against this rung's own
+  // cam-layout_ir2.asm (32/48/64/80/96/112 first, then 128/144 exposed once
+  // those six resolved).
+  "cam-layout-entity-volume-info-create": [
+    [32, "vector"],
+    [48, "vector"],
+    [64, "vector"],
+    [80, "vector"],
+    [96, "vector"],
+    [112, "vector"],
+    [128, "vector"],
+    [144, "vector"]
+  ],
+  // engine-quick-tier-9 (cam-layout.gc): cam-layout-entity-info matches
+  // jak3's own defun of the same name, which opens with (new-stack-matrix0)
+  // then (new-stack-vector0) (the raw asm zeroes 64 bytes at sp+16, a
+  // matrix, then 16 bytes at sp+80, a vector, matching that pair exactly),
+  // followed by three more independent (new-stack-vector0) locals for the
+  // pivot/align/interesting blocks; jak3's own stack_structures.jsonc
+  // declares only one further offset (208, a vector) for this function, its
+  // own auto-guesser resolving the rest once that one is seeded, and
+  // jakx's own frame lands on the identical offset.
+  "cam-layout-entity-info": [[16, "matrix"], [80, "vector"], [208, "vector"]],
+  // engine-quick-tier-9 (cam-layout.gc): clmf-pos-rot matches jak3's own
+  // twin exactly; jak3's own stack_structures.jsonc declares a matrix at
+  // offset 112 for this function (a (new-stack-matrix0) local read back by
+  // cam-slave-get-rot), which also clears the TP_Type::get_slot failure at
+  // the same op (a virtual dispatch through the unresolved stack address).
+  "clmf-pos-rot": [[112, "matrix"]]
 }
