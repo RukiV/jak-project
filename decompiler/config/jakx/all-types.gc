@@ -81108,10 +81108,17 @@
 
 
 (define-extern *interface-cam* object)
-(define-extern interface-cam-init-by-other function)
-(define-extern activate-bar function)
+;; both init-by-other bodies open with (process-entity-set! self <arg0>),
+;; then garage-cinema-init-by-other reads arg0's own offset-28 field as a
+;; vector (entity's own trans field, offset-assert 28); single explicit
+;; arg, the standard entity-spawned behavior signature; jakx-only, no jak3
+;; twin
+(define-extern interface-cam-init-by-other (function entity object :behavior interface-cam))
+;; activate-bar's own body process-spawns an interface-cam through
+;; *default-dead-pool*, referencing no arguments of its own; jakx-only
+(define-extern activate-bar (function object))
 (define-extern *garage-cinema* object)
-(define-extern garage-cinema-init-by-other function)
+(define-extern garage-cinema-init-by-other (function entity object :behavior garage-cinema))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-menu-data                ;;
