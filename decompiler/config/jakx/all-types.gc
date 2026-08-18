@@ -66218,33 +66218,41 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced 16->22)
-;; debug leg: tried dropping collision-editor-method-14 as a suspected state-slot
-;; alias (own trailing comment reads "(idle () _type_ :state)"), matching the
-;; visvol-edit rung's recipe; empirically wrong here, reverted. Removing it just
-;; shifted the compiler's own slot assignment for :state-methods idle down by
-;; one instead of resolving anything (the ";; 15" comment is documentation, not
-;; a compiler directive; slot numbers are assigned by declaration order), and
-;; the collision-editor-init-by-other enter-state failure persisted unchanged.
-;; Left as a genuine unresolved defect; see the commit message
+;; resolved (superseding the auto-synced 16->22 attempt and the reverted
+;; debug leg above): the six collision-editor-method-9..14 placeholders were
+;; never real. top-level-login's own method-set! for collision-editor calls
+;; it exactly twice: a1=3 (an override of an inherited process method, fine)
+;; and a1=15 with a state value (the idle state builder: enter/trans/code/
+;; event fields filled then method-set! 15). Same real-id math as
+;; ragdoll-proc just above: process's own last method is 14 (method-count 15
+;; at all-types.gc:892+25), so collision-editor's first added slot is 15, and
+;; with the six placeholders declared first they absorbed that slot instead,
+;; pushing idle to a real id nothing writes (the "Virtual defstate ... method
+;; collision-editor-method-9" mismatch, matching the ragdoll-proc class
+;; exactly). Unlike ragdoll-proc, nothing here corroborates the six
+;; placeholders: no call site and no definition anywhere in the jakx corpus
+;; (grepped the full-corpus decode), and the jak3 twin
+;; (decompiler/config/jak3/all-types.gc:41229) declares collision-editor with
+;; zero methods beyond idle. Dropped them and restored method-count-assert to
+;; 16 (process's 15 + idle), matching the twin's shape exactly instead of
+;; ragdoll-proc's (which jak3 confirms has real extra methods collision-editor
+;; does not)
 (deftype collision-editor (process)
-  ((proc uint64  :offset-assert 144) ;; handle
+  ((proc handle  :offset-assert 144)
    )
-  :method-count-assert 22
+  :method-count-assert 16
   :size-assert         #x98
-  :flag-assert         #x1600100098
-  (:methods
-    (collision-editor-method-9 () none) ;; 9
-    (collision-editor-method-10 () none) ;; 10
-    (collision-editor-method-11 () none) ;; 11
-    (collision-editor-method-12 () none) ;; 12
-    (collision-editor-method-13 () none) ;; 13
-    (collision-editor-method-14 () none) ;; 14 ;; (idle () _type_ :state)
-    )
+  :flag-assert         #x1000100098
   (:state-methods
     idle ;; 15
     )
   )
+;; og:preserve-this retyped (proc) uint64 -> handle: anon-function-3's own
+;; deref of this field is the raw sllv+lwu 64->32 truncate-and-load idiom the
+;; compiler only recognizes as the handle-deref pattern when the field is
+;; typed handle; as uint64 it decoded as an unsupported inline sllv plus an
+;; unresolved load right after it. collision-editor-init-by-other's own arg is
+;; already handle and stores into this field directly, corroborating the type
 
 
 #|

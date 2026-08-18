@@ -3923,9 +3923,19 @@
   // reaching the same field; jak3's config carries no hint for this function,
   // but the fix is the same class as its two siblings above, applied at both
   // sites
+  // engine-quick-tier-6: a third, unrelated site in the same function. Op 83
+  // reads raw offset 64 off a collide-shape-prim (v1, freshly narrowed from s5
+  // at op 78 inside the prim-type==1 "mesh" branch, format string confirms
+  // "(mesh ((la-collide-mesh ...") off a collide-shape-prim-mesh (raw 64 ->
+  // declared 68, mesh-id, all-types.gc); the base collide-shape-prim has only
+  // an untyped 16-byte "specific" union there, so the load needs v1 forced to
+  // the mesh subtype at this one op. The loaded int32 is used as an array
+  // index into *collision-editor-mesh-names* two ops later, matching mesh-id's
+  // own type
   "print-actual-collision": [
     [12, "v1", "collide-shape"],
-    [182, "v1", "collide-shape"]
+    [182, "v1", "collide-shape"],
+    [83, "v1", "collide-shape-prim-mesh"]
   ],
   // debug leg: print-default-collision walks a raw (pointer process) list and
   // dereferences each entry to read offset 192, which is process-drawable's
@@ -3934,6 +3944,18 @@
   // near-identical fallback branch at op 27), each needing v1 forced to
   // process-drawable at its own op. No jak3 hint for this one either;
   // jakx-only, evidence is the field table
+  // engine-quick-tier-6: tried extending this same class to ops 55, 66 and
+  // 110 (the identical raw188/raw192/raw12 shape as the two sites above), and
+  // each fix only unmasked the next one (op 55 -> op 66 -> op 111 -> op 138),
+  // with at least four more independent sites past that point (ops 156 via
+  // raw184, 270 and 280 via a1/v1, 378 via v1, each its own register and each
+  // needing its own point cast). This function evidently repeats the same
+  // per-prim-type debug print block (sphere/mesh/group) several times over
+  // with the compiler re-deriving the process-drawable chain fresh each time
+  // rather than caching it, so the cast count keeps growing with no end in
+  // sight this rung. Held at the original single failure (op 55) rather than
+  // chasing the tail; see the commit message and print-default-collision's
+  // own landed stub note
   "print-default-collision": [
     [23, "v1", "process-drawable"],
     [27, "v1", "process-drawable"]

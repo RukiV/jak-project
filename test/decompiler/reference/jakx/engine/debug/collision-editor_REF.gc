@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: collision-editor.gc
-;; name in dgo: collision-editor
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
 ;; this file is debug only
 (declare-file (debug))
 
@@ -153,27 +147,6 @@
   (none)
   )
 
-;; og:preserve-this held (engine-quick-tier-6): print-default-collision does not
-;; decode clean, and its raw decompiled form does not compile either (tried it).
-;; Op 55 reads raw offset 188 off a value the decompiler can only type as plain
-;; process, but the field there (all-types.gc process-drawable, node-list,
-;; declared offset 192) belongs to process-drawable; a type_casts.jsonc entry
-;; forcing that one op resolves it but only unmasks the next site with the
-;; identical shape (op 66, then op 111, then op 138), and at least four more
-;; sites independently need the same treatment past that (ops 156, 270, 280,
-;; 378), each its own register. This function repeats the same per-prim-type
-;; debug print block (sphere/mesh/group) several times with the compiler
-;; re-deriving the process-drawable chain fresh each time rather than caching
-;; it once, so the cast count keeps growing with no end found this rung.
-;; Compiling the raw local-vars form the decompiler produces (without any of
-;; the above casts) fails outright: "The method get-process of type object
-;; could not be found" at its own op 500, a guessed method name the
-;; decompiler's pattern matcher attached to the same unresolved chain, so this
-;; is a real compile failure and not just decode noise. Commented out rather
-;; than landed broken; retires when a later rung either lands every remaining
-;; site above or finds a structural fix that does not require one
-;; type_casts.jsonc entry per occurrence.
-#|
 ;; definition for function print-default-collision
 ;; INFO: Used lq/sq
 ;; ERROR: failed type prop at 55: Could not figure out load: (set! v1 (l.wu (+ v1 188)))
@@ -949,7 +922,6 @@
     (ret-none)
     )
   )
-|#
 
 ;; definition for function print-actual-collision
 ;; WARN: Return type mismatch object vs none.
@@ -1538,7 +1510,3 @@
     (process-spawn collision-editor gp-2 :name "collision-editor")
     )
   )
-
-
-
-
