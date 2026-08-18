@@ -55530,7 +55530,11 @@
    (wpn-current-target             uint64                            :offset-assert 4488)
    (wpn-current-target-acquired    uint64                            :offset-assert 4496)
    (wpn-left                       uint64                            :offset-assert 4504)
-   (wpn-right                      uint64                            :offset-assert 4512)
+   ;; og:preserve-this wpn-right retyped uint64 -> handle: wvehicle-events.gc's
+   ;; own decode reads it via ld (64-bit) and stores a literal #f into it (the
+   ;; handle-clear idiom), the same evidence class as power-slide-hud/
+   ;; hang-time-hud/fire-tracker above.
+   (wpn-right                      handle                            :offset-assert 4512)
    (wpn-shield                     uint64                            :offset-assert 4520)
    (wpn-drone                      uint64                            :offset-assert 4528)
    (wpn-oil                        uint64                            :offset-assert 4536)
@@ -63083,6 +63087,30 @@
 ;; (define-extern *vehicle-shadow-control* shadow-control) ;; shadow-control
 ;; (define-extern *vehicle-shadow-control-disabled* shadow-control) ;; shadow-control
 (define-extern vehicle-event-handler (function process int symbol event-message-block object :behavior vehicle))
+;; og:preserve-this wv-*-handler/handle-weapon-*-event: wvehicle-events.gc
+;; rung. All eight are plain functions (not methods), stored into wvehicle's
+;; own event-dispatch table by (top-level-login wvehicle-events) and called
+;; from (method 81 wvehicle) (vehicle-event-handler's wvehicle override)
+;; after it has already branched on the message symbol, so unlike
+;; vehicle-event-handler itself they take no separate symbol arg. Every call
+;; site passes exactly three registers (a0/a1/a2); wv-set-handler's own body
+;; is the clearest evidence for all three: a0 is self (its own flags field
+;; read at raw 260, the vehicle/process-inherited offset, no wvehicle-only
+;; field forces a narrower type), a2 is read at raw 16 and 24, exactly
+;; event-message-block's own param array (uint64 6, offset-assert 16), and
+;; a1 is written before ever being read in every one of the eight bodies (a
+;; classic unused-argc register), so kept as int matching
+;; vehicle-event-handler's own argc slot. :behavior wvehicle lets each body's
+;; self/this resolve to the full wvehicle field set the same way
+;; vehicle-event-handler's own :behavior vehicle does.
+(define-extern wv-weapon-handler (function process int event-message-block object :behavior wvehicle))
+(define-extern wv-go-handler (function process int event-message-block object :behavior wvehicle))
+(define-extern wv-query-handler (function process int event-message-block object :behavior wvehicle))
+(define-extern wv-set-handler (function process int event-message-block object :behavior wvehicle))
+(define-extern wv-pickup-handler (function process int event-message-block object :behavior wvehicle))
+(define-extern wv-weapon-pickup-helper (function process int event-message-block object :behavior wvehicle))
+(define-extern handle-weapon-moved-event (function process int event-message-block object :behavior wvehicle))
+(define-extern handle-weapon-removed-event (function process int event-message-block object :behavior wvehicle))
 ;; (define-extern get-player-id function)
 ;; (define-extern twiddle-collision-cache-verts function)
 ;; (define-extern vehicle-damage-local-space-0 function)
