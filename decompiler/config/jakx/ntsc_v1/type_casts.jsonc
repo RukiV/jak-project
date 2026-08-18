@@ -953,6 +953,27 @@
   // holds a candidate drawn from an (array collide-shape), always focusable in
   // this search context.
   "find-nearest-focusable": [[[52, 55], "a0", "process-focusable"]],
+  // sorted-targ-validator-player-needs-los and sorted-targ-validator-is-
+  // player-vehicle, nav wave 2: both read arg1 (process-focusable per the
+  // shared validator signature) at raw offset 2116, which is vehicle's own
+  // player-id field (offset-assert 2120, the +4 basics convention). Both
+  // functions read this only after their own type? check against vehicle
+  // already narrowed the candidate at runtime; the decompiler needs the
+  // cast repeated for the specific op reading the byte.
+  "sorted-targ-validator-player-needs-los": [[14, "s2", "vehicle"]],
+  "sorted-targ-validator-is-player-vehicle": [[7, "gp", "vehicle"]],
+  // find-sorted-targets-faster!, nav wave 2: two casts. The attackable-hash
+  // slot's own 64-bit value (v1, op 43) is a handle (matching the standard
+  // sllv/dsra32 handle->process split documented above at update-eyes and
+  // (method 10 race-state)); casting the raw loaded value lets both the
+  // subu-s7 null check (op 44-45) and the split (op 47-51) resolve, and
+  // clears the "Unsupported inline assembly instruction kind - sllv" error
+  // that persisted even though plain type propagation alone already
+  // inferred v1 as handle by op 47. Second, op 61's raw offset-244 read is
+  // s1 (the resolved candidate process) reaching process-focusable's own
+  // focus-status field (offset-assert 248, the +4 basics convention),
+  // matching find-sorted-targets!'s identical op-26 read one function down.
+  "find-sorted-targets-faster!": [[61, "s1", "process-focusable"], [96, "s1", "vehicle"]],
   // (method 24 nav-mesh), nav rung: op 22 loads the raw scratchpad address
   // 0x70000000 into s4 (the SPR-resident nav-engine singleton is accessed by
   // fixed hardware address rather than a symbol lookup); every read off s4

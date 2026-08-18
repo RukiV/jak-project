@@ -36345,7 +36345,12 @@
    (required-flags     uint32         :offset-assert 64)
    (priority-flags     uint32         :offset-assert 68)
    (weights            vector :inline :offset-assert 80)
-   (validate           basic          :offset-assert 96)
+   ;; nav wave 2: typed from the shared call convention at its own call
+   ;; site (find-sorted-targets-faster!, op 107-114): a0 is validator-params
+   ;; itself (still generic basic, since none of the four landed validators
+   ;; read it), a1 the candidate (process-focusable), a2 this params struct,
+   ;; a3 the candidate's position (vector); every validator returns symbol.
+   (validate           (function basic process-focusable find-sorted-targets-params vector symbol) :offset-assert 96)
    (validator-params   basic          :offset-assert 100)
    )
   :method-count-assert 9
@@ -62676,14 +62681,51 @@
 
 (define-extern *search-info* search-info)
 (define-extern find-nearest-focusable (function (array collide-shape) vector float search-info-flag search-info-flag vector vector float process-focusable))
-;; (define-extern in-process-array? function)
-;; (define-extern fst-insertion-helper function)
-;; (define-extern find-sorted-targets! function)
-;; (define-extern find-sorted-targets-faster! function)
-;; (define-extern sorted-targ-validator-test-collision function)
-;; (define-extern sorted-targ-validator-is-player-vehicle function)
-;; (define-extern sorted-targ-validator-is-any-vehicle function)
-;; (define-extern sorted-targ-validator-player-needs-los function)
+;; nav wave 2, provisional (no jak3 twin, original Jak X combat-racing
+;; content; no call site found in this object, register reads only): a0's
+;; own body reads offset 0 as a count and compares elements at offset
+;; 12+i*4 against a1 by raw pointer equality, the standard GOAL boxed
+;; (array T) layout (length, allocated-length, content-type, data at 12).
+;; a1 is compared directly against those elements, so it shares their type.
+(define-extern in-process-array? (function (array process) process symbol))
+;; nav wave 2, provisional (same no-call-site caveat as in-process-array?):
+;; a0 is the same boxed-array-of-process shape (count at 0, allocated-
+;; length at 4, elements at 12+i*4); a1 is a parallel boxed array of float
+;; read at the same element offsets, holding the a0 elements' sort key;
+;; a2 (a process) and a3 (a float, moved gpr->fpr at op 10/45) are the
+;; candidate being inserted and its sort key. Returns the inserted float
+;; (mfc1 v0 f0 at the tail).
+(define-extern fst-insertion-helper (function (array process) (array float) process float float))
+;; nav wave 2, provisional (no jak3 twin): a0 is a boxed (array
+;; process-focusable) results array, its own count field zeroed at entry
+;; (op 1, "s.w! a0 0") and read back at the tail as the return value; a1 is
+;; a parallel boxed (array float) of match distances, both built up with
+;; the same insertion-sort shift seen standalone in fst-insertion-helper.
+;; a2 is find-sorted-targets-params (offset-40 max-dist read and squared at
+;; entry). a3 is stack-saved at op 4 and later read back as an optional
+;; boxed (array process-focusable) exclude list, walked with the exact
+;; count/offset-12-stride shape in-process-array? implements standalone;
+;; nil (#f) skips the check. Returns the final result count (a plain word
+;; read back from a0's own count field, not reinterpreted).
+(define-extern find-sorted-targets! (function (array process-focusable) (array float) find-sorted-targets-params (array process-focusable) int))
+(define-extern find-sorted-targets-faster! (function (array process-focusable) (array float) find-sorted-targets-params (array process-focusable) int))
+;; nav wave 2: the four sorted-targ-validator-* functions share one call
+;; signature, read from find-sorted-targets-faster!'s own invocation (op
+;; 107-114 in its scoped decode): a0 is find-sorted-targets-params's own
+;; validator-params field (declared basic there, and no validator body reads
+;; it), a1 is the candidate under test (process-focusable; sorted-targ-
+;; validator-is-player-vehicle and -player-needs-los narrow it to vehicle
+;; internally to reach player-id at offset-assert 2120, the same +4 basics
+;; convention confirmed on nav-engine's process-drawable this rung), a2 is
+;; the search itself (find-sorted-targets-params, read at offset 0 as its
+;; own near-point vector), a3 is the caller's stack-allocated candidate
+;; position (s5 = sp+32, filled from the attackable-hash entry and passed to
+;; vector-vector-distance-squared as a vector one op earlier). All four
+;; return symbol (every caller branches on the boolean result).
+(define-extern sorted-targ-validator-test-collision (function basic process-focusable find-sorted-targets-params vector symbol))
+(define-extern sorted-targ-validator-is-player-vehicle (function basic process-focusable find-sorted-targets-params vector symbol))
+(define-extern sorted-targ-validator-is-any-vehicle (function basic process-focusable find-sorted-targets-params vector symbol))
+(define-extern sorted-targ-validator-player-needs-los (function basic process-focusable find-sorted-targets-params vector symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; glist-h                        ;;
