@@ -1,25 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: vehicle-manager.gc
-;; name in dgo: vehicle-manager
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
-;; og:preserve-this forward declaration for a function this file calls but
-;; does not define, still a stub in the rigid-body-queue-manager debug
-;; cluster. Signature copied from decompiler/config/jakx/all-types.gc. Drop
-;; this line when the real object lands.
-(define-extern rb-reset-perf-times (function none))
-;; og:preserve-this forward declaration for vehicle-manager-init-by-other,
-;; this file's own function held below (rigid-body-queue is not landed
-;; yet): process-spawn's own run-now-in-process expansion embeds this
-;; symbol by name at compile time, so vehicle-manager-start needs the
-;; declaration even though nothing calls it directly. Drop this line and
-;; land the real body once rigid-body-queue lands.
-(define-extern vehicle-manager-init-by-other (function object :behavior vehicle-manager))
-
 ;; definition of type vehicle-manager
 (deftype vehicle-manager (process)
   ()
@@ -228,19 +209,18 @@
     )
   )
 
-;; og:preserve-this vehicle-manager-init-by-other is omitted rather than
-;; landed. Its own body is otherwise clean (stack-size-set!, the
-;; vehicle-manager-method-17/setting-control-method-13 setup, the
-;; event-hook assignment, go-virtual idle all decode without error), but
-;; it calls rigid-body-queue-manager-spawn, whose signature needs
-;; rigid-body-queue, a type declared in decompiler/config/jakx/all-types.gc
-;; but not landed anywhere in goal_src yet ("Type rigid-body-queue is
-;; unknown" at build-first); landing that type is rigid-body-queue-manager's
-;; own debug-cluster territory, not this band's. process-spawn resolves
-;; init-by-other by naming convention at the kernel level, not a compile-
-;; time symbol reference, so nothing else in this file needs this defined.
-;; Re-derive from the framework's own dump (offline-test -f vehicle-manager
-;; -d) once rigid-body-queue lands.
+;; definition for function vehicle-manager-init-by-other
+(defbehavior vehicle-manager-init-by-other vehicle-manager ()
+  (stack-size-set! (-> self main-thread) 128)
+  (set! *vehicle-manager* self)
+  (vehicle-manager-method-17 self)
+  (setting-control-method-13 *setting-control* (the-as engine-pers self) 'task-mask 'clear 0 2048)
+  (set! (-> self event-hook) vehicle-manager-event-handler)
+  (set! *rigid-body-queue-manager*
+        (rigid-body-queue-manager-spawn (the-as rigid-body-queue *rigid-body-queue*) self)
+        )
+  (go-virtual idle)
+  )
 
 ;; failed to figure out what this is:
 (defstate idle (vehicle-manager)
@@ -285,20 +265,86 @@
 ;; definition for symbol *car-appearance-hack*, type int
 (define *car-appearance-hack* 0)
 
-;; og:preserve-this the rest of this object is omitted rather than
-;; landed. *car-info-default* is a raw <static-data L78> blob (a
-;; (pointer uint32) with no confirmed element count or reader anywhere
-;; in this file). vehicle-init-by-other, vehicle-in-level?, vehicle-spawn
-;; and find-vehicle all still have no type analysis at all; the first
-;; three are an already-documented cross-band blocker (see the
-;; commented-out vehicle-spawn extern's own note in all-types.gc):
-;; their real signatures need traffic-object-spawn-params, an entirely
-;; undeclared struct whose fields cascade into traffic-type/nav-mesh/
-;; nav-branch/entity/traffic-spawn-flags, the race/vehicle band's own
-;; typing territory. find-vehicle is a debug function in the same
-;; cluster. vehicle-idx-from-level-name (already active, given a real
-;; signature) is omitted too: its own dynamic net-vehicle array indexing
-;; decodes to an unresolved (dynamic-array-field-access v1-1 PLACEHOLDER)
-;; token, a decompiler-side gap in dynamic field access, not a config
-;; gap. Re-derive from the framework's own dump (offline-test -f
-;; vehicle-manager -d) once either blocker closes.
+;; definition for symbol *car-info-default*, type (pointer uint32)
+(define *car-info-default* <static-data L78>)
+
+;; definition for function vehicle-init-by-other
+;; ERROR: function has no type analysis. Cannot decompile.
+
+;; definition for function vehicle-idx-from-level-name
+;; ERROR: failed type prop at 13: Could not figure out load: (set! a0 (l.w a0))
+(defun vehicle-idx-from-level-name ((a0-0 symbol))
+  (local-vars
+    (v0-0 int)
+    (v0-1 int)
+    (v1-0 int)
+    (v1-1 int)
+    (v1-2 net-vehicle)
+    (v1-5 type)
+    (v1-6 int)
+    (a0-1 (array net-vehicle))
+    (a0-2 basic)
+    (a0-4 basic)
+    (a0-5 none)
+    (a0-6 (array net-vehicle))
+    (a1-0 none)
+    (a2-0 none)
+    (a2-1 none)
+    (a2-2 none)
+    (a2-4 none)
+    (a2-5 none)
+    (a3-0 none)
+    (a3-1 none)
+    (s5-0 int)
+    (t9-0 (function array int))
+    )
+  (set! s5-0 0)
+  (while (begin
+           (set! a0-6 *net-vehicles*)
+           (set! v1-5 (-> a0-6 type))
+           (set! t9-0 (method-of-type v1-5 length))
+           (set! v0-1 (call! a0-6))
+           (set! v1-6 v0-1)
+           (<.si s5-0 v1-6)
+           )
+    (if (begin
+          (set! v1-0 (sll s5-0 2))
+          (set! a0-1 *net-vehicles*)
+          (set! v1-1 (+ v1-0 a0-1))
+          (set! v1-2 (dynamic-array-field-access v1-1 PLACEHOLDER))
+          (set! a0-2 (-> v1-2 levname))
+          (= a0-0 a0-2)
+          )
+        (return (set! v0-0 s5-0))
+        )
+    (set! a0-4 (-> v1-2 ai-levels))
+    (set! a0-5 (the-as none (l.w a0-4)))
+    (set! a1-0 (the-as none 0))
+    (set! a2-0 (the-as none (sll a1-0 2)))
+    (set! a3-0 (the-as none (-> v1-2 ai-levels)))
+    (set! a2-1 (the-as none (+ a2-0 a3-0)))
+    (set! a2-2 (the-as none (l.wu (+ a2-1 12))))
+    (while (<.si a1-0 a0-5)
+      (if (= a0-0 a2-2)
+          (return (set! v0-0 (the-as int s5-0)))
+          )
+      (set! a1-0 (the-as none (+ a1-0 1)))
+      (set! a2-4 (the-as none (sll a1-0 2)))
+      (set! a3-1 (the-as none (l.wu (+ v1-2 36))))
+      (set! a2-5 (the-as none (+ a2-4 a3-1)))
+      (set! a2-2 (the-as none (l.wu (+ a2-5 12))))
+      )
+    (set! s5-0 (the-as int (+ s5-0 1)))
+    )
+  (set! v0-0 (the-as int #f))
+  (ret-value v0-0)
+  )
+
+;; definition for function vehicle-in-level?
+;; ERROR: function has no type analysis. Cannot decompile.
+
+;; definition for function vehicle-spawn
+;; ERROR: function has no type analysis. Cannot decompile.
+
+;; definition (debug) for function find-vehicle
+;; ERROR: function has no type analysis. Cannot decompile.

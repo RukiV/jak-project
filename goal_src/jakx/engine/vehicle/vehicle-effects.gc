@@ -7,3 +7,133 @@
 
 ;; DECOMP BEGINS
 
+;; definition for method 70 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-70 ((this vehicle))
+  (break!)
+  0
+  (none)
+  )
+
+;; definition for function calc-fade-vals
+;; WARN: Return type mismatch object vs none.
+(defun calc-fade-vals ((arg0 float))
+  (let* ((f1-1 (/ arg0 METER_LENGTH))
+         (f0-3 (- f1-1 (the float (the int f1-1))))
+         (f1-3 (* 4096.0 (- f1-1 f0-3)))
+         (f1-5 (/ -1.0 (* (- 1.0 f0-3) f1-3)))
+         (f0-4 (/ f0-3 (- 1.0 f0-3)))
+         )
+    (format #t ":fade-a ~,,10f~%:fade-b ~,,20f~%" f1-5 f0-4)
+    )
+  (none)
+  )
+
+;; definition for symbol *vehicle-headlight-glow-template*, type object
+(define *vehicle-headlight-glow-template*
+  (the-as object (new 'static 'sprite-glow-data
+                   :position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 8192.0))
+                   :size-probe 163.84
+                   :z-offset 819.2
+                   :size-y 8192.0
+                   :color (new 'static 'rgbaf :data (new 'static 'array float 4 255.0 192.0 128.0 16.0))
+                   :fade-a -0.0000122044
+                   :fade-b 8.997864
+                   :tex-id (new 'static 'texture-id :index #x15 :page #x4)
+                   )
+                 )
+  )
+
+;; definition for symbol *vehicle-taillight-glow-template*, type object
+(define *vehicle-taillight-glow-template*
+  (the-as object (new 'static 'sprite-glow-data
+                   :position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 3072.0))
+                   :size-probe 122.88
+                   :z-offset 409.6
+                   :size-y 3072.0
+                   :color (new 'static 'rgbaf :data (new 'static 'array float 4 255.0 64.0 0.0 16.0))
+                   :fade-a -0.0000122044
+                   :fade-b 8.997864
+                   :tex-id (new 'static 'texture-id :index #x16 :page #x4)
+                   )
+                 )
+  )
+
+;; definition for symbol *vehicle-thruster-glow-template*, type object
+(define *vehicle-thruster-glow-template*
+  (the-as object (new 'static 'sprite-glow-data
+                   :position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 4096.0))
+                   :size-probe 102.4
+                   :size-y 4096.0
+                   :color (new 'static 'rgbaf :data (new 'static 'array float 4 0.0 64.0 255.0 16.0))
+                   :fade-a -0.0000122044
+                   :fade-b 8.997864
+                   :tex-id (new 'static 'texture-id :index #x17 :page #x4)
+                   )
+                 )
+  )
+
+;; definition for method 9 of type vehicle-particle-common-info
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-particle-common-info-method-9 ((this vehicle-particle-common-info))
+  (set! (-> this sp-system2d) *sp-particle-system-2d*)
+  (set! (-> this sp-system3d) *sp-particle-system-3d*)
+  (set! (-> this part-quat) (-> *particle-birth-work* quat))
+  (set! (-> this part-vel) (-> *particle-birth-work* vel-range))
+  (set! (-> this part-thruster) (-> *part-id-table* 262))
+  (set! (-> this part-thruster-x) (-> *part-id-table* 262 init-specs 0))
+  (set! (-> this part-spec2) (-> *part-id-table* 262 init-specs 2))
+  (set! (-> this part-spec3) (-> *part-id-table* 262 init-specs 3))
+  (set! (-> this part-spec4) (-> *part-id-table* 262 init-specs 4))
+  (set! (-> this part-spec5) (-> *part-id-table* 262 init-specs 5))
+  (set! (-> this part-spec6) (-> *part-id-table* 262 init-specs 6))
+  (set! (-> this headlight-glow-template) (the-as sprite-glow-data *vehicle-headlight-glow-template*))
+  (set! (-> this taillight-glow-template) (the-as sprite-glow-data *vehicle-taillight-glow-template*))
+  (set! (-> this thruster-glow-template) (the-as sprite-glow-data *vehicle-thruster-glow-template*))
+  (set! (-> this part-247-spec-2) (-> *part-id-table* 247 init-specs 2))
+  (set! (-> this part-247-spec-13) (-> *part-id-table* 247 init-specs 13))
+  (set! (-> this part-247-spec-3) (-> *part-id-table* 247 init-specs 3))
+  (set! (-> this part-248-spec-2) (-> *part-id-table* 248 init-specs 2))
+  (set! (-> this part-248-spec-11) (-> *part-id-table* 248 init-specs 11))
+  (set! (-> this part-248-spec-3) (-> *part-id-table* 248 init-specs 3))
+  (if (zero? (-> this thrust-tex-id))
+      (set! (-> this thrust-tex-id) (the-as uint (lookup-texture-id-by-name "blue-thrust" (the-as string #f))))
+      )
+  (if (zero? (-> this dark-thrust-tex-id))
+      (set! (-> this dark-thrust-tex-id)
+            (the-as uint (lookup-texture-id-by-name "gun-enemy-muzzleflash" (the-as string #f)))
+            )
+      )
+  (set! (-> this part-248) (-> *part-id-table* 248))
+  (set! (-> this part-247) (-> *part-id-table* 247))
+  (set! (-> this part-249) (-> *part-id-table* 249))
+  (set! (-> this part-293) (-> *part-id-table* 293))
+  (set! (-> this part-294) (-> *part-id-table* 294))
+  (set! (-> this part-295) (-> *part-id-table* 295))
+  (set! (-> this part-296) (-> *part-id-table* 296))
+  (set! (-> this part-297) (-> *part-id-table* 297))
+  (set! (-> this part-298) (-> *part-id-table* 298))
+  0
+  (none)
+  )
+
+;; definition for symbol *vehicle-particle-common-info*, type vehicle-particle-common-info
+(define *vehicle-particle-common-info* (new 'static 'vehicle-particle-common-info))
+
+;; definition for method 114 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-114 ((this vehicle) (arg0 int))
+  0
+  (none)
+  )
+
+;; og:preserve-this the rest of this object is omitted rather than
+;; landed. Methods 101 and 113 of vehicle and the free function
+;; vehicle-draw-thruster each fail early (ops 31, 686 and 77
+;; respectively) and decode as a large the-as-none raw-offset fallback
+;; (roughly 3,340 of this file's 3,495 raw-decode lines combined); none
+;; of the three isolates to a small, fixable defect. New discoveries,
+;; not in either the wvehicle-small-tier or rigid-body-object rung's
+;; held-item lists; sized like their own rung rather than a hold-and-
+;; note here. Re-derive from the framework's own dump (offline-test -f
+;; vehicle-effects -d) once the root cause is found.
