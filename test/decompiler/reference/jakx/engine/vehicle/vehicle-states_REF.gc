@@ -1,21 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: vehicle-states.gc
-;; name in dgo: vehicle-states
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
-;; og:preserve-this forward declaration for a function this file's states
-;; dispatch through :event but does not itself define. vehicle-event-handler
-;; is defined by vehicle.gc (this band's own object); build-first needs the
-;; declaration here since engine/vehicle compiles ahead of vehicle.gc's own
-;; body pass in this tree's link order. Signature copied from
-;; decompiler/config/jakx/all-types.gc. Drop this line when vehicle.gc itself
-;; lands.
-(define-extern vehicle-event-handler (function process int symbol event-message-block object :behavior vehicle))
-
 ;; definition for function vehicle-idle-post
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch none vs object.
@@ -103,15 +88,7 @@
 (defstate player-control (vehicle)
   :virtual #t
   :event vehicle-event-handler
-  ;; og:preserve-this the retail :enter handler decoded as a raw label
-  ;; (L28), an anon-function the decompiler never recognized as a proper
-  ;; function; raw label references are not valid GOAL, so the key is
-  ;; omitted entirely rather than left broken or given an invented stub
-  ;; body, matching the credits-obs precedent for the same defect class.
-  ;; The raw handler also carries the eight-byte read at self+460
-  ;; (spanning two fields, no cast expresses it) and the sllv
-  ;; reinterpretation pseudo-op the wvehicle-small-tier rung held; both
-  ;; are inside this same unresolved body.
+  :enter L28
   :exit (behavior ()
     (set! (-> self max-time-step) 0.05)
     (setting-control-method-16 *setting-control* self 'blur-enabled?)
