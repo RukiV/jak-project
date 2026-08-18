@@ -1009,5 +1009,58 @@
   // op 22-25 passes gp+0 as a vector-!2 destination (rigid-body-impact's
   // own point field at offset 0); "Failed to guess stack use for 16" on
   // its own.
-  "(method 25 rigid-body-control)": [[16, "rigid-body-impact"]]
+  "(method 25 rigid-body-control)": [[16, "rigid-body-impact"]],
+  // visvol-edit rung: sp+16 in (method 10 visvol-edit-info) is a stack
+  // vector4, filled by three sequential swc1 float stores at +0/+4/+8 (a
+  // sampled world-position xyz) plus a constant 1.0 at +12, then read back
+  // as a single lqc2 for a vadd.xyz against the entity's own res-lump
+  // vector; "Failed to guess stack use for 16" on its own. The same shape
+  // repeats at sp+32 a few ops later (a second entity lookup, same
+  // vadd.xyz pattern) and does not resolve on its own once sp+16 is
+  // declared; "Failed to guess stack use for 32" instead.
+  "(method 10 visvol-edit-info)": [
+    [16, "vector"],
+    [32, "vector"]
+  ],
+  // (method 18 hud-indicator), hud-player-indicators rung: sp+16 is a
+  // vector scratch, passed as vector-vector-distance-squared's own second
+  // arg (camera-pos's own return) against this indicator's own target-
+  // position (gp+60), then its own x/z components (offsets 4/8) are read
+  // back as floats for a screen-space projection a few ops later; the raw
+  // stack address's own type never resolved on its own ("Failed to guess
+  // stack use for 16").
+  "(method 18 hud-indicator)": [[16, "vector"]],
+  // (method 19 hud-points-icon), hud-widgets-3 rung: sp+16 is filled with
+  // a (pointer process) at +8 (self's own handle-adjacent field, offset
+  // 28), an int 1 at +68, the 'kill-hud symbol at +64 and a zeroed
+  // uint64 at +16, then passed straight to send-event-function; the raw
+  // stack address's own type never resolved on its own ("Failed to guess
+  // stack use for 16"), the same event-message-block shape already fixed
+  // on (event active movie-path) and (method 10 race-state).
+  "(method 19 hud-points-icon)": [[16, "event-message-block"]],
+  // create-points-icon, hud-widgets-3 rung: sp+16 and sp+32 are each a
+  // vector scratch, quad-copied from arg0's own root/trans and (when
+  // present) arg2, then threaded through to send-event-function as
+  // event-message-block params; the raw stack address's own type never
+  // resolved on its own ("Failed to guess stack use for 16").
+  "create-points-icon": [[16, "vector"], [32, "vector"]],
+  // create-points-icon-from-screen-pos, hud-widgets-3 rung: sp+16 is a
+  // vector scratch, either quad-copied from arg2 (when present) or filled
+  // by set-to-upper-right (both branches feed the same slot, matching
+  // that function's own vector arg0); the raw stack address's own type
+  // never resolved on its own ("Failed to guess stack use for 16").
+  "create-points-icon-from-screen-pos": [[16, "vector"]],
+  // (method 19 hud-medal-results), hud-results rung: sp+16 is filled with
+  // a (pointer process) at +8 (self's own handle-adjacent field, offset
+  // 28), an int 0 at +68, the 'suppress-end-of-game symbol at +64, then
+  // passed straight to send-event-function; the raw stack address's own
+  // type never resolved on its own ("Failed to guess stack use for 16"),
+  // the same event-message-block shape already fixed elsewhere.
+  "(method 19 hud-medal-results)": [[16, "event-message-block"]],
+  // (method 19 hud-results), hud-results rung: sp+16 is the same
+  // event-message-block shape as (method 19 hud-medal-results) above.
+  "(method 19 hud-results)": [[16, "event-message-block"]],
+  // (method 19 hud-team-score-results), hud-results rung: sp+16 is the same
+  // event-message-block shape as (method 19 hud-medal-results) above.
+  "(method 19 hud-team-score-results)": [[16, "event-message-block"]]
 }

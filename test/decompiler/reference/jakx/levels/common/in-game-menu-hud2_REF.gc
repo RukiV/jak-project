@@ -1,142 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: in-game-menu-hud2.gc
-;; name in dgo: in-game-menu-hud2
-;; dgos: COMMON, GAME
-
-;; og:preserve-this in-game-menu-hud2 rung: in-game-menu-hud and
-;; in-game-menu-hud-options's own home is in-game-menu-hud.gc, still
-;; unlanded this rung (its own decode carries two open blockers: a raw
-;; type-registration blob at top-level-login that the decompiler cannot
-;; guess a label use for, and a hand-inlined handle->process check in
-;; in-game-menu-allowed? that prints as unsupported pseudo-ops, the same
-;; class jakx's rigid-body-debug.gc already documents). Several of this
-;; file's own methods dispatch on these two types, so they are forward-
-;; declared here; when in-game-menu-hud.gc lands, its own deftype forms
-;; for these two types should be dropped in favor of these to avoid a
-;; duplicate-definition throw.
-(deftype in-game-menu-hud (hud-item-group)
-  ((start-time      uint64)
-   (selection-index int8)
-   (old-clock-ratio float 22)
-   (sound-id        uint32)
-   )
-  (:methods
-    (in-game-menu-hud-method-24 (_type_) none)
-    (in-game-menu-hud-method-25 (_type_) none)
-    )
-  )
-
-(deftype in-game-menu-hud-options (in-game-menu-hud)
-  ()
-  )
-
-(deftype hud-bar-slider (hud-item-group)
-  ()
-  (:methods
-    (hud-bar-slider-method-24 (_type_ float) none)
-    )
-  )
-
-;; og:preserve-this in-game-menu-hud2 rung: *in-game-menu-struct* and its
-;; own type are also homed in in-game-menu-hud.gc, populated there via a
-;; runtime (method-set! ...) top-level form rather than a static instance,
-;; so it cannot simply be dropped into this file's own static data; forward
-;; declared for the same open-blocker reason as the two deftypes above.
-(deftype in-game-menu-struct (structure)
-  ((last-selection-index int8)
-   (confirmation-sym     basic)
-   )
-  (:methods
-    (in-game-menu-struct-method-9 (_type_) none)
-    )
-  )
-(define-extern *in-game-menu-struct* in-game-menu-struct)
-
-;; og:preserve-this in-game-menu-hud2 rung: quit-game-stats-update homes to
-;; net-game-mgr.gc and suppress-look-start homes to wvehicle-util.gc, both
-;; entirely outside this band and still unlanded, so both symbols link as 0
-;; until they land. Their three call sites below gained a (nonzero? ...)
-;; runtime-link guard matching the vehicle-manager-start precedent in
-;; jakx-init.gc.
-(define-extern quit-game-stats-update (function object))
-(define-extern suppress-look-start (function object))
-
-;; og:preserve-this in-game-menu-hud2 rung: stat-info and
-;; *net-player-ladder-stats-info* home to a different unlanded file (jakx
-;; eng-util wave evidence, all-types.gc's own comment), forward declared
-;; here for the same reason as the types above; this file's own use is a
-;; single constant-index pointer read, (-> *net-player-ladder-stats-info*
-;; 3).
-(deftype stat-info (structure)
-  ((text-id      uint32)
-   (taskname     basic)
-   (name         basic)
-   (offset       int32)
-   (tp           uint64)
-   (scale        float)
-   (format-scale float)
-   (flags        uint64)
-   (init         int32)
-   (min-div      int32)
-   )
-  (:methods
-    (stat-info-method-9 (_type_ int string symbol) none)
-    (stat-info-method-10 (_type_ int string symbol) symbol)
-    (stat-info-method-11 (_type_ int float) symbol)
-    (stat-info-method-12 (_type_ int float) symbol)
-    (stat-info-method-13 (_type_ int stat-info stat-info) symbol)
-    (stat-info-method-14 (_type_ object) none)
-    )
-  )
-(define-extern *net-player-ladder-stats-info* (pointer stat-info))
-
-;; og:preserve-this in-game-menu-hud2 rung: *medius-my-player*'s own type
-;; (medius-cached-info-player, a multiplayer lobby record entirely outside
-;; this band) is not landed anywhere in goal_src; this file's own use is
-;; raw pointer arithmetic feeding a method call argument, not a named
-;; field access, so the global stays typed object and the read is a raw
-;; byte pointer cast at its call site (same class as (method 19
-;; in-game-menu-hud)'s own op 427, tracked separately in that unlanded
-;; file).
-(define-extern *medius-my-player* object)
-
-;; og:preserve-this in-game-menu-hud2 rung: spawn-hud-in-game-menu homes to
-;; in-game-menu-hud.gc, still unlanded this rung (its own decode carries
-;; two open blockers, tracked in that file's own comments), so the symbol
-;; links as 0 until it lands. Its one call site below gained a (nonzero?
-;; ...) runtime-link guard matching the vehicle-manager-start precedent in
-;; jakx-init.gc.
-(define-extern spawn-hud-in-game-menu (function object))
-
-;; og:preserve-this in-game-menu-hud2 rung: in-game-menu-on?'s own body
-;; (this file, DECOMP BEGINS below) checks nine more *-proc* globals whose
-;; owning types home to in-game-menu-hud.gc, still unlanded; forward
-;; declared as object, matching their own untyped provisional declaration
-;; in all-types.gc, since only truthiness is ever tested here.
-(define-extern *hud-in-game-menu-view-0-proc* object)
-(define-extern *hud-in-game-menu-view-1-proc* object)
-(define-extern *hud-in-game-menu-view-2-proc* object)
-(define-extern *hud-in-game-menu-view-shared-0-proc* object)
-;; *hud-in-game-menu-view-shared-1-proc* and -2-proc* are already typed to
-;; their own concrete types in all-types.gc (a previous rung's real
-;; evidence), so those two forward-declare their owning types too rather
-;; than a bare object placeholder, to avoid a define-extern retype throw.
-(deftype hud-in-game-menu-view-shared-1 (in-game-hud)
-  ()
-  )
-(define-extern *hud-in-game-menu-view-shared-1-proc* hud-in-game-menu-view-shared-1)
-(deftype hud-in-game-menu-view-shared-2 (in-game-hud)
-  ()
-  )
-(define-extern *hud-in-game-menu-view-shared-2-proc* hud-in-game-menu-view-shared-2)
-(define-extern *hud-in-game-menu-networked-view-0-proc* object)
-(define-extern *hud-in-game-menu-networked-view-1-proc* object)
-(define-extern *hud-in-game-menu-networked-view-2-proc* object)
-
-;; DECOMP BEGINS
-
 ;; definition for symbol *hud-in-game-menu-options-view-0*, type (array hud-item)
 (define *hud-in-game-menu-options-view-0*
   (new 'static 'boxed-array :type hud-item (new 'static 'in-game-menu-hud-options
@@ -571,17 +435,13 @@
                                            )
   )
 
+;; definition for symbol *hud-in-game-menu-options-view-0-proc*, type hud-in-game-menu-options-view-0
+(define *hud-in-game-menu-options-view-0-proc* (the-as hud-in-game-menu-options-view-0 #f))
+
 ;; definition of type hud-in-game-menu-options-view-0
-;; og:preserve-this in-game-menu-hud2 rung: this deftype is moved ahead of
-;; *hud-in-game-menu-options-view-0-proc*'s own definition, which the raw
-;; decode prints first even though it references this type; GOAL requires
-;; the type to be known before that use.
 (deftype hud-in-game-menu-options-view-0 (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-in-game-menu-options-view-0-proc*, type hud-in-game-menu-options-view-0
-(define *hud-in-game-menu-options-view-0-proc* (the-as hud-in-game-menu-options-view-0 #f))
 
 ;; definition for method 3 of type hud-in-game-menu-options-view-0
 (defmethod inspect ((this hud-in-game-menu-options-view-0))
@@ -1127,15 +987,13 @@
                                            )
   )
 
+;; definition for symbol *hud-in-game-menu-options-view-1-proc*, type hud-in-game-menu-options-view-1
+(define *hud-in-game-menu-options-view-1-proc* (the-as hud-in-game-menu-options-view-1 #f))
+
 ;; definition of type hud-in-game-menu-options-view-1
-;; og:preserve-this in-game-menu-hud2 rung: same reordering as
-;; hud-in-game-menu-options-view-0 above.
 (deftype hud-in-game-menu-options-view-1 (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-in-game-menu-options-view-1-proc*, type hud-in-game-menu-options-view-1
-(define *hud-in-game-menu-options-view-1-proc* (the-as hud-in-game-menu-options-view-1 #f))
 
 ;; definition for method 3 of type hud-in-game-menu-options-view-1
 (defmethod inspect ((this hud-in-game-menu-options-view-1))
@@ -1681,15 +1539,13 @@
                                            )
   )
 
+;; definition for symbol *hud-in-game-menu-options-view-2-proc*, type hud-in-game-menu-options-view-2
+(define *hud-in-game-menu-options-view-2-proc* (the-as hud-in-game-menu-options-view-2 #f))
+
 ;; definition of type hud-in-game-menu-options-view-2
-;; og:preserve-this in-game-menu-hud2 rung: same reordering as
-;; hud-in-game-menu-options-view-0 above.
 (deftype hud-in-game-menu-options-view-2 (in-game-hud)
   ()
   )
-
-;; definition for symbol *hud-in-game-menu-options-view-2-proc*, type hud-in-game-menu-options-view-2
-(define *hud-in-game-menu-options-view-2-proc* (the-as hud-in-game-menu-options-view-2 #f))
 
 ;; definition for method 3 of type hud-in-game-menu-options-view-2
 (defmethod inspect ((this hud-in-game-menu-options-view-2))
@@ -1910,22 +1766,13 @@
                (set! *master-exit* 'force)
                )
               (else
-                (if (nonzero? quit-game-stats-update)
-                    (quit-game-stats-update)
-                    )
+                (quit-game-stats-update)
                 (send-event *net-mgr* 'quit-game)
-                ;; og:preserve-this in-game-menu-hud2 rung: *net-game-mgr*'s
-                ;; own type (net-game-mgr, a 0x130-byte, 37-new-method
-                ;; multiplayer game-mode manager entirely outside this
-                ;; band) is not landed anywhere in goal_src; both reads of
-                ;; its intro-end-time field below (declared offset 224) are
-                ;; rewritten as raw offset pointer reads rather than
-                ;; forward-declaring the unlanded type for two field reads.
                 (if (and (< 1500 (cond
                                    ((not *net-game-mgr*)
                                     0
                                     )
-                                   ((< (-> (the-as (pointer int32) (&+ *net-game-mgr* 224)) 0) 0)
+                                   ((< (-> *net-game-mgr* intro-end-time) 0)
                                     0
                                     )
                                    (else
@@ -1943,7 +1790,7 @@
                                                       0
                                                       )
                                                   )
-                                               (-> (the-as (pointer int32) (&+ *net-game-mgr* 224)) 0)
+                                               (-> *net-game-mgr* intro-end-time)
                                                )
                                           )
                                      )
@@ -1990,9 +1837,7 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
        (in-game-menu-hud-method-25 this)
-       (if (and (handle->process (-> *game-info* player-info (view-get-active-index) vehicle))
-                (nonzero? suppress-look-start)
-                )
+       (if (handle->process (-> *game-info* player-info (view-get-active-index) vehicle))
            (suppress-look-start)
            )
        (deactivate *current-hud*)
@@ -2005,15 +1850,10 @@
       (set! (-> this selection-index) 0)
       0
       )
-    ;; og:preserve-this in-game-menu-hud2 rung: this items s4-25's dynamic
-    ;; index defeats the decompiler's own the-as insertion (it only fires
-    ;; for constant indices), even though its type_casts-driven analysis
-    ;; already resolved the method name correctly; the raw form does not
-    ;; compile without the explicit cast added here.
     (dotimes (s4-25 s5-0)
-      (hud-item-string-method-27 (the-as hud-item-string (-> this items s4-25)) 52)
+      (hud-item-string-method-27 (-> this items s4-25) 52)
       (if (= s4-25 (-> this selection-index))
-          (hud-item-string-method-27 (the-as hud-item-string (-> this items s4-25)) 51)
+          (hud-item-string-method-27 (-> this items s4-25) 51)
           )
       )
     )
@@ -2197,13 +2037,9 @@
              )
            )
          )
-       (if (nonzero? spawn-hud-in-game-menu)
-           (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu))))
-           )
+       (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu))))
        (set! (-> *in-game-menu-struct* last-selection-index) (-> this selection-index))
-       (if (and (handle->process (-> *game-info* player-info (view-get-active-index) vehicle))
-                (nonzero? suppress-look-start)
-                )
+       (if (handle->process (-> *game-info* player-info (view-get-active-index) vehicle))
            (suppress-look-start)
            )
        (deactivate *current-hud*)
@@ -2224,14 +2060,14 @@
              (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                    (the-as uint 16)
                    )
-             (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
+             (hud-item-string-method-25 (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1) 16)
              )
             (else
               (set! (-> *setting-control* user-default unknown-usd-8) (the-as basic #t))
               (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                     (the-as uint 15)
                     )
-              (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
+              (hud-item-string-method-25 (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1) 15)
               )
             )
           (let ((v1-237 (make-sound-instance (-> *sound-info* 348) (new 'static 'sound-id) (the-as handle #f))))
@@ -2264,14 +2100,14 @@
              (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                    (the-as uint 16)
                    )
-             (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
+             (hud-item-string-method-25 (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1) 16)
              )
             (else
               (set! (-> *setting-control* user-default unknown-usd-3) (the-as basic #t))
               (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                     (the-as uint 15)
                     )
-              (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
+              (hud-item-string-method-25 (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1) 15)
               )
             )
           (let ((v1-303 (make-sound-instance (-> *sound-info* 348) (new 'static 'sound-id) (the-as handle #f))))
@@ -2304,14 +2140,14 @@
              (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                    (the-as uint 16)
                    )
-             (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
+             (hud-item-string-method-25 (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1) 16)
              )
             (else
               (set! (-> *setting-control* user-default unknown-usd-6) (the-as basic #t))
               (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                     (the-as uint 15)
                     )
-              (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
+              (hud-item-string-method-25 (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1) 15)
               )
             )
           (let ((v1-369 (make-sound-instance (-> *sound-info* 348) (new 'static 'sound-id) (the-as handle #f))))
@@ -2344,14 +2180,14 @@
              (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                    (the-as uint 16)
                    )
-             (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
+             (hud-item-string-method-25 (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1) 16)
              )
             (else
               (set! (-> *setting-control* user-default unknown-usd-7) (the-as basic #t))
               (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                     (the-as uint 15)
                     )
-              (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
+              (hud-item-string-method-25 (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1) 15)
               )
             )
           (let ((v1-435 (make-sound-instance (-> *sound-info* 348) (new 'static 'sound-id) (the-as handle #f))))
@@ -2380,9 +2216,9 @@
       0
       )
     (dotimes (s4-57 (-> s5-0 length))
-      (hud-item-string-method-27 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 s4-57)) items 0)) 52)
+      (hud-item-string-method-27 (-> (the-as hud-item-group (-> s5-0 s4-57)) items 0) 52)
       (if (= s4-57 (-> this selection-index))
-          (hud-item-string-method-27 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 s4-57)) items 0)) 51)
+          (hud-item-string-method-27 (-> (the-as hud-item-group (-> s5-0 s4-57)) items 0) 51)
           )
       )
     )
@@ -2395,9 +2231,9 @@
   (set! (-> *setting-control* user-default music-volume)
         (fmax 0.0 (fmin 1.0 (-> *setting-control* user-default music-volume)))
         )
-  (hud-item-string-method-24 (the-as hud-item-string (-> this items 0)) (-> *setting-control* user-default sfx-volume))
-  (hud-item-string-method-24 (the-as hud-item-string (-> this items 1)) (-> *setting-control* user-default dialog-volume))
-  (hud-item-string-method-24 (the-as hud-item-string (-> this items 2)) (-> *setting-control* user-default music-volume))
+  (hud-item-string-method-24 (-> this items 0) (-> *setting-control* user-default sfx-volume))
+  (hud-item-string-method-24 (-> this items 1) (-> *setting-control* user-default dialog-volume))
+  (hud-item-string-method-24 (-> this items 2) (-> *setting-control* user-default music-volume))
   ((method-of-type hud-item-group hud-item-method-19) this)
   (none)
   )
@@ -2492,14 +2328,77 @@
   (none)
   )
 
-;; og:preserve-this bring-up stub (#115): this object is the retail home of
-;; in-game-menu-startup (only it and the caller main.o reference the symbol).
-;; The real body spawns the in-game menu process; a no-op is safe because
-;; set-master-mode's ('progress) branch then sees (not *in-game-menu-process*)
-;; and bounces master-mode back to 'game. Without this the symbol linked 0 and
-;; the same pause path as #115's menu-respond-to-pause crashed goal-0. Retires
-;; with the menu leg (#98).
+;; definition for function in-game-menu-startup
+;; WARN: Return type mismatch int vs none.
 (defun in-game-menu-startup ()
+  (when (in-game-menu-allowed?)
+    (if *in-game-menu-process*
+        (deactivate (-> *in-game-menu-process* 0))
+        )
+    (set! (-> *in-game-menu-struct* last-selection-index) 0)
+    (cond
+      ((= (-> *net-mgr* game-type) 4)
+       (view-push-context (cond
+                            ((logtest? (-> *cpad-list* cpads 0 valid) 128)
+                             0
+                             )
+                            ((cpad-pressed? 0 start)
+                             0
+                             )
+                            ((cpad-pressed? 1 start)
+                             1
+                             )
+                            ((logtest? (-> *cpad-list* cpads 1 valid) 128)
+                             1
+                             )
+                            (else
+                              0
+                              )
+                            )
+                          )
+       (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
+       (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
+       (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu))))
+       (view-pop-context)
+       )
+      (else
+        (set-master-mode 'game)
+        (view-push-context (cond
+                             ((logtest? (-> *cpad-list* cpads 0 valid) 128)
+                              0
+                              )
+                             ((cpad-pressed? 0 start)
+                              0
+                              )
+                             ((cpad-pressed? 1 start)
+                              1
+                              )
+                             ((logtest? (-> *cpad-list* cpads 1 valid) 128)
+                              1
+                              )
+                             (else
+                               0
+                               )
+                             )
+                           )
+        (case (if *net-world*
+                  (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
+                  18
+                  )
+          ((3)
+           (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu))))
+           )
+          (else
+            (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu-networked))))
+            )
+          )
+        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
+        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
+        (view-pop-context)
+        )
+      )
+    )
+  0
   (none)
   )
 

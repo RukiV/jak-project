@@ -29,7 +29,6 @@ written is read-only by design and not a finding.
 | symbol | reading files | switch commented in |
 |---|---:|---|
 | `*jakx-boot-task*` | 2 | `goal_src/jakx/engine/level/level-h.gc` |
-| `*master-exit*` | 2 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-bug-report*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-level-border*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-scene-control*` | 1 | `goal_src/jakx/engine/game/main.gc` |
@@ -38,7 +37,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (190)
+### Never written (188)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -49,6 +48,7 @@ written is read-only by design and not a finding.
 | `*display-entity-errors*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-path-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-vol-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*game-mode*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*music-lock*` | 2 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*settings-dialog-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
@@ -96,7 +96,6 @@ written is read-only by design and not a finding.
 | `*display-actor-graph*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-actor-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-actor-pointer*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-actor-vis*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-ai-tuning*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-art-control*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-battle-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -148,13 +147,11 @@ written is read-only by design and not a finding.
 | `*display-trail-graph*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-tri-stats*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-water-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-xyz-axes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*dma-disasm*` | 1 | `goal_src/jakx/engine/dma/dma-disasm.gc` |
 | `*dnas-is-running*` | 1 | `goal_src/jakx/engine/sound/gsound.gc` |
 | `*draw-debug-boxes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*execute-regions*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*first-boot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*game-mode*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*generate-actor-vis*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
 | `*generate-actor-vis-output*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
 | `*generate-actor-vis-start*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |

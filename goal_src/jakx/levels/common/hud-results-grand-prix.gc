@@ -79,7 +79,7 @@
   :size-assert         #x44
   :flag-assert         #x1900000044
   (:methods
-    (hud-medal-results-method-24 () none) ;; 24
+    (hud-medal-results-method-24 (_type_ object float) none) ;; 24
     )
   )
 
@@ -174,10 +174,19 @@
   :flag-assert         #xf00000034
   )
 
+;; og:preserve-this hud-widgets-2 rung: fade-out-on retyped basic -> symbol,
+;; matching the same fix landed against this same type in
+;; decompiler/config/jakx/all-types.gc this rung. hud-widgets-2_ir2.asm's
+;; static hud-effect-fade instances (the death-indicator-view-N family's own
+;; effect lists) store a real symbol ('exit/'enter) at this exact offset, and
+;; jakx's own symbol type derives from object directly, not from basic, so a
+;; basic-typed field cannot hold a SYM_PTR; kept in sync here so this file's
+;; own hud-effect-fade static instances still typecheck against the same
+;; layout hud-effects.gc will eventually land for real.
 (deftype hud-effect-fade (hud-effect)
   ((fade-time   float  :offset-assert 28)
    (start-time  int32  :offset-assert 32)
-   (fade-out-on basic  :offset-assert 36)
+   (fade-out-on symbol :offset-assert 36)
    )
   :method-count-assert 15
   :size-assert         #x28
@@ -227,6 +236,19 @@
   (:methods
     (hud-player-icon-method-24 (_type_ object) none) ;; 24
     )
+  )
+
+;; og:preserve-this hud-widgets-2 rung: hud-player-icon-name forward-declared
+;; here alongside its own hud-player-icon base above, for the same reason;
+;; hud-widgets-2.gc's own static death-indicator-view-N item arrays
+;; (hud-widgets-2_ir2.asm) construct real hud-player-icon-name instances, but
+;; its retail type-new call, like hud-player-icon's own, lives in
+;; hud-widgets.gc. Retire alongside hud-player-icon once hud-widgets.gc lands.
+(deftype hud-player-icon-name (hud-player-icon)
+  ()
+  :method-count-assert 25
+  :size-assert         #x30
+  :flag-assert         #x1900000030
   )
 
 (deftype hud-localized-string (hud-item-string)

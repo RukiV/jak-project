@@ -7,3 +7,332 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this runtime-link extern: are-we-in-time-trial-mode? has no
+;; landed home file yet (all-types.gc places it near an unlanded net-game
+;; awards section); dirty-eyes calls it with zero args, result checked for
+;; truthiness, matching cam-interface.gc's own entity-by-name precedent.
+(define-extern are-we-in-time-trial-mode? (function symbol))
+
+;; definition for symbol *eye-work*, type eye-work
+(define *eye-work* (new 'static 'eye-work
+                     :sprite-tmpl (new 'static 'dma-gif-packet
+                       :dma-vif (new 'static 'dma-packet
+                         :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                         :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                         )
+                       :gif (new 'static 'array uint64 2 #x508b400000008001 #x53531)
+                       )
+                     :sprite-tmpl2 (new 'static 'dma-gif-packet
+                       :dma-vif (new 'static 'dma-packet
+                         :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                         :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                         )
+                       :gif (new 'static 'array uint64 2 #x50ab400000008001 #x53531)
+                       )
+                     :adgif-tmpl (new 'static 'dma-gif-packet
+                       :dma-vif (new 'static 'dma-packet
+                         :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                         :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                         )
+                       :gif (new 'static 'array uint64 2 #x1000000000008005 #xe)
+                       )
+                     :blink-table (new 'static 'array float 10 0.0 0.667 0.9 1.0 1.0 1.0 1.0 0.333 0.1 0.0)
+                     )
+        )
+
+;; definition for function find-free-eye-index
+;; ERROR: function was not converted to expressions. Cannot decompile.
+
+;; definition for function free-eye-index
+(defun free-eye-index ((arg0 int))
+  (when (< arg0 32)
+    (let ((v1-4 (-> *eye-control-array* data arg0)))
+      (set! (-> v1-4 process) (the-as uint #f))
+      (set! (-> v1-4 random-time) (the-as uint 60))
+      (set! (-> v1-4 blink) 0.0)
+      (set! (-> v1-4 shaders) (the-as (inline-array adgif-shader) #f))
+      (set! (-> v1-4 level-index) -1)
+      (set! (-> v1-4 high-res?) #f)
+      (set! (-> v1-4 art-group-name 3) (the-as uint 0))
+      (dotimes (a0-4 2)
+        (set! (-> v1-4 eyes a0-4 shader-count) (the-as uint 0))
+        (dotimes (a1-3 8)
+          (set! (-> (the-as eye-control (+ (+ (* a1-3 4) (* 80 a0-4)) (the-as int v1-4))) left shader 0) #f)
+          )
+        )
+      )
+    )
+  0
+  )
+
+;; definition for function render-eyes-32
+;; ERROR: function was not converted to expressions. Cannot decompile.
+;;
+;; og:preserve-this: render-eyes-32's own decode is otherwise clean but the
+;; dma-buffer base-field walk (a1 = arg0; (l.wu (+ a1 4)), the &+! 112
+;; macro this file's own working blocks use elsewhere) loses its type at
+;; its third within-block repeat (op 475), degrading every later use of
+;; the same pattern (12+ sites) to raw MIPS fallback forms (l.wu, sll,
+;; the-as none) that are not valid GOAL and will not compile. Config
+;; casts were tried at that one op (decompiler/config/jakx/ntsc_v1/
+;; type_casts.jsonc, the render-eyes-64/32 op 476 entries) and reverted:
+;; retyping a1 to dma-buffer there clears this error but cascades into
+;; roughly 100 new "Failed store" errors through the rest of the
+;; function. Held un-landed until the root cause of the op-475 break is
+;; found; the raw decode is preserved in the REF file for reference.
+
+;; definition for function render-eyes-64
+;; ERROR: function was not converted to expressions. Cannot decompile.
+;;
+;; og:preserve-this: render-eyes-64's own decode is otherwise clean but the
+;; dma-buffer base-field walk (a1 = arg0; (l.wu (+ a1 4)), the &+! 112
+;; macro this file's own working blocks use elsewhere) loses its type at
+;; its third within-block repeat (op 475), degrading every later use of
+;; the same pattern (12+ sites) to raw MIPS fallback forms (l.wu, sll,
+;; the-as none) that are not valid GOAL and will not compile. Config
+;; casts were tried at that one op (decompiler/config/jakx/ntsc_v1/
+;; type_casts.jsonc, the render-eyes-64/32 op 476 entries) and reverted:
+;; retyping a1 to dma-buffer there clears this error but cascades into
+;; roughly 100 new "Failed store" errors through the rest of the
+;; function. Held un-landed until the root cause of the op-475 break is
+;; found; the raw decode is preserved in the REF file for reference.
+
+;; definition for function dirty-eyes
+;; WARN: Return type mismatch int vs none.
+;; WARN: .subu (32-bit) used on a uint at idx 13. This probably should be a handle.
+;; WARN: Function dirty-eyes has a return type of none, but the expression builder found a return statement.
+(defun dirty-eyes ()
+  (if (zero? are-we-in-time-trial-mode?)
+      (return #f)
+      )
+  (dotimes (gp-0 32)
+    (let* ((s5-0 (-> *eye-control-array* data gp-0))
+           ;; og:preserve-this hand-fold: the decompiler only half-recognizes
+           ;; this handle deref (it emits the raw .asm.sllv.r0 / pid-check
+           ;; triple, which goalc cannot compile); the triple is exactly
+           ;; handle->process, matching generic-obs.gc's own manipy 'mirror
+           ;; hand-fold and visvol-edit.gc's (trans idle visvol-editor) for
+           ;; the identical gap.
+           (s4-0 (the-as process-drawable (handle->process (the-as handle (-> s5-0 process)))))
+           )
+      (when (or (are-we-in-time-trial-mode?) (and s4-0
+                                                  (logtest? (-> s4-0 skel status) (joint-control-status eye-anim))
+                                                  (logtest? (-> s4-0 draw status) (draw-control-status on-screen))
+                                                  )
+                )
+        (when (-> s5-0 shaders)
+          (if (-> s5-0 high-res?)
+              (set-dirty-mask!
+                (-> *level* level (-> s5-0 level-index))
+                (the-as int (-> s5-0 level-texture-page))
+                #x8000
+                (* (-> s5-0 left tbp) 256)
+                )
+              (set-dirty-mask!
+                (-> *level* level (-> s5-0 level-index))
+                (the-as int (-> s5-0 level-texture-page))
+                8192
+                (* (-> s5-0 left tbp) 256)
+                )
+              )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for function update-eyes
+;; og:preserve-this: update-eyes itself decodes clean (the handle->process
+;; deref is the same hand-foldable sllv gap dirty-eyes above already
+;; resolves; only WARNs otherwise), but it calls render-eyes-32 and
+;; render-eyes-64, both held above with no landed body. Landing
+;; update-eyes with a real definition would satisfy drawable.gc's own
+;; forward extern and flip its "(if (nonzero? update-eyes) (update-eyes))"
+;; runtime-link guard live (AGENTS.md rule 5: landing a function activates
+;; its guarded callers), crashing on the first frame that calls an
+;; unlanded render-eyes-32/64. Held un-landed alongside them so that guard
+;; stays dark exactly as it is today; the raw decode is preserved in the
+;; REF file for reference.
+
+;; definition for function convert-eye-data
+;; og:preserve-this function convert-eye-data is deferred, not landed. Its
+;; own decode is otherwise clean (identical, line for line, to jak1's own
+;; landed goal_src/jak1/engine/gfx/foreground/eye.gc convert-eye-data), but
+;; (mi) rejects it: vitof15.xyzw fails with "No method or function named
+;; vitof15.xyzw for type object", the exact class collide-hash.gc's own
+;; collide-list-fill-bg-using-box hits and documents (this file, that
+;; comment above): some vf register in the printed VU macro block is
+;; missing its rlet :class vf declaration for jakx's compile environment
+;; specifically, even though both vf1 and vf2 are declared here; a real
+;; compile-time gap the decompiler does not flag as a decode error.
+;; Declared as a bare extern instead so merc-eye-anim below (itself clean)
+;; can still compile and call it by name; calling it links to zero at
+;; runtime until this is resolved (AGENTS.md rule 5). merc-eye-anim's own
+;; two call sites are already live today with no extern at all reachable
+;; before this rung (generic-obs.gc calls it unguarded, process-drawable.gc
+;; guards on merc-eye-anim itself being nonzero), so this landing does not
+;; newly expose a path that was safe before.
+;;   (defun convert-eye-data ((arg0 eye) (arg1 uint))
+;;     (local-vars
+;;       (v0-0 float)
+;;       (v1-0 uint128)
+;;       (v1-1 uint128)
+;;       (v1-2 uint128)
+;;       (v1-3 uint128)
+;;       (v1-4 uint128)
+;;       (v1-5 uint128)
+;;       )
+;;     (rlet ((vf1 :class vf)
+;;            (vf2 :class vf)
+;;            )
+;;       (.pextlb v1-0 arg1 0)
+;;       (.pextlh v1-1 v1-0 0)
+;;       (.pw.sra v1-2 v1-1 16)
+;;       (.mov vf1 v1-2)
+;;       (.pextlb v1-3 0 arg1)
+;;       (.pextuh v1-4 0 v1-3)
+;;       (.pw.sll v1-5 v1-4 6)
+;;       (.mov vf2 v1-5)
+;;       (vitof15.xyzw vf1 vf1)
+;;       (vitof12.xyzw vf2 vf2)
+;;       (.svf (&-> arg0 data 0 quad) vf1)
+;;       (.svf (&-> arg0 data 1 quad) vf2)
+;;       (.mov v0-0 vf2)
+;;       v0-0
+;;       )
+;;     )
+(define-extern convert-eye-data (function eye uint float))
+
+;; definition for function merc-eye-anim
+;; WARN: Return type mismatch int vs none.
+(defun merc-eye-anim ((arg0 process-drawable))
+  (let* ((v1-2 (-> arg0 draw mgeo header eye-ctrl))
+         (a0-2 (-> arg0 skel float-channels))
+         (s3-0 (cond
+                 ((> a0-2 0)
+                  (-> arg0 skel channel (+ a0-2 -1 (-> arg0 skel active-channels)))
+                  )
+                 (else
+                   (let ((a0-8 (-> arg0 skel root-channel))
+                         (a1-4 (-> arg0 skel effect))
+                         )
+                     (-> a0-8 (if a1-4
+                                  (-> a1-4 channel-offset)
+                                  0
+                                  )
+                         )
+                     )
+                   )
+                 )
+               )
+         (s4-0 (-> s3-0 frame-group))
+         )
+    (when (and (logtest? (-> arg0 skel status) (joint-control-status eye-anim))
+               (and (nonzero? v1-2) (> (-> arg0 skel active-channels) 0) s4-0)
+               )
+      (cond
+        ((and (-> arg0 skel override) (!= (-> arg0 skel override 41) 0.0))
+         (let ((v1-6 (-> *eye-control-array* data (-> v1-2 eye-ctrl-index)))
+               (a0-24 (-> arg0 skel override))
+               )
+           (set! (-> v1-6 left x) (-> a0-24 42))
+           (set! (-> v1-6 left y) (-> a0-24 43))
+           (set! (-> v1-6 left lid) (-> a0-24 44))
+           (set! (-> v1-6 left iris-scale) (-> a0-24 45))
+           (set! (-> v1-6 left pupil-scale) (-> a0-24 46))
+           (set! (-> v1-6 left lid-scale) (-> a0-24 47))
+           (set! (-> v1-6 right x) (-> a0-24 48))
+           (set! (-> v1-6 right y) (-> a0-24 49))
+           (set! (-> v1-6 right lid) (-> a0-24 50))
+           (set! (-> v1-6 right iris-scale) (-> a0-24 51))
+           (set! (-> v1-6 right pupil-scale) (-> a0-24 52))
+           (set! (-> v1-6 right lid-scale) (-> a0-24 53))
+           )
+         (logior! (-> arg0 skel status) (joint-control-status eye-anim-valid))
+         )
+        (else
+          (let* ((s5-0 (-> *eye-control-array* data (-> v1-2 eye-ctrl-index)))
+                 (f0-13 (-> s3-0 frame-num))
+                 (f30-0 (- f0-13 (* (the float (the int (/ f0-13 1.0))) 1.0)))
+                 )
+            (set! (-> s5-0 process) (the-as uint (process->handle arg0)))
+            (set! (-> s5-0 shaders) (-> v1-2 shader))
+            (let ((v1-11 *level*)
+                  (s2-0 (-> arg0 draw))
+                  )
+              (set! (-> s5-0 bucket) (the-as uint (vu1-bucket-map
+                                                    (the-as int (-> v1-11 draw-index-map (-> s2-0 level-index)))
+                                                    (the-as int (-> s2-0 default-texture-page))
+                                                    0
+                                                    (merc-mode texture)
+                                                    )
+                                             )
+                    )
+              (set! (-> s5-0 level-texture-page) (-> s2-0 default-texture-page))
+              )
+            (let ((s2-1 (new 'stack-no-clear 'eye))
+                  (s1-0 (new 'stack-no-clear 'eye))
+                  )
+              (cond
+                ((-> s4-0 eye-anim)
+                 (let ((s0-1 (min (the int (-> s3-0 frame-num)) (-> s4-0 eye-anim max-frame)))
+                       (s3-2 (min (+ (the int (-> s3-0 frame-num)) 1) (-> s4-0 eye-anim max-frame)))
+                       )
+                   (convert-eye-data s2-1 (-> s4-0 eye-anim data (* s0-1 2) dword))
+                   (convert-eye-data s1-0 (-> s4-0 eye-anim data (* s3-2 2) dword))
+                   (vector4-lerp! (the-as vector (-> s5-0 eyes)) (the-as vector (&-> s2-1 x)) (the-as vector (&-> s1-0 x)) f30-0)
+                   (vector4-lerp!
+                     (the-as vector (&-> s5-0 left iris-scale))
+                     (the-as vector (&-> s2-1 iris-scale))
+                     (the-as vector (&-> s1-0 iris-scale))
+                     f30-0
+                     )
+                   (convert-eye-data s2-1 (-> s4-0 eye-anim data (+ (* s0-1 2) 1) dword))
+                   (convert-eye-data s1-0 (-> s4-0 eye-anim data (+ (* s3-2 2) 1) dword))
+                   )
+                 (vector4-lerp!
+                   (the-as vector (-> s5-0 right))
+                   (the-as vector (&-> s2-1 x))
+                   (the-as vector (&-> s1-0 x))
+                   f30-0
+                   )
+                 (vector4-lerp!
+                   (the-as vector (&-> s5-0 right iris-scale))
+                   (the-as vector (&-> s2-1 iris-scale))
+                   (the-as vector (&-> s1-0 iris-scale))
+                   f30-0
+                   )
+                 )
+                (else
+                  (if (not *display-capture-mode*)
+                      (format *stdcon* "no eye anim data for ~s~%" (-> arg0 name))
+                      )
+                  (set! (-> s5-0 left x) 0.0)
+                  (set! (-> s5-0 left y) 0.0)
+                  (set! (-> s5-0 left lid) -1.0)
+                  (set! (-> s5-0 left iris-scale) 0.55)
+                  (set! (-> s5-0 left pupil-scale) 0.45)
+                  (set! (-> s5-0 left lid-scale) 1.0)
+                  (set! (-> s5-0 right x) 0.0)
+                  (set! (-> s5-0 right y) 0.0)
+                  (set! (-> s5-0 right lid) -1.0)
+                  (set! (-> s5-0 right iris-scale) 0.55)
+                  (set! (-> s5-0 right pupil-scale) 0.45)
+                  (set! (-> s5-0 right lid-scale) 1.0)
+                  )
+                )
+              )
+            )
+          (logior! (-> arg0 skel status) (joint-control-status eye-anim-valid))
+          )
+        )
+      )
+    )
+  (if (logtest? (-> arg0 skel status) (joint-control-status eye-anim-valid))
+      (logclear! (-> arg0 skel status) (joint-control-status eye-anim-valid))
+      )
+  0
+  (none)
+  )

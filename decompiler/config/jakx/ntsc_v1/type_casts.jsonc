@@ -180,8 +180,103 @@
   // spawn-hud-headset-talker above (net-world's task-info field, byte read
   // at machine offset 5, declared offset 9 via the +4 basic-tag trap,
   // game-task-node-info's own net-play-mode).
+  // ops 26 and 59 each read a trailing offset (504, 496) on a net-player
+  // (a0-4/a0-10, both cleanly typed at their own load), past its own
+  // :size-assert #x190 (400 bytes); same shape as
+  // display-nice-shot-to-view's own op 101 precedent above (trailing raw
+  // field past net-player's known layout). Cast to a raw int32 pointer, not
+  // float: the machine load itself is a plain lw into a GPR and the
+  // following mtc1 does its own int-bits-to-float reinterpretation, so a
+  // float-typed pointer here double-converts and breaks expression
+  // building instead.
   "(method 14 hud-effect-trigger-score-sound)": [
-    [6, "v1", "game-task-node-info"]
+    [6, "v1", "game-task-node-info"],
+    [26, "a0", "(pointer int32)"],
+    [59, "a0", "(pointer int32)"]
+  ],
+  // medal-instead-of-place?, medal-uses-score?, cup-multiplier,
+  // settings-multiplier (hud-cash rung): identical shape to
+  // spawn-hud-headset-talker above.
+  "medal-instead-of-place?": [
+    [4, "v1", "game-task-node-info"]
+  ],
+  "medal-uses-score?": [
+    [4, "v1", "game-task-node-info"]
+  ],
+  "cup-multiplier": [
+    [19, "v1", "game-task-node-info"]
+  ],
+  "settings-multiplier": [
+    [15, "a1", "game-task-node-info"]
+  ],
+  "(method 19 cash-hud)": [
+    [20, "v1", "game-task-node-info"],
+    [49, "v1", "hud-item-group"],
+    [81, "s2", "hud-item-string"],
+    [93, "s3", "hud-item-string"],
+    [67, "s1", "hud-item-group"],
+    [70, "a0", "hud-item-string"],
+    [107, "v1", "hud-item-group"],
+    [111, "v1", "hud-item-group"]
+  ],
+  // (method 24 hud-cash-stats) (hud-cash rung): this's own items array
+  // (gp+36), index 1, holds a hud-item-group whose own nested items array
+  // is read four times (raw offset 36, the hud-item narrowing to its group
+  // subtype recipe already proven elsewhere in this band), once per
+  // sibling block reading a different index (16/12/12/20) of that nested
+  // group.
+  "(method 24 hud-cash-stats)": [
+    [5, "v1", "hud-item-group"],
+    [9, "v1", "hud-item-group"],
+    [13, "v1", "hud-item-group"],
+    [17, "v1", "hud-item-group"],
+    [21, "s1", "hud-item-string"],
+    [27, "s2", "hud-item-string"],
+    [39, "s0", "hud-item-string"],
+    [49, "a0", "hud-item-string"],
+    [58, "a0", "hud-item-string"],
+    [65, "a0", "hud-item-string"],
+    [74, "a0", "hud-item-string"],
+    [91, "s4", "net-player"],
+    [145, "v1", "game-task-node-info"],
+    [185, "s4", "net-player"],
+    [208, "s4", "net-player"],
+    [223, "s4", "net-player"],
+    [232, "s4", "net-player"],
+    [101, "a0", "hud-item-string"],
+    [108, "a0", "hud-item-string"],
+    [117, "a0", "hud-item-string"],
+    [126, "a0", "hud-item-string"],
+    [133, "a0", "hud-item-string"],
+    [212, "a0", "hud-item-string"],
+    [221, "a0", "hud-item-string"],
+    [230, "a0", "hud-item-string"],
+    [239, "a0", "hud-item-string"],
+    [177, "s3", "hud-item-string"]
+  ],
+  // (method 19 end-menu) (hud-cash rung): same hud-item-string method-27
+  // dispatch recipe, this time on a looped items-array element (index s5,
+  // 0-4) rather than a fixed index.
+  // op 337, a further occurrence of the same slot-27 dispatch on the same
+  // items-array walk, is deliberately NOT cast: adding it alongside op 326
+  // (in any combination tried this rung) regresses an unrelated, earlier
+  // part of the same function (a "method 71 of uint" type error plus a
+  // stack-use guess failure around op 87/121). Left as an open blocker.
+  "(method 19 end-menu)": [
+    [326, "a0", "hud-item-string"]
+  ],
+  // (method 25 hud-cash-stats), (method 9 hud-cash-stats) (hud-cash rung):
+  // same hud-item narrowing recipe; method 25's items-index-2 element and
+  // method 9's items-index-0 element both dispatch a slot only present on
+  // hud-item-string's own 29-slot vtable (112/4 = method 28), and method 9's
+  // stores write raw text-id constants (3822, 2018) matching hud-item-string's
+  // own text-id field (declared offset 44).
+  "(method 25 hud-cash-stats)": [
+    [29, "s5", "hud-item-string"]
+  ],
+  "(method 9 hud-cash-stats)": [
+    [15, "a0", "hud-item-string"],
+    [22, "a0", "hud-item-string"]
   ],
   // (method 13 hud-effect-emit-score-icon): same event-message-block param
   // shape as the hang-time/power-slide method 23 overrides above; here the
@@ -3116,10 +3211,6 @@
     [241, "a0", "(pointer uint128)"],
     [242, "a0", "(pointer uint128)"]
   ],
-  // decomp: the three unpack-comp-* functions update-vis! calls, jak2/jak3's
-  // identical seed (#41), iterate against jakx asm
-  "unpack-comp-rle": [[[10, 26], "a0", "(pointer int8)"]],
-  "unpack-comp-huf": [[[21, 23], "t3", "(pointer uint16)"]],
   // decomp: every wcar's method 100 reads root-prim as a collide-shape-prim-group,
   // not the decompiler's default cast; proven across all 16 wcar objects by a
   // zero-positive-delta full-corpus decode gate. v-panther and v-possum's method
@@ -3878,8 +3969,82 @@
   // the function body; gp holds the value unchanged from op 1 through its
   // last use at op 702, so one range cast covers the whole span. The range
   // upper bound is exclusive (verified empirically: [1, 702] still left op
-  // 702 itself unresolved), hence 703 here
-  "(method 10 visvol-edit-info)": [[[1, 703], "gp", "process-drawable"]],
+  // 702 itself unresolved), hence 703 here.
+  // Same method: s4 (the res-lump-data return for 'visvol, matches jak3's
+  // own (res-lump-data s4-1 'visvol (pointer float)) macro call) is read as
+  // six consecutive floats at offsets 0/4/8/16/20/24 (two vec3s, one gap
+  // at the 12 pad slot); offset 0 (op 241) resolves on its own, the other
+  // five (ops 243/245/247/249/251) need the explicit (pointer float) cast.
+  // Same method: a res-lump-data return (v1-108, op 460, the 'visvol lookup
+  // for a second actor) grows a running bounding box in place, reading and
+  // writing three float pairs at offsets 0/4/8 and 16/20/24 (min then max)
+  // via plain lwc1/swc1 rather than lqc2/sqc2, so it needs the same
+  // explicit (pointer float) cast at every read and write site; op 476
+  // (offset 16) is the first to fail on its own, the rest cascade the same
+  // way. a2 at op 475 (the vadd.xyz result store back into v1-108 offset
+  // 16, sqc2) resolves to a bare pointer on its own and fails to compile
+  // ("No method or function named s.vf! for type pointer"); its sibling
+  // a0-58 at the same offset auto-resolves for the .lvf read but the s.vf!
+  // write needs the same explicit (pointer int128) cast the water-anim
+  // rung already established for this class (see the cam-vehicle entries
+  // below). The v1-110 block's own vadd store (a2 at op 530, same shape,
+  // offset 0 rather than 16) needs the identical cast; unlike v1-110's
+  // scalar-float reads, casting a2 alone here does not disturb the
+  // pointer-arithmetic base.
+  // A second, near-identical block starting at op 515 (v1-110, the
+  // 'interp lookup) repeats the same shape but its own vector-add target is
+  // offset 0 rather than offset 16 (a2/a0 computed as v1-110 plus zero, not
+  // plus sixteen); casting v1-110 to (pointer float) at any of its scalar
+  // read/write sites, tried at offsets 16/20/24 alone and at all six
+  // offsets, both left the vadd's own sqc2 store at op 530 (and, in the
+  // six-offset attempt, two more stores) newly broken with "Failed store"
+  // where the pre-cast decode had a single clean "Failed load" at op 534;
+  // held un-cast rather than landing a net regression. Root cause not
+  // isolated; suspected same-register atomic-variable unification across
+  // the a2/a0 pointer-arithmetic chain, unlike v1-108's block where the
+  // vector target and the cast offsets both sit at 16 with no conflict.
+  "(method 10 visvol-edit-info)": [
+    [[1, 703], "gp", "process-drawable"],
+    [243, "s4", "(pointer float)"],
+    [245, "s4", "(pointer float)"],
+    [247, "s4", "(pointer float)"],
+    [249, "s4", "(pointer float)"],
+    [251, "s4", "(pointer float)"],
+    [476, "v1", "(pointer float)"],
+    [479, "v1", "(pointer float)"],
+    [482, "v1", "(pointer float)"],
+    [483, "v1", "(pointer float)"],
+    [486, "v1", "(pointer float)"],
+    [489, "v1", "(pointer float)"],
+    [490, "v1", "(pointer float)"],
+    [493, "v1", "(pointer float)"],
+    [496, "v1", "(pointer float)"],
+    [475, "a2", "(pointer int128)"],
+    [530, "a2", "(pointer int128)"],
+    [534, "v1", "(pointer float)"],
+    [538, "v1", "(pointer float)"],
+    [541, "v1", "(pointer float)"],
+    [544, "v1", "(pointer float)"],
+    [545, "v1", "(pointer float)"],
+    [548, "v1", "(pointer float)"],
+    [551, "v1", "(pointer float)"]
+  ],
+  // debug leg: (trans idle visvol-editor) reads self->proc (offset 144,
+  // declared uint64) and extracts its low half via a single sllv/r0, the
+  // same handle->process idiom generic-obs.gc's manipy rung already hand-
+  // folds (goal_src/jakx/engine/common-obs/generic-obs.gc, the
+  // og:preserve-this comment above its own gp-1 deref). Casting v1 to
+  // handle here clears both the sllv "Unsupported inline assembly
+  // instruction kind" and the following l.wu error, but the decompiler
+  // output is still not real GOAL: it renders as a literal ".asm.sllv.r0"
+  // pseudo-op with no compiler implementation ("No method or function
+  // named .asm.sllv.r0 for type handle"). The landed source hand-folds
+  // this one call site to the equivalent (handle->process ...) macro call,
+  // matching gkernel-h.gc's own expansion (process/pid truthy-and-compare)
+  // op for op against the raw asm; the cast stays here so the corpus-wide
+  // error count reflects zero rather than the two markers this class
+  // would otherwise leave.
+  "(trans idle visvol-editor)": [[[7, 9], "v1", "handle"]],
   // (method 10 mem-manager): v1 is (+ arg1 -16), the block header immediately
   // before the freed user pointer (the standard free() layout). The decoder
   // cannot guess this on its own ("Could not figure out load: (l.bu v1)");
@@ -4354,7 +4519,16 @@
     [[88, 93], "s0", "adgif-shader"],
     [[132, 164], "v1", "(inline-array vector4w)"],
     [[244, 274], "a1", "(inline-array vector4w)"],
-    [[284, 292], "v1", "dma-gif-packet"],
+    // op 285-287 read/add/write the dma-buffer's own "base" field (declared
+    // pointer), the &+! 112 step; the inherited [284,292] range forced them
+    // to dma-gif-packet (0x20 bytes) too, which fails the +112 add since it
+    // does not land on a valid field or scaled index ("add failed: dma-gif-
+    // packet <integer 112>"); narrowed to the two ops that actually read
+    // dma-gif-packet-shaped constants (283, the tag-kind literal 66, and
+    // 288-291, the second macro's own literal-and-shift block), leaving
+    // 284-287 to resolve on their own as pointer.
+    [284, "v1", "dma-gif-packet"],
+    [[288, 292], "v1", "dma-gif-packet"],
     [[298, 303], "s0", "adgif-shader"],
     [[376, 406], "a1", "(inline-array vector4w)"],
     [[442, 450], "v1", "dma-gif-packet"],
@@ -4374,6 +4548,17 @@
     [310, "a0", "int"],
     [318, "a1", "int"],
     [468, "a0", "int"],
+    // op 476: held. This is the third of three sequential "a1 = gp;
+    // (l.wu (+ a1 4))" dma-buffer-base reads in this macro block (the
+    // other two, ops 457 and 466, resolve to dma-buffer on their own);
+    // the inherited "int" cast here reads wrong against dma-buffer's own
+    // base field (declared pointer) and is the source of "Could not
+    // figure out load: (set! a2 (l.wu (+ a1 4)))". Retyping a1 to
+    // dma-buffer at this op clears that one error but cascades into
+    // roughly 100 new "Failed store" errors throughout the rest of the
+    // function (every later block that reuses a1/a2/t2 for its own GIF-
+    // tag writes); tried and reverted. Held as the census's own
+    // "unresolved l.wu load" rather than landing a net regression.
     [476, "a1", "int"],
     [598, "a0", "int"],
     [606, "a1", "int"],
@@ -4409,6 +4594,9 @@
     [310, "a0", "int"],
     [318, "a1", "int"],
     [468, "a0", "int"],
+    // op 476: held, same shape and same regression as render-eyes-64's own
+    // op 476 above (see that entry's comment); the census's "unresolved
+    // l.wu load" error for this object.
     [476, "a1", "int"],
     [598, "a0", "int"],
     [606, "a1", "int"],
@@ -4588,6 +4776,325 @@
   ],
   "spawn-high-scores-list": [
     [[30, 32], "v0", "high-scores-list"]
+  ],
+  // spawn-hud-cash-stats-side-view-1, spawn-hud-cash-stats-side-view-0,
+  // spawn-hud-cash-stats-top-view-1, spawn-hud-cash-stats-top-view-0,
+  // spawn-hud-cash-stats-single, spawn-hud-game-end-top-view-0,
+  // spawn-hud-game-end-side-view-0, spawn-hud-game-end-view-0,
+  // spawn-hud-game-end-grand-prix (hud-cash rung): the same spawned-process
+  // type-narrowing class as spawn-hud-background and its siblings above
+  // (same op numbers, same shape, confirmed op by op against this
+  // worktree's own hud-cash_ir2.asm).
+  "spawn-hud-cash-stats-side-view-1": [
+    [[30, 32], "v0", "hud-cash-stats-side-view-1"]
+  ],
+  "spawn-hud-cash-stats-side-view-0": [
+    [[30, 32], "v0", "hud-cash-stats-side-view-0"]
+  ],
+  "spawn-hud-cash-stats-top-view-1": [
+    [[30, 32], "v0", "hud-cash-stats-top-view-1"]
+  ],
+  "spawn-hud-cash-stats-top-view-0": [
+    [[30, 32], "v0", "hud-cash-stats-top-view-0"]
+  ],
+  "spawn-hud-cash-stats-single": [
+    [[30, 32], "v0", "hud-cash-stats-single"]
+  ],
+  "spawn-hud-game-end-top-view-0": [
+    [[30, 32], "v0", "hud-game-end-top-view-0"]
+  ],
+  "spawn-hud-game-end-side-view-0": [
+    [[30, 32], "v0", "hud-game-end-side-view-0"]
+  ],
+  "spawn-hud-game-end-view-0": [
+    [[30, 32], "v0", "hud-game-end-view-0"]
+  ],
+  "spawn-hud-game-end-grand-prix": [
+    [[30, 32], "v0", "hud-game-end-grand-prix"]
+  ],
+  // (method 26 hud-cash-stats) (hud-cash rung): arg1 (a2, moved to gp at op
+  // 1) is a net-player, corroborated by get-medal-ignore-gamestate's own
+  // signature (this rung, above) at its op 14 call site and by the machine
+  // offsets read directly off gp: 284/286 are the +4-trap forms of
+  // net-player's own player-id (288) and rank (290) fields, both read before
+  // op 76 reuses the gp register as an unrelated loop counter, so the cast
+  // is scoped to ops 1-70 (upper-bound-exclusive, covers the op 69 read).
+  // (method 26 hud-cash-stats) (hud-cash rung): arg1 (a2, moved to gp at op
+  // 1) is a net-player, corroborated by get-medal-ignore-gamestate's own
+  // signature (this rung, above) at its op 14 call site and by the machine
+  // offsets read directly off gp/s5: 284/286/332/336/344/348 are the +4-trap
+  // forms of net-player's own player-id, rank, best-power-slide,
+  // best-hang-time and kills fields (twice, two branches). Cast per
+  // occurrence rather than as one wide range: gp is reused as a plain int
+  // loop counter at ops 76-113, and a wide net-player range spanning that
+  // reuse (or the equivalent whole-signature retype) corrupts the loop's own
+  // *active-net-players* indexing, which cascades into s5's own definition
+  // at op 81 several ops later, confirmed by direct experiment this rung.
+  "(method 26 hud-cash-stats)": [
+    [[81, 111], "s5", "net-player"],
+    [197, "v1", "game-task-node-info"],
+    [14, "gp", "net-player"],
+    [59, "gp", "net-player"],
+    [69, "gp", "net-player"],
+    [223, "gp", "net-player"],
+    [240, "gp", "net-player"],
+    [275, "gp", "net-player"],
+    [304, "gp", "net-player"]
+    // op 288 (l.w (+ gp 344)), the same kills field read from a different
+    // branch, is deliberately NOT cast here: adding it alongside the other
+    // eight gp/s5 casts above (in any combination, and even as a whole-
+    // signature retype instead of piecemeal casts) reproducibly breaks two
+    // unrelated ops earlier in the same function (op 81's *active-net-
+    // players* indexing and the settings-multiplier/cup-multiplier float
+    // math around op 330), confirmed by repeated direct experiment this
+    // rung. Left as an open blocker; see this rung's report.
+  ],
+  // get-medal-ignore-gamestate (hud-cash rung): identical shape to
+  // spawn-hud-headset-talker above (net-world's task-info field, byte read
+  // at machine offset 5, declared offset 9 via the +4 basic-tag trap,
+  // game-task-node-info's own net-play-mode).
+  "get-medal-ignore-gamestate": [
+    [32, "v1", "game-task-node-info"]
+  ],
+  // spawn-death-indicator-view-24/23/22/21/20/14/13/12/11/10 and
+  // spawn-death-indicator-single4/3/2/1/0 (hud-widgets-2 rung): the same
+  // spawned-process type-narrowing class as spawn-hud-background and its
+  // siblings above (same op numbers, same shape).
+  // (method 23 hud-indicate-death) (hud-widgets-2 rung): gp (this method's
+  // own event-block arg, t0) reads offsets 16/24 directly (declared
+  // offset matches machine offset since event-message-block is a plain
+  // structure, no +4 basic-tag trap), matching its own param array
+  // (declared offset 16, 6 x uint64) at indices 0/1.
+  "(method 23 hud-indicate-death)": [
+    [5, "gp", "event-message-block"],
+    [6, "gp", "event-message-block"],
+    [9, "v1", "hud-item-group"],
+    [11, "a0", "hud-item-string"],
+    [18, "gp", "event-message-block"],
+    [19, "gp", "event-message-block"],
+    [24, "v1", "hud-item-group"],
+    [26, "a0", "hud-item-string"],
+    [28, "gp", "event-message-block"]
+  ],
+  // (method 24 hud-indicate-death) (hud-widgets-2 rung): the hud-item
+  // narrowing to its group subtype recipe already proven throughout this
+  // session, this type's own copy. Ops 13/17/463/467 are a second, unrelated
+  // failure class: two paired 16-bit stores of the literal 256 into an
+  // hud-item-string-typed element at offsets 22 and 42. Offset 22 matches
+  // hud-item's own zval field and resolves on its own; offset 42 has no
+  // named field anywhere in the hud-item/hud-item-string/hud-item-group/
+  // hud-item-sprite hierarchy (checked every :offset-assert in all-types.gc),
+  // so it cannot be a field-name miss, only a genuine layout gap. Cast to
+  // (pointer int16) at the four store ops, the same raw-pointer-store
+  // recipe already landed for (enter restart vehicle)'s own "Failed store"
+  // ("(method 115 v-tiger)"/"(enter restart vehicle)" entries above).
+  "(method 24 hud-indicate-death)": [
+    [4, "v1", "hud-item-group"],
+    [8, "v1", "hud-item-group"],
+    [19, "a0", "hud-item-string"],
+    [31, "s4", "hud-item-string"],
+    [479, "s5", "hud-item-string"],
+    [481, "gp", "hud-item-group"],
+    [47, "s4", "hud-item-string"],
+    [61, "s4", "hud-item-string"],
+    [78, "s4", "hud-item-string"],
+    [92, "s4", "hud-item-string"],
+    [109, "s4", "hud-item-string"],
+    [123, "s4", "hud-item-string"],
+    [140, "s4", "hud-item-string"],
+    [154, "s4", "hud-item-string"],
+    [166, "s4", "hud-item-string"],
+    [180, "s4", "hud-item-string"],
+    [197, "s4", "hud-item-string"],
+    [209, "s4", "hud-item-string"],
+    [226, "s4", "hud-item-string"],
+    [238, "s4", "hud-item-string"],
+    [255, "s4", "hud-item-string"],
+    [269, "s4", "hud-item-string"],
+    [286, "s4", "hud-item-string"],
+    [300, "s4", "hud-item-string"],
+    [317, "s4", "hud-item-string"],
+    [331, "s4", "hud-item-string"],
+    [348, "s4", "hud-item-string"],
+    [360, "s4", "hud-item-string"],
+    [377, "s4", "hud-item-string"],
+    [391, "s4", "hud-item-string"],
+    [408, "s4", "hud-item-string"],
+    [420, "s4", "hud-item-string"],
+    [437, "s4", "hud-item-string"],
+    [449, "s4", "hud-item-string"],
+    [469, "s4", "hud-item-string"],
+    [13, "gp", "(pointer int16)"],
+    [17, "s5", "(pointer int16)"],
+    [463, "gp", "(pointer int16)"],
+    [467, "s5", "(pointer int16)"]
+  ],
+  "spawn-death-indicator-view-24": [
+    [[30, 32], "v0", "death-indicator-view-24"]
+  ],
+  "spawn-death-indicator-view-23": [
+    [[30, 32], "v0", "death-indicator-view-23"]
+  ],
+  "spawn-death-indicator-view-22": [
+    [[30, 32], "v0", "death-indicator-view-22"]
+  ],
+  "spawn-death-indicator-view-21": [
+    [[30, 32], "v0", "death-indicator-view-21"]
+  ],
+  "spawn-death-indicator-view-20": [
+    [[30, 32], "v0", "death-indicator-view-20"]
+  ],
+  "spawn-death-indicator-view-14": [
+    [[30, 32], "v0", "death-indicator-view-14"]
+  ],
+  "spawn-death-indicator-view-13": [
+    [[30, 32], "v0", "death-indicator-view-13"]
+  ],
+  "spawn-death-indicator-view-12": [
+    [[30, 32], "v0", "death-indicator-view-12"]
+  ],
+  "spawn-death-indicator-view-11": [
+    [[30, 32], "v0", "death-indicator-view-11"]
+  ],
+  "spawn-death-indicator-view-10": [
+    [[30, 32], "v0", "death-indicator-view-10"]
+  ],
+  "spawn-death-indicator-single4": [
+    [[30, 32], "v0", "death-indicator-single4"]
+  ],
+  "spawn-death-indicator-single3": [
+    [[30, 32], "v0", "death-indicator-single3"]
+  ],
+  "spawn-death-indicator-single2": [
+    [[30, 32], "v0", "death-indicator-single2"]
+  ],
+  "spawn-death-indicator-single1": [
+    [[30, 32], "v0", "death-indicator-single1"]
+  ],
+  "spawn-death-indicator-single0": [
+    [[30, 32], "v0", "death-indicator-single0"]
+  ],
+  "spawn-hud-in-game-menu-options-view-2": [
+    [[30, 32], "v0", "hud-in-game-menu-options-view-2"]
+  ],
+  "spawn-hud-in-game-menu-options-view-1": [
+    [[30, 32], "v0", "hud-in-game-menu-options-view-1"]
+  ],
+  "spawn-hud-in-game-menu-options-view-0": [
+    [[30, 32], "v0", "hud-in-game-menu-options-view-0"]
+  ],
+  // in-game-menu-hud2 rung: in-game-menu-startup reads offset 28 on
+  // spawn-hud-in-game-menu's return, the process's own next-in-tree
+  // pointer, matching the "lwu v1, 28(gp)" -> (pointer process) precedent
+  // proven on the spawn-hud-* family's own single-process-lookup pattern.
+  "in-game-menu-startup": [
+    [84, "v1", "process"],
+    [127, "v1", "game-task-node-info"],
+    [136, "a0", "process"],
+    [143, "a0", "process"]
+  ],
+  // in-game-menu-hud2 rung: same hud-item-group narrowing recipe,
+  // in-game-menu-hud-options's own copies.
+  "(method 9 in-game-menu-hud-options)": [
+    [93, "a0", "hud-item-group"],
+    [95, "a0", "hud-item-string"],
+    [108, "a1", "hud-item-group"],
+    [116, "a1", "hud-item-group"],
+    [132, "a1", "hud-item-group"],
+    [140, "a1", "hud-item-group"],
+    [156, "a1", "hud-item-group"],
+    [164, "a1", "hud-item-group"],
+    [180, "a1", "hud-item-group"],
+    [188, "a1", "hud-item-group"],
+    [110, "a1", "hud-item-string"],
+    [118, "a1", "hud-item-string"],
+    [134, "a1", "hud-item-string"],
+    [142, "a1", "hud-item-string"],
+    [158, "a1", "hud-item-string"],
+    [166, "a1", "hud-item-string"],
+    [182, "a1", "hud-item-string"],
+    [190, "a1", "hud-item-string"]
+  ],
+  // (method 19 in-game-menu-hud-options) (in-game-menu-hud2 rung): a large
+  // switch dispatching a widget method per menu option index, each arm
+  // reading this's own items array then the same items-array-holds-a-
+  // nested-group-of-hud-item-string pattern already proven throughout this
+  // session (raw offset 36 = hud-item-group's items field, then a
+  // dispatch through a specific hud-item-string method slot). One pair of
+  // casts per arm: the 36(...) read narrows to hud-item-group, the
+  // following -4(...) type-tag lookup (where the decoder shows one; some
+  // arms dispatch straight off the array read) narrows to hud-item-string.
+  "(method 19 in-game-menu-hud-options)": [
+    [144, "v1", "hud-item-group"],
+    [146, "v1", "hud-item-string"],
+    [247, "v1", "hud-item-group"],
+    [249, "v1", "hud-item-string"],
+    [489, "v1", "process"],
+    [558, "a0", "hud-item-string"],
+    [581, "a0", "hud-item-string"],
+    [704, "a0", "hud-item-string"],
+    [727, "a0", "hud-item-string"],
+    [850, "a0", "hud-item-string"],
+    [873, "a0", "hud-item-string"],
+    [538, "v1", "hud-item-group"],
+    [540, "v1", "hud-item-string"],
+    [556, "a0", "hud-item-group"],
+    [563, "v1", "hud-item-group"],
+    [565, "a0", "hud-item-string"],
+    [579, "a0", "hud-item-group"],
+    [586, "v1", "hud-item-group"],
+    [588, "a0", "hud-item-string"],
+    [684, "v1", "hud-item-group"],
+    [686, "v1", "hud-item-string"],
+    [702, "a0", "hud-item-group"],
+    [709, "v1", "hud-item-group"],
+    [711, "a0", "hud-item-string"],
+    [725, "a0", "hud-item-group"],
+    [732, "v1", "hud-item-group"],
+    [734, "a0", "hud-item-string"],
+    [830, "v1", "hud-item-group"],
+    [832, "v1", "hud-item-string"],
+    [848, "a0", "hud-item-group"],
+    [855, "v1", "hud-item-group"],
+    [857, "a0", "hud-item-string"],
+    [871, "a0", "hud-item-group"],
+    [878, "v1", "hud-item-group"],
+    [880, "a0", "hud-item-string"],
+    [976, "v1", "hud-item-group"],
+    [978, "v1", "hud-item-string"],
+    [994, "a0", "hud-item-group"],
+    [996, "a0", "hud-item-string"],
+    [1001, "v1", "hud-item-group"],
+    [1003, "a0", "hud-item-string"],
+    [1017, "a0", "hud-item-group"],
+    [1019, "a0", "hud-item-string"],
+    [1024, "v1", "hud-item-group"],
+    [1026, "a0", "hud-item-string"],
+    [1124, "v1", "hud-item-group"],
+    [1126, "a0", "hud-item-string"],
+    [1136, "v1", "hud-item-group"],
+    [1138, "a0", "hud-item-string"],
+    [1177, "a0", "hud-item-string"],
+    [1186, "a0", "hud-item-string"],
+    [1195, "a0", "hud-item-string"]
+  ],
+  // (method 19 in-game-menu-hud) (in-game-menu-hud2 rung): same items-
+  // array-holds-hud-item-string method-27-dispatch recipe as
+  // (method 19 in-game-menu-hud-options) above, this type's own copy. Op
+  // 427 is a different class: *medius-my-player*'s own type
+  // (medius-cached-info-player, a multiplayer lobby record entirely
+  // outside this band) is not landed anywhere in goal_src, only guessed in
+  // a commented-out all-types.gc line; the read here is raw pointer
+  // arithmetic (+ v1 364) feeding a method call argument, not a named
+  // field access, so it is cast to a raw byte pointer rather than pulling
+  // in the unlanded type.
+  "(method 19 in-game-menu-hud)": [
+    [243, "v1", "hud-item-string"],
+    [338, "v1", "process"],
+    [416, "v1", "game-task-node-info"],
+    [427, "v1", "(pointer uint8)"],
+    [578, "a0", "hud-item-string"],
+    [589, "a0", "hud-item-string"]
   ],
   // spawn-high-score-hud, (method 19 hud-high-scores), (method 19
   // hud-high-score): the same net-world task-info byte-read class already
@@ -4870,5 +5377,597 @@
   // its own ("Failed load").
   "(method 9 rigid-body-info)": [
     [81, "a0", "(pointer float)"]
+  ],
+  // prim-engine-execute: two separate connection-list walks (a viewport
+  // loop over *viewport-array*, then the single active-viewport path over
+  // *prim-engine*) each read param0/param1 off a connectable node at
+  // offsets 20/24, which only exist on connection, the linked-list node's
+  // actual runtime type (same class as (method 7 process)'s own connection
+  // fix above). Op 24 (the first walk's own param0 read) resolves on its
+  // own; ops 48/49 (the second walk) do not ("Could not figure out load").
+  "prim-engine-execute": [
+    // first walk (multi-viewport loop, op 24/25) and second walk (single
+    // active-viewport path, op 48/49/50) both read param1/param2 off a
+    // connectable node at offsets 20/24, which only exist on connection.
+    // param2 is declared int32 on connection, but each call site treats it
+    // as an object pointer (jak3's twin casts the exact same read to
+    // prim-strip before calling generate-dma!); the vtable-style -4
+    // dereference the next op does needs it retyped past the field's own
+    // declared int32.
+    [24, "v1", "connection"],
+    [25, "a0", "prim-strip"],
+    [48, "v1", "connection"],
+    [49, "v1", "connection"],
+    [50, "a0", "prim-strip"]
+  ],
+  // (method 10 prim-strip): held. *foreground-to-level-translate* is
+  // declared "object" (provisional, all-types.gc), so a1 (its base plus a
+  // byte-level index scaled by 4) does not resolve the +12 read on its own
+  // ("Could not figure out load"). Casting the global read itself (op 18,
+  // the definition site) has no effect; casting its first use instead (op
+  // 19, the daddu) or the final read (op 20) alone or together all leave
+  // the same op erroring under a different message. Not isolated further;
+  // the real fix is likely a proper element type for
+  // *foreground-to-level-translate* itself rather than a per-op cast.
+  // (method 9 prim-strip) ("new"): tex (offset-assert 12, declared basic)
+  // holds the cached texture lookup; reading its own name field (offset-
+  // assert 40, machine offset 36) needs the real texture type ("Could not
+  // figure out load"). The "may read a register that is not set: a2"
+  // warning is a downstream symptom of the same failure, not a separate
+  // defect; it clears once this resolves.
+  // A second, separate error remains held past this point: op 282's
+  // "Couldn't figure out logior: (logior t2 t0) (uint128 and float)". t0
+  // traces back to op 271, prim-vertex's own offset-8 field, an explicit
+  // overlay between nokick (uint32) and stq.z (float, since stq is an
+  // inline vector at offset 0); the decompiler's default guess picks the
+  // float side, but this bit-packing block treats the raw bits as an
+  // integer mask (matching op 255-260's own pextlb/pextlh unpacking of the
+  // same-shaped field two vertices earlier). Casting t0 to uint128 at op
+  // 271 (its definition) had no effect; not isolated further.
+  "(method 9 prim-strip)": [
+    [34, "a0", "texture"]
+  ],
+  // (method 16 car-info-full): car-layer-textures's own "dest" field
+  // (offset-assert 0, declared basic) holds a texture pointer; reading its
+  // own w field (offset-assert 4, machine offset 0, int16) needs the real
+  // texture type ("Could not figure out load").
+  // reads the same texture's w (offset 0) then h (offset 2) fields, each
+  // through a separate stack-reload, hence two op sites.
+  // The same w/h/dest triple check (offsets 0/2/10) repeats six times in
+  // this function, once per texture layer; each repeat re-loads the
+  // pointer from the stack into a fresh SSA value that needs its own cast
+  // (same shape as (method 7 process)'s own per-site connection casts
+  // above; the loop does not carry the cast across reloads).
+  "(method 16 car-info-full)": [
+    [36, "v1", "texture"],
+    [41, "a0", "texture"],
+    [67, "v1", "texture"],
+    [70, "v1", "texture"],
+    [72, "v1", "texture"],
+    [98, "v1", "texture"],
+    [100, "v1", "texture"],
+    [119, "v1", "texture"],
+    [124, "a0", "texture"],
+    [150, "v1", "texture"],
+    [153, "v1", "texture"],
+    [155, "v1", "texture"],
+    [181, "v1", "texture"],
+    [183, "v1", "texture"],
+    [203, "v1", "texture"],
+    [208, "a0", "texture"],
+    [234, "v1", "texture"],
+    [237, "v1", "texture"],
+    [239, "v1", "texture"],
+    [277, "v1", "texture"],
+    [279, "v1", "texture"]
+  ],
+  // A held error remains at op 254: this (s4) plus loop index s2 (op
+  // 253's daddu), then +76 (damage's own offset-assert, int8 x14) read as
+  // a byte. Casting the add result to car-info-full or to a raw
+  // (pointer int8) both leave the same op erroring; not isolated further.
+  // (anon-function 1 3d-menu-elements): art-element's own frame-count
+  // read is really art-joint-anim's "frames" field (offset-assert 36,
+  // joint-anim-compressed-control), one level more specific than the
+  // generic art-element the base pointer resolves to on its own.
+  "(anon-function 1 3d-menu-elements)": [[10, "v1", "art-joint-anim"]],
+  "(code idle garage-cinema)": [[10, "v1", "art-joint-anim"]],
+  // garage-cinema-init-by-other/interface-cam-init-by-other: the
+  // define-extern signature (function entity object :behavior TYPE) does
+  // not retype arg0 within the function's own body decode; cast a1
+  // (arg0's register) to entity directly at op 0.
+  "garage-cinema-init-by-other": [[0, "a1", "entity"]],
+  "interface-cam-init-by-other": [[0, "a0", "entity"]],
+  // (method 15 car-info-full): same shape as method 16 above, a
+  // car-layer-textures pointer field read as w then h (offsets 0/2,
+  // int16) needing the real texture type.
+  "(method 15 car-info-full)": [
+    [117, "a0", "texture"],
+    [119, "a0", "texture"]
+  ],
+  // hud-player-indicators rung: six spawn-X functions (spawn-hud-assassin-
+  // indicators-view0/1, spawn-hud-artifact-indicators-view0/1, spawn-hud-
+  // player-indicators-view0/1) each store #f into the freshly spawned
+  // process's own manager field (in-game-hud, declared offset 6372) at the
+  // same op30/31 pair; v0-0's own type stays generic process past the
+  // process-tree chase at ops 28/29, so the same spawned-process
+  // type-narrowing recipe used throughout this band applies here too.
+  "spawn-hud-assassin-indicators-view1": [
+    [[30, 32], "v0", "hud-assassin-indicators-view1"]
+  ],
+  "spawn-hud-assassin-indicators-view0": [
+    [[30, 32], "v0", "hud-assassin-indicators-view0"]
+  ],
+  "spawn-hud-artifact-indicators-view1": [
+    [[30, 32], "v0", "hud-artifact-indicators-view1"]
+  ],
+  "spawn-hud-artifact-indicators-view0": [
+    [[30, 32], "v0", "hud-artifact-indicators-view0"]
+  ],
+  "spawn-hud-player-indicators-view1": [
+    [[30, 32], "v0", "hud-player-indicators-view1"]
+  ],
+  "spawn-hud-player-indicators-view0": [
+    [[30, 32], "v0", "hud-player-indicators-view0"]
+  ],
+  // (method 19 hud-assassin-indicators): s4 (this group's own items[0],
+  // generically typed hud-item off the boxed array read at op26) needs its
+  // own concrete hud-indicator typing to resolve the process->handle
+  // construction store into its own target field (declared 48, machine 44
+  // via the +4 basic-tag trap) at op59.
+  "(method 19 hud-assassin-indicators)": [
+    [27, "s2", "rigid-body-object"],
+    [30, "s4", "hud-item-group"],
+    [32, "a0", "hud-item-string"],
+    [59, "s4", "hud-indicator"],
+    [60, "s4", "hud-indicator"],
+    [61, "s2", "process-focusable"],
+    [70, "a0", "hud-item-string"],
+    [76, "s4", "hud-item-group"],
+    [78, "s2", "hud-item-string"],
+    [39, "s4", "hud-item-group"],
+    [41, "a0", "hud-item-string"],
+    [43, "s2", "vehicle"],
+    // *net-game-mgr*'s own dynamically indexed byte read (index s5, no
+    // stride multiply, offset 305) is net-game-mgr-assassin's own mark
+    // field (resurrected this rung), which the base net-game-mgr type
+    // does not declare; cast the base pointer to the concrete subtype
+    // before the addition.
+    [11, "v1", "net-game-mgr-assassin"]
+  ],
+  // (method 19 hud-artifact-indicators): s4 (a dynamic-index element off
+  // this group's own items array) needs hud-item-group narrowing at op12
+  // to resolve its own nested items field (raw 36, declared 40), and the
+  // resulting a0 needs hud-item-string narrowing at op14 for the -4(reg)
+  // dispatch to slot 112, the same recipe already proven throughout this
+  // band.
+  "(method 19 hud-artifact-indicators)": [
+    // *net-game-mgr*'s own dynamically indexed read (stride 8, index s5,
+    // offset 316) is net-game-mgr-artifact's own artifact field
+    // (resurrected this rung, declared 320, reached via the +4 basic-tag
+    // trap), which the base net-game-mgr type does not declare; cast the
+    // base pointer to the concrete subtype before the addition.
+    [4, "a0", "net-game-mgr-artifact"],
+    [12, "s4", "hud-item-group"],
+    [14, "a0", "hud-item-string"],
+    [26, "s4", "hud-indicator"],
+    [31, "s3", "hud-item-string"],
+    [42, "s4", "hud-item-group"],
+    [44, "a0", "hud-item-string"]
+  ],
+  // (method 19 hud-player-indicators): s2 (an *active-net-players* element,
+  // generic uint off the boxed array read at op17) reads its own byte field
+  // at machine 284, declared 288 via the +4 basic-tag trap, net-player's
+  // own player-id, compared against the locally active player's own index
+  // to skip drawing an indicator for yourself.
+  "(method 19 hud-player-indicators)": [
+    [20, "s2", "net-player"],
+    [33, "a0", "hud-item-string"],
+    [39, "a0", "net-player"],
+    [49, "s2", "net-player"],
+    [54, "v1", "game-task-node-info"],
+    [63, "a0", "rigid-body-object"],
+    [90, "v1", "game-task-node-info"],
+    [95, "s1", "hud-item-group"],
+    [120, "s1", "hud-indicator"],
+    [123, "v1", "process-focusable"],
+    [132, "s1", "hud-indicator"],
+    [135, "a0", "hud-item-string"],
+    [137, "s2", "net-player"],
+    [138, "s2", "net-player"],
+    [144, "v1", "game-task-node-info"],
+    [149, "s1", "hud-item-group"],
+    [151, "a0", "hud-item-string"],
+    [76, "s1", "hud-item-group"],
+    [78, "a0", "hud-item-string"],
+    [81, "v1", "vehicle"],
+    [102, "s1", "hud-item-group"],
+    [157, "s1", "hud-item-group"],
+    [177, "s2", "net-player"],
+    [161, "v1", "hud-item-string"],
+    [178, "s1", "hud-indicator"],
+    [67, "s1", "hud-item-group"],
+    [69, "a0", "hud-item-string"],
+    [119, "s1", "hud-indicator"]
+  ],
+  // (method 24 hud-player-indicators): the net-player-method-53 return
+  // needs the same rigid-body-object narrowing as its twin read in
+  // (method 19 hud-assassin-indicators) to resolve its own flags field.
+  "(method 24 hud-player-indicators)": [
+    [7, "a0", "rigid-body-object"]
+  ],
+  // (method 19 hud-indicator): *net-world*'s own task-node-info field
+  // resolves generically to basic here (elsewhere in this same file,
+  // hud-indicators-spawn's own identical read resolves without a cast);
+  // narrow it to game-task-node-info to reach its own net-play-mode field
+  // (declared 9, machine 5 via the +4 basic-tag trap), matching the same
+  // field already landed on in-game-menu-hud2's own read.
+  "(method 19 hud-indicator)": [
+    [12, "v1", "game-task-node-info"],
+    [46, "v1", "hud-item-group"],
+    [48, "v1", "hud-item-group"],
+    [50, "s5", "hud-item-group"],
+    [56, "s5", "hud-item-group"],
+    [58, "s4", "hud-item-group"],
+    [60, "s3", "hud-item-group"],
+    [62, "s2", "hud-item-group"]
+  ],
+  // hud-indicators-spawn's own net-play-mode dispatch read, same pattern
+  // and same fix as (method 19 hud-indicator) above.
+  "hud-indicators-spawn": [
+    [7, "v1", "game-task-node-info"],
+    [41, "v1", "game-task-node-info"]
+  ],
+  // (method 18 hud-indicator): same net-play-mode dispatch read as
+  // (method 19 hud-indicator) and hud-indicators-spawn above, register a0
+  // this time.
+  "(method 18 hud-indicator)": [
+    [25, "a0", "game-task-node-info"],
+    [171, "v1", "hud-item-group"]
+  ],
+  // (method 25 hud-indicator): items 0 (a3, arg1's own byte write) is this
+  // group's own text label, narrowed to hud-item-string to reach its own
+  // color field (declared 50, machine 46 via the +4 basic-tag trap); items
+  // 2 (v1, three consecutive 32-bit writes) is this group's own colored
+  // icon, narrowed to hud-item-sprite to reach three of its own inline
+  // color vector4w's four components (declared 48/52/56, machine 44/48/52).
+  "(method 25 hud-indicator)": [
+    [4, "a3", "hud-item-string"],
+    [7, "v1", "hud-item-sprite"],
+    [10, "v1", "hud-item-sprite"],
+    [13, "v1", "hud-item-sprite"]
+  ],
+  // (method 24 hud-indicator): items 1 (a1) needs the hud-item-group
+  // narrowing to reach its own nested items array (items 0, a2), the same
+  // recipe already proven throughout this band.
+  "(method 24 hud-indicator)": [
+    [6, "a1", "hud-item-group"],
+    [9, "a1", "hud-item-group"]
+  ],
+  // (method 26 hud-indicator): same hud-item-group narrowing recipe at
+  // op126, plus the same net-play-mode dispatch read pattern already fixed
+  // elsewhere in this file, downstream at op139 (only op126 was reachable
+  // and reported before this fix).
+  "(method 26 hud-indicator)": [
+    [126, "v1", "hud-item-group"],
+    [129, "v1", "hud-item-group"],
+    [139, "v1", "game-task-node-info"],
+    [167, "a0", "hud-item-string"],
+    [228, "a0", "hud-item-string"],
+    // s2 (this items array element) stores past hud-item's own 40-byte
+    // size (offset 40, a halfword) and again at offset 68 (three float
+    // stores); no field in the hud-item/hud-item-string/hud-item-sprite/
+    // hud-item-group hierarchy sits at either offset (checked every
+    // :offset-assert in all-types.gc), so these are genuine layout gaps,
+    // not field-name misses. Raw pointer store, the same recipe already
+    // landed for (enter restart vehicle) and hud-widgets-2's own offset-42
+    // pair.
+    [173, "s2", "(pointer int16)"],
+    [181, "s2", "(pointer float)"],
+    [191, "s2", "(pointer float)"],
+    [235, "s2", "(pointer float)"]
+  ],
+  // (method 9 hud-indicator): items 0 stores a plain symbol (#t/#f) at
+  // machine offset 52; no field in the hud-item/hud-item-string/hud-item-
+  // sprite/hud-item-group hierarchy sits at that offset (checked every
+  // :offset-assert in all-types.gc), so this is a genuine layout gap, not
+  // a field-name miss. Raw pointer store, the same recipe already landed
+  // for (enter restart vehicle)'s own "Failed store" and (method 24
+  // hud-indicate-death)'s own offset-42 pair in hud-widgets-2.
+  "(method 9 hud-indicator)": [
+    [7, "a0", "(pointer symbol)"],
+    [11, "v1", "(pointer symbol)"]
+  ],
+  // (method 24 hud-health): a0 (from arg1, now net-player) dispatches
+  // net-player-method-53 through the same -4(reg) vtable pattern already
+  // proven throughout this band.
+  "(method 24 hud-health)": [
+    [36, "a0", "net-player"],
+    [43, "v1", "vehicle"],
+    [53, "gp", "hud-item-sprite"],
+    [62, "gp", "hud-item-sprite"],
+    [68, "gp", "hud-item-sprite"],
+    [77, "gp", "hud-item-sprite"],
+    [86, "gp", "hud-item-sprite"],
+    [92, "gp", "hud-item-sprite"]
+  ],
+  // hud-widgets-3 rung: sixteen spawn-X functions, the same spawned-
+  // process type-narrowing recipe used throughout this band for the
+  // in-game-hud's own manager field store at op30/31.
+  "spawn-hud-points-icon-display4": [[[30, 32], "v0", "hud-points-icon-display4"]],
+  "spawn-hud-points-icon-display3": [[[30, 32], "v0", "hud-points-icon-display3"]],
+  "spawn-hud-points-icon-display2": [[[30, 32], "v0", "hud-points-icon-display2"]],
+  "spawn-hud-points-icon-display1": [[[30, 32], "v0", "hud-points-icon-display1"]],
+  "spawn-hud-points-icon-display0": [[[30, 32], "v0", "hud-points-icon-display0"]],
+  "spawn-text-display-supernova-backfire-view-2": [[[30, 32], "v0", "text-display-supernova-backfire-view-2"]],
+  "spawn-text-display-supernova-backfire-view-1": [[[30, 32], "v0", "text-display-supernova-backfire-view-1"]],
+  "spawn-text-display-sblastered-view-2": [[[30, 32], "v0", "text-display-sblastered-view-2"]],
+  "spawn-text-display-sblastered-view-1": [[[30, 32], "v0", "text-display-sblastered-view-1"]],
+  "spawn-text-display-deflected-view-2": [[[30, 32], "v0", "text-display-deflected-view-2"]],
+  "spawn-text-display-deflected-view-1": [[[30, 32], "v0", "text-display-deflected-view-1"]],
+  "spawn-hud-points-combo-display4": [[[30, 32], "v0", "hud-points-combo-display4"]],
+  "spawn-hud-points-combo-display3": [[[30, 32], "v0", "hud-points-combo-display3"]],
+  "spawn-hud-points-combo-display2": [[[30, 32], "v0", "hud-points-combo-display2"]],
+  "spawn-hud-points-combo-display1": [[[30, 32], "v0", "hud-points-combo-display1"]],
+  "spawn-hud-points-combo-display0": [[[30, 32], "v0", "hud-points-combo-display0"]],
+  // (method 23 hud-points-icon): s5 (this method's own event-block arg,
+  // t0) reads offset 16 directly (declared offset matches machine offset
+  // since event-message-block is a plain structure, no +4 basic-tag
+  // trap), the same recipe already proven throughout this session.
+  "(method 23 hud-points-icon)": [
+    [6, "s5", "event-message-block"],
+    [7, "a0", "vector"],
+    [35, "s5", "event-message-block"],
+    [51, "s5", "event-message-block"],
+    [52, "a0", "vector"],
+    [56, "s4", "hud-item-string"],
+    [64, "s5", "event-message-block"],
+    [72, "s5", "event-message-block"],
+    [104, "s5", "event-message-block"],
+    [117, "s5", "event-message-block"],
+    [130, "s5", "event-message-block"],
+    [138, "s5", "event-message-block"],
+    [105, "a0", "vector"],
+    [114, "a0", "vector"],
+    [118, "a0", "vector"],
+    [122, "s4", "hud-item-string"]
+  ],
+  // create-points-icon's own optional-vector arg (arg2, generic object)
+  // needs the same vector narrowing as (method 23 hud-points-icon)'s own
+  // param read above, to resolve its own direct quad-load.
+  "create-points-icon": [
+    [17, "a0", "vector"]
+  ],
+  // create-points-icon-from-screen-pos's own optional-vector arg (arg2,
+  // generic object), same recipe.
+  "create-points-icon-from-screen-pos": [
+    [6, "a0", "vector"]
+  ],
+  // (method 23 hud-points-combo): t0 (this method's own event-block arg)
+  // reads offset 16 directly, the same event-message-block recipe as
+  // (method 23 hud-points-icon) above.
+  "(method 23 hud-points-combo)": [
+    [3, "t0", "event-message-block"],
+    [32, "t0", "event-message-block"],
+    [34, "t0", "event-message-block"]
+  ],
+  // (method 19 hud-points-combo): a0 (items[1]) needs hud-item-string
+  // narrowing to resolve the -4(reg) dispatch to slot 120
+  // (hud-item-string-method-26), the same recipe already proven
+  // throughout this band.
+  "(method 19 hud-points-combo)": [
+    [3, "a0", "hud-item-string"]
+  ],
+  // hud-results rung: six functions read *net-world*'s own task-node-info
+  // field then its own net-play-mode byte, the same pattern already fixed
+  // repeatedly throughout this band.
+  "calc-player-rank": [
+    [6, "v1", "game-task-node-info"],
+    [34, "v1", "hud-team-score-results"],
+    [37, "v1", "hud-team-score-results"],
+    [44, "v1", "hud-team-score-results"],
+    [47, "v1", "hud-team-score-results"]
+  ],
+  "spawn-hud-results": [
+    [4, "v1", "game-task-node-info"],
+    [16, "a0", "game-task-node-info"],
+    [24, "v1", "net-player-race"],
+    [51, "v1", "game-task-node-info"],
+    [92, "a0", "game-task-node-info"],
+    [141, "v1", "game-task-node-info"]
+  ],
+  "(method 9 hud-medal-results)": [
+    [111, "v1", "game-task-node-info"],
+    [145, "v1", "game-task-node-info"],
+    [186, "v1", "game-task-node-info"],
+    [198, "a0", "hud-item-group"],
+    [207, "a0", "net-player-time-box"],
+    [208, "a0", "net-player-time-box"],
+    [217, "v1", "hud-item-group"]
+  ],
+  "(method 24 hud-results)": [[4, "v1", "game-task-node-info"]],
+  "(method 19 hud-results-base)": [[100, "v1", "game-task-node-info"]],
+  "score-is-time": [[4, "v1", "game-task-node-info"]],
+  // hud-results rung: five spawn-X functions, the same spawned-process
+  // type-narrowing recipe used throughout this band for the in-game-hud's
+  // own manager field store at op30/31.
+  "spawn-hud-results-team-view-1": [[[30, 32], "v0", "hud-results-team-view-1"]],
+  "spawn-hud-results-team-view-0": [[[30, 32], "v0", "hud-results-team-view-0"]],
+  "spawn-hud-results-view-1": [[[30, 32], "v0", "hud-results-view-1"]],
+  "spawn-hud-results-view-0": [[[30, 32], "v0", "hud-results-view-0"]],
+  "spawn-hud-results-medal": [[[30, 32], "v0", "hud-results-medal"]],
+  // (method 19 hud-team-score-results): a0 (items[0]) needs hud-item-
+  // string narrowing to resolve the -4(reg) dispatch to slot 116
+  // (hud-item-string-method-25), the same recipe already proven
+  // throughout this band.
+  "(method 19 hud-team-score-results)": [
+    [378, "v1", "(pointer int32)"],
+    [5, "a0", "hud-item-string"],
+    [117, "a0", "hud-item-group"],
+    [119, "a0", "hud-item-group"],
+    [126, "s4", "hud-item-group"],
+    [247, "v1", "hud-item-group"],
+    [251, "v1", "hud-item-group"],
+    [313, "a0", "hud-item-string"],
+    [318, "s4", "hud-item-string"],
+    [337, "s4", "hud-item-string"],
+    [363, "a0", "hud-item-string"]
+  ],
+  // (method 9 hud-team-score-results): a3 (a nested items element) needs
+  // hud-item-group narrowing to reach its own nested items field (raw 36,
+  // declared 40), the same recipe already proven throughout this band.
+  "(method 9 hud-team-score-results)": [
+    [40, "a3", "hud-item-group"],
+    [42, "a3", "hud-item-group"],
+    [48, "a3", "hud-item-group"],
+    [50, "a3", "hud-item-group"],
+    [56, "a3", "hud-item-group"],
+    [58, "a3", "hud-item-group"],
+    [63, "a2", "hud-item-group"],
+    [65, "a2", "hud-item-group"],
+    [111, "a3", "hud-item-group"],
+    [113, "a3", "hud-item-group"],
+    [119, "a3", "hud-item-group"],
+    [121, "a3", "hud-item-group"],
+    [127, "a3", "hud-item-group"],
+    [129, "a3", "hud-item-group"],
+    [134, "a2", "hud-item-group"],
+    [136, "a2", "hud-item-group"],
+    [185, "a3", "hud-item-group"],
+    [187, "a3", "hud-item-group"],
+    [193, "a3", "hud-item-group"],
+    [195, "a3", "hud-item-group"],
+    [201, "a3", "hud-item-group"],
+    [203, "a3", "hud-item-group"],
+    [209, "a3", "hud-item-group"],
+    [211, "a3", "hud-item-group"]
+  ],
+  "(method 19 hud-team-score-list)": [
+    [22, "v1", "net-game-mgr"],
+    [23, "v1", "(pointer uint8)"],
+    [97, "s5", "hud-item-string"]
+  ],
+  // (method 19 hud-name-score): s3 is hud-item-string narrowing to its own
+  // string field (raw 36, declared 40, hud-string), not hud-item-group's
+  // items; v1 then resolves hud-string's own text field (offset 0) as the
+  // destination string arg0 for string<-charp.
+  "(method 19 hud-name-score)": [
+    [30, "s3", "hud-item-string"],
+    [33, "s3", "hud-item-string"],
+    [35, "s3", "hud-item-string"],
+    [36, "v1", "hud-string"]
+  ],
+  "(method 19 hud-medal-results)": [
+    [56, "a0", "hud-item-string"],
+    [64, "a0", "hud-item-string"],
+    [164, "v1", "(pointer float)"],
+    [173, "v1", "(pointer float)"],
+    [183, "v1", "(pointer float)"],
+    [85, "v1", "game-task-node-info"],
+    [362, "v1", "game-task-node-info"],
+    [382, "v1", "game-task-node-info"],
+    [391, "a0", "net-player-time-box"],
+    [392, "a0", "net-player-time-box"],
+    [95, "v1", "hud-item-group"],
+    [97, "s4", "hud-item-string"],
+    [105, "s5", "net-player-time-box"],
+    [106, "s5", "net-player-time-box"],
+    [135, "v1", "hud-item-group"],
+    [139, "v1", "hud-item-group"],
+    [143, "v1", "hud-item-group"],
+    [192, "v1", "hud-item-group"],
+    [197, "s4", "hud-item-string"],
+    [210, "s5", "hud-item-string"],
+    [220, "s4", "hud-item-string"],
+    [233, "s5", "hud-item-string"],
+    [246, "s4", "hud-item-string"],
+    [259, "s5", "hud-item-string"],
+    [272, "s4", "hud-item-string"],
+    [285, "s5", "hud-item-string"],
+    [296, "s4", "hud-item-string"],
+    [310, "a0", "hud-item-string"],
+    [317, "v1", "hud-item-group"],
+    [321, "a0", "hud-item-group"],
+    [324, "v1", "hud-item-string"],
+    [325, "v1", "hud-string"]
+  ],
+  "(method 24 hud-medal-results)": [
+    [6, "v1", "game-task-node-info"],
+    [24, "gp", "hud-item-string"],
+    [31, "a0", "hud-item-string"]
+  ],
+  "(method 19 hud-results)": [
+    [192, "v1", "hud-item-group"],
+    [196, "s5", "hud-item-string"],
+    [354, "v1", "hud-item-group"],
+    [356, "v1", "hud-item-group"],
+    [360, "v1", "hud-item-group"],
+    [362, "v1", "hud-item-group"],
+    [364, "v1", "hud-item-group"],
+    [368, "v1", "hud-item-group"],
+    [370, "v1", "hud-item-group"],
+    [372, "v1", "hud-item-group"],
+    [376, "v1", "hud-item-group"],
+    [378, "v1", "hud-item-group"],
+    [380, "v1", "hud-item-group"],
+    [384, "v1", "hud-item-group"],
+    [386, "v1", "hud-item-group"],
+    [391, "v1", "hud-item-group"],
+    [393, "v1", "hud-item-group"],
+    [397, "v1", "hud-item-group"],
+    [424, "a0", "game-task-node-info"]
+  ],
+  "(method 9 hud-results)": [
+    [32, "a0", "hud-item-group"],
+    [34, "a0", "hud-item-group"],
+    [36, "a0", "hud-item-group"],
+    [212, "v1", "(pointer int32)"],
+    [221, "v1", "(pointer int32)"],
+    [234, "v1", "(pointer int32)"],
+    [21, "a0", "hud-item-group"],
+    [23, "a0", "hud-item-group"],
+    [25, "a0", "hud-item-group"],
+    [346, "v1", "game-task-node-info"],
+    [376, "v1", "hud-item-group"],
+    [378, "a0", "hud-item-string"],
+    [388, "v1", "hud-item-group"],
+    [390, "a0", "hud-item-string"],
+    [397, "v1", "hud-item-group"],
+    [399, "a0", "hud-item-string"]
+  ],
+  "(method 24 hud-rank-name-score)": [
+    [4, "v1", "hud-item-group"],
+    [9, "v1", "hud-item-group"],
+    [15, "v1", "hud-item-group"],
+    [19, "v1", "hud-item-group"],
+    [40, "a0", "hud-item-string"],
+    [62, "v1", "hud-item-string"],
+    [88, "s0", "hud-item-string"],
+    [94, "s1", "hud-item-string"],
+    [95, "v1", "hud-string"],
+    [120, "v1", "game-task-node-info"],
+    [135, "v1", "net-player-race"],
+    [141, "v1", "net-game-mgr-race"],
+    [167, "a0", "net-game-mgr-race"],
+    [172, "a0", "hud-item-string"],
+    [57, "s1", "hud-item-string"],
+    [60, "s1", "hud-item-string"]
+  ],
+  "is-nonstandard-mode-ignore-split?": [
+    [4, "v1", "game-task-node-info"],
+    [71, "v1", "game-task-node-info"],
+    [93, "v1", "game-task-node-info"]
+  ],
+  "set-stats-text": [
+    [3, "s5", "hud-item-string"],
+    [36, "s5", "hud-item-string"],
+    [43, "a0", "hud-item-string"],
+    [50, "s5", "hud-item-string"],
+    [78, "a0", "hud-item-string"],
+    [86, "a0", "hud-item-string"],
+    [94, "a0", "hud-item-string"],
+    [101, "s5", "hud-item-string"],
+    [118, "s5", "hud-item-string"],
+    [111, "v1", "(pointer int32)"],
+    [128, "v1", "(pointer int32)"]
   ]
 }
