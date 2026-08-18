@@ -4742,6 +4742,56 @@
   // op 54 rather than trade a field-typing gap for a structural
   // decompile failure.
   "should-push-away-test-mesh": [[[6, 53], "s2", "collide-mesh-cache-tri"]],
+  // (anon-function 1 pov-camera): s6 (the implicit process context in
+  // this trans/code handler) is walked at raw offsets 140/144/152/156/
+  // 172/188/204/208 across the function, all landing on othercam's own
+  // table (declared 144/148/156/160/176/192/208/212 per the +4 basics
+  // convention), not process's inherited range; othercam is a direct
+  // process subtype (not process-drawable) with its own fields starting
+  // at 144. hand (raw 140, l.d, declared 144) splits via the same
+  // sllv/dsra32 idiom as update-eyes/dirty-eyes above; casting v1 to
+  // handle resolves the field-typing side (the hand field itself and
+  // everything read off it downstream) but not the sllv fold itself:
+  // unlike update-eyes/dirty-eyes and the shadow-vu1 read fold, every
+  // sllv site in this file is the self-referential shape (sllv v1, v1,
+  // r0, same source and destination register) rather than sllv into a
+  // different register immediately dereferenced; that shape does not
+  // fold regardless of operand typing, matching the identical
+  // conclusion already reached on shadow-vu1's own second sllv site
+  // (this file, above). Held as raw asm at every sllv in this object
+  // per house convention; only the field-typing halves are fixed here.
+  "(anon-function 1 pov-camera)": [
+    [[0, 180], "s6", "othercam"],
+    [[1, 3], "v1", "handle"],
+    [[115, 117], "v1", "handle"]
+  ],
+  // (anon-function 3 pov-camera): same othercam-field shape as above
+  // (raw 152/172/204/208/220, hand at raw 140 again), reached from a
+  // different code path in the same state machine.
+  "(anon-function 3 pov-camera)": [
+    [[0, 60], "s6", "othercam"],
+    [[46, 48], "v1", "handle"]
+  ],
+  // (anon-function 4 pov-camera): gp (op 0, a3 itself, the event
+  // handler's own event-message-block argument) is read at raw offset
+  // 16 (l.d, event-message-block's own param field, an array of uint64
+  // starting there) at ops 10/21/30/33, needing event-message-block
+  // rather than object. hand (raw 140, l.d, othercam's own field again)
+  // splits via the same sllv/dsra32 idiom at op 14-15; a second fold at
+  // op 48 reads back an already-obtained othercam handle the same way.
+  "(anon-function 4 pov-camera)": [
+    [[0, 55], "gp", "event-message-block"],
+    [[0, 55], "s6", "othercam"],
+    [[15, 17], "v1", "handle"],
+    [[48, 50], "v1", "handle"]
+  ],
+  // (anon-function 7 pov-camera): a3 (the event handler's own
+  // event-message-block argument, same shape as anon-function 4's own
+  // gp above) is read at raw offset 16 (l.d, param[0]) at more than one
+  // point across a branchy body; widening the cast moves the first
+  // unresolved op forward each time rather than clearing it, so one
+  // access point in this function is still held.
+  "(anon-function 7 pov-camera)": [[[0, 12], "a3", "event-message-block"]],
   // free-eye-index: a2 is eye-control's own array-indexed pointer (eye
   // index times 80, eye's own inline stride, plus inner index times 4,
   // added onto the eye-control base), matching jak3's identical
