@@ -28,7 +28,10 @@
   "Set the 'dog ratio'. This should be 1 when the game is running at full speed.
    Larger dog ratio means slower."
 
-  ;; cap ratio if we're slower than 4x
+  ;; don't allow slowdowns of more than 4x: the clock dt feeds exponential damping sites
+  ;; (enemy friction, cloth drag) and a ratio beyond this makes dt huge (mirrors jak1's
+  ;; comment in video.gc). With the fmax 1.0 floor at the calc-ratio site in display-sync,
+  ;; the ratio the tuning sees is always in [1.0, 4.0] (issue #31).
   (set! (-> this dog-ratio) (fmin 4.0 arg0))
 
   ;; set the time per vsync.

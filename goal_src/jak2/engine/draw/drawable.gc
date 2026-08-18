@@ -1821,15 +1821,12 @@
   )
 
 ;; og:preserve-this pc port function
-(defun pc-maybe-vsync ()
+(defun pc-maybe-vsync ((arg0 float))
   "PC Port implementation of the block of code in display-sync that computes frame-time-ratio and maybe vsyncs."
-  ;; for now, it's very simple.
-
-  ;; I think the right logic in the future is to always vsync here, but return a more accurate dog ratio.
-
+  ;; always vsync, but report the measured frame-time ratio (arg0) instead of a constant 1.0,
+  ;; so the clock tracks wall clock when the target fps is missed (issue #31).
   (syncv 0) ;; sync always!
-  ;(set! *ticks-per-frame* 9765) ;; hack!
-  1.0       ;; and report that we run at full speed.
+  arg0      ;; report the measured ratio
   )
 
 (defun display-sync ((arg0 display))
@@ -1858,8 +1855,11 @@
     ;; measure the actual *ticks-per-frame* by comparing the timings of the last two vblanks.
     ;; I think this should be constant for PAL/NTSC, the vblank interrupt happens no matter what and is based
     ;; on the TV timing stuff.
-    ;(set! *ticks-per-frame* (sar (- prev-vblank-time-2 prev-vblank-time-1) 48))
-    (set! *ticks-per-frame* 9765) ;; HACK
+    ;; PC PORT: derive the nominal frame duration from the target framerate (585900 = 9765 * 60)
+    ;; instead of the hardcoded 60fps value, so calc-ratio below measures against the selected
+    ;; fps (mirrors jak1's 'custom branch in video.gc; issue #31). Recomputed each frame so a
+    ;; target-fps change takes effect without a restart.
+    (set! *ticks-per-frame* (/ 585900 (-> *pc-settings* target-fps)))
 
     (let* ((ticks-per-frame-f (the float *ticks-per-frame*))
            ;; how long we spent on this frame (measured from the dma-send until now)
@@ -1990,8 +1990,8 @@
               )
         |#
 
-        ;; og:preserve-this added: just skip this for now.
-        (set! frame-time-ratio (pc-maybe-vsync))
+        ;; always vsync, keeping the measured frame-time ratio (issue #31):
+        (set! frame-time-ratio (pc-maybe-vsync frame-time-ratio))
 
         (if (< frame-time-ratio 0.0)
             (set! frame-time-ratio last-dog)
