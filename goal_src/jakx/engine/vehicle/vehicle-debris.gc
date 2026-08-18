@@ -7,3 +7,220 @@
 
 ;; DECOMP BEGINS
 
+;; definition of type vehicle-debris-init-params
+(deftype vehicle-debris-init-params (structure)
+  ((mat            matrix  :inline)
+   (velocity       vector  :inline)
+   (ang-velocity   vector  :inline)
+   (color          rgbaf   :inline)
+   (radius         float)
+   (skel           basic)
+   (info           rigid-body-object-constants)
+   (level          basic)
+   (impact-sound   uint16)
+   (has-particles  basic)
+   )
+  )
+
+;; definition for method 3 of type vehicle-debris-init-params
+(defmethod inspect ((this vehicle-debris-init-params))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'vehicle-debris-init-params)
+  (format #t "~1Tmat: #<matrix @ #x~X>~%" (-> this mat))
+  (format #t "~1Tvelocity: #<vector @ #x~X>~%" (-> this velocity))
+  (format #t "~1Tang-velocity: #<vector @ #x~X>~%" (-> this ang-velocity))
+  (format #t "~1Tcolor: #<rgbaf @ #x~X>~%" (-> this color))
+  (format #t "~1Tradius: ~f~%" (-> this radius))
+  (format #t "~1Tskel: ~A~%" (-> this skel))
+  (format #t "~1Tinfo: #<rigid-body-object-constants @ #x~X>~%" (-> this info))
+  (format #t "~1Tlevel: ~A~%" (-> this level))
+  (format #t "~1Timpact-sound: ~D~%" (-> this impact-sound))
+  (format #t "~1Thas-particles: ~A~%" (-> this has-particles))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this *vehicle-debris-constants* is omitted rather than
+;; landed. Its own static (L59) fails static-ref the same way as the
+;; other unparseable <static-data LNN> placeholders this band keeps
+;; hitting, and it has no caller anywhere in this file's landed content
+;; (its only reader is inside vehicle-debris-init-by-other, held below).
+
+;; definition of type vehicle-debris
+(deftype vehicle-debris (rigid-body-object)
+  ((impact-sound  uint16)
+   (camera-dist   float)
+   )
+  (:state-methods
+    explode
+    fade-out
+    die
+    )
+  )
+
+;; definition for method 3 of type vehicle-debris
+(defmethod inspect ((this vehicle-debris))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type rigid-body-object inspect)))
+    (t9-0 this)
+    )
+  (format #t "~2Timpact-sound: ~D~%" (-> this impact-sound))
+  (format #t "~2Tcamera-dist: ~f~%" (-> this camera-dist))
+  (label cfg-4)
+  this
+  )
+
+;; og:preserve-this methods 65, 87 and 88 are omitted rather than
+;; landed. All three decode as an almost entirely the-as-none raw-offset
+;; fallback (roughly 1,030 of this file's 1,230 raw-decode lines) and
+;; none of the three is a localized, isolable defect: method 65 fails at
+;; op 3 and separately reads a1 with no set (the decompiler's own
+;; unset-register diagnostic; every other landed override of this method
+;; across the corpus, including rigid-body-object's own base
+;; implementation, takes only self, so this is not a dropped-argument
+;; fix, something else corrupted this specific override's decode);
+;; method 87 fails a stack-use guess with a fully raw ~90-line body;
+;; method 88 references an unactivated find-nearest-camera-distance but
+;; is otherwise raw-fallback throughout regardless. New discoveries, not
+;; in either the wvehicle-small-tier or rigid-body-object rung's held
+;; lists; sized like their own rung. Re-derive from the framework's own
+;; dump (offline-test -f vehicle-debris -d) once the root cause is
+;; found.
+
+;; definition for method 66 of type vehicle-debris
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-66 ((this vehicle-debris))
+  (set! (-> this root max-iteration-count) (the-as uint 3))
+  (set! (-> this max-time-step) 0.05)
+  (set! (-> this focus-status)
+        (the-as focus-status (logior (focus-status gun-no-target) (-> this focus-status)))
+        )
+  (set! (-> this rbody max-ang-momentum) (/ (-> this rbody info max-ang-momentum) 2))
+  0
+  (none)
+  )
+
+;; definition for method 61 of type vehicle-debris
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-61 ((this vehicle-debris))
+  (ja-post)
+  (if (logtest? (-> this flags) 1)
+      (update-transforms (-> this root))
+      )
+  0
+  (none)
+  )
+
+;; definition for method 80 of type vehicle-debris
+;; WARN: Return type mismatch symbol vs none.
+(defmethod rigid-body-object-method-80 ((this vehicle-debris) (arg0 rigid-body-impact))
+  (when (< 20480.0 (-> arg0 impulse))
+    (let ((f30-0 (fmin 1.0 (* 0.000048828126 (+ -20480.0 (-> arg0 impulse)))))
+          (v1-8
+            (make-sound-instance (-> *sound-info* (-> this impact-sound)) (new 'static 'sound-id) (the-as handle #f))
+            )
+          )
+      (cond
+        (v1-8
+          (set! (-> v1-8 volume) (the int (* 1024.0 f30-0)))
+          (logior! (-> v1-8 flags) 64)
+          (-> v1-8 id)
+          )
+        (else
+          0
+          )
+        )
+      )
+    0
+    )
+  (logior! (-> this root penetrated-by) (penetrate vehicle))
+  #t
+  (none)
+  )
+
+;; definition for method 71 of type vehicle-debris
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-71 ((this vehicle-debris))
+  0
+  (none)
+  )
+
+;; failed to figure out what this is:
+(defstate explode (vehicle-debris)
+  :virtual #t
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('impact-impulse)
+       (let ((a1-1 (-> block param 0)))
+         (rigid-body-object-method-80 self (the-as rigid-body-impact a1-1))
+         )
+       )
+      )
+    )
+  :enter (behavior ()
+    (set-time! (-> self state-time))
+    (logior! (-> self rbody flags) 10)
+    (let ((v1-5 (-> self rbody)))
+      (set! (-> v1-5 linear-damping) 0.005)
+      (set! (-> v1-5 angular-damping) 0.01)
+      (set! (-> v1-5 bounce-factor) 0.2)
+      (set! (-> v1-5 friction-factor) 0.1)
+      )
+    )
+  :trans #f
+  :code sleep-code
+  :post (behavior ()
+    (rigid-body-object-method-71 self)
+    (if (nonzero? (-> self part))
+        (spawn-from-mat (-> self part) (-> self rbody matrix))
+        )
+    (if (time-elapsed? (-> self state-time) (seconds 4))
+        (go-virtual fade-out)
+        )
+    )
+  )
+
+;; failed to figure out what this is:
+(defstate fade-out (vehicle-debris)
+  :virtual #t
+  :enter (behavior ()
+    (set-time! (-> self state-time))
+    (logior! (-> self draw status) (draw-control-status force-fade))
+    )
+  :code sleep-code
+  :post (behavior ()
+    (set! (-> self draw force-fade)
+          (the-as
+            uint
+            (the int (fmax 0.0 (- 128.0 (* 0.42666668 (the float (- (current-time) (-> self state-time)))))))
+            )
+          )
+    (if (< (-> self draw force-fade) (the-as uint 2))
+        (go-virtual die)
+        )
+    (rigid-body-object-method-71 self)
+    )
+  )
+
+;; failed to figure out what this is:
+(defstate die (vehicle-debris)
+  :virtual #t
+  :code (behavior ()
+    (cleanup-for-death self)
+    )
+  )
+
+;; og:preserve-this vehicle-debris-init-by-other and
+;; vehicle-debris-spawn are omitted rather than landed: both have no
+;; type analysis at all (their externs are commented out in
+;; all-types.gc with no prior derivation attempt), and given the
+;; density of raw-fallback decode elsewhere in this same object,
+;; activating either without first understanding that root cause risks
+;; the same kind of decompiler crash weapon-mask->type hit elsewhere in
+;; this band. Not attempted.
