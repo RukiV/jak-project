@@ -6046,7 +6046,91 @@
     [[470, 475], "a1", "(pointer int32)"],
     [[481, 486], "a0", "(pointer int32)"],
     [[505, 532], "a1", "(pointer int32)"],
-    [[538, 543], "a0", "(pointer int32)"]
+    [[538, 543], "a0", "(pointer int32)"],
+    // hud-4 rung: the destination side of the same packet writes above (the
+    // raw dma-buffer base pointer, freshly reloaded before each of the ten
+    // hud-sprite-work templates and re-derived by daddiu for each 16-byte
+    // sub-block within a template); every range below starts at the op that
+    // defines the pointer and ends at its last raw store, matching the
+    // (method 24 hud) precedent's shape (dma-packet copy needs
+    // (pointer uint128), the per-field float/int writes need their own
+    // element type). adgif-tmpl copy, plus its own trailing alpha-test dma
+    // register write (three branches on sv-60's hsf4/hsf5/else bits, each
+    // redefining a0 fresh from s4-1 then storing a single uint64 register id
+    // at offset 64):
+    [[138, 145], "s4", "(pointer uint128)"],
+    [[153, 155], "a0", "(pointer uint64)"],
+    [[160, 162], "a0", "(pointer uint64)"],
+    [[164, 166], "a0", "(pointer uint64)"],
+    // sprite-tmpl copy and its two corner-float and two corner-int blocks
+    // (this.angle == 0.0 branch):
+    [[172, 181], "v1", "(pointer uint128)"],
+    [[195, 203], "a0", "(pointer float)"],
+    [[203, 217], "a0", "(pointer float)"],
+    [[217, 228], "a0", "(pointer int32)"],
+    [[228, 239], "v1", "(pointer int32)"],
+    // draw-tmpl copy and its four corner-float and three corner-int blocks
+    // (else branch, arbitrary angle):
+    [[243, 252], "v1", "(pointer uint128)"],
+    [[274, 282], "t0", "(pointer float)"],
+    [[282, 293], "t0", "(pointer float)"],
+    [[293, 304], "t0", "(pointer float)"],
+    [[304, 318], "t0", "(pointer float)"],
+    [[318, 327], "t0", "(pointer int32)"],
+    [[327, 336], "a3", "(pointer int32)"],
+    [[336, 345], "a2", "(pointer int32)"],
+    [[345, 354], "v1", "(pointer int32)"],
+    // sprite-no-tex-tmpl copy and its two corner-int blocks (untextured,
+    // this.angle == 0.0 branch):
+    [[460, 469], "v1", "(pointer uint128)"],
+    [[469, 480], "a0", "(pointer int32)"],
+    [[480, 491], "v1", "(pointer int32)"],
+    // draw-no-tex-tmpl copy and its three corner-int blocks (untextured,
+    // else branch):
+    [[495, 504], "v1", "(pointer uint128)"],
+    [[504, 515], "a0", "(pointer int32)"],
+    [[515, 526], "a0", "(pointer int32)"],
+    [[526, 537], "a0", "(pointer int32)"],
+    [[537, 548], "v1", "(pointer int32)"]
+  ],
+  // hud-4 rung: (method 9/10/11/12 hud-box) all open with
+  // (l.wu (+ arg0 4)), the same dma-buffer.base machine offset
+  // hud-sprite-method-9 reads through its own retyped dma-buffer arg; once
+  // hud-h.gc's own :methods block retyped arg0 from object to dma-buffer
+  // (this rung), the same raw-pointer-offset class as (method 9 hud-sprite)
+  // is left needing the same casts. All four write box-tmpl/box2-tmpl (a
+  // dma-tag/gif-tag/color quad copy at v1-3, then per-corner int32 writes at
+  // fixed 16-byte-aligned sub-offsets); (method 9) alone has a fifth corner
+  // (box-tmpl closes its own line-strip loop, the other three templates
+  // do not).
+  "(method 9 hud-box)": [
+    [[31, 58], "v1", "(pointer uint128)"],
+    [[58, 64], "a0", "(pointer int32)"],
+    [[64, 70], "a0", "(pointer int32)"],
+    [[70, 76], "a0", "(pointer int32)"],
+    [[76, 82], "a0", "(pointer int32)"],
+    [[82, 88], "v1", "(pointer int32)"]
+  ],
+  "(method 10 hud-box)": [
+    [[31, 58], "v1", "(pointer uint128)"],
+    [[58, 64], "a0", "(pointer int32)"],
+    [[64, 70], "a0", "(pointer int32)"],
+    [[70, 76], "a0", "(pointer int32)"],
+    [[76, 82], "v1", "(pointer int32)"]
+  ],
+  "(method 11 hud-box)": [
+    [[31, 58], "v1", "(pointer uint128)"],
+    [[58, 64], "a0", "(pointer int32)"],
+    [[64, 70], "a0", "(pointer int32)"],
+    [[70, 76], "a0", "(pointer int32)"],
+    [[76, 82], "v1", "(pointer int32)"]
+  ],
+  "(method 12 hud-box)": [
+    [[31, 58], "v1", "(pointer uint128)"],
+    [[58, 64], "a0", "(pointer int32)"],
+    [[64, 70], "a0", "(pointer int32)"],
+    [[70, 76], "a0", "(pointer int32)"],
+    [[76, 82], "v1", "(pointer int32)"]
   ],
   // (trans run-state drift-editor), internal name (anon-function 5 drift)
   // until other fixes let the decompiler recognize it as a named state

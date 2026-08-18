@@ -114,13 +114,23 @@
     )
   )
 
-;; og:preserve-this hud rung: (method 9 hud-string) held. Its raw decode
-;; (hud_ir2.asm) copies a texture-id constructor and several raw dma-packet
-;; writes through bare pointer arithmetic (the same class as (method 24 hud)
-;; below) that this rung did not carve type_casts.jsonc entries for. Its only
-;; caller in this corpus is hud-string-draw-all, itself held below, so leaving
-;; it unfilled introduces no new runtime dispatch. Retire when
-;; hud-string-draw-all is landed for real and needs it.
+;; og:preserve-this hud-4 rung: (method 9 hud-string) still held, but for a
+;; narrower reason than before. Its raw decode (hud_ir2.asm) is now a clean
+;; single expression-build failure at op 0, "add failed: object <integer
+;; 28>": (+ arg0 28), where arg0 is declared object. Every sibling writer
+;; this rung landed (hud-sprite-method-9, hud-corners-method-9, hud-box-
+;; method-9/10/11/12) had a real caller supplying concrete argument types
+;; (hud-sprite-method-9's own dma-buffer/level pair, or hud-corners-method-9's
+;; vector4w/float/hud-sprite-flags/float/float call site inside this rung's
+;; own hud-sprite-method-9 landing) to retype the declared arg from object to
+;; something real; this method's only caller in this corpus is
+;; hud-string-draw-all, itself held below with no landed body, so there is no
+;; call site anywhere to read a real type from, and the field offsets it
+;; writes (4, 12, 28..40, 140, 144, 168, 176, 180, 181, 182) do not match any
+;; type already declared in this corpus. Guessing a shape here would be
+;; exactly the "guess presented as a finding" AGENTS.md rules out. Retire
+;; when hud-string-draw-all is landed for real and a genuine call site
+;; appears.
 
 (defun hud-string-draw-all ((arg0 dma-buffer))
   0
@@ -279,11 +289,93 @@
                             )
         )
 
-;; og:preserve-this hud rung: (method 9 hud-corners) held. Its raw decode
-;; (hud_ir2.asm) fails type prop on a raw byte read (l.w s5) and leaves t0/t1
-;; unresolved; this rung did not carve the type_casts.jsonc entries needed.
-;; No landed caller in this corpus reaches it. Retire alongside
-;; (method 9 hud-sprite) below, which needs the same class of fix.
+;; og:preserve-this hud-4 rung: hud-corners-method-9 gains its real 5-arg
+;; shape (see hud-h.gc's own :methods comment) and lands from the resulting
+;; clean decode. hud-corners's own data field retyped uint64 4 -> int32 8 in
+;; hud-h.gc (same rung, same evidence): every access to it anywhere in this
+;; corpus, here and at hud-sprite-method-9's own reads below, is a 32-bit
+;; sw/lw of one half of a uint64 element, never a genuine 64-bit sd/ld;
+;; casting the raw self pointer per-op does not work here because self is
+;; never reassigned across the whole function, so a type_casts.jsonc cast on
+;; it retypes every other use of self for its entire lifetime and regresses
+;; the earlier data[0] writes.
+;; definition for method 9 of type hud-corners
+(defmethod hud-corners-method-9 ((this hud-corners) (arg0 vector4w) (arg1 float) (arg2 hud-sprite-flags) (arg3 float) (arg4 float))
+  (cond
+    ((= arg1 0.0)
+     (let ((v1-2 (the int (* 16.0 (-> *video-params* relative-x-scale) arg3)))
+           (a0-2 (the int (* 16.0 arg4)))
+           (a2-1 (-> this data))
+           (a1-1 (&-> this data 6))
+           )
+       (cond
+         ((logtest? arg2 (hud-sprite-flags hsf2))
+          (set! (-> a2-1 0) (- (* (+ (-> arg0 x) 1792) 16) v1-2))
+          (set! (-> a2-1 1) (* (+ (-> arg0 y) 1840) 16))
+          )
+         ((logtest? arg2 (hud-sprite-flags hsf3))
+          (set! (-> a2-1 0) (- (* (+ (-> arg0 x) 1792) 16) (/ v1-2 2)))
+          (set! (-> a2-1 1) (- (* (+ (-> arg0 y) 1840) 16) (/ a0-2 2)))
+          )
+         (else
+           (set! (-> a2-1 0) (* (+ (-> arg0 x) 1792) 16))
+           (set! (-> a2-1 1) (* (+ (-> arg0 y) 1840) 16))
+           )
+         )
+       (set! (-> a1-1 0) (+ (-> a2-1 0) v1-2))
+       (set! (-> a1-1 1) (+ (-> a2-1 1) a0-2))
+       )
+     )
+    (else
+      (let* ((f30-0 (sin arg1))
+             (f0-8 (cos arg1))
+             (a0-5 (the int (* 16.0 (-> *video-params* relative-x-scale) arg3 f0-8)))
+             (v1-9 (the int (* -16.0 arg3 f30-0)))
+             (a1-4 (the int (* 16.0 (-> *video-params* relative-x-scale) arg4 f30-0)))
+             (a2-3 (the int (* 16.0 arg4 f0-8)))
+             )
+        (-> this data)
+        (&-> this data 2)
+        (&-> this data 4)
+        (&-> this data 6)
+        (cond
+          ((logtest? arg2 (hud-sprite-flags hsf2))
+           (set! (-> this data 2) (* (+ (-> arg0 x) 1792) 16))
+           (set! (-> this data 3) (* (+ (-> arg0 y) 1840) 16))
+           (set! (-> this data 0) (- (-> this data 2) a0-5))
+           (set! (-> this data 1) (- (-> this data 3) v1-9))
+           (set! (-> this data 4) (+ (- (-> this data 2) a0-5) a1-4))
+           (set! (-> this data 5) (+ (- (-> this data 3) v1-9) a2-3))
+           (set! (-> this data 6) (+ (-> this data 2) a1-4))
+           (set! (-> this data 7) (+ (-> this data 3) a2-3))
+           )
+          ((logtest? arg2 (hud-sprite-flags hsf3))
+           (set! (-> this data 0) (- (* (+ (-> arg0 x) 1792) 16) (/ (+ a0-5 a1-4) 2)))
+           (set! (-> this data 1) (- (* (+ (-> arg0 y) 1840) 16) (/ (+ v1-9 a2-3) 2)))
+           (set! (-> this data 2) (+ (-> this data 0) a0-5))
+           (set! (-> this data 3) (+ (-> this data 1) v1-9))
+           (set! (-> this data 4) (+ (-> this data 0) a1-4))
+           (set! (-> this data 5) (+ (-> this data 1) a2-3))
+           (set! (-> this data 6) (+ (-> this data 0) a0-5 a1-4))
+           (set! (-> this data 7) (+ (-> this data 1) v1-9 a2-3))
+           )
+          (else
+            (set! (-> this data 0) (* (+ (-> arg0 x) 1792) 16))
+            (set! (-> this data 1) (* (+ (-> arg0 y) 1840) 16))
+            (set! (-> this data 2) (+ (-> this data 0) a0-5))
+            (set! (-> this data 3) (+ (-> this data 1) v1-9))
+            (set! (-> this data 4) (+ (-> this data 0) a1-4))
+            (set! (-> this data 5) (+ (-> this data 1) a2-3))
+            (set! (-> this data 6) (+ (-> this data 0) a0-5 a1-4))
+            (set! (-> this data 7) (+ (-> this data 1) v1-9 a2-3))
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
 
 ;; og:preserve-this hud rung: hud-sprite-add held as-is: its own body
 ;; (hud_ir2.asm, L72) reads zero argument registers and unconditionally
@@ -295,9 +387,477 @@
   #f
   )
 
-;; og:preserve-this hud rung: (method 10/11/12 hud-box) held, same
-;; unresolved-offset-arithmetic class as (method 9 hud-corners) above; no
-;; landed caller in this corpus reaches any of the four hud-box methods.
+;; og:preserve-this hud-4 rung: (method 9/10/11/12 hud-box) all land from
+;; their clean decode once hud-h.gc's own :methods block retyped arg0 from
+;; object to dma-buffer (same rung, same evidence class as
+;; hud-sprite-method-9's own earlier retype: raw offset 4, dma-buffer's own
+;; base field, resolves once arg0 is dma-buffer). type_casts.jsonc entries
+;; carve the destination-side raw pointer writes into box-tmpl/box2-tmpl the
+;; same way (method 24 hud) and hud-sprite-method-9 needed. (method 9) alone
+;; has a fifth corner block (box-tmpl closes its own line-strip loop; the
+;; other three templates do not). No landed caller reaches any of the four
+;; in this corpus yet, but each is a clean, self-contained dma-buffer
+;; writer with no further unfilled dispatch.
+;; definition for method 9 of type hud-box
+(defmethod hud-box-method-9 ((this hud-box) (arg0 dma-buffer))
+  (dma-buffer-add-gs-set arg0
+                         (test-1 (new 'static 'gs-test :ate #x1 :afail #x3 :zte #x1 :ztst (gs-ztest always)))
+                         (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1))
+                         )
+  (let ((t1-0 *hud-sprite-work*)
+        (v1-3 (-> arg0 base))
+        (a2-8 (* (+ (the int (-> this box min x)) 1792) 16))
+        (t0-0 (* (+ (the int (-> this box max x)) 1792) 16))
+        (a3-13 (* (+ (the int (-> this box min y)) 1840) 16))
+        )
+    (let ((t2-2 (* (+ (the int (-> this box max y)) 1840) 16)))
+      (set! (-> (the-as (pointer uint128) v1-3) 0) (-> t1-0 box-tmpl dma-vif quad))
+      (set! (-> (the-as (pointer uint128) v1-3) 1) (-> t1-0 box-tmpl quad 1))
+      (set! (-> (the-as (pointer uint128) v1-3) 2) (-> this color quad))
+      (let ((a0-2 (the-as (pointer int32) (&+ v1-3 48))))
+        (set! (-> a0-2 0) a2-8)
+        (set! (-> a0-2 1) a3-13)
+        (set! (-> a0-2 2) #xffffff)
+        (set! (-> a0-2 3) 0)
+        )
+      (let ((a0-3 (the-as (pointer int32) (&+ v1-3 64))))
+        (set! (-> a0-3 0) t0-0)
+        (set! (-> a0-3 1) a3-13)
+        (set! (-> a0-3 2) #xffffff)
+        (set! (-> a0-3 3) 0)
+        )
+      (let ((a0-4 (the-as (pointer int32) (&+ v1-3 80))))
+        (set! (-> a0-4 0) t0-0)
+        (set! (-> a0-4 1) t2-2)
+        (set! (-> a0-4 2) #xffffff)
+        (set! (-> a0-4 3) 0)
+        )
+      (let ((a0-5 (the-as (pointer int32) (&+ v1-3 96))))
+        (set! (-> a0-5 0) a2-8)
+        (set! (-> a0-5 1) t2-2)
+        (set! (-> a0-5 2) #xffffff)
+        (set! (-> a0-5 3) 0)
+        )
+      )
+    (let ((v1-4 (&-> (the-as (pointer int32) v1-3) 28)))
+      (set! (-> v1-4 0) a2-8)
+      (set! (-> v1-4 1) a3-13)
+      (set! (-> v1-4 2) #xffffff)
+      (set! (-> v1-4 3) 0)
+      )
+    )
+  (&+! (-> arg0 base) 128)
+  0
+  (none)
+  )
+
+;; definition for method 10 of type hud-box
+(defmethod hud-box-method-10 ((this hud-box) (arg0 dma-buffer))
+  (dma-buffer-add-gs-set arg0
+                         (test-1 (new 'static 'gs-test :ate #x1 :afail #x3 :zte #x1 :ztst (gs-ztest always)))
+                         (alpha-1 (new 'static 'gs-alpha :a #x2 :d #x1))
+                         )
+  (let ((t0-0 *hud-sprite-work*)
+        (v1-3 (-> arg0 base))
+        (a2-8 (* (+ (the int (-> this box min x)) 1792) 16))
+        (a3-11 (* (+ (the int (-> this box max x)) 1792) 16))
+        (t2-0 (* (+ (the int (-> this box min y)) 1840) 16))
+        (t1-4 (* (+ (the int (-> this box max y)) 1840) 16))
+        )
+    (set! (-> (the-as (pointer uint128) v1-3) 0) (-> t0-0 box2-tmpl dma-vif quad))
+    (set! (-> (the-as (pointer uint128) v1-3) 1) (-> t0-0 box2-tmpl quad 1))
+    (set! (-> (the-as (pointer uint128) v1-3) 2) (-> this color quad))
+    (let ((a0-2 (the-as (pointer int32) (&+ v1-3 48))))
+      (set! (-> a0-2 0) a2-8)
+      (set! (-> a0-2 1) t2-0)
+      (set! (-> a0-2 2) #xffffff)
+      (set! (-> a0-2 3) 0)
+      )
+    (let ((a0-3 (the-as (pointer int32) (&+ v1-3 64))))
+      (set! (-> a0-3 0) a3-11)
+      (set! (-> a0-3 1) t2-0)
+      (set! (-> a0-3 2) #xffffff)
+      (set! (-> a0-3 3) 0)
+      )
+    (let ((a0-4 (the-as (pointer int32) (&+ v1-3 80))))
+      (set! (-> a0-4 0) a2-8)
+      (set! (-> a0-4 1) t1-4)
+      (set! (-> a0-4 2) #xffffff)
+      (set! (-> a0-4 3) 0)
+      )
+    (let ((v1-4 (&-> (the-as (pointer int32) v1-3) 24)))
+      (set! (-> v1-4 0) a3-11)
+      (set! (-> v1-4 1) t1-4)
+      (set! (-> v1-4 2) #xffffff)
+      (set! (-> v1-4 3) 0)
+      )
+    )
+  (&+! (-> arg0 base) 112)
+  (dma-buffer-add-gs-set arg0 (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1)))
+  0
+  (none)
+  )
+
+;; definition for method 11 of type hud-box
+(defmethod hud-box-method-11 ((this hud-box) (arg0 dma-buffer))
+  (dma-buffer-add-gs-set arg0
+                         (test-1 (new 'static 'gs-test :ate #x1 :afail #x3 :zte #x1 :ztst (gs-ztest always)))
+                         (alpha-1 (new 'static 'gs-alpha :b #x2 :d #x1))
+                         )
+  (let ((t0-0 *hud-sprite-work*)
+        (v1-3 (-> arg0 base))
+        (a2-8 (* (+ (the int (-> this box min x)) 1792) 16))
+        (a3-11 (* (+ (the int (-> this box max x)) 1792) 16))
+        (t2-0 (* (+ (the int (-> this box min y)) 1840) 16))
+        (t1-4 (* (+ (the int (-> this box max y)) 1840) 16))
+        )
+    (set! (-> (the-as (pointer uint128) v1-3) 0) (-> t0-0 box2-tmpl dma-vif quad))
+    (set! (-> (the-as (pointer uint128) v1-3) 1) (-> t0-0 box2-tmpl quad 1))
+    (set! (-> (the-as (pointer uint128) v1-3) 2) (-> this color quad))
+    (let ((a0-2 (the-as (pointer int32) (&+ v1-3 48))))
+      (set! (-> a0-2 0) a2-8)
+      (set! (-> a0-2 1) t2-0)
+      (set! (-> a0-2 2) #xffffff)
+      (set! (-> a0-2 3) 0)
+      )
+    (let ((a0-3 (the-as (pointer int32) (&+ v1-3 64))))
+      (set! (-> a0-3 0) a3-11)
+      (set! (-> a0-3 1) t2-0)
+      (set! (-> a0-3 2) #xffffff)
+      (set! (-> a0-3 3) 0)
+      )
+    (let ((a0-4 (the-as (pointer int32) (&+ v1-3 80))))
+      (set! (-> a0-4 0) a2-8)
+      (set! (-> a0-4 1) t1-4)
+      (set! (-> a0-4 2) #xffffff)
+      (set! (-> a0-4 3) 0)
+      )
+    (let ((v1-4 (&-> (the-as (pointer int32) v1-3) 24)))
+      (set! (-> v1-4 0) a3-11)
+      (set! (-> v1-4 1) t1-4)
+      (set! (-> v1-4 2) #xffffff)
+      (set! (-> v1-4 3) 0)
+      )
+    )
+  (&+! (-> arg0 base) 112)
+  (dma-buffer-add-gs-set arg0 (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1)))
+  0
+  (none)
+  )
+
+;; definition for method 12 of type hud-box
+(defmethod hud-box-method-12 ((this hud-box) (arg0 dma-buffer))
+  (dma-buffer-add-gs-set arg0
+                         (test-1 (new 'static 'gs-test :ate #x1 :afail #x3 :zte #x1 :ztst (gs-ztest always)))
+                         (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1))
+                         )
+  (let ((t0-0 *hud-sprite-work*)
+        (v1-3 (-> arg0 base))
+        (a2-8 (* (+ (the int (-> this box min x)) 1792) 16))
+        (a3-11 (* (+ (the int (-> this box max x)) 1792) 16))
+        (t2-0 (* (+ (the int (-> this box min y)) 1840) 16))
+        (t1-4 (* (+ (the int (-> this box max y)) 1840) 16))
+        )
+    (set! (-> (the-as (pointer uint128) v1-3) 0) (-> t0-0 box2-tmpl dma-vif quad))
+    (set! (-> (the-as (pointer uint128) v1-3) 1) (-> t0-0 box2-tmpl quad 1))
+    (set! (-> (the-as (pointer uint128) v1-3) 2) (-> this color quad))
+    (let ((a0-2 (the-as (pointer int32) (&+ v1-3 48))))
+      (set! (-> a0-2 0) a2-8)
+      (set! (-> a0-2 1) t2-0)
+      (set! (-> a0-2 2) #xffffff)
+      (set! (-> a0-2 3) 0)
+      )
+    (let ((a0-3 (the-as (pointer int32) (&+ v1-3 64))))
+      (set! (-> a0-3 0) a3-11)
+      (set! (-> a0-3 1) t2-0)
+      (set! (-> a0-3 2) #xffffff)
+      (set! (-> a0-3 3) 0)
+      )
+    (let ((a0-4 (the-as (pointer int32) (&+ v1-3 80))))
+      (set! (-> a0-4 0) a2-8)
+      (set! (-> a0-4 1) t1-4)
+      (set! (-> a0-4 2) #xffffff)
+      (set! (-> a0-4 3) 0)
+      )
+    (let ((v1-4 (&-> (the-as (pointer int32) v1-3) 24)))
+      (set! (-> v1-4 0) a3-11)
+      (set! (-> v1-4 1) t1-4)
+      (set! (-> v1-4 2) #xffffff)
+      (set! (-> v1-4 3) 0)
+      )
+    )
+  (&+! (-> arg0 base) 112)
+  0
+  (none)
+  )
+
+;; og:preserve-this hud-4 rung: hud-sprite-method-9 lands from its clean
+;; decode. Its own dispatch to hud-corners-method-9 (twice, once per branch
+;; of the outer sv-52 cond) is the call site this rung read to derive
+;; hud-corners-method-9's real 5-arg signature above; both callees are
+;; landed in this same rung, so this method introduces no unfilled dispatch.
+;; definition for method 9 of type hud-sprite
+(defmethod hud-sprite-method-9 ((this hud-sprite) (arg0 dma-buffer) (arg1 level))
+  (local-vars (v1-28 uint128))
+  (let ((sv-48 *hud-sprite-work*)
+        (sv-52 (-> this tex))
+        (sv-56 (new 'stack 'hud-corners))
+        (sv-60 (-> this flags))
+        (sv-64 (if (nonzero? (-> this pos z))
+                   (-> this pos z)
+                   #xffffff
+                   )
+               )
+        )
+    (cond
+      ((logtest? sv-60 (hud-sprite-flags hsf6))
+       (dma-buffer-add-gs-set arg0 (test-1 (new 'static 'gs-test
+                                             :ate #x1
+                                             :atst (gs-atest greater-equal)
+                                             :aref #x10
+                                             :afail #x1
+                                             :zte #x1
+                                             :ztst (gs-ztest greater-equal)
+                                             )
+                                           )
+                              )
+       )
+      ((logtest? sv-60 (hud-sprite-flags hsf10))
+       (dma-buffer-add-gs-set arg0
+                              (test-1 (new 'static 'gs-test :ate #x1 :afail #x3 :zte #x1 :ztst (gs-ztest greater-equal)))
+                              )
+       )
+      (else
+        (dma-buffer-add-gs-set arg0 (test-1 (new 'static 'gs-test :zte #x1 :ztst (gs-ztest greater-equal))))
+        )
+      )
+    (cond
+      (sv-52
+        (hud-corners-method-9
+          sv-56
+          (-> this pos)
+          (-> this angle)
+          sv-60
+          (* (the float (-> sv-52 w)) (-> this scale-x))
+          (* (the float (-> sv-52 h)) (-> this scale-y))
+          )
+        (when arg1
+          (let ((v1-27 (-> arg1 texture-mask 8 mask quad))
+                (a0-22 (-> sv-52 masks data 0 mask quad))
+                )
+            (.por v1-28 v1-27 a0-22)
+            )
+          (set! (-> arg1 texture-mask 8 mask quad) v1-28)
+          )
+        (let ((s4-1 (-> arg0 base)))
+          (set! (-> (the-as (pointer uint128) s4-1) 0) (-> sv-48 adgif-tmpl dma-vif quad))
+          (set! (-> (the-as (pointer uint128) s4-1) 1) (-> sv-48 adgif-tmpl quad 1))
+          (adgif-shader<-texture-simple! (the-as adgif-shader (&+ s4-1 32)) sv-52)
+          (cond
+            ((logtest? sv-60 (hud-sprite-flags hsf4))
+             (set! (-> (the-as (pointer uint64) (&+ s4-1 32)) 8) (the-as uint 72))
+             )
+            ((logtest? sv-60 (hud-sprite-flags hsf5))
+             (set! (-> (the-as (pointer uint64) (&+ s4-1 32)) 8) (the-as uint 66))
+             )
+            (else
+              (set! (-> (the-as (pointer uint64) (&+ s4-1 32)) 8) (the-as uint 68))
+              )
+            )
+          )
+        (&+! (-> arg0 base) 112)
+        (cond
+          ((= (-> this angle) 0.0)
+           (let ((v1-42 (-> arg0 base)))
+             (set! (-> (the-as (pointer uint128) v1-42) 0) (-> sv-48 sprite-tmpl dma-vif quad))
+             (set! (-> (the-as (pointer uint128) v1-42) 1) (-> sv-48 sprite-tmpl quad 1))
+             (set! (-> (the-as (pointer uint128) v1-42) 2) (-> this color quad))
+             (let ((f0-8 (if (logtest? sv-60 (hud-sprite-flags hsf0))
+                             1.0
+                             0.0
+                             )
+                         )
+                   (f1-3 (if (logtest? sv-60 (hud-sprite-flags hsf1))
+                             1.0
+                             0.0
+                             )
+                         )
+                   )
+               (let ((a0-38 (the-as (pointer float) (&+ v1-42 48))))
+                 (set! (-> a0-38 0) f0-8)
+                 (set! (-> a0-38 1) f1-3)
+                 (set! (-> a0-38 2) 1.0)
+                 (set! (-> a0-38 3) 0.0)
+                 )
+               (let ((a0-39 (the-as (pointer float) (&+ v1-42 80))))
+                 (set! (-> a0-39 0) (- 1.0 f0-8))
+                 (set! (-> a0-39 1) (- 1.0 f1-3))
+                 (set! (-> a0-39 2) 1.0)
+                 (set! (-> a0-39 3) 0.0)
+                 )
+               )
+             (let ((a0-40 (the-as (pointer int32) (&+ v1-42 64))))
+               (set! (-> a0-40 0) (-> (the-as (pointer int32) sv-56) 0))
+               (set! (-> a0-40 1) (-> (the-as (pointer int32) sv-56) 1))
+               (set! (-> a0-40 2) sv-64)
+               (set! (-> a0-40 3) #x10000)
+               )
+             (let ((v1-43 (&-> (the-as (pointer int32) v1-42) 24)))
+               (set! (-> v1-43 0) (-> (the-as (pointer int32) sv-56) 6))
+               (set! (-> v1-43 1) (-> (the-as (pointer int32) sv-56) 7))
+               (set! (-> v1-43 2) sv-64)
+               (set! (-> v1-43 3) #x10000)
+               )
+             )
+           (&+! (-> arg0 base) 112)
+           )
+          (else
+            (let ((v1-46 (-> arg0 base)))
+              (set! (-> (the-as (pointer uint128) v1-46) 0) (-> sv-48 draw-tmpl dma-vif quad))
+              (set! (-> (the-as (pointer uint128) v1-46) 1) (-> sv-48 draw-tmpl quad 1))
+              (set! (-> (the-as (pointer uint128) v1-46) 2) (-> this color quad))
+              (let ((f0-14 (if (logtest? sv-60 (hud-sprite-flags hsf0))
+                               1.0
+                               0.0
+                               )
+                           )
+                    (f1-4 (if (logtest? sv-60 (hud-sprite-flags hsf1))
+                              1.0
+                              0.0
+                              )
+                          )
+                    (a3-1 (-> sv-56 data))
+                    (a2-2 (&-> sv-56 data 2))
+                    (a1-35 (&-> sv-56 data 4))
+                    (a0-62 (&-> (the-as (pointer int32) sv-56) 6))
+                    )
+                (let ((t0-1 (the-as (pointer float) (&+ v1-46 48))))
+                  (set! (-> t0-1 0) f0-14)
+                  (set! (-> t0-1 1) f1-4)
+                  (set! (-> t0-1 2) 1.0)
+                  (set! (-> t0-1 3) 0.0)
+                  )
+                (let ((t0-2 (the-as (pointer float) (&+ v1-46 80))))
+                  (set! (-> t0-2 0) (- 1.0 f0-14))
+                  (set! (-> t0-2 1) f1-4)
+                  (set! (-> t0-2 2) 1.0)
+                  (set! (-> t0-2 3) 0.0)
+                  )
+                (let ((t0-3 (the-as (pointer float) (&+ v1-46 112))))
+                  (set! (-> t0-3 0) f0-14)
+                  (set! (-> t0-3 1) (- 1.0 f1-4))
+                  (set! (-> t0-3 2) 1.0)
+                  (set! (-> t0-3 3) 0.0)
+                  )
+                (let ((t0-4 (the-as (pointer float) (&+ v1-46 144))))
+                  (set! (-> t0-4 0) (- 1.0 f0-14))
+                  (set! (-> t0-4 1) (- 1.0 f1-4))
+                  (set! (-> t0-4 2) 1.0)
+                  (set! (-> t0-4 3) 0.0)
+                  )
+                (let ((t0-5 (the-as (pointer int32) (&+ v1-46 64))))
+                  (set! (-> t0-5 0) (-> a3-1 0))
+                  (set! (-> t0-5 1) (-> a3-1 1))
+                  (set! (-> t0-5 2) sv-64)
+                  (set! (-> t0-5 3) #x10000)
+                  )
+                (let ((a3-5 (the-as (pointer int32) (&+ v1-46 96))))
+                  (set! (-> a3-5 0) (-> a2-2 0))
+                  (set! (-> a3-5 1) (-> a2-2 1))
+                  (set! (-> a3-5 2) sv-64)
+                  (set! (-> a3-5 3) #x10000)
+                  )
+                (let ((a2-6 (the-as (pointer int32) (&+ v1-46 128))))
+                  (set! (-> a2-6 0) (-> a1-35 0))
+                  (set! (-> a2-6 1) (-> a1-35 1))
+                  (set! (-> a2-6 2) sv-64)
+                  (set! (-> a2-6 3) #x10000)
+                  )
+                (let ((v1-47 (&-> (the-as (pointer int32) v1-46) 40)))
+                  (set! (-> v1-47 0) (-> a0-62 0))
+                  (set! (-> v1-47 1) (-> a0-62 1))
+                  (set! (-> v1-47 2) sv-64)
+                  (set! (-> v1-47 3) #x10000)
+                  )
+                )
+              )
+            (&+! (-> arg0 base) 176)
+            )
+          )
+        )
+      (else
+        (hud-corners-method-9 sv-56 (-> this pos) (-> this angle) sv-60 (-> this scale-x) (-> this scale-y))
+        (cond
+          ((logtest? sv-60 (hud-sprite-flags hsf4))
+           (dma-buffer-add-gs-set arg0 (alpha-1 (new 'static 'gs-alpha :b #x2 :d #x1)))
+           )
+          ((logtest? sv-60 (hud-sprite-flags hsf5))
+           (dma-buffer-add-gs-set arg0 (alpha-1 (new 'static 'gs-alpha :a #x2 :d #x1)))
+           )
+          (else
+            (dma-buffer-add-gs-set arg0 (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1)))
+            )
+          )
+        (cond
+          ((= (-> this angle) 0.0)
+           (let ((v1-65 (-> arg0 base)))
+             (set! (-> (the-as (pointer uint128) v1-65) 0) (-> sv-48 sprite-no-tex-tmpl dma-vif quad))
+             (set! (-> (the-as (pointer uint128) v1-65) 1) (-> sv-48 sprite-no-tex-tmpl quad 1))
+             (set! (-> (the-as (pointer uint128) v1-65) 2) (-> this color quad))
+             (let ((a0-90 (the-as (pointer int32) (&+ v1-65 48))))
+               (set! (-> a0-90 0) (the-as int (the-as (pointer int32) (-> (the-as (pointer int32) sv-56) 0))))
+               (set! (-> a0-90 1) (-> (the-as (pointer int32) sv-56) 1))
+               (set! (-> a0-90 2) sv-64)
+               (set! (-> a0-90 3) #x10000)
+               )
+             (let ((v1-66 (&-> (the-as (pointer int32) v1-65) 16)))
+               (set! (-> v1-66 0) (the-as int (the-as (pointer int32) (-> (the-as (pointer int32) sv-56) 6))))
+               (set! (-> v1-66 1) (-> (the-as (pointer int32) sv-56) 7))
+               (set! (-> v1-66 2) sv-64)
+               (set! (-> v1-66 3) #x10000)
+               )
+             )
+           (&+! (-> arg0 base) 80)
+           )
+          (else
+            (let ((v1-69 (-> arg0 base)))
+              (set! (-> (the-as (pointer uint128) v1-69) 0) (-> sv-48 draw-no-tex-tmpl dma-vif quad))
+              (set! (-> (the-as (pointer uint128) v1-69) 1) (-> sv-48 draw-no-tex-tmpl quad 1))
+              (set! (-> (the-as (pointer uint128) v1-69) 2) (-> this color quad))
+              (let ((a0-102 (the-as (pointer int32) (&+ v1-69 48))))
+                (set! (-> a0-102 0) (the-as int (the-as (pointer int32) (-> (the-as (pointer int32) sv-56) 0))))
+                (set! (-> a0-102 1) (the-as int (the-as (pointer int32) (-> (the-as (pointer int32) sv-56) 1))))
+                (set! (-> a0-102 2) (the-as int (the-as (pointer int32) sv-64)))
+                (set! (-> a0-102 3) (the-as int (the-as (pointer int32) #x10000)))
+                )
+              (let ((a0-103 (the-as (pointer int32) (&+ v1-69 64))))
+                (set! (-> a0-103 0) (the-as int (the-as (pointer int32) (-> (the-as (pointer int32) sv-56) 2))))
+                (set! (-> a0-103 1) (the-as int (the-as (pointer int32) (-> (the-as (pointer int32) sv-56) 3))))
+                (set! (-> a0-103 2) (the-as int (the-as (pointer int32) sv-64)))
+                (set! (-> a0-103 3) (the-as int (the-as (pointer int32) #x10000)))
+                )
+              (let ((a0-104 (the-as (pointer int32) (&+ v1-69 80))))
+                (set! (-> a0-104 0) (the-as int (the-as (pointer int32) (-> (the-as (pointer int32) sv-56) 4))))
+                (set! (-> a0-104 1) (-> (the-as (pointer int32) sv-56) 5))
+                (set! (-> a0-104 2) sv-64)
+                (set! (-> a0-104 3) #x10000)
+                )
+              (let ((v1-70 (&-> (the-as (pointer int32) v1-69) 24)))
+                (set! (-> v1-70 0) (the-as int (the-as (pointer int32) (-> (the-as (pointer int32) sv-56) 6))))
+                (set! (-> v1-70 1) (-> (the-as (pointer int32) sv-56) 7))
+                (set! (-> v1-70 2) sv-64)
+                (set! (-> v1-70 3) #x10000)
+                )
+              )
+            (&+! (-> arg0 base) 112)
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 7 of type hud
 ;; WARN: Return type mismatch process vs hud.
@@ -312,22 +872,159 @@
   (the-as hud ((method-of-type process relocate) this offset))
   )
 
-;; og:preserve-this hud rung: (method 24 hud) held even though its own decode
-;; is clean (hud_ir2.asm, seven type_casts.jsonc entries added this rung
-;; resolved every raw dma-packet write in its own body). It dispatches
-;; (hud-sprite-method-9 a0-2 s4-0 s2-0) on every sprite it draws, and
-;; (method 9 hud-sprite)'s own decode still has roughly seventy raw
-;; dma-packet/gif-tag writes across several hud-sprite-work templates
-;; (box-tmpl, box2-tmpl, mask-tmpl, scan-tmpl) unresolved by this rung's
-;; type_casts.jsonc work. Landing (method 24 hud) without (method 9
-;; hud-sprite) filled would leave the base hud type's own vtable slot 24
-;; jumping into a real dispatch onto an unfilled slot 9 of hud-sprite the
-;; first time a nonzero-scale, textured sprite is drawn; several subtype
-;; overrides of method 24 exist already (hud-classes, hud-high-scores,
-;; hud-results-grand-prix, hud-widgets-2/3/powerhang, in-game-menu-hud/hud2,
-;; net-hud) so this may never be reached in practice by a bare hud instance,
-;; but that has not been proven, so this rung holds it. Retire once (method 9
-;; hud-sprite) is landed.
+;; og:preserve-this hud-4 rung: (method 24 hud) un-held and lands from its
+;; own clean decode (hud_ir2.asm, seven type_casts.jsonc entries from the
+;; earlier hud rung, unchanged). Its own dispatch of hud-sprite-method-9 on
+;; every drawn sprite is now safe: hud-sprite-method-9 is landed above (this
+;; rung), and hud-sprite-method-9's own dispatch of hud-corners-method-9 is
+;; likewise landed above. net-hud.gc's own (method 24 in-game-hud) already
+;; dispatches (method-of-type hud hud-method-24) unconditionally on every
+;; frame it runs; that was a standing check_method_slots FAIL at this rung's
+;; base and is filled now that this method has a real body.
+;; definition for method 24 of type hud
+(defmethod hud-method-24 ((this hud))
+  (with-pp
+    (let* ((sv-16 (view-get-active-index))
+           (sv-24 (-> *viewport-array* mode))
+           (sv-28 *viewport-array*)
+           (s4-0 (-> *display* frames (-> *display* on-screen) global-buf))
+           (gp-0 (-> s4-0 base))
+           )
+      (-> *perf-stats* data 58)
+      0
+      (let ((s3-0 (-> this num-sprites))
+            (s2-0 (-> this level))
+            )
+        (dotimes (s1-0 s3-0)
+          (when (and (-> this sprites s1-0 tex) (!= (-> this sprites s1-0 scale-x) 0.0))
+            (let ((a0-2 (-> this sprites s1-0)))
+              (when (nonzero? sv-24)
+                (cond
+                  ((logtest? (-> a0-2 flags) (hud-sprite-flags hsf9))
+                   (let ((v1-25 (-> sv-28 default))
+                         (a1-0 s4-0)
+                         )
+                     (let* ((a2-0 a1-0)
+                            (a3-0 (the-as dma-packet (-> a2-0 base)))
+                            )
+                       (set! (-> a3-0 dma) (new 'static 'dma-tag :qwc #x4 :id (dma-tag-id cnt)))
+                       (set! (-> a3-0 vif0) (new 'static 'vif-tag))
+                       (set! (-> a3-0 vif1) (new 'static 'vif-tag :imm #x4 :cmd (vif-cmd direct) :msk #x1))
+                       (set! (-> a2-0 base) (the-as pointer (&+ a3-0 16)))
+                       )
+                     (let* ((a2-1 a1-0)
+                            (a3-2 (the-as (pointer uint64) (-> a2-1 base)))
+                            )
+                       (set! (-> a3-2 0) (make-u128 0 (the-as uint #x3000000000008001)))
+                       (set! (-> a3-2 1) (the-as uint #xeeeeeeeeeeeeeeee))
+                       (set! (-> a2-1 base) (&-> a3-2 2))
+                       )
+                     (let ((a2-2 (the-as (pointer uint64) (-> a1-0 base))))
+                       (set! (-> a2-2 0) (-> v1-25 frame))
+                       (set! (-> a2-2 1) (the-as uint 76))
+                       (set! (-> a2-2 2) (-> v1-25 zbuf-on))
+                       (set! (-> a2-2 3) (the-as uint 78))
+                       (set! (-> a2-2 4) (-> v1-25 scissor))
+                       (set! (-> a2-2 5) (the-as uint 64))
+                       (set! (-> a1-0 base) (&-> a2-2 6))
+                       )
+                     )
+                   )
+                  (else
+                    (let ((v1-29 (-> sv-28 data sv-16))
+                          (a1-3 s4-0)
+                          )
+                      (let* ((a2-4 a1-3)
+                             (a3-10 (the-as dma-packet (-> a2-4 base)))
+                             )
+                        (set! (-> a3-10 dma) (new 'static 'dma-tag :qwc #x2 :id (dma-tag-id cnt)))
+                        (set! (-> a3-10 vif0) (new 'static 'vif-tag))
+                        (set! (-> a3-10 vif1) (new 'static 'vif-tag :imm #x2 :cmd (vif-cmd direct) :msk #x1))
+                        (set! (-> a2-4 base) (the-as pointer (&+ a3-10 16)))
+                        )
+                      (let* ((a2-5 a1-3)
+                             (a3-12 (the-as (pointer uint64) (-> a2-5 base)))
+                             )
+                        (set! (-> a3-12 0) (make-u128 0 (the-as uint #x1000000000008001)))
+                        (set! (-> a3-12 1) (the-as uint #xeeeeeeeeeeeeeeee))
+                        (set! (-> a2-5 base) (&-> a3-12 2))
+                        )
+                      (let ((a2-6 (the-as (pointer uint64) (-> a1-3 base))))
+                        (set! (-> a2-6 0) (-> v1-29 scissor-on-screen))
+                        (set! (-> a2-6 1) (the-as uint 64))
+                        (set! (-> a1-3 base) (&-> a2-6 2))
+                        )
+                      )
+                    )
+                  )
+                )
+              (hud-sprite-method-9 a0-2 s4-0 s2-0)
+              )
+            )
+          )
+        )
+      (-> *perf-stats* data 58)
+      0
+      (let ((f30-0 (* 0.0033333334 (the float (- (current-time) (-> pp clock old-frame-counter)))))
+            (s3-1 (-> this num-strings))
+            )
+        (dotimes (s2-1 s3-1)
+          (let ((a0-5 (-> this strings s2-1)))
+            (when a0-5
+              (+! (-> a0-5 time) f30-0)
+              (if (and (-> a0-5 text) (< 0.0 (-> a0-5 alpha)) (< 0.0 (-> a0-5 scale)))
+                  (hud-string-add a0-5)
+                  )
+              )
+            )
+          )
+        )
+      (dotimes (v1-51 2)
+        (let ((a0-9 (-> this icons v1-51)))
+          (when (-> a0-9 icon)
+            (set-vector!
+              (-> a0-9 icon 0 root scale)
+              (* (-> a0-9 scale-x) (-> *video-params* relative-x-scale))
+              (-> a0-9 scale-y)
+              (* (-> a0-9 scale-x) (-> *video-params* relative-x-scale))
+              1.0
+              )
+            (set! (-> a0-9 icon 0 root trans x) (the float (+ (-> a0-9 pos x) -256)))
+            (set! (-> a0-9 icon 0 root trans y) (the float (* (+ (-> a0-9 pos y) -208) 2)))
+            (set! (-> a0-9 icon 0 root trans z) (the float (-> a0-9 pos z)))
+            )
+          )
+        )
+      (when (get-horizontal-flip-flag *blit-displays-work*)
+        (dotimes (v1-57 2)
+          (let ((a0-17 (-> this icons v1-57)))
+            (if (-> a0-17 icon)
+                (set! (-> a0-17 icon 0 root trans x) (the float (- 256 (-> a0-17 pos x))))
+                )
+            )
+          )
+        )
+      (let ((a3-16 (-> s4-0 base)))
+        (when (!= gp-0 a3-16)
+          (let ((v1-61 (the-as dma-packet (-> s4-0 base))))
+            (set! (-> v1-61 dma) (new 'static 'dma-tag :id (dma-tag-id next)))
+            (set! (-> v1-61 vif0) (new 'static 'vif-tag))
+            (set! (-> v1-61 vif1) (new 'static 'vif-tag))
+            (set! (-> s4-0 base) (the-as pointer (&+ v1-61 16)))
+            )
+          (dma-bucket-insert-tag
+            (-> *display* frames (-> *display* on-screen) bucket-group)
+            (bucket-id bucket787)
+            gp-0
+            (the-as (pointer dma-tag) a3-16)
+            )
+          )
+        )
+      )
+    0
+    (none)
+    )
+  )
 
 ;; definition for symbol *debug-hud-disable*, type symbol
 (define *debug-hud-disable* #f)
@@ -454,16 +1151,25 @@
   (none)
   )
 
-;; og:preserve-this hud rung: hud-post held even though its own decode is
-;; clean (hud_ir2.asm, no errors once hud-handler/hud-post/hud-create-icon
-;; were given real signatures this rung). Its body unconditionally calls
-;; (hud-method-24 self) outside the screenshot-in-progress guard, and
-;; (method 24 hud) is itself held above pending (method 9 hud-sprite). Wiring
-;; hud-post into the hud-in state's :post slot without (method 24 hud) filled
-;; would be exactly the runtime-jump-to-an-unfilled-slot class this rung is
-;; explicitly trying to avoid, so hud-in's :post field is left unset below
-;; rather than wired to this function. Retire this hold in lockstep with
-;; (method 24 hud) and (method 9 hud-sprite).
+;; og:preserve-this hud-4 rung: hud-post un-held and lands from its own
+;; clean decode. (method 24 hud) is landed above (this rung), so the
+;; unconditional (hud-method-24 self) call outside the screenshot-in-progress
+;; guard is now safe. hud-in's own :post field below is wired to this
+;; function, matching the clean decode.
+;; definition for function hud-post
+(defbehavior hud-post hud ()
+  (-> *perf-stats* data 55)
+  0
+  (if (not (and (nonzero? *screen-shot-work*)
+                (!= (-> *screen-shot-work* count) -1)
+                (not (-> *screen-shot-work* hud-enable))
+                )
+           )
+      (hud-method-24 self)
+      )
+  (-> *perf-stats* data 55)
+  0
+  )
 
 ;; definition for function hud-handler
 ;; WARN: Return type mismatch int vs object.
@@ -493,11 +1199,10 @@
   :code sleep-code
   )
 
-;; og:preserve-this hud rung: :post omitted from this state on purpose. The
-;; clean decode (hud_ir2.asm) wires (-> gp-1 post) to hud-post, but hud-post
-;; is held above pending (method 24 hud) and (method 9 hud-sprite); every
-;; other field below is landed verbatim from the decode. Retire together with
-;; the hud-post hold above.
+;; og:preserve-this hud-4 rung: :post restored from the clean decode
+;; (hud_ir2.asm wires (-> gp-1 post) to hud-post); hud-post is landed above
+;; (this rung) so wiring it in no longer risks the unfilled-slot class the
+;; earlier hud rung was avoiding.
 (defstate hud-in (hud)
   :virtual #t
   :event hud-handler
@@ -513,6 +1218,7 @@
         )
     )
   :code sleep-code
+  :post hud-post
   )
 
 ;; definition for function hud-init-by-other

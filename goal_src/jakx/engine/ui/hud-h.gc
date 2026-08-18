@@ -84,11 +84,31 @@
   )
 
 ;; definition of type hud-corners
+;; og:preserve-this hud-4 rung: data retyped uint64 4 -> int32 8 (same 32-byte
+;; size). Every access anywhere in this corpus, inside (method 9 hud-corners)
+;; itself and at (method 9 hud-sprite)'s own external reads, is a 32-bit
+;; sw/lw of one half of a uint64 element; no sd/ld (genuine 64-bit) access to
+;; this field exists anywhere landed. Casting the raw offset pointers
+;; per-access (the type_casts.jsonc route used elsewhere in this rung) does
+;; not work here because self (gp) is never reassigned across the whole
+;; function, so a per-op cast on it retypes every other use of gp for its
+;; entire lifetime, regressing the earlier a2/a1 alias stores; retyping the
+;; field itself is the only fix that does not do that.
 (deftype hud-corners (structure)
-  ((data  uint64  4)
+  ((data  int32  8)
    )
   (:methods
-    (hud-corners-method-9 (_type_ object float object) none)
+    ;; og:preserve-this hud-4 rung: gains its real 5-arg shape. hud-sprite's
+    ;; own call site (hud.gc, (method 9 hud-sprite)) passes this.pos
+    ;; (vector4w), this.angle (float) and this.flags (hud-sprite-flags) as
+    ;; arg0..arg2, then computes two more floats (the texture's scaled width
+    ;; and height) right before the call and leaves them as dangling
+    ;; expressions in the raw decode; this method's own body reads those same
+    ;; two values back out of t0/t1 (mtc1 from a fifth and sixth argument
+    ;; register, the GOAL convention for extra float args past a3), and its
+    ;; raw offset-0/offset-4 reads of arg0 only resolve once arg0 is
+    ;; vector4w, matching the call site.
+    (hud-corners-method-9 (_type_ vector4w float hud-sprite-flags float float) none)
     )
   )
 
@@ -163,10 +183,19 @@
    (color  vector4w       :inline)
    )
   (:methods
-    (hud-box-method-9 (_type_ object) none)
-    (hud-box-method-10 (_type_ object) none)
-    (hud-box-method-11 (_type_ object) none)
-    (hud-box-method-12 (_type_ object) none)
+    ;; og:preserve-this hud-4 rung: retyped object -> dma-buffer, same
+    ;; evidence class as hud-sprite-method-9's own earlier retype. Each raw
+    ;; decode opens with (l.wu (+ arg0 4)), the same machine offset (declared
+    ;; offset 8, dma-buffer's own base field) hud-sprite-method-9 reads
+    ;; through its own dma-buffer arg, and every method's own body is the
+    ;; same dma-tag/gif-tag/register-write packet shape already landed for
+    ;; (method 24 hud) and hud-sprite-method-9. jak3's own trailing config
+    ;; comment names these draw-box-prim-only/draw-box-alpha-1/2/3, all
+    ;; taking a dma-buffer, corroborating without being the sole evidence.
+    (hud-box-method-9 (_type_ dma-buffer) none)
+    (hud-box-method-10 (_type_ dma-buffer) none)
+    (hud-box-method-11 (_type_ dma-buffer) none)
+    (hud-box-method-12 (_type_ dma-buffer) none)
     )
   )
 

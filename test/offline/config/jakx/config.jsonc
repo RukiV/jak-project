@@ -919,23 +919,16 @@
     // outright ("Unrecognized heap symbol for new: scratch"). Same headless
     // bring-up stub precedent as hud-string-init above.
     "hud-string-draw-all",
-    // hud rung: (method 9 hud-string) (the real "draw one string" body) is
-    // one of the raw-dma-packet-write functions this rung did not carve
-    // type_casts.jsonc entries for; its only caller is hud-string-draw-all,
-    // itself skipped above, so it carries no landed body either.
+    // hud-4 rung: (method 9 hud-string) is still skipped, but not for the
+    // raw-dma-packet class the earlier hud rung named; that class is fixed
+    // now (see hud-corners/hud-sprite/hud-box below). Its own fresh decode
+    // fails on a single "add failed: object <integer 28>" at op 0 because
+    // arg0 is declared object and no landed caller anywhere in this corpus
+    // supplies a real type to retype it from (its only caller,
+    // hud-string-draw-all, is itself skipped below with no landed body).
+    // Retyping arg0 without call-site evidence would be a guess, not a
+    // derived signature; see hud.gc's own og:preserve-this note.
     "(method 9 hud-string)",
-    // hud rung: (method 9 hud-corners) fails type prop on a raw byte read
-    // (l.w s5) and leaves t0/t1 unresolved; no landed caller reaches it in
-    // this corpus. No landed body.
-    "(method 9 hud-corners)",
-    // hud rung: (method 9/10/11/12 hud-box) all fail type prop on the same
-    // raw (l.wu (+ v1 4)) load at op 1, the same unresolved-pointer-
-    // arithmetic class as hud-corners above; no landed caller reaches any of
-    // the four in this corpus. None has a landed body.
-    "(method 9 hud-box)",
-    "(method 10 hud-box)",
-    "(method 11 hud-box)",
-    "(method 12 hud-box)",
     // hud rung: hud-create-icon's fresh decode still fails type prop on
     // (l.wu (+ a0 192)) against the spawned manipy's ppointer-dereferenced
     // process, and separately fails to guess the static label use for L145
@@ -945,36 +938,6 @@
     // landed in decompiler/config/jakx/all-types.gc so a future caller
     // type-checks correctly.
     "hud-create-icon",
-    // hud rung: (method 9 hud-sprite) (the real sprite-draw body) has
-    // roughly seventy raw dma-packet/gif-tag writes across several
-    // hud-sprite-work templates (box-tmpl, box2-tmpl, mask-tmpl, scan-tmpl)
-    // this rung did not carve type_casts.jsonc entries for. Its only caller
-    // in this corpus, (method 24 hud), is landed with a real body but held
-    // out of compile comparison below for the same reason. No landed body.
-    "(method 9 hud-sprite)",
-    // hud rung: (method 24 hud)'s own fresh decode is fully clean (seven
-    // type_casts.jsonc entries this rung added resolved every raw
-    // dma-packet write in its own body), but it unconditionally dispatches
-    // (hud-sprite-method-9 a0-2 s4-0 s2-0) on every drawn sprite, and that
-    // slot is not filled (see (method 9 hud-sprite) above). Landing it in
-    // goal_src risks a jump into an unfilled vtable slot on a bare hud
-    // instance the first time a nonzero-scale, textured sprite is drawn;
-    // several subtype overrides of method 24 already exist (hud-classes,
-    // hud-high-scores, hud-results-grand-prix, hud-widgets-2/3/powerhang,
-    // in-game-menu-hud/hud2, net-hud) so a bare hud instance may never
-    // reach it in practice, but that has not been proven this rung, so it
-    // has no landed body. Skipped here purely to keep offline-test from
-    // flagging a deliberate, documented hold as a regression.
-    "(method 24 hud)",
-    // hud rung: hud-post's own fresh decode is fully clean, but its body
-    // unconditionally calls (hud-method-24 self) outside the
-    // screenshot-in-progress guard, and (method 24 hud) is itself held
-    // above pending (method 9 hud-sprite). Wiring hud-post into the hud-in
-    // state's :post slot without (method 24 hud) filled would be exactly
-    // the runtime-jump-to-an-unfilled-slot class this rung avoids, so
-    // hud-in's :post field is left unset in goal_src and hud-post carries
-    // no landed body. Skipped here for the same reason as (method 24 hud).
-    "hud-post",
     // engine-quick-tier-6 rung: print-default-collision (collision-editor.gc)
     // walks a process-drawable's node-list several times over (once per
     // prim-type debug print block: sphere/mesh/group), and the decompiler

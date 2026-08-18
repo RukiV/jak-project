@@ -39595,17 +39595,6 @@
     )
   )
 
-(deftype hud-corners (structure)
-  ((data uint64 4 :offset-assert 0)
-   )
-  :method-count-assert 10
-  :size-assert         #x20
-  :flag-assert         #xa00000020
-  (:methods
-    (hud-corners-method-9 (_type_ object float object) none) ;; 9
-    )
-  )
-
 ;; +++hud-h:hud-sprite-flags
 (defenum hud-sprite-flags
   :type uint16
@@ -39628,6 +39617,21 @@
   (hsf15 15)
   )
 ;; ---hud-h:hud-sprite-flags
+
+;; og:preserve-this hud-4 rung: moved above hud-corners (previously declared
+;; after hud-sprite, below) so hud-corners-method-9's own retyped signature
+;; (this rung) can reference hud-sprite-flags for its arg2; all-types.gc has
+;; no forward-declaration mechanism, so the enum must precede its first use.
+(deftype hud-corners (structure)
+  ((data int32 8 :offset-assert 0)
+   )
+  :method-count-assert 10
+  :size-assert         #x20
+  :flag-assert         #xa00000020
+  (:methods
+    (hud-corners-method-9 (_type_ vector4w float hud-sprite-flags float float) none) ;; 9
+    )
+  )
 
 (deftype hud-sprite (structure)
   ((pos      vector4w   :inline :offset-assert 0)
@@ -39669,10 +39673,10 @@
   :size-assert         #x20
   :flag-assert         #xd00000020
   (:methods
-    (hud-box-method-9 (_type_ object) none) ;; 9 ;; (draw-box-prim-only (_type_ object) none)
-    (hud-box-method-10 (_type_ object) none) ;; 10 ;; (draw-box-alpha-1 (_type_ object) none)
-    (hud-box-method-11 (_type_ object) none) ;; 11 ;; (draw-box-alpha-2 (_type_ object) none)
-    (hud-box-method-12 (_type_ object) none) ;; 12 ;; (draw-box-alpha-3 (_type_ object) none)
+    (hud-box-method-9 (_type_ dma-buffer) none) ;; 9 ;; (draw-box-prim-only (_type_ object) none)
+    (hud-box-method-10 (_type_ dma-buffer) none) ;; 10 ;; (draw-box-alpha-1 (_type_ object) none)
+    (hud-box-method-11 (_type_ dma-buffer) none) ;; 11 ;; (draw-box-alpha-2 (_type_ object) none)
+    (hud-box-method-12 (_type_ dma-buffer) none) ;; 12 ;; (draw-box-alpha-3 (_type_ object) none)
     )
   )
 
