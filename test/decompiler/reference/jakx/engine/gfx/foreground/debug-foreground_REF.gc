@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: debug-foreground.gc
-;; name in dgo: debug-foreground
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
 ;; this file is debug only
 (declare-file (debug))
 
@@ -211,28 +205,13 @@
                     )
                   (let ((sv-144 0))
                     (let ((v1-25 (-> (the-as merc-fragment s1-0) header strip-len)))
-                      ;; og:preserve-this sv-144 is let-bound to the int literal 0; the
-                      ;; decompiler's own (the-as uint 3) multiply promotes each
-                      ;; reassignment's sum to uint, which goalc rejects for a set! back
-                      ;; onto an int local. Hand cast back to int at each of the four
-                      ;; sites in this function and debug-merc-size-runtime below; same
-                      ;; byte-identical arithmetic, sv-144/sv-48 are accumulate-only
-                      ;; locals never read as unsigned elsewhere.
                       (when (nonzero? v1-25)
-                        (set! sv-144 (the-as int (+ (* (the-as uint 3) v1-25) 1 sv-144)))
+                        (set! sv-144 (+ (* (the-as uint 3) v1-25) 1 sv-144))
                         sv-144
                         )
                       )
                     (let* ((sv-160 (merc-fragment-fp-data (the-as merc-fragment s1-0)))
-                           ;; og:preserve-this sv-176 steps through adgif-shader entries
-                           ;; (the same 80-byte stride debug-merc-fade-runtime's sibling
-                           ;; sv-48 loop uses below), but the decompiler let-binds it with
-                           ;; no cast, inferring merc-fp-header from (&+ sv-160 16) alone;
-                           ;; goalc then rejects the loop's own
-                           ;; (set! sv-176 (&+ (the-as adgif-shader sv-176) 80)). Typed to
-                           ;; adgif-shader at the binding to match every actual use, same
-                           ;; byte-identical pointer arithmetic.
-                           (sv-176 (the-as adgif-shader (&+ sv-160 16)))
+                           (sv-176 (&+ sv-160 16))
                            )
                       (when (!= (-> sv-160 shader-cnt) 1)
                         (set! s5-0 1)
@@ -240,7 +219,7 @@
                         )
                       (dotimes (v1-34 (the-as int (-> sv-160 shader-cnt)))
                         (let ((a1-3 (-> (the-as (pointer uint16) sv-176) 14)))
-                          (set! sv-144 (the-as int (+ (* (the-as uint 3) (logand a1-3 255)) 7 sv-144)))
+                          (set! sv-144 (+ (* (the-as uint 3) (logand a1-3 255)) 7 sv-144))
                           )
                         sv-144
                         (set! sv-176 (&+ (the-as adgif-shader sv-176) 80))
@@ -345,7 +324,7 @@
               (let ((sv-48 0))
                 (let ((v1-9 (-> (the-as merc-fragment s1-0) header strip-len)))
                   (when (nonzero? v1-9)
-                    (set! sv-48 (the-as int (+ (* (the-as uint 3) v1-9) 1 sv-48)))
+                    (set! sv-48 (+ (* (the-as uint 3) v1-9) 1 sv-48))
                     sv-48
                     )
                   )
@@ -354,7 +333,7 @@
                        )
                   (dotimes (a0-11 (the-as int (-> v0-3 shader-cnt)))
                     (let ((a2-1 (-> (the-as (pointer uint16) v1-13) 14)))
-                      (set! sv-48 (the-as int (+ (* (the-as uint 3) (logand a2-1 255)) 7 sv-48)))
+                      (set! sv-48 (+ (* (the-as uint 3) (logand a2-1 255)) 7 sv-48))
                       )
                     sv-48
                     (set! v1-13 (&+ (the-as adgif-shader v1-13) 80))
@@ -369,9 +348,7 @@
                         )
                     )
                   (let* ((sv-64 (merc-fragment-fp-data (the-as merc-fragment s1-0)))
-                         ;; og:preserve-this same class as sv-176 above: steps through
-                         ;; adgif-shader entries, decompiler let-binds with no cast.
-                         (sv-80 (the-as adgif-shader (&+ sv-64 16)))
+                         (sv-80 (&+ sv-64 16))
                          (sv-96 0)
                          )
                     (while (< sv-96 (the-as int (-> sv-64 shader-cnt)))

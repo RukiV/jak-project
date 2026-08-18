@@ -703,7 +703,20 @@
     // the decomp-vs-REF diff still gates those.
     "set-veh-weapon",
     "dm-set-veh-weapon",
-    "test-vehicle-weapon"
+    "test-vehicle-weapon",
+    // debug-foreground: debug-merc-highres-runtime's own sv-144 accumulator is
+    // let-bound to the int literal 0, then reassigned
+    // (+ (* (the-as uint 3) v1-25) 1 sv-144), which the decompiler's own cast
+    // promotes the whole sum to uint; goalc rejects the uint-to-int set!. The
+    // landed goal_src carries a hand cast back to int at the same site (same
+    // byte-identical arithmetic, sv-144 stays an accumulate-only local never
+    // read as unsigned elsewhere in the function).
+    "debug-merc-highres-runtime",
+    // debug-foreground: debug-merc-size-runtime hits the identical int-literal
+    // accumulator reassigned to a uint-cast sum shape as
+    // debug-merc-highres-runtime above, on its own sv-48; same hand cast at
+    // the same site.
+    "debug-merc-size-runtime"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the
