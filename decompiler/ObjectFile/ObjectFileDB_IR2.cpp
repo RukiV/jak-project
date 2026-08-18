@@ -843,7 +843,7 @@ void ObjectFileDB::ir2_add_store_errors(int seg, ObjectFileData& data) {
 void ObjectFileDB::ir2_rewrite_inline_asm_instructions(int seg, ObjectFileData& data) {
   for_each_function_in_seg_in_obj(seg, data, [&](Function& func) {
     (void)data;
-    if (func.ir2.top_form && func.ir2.env.has_type_analysis() && func.ir2.env.types_succeeded) {
+    if (func.ir2.top_form && func.ir2.env.has_type_analysis()) {
       if (rewrite_inline_asm_instructions(func.ir2.top_form, *func.ir2.form_pool, func, dts)) {
         func.ir2.print_debug_forms = true;
       }
