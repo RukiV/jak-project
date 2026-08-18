@@ -38,15 +38,16 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (190)
+### Never written (187)
 
 | symbol | reading files | defined in |
 |---|---:|---|
-| `*display-capture-mode*` | 10 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-reverb*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*display-entity-errors*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*display-path-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-vol-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*music-lock*` | 2 | `goal_src/jakx/engine/sound/gsound-h.gc` |
@@ -114,7 +115,6 @@ written is read-only by design and not a finding.
 | `*display-color-bars*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-deci-count*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-edge-collision-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-entity-errors*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-file-info*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-geo-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-ground-stats*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -129,7 +129,6 @@ written is read-only by design and not a finding.
 | `*display-nav-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-nav-mesh*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-nav-network*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-path-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-quad-stats*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-race-mesh*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-region-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -194,14 +193,12 @@ written is read-only by design and not a finding.
 | `*profile-x*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*race-record-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-cam-collide-history*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*record-fma*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-end*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-low-res*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-pal*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-path-dry-run*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-path-high-res*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-path-mode*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*record-fma-real*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-start*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-use-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*scert-function-id*` | 1 | `goal_src/jakx/engine/net/scert-funcs.gc` |
