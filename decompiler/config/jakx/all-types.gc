@@ -15700,8 +15700,8 @@
    (gp-start-speech                    basic                              :offset-assert 152)
    (gp-win-speech                      basic                              :offset-assert 156)
    (gp-finish-speech                   basic                              :offset-assert 160)
-   (high-scores-default                basic                              :offset-assert 164)
-   (high-scores                        basic                              :offset-assert 168)
+   (high-scores-default                (array float)                      :offset-assert 164)
+   (high-scores                        (array float)                      :offset-assert 168)
    )
   :method-count-assert 14
   :size-assert         #xac
@@ -39707,11 +39707,11 @@
     hud-state-16 ;; 16
     )
   (:methods
-    (hud-method-17 () none) ;; 17 ;; (init-callback (_type_) none)
-    (hud-method-18 () none) ;; 18 ;; (event-callback (_type_ process int symbol event-message-block) object)
-    (hud-method-19 () none) ;; 19 ;; (hud-method-19 (_type_) none)
-    (hud-method-20 () none) ;; 20 ;; (hud-method-20 (_type_) none)
-    (hud-method-21 () none) ;; 21 ;; (hud-method-21 (_type_) none)
+    (hud-method-17 (_type_) none) ;; 17 ;; hud-high-scores rung: synced from this line's own trailing (init-callback (_type_) none) comment, same defect class as hud-method-22/23 below (bare () made every override decode as a self-less (defmethod NAME () ...) that GOALC's defmethod macro rejects); jak3's own hud type (goal_src/jak3/engine/ui/hud-h.gc) names this slot init-callback with the identical (_type_) arg list at the same unshifted method index, corroborating the arg count without adopting the jak3 name.
+    (hud-method-18 (_type_ process int symbol event-message-block) object) ;; 18 ;; hud-high-scores rung: synced from this line's own trailing (event-callback (_type_ process int symbol event-message-block) object) comment, same defect class as hud-method-17 above; jak3's hud type declares this slot event-callback with the identical arg list and object return at the same unshifted method index.
+    (hud-method-19 (_type_) none) ;; 19 ;; hud-high-scores rung: synced from this line's own trailing (hud-method-19 (_type_) none) comment, same defect class as hud-method-17 above; matches jak3's hud-method-19 at the same unshifted index.
+    (hud-method-20 (_type_) none) ;; 20 ;; hud-high-scores rung: synced from this line's own trailing (hud-method-20 (_type_) none) comment, same defect class as hud-method-17 above; matches jak3's hud-method-20 at the same unshifted index.
+    (hud-method-21 (_type_) none) ;; 21 ;; hud-high-scores rung: synced from this line's own trailing (hud-method-21 (_type_) none) comment, same defect class as hud-method-17 above; matches jak3's hud-method-21 at the same unshifted index. This is the blocker for (method 21 high-scores-list): the bare () decoded as (defmethod hud-method-21 () (none)) with no this binding, a GOALC compile error.
     (hud-method-22 (_type_) none) ;; 22 ;; og:preserve-this hud-static-literals rung: synced from this line's own trailing (hud-method-22 (_type_) none) comment. The bare () declaration made the decompiler pretty-print every override (hud-results-grand-prix and its two siblings) as a self-less (defmethod NAME () ...) form that GOALC's real defmethod macro rejects.
     (hud-method-23 (_type_) none) ;; 23 ;; og:preserve-this hud-static-literals rung: synced from this line's own trailing (hud-method-23 (_type_) none) comment, same reason and evidence class as hud-method-22 above (hud-results-grand-prix-totals's own override).
     (hud-method-24 (_type_) none) ;; 24 ;; (check-ready-and-maybe-show (_type_) symbol)
@@ -50392,7 +50392,14 @@
 ;; (define-extern stats-player-duration function)
 ;; (define-extern stats-player-vehicle function)
 ;; (define-extern stats-player-cash function)
-;; (define-extern get-medal-reward-ignore-medal function)
+;; hud-cash rung: arg0 typed float, not the bare 0-arg placeholder; its own
+;; body (task-control_ir2.asm, full-corpus baseline) repeatedly runs
+;; (gpr->fpr gp) on the sole callee-saved arg to feed float compares, and
+;; every known caller (get-medal-ignore-gamestate, hud-cash.gc, this rung)
+;; passes a raw float bit pattern in a0; return is one of 0/1/2/3, kept as
+;; int. Home is task-control.gc (outside this band), still unlanded; this
+;; is a provisional extern until it lands.
+(define-extern get-medal-reward-ignore-medal (function float int))
 ;; (define-extern get-medal-reward function)
 ;; (define-extern update-high-scores function)
 (define-extern *last-medal* object)
@@ -69156,7 +69163,17 @@
 (define-extern spawn-hud-results-team-view-1 (function object))
 (define-extern spawn-hud-results-team (function object))
 (define-extern spawn-hud-results (function object))
-;; (define-extern calc-player-rank function)
+;; hud-cash rung: activated with a real signature (was a bare "function"
+;; placeholder) evidenced from calc-player-rank's own def in hud-results
+;; (hud-results_ir2.asm, this rung's full-corpus baseline): arg0 (gp) is
+;; multiplied by 4 and indexed into *net-players*, an int player index; arg1
+;; (s5) is only ever truthy-checked, never dereferenced, kept as object to
+;; match the #f every known call site passes; return is 0 or 1 on the two
+;; explicit int returns this function's body takes (ops 64/68/76/80/84/134),
+;; matching the three-way branch against 1 and 2 in hud-cash's own caller.
+;; hud-results itself (this band's largest remaining object) still owns the
+;; unlanded implementation; this is a provisional extern until it lands.
+(define-extern calc-player-rank (function int object int))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-results-grand-prix         ;;
@@ -69440,7 +69457,14 @@
   (:methods
     (hud-cash-stats-method-24 (_type_ object object) none) ;; 24
     (hud-cash-stats-method-25 (_type_ object) none) ;; 25
-    (hud-cash-stats-method-26 (_type_ object object) none) ;; 26
+    ;; hud-cash rung: return type retyped to float, not the bare "none"
+    ;; placeholder; its own body (this rung's own hud-cash_ir2.asm) ends
+    ;; every cond arm by converting a computed float into v0 via
+    ;; (fpr->gpr f0-N) right before the implicit return, and (method 24
+    ;; hud-cash-stats) calls this same slot and mtc1's the result straight
+    ;; into float math, flagged "Floating point math attempted on invalid
+    ;; types" under the old none typing.
+    (hud-cash-stats-method-26 (_type_ object object) float) ;; 26
     (hud-cash-stats-method-27 (_type_ object) none) ;; 27
     )
   )
@@ -69640,9 +69664,20 @@
 
 
 (define-extern medal-uses-score? (function object))
-(define-extern get-medal-ignore-gamestate (function object))
-(define-extern settings-multiplier (function object))
-(define-extern cup-multiplier (function object))
+;; hud-cash rung: arg0 typed net-player, not the bare 0-arg placeholder;
+;; op5 reads machine offset 284 on arg0 with a signed l.b, which via the +4
+;; basic-tag trap is declared offset 288, net-player's own player-id field
+;; (int8); the function's own two in-file call sites (this rung's own
+;; hud-cash_ir2.asm) both pass a net-player-shaped local as the sole arg.
+(define-extern get-medal-ignore-gamestate (function net-player object))
+;; hud-cash rung: both retyped to return float, not the bare "object"
+;; placeholder; both bodies (hud-cash_ir2.asm, full-corpus baseline) return
+;; raw float bit patterns straight into v0 with no mtc1 of their own (the
+;; "Return type mismatch int vs object" warning on the untyped version), and
+;; every known caller mtc1's the return value directly into float math
+;; ((method 24/25/26 hud-cash-stats), this rung).
+(define-extern settings-multiplier (function float))
+(define-extern cup-multiplier (function float))
 (define-extern medal-instead-of-place? (function object))
 ;; (define-extern *last-cash-game-mgr-for-player-0* object)
 ;; og:preserve-this hud-follow-through rung: activated from provisional comment,
@@ -84668,7 +84703,14 @@
 (define-extern *hud-cash-stats-side-view-0-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-cash-stats-side-view-1* object) ;; provisional: call-site evidence only
 (define-extern *hud-cash-stats-side-view-1-proc* object) ;; provisional: call-site evidence only
-(define-extern *hud-cash-stats-single* object) ;; provisional: call-site evidence only
+;; hud-cash rung: retyped from the provisional "object" placeholder to
+;; (array hud-item); this rung's own hud-cash_ir2.asm assigns it a value
+;; the decoder itself types (array hud-item) (op 333, reset-hud-cash-time's
+;; sibling init path) and casts it explicitly via (the-as (array hud-item)
+;; *hud-cash-stats-single*) at two other landed-adjacent sites in the same
+;; file, both setting an in-game-hud's own real-items/items fields (also
+;; declared (array hud-item)).
+(define-extern *hud-cash-stats-single* (array hud-item))
 (define-extern *hud-cash-stats-single-proc* object) ;; provisional: call-site evidence only
 (define-extern *hud-cash-stats-top-view-0* object) ;; provisional: call-site evidence only
 (define-extern *hud-cash-stats-top-view-0-proc* object) ;; provisional: call-site evidence only

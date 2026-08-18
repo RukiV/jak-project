@@ -1,73 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: hud-high-scores.gc
-;; name in dgo: hud-high-scores
-;; dgos: COMMON, GAME
-
-;; og:preserve-this hud-high-scores rung: spawn-hud-game-end,
-;; spawn-hud-cash-stats, cash-stats-on? and end-game-menu-on? home to
-;; hud-cash.gc, still an empty stub this rung (its decode carries four
-;; unresolved residual errors, tracked separately), so all four symbols
-;; link as 0 until it lands. Every call site below (spawn-high-score-hud and
-;; high-scores-on?, this rung) gained a (nonzero? ...) runtime-link guard
-;; around the existing decoded call, matching the vehicle-manager-start
-;; precedent in jakx-init.gc, so a boot before hud-cash lands skips the call
-;; instead of jumping through zero. Retires when hud-cash.gc lands these
-;; functions for real.
-(define-extern spawn-hud-game-end (function object))
-(define-extern spawn-hud-cash-stats (function object))
-(define-extern cash-stats-on? (function object))
-(define-extern end-game-menu-on? (function object))
-;; is-nonstandard-mode? homes to hud-results.gc, same unlanded-dependency
-;; class as the two spawn functions above; its own call site
-;; (spawn-high-score-hud, this rung) sits inside a larger (and ...) boolean
-;; expression and gained the same (nonzero? ...) runtime-link guard.
-(define-extern is-nonstandard-mode? (function object))
-;; og:preserve-this hud-high-scores rung: *net-game-mgr*'s own type
-;; (net-game-mgr, a 0x130-byte, 37-new-method multiplayer game-mode manager
-;; entirely outside this band) is not landed anywhere in goal_src, only
-;; declared via all-types.gc; landing it here to reach one int8 field would
-;; be far out of scope. spawn-high-score-hud's own (-> *net-game-mgr*
-;; human-ct) read is rewritten below as a raw offset-197 pointer read
-;; (all-types.gc's own declared offset for human-ct), the same class of
-;; workaround as game-info.gc's high-scores-default raw pointer casts.
-;; Retires when net-game-mgr.gc lands the real type.
-
-;; og:preserve-this hud-high-scores rung: hud-name-score's own home is
-;; hud-results.gc (its deftype decodes there, decompiler config attribution,
-;; full-corpus baseline), still unlanded this rung, but a (new 'static
-;; 'hud-name-score ...) literal appears in this file's own decoded static
-;; data below, so the type has to be declared here first. No new methods
-;; over hud-item-group (method-count-assert unchanged), so landing the type
-;; here does not block hud-results.gc's own methods landing later; when
-;; hud-results.gc lands, its own deftype for hud-name-score should be
-;; dropped in favor of this one to avoid a duplicate-definition throw.
-(deftype hud-name-score (hud-item-group)
-  ((player-id int32)
-   (stat-type uint64)
-   )
-  )
-
-;; og:preserve-this hud-high-scores rung: same forward-declaration class as
-;; hud-name-score above. hud-position's own home is hud-widgets.gc and
-;; hud-results-background-item's own home is hud-results.gc, both still
-;; unlanded this rung and both bands objects; neither adds new methods over
-;; hud-item-group, so landing them here does not block their own methods
-;; landing later. When those files land, their own deftype forms for these
-;; two types should be dropped in favor of these to avoid a
-;; duplicate-definition throw.
-(deftype hud-position (hud-item-group)
-  ((race-position int32)
-   )
-  )
-
-(deftype hud-results-background-item (hud-item-group)
-  ()
-  )
-
-;; DECOMP BEGINS
-
 ;; definition of type hud-high-score
 (deftype hud-high-score (hud-item-group)
   ((position  int32)
@@ -247,7 +180,7 @@
               18
               )
       ((3)
-       (when (and (nonzero? spawn-hud-game-end) (spawn-hud-game-end))
+       (when (spawn-hud-game-end)
          (let ((v1-27 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
            (cond
              (v1-27
@@ -262,7 +195,7 @@
          )
        )
       (else
-        (when (and (nonzero? spawn-hud-cash-stats) (spawn-hud-cash-stats))
+        (when (spawn-hud-cash-stats)
           (let ((v1-32 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
             (cond
               (v1-32
@@ -828,7 +761,7 @@
                                   )
                               3
                               )
-                          (and (nonzero? is-nonstandard-mode?) (is-nonstandard-mode?))
+                          (is-nonstandard-mode?)
                           )
                      (nonzero? (-> *viewport-array* mode))
                      )
@@ -845,24 +778,19 @@
          (return (spawn-high-scores-list))
          )
         ((= v1-16 1)
-         (if (= (-> (the-as (pointer int8) (&+ *net-game-mgr* 197)) 0) 1)
+         (if (= (-> *net-game-mgr* human-ct) 1)
              (return (spawn-high-scores-list))
              )
          )
         )
       )
     )
-  (if (nonzero? spawn-hud-cash-stats)
-      (spawn-hud-cash-stats)
-      )
+  (spawn-hud-cash-stats)
   )
 
 ;; definition for function high-scores-on?
 (defun high-scores-on? ()
-  (and *high-scores-list-proc*
-       (not (and (nonzero? cash-stats-on?) (cash-stats-on?)))
-       (not (and (nonzero? end-game-menu-on?) (end-game-menu-on?)))
-       )
+  (and *high-scores-list-proc* (not (cash-stats-on?)) (not (end-game-menu-on?)))
   )
 
 ;; definition for symbol *hud-background*, type object
