@@ -626,6 +626,23 @@
     // collide-list-fill-bg-using-box comment documents; declared as a bare
     // extern in goal_src instead of a body.
     "convert-eye-data",
+    // prim: (method 9 prim-strip) (generate-dma!) breaks on a prim-vertex
+    // field-overlay mistype (see goal_src/jakx/engine/common-obs/prim.gc's
+    // own comment); prim-engine-execute is held alongside it since it only
+    // exists to call generate-dma! and landing it would flip drawable.gc's
+    // runtime-link guard live over an unfilled vtable slot. Neither has a
+    // landed body.
+    "(method 9 prim-strip)",
+    "prim-engine-execute",
+    // prim: (method 10 prim-strip) (setup-dma-and-tex) is landed with a
+    // real body and compiles clean under (mi) (Successfully built all 649
+    // targets), but offline-test's own narrower compile context rejects
+    // its raw (l.wu (+ ... 12)) read on *foreground-to-level-translate*
+    // ("No method or function named l.wu for type int"), the same
+    // environment gap collide-hash.gc's own collide-list-fill-bg-using-box
+    // comment documents (offline-test does not exercise the full game.gp
+    // rlet/macro environment).
+    "(method 10 prim-strip)",
     // generic-obs: the decompiler applies these casts internally but drops the
     // printed the-as (mat-joint as matrix / pf get-trans dispatch / editor float
     // event result); the landed goal_src carries hand-casts at the same sites

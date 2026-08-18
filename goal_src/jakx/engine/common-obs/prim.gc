@@ -7,3 +7,180 @@
 
 ;; DECOMP BEGINS
 
+;; definition for symbol *prim-work*, type prim-work
+(define *prim-work*
+  (new 'static 'prim-work
+    :vertex-tmpl (new 'static 'inline-array dma-packet 3
+      (new 'static 'dma-packet
+        :dma (new 'static 'dma-tag :id (dma-tag-id cnt))
+        :vif1 (new 'static 'vif-tag :imm #x9 :cmd (vif-cmd unpack-v4-32))
+        )
+      (new 'static 'dma-packet
+        :dma (new 'static 'dma-tag :id (dma-tag-id cnt))
+        :vif1 (new 'static 'vif-tag :imm #x120 :cmd (vif-cmd unpack-v4-32))
+        )
+      (new 'static 'dma-packet
+        :dma (new 'static 'dma-tag :id (dma-tag-id cnt))
+        :vif1 (new 'static 'vif-tag :imm #x237 :cmd (vif-cmd unpack-v4-32))
+        )
+      )
+    :control-tmpl (new 'static 'inline-array dma-packet 2
+      (new 'static 'dma-packet
+        :dma (new 'static 'dma-tag :qwc #xc :id (dma-tag-id cnt))
+        :vif1 (new 'static 'vif-tag :imm #x345 :num #xc :cmd (vif-cmd unpack-v4-32))
+        )
+      (new 'static 'dma-packet
+        :dma (new 'static 'dma-tag :qwc #xc :id (dma-tag-id cnt))
+        :vif1 (new 'static 'vif-tag :imm #x363 :num #xc :cmd (vif-cmd unpack-v4-32))
+        )
+      )
+    :giftag (new 'static 'generic-gif-tag
+      :fan-prim (new 'static 'gif-tag-prim
+        :pre #x1
+        :prim (new 'static 'gs-prim :prim (gs-prim-type tri-fan) :iip #x1 :tme #x1 :fge #x1 :abe #x1)
+        :nreg #x3
+        )
+      :str-prim (new 'static 'gif-tag-prim
+        :pre #x1
+        :prim (new 'static 'gs-prim :prim (gs-prim-type tri-strip) :iip #x1 :tme #x1 :fge #x1 :abe #x1)
+        :nreg #x3
+        )
+      :regs (new 'static 'gif-tag-regs-32 :regs0 (gif-reg-id st) :regs1 (gif-reg-id rgbaq) :regs2 (gif-reg-id xyzf2))
+      :num-strips #x1
+      )
+    :call-scissor (new 'static 'dma-packet
+      :dma (new 'static 'dma-tag :id (dma-tag-id cnt))
+      :vif0 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd mscalf) :msk #x1)
+      )
+    :call-noclip (new 'static 'dma-packet
+      :dma (new 'static 'dma-tag :id (dma-tag-id cnt))
+      :vif0 (new 'static 'vif-tag :imm #x8 :cmd (vif-cmd mscalf) :msk #x1)
+      )
+    :mask (new 'static 'vector4w :x -2 :y -1 :z -1)
+    )
+  )
+
+;; definition for method 9 of type prim-work
+;; WARN: Return type mismatch int vs none.
+(defmethod reset! ((this prim-work))
+  (dotimes (v1-0 114)
+    (let ((a1-2 (-> this sinks v1-0)))
+      (set! (-> a1-2 vertex-count) (the-as uint 0))
+      (set! (-> a1-2 control-count) (the-as uint 0))
+      )
+    0
+    )
+  0
+  (none)
+  )
+
+;; definition for symbol *level-texture-page-translate*, type object
+(define *level-texture-page-translate*
+  (the-as object (new 'static 'boxed-array :type uint32 #xb #xc #xd #xe #xf #x10 #x11 #x7 #x7 #x8))
+  )
+
+;; definition for method 9 of type prim-strip
+;; ERROR: function was not converted to expressions. Cannot decompile.
+;;
+;; og:preserve-this: generate-dma!'s own decode is otherwise clean (a
+;; long, straightforward VU/GIF vertex-packing loop) but breaks at op
+;; 271: prim-vertex's own offset-8 field is an explicit overlay between
+;; nokick (uint32) and stq.z (float, stq being an inline vector at
+;; offset 0); the decompiler's default guess picks the float side, and
+;; this bit-packing block treats the raw bits as an integer mask
+;; (matching op 255-260's own pextlb/pextlh unpacking of the same-
+;; shaped field two vertices earlier), so the later logior at op 282
+;; fails ("Couldn't figure out logior: (logior t2 t0) (uint128 and
+;; float)"). Casting t0 to uint128 at its op-271 definition site (the
+;; decompiler/config/jakx/ntsc_v1/type_casts.jsonc entry above this
+;; comment) had no effect. The fallout degrades the whole rest of the
+;; function to raw MIPS fallback forms (sll on a plain int, first hit
+;; at op 356) that are not valid GOAL and will not compile. Held un-
+;; landed until the real overlay-resolution defect is found; the raw
+;; decode is preserved in the REF file for reference.
+
+;; definition for symbol *foreground-to-level-translate*, type object
+(define *foreground-to-level-translate*
+  (the-as object (new 'static 'boxed-array :type uint32 #x0 #x1 #x2 #x3 #x4 #x5 #x6 #x7 #x7))
+  )
+
+;; definition for method 10 of type prim-strip
+;; WARN: Return type mismatch int vs none.
+;; ERROR: Failed load: (set! a2-1 (l.wu (+ a1-3 12))) at op 20
+(defmethod setup-dma-and-tex ((this prim-strip) (arg0 draw-control))
+  "Set up the bucket, prim sink, and texture."
+  (let ((v1-3 (-> *level* level (-> arg0 level-index))))
+    (-> v1-3 draw-index)
+    (let ((a0-4 (-> arg0 default-texture-page)))
+      (set! (-> this level) v1-3)
+      (set! (-> this texture-index) (the-as int a0-4))
+      )
+    (when (not (logtest? (-> this flags) (prim-flags no-texture-name)))
+      (set! (-> this tex-id)
+            (lookup-level-texture-id-by-name
+              (the-as string (-> this tex-name))
+              v1-3
+              (the-as int (l.wu (+ (* (-> this texture-index) 4) (the-as int *foreground-to-level-translate*) 12)))
+              )
+            )
+      (logior! (-> this flags) (prim-flags no-texture-name))
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for function prim-engine-execute
+;; og:preserve-this: prim-engine-execute's own decode is fully clean (both
+;; connection-list walks resolve to real generate-dma! calls once cast to
+;; connection/prim-strip, decompiler/config/jakx/ntsc_v1/type_casts.jsonc's
+;; own "prim-engine-execute" entry above), but generate-dma! itself (method
+;; 9 prim-strip) is held un-landed above with no body. Landing this
+;; function would satisfy drawable.gc's own forward extern and flip its
+;; "(if (nonzero? prim-engine-execute) (prim-engine-execute))" runtime-link
+;; guard live (AGENTS.md rule 5: landing a function activates its guarded
+;; callers), jumping to an unfilled vtable slot the first time either walk
+;; reaches a live connection. Held un-landed alongside generate-dma! so
+;; that guard stays dark exactly as it is today; the raw decode is
+;; preserved in the REF file for reference.
+;;   (defun prim-engine-execute ()
+;;     (when (logtest? (-> *display* vu1-enable-user) 4096)
+;;       (let ((gp-0 *viewport-array*))
+;;         (dotimes (s5-0 (the-as int (-> gp-0 num-viewports)))
+;;           (view-push-context s5-0)
+;;           (let* ((v1-4 gp-0)
+;;                  (a0-1 s5-0)
+;;                  (a1-3 (-> v1-4 data (the-as uint a0-1)))
+;;                  )
+;;             (set! (-> v1-4 current-viewport-index) (the-as uint a0-1))
+;;             (let* ((s4-0 *prim-client-engine*)
+;;                    (v1-6 (-> s4-0 alive-list next0))
+;;                    (s3-0 (-> v1-6 next0))
+;;                    )
+;;               (while (!= v1-6 (-> s4-0 alive-list-end))
+;;                 (generate-dma! (-> (the-as connection v1-6) param2) (the-as matrix a1-3))
+;;                 (set! v1-6 s3-0)
+;;                 (set! s3-0 (-> s3-0 next0))
+;;                 )
+;;               )
+;;             )
+;;           (let* ((s4-1 *prim-engine*)
+;;                  (s3-1 (-> (view-get-active-math-camera) camera-temp))
+;;                  (v1-12 (-> s4-1 alive-list next0))
+;;                  (s2-0 (-> v1-12 next0))
+;;                  )
+;;             (while (!= v1-12 (-> s4-1 alive-list-end))
+;;               (-> (the-as connection v1-12) param1)
+;;               (generate-dma! (-> (the-as connection v1-12) param2) s3-1)
+;;               (set! v1-12 s2-0)
+;;               (set! s2-0 (-> s2-0 next0))
+;;               )
+;;             )
+;;           (view-pop-context)
+;;           )
+;;         )
+;;       (remove-all *prim-client-engine*)
+;;       )
+;;     0
+;;     (none)
+;;     )

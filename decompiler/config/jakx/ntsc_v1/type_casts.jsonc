@@ -4967,5 +4967,54 @@
   // its own ("Failed load").
   "(method 9 rigid-body-info)": [
     [81, "a0", "(pointer float)"]
+  ],
+  // prim-engine-execute: two separate connection-list walks (a viewport
+  // loop over *viewport-array*, then the single active-viewport path over
+  // *prim-engine*) each read param0/param1 off a connectable node at
+  // offsets 20/24, which only exist on connection, the linked-list node's
+  // actual runtime type (same class as (method 7 process)'s own connection
+  // fix above). Op 24 (the first walk's own param0 read) resolves on its
+  // own; ops 48/49 (the second walk) do not ("Could not figure out load").
+  "prim-engine-execute": [
+    // first walk (multi-viewport loop, op 24/25) and second walk (single
+    // active-viewport path, op 48/49/50) both read param1/param2 off a
+    // connectable node at offsets 20/24, which only exist on connection.
+    // param2 is declared int32 on connection, but each call site treats it
+    // as an object pointer (jak3's twin casts the exact same read to
+    // prim-strip before calling generate-dma!); the vtable-style -4
+    // dereference the next op does needs it retyped past the field's own
+    // declared int32.
+    [24, "v1", "connection"],
+    [25, "a0", "prim-strip"],
+    [48, "v1", "connection"],
+    [49, "v1", "connection"],
+    [50, "a0", "prim-strip"]
+  ],
+  // (method 10 prim-strip): held. *foreground-to-level-translate* is
+  // declared "object" (provisional, all-types.gc), so a1 (its base plus a
+  // byte-level index scaled by 4) does not resolve the +12 read on its own
+  // ("Could not figure out load"). Casting the global read itself (op 18,
+  // the definition site) has no effect; casting its first use instead (op
+  // 19, the daddu) or the final read (op 20) alone or together all leave
+  // the same op erroring under a different message. Not isolated further;
+  // the real fix is likely a proper element type for
+  // *foreground-to-level-translate* itself rather than a per-op cast.
+  // (method 9 prim-strip) ("new"): tex (offset-assert 12, declared basic)
+  // holds the cached texture lookup; reading its own name field (offset-
+  // assert 40, machine offset 36) needs the real texture type ("Could not
+  // figure out load"). The "may read a register that is not set: a2"
+  // warning is a downstream symptom of the same failure, not a separate
+  // defect; it clears once this resolves.
+  // A second, separate error remains held past this point: op 282's
+  // "Couldn't figure out logior: (logior t2 t0) (uint128 and float)". t0
+  // traces back to op 271, prim-vertex's own offset-8 field, an explicit
+  // overlay between nokick (uint32) and stq.z (float, since stq is an
+  // inline vector at offset 0); the decompiler's default guess picks the
+  // float side, but this bit-packing block treats the raw bits as an
+  // integer mask (matching op 255-260's own pextlb/pextlh unpacking of the
+  // same-shaped field two vertices earlier). Casting t0 to uint128 at op
+  // 271 (its definition) had no effect; not isolated further.
+  "(method 9 prim-strip)": [
+    [34, "a0", "texture"]
   ]
 }
