@@ -37,7 +37,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (188)
+### Never written (189)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -82,6 +82,7 @@ written is read-only by design and not a finding.
 | `*debug-effect-control*` | 1 | `goal_src/jakx/engine/game/effect-control.gc` |
 | `*debug-engine-sounds*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-force-highspeed*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*debug-hud-disable*` | 1 | `goal_src/jakx/engine/ui/hud.gc` |
 | `*debug-menu-scene-play*` | 1 | `goal_src/jakx/engine/scene/scene-h.gc` |
 | `*debug-move-rigid-body*` | 1 | `goal_src/jakx/engine/physics/rigid-body.gc` |
 | `*debug-pause*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
