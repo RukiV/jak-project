@@ -7,3 +7,96 @@
 
 ;; DECOMP BEGINS
 
+(deftype camera-facing-quad (prim-client)
+  ((pos     vector  :inline)
+   (height  float)
+   (width   float)
+   (strip   prim-strip)
+   (color   uint32)
+   )
+  (:methods
+    (camera-facing-quad-method-10 (_type_ object) none)
+    (camera-facing-quad-method-11 (_type_) none)
+    (camera-facing-quad-method-12 (_type_ object object int float float) int)
+    (camera-facing-quad-method-13 (_type_ object float float uint) uint)
+    )
+  )
+
+;; definition for method 3 of type camera-facing-quad
+(defmethod inspect ((this camera-facing-quad))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~1Tpos: #<vector @ #x~X>~%" (-> this pos))
+  (format #t "~1Theight: ~f~%" (-> this height))
+  (format #t "~1Twidth: ~f~%" (-> this width))
+  (format #t "~1Tstrip: ~A~%" (-> this strip))
+  (format #t "~1Tcolor: ~D~%" (-> this color))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 13 of type camera-facing-quad
+(defmethod camera-facing-quad-method-13 ((this camera-facing-quad) (arg0 object) (arg1 float) (arg2 float) (arg3 uint))
+  (set! (-> this pos quad) (-> (the-as (pointer uint128) arg0) 0))
+  (set! (-> this width) arg1)
+  (set! (-> this height) arg2)
+  (set! (-> this color) arg3)
+  arg3
+  )
+
+;; definition for method 12 of type camera-facing-quad
+(defmethod camera-facing-quad-method-12 ((this camera-facing-quad) (arg0 object) (arg1 object) (arg2 int) (arg3 float) (arg4 float))
+  (let ((v1-3 (the-as (pointer number) (+ (+ (* (-> (the-as (pointer uint16) arg0) 41) 32) 92) (the-as uint arg0)))))
+    (set! (-> (the-as (pointer uint128) (&-> (the-as (pointer uint8) v1-3) 16)) 0)
+          (-> (the-as (pointer uint128) arg1) 0)
+          )
+    (set! (-> (the-as (pointer int32) v1-3) 3) arg2)
+    (set! (-> (the-as (pointer float) v1-3) 0) arg3)
+    (set! (-> (the-as (pointer float) v1-3) 1) arg4)
+    )
+  (+! (-> (the-as (pointer uint16) arg0) 41) 1)
+  0
+  )
+
+;; definition for method 10 of type camera-facing-quad
+(defmethod camera-facing-quad-method-10 ((this camera-facing-quad) (arg0 object))
+  (set! (-> this strip) (new 'process 'prim-strip 4 (the-as texture-id texture-id) (the-as string #f)))
+  (set! (-> this strip texture-index) 7)
+  (set! (-> this strip level) (-> *level* level-default))
+  (set! (-> this strip tex-id) (the-as texture-id arg0))
+  (none)
+  )
+
+;; og:preserve-this method 9 (the retail draw-quad submission, calling
+;; clear-strip then camera-facing-quad-method-12 four times to push the
+;; quad's corners) is held unlanded: clear-strip's own implementation lives
+;; in wvehicle-weapons-oil.gc (unlanded, out of this rung's scope, its top-
+;; level is what actually defines the clear-strip symbol). Landing this
+;; method's method-set! call here would leave a dispatch to an unlanded
+;; extern reachable from this object's own top-level-login. Until
+;; wvehicle-weapons-oil lands, camera-facing-quad simply inherits
+;; prim-client's own real no-op method 9 (prim-h.gc, already landed),
+;; which is safe: it just skips the retail draw. Retirement condition:
+;; land wvehicle-weapons-oil.gc (defines clear-strip), then land this
+;; method from decompiler/config/jakx scoped decode of camera-facing-quad
+;; (0 decode errors already, see stack_structures.jsonc's own
+;; "(method 9 camera-facing-quad)" entry).
+
+;; definition for method 11 of type camera-facing-quad
+(defmethod camera-facing-quad-method-11 ((this camera-facing-quad))
+  (with-pp
+    (add-connection *prim-client-engine* pp #f pp this #f)
+    (none)
+    )
+  )
+
+;; definition for method 7 of type camera-facing-quad
+(defmethod relocate ((this camera-facing-quad) (offset int))
+  (if (nonzero? (-> this strip))
+      (&+! (-> this strip) offset)
+      )
+  (the-as camera-facing-quad ((method-of-type prim-client relocate) this offset))
+  )
