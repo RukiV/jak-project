@@ -55883,7 +55883,13 @@
 ;; (define-extern *active-net-player-count* object)
 ;; (define-extern *active-net-players* array)
 ;; (define-extern *active-net-non-spectator-count* object)
-;; (define-extern *active-net-non-spectators* array)
+;; support (not proof): plow's launch-nearby-players walks this array
+;; multiplying its loop index by 4 (word stride) then reading a further
+;; offset-12 field whose value dispatches net-player-method-49 (vtable byte
+;; offset 212, returning process, an exact id match: (212-16)/4=49); left as
+;; the generic pointer width the walk itself proves rather than asserting a
+;; specific element struct this evidence does not pin down.
+(define-extern *active-net-non-spectators* (pointer int32))
 ;; (define-extern *team-colors* object)
 ;; (define-extern *team-font-colors* object)
 
@@ -67546,7 +67552,7 @@
   :flag-assert         #xc0000008c
   (:methods
     (net-anim-control-method-9 (_type_ object object object) none) ;; 9
-    (net-anim-control-method-10 (_type_ int32 int32 int32 int32) none) ;; 10
+    (net-anim-control-method-10 (_type_ int int int int) none) ;; 10 ;; confirmed int not int32 by plow.gc's own call site, same class of fix as method-11's own
     (net-anim-control-method-11 (_type_ int int int int int int) none) ;; 11 ;; all 6 confirmed int not int32 by raptor's own call sites: goalc's own typecheck rejects int32 uniformly here, both for the *net-mgr*/*net-world* time-frame subtraction (arg0) and for values read through a (pointer int32) cast (arg1+), so int32 is a storage-width detail, not the expression type goalc infers for a register-held value
     )
   )
@@ -76870,22 +76876,34 @@
 ;; resurrected from the dead block above (dead-type sweep); startup/waiting-respawn
 ;; are the inherited net-enemy states 59/61, not new slots, so the auto-synced
 ;; count 92 was wrong; game registration says 90 with new states 87-89
+;; proven: (method 10 plow)'s own clean decode dispatches process-nettable-
+;; method-19 (zero args) on thruster-left through smoke2 (888 through 928,
+;; eleven fields, NOT been-hit); (method 74 plow) dispatches process-
+;; nettable-method-18 on the on-screen subset of the same fields (thruster-
+;; left/right, eye-left/right, smoke, smoke2) the same way. been-hit is used
+;; as a plain boolean flag throughout the landed source (following-path's
+;; own :event handler sets it (the-as process-nettable #t), method 78 clears
+;; it to #f, plow-trans tests it truthy then clears it before calling
+;; launch-nearby-players), so it stays basic; the earlier comment here
+;; naming been-hit instead of smoke2 as the eleventh field was wrong, fixed
+;; against the actual clean-decode text rather than the raw op trace that
+;; produced it.
 (deftype plow (net-enemy)
-  ((tracking-player      uint64  :offset-assert 872)
-   (do-flip-anim         basic   :offset-assert 880)
-   (been-hit             basic   :offset-assert 884)
-   (thruster-left        basic   :offset-assert 888)
-   (thruster-right       basic   :offset-assert 892)
-   (thruster-left-small  basic   :offset-assert 896)
-   (thruster-right-small basic   :offset-assert 900)
-   (thruster-main        basic   :offset-assert 904)
-   (eye-left             basic   :offset-assert 908)
-   (eye-right            basic   :offset-assert 912)
-   (eye-left-small       basic   :offset-assert 916)
-   (eye-right-small      basic   :offset-assert 920)
-   (smoke                basic   :offset-assert 924)
-   (smoke2               basic   :offset-assert 928)
-   (engine-sound-id      uint32  :offset-assert 932)
+  ((tracking-player      uint64           :offset-assert 872)
+   (do-flip-anim         basic            :offset-assert 880)
+   (been-hit             basic            :offset-assert 884)
+   (thruster-left        process-nettable :offset-assert 888)
+   (thruster-right       process-nettable :offset-assert 892)
+   (thruster-left-small  process-nettable :offset-assert 896)
+   (thruster-right-small process-nettable :offset-assert 900)
+   (thruster-main        process-nettable :offset-assert 904)
+   (eye-left             process-nettable :offset-assert 908)
+   (eye-right            process-nettable :offset-assert 912)
+   (eye-left-small       process-nettable :offset-assert 916)
+   (eye-right-small      process-nettable :offset-assert 920)
+   (smoke                process-nettable :offset-assert 924)
+   (smoke2               process-nettable :offset-assert 928)
+   (engine-sound-id      uint32           :offset-assert 932)
    )
   :method-count-assert 90
   :size-assert         #x3a8
@@ -76899,28 +76917,76 @@
 
 
 ;; (define-extern *plow-debris-params* debris-static-params)
-;; (define-extern *plow-enemy-info* object)
-;; (define-extern plow-init-remote function)
-;; (define-extern *msg-map-plow* array)
-;; (define-extern *net-process-class-info-plow* object)
-;; (define-extern *range-plowexplo-color* curve-color-fast)
-;; (define-extern *range-plowexplo-alpha* curve2d-fast)
-;; (define-extern *range-plowexplo-scale-x* curve2d-fast)
-;; (define-extern *range-plowexplo-scale-y* curve2d-fast)
-;; (define-extern *curve-plowexplo-alpha* curve2d-fast)
-;; (define-extern *curve-plowexplo-scale-x* curve2d-fast)
-;; (define-extern *curve-plowexplo-scale-y* curve2d-fast)
-;; (define-extern *part-plow-explosion-texture-curve-settings* object)
-;; (define-extern do-bob function)
-;; (define-extern *plow-avoidance-bbox-rad* object)
-;; (define-extern *plow-ignore-if-above* object)
-;; (define-extern check-collision-with-other-plows function)
-;; (define-extern probe-hits-stuff function)
-;; (define-extern do-launch function)
-;; (define-extern launch-nearby-players function)
-;; (define-extern *flip-speed* object)
-;; (define-extern *flip-blend* object)
-;; (define-extern plow-trans function)
+;; proven: matches *raptor-enemy-info*'s own net-enemy-info type; plow's own
+;; top-level immediately writes #f into its offset-12 field, net-enemy-info's
+;; own ragdoll-info slot, the same (set! (-> X ragdoll-info) ...) idiom
+;; raptor.gc uses for *raptor-enemy-info*.
+(define-extern *plow-enemy-info* net-enemy-info)
+;; proven: identical shape to net-enemy-h.gc's own landed net-enemy-init-remote
+;; (process-nettable-method-34/35/36 vtable dispatch through s6, arg0 the int
+;; passed straight to method-35); matches its declared extern exactly.
+(define-extern plow-init-remote (function int none :behavior process-focusable))
+;; proven: plow's own top-level defines and stores into both of these
+;; (write-msg-map-rec/net-process-class-register idiom, matching net-enemy-h's
+;; landed *msg-map-net-enemy*/*net-process-class-info-net-enemy* precedent);
+;; msg-map is net-process-class-info's own (array symbol) field.
+(define-extern *msg-map-plow* (array symbol))
+(define-extern *net-process-class-info-plow* net-process-class-info)
+;; proven: same range/curve sextet shape as *range-wsplash-color* and its
+;; siblings (curve-color-fast / curve2d-fast), read directly at plow's own
+;; top-level explosion setup block.
+(define-extern *range-plowexplo-color* curve-color-fast)
+(define-extern *range-plowexplo-alpha* curve2d-fast)
+(define-extern *range-plowexplo-scale-x* curve2d-fast)
+(define-extern *range-plowexplo-scale-y* curve2d-fast)
+(define-extern *curve-plowexplo-alpha* curve2d-fast)
+(define-extern *curve-plowexplo-scale-x* curve2d-fast)
+(define-extern *curve-plowexplo-scale-y* curve2d-fast)
+;; proven: matches the *part-jakx-explosion-texture-curve-settings* /
+;; *part-car-explosion-texture-curve-settings* family, all particle-curve-settings.
+(define-extern *part-plow-explosion-texture-curve-settings* particle-curve-settings)
+;; proven: reads arg0 (a0) into gp at op 0 and never reads any other incoming
+;; arg register; called from plow-trans with only (set! a0 s6) beforehand.
+(define-extern do-bob (function plow none))
+;; proven: plow's own top-level stores a raw label (L240) holding four words
+;; 409600.0/409600.0/409600.0/1.0, the standard x/y/z/w vector literal shape.
+(define-extern *plow-avoidance-bbox-rad* vector)
+;; proven: stored via swc1 (float store) immediately after, plow's own
+;; top-level offset 658.
+(define-extern *plow-ignore-if-above* float)
+;; proven: reads arg0 (a0) into gp at op 0 and never reads any other incoming
+;; arg register; called from plow-trans with only (set! a0 s6) beforehand.
+(define-extern check-collision-with-other-plows (function plow none))
+;; proven: reads a0 and a1 both as vectors (lqc2 at op 6) with no other
+;; incoming reads; called from do-launch with two vector args (a probe origin
+;; and a target position), return value is tested for truthiness by the
+;; caller (b! (not v0) ...).
+(define-extern probe-hits-stuff (function vector vector object))
+;; proven: reads arg0 (a0) into gp at op 0 while also reading s6 directly
+;; (this plow's own root trans at op 8), confirming :behavior plow with an
+;; explicit first argument; called from launch-nearby-players with
+;; (set! a0 s4), s4 being the other net entity found via the connection-list
+;; walk, so arg0 is left as the generic object it is read as (no field access
+;; on it resolves to a named type at this op).
+(define-extern do-launch (function object none :behavior plow))
+;; proven: reads no incoming arg registers (gp/s5 initialized to #f/0
+;; immediately, no a0..a3 read at entry) while using s6 directly throughout
+;; (the *active-net-non-spectators* walk and do-launch call); called from
+;; both plow-trans and (method 74 plow) with a bare (set! t9
+;; launch-nearby-players) and no arg setup at either call site.
+(define-extern launch-nearby-players (function none :behavior plow))
+;; proven: stored via swc1 (float store) at plow's own top-level, offset 674.
+(define-extern *flip-speed* float)
+;; proven: passed as ja-channel-push!'s arg1 (declared time-frame) at (anon-
+;; function 8 plow) op 41; the symbol's own 32-bit lw load makes it a
+;; truncated-width value like every GOAL symbol slot, matching int here.
+(define-extern *flip-blend* int)
+;; proven: no incoming arg register is read (op 0 reads s6 directly for the
+;; *net-enemy-list* walk, no a0..a3); called from (trans following-path plow)
+;; and its siblings via a bare (set! t9 plow-trans)(call!), the same
+;; asm-plus-named-extern shared :trans body shape as raptor's own
+;; raptor-following-path-trans/raptor-idle-wait-trans.
+(define-extern plow-trans (function none :behavior plow))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; brdroom-obs                    ;;
@@ -85793,7 +85859,11 @@
 ;; provisional-sweep object typing); commented out so the earlier, stronger
 ;; entry wins per check_alltypes_shadowing.py.
 ;; (define-extern *net-process-class-info-peak-snowball* object) ;; provisional: call-site evidence only
-(define-extern *net-process-class-info-plow* object) ;; provisional: call-site evidence only
+;; later-duplicate-wins: superseded by the correctly-typed define-extern
+;; near plow's own deftype (net-process-class-info, not the generic
+;; provisional-sweep object typing); commented out so the earlier, stronger
+;; entry wins per check_alltypes_shadowing.py.
+;; (define-extern *net-process-class-info-plow* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-powercell-dispenser* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-powercell-dispenser-draw* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-powercell-footie* object) ;; provisional: call-site evidence only
@@ -85844,7 +85914,11 @@
 (define-extern *player-info-player* object) ;; provisional: call-site evidence only
 (define-extern *player-menu-array-to-use* object) ;; provisional: call-site evidence only
 (define-extern *plow-debris-params* object) ;; provisional: call-site evidence only
-(define-extern *plow-enemy-info* object) ;; provisional: call-site evidence only
+;; later-duplicate-wins: superseded by the correctly-typed define-extern
+;; near plow's own deftype (net-enemy-info, not the generic provisional-
+;; sweep object typing); commented out so the earlier, stronger entry wins
+;; per check_alltypes_shadowing.py.
+;; (define-extern *plow-enemy-info* object) ;; provisional: call-site evidence only
 ;; hud-and-levels-misc rung: retyped from object to (array hud-item),
 ;; matching *hang-time-hud-single*'s own fix in this same commit: the correct
 ;; type sits commented a few thousand lines earlier in this file

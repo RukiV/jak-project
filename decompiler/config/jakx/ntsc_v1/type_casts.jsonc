@@ -6376,6 +6376,150 @@
     [3, "s5", "process"],
     [18, "s5", "(pointer uint128)"]
   ],
+  // plow's (enter reverse plow) and (enter following-path plow) each read
+  // net-enemy-info's own anim-info field (basic, offset 52) at op 52/53
+  // (info then anim-info), then dereference the array-element chain at op
+  // 54/55 the exact same way raptor's five state (enter ...) handlers do:
+  // opaque word pointers, (pointer uint32) for the l.wu outer read and
+  // (pointer int32) for the l.w inner read.
+  "(enter reverse plow)": [
+    [54, "v1", "(pointer uint32)"],
+    [55, "v1", "(pointer int32)"]
+  ],
+  "(enter intro-path plow)": [
+    [34, "v1", "(pointer uint32)"],
+    [35, "v1", "(pointer int32)"]
+  ],
+  "(enter startup plow)": [
+    [33, "v1", "(pointer uint32)"],
+    [34, "v1", "(pointer int32)"],
+    [64, "a0", "(pointer uint32)"],
+    [65, "a0", "(pointer uint32)"],
+    [66, "a0", "(pointer uint128)"]
+  ],
+  // following-path reads the chain twice, the same shape as raptor's own
+  // (enter following-path raptor): once at op 54/55 (anim-idx, +4) and again
+  // at op 61/62 (forward-vel, +8, also read via l.wu to match instruction
+  // width rather than the field's own float type).
+  "(enter following-path plow)": [
+    [54, "v1", "(pointer uint32)"],
+    [55, "v1", "(pointer int32)"],
+    [61, "v1", "(pointer uint32)"],
+    [62, "v1", "(pointer uint32)"],
+    [63, "v1", "(pointer uint32)"]
+  ],
+  // launch-nearby-players: *active-net-non-spectators* is declared the
+  // generic 4-byte-stride pointer array evidence proves (see all-types.gc's
+  // own comment on the symbol); the specific element read at op 6 is cast to
+  // net-player here since it immediately dispatches vtable byte offset 212
+  // (method id 49), an exact match for net-player-method-49's own declared
+  // id and return type (process).
+  // op 7: element cast to net-player for the method-49 dispatch (byte 212,
+  // process return, matching net-player-method-49 exactly). op 13: the
+  // returned process is re-dispatched at byte 104 (method id 22, zero args,
+  // symbol return), an exact match for process-nettable-method-22's own
+  // declared id, arity and return type, so the process result is narrowed to
+  // process-nettable for that second call.
+  "launch-nearby-players": [
+    [7, "a0", "net-player"],
+    [13, "a0", "process-nettable"],
+    [21, "v1", "net-player"],
+    // op 25 reads offset 4516, well past net-player's own 0x190 size-assert
+    // (a not-taken "branch likely" annuls op 24's v1 reassignment, so v1
+    // here is still the same net-player pointer from op 19, per the
+    // decompiler's own v1-7 SSA naming); no net-player subtype this rung
+    // could confirm reaches that far, so this is left the generic pointer
+    // width the read itself proves rather than asserting an unconfirmed
+    // field identity, matching do-launch's own (pointer uint8) treatment.
+    [25, "v1", "uint"],
+    [[29, 32], "v1", "handle"]
+  ],
+  // (method 65 plow): identical shape to (method 65 raptor) above, same
+  // arg0 (declared object) reading raw offset 128 into process's own
+  // connection-list field, then a second unrelated quad-load of arg0 itself
+  // past the branch merge.
+  "(method 65 plow)": [
+    [14, "s5", "process"],
+    [18, "s5", "(pointer uint128)"]
+  ],
+  // (method 10 plow): plow's own smoke field (offset 924, declared
+  // process-nettable in all-types.gc same as its ten siblings) does not
+  // resolve through the deftype's own field declaration at this specific
+  // read for reasons not otherwise isolated; forced here to match the same
+  // process-nettable-method-19 dispatch its siblings (been-hit through
+  // eye-right-small) already resolve correctly.
+  "(method 10 plow)": [[52, "a0", "process-nettable"]],
+  // do-launch: arg0 (gp) is the other net entity found by launch-nearby-
+  // players (a net-player per that function's own evidence); the field read
+  // at offset 228 does not land on any of net-player's own named field
+  // boundaries this rung could confirm, so it is cast to the generic pointer
+  // width the read itself proves rather than asserting an unconfirmed field
+  // identity.
+  "do-launch": [
+    [10, "gp", "net-player"],
+    [15, "gp", "net-player"],
+    [[131, 134], "v1", "handle"]
+  ],
+  // (method 74 plow): reads net-enemy's own ragdoll-proc field (offset 868,
+  // declared uint64 same as its own siblings elsewhere in this file, all
+  // commented "handle"), then splits it via the standard sllv/dsra32
+  // handle->process idiom (low 32 process, high 32 pid) to null-check a
+  // ragdoll process and compare its pid, the same shape as (trans idle
+  // visvol-editor) above. Casting v1 to handle clears the sllv "Unsupported
+  // inline assembly instruction kind" and the following l.wu error; the
+  // landed source hand-folds this call site to (handle->process (-> this
+  // ragdoll-proc)), matching generic-obs.gc's own manipy precedent.
+  "(method 74 plow)": [
+    [[7, 10], "v1", "handle"],
+    [[83, 86], "v1", "handle"],
+    // *net-players* element+12 dispatches vtable byte 212 (method id 49),
+    // the same net-player-method-49 match as launch-nearby-players above.
+    [32, "a0", "net-player"],
+    // the process returned by method-49 reads its own root field at offset
+    // 184 (the same field gp reads for this plow throughout this file),
+    // narrowing the generic process return to process-focusable.
+    [39, "a0", "process-focusable"],
+    // op 68-69 re-dispatch method-49 on s3 a second time (an "is this net-
+    // player still valid" re-check); its process return reads offsets
+    // 260/4516, the same net-player-only fields launch-nearby-players
+    // already established, so v1 is narrowed to net-player here too.
+    [68, "s3", "net-player"],
+    [70, "s3", "net-player"],
+    [75, "v1", "net-player"],
+    // same offset-4516-past-net-player's-own-size shape as
+    // launch-nearby-players' own op 25 above.
+    [79, "v1", "(pointer uint8)"]
+  ],
+  // plow-trans: same smoke field, same unresolved read, this function's own
+  // method-18 dispatch pass.
+  "plow-trans": [[78, "a0", "process-nettable"]],
+  // check-collision-with-other-plows: a2 walks *net-enemy-list*'s own
+  // list-link nodes (op 11/13); op 15 converts the current node back to its
+  // owning net-enemy via the standard container_of idiom (-860, a doubly-
+  // linked-list convention where the stored pointer already targets the
+  // neighbor's own linkage field, so the offset is enemy-link's own
+  // placement offset 864 minus the 4-byte field just read), which needs a
+  // plain byte pointer to type-check the subtraction ("add failed: list-link
+  // <integer -860>"); every later read of a2 (offsets 68/60/184, matching
+  // net-enemy's own fields, root at 184 the same field gp reads one op
+  // earlier for this plow) is cast to net-enemy to match.
+  "check-collision-with-other-plows": [
+    [15, "a2", "(pointer uint8)"],
+    [18, "a2", "net-enemy"],
+    [24, "a2", "net-enemy"],
+    [30, "a2", "net-enemy"],
+    [39, "a2", "net-enemy"],
+    // s5 (the winning candidate accumulator) is copied from a2 at op 55 and
+    // read again at op 86 (offset 184, the same root field), so both points
+    // need their own cast.
+    [55, "a2", "net-enemy"],
+    [86, "s5", "net-enemy"],
+    // op 45 quad-loads the sp+16 vector via lqc2 for the self-dot magnitude
+    // check; needs the quad pointer width rather than the plain vector type
+    // the stack_structures.jsonc declaration gives it, matching (method 65
+    // raptor)'s own (pointer uint128) precedent for the same instruction.
+    [45, "a3", "(pointer uint128)"]
+  ],
   // engine-quick-tier-6: debug-set-camera-pos-rot! calls view-get-active-
   // camera-combiner twice and writes through the result both times.
   // view-get-active-camera-combiner is declared to return plain basic

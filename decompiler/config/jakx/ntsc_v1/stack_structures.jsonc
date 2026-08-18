@@ -1204,5 +1204,38 @@
   // Config-only: method 9's own landing is held (see camera-facing-quad.gc),
   // this just keeps the object's decode error-free for the next lane that
   // resolves the clear-strip dependency.
-  "(method 9 camera-facing-quad)": [[16, ["array", "uint8", 160]]]
+  "(method 9 camera-facing-quad)": [[16, ["array", "uint8", 160]]],
+  // do-bob (plow's own helper, levels-other-tier-3 rung): sp+16 is handed
+  // straight to quaternion-axis-angle! as its own destination arg0 (declared
+  // quaternion, first param); the raw stack address's own type never
+  // resolved on its own ("Failed to guess stack use for 16").
+  "do-bob": [[16, "quaternion"]],
+  // do-launch (plow's own helper): sp+16 is handed straight to vector-lerp!
+  // as its own destination arg0 (declared vector, first param); the raw
+  // stack address's own type never resolved on its own ("Failed to guess
+  // stack use for 16").
+  "do-launch": [[16, "vector"]],
+  // check-collision-with-other-plows (plow's own helper): sp+16 is filled by
+  // vector-!2 (a difference vector between two collide-shape trans fields)
+  // then dotted with itself for a distance-squared compare; the raw stack
+  // address's own type never resolved on its own ("Failed to guess stack use
+  // for 16"). sp+32 is a second, independent slot handed straight to
+  // quaternion-axis-angle! as its own destination arg0 (declared quaternion),
+  // the same shape as do-bob's own sp+16 above ("Failed to guess stack use
+  // for 32").
+  "check-collision-with-other-plows": [[16, "vector"], [32, "quaternion"]],
+  // (method 74 plow): sp+16 is filled by vector-!2 (a difference vector
+  // between the closest player's own root trans and this plow's own),
+  // the same shape as check-collision-with-other-plows above ("Failed to
+  // guess stack use for 16").
+  "(method 74 plow)": [[16, "vector"]],
+  // (code startup plow): sp+16 is handed to mem-buffer's own method 9 (new)
+  // as its this-arg, matching mem-buffer's own size-assert exactly (0x10);
+  // the raw stack address's own type never resolved on its own ("Failed to
+  // guess stack use for 16").
+  "(code startup plow)": [[16, "mem-buffer"]],
+  // (enter waiting-respawn net-enemy): sp+16 is handed to mem-buffer's own
+  // method 10 (byte offset 56, id (56-16)/4=10) as its this-arg, the exact
+  // same idiom as (code startup plow) above.
+  "(enter waiting-respawn net-enemy)": [[16, "mem-buffer"]]
 }

@@ -7,21 +7,108 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this: only net-enemy's own "startup" state is landed here; the
-;; rest of this object (25+ methods, baseline 26 decode errors per this
-;; rung's own scoped decode) is a separate, substantial landing out of scope
-;; for the raptor rung. This one state is landed narrowly because raptor's
-;; own (defstate startup (raptor) :virtual #t ...) inherits it at link time
-;; (define-virtual-state-hook), and scripts/check_state_inherit.py fails the
-;; build when a virtual defstate's ancestor is landed nowhere in goal_src;
-;; net-enemy's own startup decodes clean (zero errors) and is a trivial,
-;; self-contained transcription. Retire this comment once net-enemy.gc lands
-;; for real.
+;; og:preserve-this: only net-enemy's own "startup" and "waiting-respawn"
+;; states are landed here; the rest of this object (25+ methods, measured 48
+;; decode errors on this worktree's own full-corpus baseline) is a separate,
+;; substantial landing out of scope for this rung. Both states are landed
+;; narrowly because plow's own (defstate waiting-respawn (plow) :virtual #t
+;; ...) inherits net-enemy's own waiting-respawn at link time (and raptor's
+;; startup override needs net-enemy's own startup the same way), and
+;; scripts/check_state_inherit.py fails the build when a virtual defstate's
+;; ancestor is landed nowhere in goal_src; both of net-enemy's own states
+;; decode clean (zero errors, confirmed on this worktree's own scoped decode
+;; with the mem-buffer stack_structures.jsonc fix for waiting-respawn's own
+;; :enter) and are trivial, self-contained transcriptions. Retire this
+;; comment once net-enemy.gc lands for real.
 (defstate startup (net-enemy)
   :virtual #t
   :enter (behavior ()
     '()
     )
   :code sleep-code
+  )
+
+;; definition for state waiting-respawn of type net-enemy
+(defstate waiting-respawn (net-enemy)
+  :virtual #t
+  :enter (behavior ()
+    (set! (-> self flags) (the-as uint 0))
+    (logclear! (-> self mask) (process-mask enemy))
+    (when (= (if *net-mgr*
+                 (-> *net-mgr* game-state local-machine-idx)
+                 0
+                 )
+             (-> *net-mgr* game-state session-master-idx)
+             )
+      (let ((gp-0 (new 'stack-no-clear 'mem-buffer)))
+        ((method-of-type mem-buffer mem-buffer-method-10)
+         (the-as mem-buffer (&-> gp-0 base))
+         (-> *tmp-construct-transition* buf-data)
+         64
+         )
+        (let ((s5-0 (process-nettable-method-27 self 'transition)))
+          (mem-buffer-method-15 s5-0 (+ (- (- (if *net-mgr*
+                                                  (-> *net-mgr* game-state time)
+                                                  0
+                                                  )
+                                              (if *net-world*
+                                                  (-> *net-world* net-state game-start-time)
+                                                  0
+                                                  )
+                                              )
+                                           (if *net-world*
+                                               (-> *net-world* net-state total-pause-time)
+                                               0
+                                               )
+                                           )
+                                        (-> self info time-before-respawn)
+                                        )
+                                )
+          (mem-buffer-method-29 s5-0 #f)
+          (let ((t9-4 (method-of-type mem-buffer mem-buffer-method-28)))
+            'respawn
+            (t9-4)
+            )
+          (mem-buffer-method-15
+            s5-0
+            ((method-of-type mem-buffer mem-buffer-method-11) (the-as mem-buffer (&-> gp-0 base)))
+            )
+          (mem-buffer-method-27 s5-0 (&-> gp-0 base))
+          (process-nettable-method-29 self s5-0 -2 208)
+          )
+        )
+      ((method-of-object self process-nettable-method-28))
+      (when #t
+        (set! (-> *tmp-construct-transition* timestamp) (+ (- (- (if *net-mgr*
+                                                                     (-> *net-mgr* game-state time)
+                                                                     0
+                                                                     )
+                                                                 (if *net-world*
+                                                                     (-> *net-world* net-state game-start-time)
+                                                                     0
+                                                                     )
+                                                                 )
+                                                              (if *net-world*
+                                                                  (-> *net-world* net-state total-pause-time)
+                                                                  0
+                                                                  )
+                                                              )
+                                                           (-> self info time-before-respawn)
+                                                           )
+              )
+        (set! (-> *tmp-construct-transition* preempt) #f)
+        (set! (-> *tmp-construct-transition* name) (the-as basic 'respawn))
+        (net-enemy-method-72 self *tmp-construct-transition*)
+        )
+      )
+    (when (-> self minimap)
+      (logior! (-> self minimap flags) (minimap-flag fade-out))
+      (set! (-> self minimap) #f)
+      )
+    )
+  :code sleep-code
+  :post (behavior ()
+    (net-enemy-method-81 self)
+    )
   )
 

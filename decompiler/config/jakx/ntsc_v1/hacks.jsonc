@@ -223,6 +223,25 @@
     // process-drawable cast plus an unverified bitfield mask, out of this
     // rung's evidence.
     "(method 10 rigid-body-queue)",
+    // plow rung (levels-other-tier-3): launch-nearby-players, do-launch and
+    // (method 74 plow) each inline the same process<->handle sllv/dsra32
+    // idiom as (method 10 rigid-body-queue) above, reading a ragdoll/attack-
+    // handle field at a raw offset (4516 from a net-player pointer, 228 from
+    // an unconfirmed net-entity pointer) past any type this rung could
+    // declare that types2's own reverse_field_multi_lookup resolves
+    // (decompiler/types2/ForwardProp.cpp's "Could not figure out load" is
+    // thrown inside types2's own forward pass, before type_casts.jsonc ever
+    // gets consulted; type_casts.jsonc entries only patch the post-hoc
+    // conversion back to the old TypeState format, so no cast here can
+    // change types2's own verdict). Every earlier part of each function
+    // (the *net-players*/*active-net-non-spectators* walks, the method-49/22
+    // dispatches, the vector-!2/quaternion-axis-angle! stack scratch) is
+    // fixed via type_casts.jsonc/stack_structures.jsonc and left in place;
+    // only this one recurring idiom is unfixable from config, so all three
+    // functions are parked whole.
+    "launch-nearby-players",
+    "do-launch",
+    "(method 74 plow)",
     // (method 11/13/15 rigid-body-queue): the same inlined handle<->process
     // triple as method 9 above, but here it breaks CFG resolution outright
     // ("CFG building failed", no expression tree at all) even after the
