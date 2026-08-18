@@ -62776,14 +62776,28 @@
 ;; body decode since this function is not defined in this object).
 (define-extern vehicle-idx-from-level-name (function symbol int))
 ;; (define-extern vehicle-in-level? function)
-;; (define-extern vehicle-spawn function) ;; (function vehicle-type traffic-object-spawn-params process-drawable)
-;; og:preserve-this left commented rather than landed: target-standard-event-handler's
-;; own 'get-on branch needs this (confirmed against jak3 twin at decompiler/config/
-;; jak3/all-types.gc:54232), but its traffic-object-spawn-params argument type is
-;; entirely undeclared in jakx (Type Error: Type traffic-object-spawn-params is
-;; unknown), and that struct's own fields cascade into traffic-type/nav-mesh/
-;; nav-branch/entity/traffic-spawn-flags, the race/vehicle band's own typing
-;; territory, not this rung's. Cross-band blocker, not landed here.
+;; og:preserve-this activated (vehicle band): the earlier comment's guessed
+;; second arg, traffic-object-spawn-params, does not exist in jakx and was
+;; never the real blocker; vehicle-spawn is defined in this band's own
+;; vehicle-manager.gc (out_final vehicle-manager_ir2.asm), whose own body
+;; proves a different, already-landed signature. arg0 (s4) is passed
+;; straight through to type-from-vehicle-type, whose own extern just above
+;; already declares its argument vehicle-type; the same s4 is also compared
+;; against the raw integers 15 and 16, values with no symbolic name in the
+;; car-info-h vehicle-type enum but matching v-drone/v-dart in the sibling
+;; traffic-h traffic-vehicle-type enum, an unremarkable raw-literal
+;; comparison, not evidence against vehicle-type. arg1 (gp) reads and
+;; writes bytes at offsets 92/93/95 and a vector at offset 16, an exact
+;; field-for-field match to vehicle-spawn-params (all-types.gc:14823,
+;; traffic-h.gc, already landed): player-id, level-slot, driver-slot,
+;; position. The return (s5) is dispatched through a vtable read at byte
+;; offset 440 (method slot 106, beyond rigid-body-object's own range, one
+;; of vehicle's own methods) and passed to helmet-garage-spawn,
+;; driver-spawn and vehicle-respawn-invul-spawn. target-handler.gc's own
+;; target-standard-event-handler still holds its 'get-on branch back
+;; pending its own re-decode, out of this band's file list; see its
+;; skip_compile_functions note in test/offline/config/jakx/config.jsonc.
+(define-extern vehicle-spawn (function vehicle-type vehicle-spawn-params vehicle))
 ;; (define-extern find-vehicle function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
