@@ -7,3 +7,335 @@
 
 ;; DECOMP BEGINS
 
+;; definition for method 223 of type wvehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod wvehicle-method-223 ((this wvehicle))
+  (dotimes (s5-0 2)
+    (let ((s4-0 (+ (+ (* s5-0 32) 3788) (the-as int this))))
+      (dotimes (s3-0 2)
+        (let ((s2-0 (the-as (pointer integer) (+ (* s3-0 16) 0 s4-0))))
+          (when (nonzero? (-> (the-as (pointer uint32) s2-0) 0))
+            (sound-stop (the-as sound-id (-> (the-as (pointer uint32) s2-0) 0)) #t)
+            (set! (-> (the-as (pointer uint32) s2-0) 0) (the-as uint 0))
+            (set! (-> (the-as (pointer int8) s2-0) 4) -1)
+            )
+          )
+        )
+      )
+    )
+  (sound-stop (-> this turbo-sound-id) #t)
+  (sound-stop (the-as sound-id (-> this turbo-sound2-id)) #t)
+  (set! (-> this turbo-sound-id) (new 'static 'sound-id))
+  (set! (-> this turbo-sound2-id) (the-as uint 0))
+  (sound-stop (-> this damage-sound-id) #t)
+  (set! (-> this damage-sound-id) (new 'static 'sound-id))
+  0
+  (none)
+  )
+
+;; definition for method 144 of type wvehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-144 ((this wvehicle))
+  (let ((t9-0 (method-of-type vehicle vehicle-method-144)))
+    (t9-0 this)
+    )
+  (wvehicle-method-223 this)
+  (dotimes (s5-0 6)
+    (let ((s4-0 (-> this tire-roll-loop-state s5-0)))
+      (sound-stop (-> s4-0 id) #t)
+      (set! (-> s4-0 vol) 0.0)
+      (set! (-> s4-0 id) (new 'static 'sound-id))
+      )
+    0
+    )
+  (dotimes (s5-1 2)
+    (let ((s4-1 (-> this tire-slide-loop-state s5-1)))
+      (sound-stop (-> s4-1 id) #t)
+      (set! (-> s4-1 vol) 0.0)
+      (set! (-> s4-1 id) (new 'static 'sound-id))
+      )
+    0
+    )
+  (set! (-> this water-sound-envelope) 0.0)
+  (sound-stop (-> this water-sound-id) #t)
+  (set! (-> this water-sound-id) (new 'static 'sound-id))
+  (sound-stop (the-as sound-id (-> this wheel-fire-sound-id)) #t)
+  (set! (-> this wheel-fire-sound-id) (the-as uint 0))
+  (sound-stop (the-as sound-id (-> this oil-sound-id)) #t)
+  (set! (-> this oil-sound-id) (the-as uint 0))
+  (sound-stop (the-as sound-id (-> this hang-time-sound-id)) #t)
+  (set! (-> this hang-time-sound-id) (the-as uint 0))
+  (sound-stop (the-as sound-id (-> (the-as (pointer uint32) this) 221)) #t)
+  (set! (-> (the-as (pointer uint32) this) 221) (the-as uint 0))
+  (sound-stop (the-as sound-id (-> this whoosh-sound-id)) #t)
+  (set! (-> this whoosh-sound-id) (the-as uint 0))
+  (sound-stop (the-as sound-id (-> this sink-sound-id)) #t)
+  (set! (-> this sink-sound-id) (the-as uint 0))
+  (sound-stop (the-as sound-id (-> (the-as (pointer uint32) this) 223)) #t)
+  (set! (-> (the-as (pointer uint32) this) 223) (the-as uint 0))
+  0
+  (none)
+  )
+
+;; definition for method 169 of type wvehicle
+(defmethod vehicle-method-169 ((this wvehicle))
+  (set! (-> this controls throttle) 1.0)
+  ((method-of-type vehicle vehicle-method-169) this)
+  (none)
+  )
+
+;; definition for method 170 of type wvehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-170 ((this wvehicle))
+  (when (logtest? (-> this flags) 8192)
+    (logand! (-> this flags) -8193)
+    (when (not (logtest? (-> this flags) 8))
+      )
+    (wvehicle-method-223 this)
+    )
+  0
+  (none)
+  )
+
+;; definition of type wvehicle-sound-loop-params
+(deftype wvehicle-sound-loop-params (structure)
+  ((speed   float)
+   (weight  float)
+   )
+  )
+
+;; definition for method 3 of type wvehicle-sound-loop-params
+(defmethod inspect ((this wvehicle-sound-loop-params))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'wvehicle-sound-loop-params)
+  (format #t "~1Tspeed: ~f~%" (-> this speed))
+  (format #t "~1Tweight: ~f~%" (-> this weight))
+  (label cfg-4)
+  this
+  )
+
+;; definition of type wvehicle-sound-work
+(deftype wvehicle-sound-work (structure)
+  ((roll-basis-params   wvehicle-sound-loop-params  6 :inline)
+   (slide-basis-params  wvehicle-sound-loop-params  2 :inline)
+   )
+  )
+
+;; definition for method 3 of type wvehicle-sound-work
+(defmethod inspect ((this wvehicle-sound-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'wvehicle-sound-work)
+  (format #t "~1Troll-basis-params[6] @ #x~X~%" (-> this roll-basis-params))
+  (format #t "~1Tslide-basis-params[2] @ #x~X~%" (-> this slide-basis-params))
+  (label cfg-4)
+  this
+  )
+
+;; definition of type update-engine-mix-state-params
+(deftype update-engine-mix-state-params (structure)
+  ((info-array    uint32)
+   (info-count    int8)
+   (sound-select  int8)
+   (rpm           float)
+   (volume        float)
+   )
+  )
+
+;; definition for method 3 of type update-engine-mix-state-params
+(defmethod inspect ((this update-engine-mix-state-params))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'update-engine-mix-state-params)
+  (format #t "~1Tinfo-array: #x~X~%" (-> this info-array))
+  (format #t "~1Tinfo-count: ~D~%" (-> this info-count))
+  (format #t "~1Tsound-select: ~D~%" (-> this sound-select))
+  (format #t "~1Trpm: ~f~%" (-> this rpm))
+  (format #t "~1Tvolume: ~f~%" (-> this volume))
+  (label cfg-4)
+  this
+  )
+
+;; definition of type update-engine-loop-state-work
+(deftype update-engine-loop-state-work (structure)
+  ((i-loop  int8)
+   (info    vehicle-sound-engine-loop-info)
+   (volume  float)
+   (pitch   float)
+   )
+  )
+
+;; definition for method 3 of type update-engine-loop-state-work
+(defmethod inspect ((this update-engine-loop-state-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'update-engine-loop-state-work)
+  (format #t "~1Ti-loop: ~D~%" (-> this i-loop))
+  (format #t "~1Tinfo: #<vehicle-sound-engine-loop-info @ #x~X>~%" (-> this info))
+  (format #t "~1Tvolume: ~f~%" (-> this volume))
+  (format #t "~1Tpitch: ~f~%" (-> this pitch))
+  (label cfg-4)
+  this
+  )
+
+;; definition of type update-engine-mix-state-work
+(deftype update-engine-mix-state-work (structure)
+  ((loops              update-engine-loop-state-work  2 :inline)
+   (xover1             float)
+   (xover2             float)
+   (crossover          float)
+   (ups                float)
+   (active-loop-count  int8)
+   (i-min              int8)
+   (i-max              int8)
+   )
+  )
+
+;; definition for method 3 of type update-engine-mix-state-work
+(defmethod inspect ((this update-engine-mix-state-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'update-engine-mix-state-work)
+  (format #t "~1Tloops[2] @ #x~X~%" (-> this loops))
+  (format #t "~1Txover1: ~f~%" (-> this xover1))
+  (format #t "~1Txover2: ~f~%" (-> this xover2))
+  (format #t "~1Tcrossover: ~f~%" (-> this crossover))
+  (format #t "~1Tups: ~f~%" (-> this ups))
+  (format #t "~1Tactive-loop-count: ~D~%" (-> this active-loop-count))
+  (format #t "~1Ti-min: ~D~%" (-> this i-min))
+  (format #t "~1Ti-max: ~D~%" (-> this i-max))
+  (label cfg-4)
+  this
+  )
+
+;; definition for function update-engine-mix-state
+;; WARN: Return type mismatch int vs none.
+(defun update-engine-mix-state ((arg0 wvehicle) (arg1 wvehicle-engine-mix-state) (arg2 update-engine-mix-state-params))
+  (let ((sv-16 arg0)
+        (s4-0 (new 'stack-no-clear 'update-engine-mix-state-work))
+        )
+    (set! (-> s4-0 ups) (seconds-per-frame))
+    (dotimes (v1-1 2)
+      (let ((a0-3 (-> s4-0 loops v1-1)))
+        (set! (-> a0-3 i-loop) -1)
+        (set! (-> a0-3 info) #f)
+        (set! (-> a0-3 volume) (-> arg2 volume))
+        )
+      )
+    (set! (-> s4-0 active-loop-count) 0)
+    (dotimes (v1-4 (-> arg2 info-count))
+      (let ((a0-6 (the-as object (+ (-> arg2 info-array) (* 24 v1-4)))))
+        (when (and (>= (-> arg2 rpm) (-> (the-as vehicle-sound-engine-loop-info a0-6) min-rpm))
+                   (>= (-> (the-as vehicle-sound-engine-loop-info a0-6) max-rpm) (-> arg2 rpm))
+                   )
+          (let ((a1-10 (-> s4-0 loops (logand v1-4 1))))
+            (set! (-> a1-10 i-loop) v1-4)
+            (set! (-> a1-10 info) (the-as vehicle-sound-engine-loop-info a0-6))
+            )
+          (+! (-> s4-0 active-loop-count) 1)
+          )
+        )
+      )
+    (dotimes (s3-0 2)
+      (let ((s2-0 (the-as object (+ (+ (* s3-0 16) 0) (the-as int arg1))))
+            (s1-0 (-> s4-0 loops s3-0))
+            )
+        (cond
+          ((-> s1-0 info)
+           (when (or (!= (-> s1-0 i-loop) (-> (the-as (pointer int8) s2-0) 4)) (zero? (-> (the-as (pointer uint32) s2-0) 0)))
+             (if (nonzero? (-> (the-as (pointer uint32) s2-0) 0))
+                 (sound-stop (the-as sound-id (-> (the-as (pointer uint32) s2-0) 0)) #t)
+                 )
+             (set! (-> (the-as (pointer uint32) s2-0) 0) (the-as uint (new-sound-id)))
+             (set! (-> (the-as (pointer int8) s2-0) 4) (-> s1-0 i-loop))
+             )
+           )
+          (else
+            (when (nonzero? (-> (the-as (pointer uint32) s2-0) 0))
+              (sound-stop (the-as sound-id (-> (the-as (pointer uint32) s2-0) 0)) #t)
+              (set! (-> (the-as (pointer uint32) s2-0) 0) (the-as uint 0))
+              (set! (-> (the-as (pointer int8) s2-0) 4) -1)
+              )
+            )
+          )
+        )
+      )
+    (when (= (-> s4-0 active-loop-count) 2)
+      (set! (-> s4-0 i-min) (if (< (-> s4-0 loops 0 info original-rpm) (-> s4-0 loops 1 info original-rpm))
+                                0
+                                1
+                                )
+            )
+      (set! (-> s4-0 i-max) (logxor (-> s4-0 i-min) 1))
+      (set! (-> s4-0 xover1) (-> s4-0 loops (-> s4-0 i-max) info min-rpm))
+      (set! (-> s4-0 xover2) (-> s4-0 loops (-> s4-0 i-min) info max-rpm))
+      (set! (-> s4-0 crossover)
+            (fmax 0.0 (fmin 1.0 (/ (- (-> arg2 rpm) (-> s4-0 xover1)) (- (-> s4-0 xover2) (-> s4-0 xover1)))))
+            )
+      (set! (-> s4-0 loops (-> s4-0 i-min) volume)
+            (* (-> s4-0 loops (-> s4-0 i-min) volume) (- 1.0 (-> s4-0 crossover)))
+            )
+      (set! (-> s4-0 loops (-> s4-0 i-max) volume) (* (-> s4-0 loops (-> s4-0 i-max) volume) (-> s4-0 crossover)))
+      0
+      )
+    (dotimes (s3-1 2)
+      (let* ((s2-1 (-> s4-0 loops s3-1))
+             (s1-1 (-> s2-1 info))
+             (sv-96 (+ (+ (* s3-1 16) 0) (the-as int arg1)))
+             )
+        (when s1-1
+          (set! (-> s2-1 volume) (cube-root (-> s2-1 volume)))
+          (set! (-> s2-1 pitch) (* (-> s1-1 pitch-scale) (log2f (/ (-> arg2 rpm) (-> s1-1 original-rpm)))))
+          (let ((v1-68 (make-sound-instance
+                         (-> *sound-info* (-> s1-1 sound-array (-> arg2 sound-select)))
+                         (the-as sound-id (-> (the-as (pointer uint32) sv-96)))
+                         (the-as handle #f)
+                         )
+                       )
+                )
+            (cond
+              (v1-68
+                (set! (-> v1-68 volume) (the int (* 1024.0 (-> s2-1 volume))))
+                (set! (-> v1-68 pitch-mod) (the int (* 1524.0 (+ (-> sv-16 eng-pitch-offset) (-> s2-1 pitch)))))
+                (logior! (-> v1-68 flags) 64)
+                (logior! (-> v1-68 mask) 9)
+                (-> v1-68 id)
+                )
+              (else
+                0
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  0
+  0
+  (none)
+  )
+
+;; og:preserve-this (method 70 wvehicle) and *debug-engine-sound-work*
+;; (used only inside it) are both omitted rather than landed. This is the
+;; dual-purpose sp+96 block the wvehicle-small-tier rung held: the method
+;; never converged after thirty-five op patches (reverted), and its own
+;; debug-engine-sounds branch separately fails static-ref on
+;; *debug-engine-sound-work* (L136, an unparseable <static-data L136>
+;; placeholder, the same decompiler gap class as weapon-suppression-
+;; table). A skip_compile_functions entry marks the held method so the
+;; decomp-vs-REF diff still gates the rest of this object (methods 223,
+;; 144, 169, 170 and the five update-engine-mix-state/loop-state types
+;; and function above). Re-derive from the framework's own dump (offline-
+;; test -f wvehicle-sounds -d) once the sp+96 block and the L136 static
+;; both have a real fix.
