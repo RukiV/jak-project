@@ -7,9 +7,9 @@
 // process-global record set (which only grows; there is no reset seam) can't let one
 // test's records leak into another's lookups.
 
-#include "game/kernel/common/goal_crash_map.h"
 #include <string>
 
+#include "game/kernel/common/goal_crash_map.h"
 #include "gtest/gtest.h"
 
 TEST(GoalCrashMap, AttributesInsideExtent) {
@@ -129,10 +129,8 @@ TEST(GoalCrashMap, FormatRegRawOffsetSymbolizesAndMarksFault) {
   goal_crash_map_format_reg_for_test("r9", obj + 0x10, base_addr, mem_size,
                                      base_addr + obj + 0x10 + 0x14, line, sizeof(line));
   EXPECT_NE(std::string(line).find("r9  0x0000000000700010"), std::string::npos) << line;
-  EXPECT_NE(std::string(line).find("(goal-rel 0x700010 obj-r+0x10)"), std::string::npos)
-      << line;
-  EXPECT_NE(std::string(line).find("<- fault address is this + 0x14"), std::string::npos)
-      << line;
+  EXPECT_NE(std::string(line).find("(goal-rel 0x700010 obj-r+0x10)"), std::string::npos) << line;
+  EXPECT_NE(std::string(line).find("<- fault address is this + 0x14"), std::string::npos) << line;
 }
 
 TEST(GoalCrashMap, FormatRegAbsolutePointerIsFaultAddress) {
