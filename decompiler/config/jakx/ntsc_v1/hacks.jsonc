@@ -576,7 +576,36 @@
     // since both bodies are large (128+ and 352+ stack bytes) and the only
     // unresolved piece is this one bit-twiddle, not the surrounding logic.
     "(anon-function 16 wvehicle-states)",
-    "(anon-function 18 wvehicle-states)"
+    "(anon-function 18 wvehicle-states)",
+    // wcar-skel-template rung (extern-no-defun keystone): get-car-skel-part
+    // is a global 5-iteration search loop (format "<name>-<letter>" for
+    // letter in a..e, look it up via a level vtable method, and on the
+    // first hit stash the match into arg2's art-group-name field and
+    // return arg2). The compiler places the found-and-break arm as the
+    // loop-check branch's fallthrough (block 2 of 7) and the not-found/
+    // continue arm as the taken branch (block 3, which rejoins the loop
+    // test at block 4). CfgVtx.cpp's find_cond_n_else requires the block
+    // right after a single-case body to be either the shared end block or
+    // the start of a second cond arm whose own body block has exactly one
+    // pred; block 4 has two (the initial entry jump and the continue
+    // edge), so it rejects (trace: c0=block1, b0=block2, next=block3 !=
+    // end_block(block6), so it tries c=block3/b=block3->next=block4 as a
+    // second arm and rejects on b->pred.size()==2). find_goto_not_end
+    // requires the block right after the break (block 3) to have zero
+    // preds to treat it as dead fallthrough, but block 3 is live (block1's
+    // own branch target), so it declines too. Every other cond/loop
+    // matcher in the while(changed) driver was traced the same way and
+    // none fit this shape. This is a CFG-shape gap in the pattern matcher,
+    // not a missing type: all-types.gc's existing define-extern for
+    // get-car-skel-part is already correct. Parked as asm; get-car-skel-part
+    // stays declared via define-extern in wcar-skel-template.gc (its own
+    // object) with no body, the same tradeoff as raptor.gc's
+    // raptor-startup-code and race-line.gc's methods 11-14, so the ~120
+    // game-DGO call sites stay unbound (e2 class) until a real fix lands
+    // (a mips2c port or a CfgVtx.cpp change, both out of this rung's
+    // scope). Landing wcar-skel-template's own decode does not close the
+    // extern-no-defun class for this symbol.
+    "get-car-skel-part"
   ],
   // these functions use pairs and the decompiler
   // will be less picky about types related to pairs.
