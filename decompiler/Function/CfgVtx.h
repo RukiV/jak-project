@@ -335,6 +335,7 @@ class ControlFlowGraph {
   bool find_goto_end();
   bool find_infinite_loop();
   bool find_goto_not_end();
+  bool find_goto_forward();
   bool clean_up_asm_branches();
 
   /*!
@@ -379,6 +380,7 @@ class ControlFlowGraph {
   bool is_goto_end_and_unreachable(CfgVtx* b0, CfgVtx* b1);
   bool is_goto_not_end_and_unreachable(CfgVtx* b0, CfgVtx* b1);
   bool is_infinite_continue(CfgVtx* b0);
+  bool is_goto_forward_with_live_fallthrough(CfgVtx* b0);
   std::vector<BlockVtx*> m_blocks;   // all block nodes, in order.
   std::vector<CfgVtx*> m_node_pool;  // all nodes allocated
   EntryVtx* m_entry;                 // the entry vertex

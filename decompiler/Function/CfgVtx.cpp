@@ -643,6 +643,109 @@ bool ControlFlowGraph::is_infinite_continue(CfgVtx* b0) {
   return true;
 }
 
+/*!
+ * How many `next` steps forward is to_find from start? -1 if it isn't reachable that way.
+ * The forward twin of get_prev_count.
+ */
+int get_next_count(CfgVtx* start, CfgVtx* to_find) {
+  int result = 0;
+  while (start && start != to_find) {
+    result++;
+    start = start->next;
+  }
+
+  if (start == to_find) {
+    return result;
+  }
+  return -1;
+}
+
+/*!
+ * Is b0 an unconditional forward goto whose fall-through neighbor is still live?
+ *
+ * The shape:
+ *
+ *   b0:     ...; b LATER      <- unconditional, nothing falls out of b0
+ *   b0next: ...               <- reached from somewhere else, so NOT dead code
+ *   ...
+ *   LATER:  ...
+ *
+ * This turns up when the compiler lays a conditional break/early-exit arm physically ahead
+ * of the arm that continues, so the code right after the goto is the continuation of a
+ * different path rather than dead filler.
+ *
+ * Nothing else in the structuring driver claims this:
+ *  - find_goto_end and find_goto_not_end both require b0->next to be unreachable
+ *    (is_goto_end_and_unreachable / is_goto_not_end_and_unreachable check pred.empty()),
+ *  - find_infinite_continue only accepts a goto whose destination is *backward*,
+ *  - the cond/loop matchers all want b0 to reach a join they can see.
+ *
+ * Requirements, all of which have to hold for the rewrite below to be sound:
+ *  - b0 ends in a real (non-asm) unconditional non-likely branch and that branch is its
+ *    only successor,
+ *  - there is a b0->next to fall in to, and it has at least one predecessor that is not b0
+ *    (b0 cannot be one: an unconditional branch leaves no fall-through edge),
+ *  - the destination is strictly later in the function than b0, and is reachable by walking
+ *    the `next` chain forward from b0, so the goto stays inside this top-level chain,
+ *  - and the destination has a predecessor other than b0. The rewrite below deletes b0's
+ *    branch edge, and every "is this dead code" test in this file
+ *    (is_goto_end_and_unreachable, is_goto_not_end_and_unreachable) defines dead as
+ *    pred.empty(), so emptying a live block's pred list would make a later matcher swallow
+ *    the goto's own destination as dead code. Measured, not theoretical: without this
+ *    condition, jakx's load-game-text-info resolves its CFG and then dies in
+ *    clean_up_return_final with a "dead code" region full of real calls.
+ */
+bool ControlFlowGraph::is_goto_forward_with_live_fallthrough(CfgVtx* b0) {
+  if (!b0) {
+    return false;
+  }
+
+  // unconditional, not likely, and not inline assembly.
+  if (!b0->end_branch.has_branch || !b0->end_branch.branch_always || b0->end_branch.branch_likely) {
+    return false;
+  }
+  if (b0->end_branch.asm_branch) {
+    return false;
+  }
+
+  // the branch must be the only way out of b0.
+  if (!b0->succ_branch || b0->succ_ft) {
+    return false;
+  }
+  if (b0->succs().size() != 1) {
+    return false;
+  }
+
+  // there has to be code after us in memory...
+  auto* b1 = b0->next;
+  if (!b1) {
+    return false;
+  }
+  // ...and it has to be live, which is exactly what makes the two goto matchers decline.
+  if (b1->pred.empty()) {
+    return false;
+  }
+
+  // forward only - a backward goto is find_infinite_continue's job.
+  int my_block = b0->get_first_block_id();
+  int dest_block = b0->succ_branch->get_first_block_id();
+  if (dest_block <= my_block) {
+    return false;
+  }
+
+  // and the destination must be ahead of us in this same top-level chain.
+  if (get_next_count(b0, b0->succ_branch) == -1) {
+    return false;
+  }
+
+  // the destination has to survive losing our edge.
+  if (b0->succ_branch->pred.size() < 2) {
+    return false;
+  }
+
+  return true;
+}
+
 bool ControlFlowGraph::is_goto_end_and_unreachable(CfgVtx* b0, CfgVtx* b1) {
   if (!b0 || !b1) {
     return false;
@@ -994,6 +1097,77 @@ bool ControlFlowGraph::find_infinite_continue() {
 
     // keep looking
     return true;
+  });
+
+  return replaced;
+}
+
+/*!
+ * Rewrite an unconditional forward goto whose fall-through neighbor is still live into a
+ * Break vertex, so the rest of the structuring driver can treat it as an ordinary statement
+ * followed by the code that physically comes next.
+ *
+ * See is_goto_forward_with_live_fallthrough for the shape and for why no other matcher
+ * claims it. This is deliberately the LAST matcher the driver tries: it only ever runs in a
+ * state where every other matcher (find_infinite_continue included) declined, which is
+ * exactly the state the driver used to exit the while(changed) loop in. A function whose CFG
+ * already resolves therefore reaches this code only as a single top-level vertex, which has
+ * no `next` and so cannot match - existing output is unaffected.
+ *
+ * Like find_infinite_continue, the Break pretends to fall through to the block after it.
+ * That is a lie about control flow, but it is the same lie, and the emitted (goto label)
+ * plus the label on the destination block carry the real edge.
+ */
+bool ControlFlowGraph::find_goto_forward() {
+  bool replaced = false;
+
+  for_each_top_level_vtx([&](CfgVtx* vtx) {
+    auto* b0 = vtx;
+    if (!is_goto_forward_with_live_fallthrough(b0)) {
+      // keep looking
+      return true;
+    }
+
+    replaced = true;
+
+    auto* new_goto = alloc<Break>();
+    m_has_break = true;
+    new_goto->body = b0;
+    new_goto->unreachable_block = nullptr;
+    new_goto->dest_block_id = b0->succ_branch->get_first_block_id();
+    m_blocks.at(new_goto->dest_block_id)->needs_label = true;
+
+    // patch up thing -> goto branches
+    for (auto* new_pred : b0->pred) {
+      new_pred->replace_succ_and_check(b0, new_goto);
+    }
+    new_goto->pred = b0->pred;
+
+    ASSERT(b0->succs().size() == 1 && b0->succs().front() == b0->succ_branch);
+
+    // patch up next and prev.
+    new_goto->next = b0->next;
+    ASSERT(new_goto->next);
+    ASSERT(new_goto->next->prev == b0);
+    new_goto->next->prev = new_goto;
+
+    new_goto->prev = b0->prev;
+    if (new_goto->prev) {
+      ASSERT(new_goto->prev->next == b0);
+      new_goto->prev->next = new_goto;
+    }
+
+    // now we want to make it look like the goto will fall through to next.
+    new_goto->succ_ft = b0->next;
+    ASSERT(!new_goto->succ_ft->has_pred(new_goto));
+    new_goto->succ_ft->pred.push_back(new_goto);
+    ASSERT(!new_goto->succ_branch);
+
+    // break goto preds.
+    b0->succ_branch->replace_preds_with_and_check({b0}, nullptr);
+
+    b0->parent_claim(new_goto);
+    return false;
   });
 
   return replaced;
@@ -2848,6 +3022,17 @@ std::shared_ptr<ControlFlowGraph> build_cfg(const LinkedObjectFile& file,
 
     if (!changed) {
       changed = changed || cfg->find_infinite_continue();
+      if (changed && !complained_about_weird_gotos) {
+        complained_about_weird_gotos = true;
+        func.warnings.warning(
+            "Found some very strange gotos. Check result carefully, this is not well tested.");
+      }
+    }
+
+    // last resort: this only runs in a state where every matcher above declined, which is
+    // exactly the state this loop used to exit in.
+    if (!changed) {
+      changed = changed || cfg->find_goto_forward();
       if (changed && !complained_about_weird_gotos) {
         complained_about_weird_gotos = true;
         func.warnings.warning(

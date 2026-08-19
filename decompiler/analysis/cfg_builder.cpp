@@ -203,6 +203,55 @@ void clean_up_break(FormPool& pool, BreakElement* ir, const Env&) {
   }
 }
 
+/*!
+ * Can this form element only define a register from registers, constants and loads?
+ * Anything that can call, store, branch, or run inline assembly is excluded, and so is
+ * anything that carries nested control flow.
+ */
+bool is_pure_value_element(FormElement* elt) {
+  return dynamic_cast<SetVarElement*>(elt) || dynamic_cast<SimpleExpressionElement*>(elt) ||
+         dynamic_cast<SimpleAtomElement*>(elt) || dynamic_cast<LoadSourceElement*>(elt) ||
+         dynamic_cast<CastElement*>(elt) || dynamic_cast<EmptyElement*>(elt);
+}
+}  // namespace
+// dead_code_is_only_var_defs is declared in cfg_builder.h (it has a unit test), so it has to
+// live at decompiler scope rather than in the anonymous namespace this file otherwise uses.
+// The anonymous namespace is reopened immediately after it.
+
+/*!
+ * Is this dead-code region nothing but a run of dead register definitions?
+ *
+ * The region after a break is unreachable by construction (the CFG proved the block has no
+ * predecessors), so the only question is whether dropping it can lose a side effect. It
+ * cannot if every top-level element is a SetVarElement and nothing anywhere inside the
+ * region is a call, a store, a branch, or an asm op - i.e. the whole region only writes
+ * registers that nothing can read.
+ *
+ * This is what the compiler leaves behind when it lays a loop's advance/reload code
+ * physically after an unconditional break out of that loop.
+ */
+bool dead_code_is_only_var_defs(Form* dead_code) {
+  if (!dead_code || dead_code->elts().empty()) {
+    return false;
+  }
+
+  for (auto* top : dead_code->elts()) {
+    if (!dynamic_cast<SetVarElement*>(top)) {
+      return false;
+    }
+  }
+
+  bool only_pure = true;
+  dead_code->apply([&](FormElement* elt) {
+    if (!is_pure_value_element(elt)) {
+      only_pure = false;
+    }
+  });
+  return only_pure;
+}
+
+namespace {
+
 void clean_up_break_final(const Function& f, BreakElement* ir, const Env& env) {
   EmptyElement* dead_empty = dynamic_cast<EmptyElement*>(ir->dead_code->try_as_single_element());
   if (dead_empty) {
@@ -223,6 +272,16 @@ void clean_up_break_final(const Function& f, BreakElement* ir, const Env& env) {
 
   if (!dead) {
     if (ir->dead_code->to_string(env) == "(nop!)") {
+      ir->dead_code = nullptr;
+      return;
+    }
+  }
+
+  if (!dead) {
+    // a run of dead register definitions is just as droppable as the single one above.
+    // note that this only widens the cases that used to throw: a region that already
+    // reduced to the single-set/all-empty shape never reaches here.
+    if (dead_code_is_only_var_defs(ir->dead_code)) {
       ir->dead_code = nullptr;
       return;
     }

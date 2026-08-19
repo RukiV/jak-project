@@ -577,63 +577,6 @@
     // unresolved piece is this one bit-twiddle, not the surrounding logic.
     "(anon-function 16 wvehicle-states)",
     "(anon-function 18 wvehicle-states)",
-    // wcar-skel-template rung (extern-no-defun keystone): get-car-skel-part
-    // is a global 5-iteration search loop (format "<name>-<letter>" for
-    // letter in a..e, look it up via a level vtable method, and on the
-    // first hit stash the match into arg2's art-group-name field and
-    // return arg2). The compiler places the found-and-break arm as the
-    // loop-check branch's fallthrough (block 2 of 7) and the not-found/
-    // continue arm as the taken branch (block 3, which rejoins the loop
-    // test at block 4). CfgVtx.cpp's find_cond_n_else requires the block
-    // right after a single-case body to be either the shared end block or
-    // the start of a second cond arm whose own body block has exactly one
-    // pred; block 4 has two (the initial entry jump and the continue
-    // edge), so it rejects (trace: c0=block1, b0=block2, next=block3 !=
-    // end_block(block6), so it tries c=block3/b=block3->next=block4 as a
-    // second arm and rejects on b->pred.size()==2). find_goto_not_end
-    // requires the block right after the break (block 3) to have zero
-    // preds to treat it as dead fallthrough, but block 3 is live (block1's
-    // own branch target), so it declines too. Every other cond/loop
-    // matcher in the while(changed) driver was traced the same way and
-    // none fit this shape. This is a CFG-shape gap in the pattern matcher,
-    // not a missing type: all-types.gc's existing define-extern for
-    // get-car-skel-part is already correct. Parked as asm; get-car-skel-part
-    // stays declared via define-extern in wcar-skel-template.gc (its own
-    // object) with no body, the same tradeoff as raptor.gc's
-    // raptor-startup-code and race-line.gc's methods 11-14, so the ~120
-    // game-DGO call sites stay unbound (e2 class) until a real fix lands
-    // (a mips2c port or a CfgVtx.cpp change, both out of this rung's
-    // scope). Landing wcar-skel-template's own decode does not close the
-    // extern-no-defun class for this symbol.
-    "get-car-skel-part",
-    // command-get-process's *task-manager* branch walks
-    // *task-manager-engine*'s alive-list and, once it finds the match, hits
-    // an unconditional break out of the while loop. The instructions that
-    // follow the break in the compiled binary are genuinely dead (never
-    // executed at runtime) but decode as a run of five statements (four
-    // (the-as none ...) casts plus a literal (l.wu 0), a load from address
-    // 0), not the single-statement or all-empty shapes
-    // clean_up_break_final() recognizes (decompiler/analysis/
-    // cfg_builder.cpp:232, "failed to recognize dead code after break");
-    // that function takes no config parameter, so no type_casts.jsonc or
-    // stack_structures.jsonc entry can reach it. jak3's own landed twin hits
-    // the same dead (l.wu 0) load in the identical loop (script.gc's
-    // command-get-process, its own op 111) but its build's dead-code region
-    // happens to reduce to the single-statement shape the checker accepts,
-    // so it decodes with the load preserved verbatim as
-    // "(set! v1-30 (the-as connectable (l.wu 0)))" plus a WARN rather than
-    // throwing. Every other part of this function (the type-tag dispatch
-    // chain, the entity-actor/process-drawable casts, the stack
-    // event-message-block for the 'vehicle branch) resolves cleanly via
-    // type_casts.jsonc and stack_structures.jsonc and is left in place;
-    // only this one dead-code-shape mismatch is unfixable from config, so
-    // the whole function is parked.
-    // command-get-process is already declared in script-h.gc, so it needs
-    // no extern here. RUNTIME HAZARD: it links as zero until a real body
-    // lands, and is called from 6 game-DGO sites (generic-obs.gc's
-    // targeting and event-relay paths), each of which crashes if reached
-    // with this object loaded.
-    "command-get-process",
     // (anon-function 44 script), the 'send-event script-form command's own
     // lambda: builds a stack event-message-block (stack_structures.jsonc
     // entry above) then relays it through an actor-group's raw entry array
