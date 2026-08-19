@@ -8,22 +8,13 @@
 (declare-type script-form structure)
 (define-extern *script-form* (inline-array script-form))
 
-;; og:preserve-this: process-by-ename is a forward declaration, not a decoded
-;; symbol. Landing command-get-process's real body below activates one call to
-;; it (the (type? arg0 string) branch). Its home object entity.gc IS landed but
-;; only partially: process-by-ename is one of the functions that landing left
-;; out (entity-by-meters, entity-nav-mesh-by-aid, entity-process-count,
-;; entity-count and reset-actors are all missing from it too), so this is a
-;; pre-existing gap in that object's landing, not something this rung
-;; introduces. It decodes clean in its own object (six lines, calling the
-;; already-landed entity-by-name), so the real fix is entity.gc's own next rung
-;; landing it, not an extern here; this declaration only keeps script.gc
-;; compiling until then. Signature taken from decompiler/config/jakx/
-;; all-types.gc, which matches jak3's landed defun exactly.
-;; RUNTIME HAZARD: process-by-ename links as zero until entity.gc lands it.
-;; command-get-process's string branch crashes if reached. That is still a net
-;; improvement on the state this rung replaces, where command-get-process
-;; itself was unbound and all six of its game-DGO call sites crashed.
+;; og:preserve-this forward declaration: script.o (build order 298, game.gd)
+;; compiles before entity.o (329), which carries process-by-ename's real defun
+;; as of the entity.gc completion rung. Not a runtime hazard: the symbol links
+;; correctly once entity.o is loaded, this declaration only satisfies the
+;; compiler for command-get-process's call site below, the same "auto-added
+;; forward ref" shape *spawn-actors* uses in game-info.gc for the identical
+;; entity.o-compiles-later reason.
 (define-extern process-by-ename (function string process))
 
 ;; DECOMP BEGINS

@@ -652,6 +652,153 @@ No-op if already spawned. Retires with the real vehicle chain."
     )
   )
 
+;; og:preserve-this partial landing (entity.gc completion rung): five of this
+;; rung's six brief functions land here from a fresh scoped decode against this
+;; worktree's own types (decompiler.exe ... --config-override '{"decompile_code":
+;; true, "levels_extract": false, "allowed_objects": ["entity"]}'): entity-nav-
+;; mesh-by-aid, entity-by-meters, process-by-ename, entity-process-count and
+;; entity-count all decode clean (zero warnings, zero errors) and match jak3's
+;; entity.gc line for line, except entity-process-count's is-object-visible?
+;; call, which jakx's own decode carries as a 3-arg call (trailing
+;; (view-get-active-index)), matching this file's already-landed vis-cull-all?
+;; 3-arg convention rather than jak3's 2-arg one. reset-actors, the sixth
+;; function this rung's brief names, does NOT decode clean: ERROR: failed type
+;; prop at op 165 of the scoped decode's entity_ir2.asm, an indirect call whose
+;; callee register types as object rather than function. The call dispatches
+;; get-callback-symbol-value-by-slot! (level.gc, already landed) on a
+;; level-load-info, the same machine idiom level.gc's own unload! already lands
+;; cleanly with a (the-as (function ...) ...) cast (level.gc:2208), but there
+;; the call is single-shot; here it sits inside a per-level while loop, and the
+;; decompiler's type propagation does not carry the narrowed (type? ...
+;; function) result across the loop edge, so the whole function falls back to
+;; an unreconstructed local-vars machine dump. Hand-writing the level.gc-style
+;; cast here would be inventing content the decode does not contain, so
+;; reset-actors stays on the game-info.gc extern (guarded, unchanged: it still
+;; links to 0) until a future rung lands it for real, most likely by reworking
+;; the loop so the decompiler can re-derive the cast on its own. update-nav-
+;; meshes-method and nav-mesh-from-res-tag, entity-nav-mesh-by-aid's neighbors
+;; in the object, remain unlanded too: the former carries its own unrelated
+;; decode ERROR (register a2 read unset), the latter decodes clean but names no
+;; function on this rung's brief.
+(defun entity-nav-mesh-by-aid ((arg0 actor-id))
+  (dotimes (v1-0 (-> *level* length))
+    (let ((a1-3 (-> *level* level v1-0)))
+      (when (= (-> a1-3 status) 'active)
+        (let ((a1-5 (-> a1-3 bsp nav-meshes)))
+          (when (nonzero? a1-5)
+            (let ((a2-4 0)
+                  (a3-2 (+ (-> a1-5 length) -1))
+                  )
+              0
+              (while (>= a3-2 a2-4)
+                (let* ((t0-3 (+ a2-4 (/ (- a3-2 a2-4) 2)))
+                       (t1-2 (-> a1-5 t0-3))
+                       (t2-0 (-> t1-2 aid))
+                       )
+                  (cond
+                    ((= t2-0 arg0)
+                     (return t1-2)
+                     )
+                    ((< t2-0 (the-as uint arg0))
+                     (set! a2-4 (+ t0-3 1))
+                     )
+                    (else
+                      (set! a3-2 (+ t0-3 -1))
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  (the-as entity-nav-mesh #f)
+  )
+
+(defun entity-by-meters ((arg0 float) (arg1 float) (arg2 float))
+  (dotimes (v1-0 (-> *level* length))
+    (let ((a3-3 (-> *level* level v1-0)))
+      (when (= (-> a3-3 status) 'active)
+        (let ((a3-5 (-> a3-3 bsp actors)))
+          (when (nonzero? a3-5)
+            (dotimes (t0-4 (-> a3-5 length))
+              (let* ((t1-3 (-> a3-5 data t0-4 actor))
+                     (t2-1 (-> t1-3 extra trans))
+                     )
+                (if (and (= (the float (the int (-> t2-1 x))) arg0)
+                         (= (the float (the int (-> t2-1 y))) arg1)
+                         (= (the float (the int (-> t2-1 z))) arg2)
+                         )
+                    (return t1-3)
+                    )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  (the-as entity-actor #f)
+  )
+
+(defun process-by-ename ((arg0 string))
+  (let ((v1-0 (entity-by-name arg0)))
+    (if v1-0
+        (-> v1-0 extra process)
+        )
+    )
+  )
+
+(defun entity-process-count ((arg0 symbol))
+  (let ((gp-0 0))
+    (dotimes (s4-0 (-> *level* length))
+      (let ((s3-0 (-> *level* level s4-0)))
+        (when (= (-> s3-0 status) 'active)
+          (let ((s2-0 (-> s3-0 bsp level entity)))
+            (dotimes (s1-0 (-> s2-0 length))
+              (let ((v1-9 (-> s2-0 data s1-0 entity)))
+                (case arg0
+                  (('vis)
+                   (if (is-object-visible? s3-0 (-> v1-9 extra vis-id) (view-get-active-index))
+                       (+! gp-0 1)
+                       )
+                   )
+                  (else
+                    (if (-> v1-9 extra process)
+                        (+! gp-0 1)
+                        )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    gp-0
+    )
+  )
+
+(defun entity-count ()
+  (let ((v0-0 0))
+    (dotimes (v1-0 (-> *level* length))
+      (let ((a0-3 (-> *level* level v1-0)))
+        (when (= (-> a0-3 status) 'active)
+          (let ((a0-6 (-> a0-3 bsp level entity)))
+            (dotimes (a1-3 (-> a0-6 length))
+              (-> a0-6 data a1-3 entity)
+              (+! v0-0 1)
+              )
+            )
+          )
+        )
+      )
+    v0-0
+    )
+  )
+
 ;; og:preserve-this extern-no-defun rung: entity-birth-no-kill below decodes
 ;; clean (zero warnings, zero errors) from a scoped decode of entity.o against
 ;; this worktree's own types (decompiler.exe ... --config-override
