@@ -144,6 +144,10 @@ jobs:
             if [ "$i" = 3 ]; then echo "cpp_changed=true" >> "$GITHUB_OUTPUT"; echo "fetch failed; classifying as changed"; exit 0; fi
             sleep 3
           done
+          # The checkout is depth 1, so HEAD has no ancestry until deepened;
+          # without this the merge base never resolves and the filter always
+          # classifies as changed, leaving the short-circuits permanently inert.
+          git fetch --no-tags --depth=200 origin "$(git rev-parse HEAD)" || true
           mb="$(git merge-base "origin/$BASE" HEAD || true)"
           if [ -z "$mb" ]; then
             echo "cpp_changed=true" >> "$GITHUB_OUTPUT"
@@ -219,7 +223,11 @@ jobs:
       - name: Verify clang-format version
         run: |
           set -e
-          got="$("$HOME/.local/bin/clang-format" --version)"
+          # Resolve via PATH rather than the pip --user path: the baked image
+          # installs clang-format system-wide, and the fallback install above
+          # appends ~/.local/bin to GITHUB_PATH, so PATH is right either way.
+          # The version assert below is the actual pin gate.
+          got="$(clang-format --version)"
           echo "$got"
           case "$got" in
             *"version 18."*) ;;
@@ -232,7 +240,7 @@ jobs:
           ./third-party/run-clang-format/run-clang-format.py \
             -r common decompiler game goalc test tools lsp \
             --color always \
-            --clang-format-executable "$HOME/.local/bin/clang-format"
+            --clang-format-executable "$(command -v clang-format)"
 
       # AGENTS.md section 12. A mechanism can land fully wired and never run because
       # nothing sets the symbol gating it; issue #176 catalogues 68 such levers and
