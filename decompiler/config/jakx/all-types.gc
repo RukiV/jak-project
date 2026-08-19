@@ -59454,7 +59454,15 @@
    (local-players              int32     :offset-assert 248)
    (refresh-time               uint32    :offset-assert 252)
    (game-connection-type       uint8     :offset-assert 256)
-   (vehicle-handle             uint64    :offset-assert 264)
+   ;; retyped uint64 -> handle: (method 10 lobby-menu-manager) op 14 and
+   ;; (method 190 lobby-menu-manager) op 0 both load this field then feed it
+   ;; straight into the standard sllv/dsra32 handle->process split (matching
+   ;; the documented idiom at update-eyes and find-sorted-targets-faster!,
+   ;; type_casts.jsonc); uint64 left the split unresolvable ("Unsupported
+   ;; inline assembly instruction kind - sllv"). vehicle-handle->net-player's
+   ;; own declared (function handle net-player) signature corroborates handle
+   ;; for the same field concept.
+   (vehicle-handle             handle    :offset-assert 264)
    (vehicle-selected           uint8     :offset-assert 272)
    (vehicle-flags              uint64    :offset-assert 280)
    (vehicle-paint-mode         uint64    :offset-assert 288)
@@ -85656,6 +85664,10 @@
 ;; speech-ximon                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; lobby-menu-manager rung: loaded into a0 and passed to enter-state, whose
+;; own declared signature is fully generic object args; kept the original
+;; guess since enter-state's own typing gives no narrower evidence.
+(define-extern *base-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *capture-tga-temp* int)
 (define-extern *car-part-temp-string* string)
 ;; coliseum-obs-atlas rung: atlas-collapse and method 80 both write/read a
@@ -85749,6 +85761,13 @@
 ;; inline arrays with a clean field walk, no fallback needed (scoped
 ;; decode, this worktree's config, car-tables).
 (define-extern *car-upgrade-info* car-upgrade-info-array)
+;; lobby-menu-manager rung: read then passed straight through as the
+;; object-typed a1 to (method 165 lobby-menu-manager)'s vmethod slot, the
+;; same call shape *video-options-menu-info-europe* uses with a proven
+;; dsubu comparison against a state-name field in this same file (a state
+;; named 'center-screen-menu also exists in this object's own state table),
+;; so symbol fits over the generic guess.
+(define-extern *center-screen-menu-info* symbol) ;; provisional: call-site evidence only
 (define-extern *chat-msg-buffer* object) ;; provisional: call-site evidence only
 (define-extern *chat-room-select* object) ;; provisional: call-site evidence only
 (define-extern *choose-network-config* object) ;; provisional: call-site evidence only
@@ -85777,6 +85796,12 @@
 (define-extern *collapse-quote* symbol)
 (define-extern *collide-probe-stack* object) ;; provisional: call-site evidence only
 (define-extern *confirm-prev-state-name* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: read then passed straight through as the
+;; object-typed a1 to (method 165 lobby-menu-manager)'s vmethod slot, the
+;; same call shape *video-options-menu-info-europe* uses with a proven
+;; dsubu comparison against a state-name field in this same file, so symbol
+;; fits over the generic guess.
+(define-extern *connecting-to-lobby* symbol) ;; provisional: call-site evidence only
 (define-extern *construction-cone-constants* rigid-body-object-constants)
 ;; og:preserve-this typed from object (2026-08-16 construction-obs-h rung): (method 92
 ;; construction-object) quad-copy!s exactly 4 quadwords (64 bytes) from this global
@@ -86251,6 +86276,12 @@
 (define-extern *intro-hud-view* object) ;; provisional: call-site evidence only
 (define-extern *intro-hud-view-proc* object) ;; provisional: call-site evidence only
 (define-extern *jakx-logo-seen?* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: op 62 compares this global with dsubu directly
+;; against (l.wu (+ a0 248)), a state-name field read (the +4 basics
+;; convention, matching *video-options-menu-info-europe*'s identical
+;; comparison at the same raw offset in this same file); op 89 passes the
+;; same global through as the object-typed a1 to that identical vmethod slot.
+(define-extern *join-create-menu* symbol) ;; provisional: call-site evidence only
 (define-extern *join-wait-prev-state-name* object) ;; provisional: call-site evidence only
 (define-extern *kcro-bouncy-tire-a-constants* rigid-body-object-constants)
 (define-extern *kcro-fence-piece-a-debris-params* object) ;; provisional: call-site evidence only
@@ -86258,8 +86289,18 @@
 (define-extern *keyboard-init-state* object) ;; provisional: call-site evidence only
 (define-extern *keyboard-proc* object) ;; provisional: call-site evidence only
 (define-extern *keyboard-string-buf* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: read then passed straight through as the
+;; object-typed a1 to (method 165 lobby-menu-manager)'s vmethod slot, the
+;; same call shape *join-create-menu* uses with a proven dsubu comparison
+;; against a state-name field in this same file, so symbol fits over the
+;; generic guess.
+(define-extern *kick-player-info* symbol) ;; provisional: call-site evidence only
 (define-extern *ladder-results-offset* object) ;; provisional: call-site evidence only
 (define-extern *ladder-stat-idx-current* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: stored 0 at one site and a raw gp register value
+;; at another (a frame/timer bookkeeping shape matching the "last-time" name);
+;; both stores are plain int-shaped, so int fits over the generic guess.
+(define-extern *lan-crap-last-time* int) ;; provisional: call-site evidence only
 (define-extern *last-cash-game-mgr-for-player-0* object) ;; provisional: call-site evidence only
 (define-extern *last-lobby-state* object) ;; provisional: call-site evidence only
 (define-extern *last-medius-clan* object) ;; provisional: call-site evidence only
@@ -86291,8 +86332,36 @@
 (define-extern *lobby-body-parts-return-state-name* object) ;; provisional: call-site evidence only
 (define-extern *lobby-error-accept* object) ;; provisional: call-site evidence only
 (define-extern *lobby-error-action* (function object object)) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: (method 165 lobby-menu-manager)'s own top-level
+;; call (op 15-17) reads *lobby-error-action* as a (function object object)
+;; and passes this global straight through as its sole a0 argument, so it
+;; only needs to satisfy that callback's object parameter.
+(define-extern *lobby-error-arg* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: stored #f at two sites but also stored from a
+;; raw a2 argument at a third ("[s5: object]" the only type evidence
+;; available there), so the generic object guess is kept rather than
+;; narrowing to symbol off the weaker two sites alone.
+(define-extern *lobby-error-cancel* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: loaded into t9 and called with zero args
+;; immediately after a truthy guard on the same global, the identical shape
+;; as *lobby-error-trans* immediately below; return is truthy-tested.
+(define-extern *lobby-error-extra-confirm-check* (function object)) ;; provisional: call-site evidence only
 (define-extern *lobby-error-trans* (function object)) ;; provisional: call-site evidence only
 (define-extern *lobby-fast-connect* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: the five bottom-text-ids siblings share the exact
+;; same shape as *lobby-generic-error-text-ids* below (this file's own scoped
+;; decode stores a raw text-id int constant to offset 12 of each), so they get
+;; the same provisional object typing as that sibling rather than the
+;; commented-out "array" guess.
+;; lobby-menu-manager rung: loaded into a0 and passed to enter-state, whose
+;; own declared signature is fully generic object args; kept the original
+;; guess since enter-state's own typing gives no narrower evidence.
+(define-extern *lobby-generic-confirmation* object) ;; provisional: call-site evidence only
+(define-extern *lobby-generic-error-bottom-text-ids* object) ;; provisional: call-site evidence only
+(define-extern *lobby-generic-error-bottom-text-ids2* object) ;; provisional: call-site evidence only
+(define-extern *lobby-generic-error-bottom-text-ids3* object) ;; provisional: call-site evidence only
+(define-extern *lobby-generic-error-bottom-text-ids4* object) ;; provisional: call-site evidence only
+(define-extern *lobby-generic-error-bottom-text-ids5* object) ;; provisional: call-site evidence only
 (define-extern *lobby-generic-error-text-ids* object) ;; provisional: call-site evidence only
 (define-extern *lobby-handling-db-error* object) ;; provisional: call-site evidence only
 (define-extern *lobby-maps-y-delta* object) ;; provisional: call-site evidence only
@@ -86495,6 +86564,12 @@
 (define-extern *no-net-hw-warning-shown* object) ;; provisional: call-site evidence only
 (define-extern *normal-array* object) ;; provisional: call-site evidence only
 (define-extern *num-laps* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: read then passed straight through as the
+;; object-typed a1 to (method 165 lobby-menu-manager)'s vmethod slot, the
+;; same call shape *video-options-menu-info-europe* uses with a proven
+;; dsubu comparison against a state-name field in this same file, so symbol
+;; fits over the generic guess.
+(define-extern *num-local-players-menu* symbol) ;; provisional: call-site evidence only
 ;; *num-players-info* stays declared menu-range-info (menu2-lists rung,
 ;; evidence above); stale object-typed duplicate removed, same reason.
 (define-extern *ocean-colors-atoll* ocean-colors)
@@ -86511,6 +86586,12 @@
 (define-extern *ocean-colors-temple* ocean-colors)
 (define-extern *old-vector* object) ;; provisional: call-site evidence only
 (define-extern *open-new-cup* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: read then passed straight through as the
+;; object-typed a1 to (method 165 lobby-menu-manager)'s vmethod slot, the
+;; same call shape *video-options-menu-info-europe* uses with a proven
+;; dsubu comparison against a state-name field in this same file, so symbol
+;; fits over the generic guess.
+(define-extern *options-menu-info* symbol) ;; provisional: call-site evidence only
 ;; later-duplicate-wins: superseded by the correctly-typed define-extern
 ;; near the palm-tree family (debris-static-params, not the generic
 ;; provisional-sweep object typing).
@@ -86554,6 +86635,16 @@
 (define-extern *profile-errors-continue* object) ;; provisional: call-site evidence only
 (define-extern *profile-yes-no* object) ;; provisional: call-site evidence only
 (define-extern *progress-save-info* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: both read then passed straight through as the
+;; object-typed a1 to (method 165 lobby-menu-manager)'s (function
+;; lobby-menu-manager object object none) vmethod slot, the identical call
+;; shape *join-create-menu* and *video-options-menu-info-europe* use in this
+;; same file with a proven dsubu comparison against a state-name field
+;; (offset 248, the +4 basics convention); the two states named
+;; 'progressive-accept and 'progressive-warning already exist in this
+;; object's own state table, corroborating symbol over the generic guess.
+(define-extern *progressive-accept* symbol) ;; provisional: call-site evidence only
+(define-extern *progressive-warning* symbol) ;; provisional: call-site evidence only
 (define-extern *r2-press-time* object) ;; provisional: call-site evidence only
 (define-extern *race-banner-subtract* object) ;; provisional: call-site evidence only
 ;; og:preserve-this hud-static-literals rung: later duplicate of the
@@ -86565,7 +86656,25 @@
 (define-extern *ragdoll-test-ragdoll-setup* object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier *raptor-enemy-info* extern (raptor rung, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier *raptor-ragdoll-info* extern (raptor rung, scripts/check_alltypes_shadowing.py)
+;; lobby-menu-manager rung: a plain int counter, stored 0 with sw r0 and
+;; incremented/decremented by loaded int values elsewhere in this file.
+;; lobby-menu-manager rung: read then passed straight through as the
+;; object-typed a1 to (method 165 lobby-menu-manager)'s vmethod slot, the
+;; same call shape *video-options-menu-info-europe* uses with a proven
+;; dsubu comparison against a state-name field in this same file, so symbol
+;; fits over the generic guess.
+(define-extern *ready-room* symbol) ;; provisional: call-site evidence only
+(define-extern *ready-room-ai-ct* int) ;; provisional: call-site evidence only
 (define-extern *ready-room-human-ct* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: *ready-room-host* is read then passed straight
+;; through as the object-typed a1 to (method 165 lobby-menu-manager)'s
+;; vmethod slot, the same call shape *join-create-menu* and
+;; *video-options-menu-info-europe* use with a proven dsubu comparison
+;; against a state-name field in this same file, so symbol fits over the
+;; generic guess. *ready-room-host-id* is a plain int counter: (method 190ish
+;; lobby-menu-manager) stores v1 typed int into it directly.
+(define-extern *ready-room-host* symbol) ;; provisional: call-site evidence only
+(define-extern *ready-room-host-id* int) ;; provisional: call-site evidence only
 (define-extern *real-sm* object) ;; provisional: call-site evidence only
 (define-extern *remove-buddy-id* object) ;; provisional: call-site evidence only
 (define-extern *return-to-secrets* object) ;; provisional: call-site evidence only
@@ -86596,6 +86705,12 @@
 (define-extern *should-update-stats* object) ;; provisional: call-site evidence only
 (define-extern *slime-clut* object) ;; provisional: call-site evidence only
 (define-extern *socket-blocking* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: read then passed straight through as the
+;; object-typed a1 to (method 165 lobby-menu-manager)'s vmethod slot, the
+;; same call shape *video-options-menu-info-europe* uses with a proven
+;; dsubu comparison against a state-name field in this same file, so symbol
+;; fits over the generic guess.
+(define-extern *sound-options-menu-info* symbol) ;; provisional: call-site evidence only
 ;; (define-extern *sparks-work* object) ;; superseded: the real sparks-work-typed extern is declared above in the sparks section
 (define-extern *spartacus-library* object) ;; provisional: call-site evidence only
 (define-extern *special-intro-hud-view* object) ;; provisional: call-site evidence only
@@ -86623,6 +86738,16 @@
 (define-extern *text-display-supernova-backfire-view-1-proc* object) ;; provisional: call-site evidence only
 (define-extern *text-display-supernova-backfire-view-2* object) ;; provisional: call-site evidence only
 (define-extern *text-display-supernova-backfire-view-2-proc* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: op 18 compares this global with dsubu directly
+;; against (-> this state name), a state's own name field (typed symbol);
+;; op 24 later stores that identical symbol-typed chain result back into it,
+;; the same "current state name" bookkeeping idiom as *prev-create-menu-
+;; state-name* one line down in the scattered comment block above.
+(define-extern *this-create-menu-state-name* symbol) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: stored #f once and read twice in truthy tests
+;; ("(not v1-88)", "(when ... v1-48)"), no other usage found; matches the
+;; house convention for a symbol-typed flag global.
+(define-extern *thrash-level-loader* symbol) ;; provisional: call-site evidence only
 ;; later-duplicate-wins: superseded by the correctly-typed define-extern
 ;; in the time-box-obs reservoir activation (debris-static-params, not
 ;; the generic provisional-sweep object typing).
@@ -86663,6 +86788,9 @@
 (define-extern *user-accounts-valid* object) ;; provisional: call-site evidence only
 (define-extern *v-drone-headlight-glow-template* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-antenna-state* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: read into a1/v1 across many call sites with no
+;; narrower evidence found; kept the original commented guess.
+(define-extern *vehicle-class* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-class-data* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-debris-constants* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-headlight-glow-template* object) ;; provisional: call-site evidence only
@@ -86681,6 +86809,13 @@
 ;; *vibration-menu-info* stays declared selection-cache (menu2-lists rung,
 ;; evidence above); stale object-typed duplicate removed, same reason.
 (define-extern *video-change* object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: op 36 compares this global with dsubu directly
+;; against (l.wu (+ a0 248)), a state-name field read (the +4 basics
+;; convention matches this object's own state-name-field shape used at
+;; *this-create-menu-state-name* above); op 53 then passes the same global
+;; through as the object-typed a1 to the identical vmethod slot *join-
+;; create-menu* uses with the same proven comparison.
+(define-extern *video-options-menu-info-europe* symbol) ;; provisional: call-site evidence only
 (define-extern *waiting-for-lock* object) ;; provisional: call-site evidence only
 ;; og:preserve-this typed from object (2026-08-17 water-anim rung): (method 54
 ;; water-anim) reads a raw word straight off this symbol's own value (matching a
@@ -86718,8 +86853,21 @@
 (define-extern bug-report-stop (function object)) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier collide-probe-stack deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier color-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
+;; lobby-menu-manager rung: two args proven from three call sites, both raw
+;; loaded values of unresolved concrete type (a0 off *game-title-extra*'s
+;; own field, a1 off *net-active-game*); return stored but never read past
+;; the store at any site, so object is kept generic on both sides.
+(define-extern construct-game-name (function object object object)) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: two int args (0, 4096/16384) proven identically
+;; at every call site; cpad-or-kbd-clear-func!'s own trailing ! never has its
+;; return read, cpad-or-kbd-pressed-var?'s return is always a truthy test.
+(define-extern cpad-or-kbd-clear-func! (function int int none)) ;; provisional: call-site evidence only
+(define-extern cpad-or-kbd-pressed-var? (function int int symbol)) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier deathmatch-spawner-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier debug-rigid-body-move deftype (rigid-body rung, scripts/check_alltypes_shadowing.py)
+;; lobby-menu-manager rung: zero args, return value discarded (never stored
+;; or read) at its one call site.
+(define-extern dma-dump (function none)) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier drift-editor deftype (drift rung, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier dropdown-cup deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier dropdown-weapon-item-info deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
@@ -86730,16 +86878,36 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier flow-section-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern fmv-get-mem-requirements function) ;; runtime-typed from savestate
 (define-extern fmv-player-get-texture function) ;; runtime-typed from savestate
+;; lobby-menu-manager rung: called identically to kill-by-type one function
+;; up (a1 = *default-pool*, typed process-tree); a0 is a raw field read of
+;; unresolved concrete type, kept int; return stored but not read further at
+;; its one call site, kept symbol matching kill-by-type's own return type.
+(define-extern fmv-player-run-texture (function int process-tree symbol)) ;; provisional: call-site evidence only
 (define-extern fmv-player-terminate function) ;; runtime-typed from savestate
 ;; og:preserve-this provisional extern removed: shadowed the earlier fmv-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier game-save-tag deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
+;; lobby-menu-manager rung: one arg, a computed address (this + index*2)
+;; whose pointee type is not resolvable from this call site alone, kept
+;; object; return is tested as "(+ v0 1) zero?" (a -1 sentinel check), an
+;; int.
+(define-extern get-player-clan-info (function object int)) ;; provisional: call-site evidence only
 (define-extern ghost-file object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier green-room-game-info-menu deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
+;; lobby-menu-manager rung: zero args at every call site; return unused,
+;; immediately overwritten by the next instruction.
+(define-extern hack-start-local-game (function none)) ;; provisional: call-site evidence only
 (define-extern hidden object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier hud-vehicle deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier idle-control deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern item-num-selection type) ;; runtime-typed from savestate
 (define-extern keybd-get-data function) ;; runtime-typed from savestate
+;; lobby-menu-manager rung: two args proven at its one call site (a0 a raw
+;; int bitmask built from shift ops, a1 the quoted symbol 'booted); return
+;; stored but not read again before the next overwrite, kept object.
+(define-extern kick-machines (function int symbol object)) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: zero args at its one call site; return unused,
+;; immediately overwritten by the next instruction.
+(define-extern kill-keyboard-control (function none)) ;; provisional: call-site evidence only
 ;; jakx eng-util wave: capture.gc's store-image calls this with only a0 set to
 ;; a raw (pointer uint8) (a string's data field, host0:...high-res/ path), and
 ;; branches on (<0.si v0) afterward, so it is a one-arg call returning a
@@ -86809,6 +86977,9 @@
 (define-extern net-game-mgr-vehicle-info object) ;; provisional: call-site evidence only
 (define-extern net-lanpeer-desc object) ;; provisional: call-site evidence only
 (define-extern net-latency-metrics-params object) ;; provisional: call-site evidence only
+;; lobby-menu-manager rung: two call sites both pass (this, 15); a0 is
+;; process (the "self" pointer), a1 int; return unused at both sites.
+(define-extern net-mgr-notify-connect (function process int none)) ;; provisional: call-site evidence only
 (define-extern net-player-football object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier net-player-h
 ;; deftype (net-player-respawn-info-method-3 evidence), same class as the
@@ -86842,6 +87013,10 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier scrolling-secrets-item deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier scrolling-task-item deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier seeker deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
+;; lobby-menu-manager rung: one int arg (always 0) proven at all three call
+;; sites; return stored but always overwritten by the very next instruction
+;; before being read, so none is kept.
+(define-extern set-player-car-from-level-array (function int none)) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier smoke-particle deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern spawn-hostile (function object)) ;; provisional: call-site evidence only
 (define-extern success-seeker object) ;; provisional: call-site evidence only
