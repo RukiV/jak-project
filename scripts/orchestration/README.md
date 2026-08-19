@@ -88,7 +88,7 @@ wherever a Windows-style path has to be handed to a `.exe`.
 ## Standard lane cascade
 
 1. `lane_worktree.py create <name> <branch> <base>` off the current stack tip.
-2. The lane does its work in that worktree.
+2. Work for the branch happens in that worktree.
 3. `rebase_lane.sh <worktree> <stack-tip-sha>` before merge, if the stack has moved.
 4. `run_gates.sh <worktree> <base-sha> <log-dir>` and, once it is green, dispatch
    `boot_smoke.py` to jakx-runtime-observer for anything that touched the boot path.
