@@ -1,22 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: football2.gc
-;; name in dgo: football2
-;; dgos: CANFOOT, CNSPFOOT, DKKRFOOT, DOCKFOOT, DRDKFOOT, DROMFOOT, HAVNFOOT, HAVTFOOT, HJNGFOOT, HVSWFOOT, ICEBFOOT, ICEFOOT, ICEPFOOT, ICETFOOT, JUNGFOOT, KRASFOOT, KRATFOOT, PEAKFOOT, SEWFOOT, SNOWFOOT, SPARFOOT, SPATFOOT, SPTMFOOT, TEMPFOOT
-
-;; DECOMP BEGINS
-
-;; og:preserve-this note: the four types powercell-dispenser-subdraw,
-;; powercell-dispenser, powercell-dispenser-draw and powercell-footie do
-;; not auto-emit a (deftype ...) form from this object's own bytecode
-;; (unlike net-powerup-h.gc, an -h file whose entire purpose is types).
-;; All four (deftype ...) blocks below are transcribed by hand from
-;; their live definitions in decompiler/config/jakx/all-types.gc, placed
-;; immediately before each type's own first method definition, matching
-;; where the decompiler would emit them if it could. Retire this note if
-;; a future decompiler change makes these auto-emit for this object.
-
 ;; failed to figure out what this is:
 (defpartgroup group-football-fuel-cell-emitter
   :id 303
@@ -495,21 +479,6 @@
   (go-virtual idle)
   )
 
-;; definition of type powercell-dispenser-subdraw
-(deftype powercell-dispenser-subdraw (process-drawable)
-  ((fuel-cell  uint64            :offset-assert 248)
-   (luxo       vu-lights :inline :offset-assert 256)
-   (draw-part? basic             :offset-assert 368)
-   )
-  :method-count-assert 52
-  :size-assert         #x174
-  :flag-assert         #x3400f00174
-  (:state-methods
-    idle
-    poof
-    )
-  )
-
 ;; definition for method 7 of type powercell-dispenser-subdraw
 ;; WARN: Return type mismatch vu-lights vs powercell-dispenser-subdraw.
 (defmethod relocate ((this powercell-dispenser-subdraw) (offset int))
@@ -525,15 +494,6 @@
                                           )
             )
     )
-  )
-
-;; definition of type powercell-dispenser
-(deftype powercell-dispenser (net-powerup)
-  ((original-owner int32  :offset-assert 244)
-   )
-  :method-count-assert 56
-  :size-assert         #xf8
-  :flag-assert         #x38007000f8
   )
 
 ;; definition for method 46 of type powercell-dispenser
@@ -635,16 +595,7 @@
 
 ;; definition for method 53 of type powercell-dispenser
 ;; WARN: Return type mismatch symbol vs none.
-;; og:preserve-this compile-only syntax fix: this is a genuine class-
-;; method-style zero-arg dispatch (net-powerup-h.gc declares it
-;; "(net-powerup-method-53 () none)", no implicit this at all), which
-;; defmethod's bare (defmethod NAME (BINDINGS) BODY) form cannot express
-;; since it infers the owner type from the first binding; using the
-;; explicit-type form (defmethod NAME TYPE (BINDINGS) BODY) instead, the
-;; same shape already landed for vehicle-method-180, process-nettable-
-;; method-28 and net-powerup-method-55 (issue 483, decompiler fix not
-;; attempted here).
-(defmethod net-powerup-method-53 powercell-dispenser () #t
+(defmethod net-powerup-method-53 () #t
   (none)
   )
 
@@ -871,18 +822,6 @@
           ((the-as (function none) t9-1))
           )
       )
-    )
-  )
-
-;; definition of type powercell-dispenser-draw
-(deftype powercell-dispenser-draw (powerup-draw)
-  ((subdraw handle  :offset-assert 264)
-   )
-  :method-count-assert 58
-  :size-assert         #x110
-  :flag-assert         #x3a00800110
-  (:state-methods
-    empty
     )
   )
 
@@ -1214,27 +1153,6 @@
   :post ja-post
   )
 
-;; definition of type powercell-footie
-(deftype powercell-footie (rigid-body-object)
-  ((owner      handle                    :offset-assert 288)
-   (plyid      int8                      :offset-assert 296)
-   (tip-vel    vector :inline            :offset-assert 304)
-   (spring-pos vector :inline            :offset-assert 320)
-   (spring-vel vector :inline            :offset-assert 336)
-   (bolt       basic                     :offset-assert 352)
-   (loose-part sparticle-launch-control  :offset-assert 356)
-   )
-  :method-count-assert 91
-  :size-assert         #x168
-  :flag-assert         #x5b00e00168
-  (:state-methods
-    die
-    )
-  (:methods
-    (powercell-footie-method-90 (_type_ vehicle int vector) none) ;; 90
-    )
-  )
-
 ;; definition for method 65 of type powercell-footie
 ;; WARN: Return type mismatch collide-shape-moving vs none.
 (defmethod rigid-body-object-method-65 ((this powercell-footie))
@@ -1284,21 +1202,6 @@
 
 ;; definition for method 90 of type powercell-footie
 ;; INFO: Used lq/sq
-;; og:preserve-this compile-only sentinel fix: both let* bindings below
-;; (v1-43 and v1-52) are lazily-computed "hand" sentinels, each first
-;; armed to #f then, on demand, set to the manually-inlined
-;; process->handle idiom (sllv/logior of the process pointer and pid,
-;; the same construction as every other handle-split site in this
-;; file). The raw decode types both (the-as int #f), matching the raw
-;; bit-arithmetic that later builds the real value, which goalc rejects
-;; once the same variable is assigned a handle. No type_casts.jsonc
-;; entry reaches a compilable print here (a cast at the #f arming op
-;; does not change the printed binding type; a cast at the
-;; process->handle definition op instead flips the decompiler onto a
-;; different, incorrect match, a bogus (logior handle handle) shape).
-;; Hand-corrected to (the-as handle #f), the correct sentinel form (see
-;; the "GOAL symbol slots are 32-bit" note), gated by offline-test's own
-;; skip_compile_functions for this method.
 (defmethod powercell-footie-method-90 ((this powercell-footie) (arg0 vehicle) (arg1 int) (arg2 vector))
   (let ((v1-0 (football-find-borrow-level)))
     (if v1-0
@@ -1331,7 +1234,7 @@
   (let* ((s5-1 (-> this part))
          (s4-2 (method-of-object s5-1 set-local-space-info))
          (s3-1 (add-connection *part-local-space-engine* this local-space-proc-joint 0 0 0))
-         (v1-43 (the-as handle #f))
+         (v1-43 (the-as int #f))
          )
     (s4-2 s5-1 (the-as
                  particle-local-space-info
@@ -1359,7 +1262,7 @@
   (let* ((s5-2 (-> this loose-part))
          (s4-3 (method-of-object s5-2 set-local-space-info))
          (s3-2 (add-connection *part-local-space-engine* this local-space-proc-joint 0 0 0))
-         (v1-52 (the-as handle #f))
+         (v1-52 (the-as int #f))
          )
     (s4-3 s5-2 (the-as
                  particle-local-space-info

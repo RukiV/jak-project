@@ -8173,8 +8173,23 @@
   // dispenser). Cast targets the type-pointer load's own input (op 23,
   // the (l.wu (+ v1 -4)) that resolves the vtable), not the merged
   // definition further upstream.
-  "(event empty powercell-dispenser-draw)": [[23, "v1", "powercell-dispenser"]],
-  "(event idle powercell-dispenser-draw)": [[23, "v1", "powercell-dispenser"]],
+  // football2 rung 3: op23's cast reaches the printed vtable-resolving
+  // read (the-as powercell-dispenser is visible there) but not the call
+  // itself; op26 is a second, independent read of the same v1-4 (a plain
+  // copy into a0 for the call's own receiver argument), and the printer
+  // does not carry op23's cast across to this later copy, the same
+  // coalescing-drops-the-cast class as (method 50 powercell-dispenser)'s
+  // else branch. Cast v1 again at op26, the copy site, so the printed
+  // "(net-powerup-method-48 v1-4 proc)" resolves against powercell-
+  // dispenser rather than falling back to the merged process type.
+  "(event empty powercell-dispenser-draw)": [
+    [23, "v1", "powercell-dispenser"],
+    [26, "v1", "powercell-dispenser"]
+  ],
+  "(event idle powercell-dispenser-draw)": [
+    [23, "v1", "powercell-dispenser"],
+    [26, "v1", "powercell-dispenser"]
+  ],
   // powercell-subdraw-init-by-other / (enter idle powercell-dispenser-subdraw)
   // / (method 52 powercell-dispenser): all three walk (-> (-> self parent) 0
   // child) to reach a sibling process, then dereference its root field
@@ -8231,6 +8246,23 @@
   // connection subtype local-space-proc-joint's own extern signature
   // already names as its argument two calls later in this same
   // function.
+  // football2 rung 3: ops 133/194 are the two lazily-computed "hand"
+  // sentinels (one per local-space connection block), each first set to
+  // #f then, on demand, to the manually-inlined process->handle idiom
+  // (sllv/logior of the process pointer and pid, the same construction
+  // as every other handle-split site in this file). The printed let*
+  // binding types the sentinel int (matching the raw bit-arithmetic that
+  // builds it), which goalc rejects once the same variable is later
+  // assigned the process->handle result directly; a cast at the #f
+  // arming site (tried at ops 133/194) does not change the printed
+  // binding type, and a cast at the process->handle definition site
+  // (tried at ops 146/206) instead flips the decompiler onto a
+  // different, incorrect match (a bogus (logior handle handle) shape),
+  // so no type_casts entry here reaches a compilable print; goal_src
+  // hand-corrects the two let* bindings to (the-as handle #f), the same
+  // sentinel idiom the "GOAL symbol slots are 32-bit" note documents
+  // elsewhere in this codebase, gated by offline-test's own
+  // skip_compile_functions for this method.
   "(method 90 powercell-footie)": [
     [148, "s3", "particle-local-space-info"],
     [150, "s3", "particle-local-space-info"],
@@ -8297,11 +8329,27 @@
   // and written directly as a 16-byte vector with no offset at all
   // (result and accumulator for the vector-orient-by-quat! add), so it
   // is vector itself, not a pointer into something larger.
+  // football2 rung 3: op21's cast on v1 (originally the only cast on the
+  // else branch's store) never reached the printed source; the raw
+  // decompile showed "(set! (-> arg0 quad) (-> this pos quad))" with no
+  // the-as at all, which goalc rejects (object has no quad field). op18
+  // ("or v1, gp, r0", where v1-1 is defined straight from gp, arg0's own
+  // persistent register across the whole function) is where the printer
+  // instead collapses the copy back to the bare "arg0" reference rather
+  // than keeping a distinct v1-1 binding, dropping op21's cast with it,
+  // the same coalescing-drops-the-cast class documented at (method 56
+  // powercell-dispenser-draw) and (event idle/empty powercell-dispenser-
+  // draw) below. Casting gp itself (the source register, not v1) at
+  // op18, the copy site, makes v1-1 inherit vector from gp directly, and
+  // the printed else branch now reads "(set! (-> (the-as vector arg0)
+  // quad) (-> this pos quad))", which compiles under offline-test's own
+  // full-corpus decode context (verified via offline-test -f football2).
   "(method 50 powercell-dispenser)": [
     [6, "s5", "entity-actor"],
     [10, "s5", "entity-actor"],
     [12, "v1", "vector"],
     [16, "a0", "vector"],
+    [18, "gp", "vector"],
     [21, "v1", "vector"],
     [24, "gp", "vector"]
   ],
@@ -8334,7 +8382,16 @@
   // copies it as a raw quad straight into root's trans, so it is a
   // vector at the point of the read; scoped locally rather than
   // widening the shared base signature.
-  "(method 56 powercell-dispenser-draw)": [[3, "a0", "vector"]],
+  // football2 rung 3: the op3 cast on a0 (the l.q read itself) never
+  // reached the printed source; a0-1 is a trivial copy of a1 (arg0's own
+  // calling-convention register) made at op2, and the printer collapses
+  // that copy back to the bare "arg0" reference without carrying the
+  // op3 cast's the-as wrap, the same coalescing-drops-the-cast class as
+  // (method 50 powercell-dispenser)'s else branch. Casting a1 (the
+  // source register) at op2 (the copy site) instead, mirroring that
+  // fix's shape, makes a0-1 inherit vector at the copy itself so the
+  // printer keeps the-as on the actual "arg0" reference.
+  "(method 56 powercell-dispenser-draw)": [[2, "a1", "vector"]],
   // powercell-footie-update-pos-on-vehicle, football2 rung 2: s5 is a
   // *net-players* array entry indexed by plyid (op 7), typed only as
   // the base net-player (#x190 = 400 bytes) by the array's own declared
