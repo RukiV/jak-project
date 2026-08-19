@@ -374,10 +374,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential cmake clang gcc g++ lcov make \
             nasm libxrandr-dev libxinerama-dev libxcursor-dev libpulse-dev \
-            libxi-dev zip ninja-build libgl1-mesa-dev libssl-dev
+            libxi-dev zip ninja-build libgl1-mesa-dev libssl-dev ccache
 
-      # No sccache here. Upstream's setup uses GitHub's hosted Actions Cache service,
-      # which this instance does not provide. Atlas has the cores to absorb a cold build.
+      # This job used to say "Atlas has the cores to absorb a cold build" and built
+      # cold every run at full parallelism. It does have the cores; I have the
+      # fan noise, and most runs here rebuild an identical artifact. ccache persists
+      # across jobs through the runner's ci-cache volume (mounted by the runner's
+      # container.options; if the mount is absent the directory is container-local
+      # and the build degrades to cold, never breaks). MAXSIZE bounds the shared
+      # volume's growth.
       #
       # Release-linux-clang rather than upstream's -asan variant: ASAN roughly doubles
       # build time and slows the test run considerably, and its value is finding
@@ -386,10 +391,20 @@ jobs:
         env:
           CC: clang
           CXX: clang++
-        run: cmake -B build --preset=Release-linux-clang
+        run: cmake -B build --preset=Release-linux-clang -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
+      # Two-thirds parallelism on purpose: the full-width build is what spins the
+      # server's fans to audible, and with a warm cache the compile phase mostly
+      # vanishes anyway, so the cap costs about a minute on a cold build and nothing
+      # on a warm one. Raise it back if wall-clock ever matters more than acoustics.
       - name: Build
-        run: cmake --build build --parallel $(nproc)
+        env:
+          CCACHE_DIR: /ci-cache/ccache-jak-project
+          CCACHE_MAXSIZE: 8G
+        run: |
+          ccache --zero-stats
+          cmake --build build --parallel $(( ($(nproc) * 2) / 3 ))
+          ccache --show-stats
 
       # 1509 tests, no ISO data required, no GPU required.
       - name: Unit tests
