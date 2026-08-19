@@ -7,9 +7,20 @@ Verdict signals (the standing rule for stack-tip smokes): crash markers == 0,
 "[link and exec]" count (663 on develop at the time this was written; that
 number grows as more objects land, so read the printed count rather than
 assuming), "Adding level" seen at least once, a campath heartbeat present, and
-"index 56" printed twice. These thresholds (600 / 1 / 2, and zero crash
-markers) are load-bearing and are carried over unchanged from the original
+"index 56" printed twice. The link/adding/index56 thresholds (600 / 1 / 2) and
+the zero-crash-marker rule are carried over unchanged from the original
 smoke240.py; do not edit them to make a run pass.
+
+The campath signal is a DELIBERATE change from that original at port time: the
+old script computed and printed the campath count but never gated on it, even
+though its own docstring always listed "campath heartbeat present" as one of
+the verdict signals. That gap was found and closed here: the verdict now also
+requires campath >= 1 (presence, not a magnitude threshold, so this does not
+add flakiness; measured campath counts on real green runs range from 92 to
+684). The reasoning: a boot that reaches the frame loop with a dead camera
+heartbeat should not pass, and nothing about "print it but don't gate on it"
+was ever a considered decision in the original, just an oversight this port
+does not want to carry forward silently.
 
 gk.exe defaults to the PRIMARY checkout's build
 (D:\\jak-project\\out\\build\\Release\\bin\\gk.exe), not the worktree's own,
@@ -68,7 +79,9 @@ def main():
     text = open(args.logfile, encoding="utf-8", errors="replace").read()
     pl = [l for l in text.splitlines() if "project path" in l]
     print("PROJ-PATH:", pl[0].strip() if pl else "NOT FOUND")
-    markers = re.findall(r"(?i)crash report|assert|Unknown mips2c|kmalloc fail|unmapped object|rip=0x", text)
+    # "assert" is word-bounded (case-insensitive) so a substring inside an unrelated
+    # word (a symbol name, a path, an unrelated log line) cannot fire a false crash marker.
+    markers = re.findall(r"(?i)crash report|\bassert\b|Unknown mips2c|kmalloc fail|unmapped object|rip=0x", text)
     links = len(re.findall(r"\[link and exec\]", text))
     adding = len(re.findall(r"Adding level", text))
     campath = len(re.findall(r"campath", text))
@@ -78,7 +91,10 @@ def main():
         print("first marker context:")
         i = text.lower().find(markers[0].lower())
         print(text[max(0, i - 400):i + 600])
-    ok = not markers and links >= 600 and adding >= 1 and idx56 >= 2
+    # campath >= 1 gates on presence, not magnitude, so it does not add flakiness
+    # (measured campath counts on real green runs range from 92 to 684); a boot
+    # that reaches the frame loop with a dead camera heartbeat should not pass.
+    ok = not markers and links >= 600 and adding >= 1 and campath >= 1 and idx56 >= 2
     print("VERDICT:", "green" if ok else "RED")
     return 0 if ok else 1
 
