@@ -407,8 +407,26 @@ jobs:
           ccache --show-stats
 
       # 1509 tests, no ISO data required, no GPU required.
+      #
+      # The filter narrows by the same cpp_changed classification the MSVC job uses:
+      # on a diff that cannot reach the C++ artifact, the binary is byte-identical to
+      # the one these unit tests already passed against on develop, so re-running the
+      # full suite re-tests unchanged code for four to eight minutes. What IS
+      # load-bearing for a GOAL-only diff is the type-consistency pair (goal_src
+      # against all-types) plus anything else reading goal_src, so that is what runs.
+      # Same fail-safe polarity as the MSVC gate: only the literal string 'false'
+      # narrows; anything else runs the full suite.
       - name: Unit tests
-        run: ./build/goalc-test --gtest_color=yes --gtest_filter="-*MANUAL_TEST*"
+        run: |
+          if [ "${{ needs.lint.outputs.cpp_changed }}" = "false" ]; then
+            echo "GOAL-only diff: running the goal_src-sensitive tests only"
+            # Every game's consistency pair, not only jakx: the safe-path set spans
+            # all of goal_src/, so a jak2-only diff lands here too and its own
+            # consistency test is the load-bearing one for it.
+            ./build/goalc-test --gtest_color=yes --gtest_filter="*TypeConsistency*"
+          else
+            ./build/goalc-test --gtest_color=yes --gtest_filter="-*MANUAL_TEST*"
+          fi
 
   # This job deliberately does NOT call .github/workflows/windows-build-msvc.yaml,
   # even though doing so was the original design and the reason this runner
