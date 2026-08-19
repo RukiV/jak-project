@@ -1176,22 +1176,22 @@
     "(method 20 collide-cache)",
     "(method 21 collide-cache)",
     "(method 23 collide-cache)",
-    // net-enemy: (method 83 net-enemy) calls find-first-containing-nav-mesh,
-    // which is declared nowhere in goal_src and not even an active extern in
-    // decompiler config (all-types.gc keeps it commented out); the fresh
-    // decode's own fallback body still emits the bare symbol reference,
-    // which fails to compile ("looked up as a global variable, but it does
-    // not exist"). (method 84 net-enemy) does raw pointer math against a
+    // net-enemy: nav-keystone rung landed find-first-containing-nav-mesh for
+    // real (nav-mesh.gc), which unblocked (method 83 net-enemy) and its
+    // whole init/respawn chain (62/69/81/82, init-from-entity! and
+    // process-nettable-method-35); those are landed now and no longer skip
+    // compile here. (method 84 net-enemy) does raw pointer math against a
     // value typed object ("Cannot do math on a object" on (+ a1-0 112)), the
-    // same class as collide-cache's own methods 14/18 above. (method 7
-    // net-enemy) (relocate) calls fixup-relocated-link
-    // (goal_src/jakx/engine/util/obj-list.gc), itself an unlanded stub with
-    // no defun or goal_src extern anywhere, the same undeclared-symbol class
-    // as method 83. None of the three has a landed body; the og:preserve-
-    // this note at the top of goal_src/jakx/levels/common/net-enemy.gc
-    // covers all three plus the transitive chain that also holds net-enemy-
-    // method-62/69/70/81/82.
-    "(method 83 net-enemy)",
+    // same class as collide-cache's own methods 14/18 above, unrelated to
+    // find-first-containing-nav-mesh, still held. (method 7 net-enemy)
+    // (relocate) calls fixup-relocated-link (goal_src/jakx/engine/util/
+    // obj-list.gc), itself an unlanded stub with no defun or goal_src extern
+    // anywhere, the same undeclared-symbol class find-first-containing-nav-
+    // mesh was before this rung landed it; still held. The og:preserve-this
+    // note at the top of goal_src/jakx/levels/common/net-enemy.gc covers
+    // both plus method-70 below plus two new boot-only risks the landed
+    // chain now surfaces (unfilled net-enemy-level slots for methods
+    // 75/76/77/78 and process-nettable-method-26/31).
     "(method 84 net-enemy)",
     "(method 7 net-enemy)",
     // net-enemy: (method 70 net-enemy)'s own 'fatal-impact case dispatches
@@ -1199,9 +1199,11 @@
     // methods (mem-buffer.gc lands only methods 10/11); mem-buffer-method-32
     // has no landed return type, so the compiler cannot pick a register
     // class for its result ("get_preferred_reg_class called on NullType").
-    // Held un-landed the same as the rest of the net-enemy-method-62/69/
-    // 70/81/82 transitive chain the og:preserve-this note at the top of
-    // goal_src/jakx/levels/common/net-enemy.gc covers.
+    // Its own 'respawn case is unblocked by find-first-containing-nav-mesh
+    // now, but the case form is one compiled function, so the method as a
+    // whole still fails to compile on this unrelated blocker; still held,
+    // the og:preserve-this note at the top of goal_src/jakx/levels/common/
+    // net-enemy.gc covers it.
     "(method 70 net-enemy)",
     // net-enemy: (method 66 net-enemy)'s own type_casts.jsonc fix (needed to
     // resolve a *net-players* vtable dispatch at its second call site)

@@ -7,34 +7,75 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this: this rung lands most of net-enemy's own held-error
-;; surface (46 -> 10 errors on this worktree's own scoped decode; the
-;; remaining 10 span exactly the methods and states held below) but leaves
-;; several groups withheld, each for a concrete boot-safety reason rather
-;; than a live decode error:
+;; og:preserve-this: this rung lands net-enemy's own init/respawn chain now
+;; that find-first-containing-nav-mesh is landed for real (nav-mesh.gc,
+;; nav-keystone rung): net-enemy-method-83 (calls it directly),
+;; net-enemy-method-82 (calls 83 when this.info.flags bit 0 is set),
+;; net-enemy-method-62 (calls 82 unconditionally; this is the object's own
+;; init), net-enemy-method-69 (calls 70, still held, see below),
+;; net-enemy-method-81 (calls 69), and the two named virtual overrides
+;; init-from-entity! and process-nettable-method-35 (both call 62 directly)
+;; all decode clean against a real callee and are landed below.
 ;;
-;; 1. net-enemy-method-83 calls the extern find-first-containing-nav-mesh,
-;;    which has no defun anywhere in goal_src and is not even an active
-;;    extern (all-types.gc keeps it commented); its own vtable slot, if
-;;    ever reached, jumps to address 0 (the extern-no-defun class recorded
-;;    against find-nearest-camera-distance). This transitively holds every
-;;    method that reaches it: net-enemy-method-82 (calls 83 when
-;;    this.info.flags bit 0 is set), net-enemy-method-62 (calls 82
-;;    unconditionally; this is the object's own init), net-enemy-method-70's
-;;    own 'respawn case (calls 82), net-enemy-method-69 (calls 70),
-;;    net-enemy-method-81 (calls 69), and the two named virtual overrides
-;;    init-from-entity! and process-nettable-method-35 (both call 62
-;;    directly). Landing any of these as decoded would fill a vtable slot
-;;    with code that itself jumps to a still-empty slot the moment its
-;;    branch is taken; not landing the two named overrides is safe, since a
-;;    named override that is not landed simply falls back to its parent's
-;;    own implementation instead of linking to zero. waiting-respawn's own
-;;    :post (landed in an earlier tier, unchanged here) already calls
-;;    net-enemy-method-81 unconditionally; that call was already a jump to
-;;    zero before this rung touched anything and remains one now. Retire
-;;    this whole group once find-first-containing-nav-mesh is landed.
+;; net-enemy-method-70 stays held. Its own 'respawn case (calls 82) was the
+;; only case blocked by find-first-containing-nav-mesh, but a GOAL case form
+;; is one compiled function: its 'fatal-impact case dispatches
+;; mem-buffer-method-32/40/41, three more of mem-buffer's own unfilled
+;; methods (mem-buffer-h.gc lands only methods 10/11), so the whole method
+;; still fails to compile on that unrelated blocker. net-enemy-method-69's
+;; own call to net-enemy-method-70 therefore still dispatches a vtable slot
+;; no landed defmethod fills at the net-enemy level; plow.gc's and
+;; raptor.gc's own (method-of-type net-enemy net-enemy-method-70) fallback
+;; calls already reach this same unfilled slot, unchanged by this rung, so
+;; landing 69 opens no new class of risk, only a new path to the same one.
+;; Retire net-enemy-method-70 alongside mem-buffer-method-32/40/41.
 ;;
-;; 2. net-enemy-method-74 and net-enemy-method-85 each dispatch a
+;; Landing net-enemy-method-62 and net-enemy-method-81 surfaces two further
+;; boot-only risks no gate in this rung's own pipeline observes, worth
+;; recording rather than shipping silently:
+;;
+;; a. net-enemy-method-62 calls net-enemy-method-78, -76, -75 and -77
+;;    unconditionally. None of the four has a body at the net-enemy level
+;;    anywhere in this tree, and net-enemy's own compiled object (this
+;;    rung's own scoped decode) carries no machine code for any of the four
+;;    at that level either, only in plow.gc's and raptor.gc's own overrides;
+;;    retail itself shipped these four vtable slots unfilled for a bare
+;;    net-enemy. The only live spawn of a bare net-enemy (not plow, not
+;;    raptor) found in this tree is process-nettable-method-41
+;;    (net-enemy-h.gc): (process-spawn net-enemy :init net-enemy-init-remote
+;;    ...), reached through net-enemy-init-remote calling
+;;    process-nettable-method-35, which this rung lands and which now calls
+;;    method-62 for real, completing that path for the first time. Whether
+;;    that spawn is ever exercised outside the dead multiplayer service is
+;;    not established here; not verified.
+;;
+;; b. net-enemy-method-81 unconditionally calls one of
+;;    process-nettable-method-31 or process-nettable-method-26 depending on
+;;    a flag bit; neither has a body anywhere in this tree
+;;    (process-nettable.gc lands only method-34), so either branch dispatches
+;;    an unfilled slot. Not a new hazard: waiting-respawn's own :post
+;;    (landed in an earlier tier, unchanged here) already calls
+;;    net-enemy-method-81 unconditionally, and since method-81 itself was
+;;    unlanded that call already reached an unfilled slot before this rung
+;;    touched anything. Landing method-81 moves the unfilled dispatch one
+;;    call deeper (its own health/penetration/anim bookkeeping now runs for
+;;    real first) rather than removing it.
+;;
+;; scripts/check_method_slots.py surfaced a third: net-enemy-method-62 also
+;; calls get-trans (process-focusable's own method 51) and get-level
+;; (entity's own method 26, via (-> this entity)); neither has a landed
+;; defmethod anywhere in this tree for ANY type, not just net-enemy, so
+;; these are corpus-wide gaps this rung's landing is simply the first to
+;; reach, not something owned by net-enemy or nav-mesh. Filling either is
+;; out of scope here.
+;;
+;; (a), (b) and this third finding are runtime-only; nothing in
+;; offline-test, (mi), the type-consistency gate or the state-inherit
+;; checker observes any of them. check_method_slots.py does surface all
+;; three (net-enemy's own count moved from 29 to 40 FAILs in this rung's own
+;; before/after). A boot smoke on this object is owed before merge.
+;;
+;; c. net-enemy-method-74 and net-enemy-method-85 each dispatch a
 ;;    collide-shape vtable slot collide-shape does not declare (55 and 57;
 ;;    collide-shape's own :method-count-assert is 55, so both sit past its
 ;;    current end). Extending collide-shape's own method table is shared,
@@ -42,7 +83,7 @@
 ;;    net-enemy-method-74 itself and its two known callers within this
 ;;    file: play-anim-along-path and (post in-ragdoll net-enemy).
 ;;
-;; 3. net-enemy-method-84's own arg1 reads raw offset 112 (a quaternion 144
+;; d. net-enemy-method-84's own arg1 reads raw offset 112 (a quaternion 144
 ;;    bytes further in) against no type this rung could identify from
 ;;    call-site or field evidence; it has no known caller within this file
 ;;    and is held on its own.
@@ -53,8 +94,9 @@
 ;; "handle") is a handle to a spawned ragdoll-proc process; :enter runs
 ;; ragdoll-proc-init-by-other in that process via run-function-in-process,
 ;; and that function is an active extern with no defun anywhere in
-;; goal_src, the same class as point 1, so the spawn call links to zero if
-;; ever taken. :event's own handle-deref sequence against ragdoll-proc sits
+;; goal_src, the same extern-no-defun class find-first-containing-nav-mesh
+;; was before this rung landed it, so the spawn call links to zero if ever
+;; taken. :event's own handle-deref sequence against ragdoll-proc sits
 ;; inside a CFG this rung could not get the decompiler to fold into
 ;; (handle->process ...), the same irreducible shape (method 74 plow)'s own
 ;; note describes; hand-folding it by hand without a landed :enter to ever
@@ -812,6 +854,243 @@
 (defmethod process-nettable-method-36 ((this net-enemy))
   (go (method-of-object this startup))
   (none)
+  )
+
+;; definition for method 83 of type net-enemy
+(defmethod net-enemy-method-83 ((this net-enemy))
+  (let ((a0-2 (find-first-containing-nav-mesh (-> this root trans) 99999.9 (&-> this nav-poly))))
+    (when a0-2
+      (let ((t9-1 (method-of-object a0-2 handle-kill)))
+        #t
+        (t9-1 a0-2)
+        )
+      (let ((v1-5 (-> this nav state)))
+        (set! (-> v1-5 speed) 0.0)
+        )
+      0
+      (let ((v1-7 (-> this nav)))
+        (set! (-> v1-7 acceleration) 4096.0)
+        )
+      0
+      (let ((v1-9 (-> this nav)))
+        (set! (-> v1-9 target-speed) 307200.0)
+        )
+      0
+      (let ((v1-11 (-> this nav)))
+        (set! (-> v1-11 turning-acceleration) 307200.0)
+        )
+      0
+      (logior! (-> this nav flags) (nav-control-flag limit-rotation-rate))
+      (set! (-> this nav callback-info) *default-nav-callback-info*)
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for method 82 of type net-enemy
+(defmethod net-enemy-method-82 ((this net-enemy))
+  (set! (-> this pending-impulse-valid) #f)
+  (set! (-> this health) (-> this info max-health))
+  (set! (-> this last-health-send-time) (+ (- (- -1500 (if *net-world*
+                                                           (-> *net-world* net-state total-pause-time)
+                                                           0
+                                                           )
+                                                 )
+                                              (if *net-world*
+                                                  (-> *net-world* net-state game-start-time)
+                                                  0
+                                                  )
+                                              )
+                                           (if *net-mgr*
+                                               (-> *net-mgr* game-state time)
+                                               0
+                                               )
+                                           )
+        )
+  (set! (-> this local-damage) 0.0)
+  (set! (-> this killed-by) -1)
+  (set! (-> this last-attack-time) (+ (- (- -1500 (if *net-world*
+                                                      (-> *net-world* net-state total-pause-time)
+                                                      0
+                                                      )
+                                            )
+                                         (if *net-world*
+                                             (-> *net-world* net-state game-start-time)
+                                             0
+                                             )
+                                         )
+                                      (if *net-mgr*
+                                          (-> *net-mgr* game-state time)
+                                          0
+                                          )
+                                      )
+        )
+  (set! (-> this vehicle-penetrate-time) (+ (- (- -1500 (if *net-world*
+                                                            (-> *net-world* net-state total-pause-time)
+                                                            0
+                                                            )
+                                                  )
+                                               (if *net-world*
+                                                   (-> *net-world* net-state game-start-time)
+                                                   0
+                                                   )
+                                               )
+                                            (if *net-mgr*
+                                                (-> *net-mgr* game-state time)
+                                                0
+                                                )
+                                            )
+        )
+  (set! (-> this transition-ct) 0)
+  (set! (-> this last-transition-time) 0)
+  (logior! (-> this mask) (process-mask enemy))
+  (logclear! (-> this focus-status) (focus-status dead))
+  (if (logtest? (-> this info flags) 1)
+      (net-enemy-method-83 this)
+      )
+  0
+  (none)
+  )
+
+;; definition for method 62 of type net-enemy
+(defmethod net-enemy-method-62 ((this net-enemy))
+  (with-pp
+    (set! (-> this flags) (the-as uint 0))
+    (net-enemy-method-78 this)
+    (net-enemy-method-75 this)
+    (process-drawable-from-entity! this (-> this entity))
+    (set! (-> pp level) (get-level (-> this entity)))
+    (logior! (-> this mask) (process-mask enemy))
+    (cond
+      ((>= (-> *attackable-hash* length) (-> *attackable-hash* allocated-length))
+       (format 0 "Attackable hash has been overfilled. Tell Elan.~%")
+       (break!)
+       0
+       )
+      (else
+        (let ((s5-0 (-> *attackable-hash* length)))
+          (+! (-> *attackable-hash* length) 1)
+          (set! (-> *attackable-hash* procs s5-0) (process->handle this))
+          (set! (-> *attackable-hash* trans s5-0 quad) (-> (get-trans this 3) quad))
+          (set! (-> *attackable-hash* masks s5-0) (process-focusable-method-50 this))
+          )
+        )
+      )
+    (set! (-> this ragdoll-proc) (the-as uint #f))
+    (net-enemy-method-76 this)
+    (net-enemy-method-77 this)
+    (set! (-> this net-anim path-array) (the-as uint (-> this paths data)))
+    (set! (-> this minimap) #f)
+    (set! (-> this nav-poly) #f)
+    (set! (-> this nav) #f)
+    (net-enemy-method-82 this)
+    (if (not (process-nettable-method-25 this))
+        (process-nettable-method-34 this 8 (new 'static 'rgba :r #xff :g #xff))
+        )
+    (linked-list-method-10 *net-enemy-list* (-> this enemy-link))
+    0
+    (none)
+    )
+  )
+
+;; definition for method 69 of type net-enemy
+(defmethod net-enemy-method-69 ((this net-enemy))
+  (dotimes (s5-0 (-> this transition-ct))
+    (when (and (!= (-> this transitions s5-0 timestamp) -1) (>= (- (- (- (if *net-mgr*
+                                                                             (-> *net-mgr* game-state time)
+                                                                             0
+                                                                             )
+                                                                         (if *net-world*
+                                                                             (-> *net-world* net-state game-start-time)
+                                                                             0
+                                                                             )
+                                                                         )
+                                                                      (if *net-world*
+                                                                          (-> *net-world* net-state total-pause-time)
+                                                                          0
+                                                                          )
+                                                                      )
+                                                                   (-> this transitions s5-0 timestamp)
+                                                                   )
+                                                                0
+                                                                )
+               )
+      (mem-copy! (the-as pointer *tmp-transition*) (the-as pointer (-> this transitions s5-0)) 80)
+      (dotimes (s4-0 (+ (- -1 s5-0) (-> this transition-ct)))
+        (mem-copy!
+          (the-as pointer (-> this transitions (+ s5-0 s4-0)))
+          (the-as pointer (-> this transitions (+ s4-0 1 s5-0)))
+          80
+          )
+        )
+      (+! (-> this transition-ct) -1)
+      (+! s5-0 -1)
+      (let ((s4-1 (new 'stack-no-clear 'mem-buffer)))
+        ((method-of-type mem-buffer mem-buffer-method-10)
+         (the-as mem-buffer (&-> s4-1 base))
+         (-> *tmp-transition* buf-data)
+         (-> *tmp-transition* data-len)
+         )
+        (set! (-> this last-transition-time) (-> *tmp-transition* timestamp))
+        (net-enemy-method-70 this (&-> s4-1 base) (-> *tmp-transition* timestamp) (-> *tmp-transition* name))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; definition for method 81 of type net-enemy
+(defmethod net-enemy-method-81 ((this net-enemy))
+  (when (and (!= (-> this vehicle-penetrate-time) -1) (>= (- (- (- (if *net-mgr*
+                                                                       (-> *net-mgr* game-state time)
+                                                                       0
+                                                                       )
+                                                                   (if *net-world*
+                                                                       (-> *net-world* net-state game-start-time)
+                                                                       0
+                                                                       )
+                                                                   )
+                                                                (if *net-world*
+                                                                    (-> *net-world* net-state total-pause-time)
+                                                                    0
+                                                                    )
+                                                                )
+                                                             (-> this vehicle-penetrate-time)
+                                                             )
+                                                          0
+                                                          )
+             )
+    (set! (-> this vehicle-penetrate-time) -1)
+    (logclear! (-> this root penetrated-by) (penetrate vehicle))
+    )
+  (if (logtest? (-> this flags) 2)
+      (process-nettable-method-31 this #f)
+      (process-nettable-method-26 this 8 #f)
+      )
+  (net-enemy-method-69 this)
+  (if (logtest? (-> this flags) 16)
+      (net-enemy-method-64 this)
+      )
+  (update-transforms (-> this root))
+  (ja-post)
+  0
+  (none)
+  )
+
+;; definition for method 35 of type net-enemy
+(defmethod process-nettable-method-35 ((this net-enemy) (arg0 int))
+  (net-enemy-method-62 this)
+  0
+  (none)
+  )
+
+;; definition for virtual override init-from-entity! of type net-enemy
+(defmethod init-from-entity! ((this net-enemy) (arg0 entity-actor))
+  (set! (-> this entity) arg0)
+  (net-enemy-method-62 this)
+  (go (method-of-object this startup))
   )
 
 ;; definition for function kill-all-enemies

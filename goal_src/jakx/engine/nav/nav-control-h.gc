@@ -145,6 +145,20 @@
   this
   )
 
+;; og:preserve-this: placeholder for nav-control.gc's own static
+;; *default-nav-callback-info* (net-enemy-method-83 reads it directly, the
+;; nav-keystone rung's own net-enemy chain). Its real value comes from
+;; nav-control.gc's top-level (labels L474/L475/L473 build all three of
+;; *default-nav-callback-info*, *null-nav-callback-info* and
+;; *physics-nav-callback-info* off raw addresses this rung's own scoped
+;; decode could not resolve; nav-control.gc's top-level is itself one of
+;; the object's 61 remaining held errors, out of scope for this rung).
+;; (the-as nav-callback-info #f) matches the established *net-mgr*/
+;; *net-world* placeholder idiom (net-mgr-h.gc, level.gc) rather than
+;; inventing struct content the decode does not give. Retire once
+;; nav-control.gc lands its own top-level for real.
+(define *default-nav-callback-info* (the-as nav-callback-info #f))
+
 ;; definition of type nav-state
 (deftype nav-state (structure)
   ((flags                      nav-state-flag)
