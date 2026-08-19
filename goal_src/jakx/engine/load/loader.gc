@@ -17,19 +17,30 @@
 
 ;; og:note the art slice of loader.o lands here (the load-dir mem-usage,
 ;; lookup and record methods, the art-group master link pair and the art load
-;; helpers) plus gui-control methods 9 and 16, its two dispatched slots
-;; (add-process and set-action!, four call sites total: cam-states.gc,
-;; generic-obs.gc, hud-classes.gc, net-hud.gc), plus the spooler-block type
-;; PR 417's ja-play-spooled-anim extern activation let the decompiler
-;; recognize (a clean decode on its own, offset-asserts matching
-;; all-types.gc exactly). ja-play-spooled-anim's own body decodes too now
-;; but does not compile (its own constructor is missing from this object's
-;; decode; see the preservation note above its held, commented-out text)
-;; and stays a block comment rather than a live landing. The rest of
-;; gui-control and the external-art-control/buffer machinery stay parked:
-;; their decomp still carries CFG and type-prop errors. ja-play-spooled-no-
-;; sync-anim (both overloads) and ja-abort-spooled-anim remain fully
-;; blocked ("function has no type analysis. Cannot decompile.").
+;; helpers) plus gui-control methods 9, 11, 16 and 25 (add-process,
+;; stop-str, set-action! and channel-id-set! in jak3's twin) and
+;; gui-connection's own print, plus the spooler-block type PR 417's
+;; ja-play-spooled-anim extern activation let the decompiler recognize (a
+;; clean decode on its own, offset-asserts matching all-types.gc exactly).
+;; ja-play-spooled-anim's own body decodes too now but does not compile (its
+;; own constructor is missing from this object's decode; see the
+;; preservation note above its held, commented-out text) and stays a block
+;; comment rather than a live landing. This lane's own fresh scoped decode
+;; also cleared the external-art-buffer and external-art-control machinery
+;; down to three real blockers (see the og:preserve-this note above their
+;; landing further below); the prior "stays parked... CFG and type-prop
+;; errors" description covered the whole object, which this rung's re-check
+;; disproved for everything except those three functions and gui-control's
+;; own still-erroring methods (10, 12-15, 17-24, and its constructor,
+;; method 0). ja-play-spooled-no-sync-anim (both overloads) and
+;; ja-abort-spooled-anim remain fully blocked ("function has no type
+;; analysis. Cannot decompile."), as does gui-control's own method 23
+;; ("function was not converted to expressions. Cannot decompile.").
+;; gui-control's own inspect (method 3), same for spooler-block and
+;; subtitle-range, are the deftype macro's own auto-generated default field
+;; printer (byte-identical shape to load-dir's own undecoded method 3 and
+;; to every other basic type's default inspect in this tree); jak3's twin
+;; never hand-lands these either, so they are not landed here.
 
 ;; og:preserve-this gui-control carries the full reconstructed field layout,
 ;; matching all-types, gui-h.gc and cam-states.gc (each file that dispatches
@@ -58,7 +69,7 @@
     (new (symbol type) _type_)
     (gui-control-method-9 (_type_ process int int string float int) uint) ;; add-request
     (gui-control-method-10 () none)
-    (gui-control-method-11 (_type_ gui-connection) none)
+    (gui-control-method-11 (_type_ gui-connection) none) ;; stop-str
     (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id)
     (gui-control-method-13 () none)
     (gui-control-method-14 (_type_ string object object) none)
@@ -72,7 +83,7 @@
     (gui-control-method-22 () none)
     (gui-control-method-23 () none)
     (gui-control-method-24 () none)
-    (gui-control-method-25 (_type_ gui-connection object) none)
+    (gui-control-method-25 (_type_ gui-connection object) none) ;; channel-id-set!
     )
   )
 (define-extern *gui-control* gui-control)
@@ -213,6 +224,310 @@
       )
     )
   0
+  )
+
+;; og:preserve-this gui-connection's own print, and gui-control's methods 11
+;; and 25 (stop-str and channel-id-set! in jak3's twin), all decode clean
+;; against this rung's own fresh scoped decode; the prior rung's og:note
+;; calling "the rest of gui-control" blocked was true only for the methods
+;; that still carry CFG/type-prop errors (see the held list further below),
+;; not for these three. gui-control's :methods block already declared both
+;; slots' full signatures (dd0c633e4), so no deftype edit was needed here.
+;; Method 11 dispatches gui-control-method-17 (get-status, still unlanded)
+;; and method 25 itself; method 25 is self-contained. Neither call is a
+;; compile-time problem: an unfilled method-of-object dispatch is a runtime
+;; no-op slot, the same class already accepted for methods 9 and 16's own
+;; internal dispatches to methods 19 and 25.
+(defmethod print ((this gui-connection))
+  (let* ((t9-0 format)
+         (a0-1 #t)
+         (a1-0 "#<gc ~12S ~2D ~6D ~6,,0f ~7S ~8S ")
+         (a2-0 (-> this name))
+         (a3-0 (-> this anim-part))
+         (t0-0 (-> this id))
+         (t1-0 (-> this priority))
+         (v1-0 (-> this channel))
+         (t2-1 (cond
+                 ((= v1-0 (gui-channel hud-mp-race-1))
+                  "hud-mp-race-1"
+                  )
+                 ((= v1-0 (gui-channel hud-lower-left))
+                  "hud-lower-left"
+                  )
+                 ((= v1-0 (gui-channel citizen))
+                  "citizen"
+                  )
+                 ((= v1-0 (gui-channel pecker))
+                  "pecker"
+                  )
+                 ((= v1-0 (gui-channel jak-effect-1))
+                  "jak-effect-1"
+                  )
+                 ((= v1-0 (gui-channel ashelin))
+                  "ashelin"
+                  )
+                 ((= v1-0 (gui-channel hud-lower-left-1))
+                  "hud-lower-left-1"
+                  )
+                 ((= v1-0 (gui-channel hud-mp-race-2))
+                  "hud-mp-race-2"
+                  )
+                 ((= v1-0 (gui-channel message))
+                  "message"
+                  )
+                 ((= v1-0 (gui-channel hud-middle-left))
+                  "hud-middle-left"
+                  )
+                 ((= v1-0 (gui-channel gun))
+                  "gun"
+                  )
+                 ((= v1-0 (gui-channel hud-upper-center-2))
+                  "hud-upper-center-2"
+                  )
+                 ((= v1-0 (gui-channel subtitle))
+                  "subtitle"
+                  )
+                 ((= v1-0 (gui-channel hud-middle-right))
+                  "hud-middle-right"
+                  )
+                 ((= v1-0 (gui-channel art-load-next))
+                  "art-load-next"
+                  )
+                 ((= v1-0 (gui-channel notice))
+                  "notice"
+                  )
+                 ((= v1-0 (gui-channel sig))
+                  "sig"
+                  )
+                 ((= v1-0 (gui-channel hud-mp-vehicle-main-1))
+                  "hud-mp-vehicle-main-1"
+                  )
+                 ((= v1-0 (gui-channel hud-center-left))
+                  "hud-center-left"
+                  )
+                 ((= v1-0 (gui-channel task))
+                  "task"
+                  )
+                 ((= v1-0 (gui-channel hud-upper-right))
+                  "hud-upper-right"
+                  )
+                 ((= v1-0 (gui-channel hud-center-right))
+                  "hud-center-right"
+                  )
+                 ((= v1-0 (gui-channel alert))
+                  "alert"
+                  )
+                 ((= v1-0 (gui-channel hud-mp-player-indicators-0))
+                  "hud-mp-player-indicators-0"
+                  )
+                 ((= v1-0 (gui-channel hud-mp-player-indicators-1))
+                  "hud-mp-player-indicators-1"
+                  )
+                 ((= v1-0 (gui-channel hud-mp-race-0))
+                  "hud-mp-race-0"
+                  )
+                 ((= v1-0 (gui-channel hud-upper-left))
+                  "hud-upper-left"
+                  )
+                 ((= v1-0 (gui-channel speech))
+                  "speech"
+                  )
+                 ((= v1-0 (gui-channel query))
+                  "query"
+                  )
+                 ((= v1-0 (gui-channel hud-lower-right))
+                  "hud-lower-right"
+                  )
+                 ((= v1-0 (gui-channel screen))
+                  "screen"
+                  )
+                 ((= v1-0 (gui-channel guard))
+                  "guard"
+                  )
+                 ((= v1-0 (gui-channel hud-mp-race-3))
+                  "hud-mp-race-3"
+                  )
+                 ((= v1-0 (gui-channel supertitle))
+                  "supertitle"
+                  )
+                 ((= v1-0 (gui-channel hal))
+                  "hal"
+                  )
+                 ((= v1-0 (gui-channel hud-upper-center))
+                  "hud-upper-center"
+                  )
+                 ((= v1-0 (gui-channel blackout))
+                  "blackout"
+                  )
+                 ((= v1-0 (gui-channel bbush))
+                  "bbush"
+                  )
+                 ((= v1-0 (gui-channel hud))
+                  "hud"
+                  )
+                 ((= v1-0 (gui-channel voice))
+                  "voice"
+                  )
+                 ((= v1-0 (gui-channel jak-mode))
+                  "jak-mode"
+                  )
+                 ((= v1-0 (gui-channel max))
+                  "max"
+                  )
+                 ((= v1-0 (gui-channel none))
+                  "none"
+                  )
+                 ((= v1-0 (gui-channel freeze))
+                  "freeze"
+                  )
+                 ((= v1-0 (gui-channel notice-low))
+                  "notice-low"
+                  )
+                 ((= v1-0 (gui-channel art-load))
+                  "art-load"
+                  )
+                 ((= v1-0 (gui-channel hud-auto-save-message))
+                  "hud-auto-save-message"
+                  )
+                 ((= v1-0 (gui-channel jak))
+                  "jak"
+                  )
+                 ((= v1-0 (gui-channel progress))
+                  "progress"
+                  )
+                 ((= v1-0 (gui-channel resetter))
+                  "resetter"
+                  )
+                 ((= v1-0 (gui-channel jak-effect-2))
+                  "jak-effect-2"
+                  )
+                 ((= v1-0 (gui-channel daxter))
+                  "daxter"
+                  )
+                 ((= v1-0 (gui-channel hud-lower-left-2))
+                  "hud-lower-left-2"
+                  )
+                 ((= v1-0 (gui-channel background))
+                  "background"
+                  )
+                 ((= v1-0 (gui-channel beast))
+                  "beast"
+                  )
+                 ((= v1-0 (gui-channel hud-mp-vehicle-main-0))
+                  "hud-mp-vehicle-main-0"
+                  )
+                 ((= v1-0 (gui-channel hud-auto-save))
+                  "hud-auto-save"
+                  )
+                 ((= v1-0 (gui-channel hud-lower-center))
+                  "hud-lower-center"
+                  )
+                 ((= v1-0 (gui-channel rider))
+                  "rider"
+                  )
+                 ((= v1-0 (gui-channel movie))
+                  "movie"
+                  )
+                 (else
+                   "*unknown*"
+                   )
+                 )
+               )
+         (v1-1 (-> this action))
+         )
+    (t9-0 a0-1 a1-0 a2-0 a3-0 t0-0 t1-0 t2-1 (cond
+                                               ((= v1-1 (gui-action queue))
+                                                "queue"
+                                                )
+                                               ((= v1-1 (gui-action stop))
+                                                "stop"
+                                                )
+                                               ((= v1-1 (gui-action play))
+                                                "play"
+                                                )
+                                               ((= v1-1 (gui-action hide))
+                                                "hide"
+                                                )
+                                               ((= v1-1 (gui-action fade))
+                                                "fade"
+                                                )
+                                               ((= v1-1 (gui-action none))
+                                                "none"
+                                                )
+                                               ((= v1-1 (gui-action abort))
+                                                "abort"
+                                                )
+                                               ((= v1-1 (gui-action stopping))
+                                                "stopping"
+                                                )
+                                               ((= v1-1 (gui-action hidden))
+                                                "hidden"
+                                                )
+                                               ((= v1-1 (gui-action playing))
+                                                "playing"
+                                                )
+                                               (else
+                                                 "*unknown*"
+                                                 )
+                                               )
+          )
+    )
+  (let ((s5-0 format)
+        (s4-0 #t)
+        (s3-0 " ~6S @ #x~A>")
+        (v1-3 (gui-control-method-17 *gui-control* (the-as uint (-> this id))))
+        )
+    (s5-0
+      s4-0
+      s3-0
+      (cond
+        ((= v1-3 2)
+         "ready"
+         )
+        ((= v1-3 3)
+         "active"
+         )
+        ((= v1-3 5)
+         "stop"
+         )
+        ((zero? v1-3)
+         "unknown"
+         )
+        ((= v1-3 4)
+         "hide"
+         )
+        ((= v1-3 1)
+         "pending"
+         )
+        (else
+          "*unknown*"
+          )
+        )
+      this
+      )
+    )
+  this
+  )
+
+(defmethod gui-control-method-11 ((this gui-control) (arg0 gui-connection))
+  (case (shr (the-as int (-> arg0 channel)) 4)
+    ((1 2)
+     (if (= (gui-control-method-17 this (the-as uint (-> arg0 id))) 3)
+         (str-play-stop (-> arg0 name) (-> arg0 id))
+         )
+     )
+    )
+  (if (= (-> this ids (-> arg0 channel)) (-> arg0 id))
+      (gui-control-method-25 this arg0 0)
+      )
+  0
+  (none)
+  )
+
+(defmethod gui-control-method-25 ((this gui-control) (arg0 gui-connection) (arg1 object))
+  (set! (-> this ids (-> arg0 channel)) (the-as sound-id arg1))
+  0
+  (none)
   )
 
 ;; WARN: Return type mismatch symbol vs load-dir.
@@ -445,6 +760,167 @@
         )
       )
     )
+  )
+
+;; og:preserve-this the external-art-buffer and external-art-control
+;; machinery decodes mostly clean against this rung's own fresh scoped
+;; decode; the prior rung's og:note calling the whole "external-art-
+;; control/buffer machinery" parked was true only for three methods (see
+;; the held list below), not the other twelve. loader-h.gc already carries
+;; both types' full field layout and :methods block (landed at e8971078d),
+;; so no deftype or config edit was needed for any of this.
+;;
+;; Landed from external-art-buffer: print, external-art-buffer-init (its
+;; own define-extern already lived in loader-h.gc), set-pending-file,
+;; unlock!, inactive?, file-status, link-file and unlink-file (the latter
+;; two call the already-landed link-art-to-master/unlink-art-to-master).
+;; Held: external-art-buffer's update (method 10) fails type prop at op
+;; 205 ("Called a function, but we do not know its type") and carries two
+;; unsupported sllv inline-asm instructions; a real blocker, not a config
+;; gap.
+;;
+;; Landed from external-art-control: file-status, none-reserved?,
+;; reserve-alloc, reserve-free (calls external-art-buffer's own update,
+;; still held above; an unfilled method-of-object dispatch, not a compile
+;; error) and clear-rec. Held: update (method 9) fails type prop at op
+;; 173 on the same "Could not figure out load" class as ja-play-spooled-
+;; anim below, plus two unsupported sllv instructions; spool-push (method
+;; 11) fails on an unresolved symbol (target-nearest-dist, not defined
+;; anywhere in goal_src/jakx) on top of three more sllv instructions.
+;; Neither is a config gap either.
+(defmethod print ((this external-art-buffer))
+  (format
+    #t
+    "#<~A ~S ~D ~A @ #x~X>"
+    (-> this type)
+    (-> this pending-load-file)
+    (-> this pending-load-file-part)
+    (-> this status)
+    this
+    )
+  this
+  )
+
+(defun external-art-buffer-init ((arg0 external-art-buffer))
+  (let ((v1-0 (-> arg0 heap)))
+    (set! (-> v1-0 base) (the-as pointer (+ #x84000 (* #x5a000 (-> arg0 index)))))
+    (set! (-> v1-0 current) (-> v1-0 base))
+    (set! (-> v1-0 top-base) (&+ (-> v1-0 base) #x5a000))
+    (set! (-> v1-0 top) (-> v1-0 top-base))
+    )
+  0
+  )
+
+(defmethod set-pending-file ((this external-art-buffer) (arg0 string) (arg1 int) (arg2 handle) (arg3 float))
+  (set! (-> this pending-load-file) arg0)
+  (set! (-> this pending-load-file-part) arg1)
+  (set! (-> this pending-load-file-owner) arg2)
+  (set! (-> this pending-load-file-priority) arg3)
+  0
+  )
+
+(defmethod unlock! ((this external-art-buffer))
+  (set! (-> this locked?) #f)
+  0
+  )
+
+(defmethod inactive? ((this external-art-buffer))
+  (!= (-> this status) 'active)
+  )
+
+(defmethod file-status ((this external-art-buffer) (arg0 string) (arg1 int))
+  (when (and (name= (-> this pending-load-file) arg0) (= (-> this pending-load-file-part) arg1))
+    (if (and (name= (-> this load-file) arg0) (= (-> this load-file-part) arg1))
+        (-> this status)
+        'pending
+        )
+    )
+  )
+
+(defmethod link-file ((this external-art-buffer) (arg0 art-group))
+  (when arg0
+    (link-art-to-master arg0)
+    (set! (-> this art-group) arg0)
+    )
+  arg0
+  )
+
+(defmethod unlink-file ((this external-art-buffer) (arg0 art-group))
+  (when arg0
+    (unlink-art-to-master arg0)
+    (set! (-> this art-group) #f)
+    )
+  0
+  )
+
+(defmethod file-status ((this external-art-control) (arg0 string) (arg1 int))
+  (dotimes (s3-0 2)
+    (let ((v1-3 (file-status (-> this buffer s3-0) arg0 arg1)))
+      (if v1-3
+          (return v1-3)
+          )
+      )
+    )
+  #f
+  )
+
+(defmethod none-reserved? ((this external-art-control))
+  (zero? (-> this dma-reserve-buffer-count))
+  )
+
+(defmethod reserve-alloc ((this external-art-control))
+  (when (zero? (-> this dma-reserve-buffer-count))
+    (when (zero? (-> this dma-reserve-buffer-count))
+      (set! (-> this dma-reserve-buffer-count) 1)
+      (let ((v1-3 (-> this dma-reserve-heap)))
+        (set! (-> v1-3 base) (logand -64 (&+ (&+ (-> *display* frames 1 global-buf end) -368704) 63)))
+        (set! (-> v1-3 current) (-> v1-3 base))
+        (set! (-> v1-3 top-base) (&+ (-> v1-3 base) #x5a000))
+        (set! (-> v1-3 top) (-> v1-3 top-base))
+        )
+      (set! (-> *display* frames 1 global-buf end) (-> this dma-reserve-heap base))
+      (-> this dma-reserve-heap)
+      )
+    )
+  )
+
+(defmethod reserve-free ((this external-art-control) (arg0 kheap))
+  (cond
+    ((nonzero? (-> this dma-reserve-buffer-count))
+     (set! (-> this dma-reserve-buffer-count) 0)
+     (let ((v1-3 (-> *display* frames 1 global-buf)))
+       (set! (-> v1-3 end) (the-as pointer (+ (+ (-> v1-3 allocated-length) 28) (the-as int v1-3))))
+       )
+     )
+    ((and (zero? (-> this reserve-buffer-count)) (zero? (-> this dma-reserve-buffer-count)))
+     (format 0 "ERROR: illegal attempt to free a buffer #x~X which had not been reserved (none reserved).~%" arg0)
+     )
+    ((not (-> this reserve-buffer))
+     (set! (-> this reserve-buffer-count) 0)
+     0
+     )
+    ((= (-> this reserve-buffer heap) arg0)
+     (set-pending-file (-> this reserve-buffer) (the-as string #f) -1 (the-as handle #f) 100000000.0)
+     (update (-> this reserve-buffer))
+     (set! (-> this reserve-buffer-count) 0)
+     0
+     )
+    (else
+      (format 0 "ERROR: illegal attempt to free a buffer #x~X which had not been reserved (buffer unknown).~%" arg0)
+      )
+    )
+  0
+  )
+
+(defmethod clear-rec ((this external-art-control))
+  (dotimes (v1-0 3)
+    (set! (-> this rec v1-0 type) spool-anim)
+    (set! (-> this rec v1-0 name) #f)
+    (set! (-> this rec v1-0 priority) 100000000.0)
+    (set! (-> this rec v1-0 owner) (the-as handle #f))
+    )
+  (set! (-> this frame-mask) (the-as uint (-> *setting-control* user-current process-mask)))
+  0
   )
 
 ;; definition of type spooler-block
