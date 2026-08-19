@@ -1457,5 +1457,14 @@
   // a one-byte scratch cell ("Failed to guess stack use for 16"). A bare
   // "int8" scalar (no array wrapper) crashed identically to the untagged
   // form above; using the same ["array", "int8", N] shape at N=1 instead.
-  "(method 9 hud-lap)": [[16, ["array", "int8", 1]]]
+  "(method 9 hud-lap)": [[16, ["array", "int8", 1]]],
+  // nav-keystone rung: find-first-containing-nav-mesh builds a
+  // nav-find-poly-parms on the stack at sp+16 (ignore set to 7 via a raw
+  // byte store at +20, the query point written via vector-!2 at +0, the
+  // max(nearest-y-threshold, arg1) result stored at +16), matching
+  // nav-find-poly-parms's own point/y-threshold/ignore field offsets
+  // field-for-field, then passes its address straight through to
+  // nav-mesh-method-42 the same way jak3's find-nearest-nav-mesh passes it
+  // to nav-mesh-method-46 (both cast the struct as nav-poly).
+  "find-first-containing-nav-mesh": [[16, "nav-find-poly-parms"]]
 }

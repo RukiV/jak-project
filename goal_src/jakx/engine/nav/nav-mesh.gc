@@ -43,3 +43,37 @@
   this
   )
 
+;; definition for function find-first-containing-nav-mesh
+(defun find-first-containing-nav-mesh ((arg0 vector) (arg1 float) (arg2 (pointer nav-poly)))
+  (let ((sv-64 (new 'stack-no-clear 'nav-find-poly-parms)))
+    (set! (-> sv-64 ignore) (the-as uint 7))
+    (dotimes (s3-0 (-> *level* length))
+      (let ((v1-5 (-> *level* level s3-0)))
+        (when (= (-> v1-5 status) 'active)
+          (let ((s2-0 (-> v1-5 bsp nav-meshes)))
+            (when (nonzero? s2-0)
+              (dotimes (s1-0 (-> s2-0 length))
+                (let ((s0-0 (-> s2-0 s1-0 nav-mesh)))
+                  (when s0-0
+                    (vector-! (-> sv-64 point) arg0 (the-as vector (-> s0-0 bounds)))
+                    (set! (-> sv-64 y-threshold) (fmax (-> s0-0 nearest-y-threshold) arg1))
+                    (let ((v1-14 (nav-mesh-method-42 s0-0 (the-as nav-poly sv-64))))
+                      (when v1-14
+                        (if arg2
+                            (set! (-> arg2 0) v1-14)
+                            )
+                        (return s0-0)
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  (the-as nav-mesh #f)
+  )
+

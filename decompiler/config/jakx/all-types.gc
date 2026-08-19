@@ -40263,7 +40263,7 @@
     (nav-mesh-method-39 (_type_ nav-poly vector vector) vector) ;; 39 ;; the jak3 ADOPTED name "debug-draw-poly" is a mismatch: jak3's own debug-draw-poly (nav-mesh.gc) is add-debug-line/rgba, but this worktree's decode shows arg1 (a2) as a write-only vector out-pointer (16-byte s.q!, never read) and a new 4th arg (a3) fed as vector-segment-distance-point!'s query point in a per-edge min-distance scan, returning arg1's pointer; no add-debug-line or color use anywhere in the body. Closest analog is jak3's standalone point-to-poly-boundary (also a per-edge vector-segment-distance-point! scan) but that is a defun on nav-poly, not a nav-mesh method, and it filters to adj-poly 255 boundary edges only, which this body does not, so it is not adopted as the name either. Left generic pending a call-site or stronger twin match.
     (nav-mesh-method-40 () none) ;; 40 ;; 
     (nav-mesh-method-41 (_type_ nav-poly vector vector vector (pointer nav-poly)) vector) ;; 41 ;; ADOPTED
-    (closest-point-on-boundary (_type_ nav-poly vector vector) vector) ;; 42 ;; ADOPTED
+    (nav-mesh-method-42 (_type_ nav-poly) nav-poly) ;; 42 ;; shift-corrected: jak3 id 46 (find-first-containing-nav-mesh's own call at vtable offset 184 = (184-16)/4 = method 42 sets only a0/a1 before the dispatch; a2/a3 are never written anywhere else in the function, so they carry stale passthrough/garbage, ruling out the ADOPTED 4-arg closest-point-on-boundary shape; jak3's own method-46 is a 2-arg sphere-hash point-containment search over a nav-find-poly-parms struct cast as nav-poly, matching this call's own ignore=7 / y-threshold / point-delta setup field-for-field)
     (project-point-onto-plane-of-poly-local (_type_ nav-poly vector vector vector) none) ;; 43 ;; ADOPTED
     (nav-mesh-method-44 (_type_ vector float float) symbol) ;; 44 ;; shift-corrected: jak3 id 47 (id-drift, types2 hang proof)
     (nav-mesh-method-45 (_type_ nav-poly) nav-poly) ;; 45 ;; ADOPTED
@@ -50082,7 +50082,7 @@
 (define-extern get-nav-mesh (function actor-id nav-mesh))
 (define-extern find-nearest-nav-mesh (function vector float nav-mesh))
 (define-extern point-to-poly-boundary (function nav-poly vector vector float))
-;; (define-extern find-first-containing-nav-mesh function) ;; no hint, needs its own register-level signature
+(define-extern find-first-containing-nav-mesh (function vector float (pointer nav-poly) nav-mesh))
 (define-extern find-nav-mesh (function object vector float float float collide-cache object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
