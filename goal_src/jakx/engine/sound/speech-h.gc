@@ -117,7 +117,7 @@
 
 
 (deftype speech-info (structure)
-  ((list   basic)
+  ((list   (array speech-info-item))
    (flags  speech-info-flag)
    )
   (:methods
@@ -148,7 +148,7 @@
    (id               sound-id)
    (time             uint64)
    (current-request  speech-request)
-   (requests         basic)
+   (requests         (array speech-request))
    (speeches         speech-info-item  31)
    )
   (:methods
@@ -158,7 +158,7 @@
     (speech-channel-method-12 (_type_ object object) none)
     (speech-channel-method-13 (_type_) none)
     (speech-channel-method-14 (_type_ int) none)
-    (speech-channel-method-15 (_type_ object) none)
+    (speech-channel-method-15 (_type_ kheap) none)
     (speech-channel-method-16 (_type_ int) none)
     )
   )
@@ -175,11 +175,11 @@
     (speech-control-method-13 (_type_) none)
     (speech-control-method-14 (_type_ object object) none)
     (speech-control-method-15 (_type_ kheap) none) ;; jakx adds a kheap arg vs jak3
-    (speech-control-method-16 (_type_ object object) none)
+    (speech-control-method-16 (_type_ int int) none)
     )
   )
 
-;; og:preserve-this bring-up: #f until speech.gc (which creates *speech-control*) is
-;; decompiled. A bare define-extern leaves the symbol value 0, which is truthy in GOAL,
-;; so level.o's deactivate would dispatch speech-control-method-15 on object 0 and crash.
-(define *speech-control* (the-as speech-control #f))
+;; retired: speech.gc's own clean-decode subset now supplies the real
+;; (define *speech-control* (new 'static 'speech-control)), so the bring-up
+;; placeholder is gone and this is a plain forward declaration again.
+(define-extern *speech-control* speech-control)
