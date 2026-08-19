@@ -7,8 +7,145 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this bring-up stub: called per frame with -1; real body loads level text.
+(kmemopen global "text-buffers")
+
+(define *expand-buf-number* 0)
+
+(define *game-text-word* (new 'global 'string 1024 (the-as string #f)))
+
+(define *hyphen-text-word* (new 'global 'string 1024 (the-as string #f)))
+
+(define *game-text-string* (new 'global 'string 1024 (the-as string #f)))
+
+(define *expanded-text-line0* (new 'global 'string 1024 (the-as string #f)))
+
+(define *expanded-text-line1* (new 'global 'string 1024 (the-as string #f)))
+
+(define *tmp-convert-string* (new 'global 'string 1024 (the-as string #f)))
+
+(define *level-text-file-load-flag* #t)
+
+(when (zero? (-> *common-text-heap* base))
+  (let ((gp-0 *common-text-heap*))
+    (set! (-> gp-0 base) (kmalloc global #x12800 (kmalloc-flags) "heap"))
+    (set! (-> gp-0 current) (-> gp-0 base))
+    (set! (-> gp-0 top-base) (&+ (-> gp-0 base) #x12800))
+    (set! (-> gp-0 top) (-> gp-0 top-base))
+    )
+  )
+
+(kmemclose)
+
+(define text-is-loading #f)
+
+;; og:preserve-this text-loading-chain rung (held): the top-level also declares a
+;; local structure type via (type-new 'print-game-text-work structure ...) and
+;; binds its own method 3 to it. That method-3 body fails type prop ("has unknown
+;; type") outright, and print-game-text below (the struct's only consumer, and
+;; the only place that would reveal its field layout) is itself held as a wall.
+;; Deriving print-game-text-work's fields now would be inventing content the
+;; decode does not give; both the type and its method stay unlanded.
+
+(defmethod mem-usage ((this game-text-info) (usage memory-usage-block) (flags int))
+  (set! (-> usage length) (max 84 (-> usage length)))
+  (set! (-> usage data 83 name) "string")
+  (+! (-> usage data 83 count) 1)
+  (let ((v1-6 (asize-of this)))
+    (+! (-> usage data 83 used) v1-6)
+    (+! (-> usage data 83 total) (logand -16 (+ v1-6 15)))
+    )
+  (dotimes (v1-10 (-> this length))
+    )
+  this
+  )
+
+;; og:preserve-this text-loading-chain rung (held): (method 3 game-text-info)
+;; (inspect) fails type prop at its own op 34, "Could not figure out load: (set!
+;; a0 (l.wu (+ v1 4)))", reading into the record array the same way methods
+;; 9/10/11/12 below do. This is the record-field decode wall the brief already
+;; flags on method 9; it blocks method 3 identically.
+
+;; og:preserve-this text-loading-chain rung (held): enable-level-text-file-loading
+;; and disable-level-text-file-loading both fail with "has unknown type" (no
+;; all-types.gc function-type entry for either symbol, so the decompiler cannot
+;; print a signature even though the bodies are two unambiguous instructions each
+;; setting *level-text-file-load-flag* and returning 0). Fixing this needs an
+;; all-types.gc entry, which is outside this rung's scope (text-h.gc sync only);
+;; held and reported rather than hand-typed from the raw asm.
+
+;; og:preserve-this text-loading-chain rung (held): print-game-text fails with
+;; six real errors (failed type prop "add failed: object <integer 4>"; two
+;; "Function may read a register that is not set" on t1/t2; four unsupported
+;; inline-asm "sllv v1, v0, r0" instructions), plus hyphenate-word (423 lines,
+;; "has unknown type", no OpenGOAL emitted at all) and draw-debug-text-box (274
+;; lines, same "has unknown type", no emission). None of the three produced any
+;; transcribable GOAL.
+
+;; og:preserve-this text-loading-chain rung: called per frame with -1; the real
+;; body decodes clean (WARN: Return type mismatch int vs none only, matching this
+;; stub's own long-standing int/none mismatch) and does exactly what jak3's twin
+;; does structurally: gate on *level-text-file-load-flag* or arg0>=0, then call
+;; (load-game-text-info "common" (&-> '*common-text* value) *common-text-heap*).
+;; Held anyway: load-game-text-info itself fails "CFG building failed: Could not
+;; fully resolve CFG" with zero GOAL emitted, even after blocks_ending_in_asm_branch
+;; hints seeded from jak3's own [19, 20, 21] and iterated against the jakx CFG
+;; (scratch-tested; the str-load retry/error/busy-loop tail, blocks 29-41, does
+;; fully resolve into one clean chain under hints, but the preamble's own
+;; territory/subtitle-language boolean chain, ops 0-28, stays an opaque unresolved
+;; node under every hint set tried, including the full 0-41 range). Per the e2
+;; rule an extern with no defun links its call to 0, so replacing this stub's body
+;; without a real load-game-text-info binding would trade a no-op for a crash on
+;; the very first (load-level-text-files -1) at boot. Stub body unchanged; the
+;; scratch hacks.jsonc experiment was reverted, no config debt left in the tree.
 (defun load-level-text-files ((arg0 int))
   0
   (none)
+  )
+
+;; og:preserve-this text-loading-chain rung (held): load-game-text-info itself,
+;; the actual *common-text* assignment call load-level-text-files makes above.
+;; See that function's own comment for the full CFG-wall evidence; this is the
+;; real blocker on the *common-text* assignment, not method 9 below.
+
+(defmethod lookup-text ((this level) (arg0 text-id) (arg1 symbol))
+  (let ((v1-0 *common-text*))
+    (dotimes (a3-0 (-> this loaded-text-info-count))
+      (if (= (-> this loaded-text-info a3-0 language-id) (-> *setting-control* user-current language))
+          (set! v1-0 (-> this loaded-text-info a3-0))
+          )
+      )
+    (game-text-info-method-9 v1-0 arg0 arg1)
+    )
+  )
+
+;; og:preserve-this text-loading-chain rung (held): (method 10 game-text-info),
+;; (method 9 game-text-info) (the brief's own known wall, lookup-text!'s real
+;; body), (method 12 game-text-info) and (method 11 game-text-info) all fail
+;; type prop on the same record-field load class ("Could not figure out load:
+;; (set! t1 (l.wu t1))" / "(set! t1 (l.bu t0))"), reading into the game-text
+;; record array (id/text pairs) the same way method 3 above does. lookup-text
+;; just above dispatches into method 9 by name (game-text-info-method-9) and
+;; stays inert until this wall clears.
+
+;; og:preserve-this text-loading-chain rung (held): convert-korean-text fails
+;; "Failed load: (set! v1-6 (l.w s3-0)) at op 17", the only consumer of
+;; *hyphen-text-word*/*tmp-convert-string* still bound above without ever being
+;; read.
+
+(defmethod asize-of ((this game-text-info))
+  (the-as int (+ (-> this type size) (* (-> this length) 8)))
+  )
+
+(defmethod length ((this game-text-info))
+  (-> this length)
+  )
+
+(defmethod relocate ((this game-text-info) (offset int))
+  (let ((v1-1 (-> *level* loading-level)))
+    (when v1-1
+      (set! (-> v1-1 loaded-text-info (-> v1-1 loaded-text-info-count)) this)
+      (+! (-> v1-1 loaded-text-info-count) 1)
+      )
+    )
+  this
   )
