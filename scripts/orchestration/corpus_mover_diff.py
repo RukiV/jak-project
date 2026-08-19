@@ -61,9 +61,27 @@ def git_status_short(repo_root):
 
 
 def make_junction(link, target):
-    if os.path.exists(link):
-        return
-    r = subprocess.run(["cmd", "/c", "mklink", "/J", os.path.normpath(link), os.path.normpath(target)],
+    # An existing link is only acceptable if it points at THIS target. The old
+    # existence-only check silently kept whatever a stale --scratch directory
+    # already carried, and a junction left over from a different worktree made
+    # the before/after decodes byte-identical: a false "0 movers" that reads as
+    # a clean verification. Caught live on 2026-08-19 when a speech-lane run
+    # inherited a junction into another lane's config. Verify the target and
+    # repoint rather than trust presence.
+    link_n, target_n = os.path.normpath(link), os.path.normpath(target)
+    if os.path.exists(link_n):
+        try:
+            current = os.path.normpath(os.path.realpath(link_n))
+        except OSError:
+            current = None
+        if current == os.path.normpath(os.path.realpath(target_n)):
+            return
+        r = subprocess.run(["cmd", "/c", "rmdir", link_n], capture_output=True, text=True)
+        if r.returncode != 0 or os.path.exists(link_n):
+            raise RuntimeError(
+                f"stale junction at {link_n} points at {current}, not {target_n}, "
+                f"and could not be unlinked:\n{r.stdout}\n{r.stderr}")
+    r = subprocess.run(["cmd", "/c", "mklink", "/J", link_n, target_n],
                         capture_output=True, text=True)
     if r.returncode != 0:
         raise RuntimeError(f"mklink /J failed: {link} -> {target}\n{r.stdout}\n{r.stderr}")
