@@ -91,6 +91,13 @@ jobs:
     name: Lint and format
     runs-on: ubuntu-22.04
     timeout-minutes: 20
+    outputs:
+      # Consumed by windows-msvc to short-circuit its build steps on diffs that
+      # cannot change the C++ artifact. Only the literal string 'false' skips;
+      # anything else (including empty, e.g. workflow_dispatch with no base to
+      # diff against) builds, so the failure direction is always a wasted build,
+      # never a skipped-but-needed one.
+      cpp_changed: ${{ steps.pathfilter.outputs.cpp_changed }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -111,6 +118,45 @@ jobs:
           git config gc.auto 0
           git config gc.autoDetach false
           git config maintenance.auto false
+
+      # Most landing pull requests here touch only GOAL source, decompiler config,
+      # reference dumps and docs, none of which reach the C++ artifact, yet the MSVC
+      # job spends ten serial runner-minutes rebuilding it anyway. Classify the diff:
+      # a file list where EVERY path matches the safe set means the C++ build cannot
+      # change. Any diff failure, empty base, or unexpected path classifies as
+      # changed, so the fail-safe direction is a wasted build.
+      - name: Classify the diff for the MSVC short-circuit
+        id: pathfilter
+        env:
+          BASE: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -u
+          if [ -z "$BASE" ]; then
+            echo "cpp_changed=true" >> "$GITHUB_OUTPUT"
+            echo "no base ref (not a pull request); classifying as changed"
+            exit 0
+          fi
+          for i in 1 2 3; do
+            git fetch --no-tags --depth=200 origin "$BASE" && break
+            if [ "$i" = 3 ]; then echo "cpp_changed=true" >> "$GITHUB_OUTPUT"; echo "fetch failed; classifying as changed"; exit 0; fi
+            sleep 3
+          done
+          mb="$(git merge-base "origin/$BASE" HEAD || true)"
+          if [ -z "$mb" ]; then
+            echo "cpp_changed=true" >> "$GITHUB_OUTPUT"
+            echo "no merge base within fetch depth; classifying as changed"
+            exit 0
+          fi
+          changed="$(git diff --name-only "$mb" HEAD)"
+          echo "changed files:"; echo "$changed"
+          unsafe="$(echo "$changed" | grep -vE '^(goal_src/|decompiler/config/|test/decompiler/reference/|test/offline/config/|docs/|scripts/|custom_assets/|\.forgejo/|\.github/)' | grep -vE '\.(md|txt)$' || true)"
+          if [ -z "$unsafe" ]; then
+            echo "cpp_changed=false" >> "$GITHUB_OUTPUT"
+            echo "verdict: no C++-reaching path; MSVC build steps will short-circuit"
+          else
+            echo "cpp_changed=true" >> "$GITHUB_OUTPUT"
+            echo "verdict: C++-reaching paths present:"; echo "$unsafe"
+          fi
 
       # AGENTS.md requires the (AI-assisted) marker on contributor commits; nothing
       # checked it mechanically until #88 (a violation shipped in the PR #85 follow-up
@@ -415,6 +461,7 @@ jobs:
 
     steps:
       - name: Stop any leftover sccache server
+        if: needs.lint.outputs.cpp_changed != 'false'
         # A running server keeps the configuration it was started with, so the env
         # above only takes effect if no server survives from an earlier job. On a
         # persistent runner one usually does, which makes this step load-bearing
@@ -444,6 +491,13 @@ jobs:
           # find the repo. See alex/jak-project#47.
           path: jak-project
 
+      # The check context must still report success when the build is skipped,
+      # because branch protection keys on this job's context; skipping the whole
+      # job would leave the context missing and block the merge. So the job runs,
+      # says why it is short-circuiting, and every heavy step gates itself.
+      - name: Short-circuit verdict
+        run: echo "lint classified cpp_changed='${{ needs.lint.outputs.cpp_changed }}' (only the literal string false skips the build steps)"
+
       # No shallow-maintenance guard here on purpose: the race needs two sequential
       # fetches in one clone and this job performs exactly one (the checkout's own).
       # The guard briefly lived here and broke the job twice over: inserting it
@@ -452,10 +506,12 @@ jobs:
       # silent exit 1) and stripped the checkout of its required target directory.
 
       - name: Install NASM
+        if: needs.lint.outputs.cpp_changed != 'false'
         run: |
           choco install nasm --source="${{ github.workspace }}/jak-project/third-party/nasm"
 
       - name: Mirror the checkout to a stable path
+        if: needs.lint.outputs.cpp_changed != 'false'
         # The compile has to happen at a path that does not change between runs, or
         # sccache cannot hit. Its hash covers the absolute paths on the command line,
         # and Forgejo hands every job a workspace named work\<random hash>\, so every
@@ -484,8 +540,10 @@ jobs:
           exit /b 0
 
       - uses: ilammy/msvc-dev-cmd@v1
+        if: needs.lint.outputs.cpp_changed != 'false'
 
       - name: Start sccache
+        if: needs.lint.outputs.cpp_changed != 'false'
         # Started explicitly so it picks up the job env above, rather than being
         # started lazily by the first compile with whatever environment that step
         # happened to carry. Counters are zeroed so the stats at the end describe
@@ -497,11 +555,13 @@ jobs:
           sccache -z
 
       - name: CMake Generation - MSVC
+        if: needs.lint.outputs.cpp_changed != 'false'
         shell: cmd
         working-directory: C:\ci\jak-project
         run: cmake -B build --preset=Release-windows-msvc -DCMAKE_C_COMPILER_LAUNCHER=sccache -DCMAKE_CXX_COMPILER_LAUNCHER=sccache .
 
       - name: Build Project
+        if: needs.lint.outputs.cpp_changed != 'false'
         shell: cmd
         working-directory: C:\ci\jak-project
         run: |
@@ -514,11 +574,12 @@ jobs:
         # something started putting SCCACHE_DIR back inside the workspace or a
         # stale server survived with the old configuration. Runs on failure too,
         # since a build that broke is exactly when the stats are worth seeing.
-        if: always()
+        if: always() && needs.lint.outputs.cpp_changed != 'false'
         shell: cmd
         run: sccache -s
 
       - name: Run Tests
+        if: needs.lint.outputs.cpp_changed != 'false'
         timeout-minutes: 10
         working-directory: C:\ci\jak-project
         env:
