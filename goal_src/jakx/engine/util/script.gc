@@ -8,6 +8,24 @@
 (declare-type script-form structure)
 (define-extern *script-form* (inline-array script-form))
 
+;; og:preserve-this: process-by-ename is a forward declaration, not a decoded
+;; symbol. Landing command-get-process's real body below activates one call to
+;; it (the (type? arg0 string) branch). Its home object entity.gc IS landed but
+;; only partially: process-by-ename is one of the functions that landing left
+;; out (entity-by-meters, entity-nav-mesh-by-aid, entity-process-count,
+;; entity-count and reset-actors are all missing from it too), so this is a
+;; pre-existing gap in that object's landing, not something this rung
+;; introduces. It decodes clean in its own object (six lines, calling the
+;; already-landed entity-by-name), so the real fix is entity.gc's own next rung
+;; landing it, not an extern here; this declaration only keeps script.gc
+;; compiling until then. Signature taken from decompiler/config/jakx/
+;; all-types.gc, which matches jak3's landed defun exactly.
+;; RUNTIME HAZARD: process-by-ename links as zero until entity.gc lands it.
+;; command-get-process's string branch crashes if reached. That is still a net
+;; improvement on the state this rung replaces, where command-get-process
+;; itself was unbound and all six of its game-DGO call sites crashed.
+(define-extern process-by-ename (function string process))
+
 ;; DECOMP BEGINS
 
 ;; failed to figure out what this is:
@@ -161,32 +179,133 @@
       )
   )
 
-;; og:preserve-this: command-get-process is flagged as asm by config
-;; (decompiler/config/jakx/ntsc_v1/hacks.jsonc, the command-get-process
-;; entry). Its *task-manager* branch walks *task-manager-engine*'s
-;; alive-list and, once it finds the match, hits an unconditional break out
-;; of the while loop; the instructions that follow the break in the
-;; compiled binary are genuinely dead (never executed at runtime) but
-;; decode as a run of five statements (four (the-as none ...) casts plus a
-;; literal (l.wu 0), a load from address 0), not the single-statement or
-;; all-empty shapes decompiler/analysis/cfg_builder.cpp's
-;; clean_up_break_final() recognizes ("failed to recognize dead code after
-;; break"). That function takes no config parameter, so no
-;; type_casts.jsonc or stack_structures.jsonc entry can reach it. jak3's
-;; own landed twin hits the same dead (l.wu 0) load in the identical loop
-;; (its own op 111) but its build's dead-code region happens to reduce to
-;; the single-statement shape the checker accepts, so it decodes with the
-;; load preserved verbatim plus a WARN rather than throwing. Every other
-;; part of this function (the type-tag dispatch chain, the entity-actor/
-;; process-drawable casts, the stack event-message-block for the 'vehicle
-;; branch) resolves cleanly via type_casts.jsonc and stack_structures.jsonc
-;; and stays in place for the next rung that wants to retry a full decode.
-;; command-get-process is already declared in script-h.gc, so it needs no
-;; extern here.
-;; RUNTIME HAZARD: command-get-process links as zero until a real body
-;; lands. It is called from 6 game-DGO sites (generic-obs.gc's targeting
-;; and event-relay paths), each of which crashes if reached with this
-;; object loaded.
+;; definition for function command-get-process
+;; WARN: Return type mismatch object vs process.
+;; ERROR: Failed load: (set! v1-29 (l.wu 0)) at op 124
+(defun command-get-process ((arg0 object) (arg1 process))
+  (with-pp
+    (set! arg1
+          (cond
+            ((or (null? arg0) (not arg0))
+             (empty)
+             arg1
+             )
+            ((= arg0 'player)
+             pp
+             )
+            ((= arg0 'vehicle)
+             (the-as process (send-event pp 'get-vehicle))
+             )
+            ((or (type? arg0 process) (= (rtype-of arg0) actor-group))
+             (the-as process arg0)
+             )
+            ((type? arg0 entity-actor)
+             (-> (the-as entity-actor arg0) extra process)
+             )
+            ((or (= arg0 'target) (= arg0 '*target*))
+             (view-get-active-target)
+             )
+            ((= arg0 'parent)
+             (let ((v1-15 (-> pp parent)))
+               (if v1-15
+                   (the-as process (-> v1-15 0 self))
+                   )
+               )
+             )
+            ((= arg0 'camera)
+             (view-get-active-camera)
+             )
+            ((= arg0 '*task-manager*)
+             (when (nonzero? (-> (the-as setting-control *setting-control*) user-current exclusive-task-count))
+               (let ((v1-23 (-> *task-manager-engine* alive-list next0)))
+                 *task-manager-engine*
+                 (let ((a0-12 (-> v1-23 next0)))
+                   (while (!= v1-23 (-> *task-manager-engine* alive-list-end))
+                     (when (= (-> (the-as (pointer uint8) (-> (the-as connection v1-23) param2)) 4)
+                              (-> *setting-control* user-current exclusive-task 0)
+                              )
+                       (set! arg1 (the-as process (-> (the-as connection v1-23) param1)))
+                       (goto cfg-91)
+                       )
+                     (set! v1-23 a0-12)
+                     *task-manager-engine*
+                     (set! a0-12 (-> a0-12 next0))
+                     )
+                   )
+                 )
+               )
+             (let ((v1-29 (-> *task-manager-engine* alive-list next0)))
+               *task-manager-engine*
+               (-> v1-29 next0)
+               (while (!= v1-29 (-> *task-manager-engine* alive-list-end))
+                 (set! arg1 (the-as process (-> (the-as connection v1-29) param1)))
+                 (goto cfg-91)
+                 )
+               )
+             (the-as process #f)
+             )
+            ((type? arg0 string)
+             (set! arg1 (process-by-ename (the-as string arg0)))
+             (cond
+               (arg1
+                 (empty)
+                 arg1
+                 )
+               ((-> *setting-control* user-current movie)
+                (let ((s5-1 (ppointer->process (-> *setting-control* user-current movie 0 child))))
+                  (while s5-1
+                    (when (name= arg0 (-> s5-1 name))
+                      (set! arg1 (the-as process s5-1))
+                      (goto cfg-91)
+                      )
+                    (set! s5-1 (ppointer->process (-> s5-1 brother)))
+                    )
+                  )
+                (let ((s5-2 (ppointer->process (-> *setting-control* user-current movie 0 child))))
+                  (while s5-2
+                    (let ((s4-0 (as-type s5-2 process-drawable)))
+                      (format (clear *temp-string*) "~S-lod0" arg0)
+                      (let ((s3-2 *temp-string*))
+                        (when (and s4-0
+                                   (nonzero? (-> (the-as process-drawable s4-0) draw))
+                                   (or (and (nonzero? (-> (the-as process-drawable s4-0) draw art-group))
+                                            (string= (the-as string arg0) (-> (the-as process-drawable s4-0) draw art-group name))
+                                            )
+                                       (and (nonzero? (-> (the-as process-drawable s4-0) draw jgeo))
+                                            (string= s3-2 (-> (the-as process-drawable s4-0) draw jgeo name))
+                                            )
+                                       )
+                                   )
+                          (format 0 "WARNING: command-get-process returning art-group or jgeo named ~A~%" arg0)
+                          (set! arg1 (the-as process s4-0))
+                          (goto cfg-91)
+                          )
+                        )
+                      )
+                    (set! s5-2 (ppointer->process (-> s5-2 brother)))
+                    )
+                  )
+                (the-as process #f)
+                )
+               (else
+                 (let ((v1-70 (process-by-name (the-as string arg0) *active-pool*)))
+                   (if v1-70
+                       v1-70
+                       )
+                   )
+                 )
+               )
+             )
+            (else
+              (empty)
+              arg1
+              )
+            )
+          )
+    (label cfg-91)
+    (the-as process arg1)
+    )
+  )
 
 ;; definition for function command-get-entity
 ;; WARN: Return type mismatch object vs entity.

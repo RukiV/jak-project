@@ -7,35 +7,6 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this wcar-skel-template rung (extern-no-defun keystone):
-;; get-car-skel-part is a global function defined by this object (a labeled
-;; ";; definition for function get-car-skel-part" block, not a defmethod),
-;; but its body cannot be decompiled: it is a 5-iteration search loop
-;; (format "<name>-<letter>" for letter in a..e, look the string up via a
-;; level vtable method, and on the first hit stash the match into arg2's
-;; art-group-name field and return arg2). The compiler places the
-;; found-and-break arm as the loop-check branch's fallthrough and the
-;; not-found/continue arm as the taken branch, which rejoins the loop test
-;; rather than the found arm's own break target; CfgVtx.cpp's
-;; find_cond_n_else and find_goto_not_end (decompiler/Function/CfgVtx.cpp)
-;; both require a shape neither arm here has, so CFG resolution fails ("CFG
-;; building failed", "has unknown type") independent of typing: all-types.gc
-;; already carries the correct signature for this symbol. Full trace kept
-;; with the asm_functions_by_name entry in
-;; decompiler/config/jakx/ntsc_v1/hacks.jsonc, which parks get-car-skel-part
-;; as asm to clear those two decode errors. Per the raptor.gc precedent
-;; (raptor-startup-code and friends) and race-line.gc's methods 11-14,
-;; get-car-skel-part stays declared here with no body: writing one by hand
-;; would be inventing behavior the decode does not contain, not transcribing
-;; it. Unlike those two precedents, this symbol has real callers: 120 call
-;; sites across the wcar family (goal_src/jakx/levels/common/wcar-*.gc), all
-;; of which stay in the extern-no-defun (e2) defect class, jumping to goal
-;; address 0 the first time one runs, until a real fix lands (a mips2c port
-;; or a CfgVtx.cpp change to the pattern matcher, both out of this rung's
-;; scope). Retire this comment and the hacks.jsonc entry together once
-;; get-car-skel-part has a real bound implementation.
-(define-extern get-car-skel-part (function level string skeleton-group skeleton-group))
-
 ;; failed to figure out what this is:
 (defskelgroup skel-car-part-temp falcon-hood-a 1 5
               ((2 (meters 20)) (3 (meters 40)) (4 (meters 999999)))
@@ -56,3 +27,28 @@
 
 ;; definition for symbol *car-part-temp-string*, type string
 (define *car-part-temp-string* "123456789012345678901234567890")
+
+;; definition for function get-car-skel-part
+;; WARN: Found some very strange gotos. Check result carefully, this is not well tested.
+(defun get-car-skel-part ((arg0 level) (arg1 string) (arg2 skeleton-group))
+  (let ((gp-0 (the-as skeleton-group #f)))
+    (let ((s2-0 *car-part-temp-string*)
+          (s1-0 0)
+          )
+      (goto cfg-4)
+      (until (>= s1-0 5)
+        (format (clear s2-0) "~S-~C" arg1 (+ s1-0 97))
+        (when (get-art-group-by-name arg0 s2-0)
+          (format 0 "~S~%" s2-0)
+          (set! (-> arg2 art-group-name) s2-0)
+          (set! gp-0 arg2)
+          (goto cfg-6)
+          )
+        (+! s1-0 1)
+        (label cfg-4)
+        )
+      )
+    (label cfg-6)
+    gp-0
+    )
+  )
