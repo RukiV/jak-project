@@ -16,6 +16,22 @@
   )
 ;; ---pov-camera-flag
 
+;; og:preserve-this forward declarations matching jak3's own pov-camera-h.gc
+;; (goal_src/jak3/engine/camera/pov-camera-h.gc:19-22): pov-camera.gc's own
+;; pov-camera-start-playing state spawns othercam via process-spawn, whose
+;; macro expansion references othercam-init-by-other by name before this
+;; file's own defbehavior for it is compiled (othercam-init-by-other is
+;; defined at the end of pov-camera.gc, after every state that can spawn
+;; it); without the forward declaration goalc rejects it with "was looked
+;; up as a global variable, but it does not exist" (this rung's own (mi)
+;; build). othercam itself is a process subtype defined in a still-
+;; unlanded file (goal_src/jak3/engine/common-obs/generic-obs-h.gc's own
+;; twin), hence the declare-type.
+(declare-type pov-camera process-drawable)
+(declare-type othercam process)
+(define-extern pov-camera-init-by-other (function vector skeleton-group string pov-camera-flag process-drawable pair none :behavior pov-camera))
+(define-extern othercam-init-by-other (function pov-camera int symbol symbol none :behavior othercam))
+
 ;; DECOMP BEGINS
 
 ;; definition of type pov-camera
@@ -38,10 +54,10 @@
     )
   (:methods
     (pov-camera-method-55 (_type_) none)
-    (pov-camera-method-56 () none)
+    (pov-camera-method-56 () symbol)
     (pov-camera-method-57 (_type_) none)
     (pov-camera-method-58 () none)
-    (pov-camera-method-59 () none)
+    (pov-camera-method-59 () symbol)
     )
   )
 

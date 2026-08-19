@@ -7,3 +7,327 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this the functions below are held, not landed. Each still
+;; reports its own decode error from this rung's own scoped decode
+;; (collide-mesh, ntsc_v1), cited by its own failing op. Retirement
+;; condition for each: land once its own decode clears (a config fix or a
+;; hand-fix).
+;;
+;; (method 11 collide-mesh) should-push-away-test: "ERROR: function was
+;; not converted to expressions. Cannot decompile." (BAD PROLOGUE per the
+;; ir2.asm's own header); already flagged asm_functions_by_name in
+;; hacks.jsonc by a prior survey, a CFG-level failure ahead of type
+;; analysis that no type_casts entry can reach.
+;;
+;; should-push-away-test-mesh (the jakx-only free function this method's
+;; twin body would otherwise call into, per collide-mesh-h.gc's own
+;; define-extern): "failed type prop at 54: add failed: object <integer
+;; 96>", s2 walking past the end of the type_casts.jsonc range that
+;; covers the rest of the function ([6, 53], "s2", "collide-mesh-cache-
+;; tri"). Extending the range through op 54 was tried and reverted: it
+;; trades this error for a harder "Unhandled branch delay" expression-
+;; building failure instead (verified this rung), matching the existing
+;; type_casts.jsonc note.
+;;
+;; (method 9 collide-mesh-cache) populate-for-prim-mesh: "Function may
+;; read a register that is not set: a3" and "...: t0", plus four
+;; "Unsupported inline assembly instruction kind" errors on its own
+;; .pxor/.por matrix-compare idiom. jak3's own twin
+;; (goal_src/jak3/engine/collide/collide-mesh.gc:245) has the identical
+;; .pxor/.por body but calls unpack-mesh-to-cache! with only its own two
+;; method args; jakx's raw decode instead calls sphere-on-platform-test
+;; with two extra arguments (a3-0/t0-0) that are never assigned anywhere
+;; in the function, a genuine uninitialized-register read the retail
+;; binary carries rather than a decompiler config gap; register-liveness
+;; errors are reported ahead of type propagation, so no type_casts entry
+;; can reach them either.
+;;
+;; (method 13 collide-mesh) unpack-mesh-to-cache!: the type_casts.jsonc
+;; fix for the v1 pointer-stride add at op 159 ([[159, 160], "v1",
+;; "(inline-array vector)"]) clears the top-level type-prop error count
+;; to zero, but the fresh decode still carries one inline "ERROR: Failed
+;; load: (set! vf6 (l.vf (+ (the-as vector v1-1) 16))) at op 71" comment
+;; (a softer, non-console-counted class, the same shape as anon-function
+;; 7's own "FPR -> GPR" WARN elsewhere in this rung), plus a second,
+;; harder defect: goalc's own (mi) rejects the function outright with
+;; "Invalid goto cfg-1" at its own final backward branch, which the fresh
+;; decode emits as a bare (b! ... cfg-1 ...) with no matching (label
+;; cfg-1) anywhere in the function body (this worktree's own scoped
+;; decode confirms it; the only cfg-1 label in the whole file belongs to
+;; should-push-away-test-mesh, a different function's own local
+;; numbering). This is a decompiler CFG-labeling defect the type-prop
+;; error stream never surfaces at all, caught only by the real (mi)
+;; build gate, not by anything a type_casts or stack_structures entry
+;; can reach. Placing the missing label by hand was not attempted: the
+;; function unrolls its own outer loop by 8 vertices across three
+;; nested (let ((v1-1 ...))) / (let ((v1-1 ...))) blocks with their own
+;; running (-4) counters, and guessing which block the loop-back
+;; actually re-enters risks a silently wrong vertex count or an
+;; infinite loop that only a runtime boot (out of this lane's scope)
+;; could catch.
+
+;; definition for method 5 of type collide-mesh
+;; WARN: Return type mismatch uint vs int.
+(defmethod asize-of ((this collide-mesh))
+  (the-as int (+ (-> collide-mesh size) (* (+ (-> this num-tris) -1) 8)))
+  )
+
+;; definition for method 8 of type collide-mesh
+;; WARN: Return type mismatch int vs collide-mesh.
+(defmethod mem-usage ((this collide-mesh) (usage memory-usage-block) (flags int))
+  (set! (-> usage length) (max 82 (-> usage length)))
+  (set! (-> usage data 81 name) "collide-mesh")
+  (+! (-> usage data 81 count) 1)
+  (let ((v1-6 (asize-of this)))
+    (+! (-> usage data 81 used) v1-6)
+    (+! (-> usage data 81 total) (logand -16 (+ v1-6 15)))
+    )
+  (set! (-> usage length) (max 82 (-> usage length)))
+  (set! (-> usage data 81 name) "collide-mesh")
+  (+! (-> usage data 81 count) 1)
+  (let ((v1-16 (* (-> this num-verts) 16)))
+    (+! (-> usage data 81 used) v1-16)
+    (+! (-> usage data 81 total) (logand -16 (+ v1-16 15)))
+    )
+  (the-as collide-mesh 0)
+  )
+
+;; definition for method 9 of type collide-mesh
+;; WARN: Return type mismatch int vs none.
+(defmethod debug-draw-tris ((this collide-mesh) (arg0 process-drawable) (arg1 int))
+  (rlet ((acc :class vf)
+         (vf0 :class vf)
+         (vf1 :class vf)
+         (vf2 :class vf)
+         (vf3 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         (vf7 :class vf)
+         )
+    (init-vf0-vector)
+    (let ((s5-0 (the-as collide-mesh-tri (-> this tris)))
+          (s4-0 (-> arg0 node-list data arg1 bone transform))
+          )
+      (countdown (s3-0 (-> this num-tris))
+        (let ((a2-1 (new 'stack-no-clear 'vector))
+              (a3-0 (new 'stack-no-clear 'vector))
+              (t0-0 (new 'stack-no-clear 'vector))
+              )
+          (.lvf vf4 (&-> s4-0 rvec quad))
+          (.lvf vf5 (&-> s4-0 uvec quad))
+          (.lvf vf6 (&-> s4-0 fvec quad))
+          (.lvf vf7 (&-> s4-0 trans quad))
+          (.lvf vf1 (&-> (-> this vertex-data (-> s5-0 vertex-index 0)) quad))
+          (.lvf vf2 (&-> (-> this vertex-data (-> s5-0 vertex-index 1)) quad))
+          (.lvf vf3 (&-> (-> this vertex-data (-> s5-0 vertex-index 2)) quad))
+          (copy-and-set-field (-> *pat-mode-info* (-> s5-0 pat mode) color) a 16)
+          (.mul.w.vf acc vf7 vf0)
+          (.add.mul.x.vf acc vf4 vf1 acc)
+          (.add.mul.y.vf acc vf5 vf1 acc)
+          (.add.mul.z.vf vf1 vf6 vf1 acc)
+          (.mul.w.vf acc vf7 vf0)
+          (.add.mul.x.vf acc vf4 vf2 acc)
+          (.add.mul.y.vf acc vf5 vf2 acc)
+          (.add.mul.z.vf vf2 vf6 vf2 acc)
+          (.mul.w.vf acc vf7 vf0)
+          (.add.mul.x.vf acc vf4 vf3 acc)
+          (.add.mul.y.vf acc vf5 vf3 acc)
+          (.add.mul.z.vf vf3 vf6 vf3 acc)
+          (.svf (&-> a2-1 quad) vf1)
+          (.svf (&-> a3-0 quad) vf2)
+          (.svf (&-> t0-0 quad) vf3)
+          (add-debug-flat-triangle-noclip (the-as vector #t) (the-as vector 785) a2-1 a3-0 t0-0)
+          )
+        (&+! s5-0 8)
+        )
+      )
+    0
+    (none)
+    )
+  )
+
+;; definition of type sopt-work
+(deftype sopt-work (structure)
+  ((intersect      vector          :inline)
+   (sphere-bbox4w  bounding-box4w  :inline)
+   )
+  )
+
+;; definition for method 3 of type sopt-work
+(defmethod inspect ((this sopt-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'sopt-work)
+  (format #t "~1Tintersect: #<vector @ #x~X>~%" (-> this intersect))
+  (format #t "~1Tsphere-bbox4w: #<bounding-box4w @ #x~X>~%" (-> this sphere-bbox4w))
+  (label cfg-4)
+  this
+  )
+
+;; definition of type spat-work
+(deftype spat-work (structure)
+  ((intersect      vector          :inline)
+   (sphere-bbox4w  bounding-box4w  :inline)
+   )
+  )
+
+;; definition for method 3 of type spat-work
+(defmethod inspect ((this spat-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'spat-work)
+  (format #t "~1Tintersect: #<vector @ #x~X>~%" (-> this intersect))
+  (format #t "~1Tsphere-bbox4w: #<bounding-box4w @ #x~X>~%" (-> this sphere-bbox4w))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 14 of type collide-mesh
+;; INFO: function output is handled by mips2c
+(defmethod-mips2c "(method 14 collide-mesh)" 14 collide-mesh)
+
+;; definition for method 12 of type collide-mesh-cache
+;; WARN: Return type mismatch (pointer uint8) vs collide-mesh-cache-entry.
+(defmethod allocate! ((this collide-mesh-cache) (arg0 int))
+  (local-vars (a1-2 int) (a2-2 int))
+  (let* ((v1-0 (+ arg0 15))
+         (a1-1 (-> this used-size))
+         (v1-1 (/ v1-0 16))
+         (a3-0 (-> this data))
+         (a2-0 (-> this max-size))
+         (v1-2 (* v1-1 16))
+         (a3-1 (&+ a3-0 a1-1))
+         )
+    (let ((t1-0 (- a2-0 (the-as uint v1-2)))
+          (t0-0 (-> this id))
+          )
+      (b! (< (the-as int t1-0) 0) cfg-6 :delay (set! a1-2 (the-as int (+ a1-1 v1-2))))
+      (b! (>= (the-as int (- a2-0 (the-as uint a1-2))) 0) cfg-5 :delay (set! a2-2 (the-as int (+ t0-0 1))))
+      )
+    (b! (zero? (the-as uint a2-2)) cfg-4 :likely-delay (set! a2-2 1))
+    (label cfg-4)
+    (set! a1-2 v1-2)
+    (set! a3-1 (-> this data))
+    (set! (-> this id) (the-as uint a2-2))
+    (label cfg-5)
+    (set! (-> this used-size) (the-as uint a1-2))
+    (let ((v0-0 a3-1))
+      (b! #t cfg-7 :delay (nop!))
+      (label cfg-6)
+      (format 0 "ERROR: Attempted to allocate something bigger than the entire mesh cache!~%")
+      (set! v0-0 (the-as (pointer uint8) #f))
+      (label cfg-7)
+      (the-as collide-mesh-cache-entry v0-0)
+      )
+    )
+  )
+
+;; definition for method 12 of type collide-mesh
+;; INFO: function output is handled by mips2c
+(defmethod-mips2c "(method 12 collide-mesh)" 12 collide-mesh)
+
+;; definition of type oot-work
+(deftype oot-work (structure)
+  ((intersect      vector          :inline)
+   (sphere-bbox4w  bounding-box4w  :inline)
+   )
+  )
+
+;; definition for method 3 of type oot-work
+(defmethod inspect ((this oot-work))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this 'oot-work)
+  (format #t "~1Tintersect: #<vector @ #x~X>~%" (-> this intersect))
+  (format #t "~1Tsphere-bbox4w: #<bounding-box4w @ #x~X>~%" (-> this sphere-bbox4w))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 10 of type collide-mesh
+;; INFO: Used lq/sq
+(defmethod overlap-test ((this collide-mesh) (arg0 collide-mesh-cache-tri) (arg1 vector))
+  (local-vars
+    (v1-0 uint128)
+    (a0-1 uint128)
+    (a1-2 uint128)
+    (a1-3 uint128)
+    (a1-4 uint128)
+    (a1-7 float)
+    (a2-1 uint128)
+    (a2-2 uint128)
+    )
+  (rlet ((acc :class vf)
+         (vf0 :class vf)
+         (vf1 :class vf)
+         (vf2 :class vf)
+         (vf3 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         )
+    (init-vf0-vector)
+    (let ((s5-0 (new 'stack-no-clear 'inline-array 'vector 3))
+          (s4-0 (the-as object arg0))
+          )
+      (.lvf vf2 (&-> arg1 quad))
+      (let ((s3-0 (-> this num-tris)))
+        (.sub.w.vf vf5 vf2 vf2)
+        (.add.w.vf vf6 vf2 vf2)
+        (.ftoi.vf vf5 vf5)
+        (.ftoi.vf vf6 vf6)
+        (.mov v1-0 vf5)
+        (.svf (&-> s5-0 1 quad) vf5)
+        (.mov a0-1 vf6)
+        (.svf (&-> s5-0 2 quad) vf6)
+        (label cfg-1)
+        (b! (zero? s3-0) cfg-7 :delay (set! a2-1 (-> (the-as collide-mesh-cache-tri s4-0) bbox4w min quad)))
+        (+! s3-0 -1)
+        )
+      (let ((a1-1 (-> (the-as collide-mesh-cache-tri s4-0) bbox4w max quad)))
+        (.pcgtw a2-2 a2-1 a0-1)
+        (nop!)
+        (.pcgtw a1-2 v1-0 a1-1)
+        )
+      (nop!)
+      (.por a1-3 a2-2 a1-2)
+      (nop!)
+      (.ppach a1-4 (the-as uint128 0) a1-3)
+      (nop!)
+      (let ((a1-5 (shl (the-as int a1-4) 16)))
+        (nop!)
+        (b! (nonzero? a1-5) cfg-1 :likely-delay (set! s4-0 (&+ (the-as collide-mesh-cache-tri s4-0) 96)))
+        )
+      (closest-pt-in-triangle
+        (-> s5-0 0)
+        arg1
+        (the-as matrix (-> (the-as collide-mesh-cache-tri s4-0) vertex))
+        (-> (the-as collide-mesh-cache-tri s4-0) normal)
+        )
+      (.lvf vf1 (&-> s5-0 0 quad))
+      (.lvf vf2 (&-> arg1 quad))
+      (set! v1-0 (-> s5-0 1 quad))
+      (set! a0-1 (-> s5-0 2 quad))
+      (.sub.vf vf3 vf2 vf1)
+      (.mul.w.vf.w vf4 vf2 vf2)
+      (.mul.vf vf3 vf3 vf3)
+      (.mul.x.vf.w acc vf0 vf3)
+      (.add.mul.y.vf.w acc vf0 vf3 acc)
+      (.add.mul.z.vf.w vf3 vf0 vf3 acc)
+      (.sub.w.vf.w vf3 vf3 vf4)
+      (.add.w.vf.y vf3 vf0 vf3)
+      (.mov a1-7 vf3)
+      (b! (>= (the-as int a1-7) 0) cfg-1 :delay (set! s4-0 (&+ (the-as collide-mesh-cache-tri s4-0) 96)))
+      )
+    (return #t)
+    (label cfg-7)
+    #f
+    )
+  )

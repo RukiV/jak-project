@@ -1,29 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: pov-camera.gc
-;; name in dgo: pov-camera
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
-;; og:preserve-this pov-camera-playing is held, not landed. Its own decode
-;; reports zero errors (every state handler, :event/:enter/:exit/:code/
-;; :post, is clean GOAL), but its :code calls ja-play-spooled-anim in the
-;; spool-anim branch of its own cond, and that function is held un-landed
-;; in a block comment (goal_src/jakx/engine/load/loader.gc:480-511, its
-;; own og:preserve-this note: a real type-prop error plus a missing
-;; spooler-block constructor, not a decompiler config gap). check_extern_
-;; defun.py does not flag this call site (it does not account for a #|
-;; |#-commented defbehavior the way check_alltypes_shadowing.py accounts
-;; for block comments), so this was found only by this rung's own (mi)
-;; build, not by the extern-defun gate; the finding is worth filing since
-;; the checker has a real blind spot here. Per the e2 rule this is a hold,
-;; not a hazard-note: ja-play-spooled-anim has no real binding anywhere
-;; in this tree to note as dormant-but-safe, so a live call would jump to
-;; 0 the first time anim-name's type is spool-anim. Retire once loader.gc
-;; lands a real ja-play-spooled-anim.
-
 ;; definition for method 55 of type pov-camera
 ;; WARN: Return type mismatch symbol vs none.
 (defmethod pov-camera-method-55 ((this pov-camera))
@@ -41,11 +18,11 @@
   )
 
 ;; definition for method 56 of type pov-camera
-(defmethod pov-camera-method-56 pov-camera () (or (not (view-get-active-target)) (process-grab? (view-get-active-target) #f))
+(defmethod pov-camera-method-56 () (or (not (view-get-active-target)) (process-grab? (view-get-active-target) #f))
   )
 
 ;; definition for method 59 of type pov-camera
-(defmethod pov-camera-method-59 pov-camera () (or (not (view-get-active-target)) (process-release? (view-get-active-target)))
+(defmethod pov-camera-method-59 () (or (not (view-get-active-target)) (process-release? (view-get-active-target)))
   )
 
 ;; failed to figure out what this is:
@@ -101,6 +78,80 @@
   )
 
 ;; failed to figure out what this is:
+(defstate pov-camera-playing (pov-camera)
+  :virtual #t
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('abort)
+       (when (logtest? (-> self flags) (pov-camera-flag notify-of-abort))
+         (logior! (-> self flags) (pov-camera-flag allow-abort))
+         (if (= (-> self anim-name type) string)
+             (go-virtual pov-camera-abort)
+             )
+         )
+       )
+      )
+    )
+  :enter (behavior ()
+    (set-time! (-> self debounce-start-time))
+    (if (= (-> self anim-name type) string)
+        (backup-load-state-and-set-cmds *load-state* (-> self command-list))
+        )
+    )
+  :exit (behavior ()
+    (if (= (-> self anim-name type) string)
+        (load-state-method-20 *load-state*)
+        )
+    (setting-control-method-16 *setting-control* self 'music-volume)
+    (setting-control-method-16 *setting-control* self 'sfx-volume)
+    )
+  :code (behavior ()
+    (setting-control-method-13
+      *setting-control*
+      (the-as engine-pers self)
+      'music-volume
+      'rel
+      (-> self music-volume-movie)
+      0
+      )
+    (setting-control-method-13
+      *setting-control*
+      (the-as engine-pers self)
+      'sfx-volume
+      'rel
+      (-> self sfx-volume-movie)
+      0
+      )
+    (cond
+      ((= (-> self anim-name type) string)
+       (ja-no-eval :group! (ja-group) :num! (seek!) :frame-num 0.0)
+       (until (ja-done? 0)
+         (pov-camera-method-55 self)
+         (suspend)
+         (ja :num! (seek!))
+         )
+       )
+      ((= (-> self anim-name type) spool-anim)
+       (ja-play-spooled-anim
+         (the-as spool-anim (-> self anim-name))
+         (the-as art-joint-anim #f)
+         (the-as art-joint-anim #f)
+         (the-as (function process-drawable symbol) (method-of-object self pov-camera-method-55))
+         (spooler-flags blackout-on-stall)
+         )
+       )
+      )
+    (go-virtual pov-camera-done-playing)
+    )
+  :post (behavior ()
+    (if (= (-> self anim-name type) string)
+        (execute-commands-up-to *load-state* (ja-aframe-num 0))
+        )
+    (ja-post)
+    )
+  )
+
+;; failed to figure out what this is:
 (defstate pov-camera-abort (pov-camera)
   :virtual #t
   :enter (behavior ()
@@ -131,7 +182,7 @@
 
 ;; definition for method 58 of type pov-camera
 ;; WARN: Return type mismatch int vs none.
-(defmethod pov-camera-method-58 pov-camera () 0
+(defmethod pov-camera-method-58 () 0
   (none)
   )
 
@@ -185,38 +236,7 @@
      )
     )
   (set! (-> self mask-to-clear) (process-mask movie enemy platform projectile))
-  ;; og:preserve-this the fresh decode leaves this as a raw, unresolved
-  ;; (the-as (function ...) L57) label reference: expression building
-  ;; fails partway through this anonymous handler ("FPR -> GPR applied to
-  ;; a uint in (fpr->gpr f0-0) at 11", a WARN, not a hard type-prop
-  ;; error), so the decompiler cannot inline it as a lambda here the way
-  ;; it does for jak3's own identical handler. The raw op trace still
-  ;; resolves cleanly by hand: it stores block param 0 at raw offsets
-  ;; 276/280/284 (declared 280/284/288 per the +4 basics trap), exactly
-  ;; pov-camera's own mask-to-clear/music-volume-movie/sfx-volume-movie
-  ;; fields, dispatched on 'mask/'music-movie-volume/'sfx-movie-volume,
-  ;; matching jak3's own inline lambda at this exact site verbatim
-  ;; (goal_src/jak3/engine/camera/pov-camera.gc:216-233); landed as that
-  ;; twin's proven form rather than the raw label.
-  (set! (-> self event-hook)
-        (lambda :behavior pov-camera
-          ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
-          (case arg2
-            (('mask)
-             (let ((v0-0 (the-as number (-> arg3 param 0))))
-               (set! (-> self mask-to-clear) (the-as process-mask v0-0))
-               v0-0
-               )
-             )
-            (('music-movie-volume)
-             (set! (-> self music-volume-movie) (the-as float (-> arg3 param 0)))
-             )
-            (('sfx-movie-volume)
-             (set! (-> self sfx-volume-movie) (the-as float (-> arg3 param 0)))
-             )
-            )
-          )
-        )
+  (set! (-> self event-hook) (the-as (function process int symbol event-message-block object) L57))
   ((method-of-object self pov-camera-method-58))
   (go-virtual pov-camera-startup)
   (none)

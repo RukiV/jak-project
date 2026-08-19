@@ -209,8 +209,17 @@
     )
   )
 
+;; og:preserve-this hand retyped uint64 -> handle: jak3's own twin
+;; (goal_src/jak3/engine/common-obs/generic-obs-h.gc:248) declares this
+;; field handle directly, and pov-camera.gc's own othercam-running state
+;; (this rung's own landing) reads it via (-> self hand process 0), the
+;; handle type's own bitfield navigation (process at offset 0 size 32);
+;; uint64 has no such sub-field and goalc rejects the chain outright
+;; ("Cannot use -> with field process"). handle and uint64 are both
+;; 8-byte values, so every existing raw (the-as uint ...) store onto this
+;; field elsewhere stays compatible.
 (deftype othercam (process)
-  ((hand               uint64)
+  ((hand               handle)
    (old-global-mask    process-mask)
    (mask-to-clear      process-mask)
    (cam-joint-index    int32)

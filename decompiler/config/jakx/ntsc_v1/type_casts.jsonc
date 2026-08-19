@@ -4886,7 +4886,10 @@
   // interaction I could not pin down with a further-scoped cast. Held:
   // the op 159 add stays unresolved rather than trade one error for a
   // worse one elsewhere in the same function.
-  "(method 13 collide-mesh)": [[[124, 125], "a2", "(pointer matrix)"]],
+  "(method 13 collide-mesh)": [
+    [[124, 125], "a2", "(pointer matrix)"],
+    [[159, 160], "v1", "(inline-array vector)"]
+  ],
   // should-push-away-test-mesh: s2 (op 5, arg0 itself) shows the same
   // loop-head weakening as (method 10 collide-mesh) above, at op 19's
   // delay-slot load, and again at op 46's pat field read once the loop
@@ -4900,56 +4903,121 @@
   // op 54 rather than trade a field-typing gap for a structural
   // decompile failure.
   "should-push-away-test-mesh": [[[6, 53], "s2", "collide-mesh-cache-tri"]],
-  // (anon-function 1 pov-camera): s6 (the implicit process context in
-  // this trans/code handler) is walked at raw offsets 140/144/152/156/
-  // 172/188/204/208 across the function, all landing on othercam's own
-  // table (declared 144/148/156/160/176/192/208/212 per the +4 basics
-  // convention), not process's inherited range; othercam is a direct
-  // process subtype (not process-drawable) with its own fields starting
-  // at 144. hand (raw 140, l.d, declared 144) splits via the same
-  // sllv/dsra32 idiom as update-eyes/dirty-eyes above; casting v1 to
-  // handle resolves the field-typing side (the hand field itself and
-  // everything read off it downstream) but not the sllv fold itself:
-  // unlike update-eyes/dirty-eyes and the shadow-vu1 read fold, every
-  // sllv site in this file is the self-referential shape (sllv v1, v1,
-  // r0, same source and destination register) rather than sllv into a
-  // different register immediately dereferenced; that shape does not
-  // fold regardless of operand typing, matching the identical
-  // conclusion already reached on shadow-vu1's own second sllv site
-  // (this file, above). Held as raw asm at every sllv in this object
-  // per house convention; only the field-typing halves are fixed here.
-  "(anon-function 1 pov-camera)": [
-    [[0, 180], "s6", "othercam"],
-    [[1, 3], "v1", "handle"],
-    [[115, 117], "v1", "handle"]
+  // (code othercam-running): renamed from the stale "anon-function 1
+  // pov-camera" key (see below); s6 already types as othercam by
+  // default now that this worktree's own pov-camera-h.gc carries the
+  // (:state-methods ...) fix (jakx-behavior-state mechanism) that lets
+  // virtual defstate recognition name othercam-running's own handlers,
+  // so no s6 cast is needed here at all. The real fix is the field
+  // read: op 0 loads the 64-bit hand field (l.d, raw 140, declared 144
+  // per the +4 basics trap), op 1's sllv-by-0 extracts hand's own
+  // "process" sub-field (handle's declared layout: process (pointer
+  // process) at offset 0 size 32, pid at offset 32), and op 2
+  // dereferences that pointer-to-pointer once more. This is exactly
+  // jak3's own (-> self hand process 0) idiom
+  // (goal_src/jak3/engine/camera/pov-camera.gc:315-316, the identical
+  // "when (not s2-0) ... othercam parent invalid" guard), not a raw
+  // handle value: casting v1 to "handle" at op 1-2 (tried first, see
+  // git history) left op 2 unresolved because handle is a 64-bit value
+  // type, not something an l.wu can dereference; (pointer process) is
+  // the type that actually matches what l.wu addresses. Cast at the
+  // failing read op (2), not the defining sllv at op 1. Every sllv site
+  // in this file stays flagged "Unsupported inline assembly instruction
+  // kind" regardless (the self-referential sllv v1, v1, r0 shape does
+  // not fold, matching update-eyes/dirty-eyes' own documented
+  // conclusion above); only the field-typing half is fixed here.
+  // s3 (op 2's own result, the live process pointer) then reads
+  // process-drawable's own root/node-list/draw/skel fields (raw
+  // 184/188/188/192/196, declared 188/192/192/196/200 per the +4
+  // trap) at ops 14/18/24/38/47/64, matching jak3's own repeated
+  // (the-as process-drawable s2-0) at every one of these accesses
+  // (goal_src/jak3/engine/camera/pov-camera.gc:315-336). s3 is reused
+  // for something unrelated starting op 145 (a completely different
+  // definition further down in the same function), so the cast is
+  // scoped to this variable's own live range, not the whole function.
+  // A second, independent (-> self hand process 0) occurrence near the
+  // end of :code (op 114-116), matching jak3's own second use
+  // (goal_src/jak3/engine/camera/pov-camera.gc:381, "(let ((a0-27
+  // (-> self hand process 0))) (when (or (-> self die?) ...
+  // (ja-anim-done? a0-27)))"); the result only needs a plain process
+  // read here (ja-anim-done? takes a process), no further
+  // process-drawable cast.
+  "(code othercam-running)": [
+    [[2, 3], "v1", "(pointer process)"],
+    [[3, 65], "s3", "process-drawable"],
+    [[116, 117], "v1", "(pointer process)"]
   ],
-  // (anon-function 3 pov-camera): same othercam-field shape as above
-  // (raw 152/172/204/208/220, hand at raw 140 again), reached from a
-  // different code path in the same state machine.
-  "(anon-function 3 pov-camera)": [
-    [[0, 60], "s6", "othercam"],
-    [[46, 48], "v1", "handle"]
+  // (enter othercam-running): renamed from "anon-function 3 pov-camera"
+  // for the same reason as (code othercam-running) above. Same hand-
+  // process-0 idiom (raw 140 l.d at op 45, sllv at op 46, failing read
+  // at op 47), matching jak3's own :enter (-> self hand process 0)
+  // (goal_src/jak3/engine/camera/pov-camera.gc:301).
+  // gp (op 47's own result) then reads process-drawable's own
+  // node-list field (raw 188, declared 192 per the +4 trap) at ops
+  // 53/56, matching jak3's own repeated (the-as process-drawable gp-0)
+  // (goal_src/jak3/engine/camera/pov-camera.gc:301-307).
+  "(enter othercam-running)": [
+    [[47, 48], "v1", "(pointer process)"],
+    [[48, 57], "gp", "process-drawable"]
   ],
-  // (anon-function 4 pov-camera): gp (op 0, a3 itself, the event
+  // (event othercam-running): renamed from "anon-function 4 pov-camera"
+  // for the same reason as above; gp already resolves to
+  // event-message-block by default now that this function is
+  // recognized by name, so no cast is needed for it either. Same hand-
+  // process-0 idiom in the 'joint case (raw 140 l.d at op 14, sllv at
+  // op 15, failing read at op 16), matching jak3's own :event
+  // (-> self hand process 0) inside the ('joint) case
+  // (goal_src/jak3/engine/camera/pov-camera.gc:255-256).
+  // v1 (op 16's own result) then reads process-drawable's own draw
+  // field (raw 192, declared 196 per the +4 trap) at op 17, matching
+  // jak3's own (-> (the-as process-drawable (-> self hand process 0))
+  // draw jgeo) in the ('joint) case
+  // (goal_src/jak3/engine/camera/pov-camera.gc:255-256).
+  // v1 (op 25, the return value of get-art-by-name-method, declared
+  // basic) is read at raw offset 4 (op 26, l.w) for joint's own
+  // "number" field via (the-as joint ...), the same idiom fixed on
+  // (code pov-camera-start-playing pov-camera) below and matching
+  // jak3's own (-> v1-7 number) in the ('joint) case
+  // (goal_src/jak3/engine/camera/pov-camera.gc:256-259). Cast at the
+  // failing read op (26), not the defining call at op 25.
+  // a0 (op 39, the event's own block param 0, a raw process pointer per
+  // jak3's own (the-as process (-> block param 0))) reads process-
+  // tree's own ppointer field (raw 28, declared 32 per the +4 trap) at
+  // op 41, matching jak3's own process->handle expansion in the
+  // ('target) case (goal_src/jak3/engine/camera/pov-camera.gc:273-274,
+  // "(process->handle (the-as process (-> block param 0)))"; the macro
+  // (goal_src/jakx/kernel/gkernel-h.gc:449-465) expands to a ppointer
+  // field read, one more dereference, then a pid field read, the same
+  // handle-relocation-cell shape as the hand-process-0 idiom above).
+  "(event othercam-running)": [
+    [[16, 17], "v1", "(pointer process)"],
+    [[17, 18], "v1", "process-drawable"],
+    [[26, 27], "v1", "joint"],
+    [[41, 42], "a0", "process"]
+  ],
+  // (anon-function 7 pov-camera): pov-camera's own :event handler
+  // (case-dispatched on 'mask/'music-movie-volume/'sfx-movie-volume,
+  // storing into mask-to-clear/music-volume-movie/sfx-volume-movie, raw
+  // 276/280/284 declared 280/284/288 per the +4 trap). a3 (the event
   // handler's own event-message-block argument) is read at raw offset
-  // 16 (l.d, event-message-block's own param field, an array of uint64
-  // starting there) at ops 10/21/30/33, needing event-message-block
-  // rather than object. hand (raw 140, l.d, othercam's own field again)
-  // splits via the same sllv/dsra32 idiom at op 14-15; a second fold at
-  // op 48 reads back an already-obtained othercam handle the same way.
-  "(anon-function 4 pov-camera)": [
-    [[0, 55], "gp", "event-message-block"],
-    [[0, 55], "s6", "othercam"],
-    [[15, 17], "v1", "handle"],
-    [[48, 50], "v1", "handle"]
-  ],
-  // (anon-function 7 pov-camera): a3 (the event handler's own
-  // event-message-block argument, same shape as anon-function 4's own
-  // gp above) is read at raw offset 16 (l.d, param[0]) at more than one
-  // point across a branchy body; widening the cast moves the first
-  // unresolved op forward each time rather than clearing it, so one
-  // access point in this function is still held.
-  "(anon-function 7 pov-camera)": [[[0, 12], "a3", "event-message-block"]],
+  // 16 (l.d, param[0]) three times, at ops 3/8/15. A narrower range
+  // ending at op 12 (an earlier attempt, kept in git history) left op
+  // 15's own read uncleared; widening through op 16 covers all three
+  // reads and the whole function decodes clean. This one stays
+  // genuinely unidentified (no state/method recognition applies to a
+  // plain :event behavior), so its anon-function key is still live.
+  "(anon-function 7 pov-camera)": [[[0, 16], "a3", "event-message-block"]],
+  // (code pov-camera-start-playing pov-camera): v1 (op 25, the return
+  // value of get-art-by-name-method, declared basic) is read at raw
+  // offset 4 (op 26, l.w) for what jak3's own twin
+  // (goal_src/jak3/engine/camera/pov-camera.gc:48-50) names joint's own
+  // "number" field via (the-as joint ...): "(let ((v1-10 (the-as joint
+  // (get-art-by-name-method ...)))) (if v1-10 (set! gp-0 (+ (-> v1-10
+  // number) 1))))". joint is basic-derived with number at declared
+  // offset 8, so the raw offset 4 read matches via the usual +4 basics
+  // trap. Cast at the failing read op (26), not the defining call at
+  // op 25, per house convention.
+  "(code pov-camera-start-playing pov-camera)": [[[26, 27], "v1", "joint"]],
   // free-eye-index: a2 is eye-control's own array-indexed pointer (eye
   // index times 80, eye's own inline stride, plus inner index times 4,
   // added onto the eye-control base), matching jak3's identical

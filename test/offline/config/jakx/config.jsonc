@@ -776,7 +776,37 @@
     // (mem-usage, length, asize-of, relocate, lookup-text, the buffer/heap-alloc
     // top-level, load-level-text-files' stub) and the decomp-vs-REF diff still
     // gates the whole object.
-    "text"
+    "text",
+    // pov-camera: the object is fully clean (every function and state
+    // decodes with zero errors), but three methods (56, 58, 59) carry a
+    // genuine zero-arg :methods signature with no implicit this to infer
+    // the defmethod type from, the same defect class documented at
+    // car-level-array-method-9 below. Unlike that case, skip_compile_
+    // functions is the wrong tool here: it strips the function's own body
+    // from the fresh decompile (verified directly, dropping method 56's
+    // body broke a caller's own type check further down the same file),
+    // which would also blank the REF file for three functions that
+    // otherwise decompile perfectly. goal_src instead supplies the type
+    // name explicitly ((defmethod name type () ...), the same shape
+    // already landed for vehicle-method-180 and process-nettable-method-
+    // 28) so (mi) links clean; only offline-test's own narrower compile
+    // pass (which compiles the raw decompile text, not goal_src) cannot
+    // see that fix. The decomp-vs-REF diff still gates the whole object.
+    "pov-camera",
+    // collide-mesh (small-objs rung): four functions are held, not
+    // landed (should-push-away-test the method, should-push-away-test-
+    // mesh the free function it would call, populate-for-prim-mesh, and
+    // unpack-mesh-to-cache! once (mi) rejected its own fresh decode with
+    // "Invalid goto cfg-1"); see goal_src/jakx/engine/collide/
+    // collide-mesh.gc's own og:preserve-this header for each one's exact
+    // error. The clean remainder of the file (asize-of, mem-usage,
+    // debug-draw-tris, sopt-work/spat-work/oot-work, overlap-test,
+    // allocate!, both mips2c methods) compiles and links fine under
+    // (mi); should-push-away-test-mesh's own raw fallback text is not
+    // valid GOAL at all (a bare (l.q ...) call), which is what actually
+    // trips offline-test's own compile pass here. The decomp-vs-REF diff
+    // still gates the whole object.
+    "collide-mesh"
   ],
   "skip_compile_functions": [
     // rigid-body-debug (rigid-body-object rung): four rb-debugger methods inline
