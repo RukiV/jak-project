@@ -59174,7 +59174,21 @@
 (define-extern *graphic-options-sprite-list* array)
 (define-extern *sound-options-sprite-list* array)
 (define-extern *adventure-bottom-bar-ids* array)
-(define-extern *adventure-bottom-bar-dpad-ids* array)
+;; retyped array -> (array uint32) (forge issue 433, menu band cross-object
+;; conflict): menu2-lists.gc's own landed definition builds this global as
+;; (new 'static 'boxed-array :type uint32 #x78b), exactly one uint32
+;; element; lobby-adventure.gc's own scoped decode (this worktree's config)
+;; stores an int constant at raw offset 12 of the loaded pointer in every
+;; one of its access sites (anon-function 4 and anon-function 32 among
+;; them), which is element 0 of a uint32 array, not a distinct store-
+;; through-a-pointer shape; the generic array supertype has no field at
+;; that offset so the store never sugars and reports "Failed store" at
+;; every site in both files symmetrically (ir2_add_store_errors fires once
+;; a function's other errors clear, so menu2-lists.gc's own quiet
+;; definition masked this until lobby-adventure's read sites exposed it).
+;; The narrower (array uint32) resolves the offset to element 0 in both
+;; consumers.
+(define-extern *adventure-bottom-bar-dpad-ids* (array uint32))
 (define-extern *adventure-bottom-bar-triangle-ids* array)
 (define-extern *adventure-top-bar-title-ids* array)
 (define-extern *adventure-garage-reminder-ids* array)
