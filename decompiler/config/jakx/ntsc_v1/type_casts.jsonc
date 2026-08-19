@@ -8090,5 +8090,23 @@
   // own owner handle (already handle-typed above); op77 reads the
   // resulting process's root field (raw offset 184), same widening as
   // the child-proc cases above.
-  "(enter active powercell-footie)": [[77, "a1", "process-drawable"]]
+  "(enter active powercell-footie)": [[77, "a1", "process-drawable"]],
+  // target-pos / target-rot: both dereference view-get-active-target's own
+  // declared return (generic process) then read its root field (raw offset
+  // 184, declared 188 on process-drawable), same widening as the
+  // powercell-subdraw-init-by-other family above. target-pos's else branch
+  // (arg0 nonzero) also reads node-list off the same value (raw offset 188,
+  // declared 192 on process-drawable) for vector<-cspace!'s indexed lookup;
+  // same register, same widening, cast at that op too.
+  "target-rot": [[4, "v1", "process-drawable"]],
+  "target-pos": [
+    [6, "v1", "process-drawable"],
+    [13, "v1", "process-drawable"]
+  ],
+  // prototypes-game-visible-set!: the generic pair-car idiom's loop-back cdr
+  // walk residual (same class as (method 11 script-context) above). op19
+  // reassigns s4 to the cdr of the walked pair (typed object, the decompiler's
+  // default for a cdr load); op20's car read off that same s4 is the failing
+  // load. Cast s4 back to pair at the op20 read.
+  "prototypes-game-visible-set!": [[19, "s4", "pair"], [20, "s4", "pair"]]
 }

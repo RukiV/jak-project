@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: target-util.gc
-;; name in dgo: target-util
-;; dgos: ENGINE, GAME
-
-;; DECOMP BEGINS
-
 ;; failed to figure out what this is:
 (defskelgroup skel-generic-blast collectables -1 -1
               ((-1 (meters 999999)))
@@ -15,6 +9,7 @@
               :sort 4
               )
 
+;; failed to figure out what this is:
 (defskelgroup skel-generic-ripples collectables collectables-generic-ripples-lod0-jg collectables-generic-ripples-idle-ja
               ((collectables-generic-ripples-lod0-mg (meters 999999)))
               :bounds (static-spherem 0 0 0 6)
@@ -22,34 +17,27 @@
               :sort 4
               )
 
-;; og:preserve-this landed for real, R5a (#122), first sub-item per the R1b addendum:
-;; uncommented from the fully-captured all-types.gc block, verified byte-for-byte
-;; against (method 3 target-bank)'s own inspect format strings (attack-timeout through
-;; fall-height, in this exact order and at these exact byte offsets).
+;; definition of type target-bank
 (deftype target-bank (basic)
-  ((attack-timeout                   uint64         :offset-assert 8) ;; time-frame
-   (ground-timeout                   uint64         :offset-assert 16) ;; time-frame
-   (slide-down-timeout               uint64         :offset-assert 24) ;; time-frame
-   (fall-timeout                     uint64         :offset-assert 32) ;; time-frame
-   (fall-stumble-threshold           meters         :offset-assert 40)
-   (hit-invulnerable-timeout         uint64         :offset-assert 48) ;; time-frame
-   (same-attack-invulnerable-timeout uint64         :offset-assert 56) ;; time-frame
-   (min-dive-depth                   meters         :offset-assert 64)
-   (root-radius                      meters         :offset-assert 68)
-   (root-offset                      vector :inline :offset-assert 80)
-   (body-radius                      meters         :offset-assert 96)
-   (head-radius                      meters         :offset-assert 100)
-   (head-height                      meters         :offset-assert 104)
-   (head-offset                      vector :inline :offset-assert 112)
-   (fall-height                      meters         :offset-assert 128)
+  ((attack-timeout                    uint64)
+   (ground-timeout                    uint64)
+   (slide-down-timeout                uint64)
+   (fall-timeout                      uint64)
+   (fall-stumble-threshold            meters)
+   (hit-invulnerable-timeout          uint64)
+   (same-attack-invulnerable-timeout  uint64)
+   (min-dive-depth                    meters)
+   (root-radius                       meters)
+   (root-offset                       vector  :inline)
+   (body-radius                       meters)
+   (head-radius                       meters)
+   (head-height                       meters)
+   (head-offset                       vector  :inline)
+   (fall-height                       meters)
    )
-  :method-count-assert 9
-  :size-assert         #x84
-  :flag-assert         #x900000084
   )
 
-;; og:preserve-this landed for real, R5a (#122): transcribed verbatim, decodes clean
-;; once the deftype above is live.
+;; definition for method 3 of type target-bank
 (defmethod inspect ((this target-bank))
   (when (not this)
     (set! this this)
@@ -75,11 +63,7 @@
   this
   )
 
-;; og:preserve-this landed for real, R5a (#122): transcribed verbatim including the
-;; raw vector literals; the decompiler renders scalar meters-typed fields through the
-;; (meters N) macro but has no equivalent for vector-typed fields, so root-offset and
-;; head-offset show pre-scaled internal floats (4915.2 = 4096 x 1.2) rather than a
-;; (meters ...) form. Kept as decoded, not hand-converted.
+;; definition for symbol *TARGET-bank*, type target-bank
 (define *TARGET-bank* (new 'static 'target-bank
                         :attack-timeout #x5a
                         :ground-timeout #x3c
@@ -99,9 +83,7 @@
                         )
         )
 
-;; og:preserve-this landed for real, R5a (#122): activated the commented-out
-;; all-types.gc extern for debounce-speed (jak3-parity sig, :behavior target)
-;; to give this its own type analysis; decodes clean once the extern is live.
+;; definition for function debounce-speed
 (defbehavior debounce-speed target ((arg0 float) (arg1 float) (arg2 vector) (arg3 vector))
   (if (and (< 0.3 arg0) (< arg0 0.7) (< 0.0 arg1) (< (vector-dot arg2 arg3) 0.2))
       (set! arg0 0.0)
@@ -109,6 +91,7 @@
   arg0
   )
 
+;; definition for method 57 of type target
 (defmethod process-focusable-method-57 ((this target))
   (if (focus-test? this mech)
       0.1
@@ -116,6 +99,7 @@
       )
   )
 
+;; definition for method 9 of type attack-info
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch int vs none.
 (defmethod attack-info-method-9 ((this attack-info) (arg0 attack-info) (arg1 process-drawable) (arg2 process-drawable))
@@ -181,18 +165,7 @@
     )
   )
 
-;; og:preserve-this landed for real, R5a (#122): the (e2) extern-no-defun home
-;; for target-pos. check_extern_defun.py found 15 game-DGO FAILs plus 1
-;; level-DGO note for target-pos (collide-shape.gc, cam-update.gc,
-;; part-tester.gc, ambient.gc x2, race-sabotage.gc x6, nav-mesh-h.gc,
-;; nav-control-h.gc, projectile-h.gc x2 as field-name false positives, plus
-;; the desert-effects.gc note) declared via define-extern with no defun
-;; anywhere in goal_src until this leg; those calls linked to address 0.
-;; type_casts.jsonc casts view-get-active-target's declared process return to
-;; process-drawable at the two raw-184/raw-188 field reads (root, node-list),
-;; the same widening already used at the powercell-subdraw-init-by-other
-;; family (raw offset 184, declared 188 on process-drawable, is the root
-;; field for every basic-derived process type; +4 basic-offset correction).
+;; definition for function target-pos
 (defun target-pos ((arg0 int))
   (let ((v1-0 (view-get-active-target)))
     (cond
@@ -209,10 +182,7 @@
     )
   )
 
-;; og:preserve-this landed for real, R5a (#122): activated the commented-out
-;; all-types.gc extern for target-rot (jak3-parity sig); same view-get-
-;; active-target/process-drawable widening as target-pos above, cast at the
-;; one raw-184 root-field read.
+;; definition for function target-rot
 ;; WARN: Return type mismatch structure vs quaternion.
 (defun target-rot ()
   (let ((v1-0 (view-get-active-target)))
@@ -224,6 +194,7 @@
     )
   )
 
+;; definition for method 51 of type target
 (defmethod get-trans ((this target) (arg0 int))
   (let ((v1-0 (-> this root)))
     (if (= arg0 4)
@@ -233,8 +204,12 @@
     )
   )
 
+;; definition for method 56 of type target
 ;; WARN: Return type mismatch int vs time-frame.
 (defmethod process-focusable-method-56 ((this target))
   (the-as time-frame 0)
   )
+
+
+
 

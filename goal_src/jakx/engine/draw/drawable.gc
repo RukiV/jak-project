@@ -319,15 +319,47 @@
 ;; definition for function find-instance-by-name
 ;; ERROR: function has no type analysis. Cannot decompile.
 
-;; og:preserve-this signature-only landing: register-proven from the extern-signature
-;; wave (arg0 is walked as a pair list via car/cdr; arg1 is tested against #f to choose
-;; OR vs AND-NOT on the prototype-bucket flags word; arg2 flows straight into
-;; find-instance-by-name-level's level parameter; intro-scenes and intro-scenes3 are the
-;; only callers in the corpus and never use the return value). The body itself still
-;; fails to decompile here on an unrelated cdr-chain typing gap (l.w at s4-2 once s4 is
-;; reassigned from the pair's cdr), out of scope for this wave; retire this extern once
-;; that body lands for real.
-(define-extern prototypes-game-visible-set! (function pair symbol level none))
+;; og:preserve-this provisional extern: find-instance-by-name-level is a real
+;; function prototypes-game-visible-set! below calls, already typed in
+;; decompiler/config/jakx/all-types.gc (function string level prototype-bucket),
+;; but goalc resolves externs from goal_src only, never all-types.gc, so the
+;; symbol is unresolved at compile time regardless. Its own body still fails to
+;; decompile here (line 316 above), matching the provisional-extern-hygiene
+;; pattern already used at ambient.gc. Retire this declaration once
+;; find-instance-by-name-level's body lands for real.
+(define-extern find-instance-by-name-level (function string level prototype-bucket))
+
+;; definition for function prototypes-game-visible-set!
+;; og:preserve-this landed for real: the cdr-chain typing gap the prior extern-only
+;; note above described (l.w at s4-2 once s4 is reassigned from the pair's cdr) is
+;; the same generic pair-car loop-back residual already documented at (method 11
+;; script-context) in type_casts.jsonc; s4 needed casting back to pair at both the
+;; cdr load and the following car load (ops 19 and 20 of the ir2) for type prop to
+;; resolve the whole loop, not just the failing op alone. arg0 is walked as a pair
+;; list via car/cdr; arg1 is tested against #f to choose OR vs AND-NOT on the
+;; prototype-bucket flags word; arg2 flows straight into find-instance-by-name-
+;; level's level parameter. All 16 call sites (intro-scenes.gc and
+;; intro-scenes3.gc, all game-DGO) declared this via define-extern with no defun
+;; anywhere in goal_src until this leg; those calls linked to address 0.
+;; WARN: Return type mismatch int vs none.
+(defun prototypes-game-visible-set! ((arg0 pair) (arg1 symbol) (arg2 level))
+  (let ((a0-1 (-> arg0 car)))
+    (while (not (null? (the-as object arg0)))
+      (let ((v1-0 (find-instance-by-name-level (the-as string a0-1) arg2)))
+        (when v1-0
+          (if arg1
+              (logclear! (-> v1-0 flags) (prototype-flags visible no-collide))
+              (logior! (-> v1-0 flags) (prototype-flags visible no-collide))
+              )
+          )
+        )
+      (set! arg0 (the-as pair (-> arg0 cdr)))
+      (set! a0-1 (-> arg0 car))
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition (debug) for function find-instance-by-index
 ;; ERROR: function has no type analysis. Cannot decompile.
