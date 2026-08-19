@@ -98,6 +98,20 @@ jobs:
           # run tests the proposed change; github.sha covers workflow_dispatch.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      # Modern git spawns `maintenance run --auto` DETACHED and SILENT after a fetch
+      # (no "Auto packing" banner the old auto-gc printed), and in this shallow clone
+      # it can rewrite .git/shallow while a later step's own `git fetch` is mid-read.
+      # That is the exact "fatal: shallow file has changed since we read it" that
+      # killed four runs on 2026-08-18, every one at a job's SECOND sequential fetch
+      # and one with the runner otherwise fully idle, which rules out every
+      # cross-run theory. Evidence trail on the forge (the shallow-race issue).
+      # Retire this only if the steps below stop fetching into the checkout's clone.
+      - name: Disable detached repo maintenance (races our sequential fetches)
+        run: |
+          git config gc.auto 0
+          git config gc.autoDetach false
+          git config maintenance.auto false
+
       # AGENTS.md requires the (AI-assisted) marker on contributor commits; nothing
       # checked it mechanically until #88 (a violation shipped in the PR #85 follow-up
       # and only human review caught it, days late). The rule binds contributors, not
@@ -295,6 +309,20 @@ jobs:
           # run tests the proposed change; github.sha covers workflow_dispatch.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
 
+      # Modern git spawns `maintenance run --auto` DETACHED and SILENT after a fetch
+      # (no "Auto packing" banner the old auto-gc printed), and in this shallow clone
+      # it can rewrite .git/shallow while a later step's own `git fetch` is mid-read.
+      # That is the exact "fatal: shallow file has changed since we read it" that
+      # killed four runs on 2026-08-18, every one at a job's SECOND sequential fetch
+      # and one with the runner otherwise fully idle, which rules out every
+      # cross-run theory. Evidence trail on the forge (the shallow-race issue).
+      # Retire this only if the steps below stop fetching into the checkout's clone.
+      - name: Disable detached repo maintenance (races our sequential fetches)
+        run: |
+          git config gc.auto 0
+          git config gc.autoDetach false
+          git config maintenance.auto false
+
       - name: Install dependencies
         run: |
           sudo apt-get update
@@ -410,6 +438,13 @@ jobs:
           # than the proposed change, so it could pass while the change it is
           # meant to gate does not compile.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      # Same shallow-maintenance guard as the Linux jobs above; see the comment there.
+      - name: Disable detached repo maintenance (races our sequential fetches)
+        run: |
+          git config gc.auto 0
+          git config gc.autoDetach false
+          git config maintenance.auto false
           # Not the workspace root: jak-project resolves its project directory by
           # string-matching "jak-project" in the executable's own path, so the
           # checkout has to sit in a directory of that name or goalc-test cannot
