@@ -7,4 +7,40 @@
 
 ;; DECOMP BEGINS
 
-(define-extern entity-actor-lookup (function res-lump symbol int entity-actor))
+;; og:preserve-this extern-no-defun rung: entity-actor-lookup below decodes
+;; clean on its own from a scoped decode of actor-link-h.o against this
+;; worktree's own types (decompiler.exe ... --config-override
+;; '{"levels_extract": false, "allowed_objects": ["actor-link-h"]}'), matching
+;; its jak1/jak2/jak3 twin home (all three land entity-actor-lookup in this
+;; same file). The rest of the object (actor-link-info's methods, the four
+;; actor-link-subtask-*/alt-actor-list-* hook functions) carries its own
+;; unrelated decode failures, out of this rung's scope, so no _REF.gc is added
+;; here; the compile proof is the full (mi) build, the drawable.gc precedent.
+;; Both callees, entity-by-name and entity-by-aid, are already landed in
+;; entity.gc; res-lump-data is a defmacro (res.gc), not a runtime call; so
+;; this landing activates no new extern. entity.gc compiles later than
+;; actor-link-h.gc in build order, though (proven by a real (mi) failure,
+;; "No method or function named entity-by-name for type string"), so both
+;; get their own local forward declaration here, matching the pattern
+;; already used for update-task-masks at game-info.gc/level.gc/settings.gc.
+(define-extern entity-by-name (function string entity))
+(define-extern entity-by-aid (function uint entity))
+
+;; definition for function entity-actor-lookup
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch entity vs entity-actor.
+(defun entity-actor-lookup ((arg0 res-lump) (arg1 symbol) (arg2 int))
+  (let* ((sv-16 (new 'static 'res-tag))
+         (v1-1 (res-lump-data arg0 arg1 pointer :tag-ptr (& sv-16)))
+         )
+    (the-as
+      entity-actor
+      (when (and v1-1 (< arg2 (the-as int (-> sv-16 elt-count))))
+        (if (= (-> sv-16 elt-type) string)
+            (entity-by-name (the-as string (-> (the-as (pointer uint32) (&+ v1-1 (* arg2 4))))))
+            (entity-by-aid (-> (the-as (pointer uint32) (&+ v1-1 (* arg2 4)))))
+            )
+        )
+      )
+    )
+  )

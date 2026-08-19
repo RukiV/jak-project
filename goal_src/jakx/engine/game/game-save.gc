@@ -11,3 +11,55 @@
 (defun auto-save-check ()
   0
   )
+
+;; og:preserve-this extern-no-defun rung: auto-save-user below decodes clean
+;; on its own from a scoped decode of game-save.o against this worktree's own
+;; types (decompiler.exe ... --config-override '{"levels_extract": false,
+;; "allowed_objects": ["game-save"]}'), even though the rest of the object is
+;; a genuine wall: the whole file's own top level fails ("top level function
+;; was not converted to expressions"), auto-save-command itself fails type
+;; prop ("Type auto-save is not fully defined", the auto-save type still only
+;; a bare declare-type forward reference), and a dozen anon-functions hit
+;; their own register-dependency and unresolved-load failures. None of that
+;; touches auto-save-user's own body, transcribed verbatim below. Matches
+;; ambient.gc's and part-tester.gc's identical declare-type/define-extern
+;; pair for the same reason: auto-save is not landed anywhere in this tree
+;; yet, forward-declared only so the pointer types parse.
+;; RUNTIME HAZARD: auto-save-command links as zero until a real body lands
+;; (the auto-save type itself is not fully defined, landing it is out of this
+;; rung's scope). auto-save-user calls it whenever *kernel-boot-message* is
+;; 'play or 'preview and either *scene-player* is unset or its next-state is
+;; 'release. ambient.gc's talker :enter and :exit handlers already call
+;; auto-save-user unconditionally on the auto-save-on-each-start and
+;; auto-save-once-on-exit flags, so this is the same live single-player path,
+;; not a new one: today that call already links to zero on auto-save-user
+;; itself, so landing auto-save-user only moves the crash one call deeper
+;; rather than making a previously-safe path unsafe.
+(declare-type auto-save process)
+(define-extern auto-save-command (function symbol int int process-tree symbol (pointer auto-save)))
+
+;; definition for function auto-save-user
+(defun auto-save-user ()
+  (cond
+    ((and *scene-player*
+          (not (and (-> *scene-player* 0 next-state) (= (-> *scene-player* 0 next-state name) 'release)))
+          )
+     (the-as (pointer auto-save) #f)
+     )
+    (else
+      (case *kernel-boot-message*
+        (('play 'preview)
+         (let ((t9-0 auto-save-command)
+               (a0-3 'auto-save)
+               (a1-1 0)
+               (a2-0 0)
+               (a3-0 *default-pool*)
+               (t0-0 #f)
+               )
+           (t9-0 a0-3 a1-1 a2-0 a3-0 t0-0)
+           )
+         )
+        )
+      )
+    )
+  )

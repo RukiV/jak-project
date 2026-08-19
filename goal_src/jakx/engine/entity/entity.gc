@@ -652,6 +652,27 @@ No-op if already spawned. Retires with the real vehicle chain."
     )
   )
 
+;; og:preserve-this extern-no-defun rung: entity-birth-no-kill below decodes
+;; clean (zero warnings, zero errors) from a scoped decode of entity.o against
+;; this worktree's own types (decompiler.exe ... --config-override
+;; '{"levels_extract": false, "allowed_objects": ["entity"]}'), matching
+;; entity-h.gc's own note that jak3 lands it here too, (entity) process.
+;; script.gc's 'alive script-form command was the only landed caller and no
+;; longer links to zero. Its only call, birth!, is already a live dispatch on
+;; entity-actor and entity-camera above, so this activates no new extern.
+;; The rest of entity.o still carries its own unrelated decode failures
+;; (process-status-bits, entity-remap-names, several level-group methods), so
+;; no _REF.gc regen accompanies this landing; the drawable.gc precedent.
+(defun entity-birth-no-kill ((arg0 entity))
+  (let ((gp-0 (-> arg0 extra)))
+    (logior! (-> gp-0 perm status) (entity-perm-status no-kill))
+    (if (not (or (-> gp-0 process) (logtest? (-> gp-0 perm status) (entity-perm-status bit-0 dead))))
+        (birth! (-> gp-0 entity))
+        )
+    (-> gp-0 process)
+    )
+  )
+
 ;; WARN: Return type mismatch int vs entity-perm-status.
 (defun process-entity-status! ((arg0 process) (arg1 entity-perm-status) (arg2 symbol))
   (the-as entity-perm-status (cond

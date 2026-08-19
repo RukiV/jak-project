@@ -204,13 +204,12 @@ that gets accessed by the accompanying process."
 
 (define *ACTOR-bank* (new 'static 'actor-bank :pause-dist 204800.0 :birth-dist 901120.0 :birth-max 10))
 
-;; og:preserve-this: entity-birth-no-kill is a forward declaration, not a
-;; decoded symbol. script.gc's 'alive script-form command (the script
-;; family lane) activates two calls to this function, which jak3 lands as
-;; a real defun in entity.gc, (entity) process; jakx's own entity.gc has
-;; no defun for it yet.
-;; RUNTIME HAZARD: entity-birth-no-kill links as zero until a real body
-;; lands. script.gc's 'alive script command crashes if invoked.
+;; og:preserve-this: entity-birth-no-kill is a forward declaration, still
+;; needed here so script.gc's 'alive script-form command parses independently
+;; of entity.gc's own compile order. The RUNTIME HAZARD this note used to
+;; carry is retired: entity-birth-no-kill now has a real defun in entity.gc
+;; (an extern-no-defun rung, decoded clean from a scoped decode of entity.o),
+;; so script.gc's 'alive command no longer links to zero.
 (define-extern entity-birth-no-kill (function entity process))
 
 ;; og:preserve-this: birth-pickup-at-point is a forward declaration, not a
