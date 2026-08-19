@@ -53894,7 +53894,17 @@
    (prev-impact-time                uint32                                      :offset-assert 792)
    (pad-post-prev-impact-time       uint8                                12    :offset-assert 796)
    (offscreen-time                  uint32                                      :offset-assert 808)
-   (pad-post-offscreen-time         uint8                                12    :offset-assert 812)
+   (pad-pre-unknown-int32-812       uint8                                4     :offset-assert 812)
+   ;; og:preserve-this unknown-int32-812 (raw capture 812, +4-corrected
+   ;; offset 816): football2's own powercell-footie-update-pos-on-vehicle
+   ;; writes a time-frame value 150 ticks ahead of the current clock here
+   ;; (a schedule-next-check idiom, the same shape as the other
+   ;; unknown-*-time fields already carved out of this pad region); no
+   ;; inspect method in this rung's scope names it, so kept as a
+   ;; placeholder inside the still-unaccounted pad-post-offscreen-time
+   ;; span (scoped decode, this worktree's config, football2, rung 2).
+   (unknown-int32-812               int32                                :offset-assert 816)
+   (pad-post-unknown-int32-812      uint8                                4     :offset-assert 820)
    (physics-enabled-time            uint32                                      :offset-assert 824)
    (pad-post-physics-enabled-time   uint8                                28    :offset-assert 828)
    (water-height                    float                                       :offset-assert 856)
@@ -57184,6 +57194,32 @@
   :flag-assert         #x6c01b00234
   )
 |#
+;; resurrected from the dead block above (dead-type sweep), football2
+;; rung 2. my-potato retyped uint64 -> handle: (trans idle
+;; powercell-footie) reads it at raw offset 492, declared 496 (matching
+;; net-player-race's own size-assert #x1f0 = 496 exactly, so this is
+;; net-player-football's very first added field), then compares it via
+;; dsubu against a handle freshly built earlier in the same function from
+;; a ppointer field plus that pointer's own process+48 pid, the
+;; handle-equality-by-subtraction idiom (zero result means equal); that
+;; is a handle compared against a handle, not raw uint64 arithmetic. The
+;; other eight fields are carried over unverified from the dead block;
+;; no site in this rung's scope reads any of them.
+(deftype net-player-football (net-player-race)
+  ((my-potato             handle    :offset-assert 496)
+   (slow-warning          uint64    :offset-assert 504)
+   (pt-multiplier-timeout uint64    :offset-assert 512)
+   (aux-hud               uint64    :offset-assert 520)
+   (turbo-part-tracker    uint64    :offset-assert 528)
+   (turbo-meter           float     :offset-assert 536)
+   (cheat-award-time      uint64    :offset-assert 544)
+   (cheat-turbo-fill      float     :offset-assert 552)
+   (bing                  uint32 2 :offset-assert 556)
+   )
+  :method-count-assert 108
+  :size-assert         #x234
+  :flag-assert         #x6c01b00234
+  )
 
 #|
 (deftype powercell-dispenser (net-powerup)
@@ -57264,14 +57300,23 @@
 ;; pointer (low 32) and pid (high 32), compared against the pid stored at
 ;; process+48; that is the handle-deref idiom, not raw uint64 arithmetic
 ;; (scoped decode, this worktree's config, football2).
+;; loose-part retyped basic -> sparticle-launch-control: (trans active
+;; powercell-footie) and (method 10 powercell-footie) both load this field
+;; then dispatch through its type's own vtable at raw offsets 88 and 92,
+;; which are exactly sparticle-launch-control's own methods 18
+;; (spawn-from-cspace, called with a (inline-array cspace) second arg,
+;; matching the inherited `part` field's own method-18 call one function
+;; over) and 19 (kill-particles, called with no extra args); both call
+;; shapes match sparticle-launch-control's declared signatures exactly
+;; (scoped decode, this worktree's config, football2, rung 2).
 (deftype powercell-footie (rigid-body-object)
-  ((owner      handle         :offset-assert 288)
-   (plyid      int8           :offset-assert 296)
-   (tip-vel    vector :inline :offset-assert 304)
-   (spring-pos vector :inline :offset-assert 320)
-   (spring-vel vector :inline :offset-assert 336)
-   (bolt       basic          :offset-assert 352)
-   (loose-part basic          :offset-assert 356)
+  ((owner      handle                    :offset-assert 288)
+   (plyid      int8                      :offset-assert 296)
+   (tip-vel    vector :inline            :offset-assert 304)
+   (spring-pos vector :inline            :offset-assert 320)
+   (spring-vel vector :inline            :offset-assert 336)
+   (bolt       basic                     :offset-assert 352)
+   (loose-part sparticle-launch-control  :offset-assert 356)
    )
   :method-count-assert 91
   :size-assert         #x168
@@ -57285,11 +57330,16 @@
   (:methods
     ;; method 90 called from powercell-footie-init-by-other via
     ;; run-function-in-process, forwarding that function's own arg0
-    ;; (process-drawable, dereferenced here as root trans), a byte read
-    ;; from arg0 at raw offset 2116 (int), and arg2 (vector, used
-    ;; directly as a raw quad address, no deref) (scoped decode, this
-    ;; worktree's config, football2).
-    (powercell-footie-method-90 (_type_ process-drawable int vector) none) ;; 90
+    ;; (vehicle, dereferenced here as root trans), a byte read from arg0
+    ;; at raw offset 2116, declared 2120, which is exactly vehicle's own
+    ;; player-id field (int8, offset-assert 2120); the load width (l.b)
+    ;; matches the field width exactly, and vehicle is comfortably larger
+    ;; (size-assert #x859 = 2137) than the read requires. process-drawable
+    ;; (the prior, too-small type) tops out at #xf8 = 248 bytes, nowhere
+    ;; near this offset. arg2 (vector, used directly as a raw quad
+    ;; address, no deref) unchanged (scoped decode, this worktree's
+    ;; config, football2, rung 2).
+    (powercell-footie-method-90 (_type_ vehicle int vector) none) ;; 90
     )
   )
 
@@ -78439,14 +78489,16 @@
 ;; (method 52 net-powerup) on powercell-dispenser, forwarding that
 ;; method's own a1 (declared process-tree there, but this function derefs
 ;; it as (-> arg0 root trans) via method 90 powercell-footie, matching
-;; process-drawable's root field at declared offset 188), the caller's
-;; own offset-64 field (raw store, no further deref inside this
-;; function), and a locally built stack vector (raw quad, no deref).
-;; arg1's exact declared type could not be pinned further within this
-;; function's own body (support, not proof); held at the generic type
-;; that compiles rather than invented (scoped decode, this worktree's
-;; config, football2).
-(define-extern powercell-footie-init-by-other (function process-drawable object vector object :behavior powercell-footie))
+;; process-drawable's root field at declared offset 188). arg0 retyped
+;; process-drawable -> vehicle (rung 2): this function's own body also
+;; reads a byte from arg0 at raw offset 2116, declared 2120, matching
+;; vehicle's player-id field (int8) exactly by offset and load width;
+;; process-drawable itself is only #xf8 = 248 bytes and cannot reach that
+;; offset at all. The caller's own offset-64 field (raw store, no further
+;; deref inside this function) and a locally built stack vector (raw
+;; quad, no deref) are unchanged (scoped decode, this worktree's config,
+;; football2, rung 2).
+(define-extern powercell-footie-init-by-other (function vehicle object vector object :behavior powercell-footie))
 ;; powercell-footie-update-pos-on-vehicle: stored into and called from
 ;; self's own trans slot with no arguments ever loaded before the call
 ;; (both the direct call site and the trans-hook assignment), matching
@@ -87070,7 +87122,10 @@
 ;; lobby-menu-manager rung: two call sites both pass (this, 15); a0 is
 ;; process (the "self" pointer), a1 int; return unused at both sites.
 (define-extern net-mgr-notify-connect (function process int none)) ;; provisional: call-site evidence only
-(define-extern net-player-football object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional extern removed: shadowed the resurrected
+;; net-player-football deftype (football2 rung 2, my-potato evidence),
+;; same class as the net-player-h shadow below (scripts/check_alltypes_
+;; shadowing.py).
 ;; og:preserve-this provisional extern removed: shadowed the earlier net-player-h
 ;; deftype (net-player-respawn-info-method-3 evidence), same class as the
 ;; nospawn shadow above (scripts/check_alltypes_shadowing.py)

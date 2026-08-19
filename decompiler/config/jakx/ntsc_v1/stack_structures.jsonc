@@ -1472,17 +1472,14 @@
   // nav-mesh-method-42 the same way jak3's find-nearest-nav-mesh passes it
   // to nav-mesh-method-46 (both cast the struct as nav-poly).
   "find-first-containing-nav-mesh": [[16, "nav-find-poly-parms"]],
-  // (method 71 powercell-footie), football2 rung: sp+16's own start-pos/
+  // (method 71 powercell-footie), football2 rung 2: sp+16's own start-pos/
   // move-dist sub-fields (raw offsets 208/224) match collide-query's own
   // declared field offsets exactly, the same class as
-  // (method 71 coli-atlas-globe) above, BUT declaring the whole 552-byte
-  // region collide-query trades the single "stack use" error for seven
-  // per-field "Failed store" errors (offsets 88/92/96/100/116/268 all
-  // land on real collide-query fields with plausible values: this/#f
-  // into ignore-process0/1, a float into radius, evidence the type is
-  // right but the individual stores still need their own value-side
-  // casts this rung does not have budget to chase). Held: not applied,
-  // named here so a later rung does not have to re-derive it.
+  // (method 71 coli-atlas-globe) above. Re-attempted this rung with
+  // per-op type_casts.jsonc entries at the seven failing store sites the
+  // prior rung held for (see type_casts.jsonc's own football2 section for
+  // the landing evidence at each op).
+  "(method 71 powercell-footie)": [[16, "collide-query"]],
   // (method 11 powercell-dispenser), football2 rung: sp+16 is passed to
   // (method 49 net-powerup) as its object arg; its own tp/pos/lifetime/
   // initial-owner/motion-info sub-fields (raw offsets 0/16/32/36/40) are
@@ -1521,5 +1518,34 @@
   // sphere-hash's override of grid-hash-method-17 (jak3's sphere-hash
   // dump-grid-info): sp+16 is a plain vector scratch used to stage
   // target-pos's quad result before it is copied into work.temp-box-min.
-  "(method 17 sphere-hash)": [[16, "vector"]]
+  "(method 17 sphere-hash)": [[16, "vector"]],
+  // (post idle powercell-dispenser), football2 rung 2: sp+16 is built
+  // field-for-field to event-message-block's own declared layout (from
+  // at offset 8, message at 64, num-params at 68) and passed straight to
+  // send-event-function, the standard send-event stack-block shape used
+  // throughout the codebase.
+  "(post idle powercell-dispenser)": [[16, "event-message-block"]],
+  // (trans idle powercell-footie), football2 rung 2: sp+16 is the same
+  // event-message-block shape as (post idle powercell-dispenser) above
+  // (from at 8, message 'turbo-pad at 64, num-params 1 at 68, a literal
+  // 75 at param[0] offset 16), sent to the owner process.
+  "(trans idle powercell-footie)": [[16, "event-message-block"]],
+  // powercell-footie-update-pos-on-vehicle, football2 rung 2: sp+16
+  // (gp) is used at four 16-byte-aligned sub-offsets (0, 16, 32, 48) as
+  // scratch vectors for vector-matrix*!, a vector--float*! result,
+  // vector-normalize! and a vecplusfloattimes accumulator, which is
+  // exactly matrix's own rvec/uvec/fvec/trans row layout (same class as
+  // (method 11 helmet) above: a plain vector cast is wide enough for
+  // offset-0 access but not the offset 16/32/48 rows a matrix-shaped
+  // region needs). sp+80 (s3, already a plain vector by usage) follows
+  // immediately after: four individual float component stores (offsets
+  // 0/4/8/12) building a scale factor, then passed whole to
+  // vector-matrix*!.
+  "powercell-footie-update-pos-on-vehicle": [[16, "matrix"], [80, "vector"]],
+  // (method 90 powercell-footie), football2 rung 2: sp+16 is the same
+  // event-message-block shape as (post idle powercell-dispenser) and
+  // (trans idle powercell-footie) above (from at 8, message 'potato at
+  // 64, num-params 1 at 68, #t at param[0] offset 16), sent to the
+  // owning net-player.
+  "(method 90 powercell-footie)": [[16, "event-message-block"]]
 }

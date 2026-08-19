@@ -8081,16 +8081,216 @@
   // (method 52 powercell-dispenser): here the value is child-proc's own
   // handle deref (already handle-typed above), generically resolved to
   // process; same root-field access, same widening.
-  "(method 52 powercell-dispenser)": [[16, "a1", "process-drawable"]],
+  // football2 rung 2: op19 stores a quad through v1, which the +0
+  // offset-into-the-declared-stack-vector heuristic resolves to
+  // (pointer float) (the vector's own first field) instead of the
+  // vector itself, the same class as (method 71 powercell-footie)'s
+  // collide-query first-field trap above; cast back to vector at the
+  // store.
+  "(method 52 powercell-dispenser)": [
+    [16, "a1", "process-drawable"],
+    [19, "v1", "vector"]
+  ],
   // (post idle powercell-dispenser): child-proc's own handle deref
   // (already handle-typed above), used here for its draw field (raw
   // offset 192, declared 196 on process-drawable), same widening.
-  "(post idle powercell-dispenser)": [[49, "v1", "process-drawable"]],
+  // football2 rung 2: op46 is an earlier, separate read of the same
+  // v1+192 (draw) that predates the existing op49 cast and needs its
+  // own entry. op60 reads v1+260, declared 264, one struct deeper than
+  // process-drawable: powercell-dispenser-draw's own subdraw field
+  // (handle, offset-assert 264, already handle-typed), immediately
+  // followed by the same subu-s7/sllv/dsra32 handle-split idiom used
+  // throughout this file, sending an 'abort event to the dispenser's own
+  // draw child if its subdraw handle is live. powercell-dispenser-draw
+  // (the child this function's own name implies it manages) covers both
+  // op46's draw and op60's subdraw by inheritance, so both ops use the
+  // narrower type instead of process-drawable.
+  // op77: net-powerup's own idle state's code field is called directly
+  // (net-powerup 184 -> the idle state slot, 24 -> its code field), a
+  // generic function pointer with no argument-loading before the call,
+  // matching the zero-arg process-implicit convention used by every
+  // other (code <state> <type>) body in this file.
+  "(post idle powercell-dispenser)": [
+    [46, "v1", "powercell-dispenser-draw"],
+    [49, "v1", "process-drawable"],
+    [60, "v1", "powercell-dispenser-draw"],
+    [77, "t9", "(function none)"]
+  ],
+  // (method 90 powercell-footie), football2 rung 2: s3 is
+  // *part-local-space-engine*'s own allocate-connection call return,
+  // generically typed connection (#x20 = 32 bytes) by that method's
+  // shared signature, but every field this function actually touches on
+  // it (mat-prev at 32, mat-new at 96, hand at 160, flags at 168) is
+  // exactly particle-local-space-info's own declared layout, the
+  // connection subtype local-space-proc-joint's own extern signature
+  // already names as its argument two calls later in this same
+  // function.
+  "(method 90 powercell-footie)": [
+    [148, "s3", "particle-local-space-info"],
+    [150, "s3", "particle-local-space-info"],
+    [153, "s3", "particle-local-space-info"],
+    [155, "s3", "particle-local-space-info"],
+    [208, "s3", "particle-local-space-info"],
+    [210, "s3", "particle-local-space-info"],
+    [213, "s3", "particle-local-space-info"],
+    [215, "s3", "particle-local-space-info"]
+  ],
   // (enter active powercell-footie): op72 dereferences powercell-footie's
   // own owner handle (already handle-typed above); op77 reads the
   // resulting process's root field (raw offset 184), same widening as
   // the child-proc cases above.
   "(enter active powercell-footie)": [[77, "a1", "process-drawable"]],
+  // (trans idle powercell-footie), football2 rung 2: op20 reads the
+  // owner-handle-derived process at raw offset 244, declared 248, which
+  // is process-focusable's own focus-status field (defenum :type uint64,
+  // matching the 8-byte l.d exactly; the andi mask of 2 against it is
+  // the `ignore` bit, bit index 1). The same register is read again
+  // later in this function at raw offset 260 (declared 264), matching
+  // rigid-body-object's own flags field (uint64, offset-assert 264,
+  // masked against 4096); rigid-body-object is the minimum type in the
+  // chain that supports both fields at once, so this one op-20 cast
+  // covers the whole function rather than needing a second entry at the
+  // later op.
+  // op40 (same function): a second, independent *net-players* lookup
+  // (indexed by the same plyid field as powercell-footie-update-pos-on-
+  // vehicle below) reads raw offset 492, declared 496, off the array
+  // element; that is net-player-football's own my-potato field exactly
+  // (net-player-race's declared size is #x1f0 = 496, so 496 is the first
+  // byte net-player-football adds), one struct deeper than the array's
+  // declared element type (plain net-player, only #x190 = 400 bytes).
+  "(trans idle powercell-footie)": [
+    [20, "gp", "rigid-body-object"],
+    [40, "a0", "net-player-football"],
+    [53, "gp", "rigid-body-object"],
+    [58, "gp", "rigid-body-object"]
+  ],
+  // (enter idle powercell-footie), football2 rung 2: op14 reads the same
+  // owner-handle-derived process at raw offset 228, declared 232, which
+  // is process-drawable's own rbody field (rigid-body-control, a plain
+  // 4-byte pointer, matching the l.wu exactly); widened to
+  // rigid-body-object rather than the minimum process-drawable to stay
+  // consistent with the same owner value's wider use in (trans idle
+  // powercell-footie) above.
+  "(enter idle powercell-footie)": [[14, "v1", "rigid-body-object"]],
+  // (method 50 powercell-dispenser) / (method 46 powercell-dispenser),
+  // football2 rung 2: both are net-powerup-method-46/50 overrides taking
+  // a second generic object arg (s5 / s4) that this rung identifies as
+  // entity-actor by two independent field matches in the same function:
+  // raw offset 76 (a plain pointer add, no load) plus the standard +4
+  // basic-tag correction lands on declared 80, entity-actor's own quat
+  // field exactly (already the live deftype's real offset, not the dead
+  // block's stale 76); and raw offset 20 (an actual load) plus +4 lands
+  // on declared 24, res-lump's own extra field (entity-links, already
+  // live), whose own trans field at declared 32 needs no correction
+  // (entity-links is a plain structure, no type tag) and is read via a
+  // further +32 add matching exactly. Both fields resolve to the
+  // canonical `(-> actor extra trans)` position idiom used everywhere
+  // else in this codebase, plus entity-actor's own quat, so entity-actor
+  // is the type, not a guess.
+  // ops 12/16: the first "object" arg (gp, copied into v1/a0) is read
+  // and written directly as a 16-byte vector with no offset at all
+  // (result and accumulator for the vector-orient-by-quat! add), so it
+  // is vector itself, not a pointer into something larger.
+  "(method 50 powercell-dispenser)": [
+    [6, "s5", "entity-actor"],
+    [10, "s5", "entity-actor"],
+    [12, "v1", "vector"],
+    [16, "a0", "vector"],
+    [21, "v1", "vector"],
+    [24, "gp", "vector"]
+  ],
+  // op65: the first "object" arg (s5), same class as (method 50
+  // powercell-dispenser)'s op 12/16 above: written directly as a
+  // 16-byte vector accumulator, so vector, not object.
+  "(method 46 powercell-dispenser)": [
+    [56, "s4", "entity-actor"],
+    [59, "s4", "entity-actor"],
+    [65, "v1", "vector"]
+  ],
+  // (method 11 powercell-dispenser), football2 rung 2: op13 reads
+  // sp+16 (net-powerup-spawn-params, already declared in
+  // stack_structures.jsonc) plus 48, landing exactly on the separate
+  // sp+64 vector scratch region also already declared there (16 + 32,
+  // net-powerup-spawn-params's own size, equals 64); the type system
+  // does not bridge the arithmetic between the two separately-declared
+  // stack regions on its own, so this quad load needs its own cast.
+  // op10: a0 (sp+16's own offset 48, i.e. sp+64 exactly) lands on the
+  // same separately-declared vector stack region the op13 fix above
+  // reads from; same boundary-crossing gap the type system does not
+  // bridge on its own.
+  "(method 11 powercell-dispenser)": [
+    [10, "a0", "vector"],
+    [13, "a1", "vector"]
+  ],
+  // (method 56 powercell-dispenser-draw), football2 rung 2: the
+  // inherited signature types this arg as plain object
+  // (net-powerup-h.gc's powerup-draw-method-56), but this override
+  // copies it as a raw quad straight into root's trans, so it is a
+  // vector at the point of the read; scoped locally rather than
+  // widening the shared base signature.
+  "(method 56 powercell-dispenser-draw)": [[3, "a0", "vector"]],
+  // powercell-footie-update-pos-on-vehicle, football2 rung 2: s5 is a
+  // *net-players* array entry indexed by plyid (op 7), typed only as
+  // the base net-player (#x190 = 400 bytes) by the array's own declared
+  // element type. Ops 16 and 27 both read raw offset 500, declared 504,
+  // one struct deeper: net-player-football's slow-warning field (a
+  // held-lead offset the issue named as my-potato at 496, which this
+  // rung's own read of the surrounding code disproves -- op 16 compares
+  // the loaded value against zero, then ops 26-28 subtract it from a
+  // fresh clock read to build a countdown-to-lerp blend, the shape of a
+  // time-frame deadline, not a handle; declared 504 is exactly 4 past
+  // 500 by the standard +4 basic-tag correction, landing on
+  // slow-warning, not my-potato at 496).
+  // ops 48-116: gp (sp+16) is declared matrix in stack_structures.jsonc
+  // (same class as (method 11 helmet) above: a plain vector cast is
+  // wide enough for offset-0 access but not the offset 16/32/48 rows),
+  // but each op still needs its own cast to see it as matrix rather
+  // than the default first-field guess.
+  "powercell-footie-update-pos-on-vehicle": [
+    [11, "s4", "vehicle"],
+    [16, "s5", "net-player-football"],
+    [27, "s5", "net-player-football"],
+    [48, "gp", "matrix"],
+    [49, "s4", "rigid-body-object"],
+    [54, "gp", "matrix"],
+    [59, "gp", "matrix"],
+    [60, "gp", "matrix"],
+    [64, "s5", "net-player-football"],
+    [73, "s5", "net-player-football"],
+    [85, "gp", "matrix"],
+    [87, "gp", "matrix"],
+    [90, "gp", "matrix"],
+    [100, "gp", "matrix"],
+    [106, "gp", "matrix"],
+    [107, "gp", "matrix"],
+    [108, "gp", "matrix"],
+    [116, "gp", "matrix"]
+  ],
+  // (method 71 powercell-footie), football2 rung 2: op23 computes the
+  // stack collide-query's own base address (+0 off the declared struct),
+  // which the decompiler's field-selection heuristic resolves to the
+  // struct's own first field (collide-tri-result, offset 0's own
+  // narrowest alias) rather than the outer collide-query the offsets
+  // 88-352 actually reach into, the same class as (method 71
+  // construction-object) and (method 71 train-object) elsewhere in this
+  // file. A cast at the defining op (23) does not propagate to the
+  // later reads the way it does for a simple load; casting a0 back to
+  // collide-query at each of the seven failing store ops resolves them
+  // to their named fields (ignore-process0/1 at 88/92, ignore-pat-s32 at
+  // 96, collide-with-s32 at 100, action-mask at 352, radius at 268; 116
+  // falls in the num-spheres/best-dist/best-other-prim overlap zone and
+  // is stored through as a raw #f, matching the struct's own declared
+  // type since no single narrower field name fits a boolean-shaped
+  // write there).
+  "(method 71 powercell-footie)": [
+    [27, "a0", "collide-query"],
+    [29, "a0", "collide-query"],
+    [30, "a0", "collide-query"],
+    [31, "a0", "collide-query"],
+    [33, "a0", "collide-query"],
+    [35, "a0", "collide-query"],
+    [36, "a0", "collide-query"]
+  ],
   // target-pos / target-rot: both dereference view-get-active-target's own
   // declared return (generic process) then read its root field (raw offset
   // 184, declared 188 on process-drawable), same widening as the

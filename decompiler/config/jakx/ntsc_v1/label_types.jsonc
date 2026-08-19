@@ -700,7 +700,6 @@
   // four-word vector constant (0.0 28672.0 0.0 1.0) fp-relative quad-
   // loaded as the second arg to vector-orient-by-quat!, the same
   // fp+label vector-constant shape as plow's L242 above.
-  "(method 52 powercell-dispenser)": [["L277", "vector"]],
   // *minimap-class-list*: minimap-class-node's own 36-byte content
   // (:size-assert 0x24) rounds up to a 48-byte quadword-aligned array
   // stride with no :pack-me, confirmed directly from the compiled index
@@ -719,5 +718,14 @@
   "minimap": [
     ["L105", "(inline-array minimap-class-node)", 15],
     ["L123", "uint64", true]
-  ]
+  ],
+  // football2 rung 2: label_types is keyed by object (file) name, not by
+  // function name -- config.cpp reads it into config.label_types[obj_name]
+  // and ObjectFileDB_IR2.cpp looks it up by the object's own
+  // to_unique_name(). The prior rung's key here, the literal function
+  // name string, can never match any object being decoded, so this entry
+  // was silent dead config the whole time: not wrong in its claim about
+  // L277 (confirmed correct below), just never loaded. Re-keyed to the
+  // actual object name.
+  "football2": [["L277", "vector"]]
 }
