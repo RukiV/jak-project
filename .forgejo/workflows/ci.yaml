@@ -89,7 +89,10 @@ on:
 jobs:
   lint:
     name: Lint and format
-    runs-on: ubuntu-22.04
+    # ubuntu-22.04-jak is the baked image (.forgejo/ci-image/Dockerfile) with every
+    # dependency preinstalled; the install steps below stay as presence-checked
+    # fallbacks so the job still runs on a generic ubuntu-22.04 runner, just slower.
+    runs-on: ubuntu-22.04-jak
     timeout-minutes: 20
     outputs:
       # Consumed by windows-msvc to short-circuit its build steps on diffs that
@@ -205,8 +208,11 @@ jobs:
       # wheel delivers the identical binary with no apt source wrangling.
       - name: Install clang-format 18
         run: |
-          python3 -m pip install --quiet --user clang-format==18.1.8
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          # Baked into the image; this fallback only fires on a generic runner.
+          if ! command -v clang-format >/dev/null; then
+            python3 -m pip install --quiet --user clang-format==18.1.8
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
 
       # Assert the version rather than trust it: the whole point of pinning is defeated
       # if some other clang-format wins on PATH.
@@ -336,7 +342,8 @@ jobs:
 
   build-and-test:
     name: Linux clang build and unit tests
-    runs-on: ubuntu-22.04
+    # Baked image, same rationale as lint above.
+    runs-on: ubuntu-22.04-jak
     # Staged behind lint, as is the MSVC job below. Lint finishes in about a minute
     # and catches the commonest reds (formatting, the deferral ratchet, the inert
     # ledger); the builds cost fifteen runner-minutes between them, most of it on
@@ -371,10 +378,13 @@ jobs:
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential cmake clang gcc g++ lcov make \
-            nasm libxrandr-dev libxinerama-dev libxcursor-dev libpulse-dev \
-            libxi-dev zip ninja-build libgl1-mesa-dev libssl-dev ccache
+          # Baked into the image; this fallback only fires on a generic runner.
+          if ! command -v clang >/dev/null || ! command -v ninja >/dev/null || ! command -v ccache >/dev/null; then
+            sudo apt-get update
+            sudo apt-get install -y build-essential cmake clang gcc g++ lcov make \
+              nasm libxrandr-dev libxinerama-dev libxcursor-dev libpulse-dev \
+              libxi-dev zip ninja-build libgl1-mesa-dev libssl-dev ccache
+          fi
 
       # This job used to say "Atlas has the cores to absorb a cold build" and built
       # cold every run at full parallelism. It does have the cores; I have the
