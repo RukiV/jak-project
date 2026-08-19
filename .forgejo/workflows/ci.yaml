@@ -101,6 +101,11 @@ jobs:
       # diff against) builds, so the failure direction is always a wasted build,
       # never a skipped-but-needed one.
       cpp_changed: ${{ steps.pathfilter.outputs.cpp_changed }}
+      # Which games' consistency pairs a GOAL-only diff can reach: a space list
+      # like 'jak2 jakx', 'all' when a shared path widens the scope, 'none' when
+      # nothing game-attributable moved. Consumed by the Linux unit-test step;
+      # empty (older classifier, workflow_dispatch) runs the full four-game set.
+      tc_games: ${{ steps.pathfilter.outputs.tc_games }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -164,6 +169,25 @@ jobs:
             echo "cpp_changed=true" >> "$GITHUB_OUTPUT"
             echo "verdict: C++-reaching paths present:"; echo "$unsafe"
           fi
+          # Per-game attribution for the narrowed consistency filter. The four
+          # path families below are strictly per-game on disk (jak1_demo folds
+          # into jak1, the only game it could affect). Neutral paths (docs,
+          # scripts, CI config, markdown) touch no consistency pair at all, and
+          # anything else that survives both filters is shared (goal_src/common,
+          # goal-lib.gc, test/offline/config/config.cpp) and widens the scope to
+          # every game. Fail-safe polarity: unclassifiable means 'all'.
+          neutral='^(docs/|scripts/|custom_assets/|\.forgejo/|\.github/)|\.(md|txt)$'
+          pergame='^(goal_src/(jak1|jak2|jak3|jakx)/|decompiler/config/(jak1|jak1_demo|jak2|jak3|jakx)/|test/decompiler/reference/(jak1|jak2|jak3|jakx)/|test/offline/config/(jak1|jak2|jak3|jakx)/)'
+          shared="$(echo "$changed" | grep -vE "$neutral" | grep -vE "$pergame" || true)"
+          if [ -n "$shared" ]; then
+            tc="all"
+            echo "shared paths widen the consistency scope to all games:"; echo "$shared"
+          else
+            tc="$(echo "$changed" | grep -oE "$pergame" | grep -oE 'jak1|jak2|jak3|jakx' | sort -u | tr '\n' ' ' | sed 's/ $//')"
+            [ -z "$tc" ] && tc="none"
+          fi
+          echo "tc_games=$tc" >> "$GITHUB_OUTPUT"
+          echo "type-consistency scope: $tc"
 
       # AGENTS.md requires the (AI-assisted) marker on contributor commits; nothing
       # checked it mechanically until #88 (a violation shipped in the PR #85 follow-up
@@ -437,11 +461,41 @@ jobs:
       - name: Unit tests
         run: |
           if [ "${{ needs.lint.outputs.cpp_changed }}" = "false" ]; then
-            echo "GOAL-only diff: running the goal_src-sensitive tests only"
-            # Every game's consistency pair, not only jakx: the safe-path set spans
-            # all of goal_src/, so a jak2-only diff lands here too and its own
-            # consistency test is the load-bearing one for it.
-            ./build/goalc-test --gtest_color=yes --gtest_filter="*TypeConsistency*"
+            scope="${{ needs.lint.outputs.tc_games }}"
+            echo "GOAL-only diff: type-consistency scope '$scope'"
+            case "$scope" in
+              none)
+                # Nothing under any game's goal_src or config moved (docs or
+                # scripts only), so no consistency pair can have drifted and
+                # running one would re-test unchanged code. The binary itself
+                # is already covered by the cpp_changed gate above.
+                echo "no game-attributable paths changed; skipping the consistency suite"
+                ;;
+              all|"")
+                # Shared paths (goal_src/common, goal-lib.gc) reach every game,
+                # and an empty scope means the classifier did not run; both get
+                # the full four-game set, keeping the fail-safe polarity.
+                ./build/goalc-test --gtest_color=yes --gtest_filter="*TypeConsistency*"
+                ;;
+              *)
+                # A jakx-only diff pays 20s here instead of the 180s the full
+                # four-game set costs (measured per game on the forge: jak1
+                # 30.7s, jak2 58.5s, jak3 72.2s, jakx 18.5s).
+                filter=""
+                for g in $scope; do
+                  case "$g" in
+                    jak1) t="Jak1TypeConsistency.*" ;;
+                    jak2) t="Jak2TypeConsistency.*" ;;
+                    jak3) t="Jak3TypeConsistency.*" ;;
+                    jakx) t="JakXTypeConsistency.*" ;;
+                    *)    t="*TypeConsistency*" ;;
+                  esac
+                  filter="${filter:+$filter:}$t"
+                done
+                echo "narrowed filter: $filter"
+                ./build/goalc-test --gtest_color=yes --gtest_filter="$filter"
+                ;;
+            esac
           else
             ./build/goalc-test --gtest_color=yes --gtest_filter="-*MANUAL_TEST*"
           fi
