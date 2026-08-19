@@ -806,7 +806,23 @@
     // valid GOAL at all (a bare (l.q ...) call), which is what actually
     // trips offline-test's own compile pass here. The decomp-vs-REF diff
     // still gates the whole object.
-    "collide-mesh"
+    "collide-mesh",
+    // scene (wave 8 flagship rung): scene-player-init, the wait/release/
+    // play-anim virtual states, (method 9 scene-actor) (setup-manipy-for-
+    // scene!), (method 10 scene-player) (deactivate), (method 55 scene-
+    // player), process-drawable-draw-subtitles and draw-subtitle-image
+    // form one activation cluster (scene-player-init's own body ends with
+    // (go-virtual wait arg1); process-drawable-draw-subtitles calls draw-
+    // subtitle-image directly) and are held, not landed; see goal_src/
+    // jakx/engine/scene/scene.gc's own og:preserve-this header for the
+    // per-handler and per-function evidence. The clean remainder (print,
+    // relocate, init-spool-by-scene!, scene-decode-continue, scene-lookup,
+    // the subtitle-work deftype and its static instance) compiles and
+    // links fine under (mi); the held cluster's raw fallback text (bare
+    // label references for blocked state handlers, unresolved loads) is
+    // what actually trips offline-test's own compile pass here. The
+    // decomp-vs-REF diff still gates the whole object.
+    "scene"
   ],
   "skip_compile_functions": [
     // rigid-body-debug (rigid-body-object rung): four rb-debugger methods inline

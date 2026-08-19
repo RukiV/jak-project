@@ -7,3 +7,192 @@
 
 ;; DECOMP BEGINS
 
+(deftype subtitle-work (structure)
+  ((draw-tmpl dma-gif-packet :inline)
+   (color0    vector4w       :inline)
+   (color1    vector4w       :inline)
+   )
+  )
+
+(define *subtitle-work* (new 'static 'subtitle-work
+                          :draw-tmpl (new 'static 'dma-gif-packet
+                            :dma-vif (new 'static 'dma-packet
+                              :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                              :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                              )
+                            :gif (new 'static 'array uint64 2 #x50ab400000008001 #x53531)
+                            )
+                          :color0 (new 'static 'vector4w :w #x80)
+                          :color1 (new 'static 'vector4w :x #x80 :y #x80 :z #x80 :w #x80)
+                          )
+        )
+
+(defmethod print ((this scene))
+  (format #t "#<scene ~A ~A @ #x~X>" (-> this art-group) (-> this anim) this)
+  this
+  )
+
+(defmethod init-spool-by-scene! ((this scene) (arg0 spool-anim))
+  (set! (-> arg0 name) (-> this anim))
+  (set! (-> arg0 anim-name) (-> this anim))
+  (set! (-> arg0 parts) (-> this parts))
+  (set! (-> arg0 command-list) (-> this command-list))
+  arg0
+  )
+
+(defun scene-decode-continue ((arg0 basic))
+  (the-as continue-point (cond
+                           ((not arg0)
+                            (the-as basic #f)
+                            )
+                           ((= (-> arg0 type) continue-point)
+                            arg0
+                            )
+                           ((= (-> arg0 type) string)
+                            (game-info-method-18 *game-info* (the-as string arg0))
+                            )
+                           (else
+                             (the-as basic #f)
+                             )
+                           )
+          )
+  )
+
+(defun scene-lookup ((arg0 basic))
+  (the-as
+    scene
+    (case (-> arg0 type)
+      ((string)
+       (let ((s5-0 (art-group-get-by-name *level* (the-as string arg0) (the-as (pointer level) #f))))
+         (when (type? s5-0 scene)
+           (let ((gp-0 (get-level-by-heap-ptr-and-status *level* (the-as pointer s5-0) 'active)))
+             (when (and s5-0 gp-0)
+               (let ((s4-0 (scene-decode-continue (-> s5-0 data 15))))
+                 (when s4-0
+                   (dotimes (s3-0 (-> s4-0 want-count))
+                     (if (= (-> gp-0 name) (-> s4-0 want s3-0 name))
+                         (goto cfg-15)
+                         )
+                     (lookup-level-info (-> s4-0 want s3-0 name))
+                     )
+                   (format
+                     0
+                     "WARNING: can not find scene level ~A in continue ~A, dropping scene until after load~%"
+                     (-> gp-0 name)
+                     (-> s4-0 name)
+                     )
+                   (return (the-as scene #f))
+                   )
+                 )
+               )
+             )
+           (label cfg-15)
+           s5-0
+           )
+         )
+       )
+      ((scene)
+       arg0
+       )
+      )
+    )
+  )
+
+(defmethod relocate ((this scene-player) (offset int))
+  (let ((v1-0 *kernel-context*))
+    (set! (-> v1-0 relocating-process) this)
+    (set! (-> v1-0 relocating-min) (the-as int (&-> this type)))
+    (set! (-> v1-0 relocating-max)
+          (the-as int (+ (+ (-> this allocated-length) -4 (-> process size)) (the-as int this)))
+          )
+    (set! (-> v1-0 relocating-offset) offset)
+    )
+  (let ((v1-2 (-> this scene-list)))
+    (if (and (>= (the-as int v1-2) (-> *kernel-context* relocating-min))
+             (< (the-as int v1-2) (-> *kernel-context* relocating-max))
+             )
+        (&+! (-> this scene-list) offset)
+        )
+    )
+  (the-as scene-player ((method-of-type process-drawable relocate) this offset))
+  )
+
+;; og:preserve-this the scene-player virtual state machine (wait, release,
+;; play-anim), setup-manipy-for-scene! (method 9 scene-actor), (method 10
+;; scene-player) (deactivate), (method 55 scene-player), scene-player-init,
+;; process-drawable-draw-subtitles and draw-subtitle-image are held, not
+;; landed. Fresh scoped decode against this worktree's own config (this
+;; commit's tip) puts every one of them in a single activation cluster:
+;; scene-player-init is the only entry point that constructs a scene-player
+;; and its own body ends with (go-virtual wait arg1), so landing it without
+;; a real wait state links that go-virtual to an empty method-50 slot (the
+;; #5 "symbol not landed links as zero" class). process-drawable-draw-
+;; subtitles calls draw-subtitle-image directly (same class). Landing any
+;; single piece of this cluster without the rest is the exact hazard
+;; AGENTS.md rule 5 names, so the whole cluster stays out together.
+;;
+;; What is clean per-handler (full behavior text, zero ir2 errors), evidenced
+;; against this worktree's own scoped decode:
+;;   wait:      :trans clean; :enter and :code are bare label references,
+;;              each blocked by one unresolved load (see below)
+;;   release:   :event clean; :code is a bare label reference
+;;   play-anim: :enter and :exit clean (:exit only carries the benign
+;;              "may read a3/t0" advisory already landed verbatim elsewhere
+;;              in this tree, e.g. collide-probe.gc, drawable.gc, main.gc,
+;;              texture.gc); :event, :trans, :code and :post are bare label
+;;              references
+;; A defstate is one form; a state with any blocked handler cannot be split,
+;; so all three states are held whole rather than partially transcribed.
+;;
+;; Root defects held, each independently root-caused this rung:
+;;   (code wait scene-player), (code play-anim scene-player), (trans play-
+;;     anim scene-player), (post play-anim scene-player): each fails on an
+;;     unresolved `(l.d (+ v0 244))` or `(l.w (+ gp -2))` style load off a
+;;     register the decompiler cannot narrow further with this rung's own
+;;     evidence (a `view-get-active-target` return read at a large offset
+;;     with no jak3 twin call at that site to corroborate the target field
+;;     layout, and a `cdr`-chain car access typed generically `object`
+;;     rather than `pair`). Narrowing either needs its own investigation
+;;     rung (the `target` type's own field table for the first, a type_casts
+;;     cdr-cast for the second); guessing either is exactly what AGENTS.md
+;;     rule 3 marks as a guess, not a finding.
+;;   (code release scene-player): same `(l.d (+ v0 244))` class, plus a
+;;     "Failed to guess stack use for 16" annotation on top.
+;;   (enter wait scene-player): a distinct `(l.w v1)` load failure plus its
+;;     own stack-use annotation, not yet traced to a root cause.
+;;   (event play-anim scene-player): "Called something that was not a
+;;     function: uint" at op 11, not yet traced.
+;;   (method 9 scene-actor) / setup-manipy-for-scene!: retyped this rung
+;;     (was guessed (object symbol string) none from scene-player-init's
+;;     arg shape by coincidence, not evidence; jak3's twin declares
+;;     setup-manipy-for-scene! (_type_ scene-player) (pointer process), and
+;;     this worktree's own decode confirms it reading process's entity
+;;     field at the corrected arity). Substantially cleaner after the
+;;     retype but still fails at `(l.bu (+ s3 111))` plus a stack-use
+;;     annotation, deeper in the body than before the fix.
+;;   (method 55 scene-player) (jak3's scene-player-method-25): a
+;;     process-drawable cast (this rung's own type_casts.jsonc entry)
+;;     cleared the first blocker; a second, later `cdr`-chain `(l.w (+ s0
+;;     -2))` failure of the same class as the play-anim post/code sites
+;;     remains.
+;;   (method 10 scene-player) (deactivate): only the benign "may read a3/
+;;     t0" advisory, already landed elsewhere in this tree verbatim; held
+;;     here purely because it is part of the same activation cluster as
+;;     the still-blocked pieces above, not because its own decode is dirty.
+;;   draw-subtitle-image: a two-block DMA/vector4w write (quad stores at a
+;;     16-byte-aligned base, then four sub-word component stores per block)
+;;     that jak3's own source resolves with two different casts on the same
+;;     base pointer at different offsets ((the-as (pointer uint128) ...) for
+;;     the quad stores, (the-as vector4w (&+ ... N)) for the component
+;;     writes); the decompiler does not reconstruct this dual-view pattern
+;;     automatically and a single type_casts entry cannot express both views
+;;     on one register range. 28 raw store errors across two symmetric
+;;     blocks, same root class throughout.
+;;
+;; Retirement condition: land the target-type field table (for the v0+244
+;; class), a cdr/pair type_cast for the play-anim post/method-55 tail, the
+;; event-play-anim uint-call site, and the draw-subtitle-image per-offset
+;; casts, in a follow-up rung; then this whole cluster can land as one
+;; commit (scene-player-init, all three states, methods 9/10/55, and both
+;; subtitle-image draw functions all depend on each other and should land
+;; together for the same activation-hazard reason they are held together).

@@ -33824,6 +33824,10 @@
 ;; scene-h                        ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;; forward declare: scene-actor's method 9 (setup-manipy-for-scene!) takes
+;; a scene-player arg, but scene-player itself is not deftype'd until below.
+(declare-type scene-player process-drawable)
+
 (deftype scene-actor (basic)
   ((name                string  :offset-assert 4) ;; guessed by decompiler
    (level               symbol  :offset-assert 8) ;; guessed by decompiler
@@ -33845,13 +33849,19 @@
    (draw-seg            uint64  :offset-assert 64)
    (no-draw-seg         uint64  :offset-assert 72)
    (last-frame          float   :offset-assert 80)
-   (process             uint64  :offset-assert 88) ;; handle
+   (process             handle  :offset-assert 88)
    )
   :method-count-assert 10
   :size-assert         #x60
   :flag-assert         #xa00000060
+  ;; method 9 was guessed as (object symbol string) none, matching scene-
+  ;; player-init's own arg pattern by coincidence rather than evidence; the
+  ;; real single arg reads offset 64 off it (this worktree's own scoped
+  ;; decode), which is process's own entity field, matching jak3's twin
+  ;; body exactly: setup-manipy-for-scene! reads (-> arg0 entity) on a
+  ;; scene-player arg and returns the spawned manipy pointer.
   (:methods
-    (scene-actor-method-9 (_type_ object symbol string) none) ;; 9 ;; (scene-player-init (_type_ object symbol string) none)
+    (setup-manipy-for-scene! (_type_ scene-player) (pointer process)) ;; 9
     )
   )
 
@@ -33887,9 +33897,9 @@
    (parts            int32                        :offset-assert 52)
    (command-list     pair                         :offset-assert 56) ;; guessed by decompiler
    (cut-list         pair                         :offset-assert 60) ;; guessed by decompiler
-   (wait-max-time    uint64                       :offset-assert 64) ;; time-frame
-   (wait-air-time    uint64                       :offset-assert 72) ;; time-frame
-   (wait-ground-time uint64                       :offset-assert 80) ;; time-frame
+   (wait-max-time    time-frame                   :offset-assert 64)
+   (wait-air-time    time-frame                   :offset-assert 72)
+   (wait-ground-time time-frame                   :offset-assert 80)
    (actor            (array scene-actor)          :offset-assert 88) ;; guessed by decompiler
    (load-point       basic                        :offset-assert 92)
    (end-point        basic                        :offset-assert 96)
@@ -33909,7 +33919,7 @@
   :flag-assert         #x120000008c
   ;; field on-running uses ~A with a signed load. field on-complete uses ~A with a signed load.
   (:methods
-    (scene-method-16 (_type_ object) none) ;; 16 ;; (init-spool-by-scene! (_type_ object) spool-anim)
+    (init-spool-by-scene! (_type_ spool-anim) spool-anim) ;; 16
     (load-scene (_type_) scene)
     )
   )
@@ -33920,7 +33930,7 @@
    (scene-index          int32                   :offset-assert 256)
    (anim                 spool-anim              :offset-assert 260) ;; guessed by decompiler
    (next-anim            spool-anim              :offset-assert 264) ;; guessed by decompiler
-   (camera               uint64                  :offset-assert 272) ;; handle
+   (camera               handle                  :offset-assert 272)
    (main-entity          entity-actor            :offset-assert 280) ;; guessed by decompiler
    (wait                 symbol                  :offset-assert 284) ;; guessed by decompiler
    (old-target-pos       transformq      :inline :offset-assert 288)
@@ -33930,13 +33940,13 @@
    (dma-max              uint32                  :offset-assert 348)
    (gui-id               sound-id                :offset-assert 352) ;; guessed by decompiler
    (aborted?             symbol                  :offset-assert 356) ;; guessed by decompiler
-   (scene-start-time     uint64                  :offset-assert 360) ;; time-frame
+   (scene-start-time     time-frame              :offset-assert 360)
    (targ-speed           float                   :offset-assert 368)
    (cur-speed            float                   :offset-assert 372)
-   (speed-change-time    uint64                  :offset-assert 376) ;; time-frame
-   (speed-press-time     uint64                  :offset-assert 384) ;; time-frame
+   (speed-change-time    time-frame              :offset-assert 376)
+   (speed-press-time     time-frame              :offset-assert 384)
    (speed-change-speed   float                   :offset-assert 392)
-   (subtitle-change-time uint64                  :offset-assert 400) ;; time-frame
+   (subtitle-change-time time-frame              :offset-assert 400)
    (user-sound           sound-id        4       :offset-assert 408) ;; guessed by decompiler
    (last-frame           float                   :offset-assert 424)
    (end-point            basic                   :offset-assert 428)
@@ -33949,13 +33959,27 @@
   :size-assert         #x1c8
   :flag-assert         #x38014001c8
   ;; field user-data uses ~A with a 64-bit load.
+  ;; camera, scene-start-time, speed-change-time, speed-press-time and
+  ;; subtitle-change-time retyped handle/time-frame per their own pre-
+  ;; existing hint comments, confirmed by jak3's twin scene-h.gc declaring
+  ;; the identical field list as handle/time-frame (scene lane, this
+  ;; worktree's own scoped decode showed the l.d+sllv/dsra32 handle-deref
+  ;; idiom and unaligned time-frame splits these fields fed downstream).
+  ;; methods 50-52 were plain ()none stubs but the decode defines virtual
+  ;; states wait/release/play-anim at those exact slots (the literal names
+  ;; come from this worktree's own decode, not borrowed); moved to
+  ;; (:state-methods). Methods 53-55 keep their real arg counts, matching
+  ;; jak3's scene-player-method-23/24/25 body-for-body (string type-check
+  ;; plus scene-lookup call for 54, dotimes float-range walk for 55).
+  (:state-methods
+    (wait symbol)
+    release
+    play-anim
+    )
   (:methods
-    (scene-player-method-50 () none) ;; 50
-    (scene-player-method-51 () none) ;; 51
-    (scene-player-method-52 () none) ;; 52
-    (scene-player-method-53 () none) ;; 53
-    (scene-player-method-54 (_type_ object object) none) ;; 54
-    (scene-player-method-55 (_type_ object object) none) ;; 55
+    (scene-player-method-53 (_type_ string symbol) none) ;; 53
+    (scene-player-method-54 (_type_ scene symbol) scene) ;; 54
+    (scene-player-method-55 (_type_ float float) none) ;; 55
     )
   )
 
@@ -50620,12 +50644,18 @@
   )
 
 
-;; (define-extern scene-decode-continue function) ;; (function basic continue-point)
-;; (define-extern scene-lookup function) ;; (function basic scene)
-;; (define-extern *subtitle-work* object) ;; subtitle-work
-;; (define-extern draw-subtitle-image function) ;; (function subtitle-image font-context none)
-;; (define-extern process-drawable-draw-subtitles function) ;; (function none :behavior process-drawable)
-;; (define-extern scene-player-init function) ;; (function object symbol string none :behavior scene-player)
+;; Uncommented: these six signatures were already sitting here as a prior
+;; session's own analysis (not my own guess), and every one matches this
+;; worktree's own scoped decode evidence (arg registers read, call-site
+;; forwarding into scene-lookup, and jak3's own twin scene-h.gc externs
+;; for scene-player-init and scene-lookup byte-for-byte). Uncommenting
+;; resolves every "has unknown type" ERROR on these six symbols.
+(define-extern scene-decode-continue (function basic continue-point))
+(define-extern scene-lookup (function basic scene))
+(define-extern *subtitle-work* subtitle-work)
+(define-extern draw-subtitle-image (function subtitle-image font-context none))
+(define-extern process-drawable-draw-subtitles (function none :behavior process-drawable))
+(define-extern scene-player-init (function object symbol string none :behavior scene-player))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; movie-path                     ;;
@@ -86957,7 +86987,8 @@
 (define-extern *stats-title* object) ;; provisional: call-site evidence only
 ;; *stereo-mode-info* stays declared selection-cache (menu2-lists rung,
 ;; evidence above); stale object-typed duplicate removed, same reason.
-(define-extern *subtitle-work* object) ;; provisional: call-site evidence only
+;; *subtitle-work* stays declared subtitle-work (scene lane, evidence
+;; above); stale object-typed duplicate removed, same reason.
 (define-extern *subtitles-text* object) ;; provisional: call-site evidence only
 (define-extern *target-cam-off-time* object) ;; provisional: call-site evidence only
 (define-extern *test-shrub* object) ;; provisional: call-site evidence only
