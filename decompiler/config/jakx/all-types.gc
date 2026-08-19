@@ -40785,13 +40785,13 @@
   :size-assert         #x58
   :flag-assert         #x1b00000058
   (:methods
-    (new (symbol type) _type_) ;; 0 ;; (new (symbol type int) _type_)
+    (new (symbol type int) _type_) ;; 0
     (grid-hash-method-9 (_type_ object object object) none) ;; 9 ;; (update-grid-for-objects-in-box (_type_ object object object) none)
     (grid-hash-method-10 (_type_) none) ;; 10 ;; (clear-bucket-array (_type_) none)
-    (grid-hash-method-11 () none) ;; 11 ;; (setup-search-box (_type_ int vector vector vector) none)
+    (grid-hash-method-11 (_type_ int vector vector vector) none) ;; 11
     (grid-hash-method-12 (_type_ object) none) ;; 12 ;; (search-for-point (_type_ object) (pointer uint8))
-    (grid-hash-method-13 (_type_ object object) none) ;; 13 ;; (search-for-sphere (_type_ object object) (pointer uint8))
-    (grid-hash-method-14 (_type_ object) none) ;; 14 ;; (draw (_type_ object) none)
+    (grid-hash-method-13 (_type_ vector float) (pointer uint128)) ;; 13
+    (grid-hash-method-14 (_type_ bounding-box) none) ;; 14
     (grid-hash-method-15 (_type_ object object object) none) ;; 15 ;; (dump-grid-info (_type_ object object object) none)
     (grid-hash-method-16 (_type_ object) none) ;; 16 ;; (verify-bits-in-bucket (_type_ object) none)
     (grid-hash-method-17 (_type_) none) ;; 17 ;; (box-of-everything (_type_) none)
@@ -40800,7 +40800,7 @@
     (grid-hash-method-20 (_type_ object object) none) ;; 20 ;; (do-search! (_type_ object object)) none)
     (grid-hash-method-21 (_type_ object object) none) ;; 21 ;; (set-up-box (_type_ object object) none)
     (grid-hash-method-22 () none) ;; 22 ;; (sphere-to-grid-box (_type_ grid-hash-box sphere) none)
-    (grid-hash-method-23 (_type_ object object object) none) ;; 23 ;; (line-sphere-to-grid-box (_type_ object object object) none)
+    (grid-hash-method-23 (_type_ grid-hash-box vector vector) none) ;; 23
     (grid-hash-method-24 () none) ;; 24 ;; (update-grid (_type_) none)
     (grid-hash-method-25 () none) ;; 25
     (grid-hash-method-26 () none) ;; 26
@@ -40834,8 +40834,8 @@
   (:methods
     (new (symbol type int int) _type_) ;; 0 ;; (new (symbol type int int) _type_)
     (sphere-hash-method-27 (_type_) none) ;; 27 ;; (add-a-sphere-with-flag (_type_) int)
-    (sphere-hash-method-28 (_type_ object) none) ;; 28 ;; (update-from-spheres (_type_ object) none)
-    (sphere-hash-method-29 (_type_ object object) none) ;; 29 ;; (sphere-hash-method-29 (_type_ object object) none)
+    (sphere-hash-method-28 (_type_ vector) int) ;; 28 ;; (add-a-sphere (_type_ vector) int)
+    (sphere-hash-method-29 (_type_ vector int) int) ;; 29 ;; (add-a-sphere-with-flag (_type_ vector int) int)
     (sphere-hash-method-30 (_type_) none) ;; 30 ;; (check-sphere-blocked (_type_) symbol)
     (sphere-hash-method-31 () none) ;; 31 ;; (add-sphere-with-mask-and-id (_type_ vector vector float int) symbol)
     (sphere-hash-method-32 () none) ;; 32 ;; (sphere-hash-method-32 (_type_ sphere int) symbol)
@@ -40864,13 +40864,13 @@
   :flag-assert         #x2a00000074
   (:methods
     (new (symbol type int int) _type_) ;; 0 ;; (new (symbol type int int) _type_)
-    (spatial-hash-method-36 (_type_ object object) none) ;; 36 ;; (fill-actor-list-for-sphere (_type_ object object) int int) int)
+    (spatial-hash-method-36 (_type_ vector hash-object-info) none) ;; 36
     (spatial-hash-method-37 () none) ;; 37 ;; (fill-actor-list-for-line-sphere (_type_ vector vector float (pointer collide-shape) int int) int)
     ;; jakx adds a list-capacity arg over jak3's 2-arg version (verified at the
     ;; collide-shape.o do-push-aways call site: a1=prim-core/world-sphere,
     ;; a2=*actor-list*, a3=512)
     (fill-actor-list-for-vec+r (_type_ vector (pointer collide-shape) int) int) ;; 38
-    (spatial-hash-method-39 (_type_ object) none) ;; 39 ;; (spatial-hash-method-39 (_type_ object) int)
+    (spatial-hash-method-39 (_type_ vector (pointer collide-shape) int) none) ;; 39
     (spatial-hash-method-40 () none) ;; 40
     (spatial-hash-method-41 (_type_) none) ;; 41
     )
@@ -45143,10 +45143,18 @@
   )
 
 ;; (define-extern *grid-hash-work* grid-hash-work) ;; grid-hash-work
-;; (define-extern validate-bucket-bits function) ;; (function grid-hash (pointer grid-hash-word) symbol)
+(define-extern validate-bucket-bits (function grid-hash (pointer grid-hash-word) symbol))
 ;; (define-extern draw-grid function) ;; (function vector vector (pointer int8) rgba none)
-;; (define-extern draw-sphere-box function) ;; (function sphere rgba none)
-;; (define-extern draw-line-sphere function) ;; (function vector vector float rgba none)
+;; og:preserve-this held: draw-grid itself still carries a genuine decode
+;; error (op158's l.f read off a stack-spilled vector pointer never resolves;
+;; "Failed to guess stack use for 16" also persists past the sp+64/68/72
+;; pointer-spill slots this rung tried and gave up on). grid-hash-method-16
+;; (jak3's draw) decodes fully clean once draw-grid is typed and calls it by
+;; bare symbol, which would be a fresh extern-no-defun finding with no defun
+;; behind it; held alongside draw-grid rather than landed with a dangling
+;; call. Retire this note once draw-grid's stack layout is solved.
+(define-extern draw-sphere-box (function sphere rgba none))
+(define-extern draw-line-sphere (function vector vector float rgba none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; actor-hash                     ;;

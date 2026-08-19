@@ -8108,5 +8108,69 @@
   // reassigns s4 to the cdr of the walked pair (typed object, the decompiler's
   // default for a cdr load); op20's car read off that same s4 is the failing
   // load. Cast s4 back to pair at the op20 read.
-  "prototypes-game-visible-set!": [[19, "s4", "pair"], [20, "s4", "pair"]]
+  "prototypes-game-visible-set!": [[19, "s4", "pair"], [20, "s4", "pair"]],
+  // spatial-hash tier: grid-hash-method-10 (clear-bucket-array) zeroes the
+  // bucket array 16 bytes at a time; a0 is bucket-array ((pointer
+  // grid-hash-word)) and needs widening to (pointer uint128) at the s.q!
+  // store op, matching jak3's own (the-as (pointer uint128) ...) cast for
+  // the identical zeroing loop.
+  "(method 10 grid-hash)": [[12, "a0", "(pointer uint128)"]],
+  // grid-hash-method-19 (jak3's box-of-everything, shifted two slots by
+  // jakx's insertions earlier in the type): op3's l.b reads self+24 through
+  // a3 (v1+a0, an untyped intermediate), the raw offset for dimension-array
+  // (declared offset 28, machine offset 24 per the +4 basic-tag trap); a3
+  // cast to (pointer int8) resolves it. op42 is the grid-hash-box output
+  // arg (a2, currently generic object) read at its first byte; once cast
+  // the five sibling l.b/s.b! ops at +1..+5 on the same a2-0 SSA value
+  // resolve for free.
+  "(method 19 grid-hash)": [
+    [3, "a3", "(pointer int8)"],
+    [4, "a2", "grid-hash-box"],
+    [7, "a2", "grid-hash-box"],
+    [42, "a2", "grid-hash-box"],
+    [47, "a2", "grid-hash-box"],
+    [52, "a2", "grid-hash-box"],
+    [57, "a2", "grid-hash-box"],
+    [62, "a2", "grid-hash-box"],
+    [67, "a2", "grid-hash-box"],
+    [46, "a2", "grid-hash-box"],
+    [51, "a2", "grid-hash-box"],
+    [56, "a2", "grid-hash-box"],
+    [61, "a2", "grid-hash-box"],
+    [66, "a2", "grid-hash-box"],
+    [71, "a2", "grid-hash-box"]
+  ],
+  // grid-hash-method-13 (jak3's search-for-sphere): op3's l.q reads the
+  // vector arg (a1, currently generic object) wholesale into a stack
+  // sphere; cast to vector at that read.
+  "(method 13 grid-hash)": [[3, "a1", "vector"]],
+  // grid-hash-method-14 (jakx-only bounding-box search, no jak3 twin): op3
+  // splits a1 into two 16-byte sub-reads at +0/+16, matching bounding-box's
+  // min/max vector layout exactly (decompiler/config/jakx/all-types.gc).
+  "(method 14 grid-hash)": [[3, "a1", "bounding-box"]],
+  // sphere-hash-method-29 (jak3's add-a-sphere-with-flag): op44 stores the
+  // int flag arg into the sphere-array entry's w-slot reused as a byte,
+  // matching jak3's (the-as (pointer int8) s2-0) cast at the same store.
+  "(method 29 sphere-hash)": [[44, "s2", "(pointer int8)"]],
+  // spatial-hash-method-36 (jak3's spatial-hash-method-33 / add-an-object):
+  // op15's l.f reads the vector arg's w (radius) component; s3 holds arg0
+  // (currently generic object) from op1 onward, cast to vector at the
+  // first read.
+  "(method 36 spatial-hash)": [[15, "s3", "vector"]],
+  // spatial-hash-method-39 (delegates to fill-actor-list-for-vec+r with a
+  // zeroed-w copy, jak3's fill-actor-list-for-line-sphere shape): op2's l.q
+  // reads the vector arg wholesale into a stack copy.
+  "(method 39 spatial-hash)": [[2, "a1", "vector"]],
+  // grid-hash-method-11 (jak3's setup-search-box): the final triple-nested
+  // bit-or loop carries its bucket-array walk pointer (t1-3 -> t4-6 -> t6-0)
+  // through several plain register moves across the loop boundary, losing
+  // the (pointer grid-hash-word) type picked up at its op127 l.wu of
+  // bucket-array; cast back at the op141 read. Same class jak3 itself
+  // needed an explicit (the-as pointer t6-0) og:preserve-this cast for.
+  "(method 11 grid-hash)": [
+    [141, "t6", "(pointer grid-hash-word)"],
+    [146, "t6", "(pointer grid-hash-word)"],
+    [149, "t4", "(pointer grid-hash-word)"],
+    [152, "t1", "(pointer grid-hash-word)"]
+  ]
 }
