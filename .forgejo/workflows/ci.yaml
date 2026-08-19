@@ -438,18 +438,18 @@ jobs:
           # than the proposed change, so it could pass while the change it is
           # meant to gate does not compile.
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
-
-      # Same shallow-maintenance guard as the Linux jobs above; see the comment there.
-      - name: Disable detached repo maintenance (races our sequential fetches)
-        run: |
-          git config gc.auto 0
-          git config gc.autoDetach false
-          git config maintenance.auto false
           # Not the workspace root: jak-project resolves its project directory by
           # string-matching "jak-project" in the executable's own path, so the
           # checkout has to sit in a directory of that name or goalc-test cannot
           # find the repo. See alex/jak-project#47.
           path: jak-project
+
+      # No shallow-maintenance guard here on purpose: the race needs two sequential
+      # fetches in one clone and this job performs exactly one (the checkout's own).
+      # The guard briefly lived here and broke the job twice over: inserting it
+      # between the checkout's ref and path lines swallowed the path key into the
+      # step script, which both ran "path: jak-project" as a shell command (the
+      # silent exit 1) and stripped the checkout of its required target directory.
 
       - name: Install NASM
         run: |
