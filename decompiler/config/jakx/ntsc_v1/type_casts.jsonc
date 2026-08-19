@@ -8172,5 +8172,79 @@
     [146, "t6", "(pointer grid-hash-word)"],
     [149, "t4", "(pointer grid-hash-word)"],
     [152, "t1", "(pointer grid-hash-word)"]
-  ]
+  ],
+  // (method 10 minimap) and (method 11 minimap): both resolve a racer's
+  // handle to its process via the standard sllv/dsra32 handle->process split,
+  // then read the process's root field (raw offset 184, declared 188 on
+  // process-drawable), the same widening as the target-pos/target-rot and
+  // (method 44 collide-shape) families above. Casting only at the offset-184
+  // read (not the sllv itself) is enough for both the type-prop failure and
+  // the sllv/dsra32 pair's own "Unsupported inline assembly instruction kind"
+  // errors to resolve, matching (method 44 collide-shape)'s precedent. This
+  // clears every reported type-prop failure in both functions, but each one
+  // also caches a second raw local address that dozens of later ops reload
+  // fresh from the stack rather than keep in a register (method 10's
+  // sp+240, a (pointer minimap-draw-work) scratch packet; method 11's
+  // sp+128/132/136, three (pointer float) scratch addresses), and neither a
+  // stack_structures.jsonc declaration for those slots (tried first; it
+  // makes the decompiler's types2 pass abort outright, reproduced with
+  // "Failed convert_to_old_format: Failed to convert GPR: a1 at op 108"
+  // regardless of which function or which pointer type the stack cast was
+  // attached to) nor casting every individual reload site by hand in this
+  // file (tried second, over 70 entries between the two functions; it
+  // clears the reported errors but leaves types2 unable to finish
+  // converting either function - "Failed to build initial forms...
+  // TP_Type::get_slot failed" - and that failure corrupts shared decompiler
+  // state badly enough that the previously-clean (method 9 minimap) and
+  // (method 12 minimap), processed later in the same object, regress and
+  // fail too) gets either function clean. This is a decompiler-internal
+  // wall, not a config gap: methods 10 and 11 are parked (provisional
+  // extern, hazard-noted below), the rest of the object lands.
+  "(method 10 minimap)": [
+    [38, "a0", "process-drawable"],
+    [88, "v1", "process-drawable"],
+    [105, "a0", "process-drawable"],
+    [544, "a0", "process-drawable"]
+  ],
+  "(method 11 minimap)": [
+    [29, "a0", "process-drawable"],
+    [69, "a0", "process-drawable"],
+    [104, "v1", "process-drawable"],
+    [108, "v1", "process-drawable"],
+    [111, "v1", "process-drawable"],
+    [152, "v1", "process-drawable"],
+    [161, "a0", "process-drawable"]
+  ],
+  // (method 9 minimap): schedule-callback's declared return on engine-pers is
+  // the generic connection-pers; engine-minimap's own alive-list is
+  // connection-minimap (minimap-h.gc's :override), and op27 takes the
+  // connection-minimap-only last-world-pos field's address (offset 48) to
+  // quad-copy the class node's default-position into it, the same
+  // vector-copy! jak3's add-icon! performs. Cast at the offset-48 arithmetic.
+  // v0's connection-minimap widening is per-op, not per-function, so the
+  // two later field writes off the same schedule-callback return (edge-ry
+  // at raw offset 34, node at raw offset 32) need their own casts too, or
+  // they fall back to raw s.h! stores instead of named field accesses.
+  "(method 9 minimap)": [
+    [27, "v0", "connection-minimap"],
+    [32, "v0", "connection-minimap"],
+    [50, "v0", "connection-minimap"]
+  ],
+  // (method 12 minimap): a clamped-and-packed rgba color (built by three
+  // earlier min/shift/logior channel chains) is unpacked byte-by-byte into
+  // four separate vector4w int fields. The first three channel extractions
+  // go through the recognized sll/srl-by-32 mask pair; the fourth (alpha,
+  // the top byte, needs no mask) is a single raw srl by 24, which the
+  // expression builder cannot fold back into an rgba-typed value. Widen to
+  // plain int at that one extraction.
+  "(method 12 minimap)": [[131, "a0", "int"]],
+  // (method 14 engine-minimap), run-pending-updates!'s minimap-specific
+  // override: op120-124 already type-tag-check a connection's overlaid
+  // position field against entity-actor (the position/param0 overlay, see
+  // connection-minimap's :overlay-at in minimap-h.gc) and narrow correctly,
+  // but op127 reloads the same field (declared type vector) into a fresh
+  // register that the decompiler does not carry the narrowing to. Cast at
+  // op128, the offset-20 read that consumes it, so it resolves against
+  // entity-actor instead of vector.
+  "(method 14 engine-minimap)": [[128, "a0", "entity-actor"]]
 }

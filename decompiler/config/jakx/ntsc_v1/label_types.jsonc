@@ -700,5 +700,24 @@
   // four-word vector constant (0.0 28672.0 0.0 1.0) fp-relative quad-
   // loaded as the second arg to vector-orient-by-quat!, the same
   // fp+label vector-constant shape as plow's L242 above.
-  "(method 52 powercell-dispenser)": [["L277", "vector"]]
+  "(method 52 powercell-dispenser)": [["L277", "vector"]],
+  // *minimap-class-list*: minimap-class-node's own 36-byte content
+  // (:size-assert 0x24) rounds up to a 48-byte quadword-aligned array
+  // stride with no :pack-me, confirmed directly from the compiled index
+  // arithmetic ((method 9 minimap) and (method 12 minimap) both multiply
+  // their class index by the literal 48). L105 runs exactly 180 raw
+  // words (720 bytes) to the next label, 720 / 48 = 15 elements exactly,
+  // matching minimap-class's own 15-value enum (none through
+  // chicken-drone in minimap-h.gc) one-for-one; the string immediately
+  // following L105's data is "chicken-drone", the name field of the
+  // last (index 14) element.
+  // (method 12 minimap): L123 is a raw 64-bit mask constant (0xffffffff,
+  // 0xffffff, little-endian: 0xFFFFFFFF00FFFFFF), l.d-loaded whole and
+  // logand-ed against the packed rgba color being built to clear a channel
+  // before the next component is OR-ed in, the same uint64 raw-constant
+  // shape as loader's L1450 and task-control-h's L971 above.
+  "minimap": [
+    ["L105", "(inline-array minimap-class-node)", 15],
+    ["L123", "uint64", true]
+  ]
 }

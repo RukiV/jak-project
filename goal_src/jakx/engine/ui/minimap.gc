@@ -7,3 +7,523 @@
 
 ;; DECOMP BEGINS
 
+;; definition for symbol *minimap*, type minimap
+(define *minimap* (new 'static 'minimap
+                    :draw-tmpl (new 'static 'dma-gif-packet
+                      :dma-vif (new 'static 'dma-packet
+                        :dma (new 'static 'dma-tag :qwc #xa :id (dma-tag-id cnt))
+                        :vif1 (new 'static 'vif-tag :imm #xa :cmd (vif-cmd direct) :msk #x1)
+                        )
+                      :gif (new 'static 'array uint64 2 #x902a400000008001 #x525252521)
+                      )
+                    :sprite-tmpl (new 'static 'dma-gif-packet
+                      :dma-vif (new 'static 'dma-packet
+                        :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                        :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                        )
+                      :gif (new 'static 'array uint64 2 #x50ab400000008001 #x53531)
+                      )
+                    :sprite2-tmpl (new 'static 'dma-gif-packet
+                      :dma-vif (new 'static 'dma-packet
+                        :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                        :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                        )
+                      :gif (new 'static 'array uint64 2 #x502b400000008001 #x52521)
+                      )
+                    :adgif-tmpl (new 'static 'dma-gif-packet
+                      :dma-vif (new 'static 'dma-packet
+                        :dma (new 'static 'dma-tag :qwc #x6 :id (dma-tag-id cnt))
+                        :vif1 (new 'static 'vif-tag :imm #x6 :cmd (vif-cmd direct) :msk #x1)
+                        )
+                      :gif (new 'static 'array uint64 2 #x1000000000008005 #xe)
+                      )
+                    :color (new 'static 'vector4w :x #x80 :y #x80 :z #x80 :w #x80)
+                    :race-tex #f
+                    :race-scale 16384.0
+                    :engine #f
+                    :engine-key #x800
+                    )
+        )
+
+;; failed to figure out what this is:
+(kmemopen global "minimap-engines")
+
+;; definition for symbol *minimap-class-list*, type (inline-array minimap-class-node)
+(define *minimap-class-list* (new 'static 'inline-array minimap-class-node 15
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :name "none"
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x80 :g #x80 :b #x80 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag racer)
+                                 :name "racer-0"
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #xfe :g #x40 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag racer)
+                                 :name "racer-1"
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :g #x40 :b #xfe :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag racer)
+                                 :name "racer-2"
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x40 :g #xfe :b #x40 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag racer)
+                                 :name "racer-3"
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :g #xc0 :b #xc0 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag racer)
+                                 :name "racer-4"
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #xfe :g #xfe :b #xfe :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag racer)
+                                 :name "racer-5"
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #xfe :g #xc0 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag racer)
+                                 :name "racer-6"
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x73 :g #x73 :b #x73 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag flash)
+                                 :name "raptor"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x3 #x4))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x26 :g #x73 :b #x26 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag flash)
+                                 :name "goal"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x3 #x4))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x26 :g #x73 :b #x26 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag flash)
+                                 :name "red-flag"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x3 #x4))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x73 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag flash)
+                                 :name "blue-flag"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x3 #x4))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :b #x73 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag flash)
+                                 :name "neutral-flag"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x3 #x4))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x73 :g #x73 :b #x73 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag flash)
+                                 :name "success-seeker"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x3 #x4))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x19 :g #x19 :b #x59 :a #x80)
+                                 )
+                               (new 'static 'minimap-class-node
+                                 :default-position (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                                 :flags (minimap-flag flash)
+                                 :name "chicken-drone"
+                                 :icon-xy (new 'static 'vector2ub :data (new 'static 'array uint8 2 #x3 #x4))
+                                 :scale 1.0
+                                 :color (new 'static 'rgba :r #x73 :a #x80)
+                                 )
+                               )
+        )
+
+;; failed to figure out what this is:
+(let ((gp-0 *minimap*))
+  (set! (-> gp-0 engine) (new 'global 'engine-minimap '*minimap* 64 connection-minimap))
+  )
+
+;; failed to figure out what this is:
+(kmemclose)
+
+;; definition for method 2 of type connection-minimap
+(defmethod print ((this connection-minimap))
+  (format
+    #t
+    "#<connection-minimap ~16S #x~4X ~A @ #x~X>"
+    (-> this class name)
+    (-> this flags)
+    (handle->process (-> this handle))
+    this
+    )
+  this
+  )
+
+;; definition for method 3 of type engine-minimap
+(defmethod inspect ((this engine-minimap))
+  (call-parent-method this)
+  (let ((s5-0 0)
+        (s4-0 (-> *minimap* engine alive-list))
+        )
+    (while s4-0
+      (let ((a3-0 s4-0))
+        (format #t "~2T~3D: ~`connection-minimap`P~%" s5-0 a3-0)
+        )
+      (+! s5-0 1)
+      (set! s4-0 (-> s4-0 next))
+      )
+    )
+  this
+  )
+
+;; definition for method 14 of type engine-minimap
+;; WARN: Return type mismatch int vs none.
+;; ERROR: Failed load: (set! v1-45 (l.wu (+ v1-44 -4))) at op 121
+(defmethod run-pending-updates! ((this engine-minimap) (arg0 time-frame))
+  "Run updates if they scheduled. If something is found that has no pending update, kill it.
+   Note that we won't kill things on this call if they fail to update their `update-time`.
+   They will survive until the next call to `run-pending-updates`!
+   (or you can modify their `update-time` before that to prevent them from being killed.)"
+  (let ((s2-0 (&-> this alive-list))
+        (s3-0 (-> this alive-list))
+        )
+    (while s3-0
+      (let ((s4-0 (-> s3-0 next)))
+        (when (not (paused?))
+          (cond
+            ((logtest? (-> s3-0 flags) (minimap-flag fade-out))
+             (logclear! (-> s3-0 flags) (minimap-flag fade-in))
+             (seek! (-> s3-0 alpha) 0.0 (seconds-per-frame))
+             )
+            ((and (logtest? (-> s3-0 flags) (minimap-flag task-graph))
+                  (not (logtest? (-> *setting-control* user-current minimap) 16))
+                  )
+             (logior! (-> s3-0 flags) (minimap-flag fade-in))
+             (seek! (-> s3-0 alpha) 0.0 (seconds-per-frame))
+             )
+            ((logtest? (-> s3-0 flags) (minimap-flag fade-in))
+             (let ((f0-6 1.0))
+               (seek! (-> s3-0 alpha) f0-6 (seconds-per-frame))
+               )
+             (if (= (-> s3-0 alpha) 1.0)
+                 (logclear! (-> s3-0 flags) (minimap-flag fade-in))
+                 )
+             )
+            )
+          )
+        (cond
+          ((and (logtest? (-> s3-0 flags) (minimap-flag fade-out)) (= (-> s3-0 alpha) 0.0))
+           (kill-callback this s3-0)
+           (set! (-> s2-0 0) (-> s3-0 next))
+           (set! (-> s3-0 next) (-> this dead-list))
+           (set! (-> this dead-list) s3-0)
+           (+! (-> this length) -1)
+           )
+          ((and (handle->process (-> s3-0 handle))
+                (not (and (= (logand (the-as int (-> s3-0 position)) 7) 4)
+                          (= (l.wu (+ (the-as uint (-> s3-0 position)) -4)) entity-actor)
+                          (logtest? (-> (the-as entity-actor (-> s3-0 position)) extra perm status)
+                                    (entity-perm-status dead subtask-complete bit-12)
+                                    )
+                          )
+                     )
+                )
+           (update-callback this)
+           (set! s2-0 (&-> s3-0 next))
+           )
+          (else
+            (logior! (-> s3-0 flags) (minimap-flag fade-out))
+            (update-callback this)
+            (set! s2-0 (&-> s3-0 next))
+            )
+          )
+        (set! s3-0 s4-0)
+        )
+      )
+    )
+  (set! (-> this execute-time) arg0)
+  0
+  (none)
+  )
+
+;; definition for method 9 of type minimap
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch connection-pers vs connection-minimap.
+(defmethod minimap-method-9 ((this minimap) (arg0 process) (arg1 uint) (arg2 int) (arg3 vector) (arg4 int))
+  (when (not arg2)
+    (let ((v1-3 (+ (-> *minimap* engine-key) 1)))
+      (set! (-> *minimap* engine-key) v1-3)
+      (set! arg2 (the-as int v1-3))
+      )
+    )
+  (let ((v0-0 (schedule-callback (-> this engine) arg2 0)))
+    (let ((v1-7 (-> *minimap-class-list* arg1)))
+      (when v0-0
+        (when (not (logtest? (the-as int (-> v0-0 param 2)) 1))
+          (set! (-> v0-0 param 3) v1-7)
+          (set! (-> (the-as connection-minimap v0-0) last-world-pos quad) (-> v1-7 default-position quad))
+          (set! (-> (the-as connection-minimap v0-0) edge-ry) -131072)
+          )
+        (set! (-> v0-0 update-time) (the-as time-frame (process->handle arg0)))
+        (set! arg3 (cond
+                     (arg3
+                       (empty)
+                       arg3
+                       )
+                     (else
+                       (-> v1-7 default-position)
+                       )
+                     )
+              )
+        (set! (-> v0-0 param 0) arg3)
+        (set! (-> v0-0 param 2) 5)
+        (set! (-> (the-as connection-minimap v0-0) node) (the-as uint arg4))
+        )
+      )
+    (the-as connection-minimap v0-0)
+    )
+  )
+
+;; definition for method 10 of type engine-minimap
+;; WARN: Function (method 10 engine-minimap) has a return type of none, but the expression builder found a return statement.
+(defmethod kill-callback ((this engine-minimap) (arg0 connection-pers))
+  "Called when a connection is removed."
+  (if (not arg0)
+      (return #f)
+      )
+  (set! (-> arg0 update-time) (the-as time-frame #f))
+  ((method-of-type engine-pers kill-callback) this arg0)
+  (none)
+  )
+
+;; definition for function lookup-minimap-texture-by-name
+;; INFO: Used lq/sq
+(defun lookup-minimap-texture-by-name ((arg0 string) (arg1 string) (arg2 (pointer texture-page)))
+  (dotimes (s3-0 19)
+    (let ((s2-0 (-> *level* level s3-0)))
+      (when (or (= (-> s2-0 status) 'active) (= (-> s2-0 status) 'reserved))
+        (let ((sv-16 (-> s2-0 texture-page-dir 8 page)))
+          (when (and sv-16 (or (not arg1) (string= (-> sv-16 name) arg1)))
+            (dotimes (s1-0 (-> sv-16 length))
+              (let ((s0-0 (-> sv-16 data s1-0)))
+                (when (and s0-0 (string= (-> s0-0 name) arg0))
+                  (if arg2
+                      (set! (-> arg2 0) sv-16)
+                      )
+                  (set! (-> s2-0 texture-mask 8 mask quad) (-> s0-0 masks data 0 mask quad))
+                  (return s0-0)
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  (the-as texture #f)
+  )
+
+;; definition for method 12 of type minimap
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+;; ERROR: Unsupported inline assembly instruction kind - [srl a0, a0, 24]
+(defmethod minimap-method-12 ((this minimap) (arg0 minimap-draw-work) (arg1 connection-minimap) (arg2 matrix) (arg3 float) (arg4 float))
+  (local-vars (a0-18 int))
+  (let ((s5-0 (-> arg0 buf base)))
+    (set-vector! (-> arg0 corner 0) 0.0 0.0 (- arg3) 1.0)
+    (set-vector! (-> arg0 corner 1) arg3 0.0 0.0 1.0)
+    (set-vector! (-> arg0 corner 2) (- arg3) 0.0 0.0 1.0)
+    (set-vector! (-> arg0 corner 3) 0.0 0.0 arg3 1.0)
+    (vector-matrix*! (-> arg0 corner 0) (-> arg0 corner 0) arg2)
+    (vector-matrix*! (-> arg0 corner 1) (-> arg0 corner 1) arg2)
+    (vector-matrix*! (-> arg0 corner 2) (-> arg0 corner 2) arg2)
+    (vector-matrix*! (-> arg0 corner 3) (-> arg0 corner 3) arg2)
+    (let ((a2-5 (-> arg1 class color))
+          (v1-6 (-> this tex-coords))
+          )
+      (let* ((a2-10
+               (copy-and-set-field a2-5 r (min 255 (the-as int (shr (* (-> a2-5 r) (the-as uint (-> this color x))) 7))))
+               )
+             (a2-15
+               (copy-and-set-field a2-10 g (min 255 (the-as int (shr (* (-> a2-10 g) (the-as uint (-> this color y))) 7))))
+               )
+             (a0-17
+               (the-as
+                 int
+                 (copy-and-set-field
+                   (copy-and-set-field a2-15 b (min 255 (the-as int (shr (* (-> a2-15 b) (the-as uint (-> this color z))) 7))))
+                   a
+                   (the int arg4)
+                   )
+                 )
+               )
+             )
+        (set! (-> (the-as (pointer uint128) s5-0)) (-> this draw-tmpl dma-vif quad))
+        (let ((a1-23 (-> this draw-tmpl quad 1)))
+          (s.q! (&+ s5-0 16) a1-23)
+          )
+        (let ((a1-24 (&+ s5-0 32)))
+          (set! (-> (the-as (pointer uint32) a1-24)) (shr (shl (the-as int a0-17) 56) 56))
+          (let ((a2-23 (shr (shl (the-as int a0-17) 48) 56)))
+            (s.w! (&+ a1-24 4) a2-23)
+            )
+          (let ((a2-25 (shr (shl (the-as int a0-17) 40) 56)))
+            (s.w! (&+ a1-24 8) a2-25)
+            )
+          (let ((a0-18 (shr (shl (the-as int a0-17) 32) 56)))
+            (s.w! (&+ a1-24 12) a0-18)
+            )
+          )
+        )
+      (let ((a0-19 (&+ s5-0 48)))
+        (set! (-> (the-as (pointer float) a0-19)) (-> v1-6 min x))
+        (let ((f0-21 (-> v1-6 min y)))
+          (s.f! (&+ a0-19 4) f0-21)
+          )
+        (let ((f0-22 1.0))
+          (s.f! (&+ a0-19 8) f0-22)
+          )
+        (let ((f0-23 0.0))
+          (s.f! (&+ a0-19 12) f0-23)
+          )
+        )
+      (let ((a0-20 (&+ s5-0 64)))
+        (set! (-> (the-as (pointer int32) a0-20)) (the int (* 16.0 (-> arg0 corner 0 x))))
+        (let ((f0-29 (the int (* 16.0 (-> arg0 corner 0 z)))))
+          (s.w! (&+ a0-20 4) f0-29)
+          )
+        (let ((a1-28 #xfffffe))
+          (s.w! (&+ a0-20 8) a1-28)
+          )
+        (s.w! (&+ a0-20 12) 0)
+        )
+      (let ((a0-21 (&+ s5-0 80)))
+        (set! (-> (the-as (pointer float) a0-21)) (-> v1-6 max x))
+        (let ((f0-31 (-> v1-6 min y)))
+          (s.f! (&+ a0-21 4) f0-31)
+          )
+        (let ((f0-32 1.0))
+          (s.f! (&+ a0-21 8) f0-32)
+          )
+        (let ((f0-33 0.0))
+          (s.f! (&+ a0-21 12) f0-33)
+          )
+        )
+      (let ((a0-22 (&+ s5-0 96)))
+        (set! (-> (the-as (pointer int32) a0-22)) (the int (* 16.0 (-> arg0 corner 1 x))))
+        (let ((f0-39 (the int (* 16.0 (-> arg0 corner 1 z)))))
+          (s.w! (&+ a0-22 4) f0-39)
+          )
+        (let ((a1-32 #xfffffe))
+          (s.w! (&+ a0-22 8) a1-32)
+          )
+        (s.w! (&+ a0-22 12) 0)
+        )
+      (let ((a0-23 (&+ s5-0 112)))
+        (set! (-> (the-as (pointer float) a0-23)) (-> v1-6 min x))
+        (let ((f0-41 (-> v1-6 max y)))
+          (s.f! (&+ a0-23 4) f0-41)
+          )
+        (let ((f0-42 1.0))
+          (s.f! (&+ a0-23 8) f0-42)
+          )
+        (let ((f0-43 0.0))
+          (s.f! (&+ a0-23 12) f0-43)
+          )
+        )
+      (let ((a0-24 (&+ s5-0 128)))
+        (set! (-> (the-as (pointer int32) a0-24)) (the int (* 16.0 (-> arg0 corner 2 x))))
+        (let ((f0-49 (the int (* 16.0 (-> arg0 corner 2 z)))))
+          (s.w! (&+ a0-24 4) f0-49)
+          )
+        (let ((a1-36 #xfffffe))
+          (s.w! (&+ a0-24 8) a1-36)
+          )
+        (s.w! (&+ a0-24 12) 0)
+        )
+      (let ((a0-25 (&+ s5-0 144)))
+        (set! (-> (the-as (pointer float) a0-25)) (-> v1-6 max x))
+        (let ((f0-51 (-> v1-6 max y)))
+          (s.f! (&+ a0-25 4) f0-51)
+          )
+        (let ((f0-52 1.0))
+          (s.f! (&+ a0-25 8) f0-52)
+          )
+        (let ((f0-53 0.0))
+          (s.f! (&+ a0-25 12) f0-53)
+          )
+        )
+      )
+    (let ((v1-8 (&+ s5-0 160)))
+      (set! (-> (the-as (pointer int32) v1-8)) (the int (* 16.0 (-> arg0 corner 3 x))))
+      (let ((f0-59 (the int (* 16.0 (-> arg0 corner 3 z)))))
+        (s.w! (&+ v1-8 4) f0-59)
+        )
+      (let ((a0-28 #xfffffe))
+        (s.w! (&+ v1-8 8) a0-28)
+        )
+      (s.w! (&+ v1-8 12) 0)
+      )
+    )
+  (&+! (-> arg0 buf base) 176)
+  0
+  (none)
+  )
+
+;; definition for method 13 of type minimap
+;; WARN: Return type mismatch int vs none.
+(defmethod minimap-method-13 ((this minimap) (arg0 object) (arg1 object))
+  (set! (-> this race-tex) (the-as texture arg0))
+  (set! (-> this race-scale) (the-as float arg1))
+  0
+  (none)
+  )
+
+;; definition for method 14 of type minimap
+;; WARN: Return type mismatch int vs none.
+(defmethod minimap-method-14 ((this minimap) (arg0 vector2) (arg1 vector2))
+  (set! (-> this race-corner x) (-> arg0 x))
+  (set! (-> this race-corner z) (-> arg0 y))
+  (set! (-> this tex-offset x) (-> arg1 x))
+  (set! (-> this tex-offset y) (-> arg1 y))
+  0
+  (none)
+  )
+
+;; definition for method 15 of type minimap
+;; WARN: Return type mismatch symbol vs none.
+(defmethod minimap-method-15 ((this minimap))
+  (run-pending-updates! (-> this engine) (-> *display* base-clock frame-counter))
+  #t
+  (none)
+  )
+
+
+
+

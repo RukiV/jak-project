@@ -8753,12 +8753,12 @@
   :size-assert         #x118
   :flag-assert         #x1000000118
   (:methods
-    (minimap-method-9 () none) ;; 9 ;; (debug-draw (_type_) none)
-    (minimap-method-10 (_type_ object object object) none) ;; 10 ;; (get-trail-for-connection (_type_ object object object) minimap-trail)
-    (minimap-method-11 (_type_ object object float) none) ;; 11 ;; (get-icon-draw-pos (_type_ connection-minimap minimap-trail vector float vector) symbol)
-    (minimap-method-12 (_type_ object object matrix) none) ;; 12 ;; (add-icon! (_type_ process uint int vector int) connection-minimap)
+    (minimap-method-9 (_type_ process uint int vector int) connection-minimap) ;; 9
+    (minimap-method-10 (_type_ dma-buffer object int) none) ;; 10, verified against goal_src/jakx/engine/ui/hud-classes.gc:345's call site (arg1 is hud-classes's own dma-buffer bucket-macro var, arg2 (-> this sprites 2) is hud-sprite, arg3 (-> s5-1 mode) is race-map-info's int mode field); the raw offset-0/4 int reads inside minimap-method-10 itself read hud-sprite's own inline vector4w pos field. arg2 stays object rather than hud-sprite in the declared signature: minimap-h.gc compiles at ~9% of the build, well before hud-h.gc/hud-classes.gc define hud-sprite ("Type hud-sprite is unknown" if declared directly), the same forward-reference constraint headers here already route around with object
+    (minimap-method-11 (_type_ minimap-draw-work connection-minimap float float int) none) ;; 11
+    (minimap-method-12 (_type_ minimap-draw-work connection-minimap matrix float float) none) ;; 12
     (minimap-method-13 (_type_ object object) none) ;; 13 ;; (free-trail-by-connection (_type_ object object) none)
-    (minimap-method-14 (_type_ object object) none) ;; 14 ;; (update-trails (_type_ object object) none)
+    (minimap-method-14 (_type_ vector2 vector2) none) ;; 14
     (minimap-method-15 (_type_) none) ;; 15 ;; (draw-1 (_type_) none)
     )
   )
@@ -76920,7 +76920,7 @@
 
 (define-extern *minimap* minimap)
 ;; (define-extern *minimap-class-list* object) ;; (inline-array minimap-class-node)
-;; (define-extern lookup-minimap-texture-by-name function) ;; (function string string (pointer texture-page) texture)
+(define-extern lookup-minimap-texture-by-name (function string string (pointer texture-page) texture))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jakx-init                      ;;
