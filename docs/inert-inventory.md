@@ -40,7 +40,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (192)
+### Never written (194)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -155,6 +155,7 @@ written is read-only by design and not a finding.
 | `*dnas-is-running*` | 1 | `goal_src/jakx/engine/sound/gsound.gc` |
 | `*draw-debug-boxes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*execute-regions*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*expand-buf-number*` | 1 | `goal_src/jakx/engine/ui/text.gc` |
 | `*first-boot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*flip-blend*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
 | `*flip-speed*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
@@ -183,6 +184,7 @@ written is read-only by design and not a finding.
 | `*last-loado-debug-usage*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*last-loado-global-usage*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*last-loado-length*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
+| `*level-text-file-load-flag*` | 1 | `goal_src/jakx/engine/ui/text.gc` |
 | `*list-all-scenes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*lobby-local-players*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*manual-sample-point*` | 1 | `goal_src/jakx/engine/camera/cam-update-h.gc` |
