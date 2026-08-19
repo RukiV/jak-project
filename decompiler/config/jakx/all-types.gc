@@ -50097,23 +50097,58 @@
   :flag-assert         #x9000000b8
   )
 
-;; (define-extern *debug-nav-control-output* object) ;; symbol
-;; (define-extern *debug-nav-control* object) ;; symbol
-;; (define-extern *debug-nav-mesh-output* object) ;; symbol
-;; (define-extern *debug-nav-ray* object) ;; nav-ray
-;; (define-extern *debug-ray-offset* object) ;; vector
-;; (define-extern *debug-offset* object) ;; vector
-;; (define-extern *nav-mesh-work* object) ;; nav-mesh-work
-;; (define-extern *default-nav-mesh* nav-mesh) ;; nav-mesh
-;; (define-extern *nav-mesh-id-hash* array)
+;; nav-mesh tier: jak2/jak3 both declare these six debug/work globals plainly
+;; ((define *debug-nav-control-output* #f), (define *debug-nav-control* #f),
+;; (define *debug-nav-mesh-output* #f), (define *debug-nav-ray* (the-as
+;; nav-ray #f)), (define *debug-ray-offset* (new 'static 'vector)),
+;; (define *debug-offset* (new 'static 'vector ...)), (define *nav-mesh-work*
+;; (new 'static 'nav-mesh-work ...)), (define *default-nav-mesh* (new 'static
+;; 'nav-mesh ...)), all in nav-mesh.gc's own top-level-login); activating
+;; them chased one unknown-type symbol reveal after another through
+;; top-level-login (*debug-nav-control* then *debug-nav-mesh-output* then
+;; *debug-nav-ray*), so all eight are landed together rather than one at a
+;; time.
+(define-extern *debug-nav-control-output* symbol)
+(define-extern *debug-nav-control* symbol)
+(define-extern *debug-nav-mesh-output* symbol)
+(define-extern *debug-nav-ray* nav-ray)
+(define-extern *debug-ray-offset* vector)
+(define-extern *debug-offset* vector)
+(define-extern *nav-mesh-work* nav-mesh-work)
+(define-extern *default-nav-mesh* nav-mesh)
+;; nav-mesh tier: jakx-original global with no jak2/jak3 twin (id-hash-
+;; find-free-index/id-hash-find-matching-index below are the same, plain
+;; asm-only functions, not decompiled to expressions); activating only
+;; enough type to clear top-level-login's "unknown type of symbol" error
+;; and unblock the whole object's disasm.gc emission. The element type is
+;; NOT established; "array" is the weakest legal type, matching what was
+;; already suggested here, and no field-level claim is made.
+(define-extern *nav-mesh-id-hash* array)
 ;; (define-extern id-hash-find-free-index function)
 ;; (define-extern id-hash-find-matching-index function)
-;; (define-extern nav-mesh-connect-from-ent function) ;; (function process-drawable symbol)
-;; (define-extern connection-validate function) ;; (function connection none)
-;; (define-extern connection-list-validate function) ;; (function (inline-array connection) symbol)
-;; (define-extern nav-control-validate function) ;; (function process-drawable none)
-(define-extern debug-validate-nav-poly (function nav-mesh-link nav-poly none)) ;; 
-;; (define-extern vu-point-triangle-intersection? function) ;; (function vector vector vector vector symbol)
+;; nav-mesh tier: jak2's own defun nav-mesh-connect-from-ent
+;; ((arg0 process-drawable)) returns #t/#f (nav-mesh.gc:232), matching this
+;; commented signature exactly; activating it, no twin-id-drift risk since
+;; it is a plain defun, not a method.
+(define-extern nav-mesh-connect-from-ent (function process-drawable symbol))
+;; nav-mesh tier: jak2's own defun-debug connection-validate ((arg0
+;; connection)) returns 0/(none) (nav-mesh.gc:254); activating the already
+;; correct commented signature.
+(define-extern connection-validate (function connection none))
+;; nav-mesh tier: jak2's own defun-debug connection-list-validate ((arg0
+;; (inline-array connection))) returns #f (nav-mesh.gc:283); activating the
+;; already-correct commented signature.
+(define-extern connection-list-validate (function (inline-array connection) symbol))
+;; nav-mesh tier: jak2's own defun-debug nav-control-validate ((arg0
+;; process-drawable)) returns (none) (nav-mesh.gc:293); activating the
+;; already-correct commented signature.
+(define-extern nav-control-validate (function process-drawable none))
+(define-extern debug-validate-nav-poly (function nav-mesh-link nav-poly none)) ;;
+;; nav-mesh tier: jak2 and jak3 both define vu-point-triangle-intersection?
+;; ((arg0 vector) (arg1 vector) (arg2 vector) (arg3 vector)) as a byte-
+;; identical vu0-macro predicate (jak2 nav-mesh.gc:1541, jak3 nav-mesh.gc:971);
+;; activating the already-correct commented signature.
+(define-extern vu-point-triangle-intersection? (function vector vector vector vector symbol))
 (define-extern poly-in-height-range? (function nav-poly float float symbol))
 (define-extern nav-ray-test (function nav-mesh nav-poly vector vector meters))
 (define-extern point-poly-distance-min (function nav-mesh-work nav-poly float nav-poly float))
@@ -50123,7 +50158,15 @@
 (define-extern plane-height-at-xz-point (function plane vector float))
 (define-extern nav-normal-from-3-points (function vector vector vector vector none))
 (define-extern get-nav-mesh (function actor-id nav-mesh))
-(define-extern find-nearest-nav-mesh (function vector float nav-mesh))
+;; nav-mesh tier: jakx-specific find-nearest-nav-mesh reads a THIRD register
+;; (a2, staged through gp) as (max (-> mesh nearest-y-threshold) arg2), the
+;; same y-threshold-widening idiom already established by
+;; find-first-containing-nav-mesh's own (fmax nearest-y-threshold arg1);
+;; jak2/jak3's own find-nearest-nav-mesh takes only 2 args, so this is a
+;; genuine jakx argument-count divergence (AGENTS.md sec 4), not a decode
+;; artifact. Op 51's (mtc1 f1 gp) and op 52's (max.s f0 f0 f1) both fail
+;; type prop with a2 undeclared; widening to 3 args resolves both.
+(define-extern find-nearest-nav-mesh (function vector float float nav-mesh))
 (define-extern point-to-poly-boundary (function nav-poly vector vector float))
 (define-extern find-first-containing-nav-mesh (function vector float (pointer nav-poly) nav-mesh))
 (define-extern find-nav-mesh (function object vector float float float collide-cache object))
@@ -86046,7 +86089,11 @@
 ;; own machine code (rigid-body_ir2.asm) is `(s.w! *debug-move-rigid-body* v1-0)`
 ;; with v1-0 = #t, a plain symbol store, not a typed object reference.
 (define-extern *debug-move-rigid-body* symbol)
-(define-extern *debug-nav-control-output* object) ;; provisional: call-site evidence only
+;; nav-mesh tier: superseded by the stronger typed declaration at this
+;; file's nav-mesh section (symbol, matching jak2/jak3's own (define
+;; *debug-nav-control-output* #f)); this weaker provisional duplicate was
+;; shadowing it (check_alltypes_shadowing, last-wins parse order).
+;; (define-extern *debug-nav-control-output* object) ;; provisional: call-site evidence only
 ;; retyped object -> dead-pool: start-save-memcard dispatches vtable method
 ;; 15 off it (kill-by-type-inherited's own slot, same shape as *debug-part-
 ;; dead-pool* and *nk-dead-pool* elsewhere in part-tester_ir2.asm), which
@@ -86066,7 +86113,12 @@
 ;; scoped decode); hud-region (16 bytes, a plain offset/width/height float rect)
 ;; does. Scoped decode, net-hud_ir2.asm, this rung.
 (define-extern *default-box* hud-region)
-(define-extern *default-nav-mesh* object) ;; provisional: call-site evidence only
+;; nav-mesh tier: superseded by the stronger typed declaration at this
+;; file's nav-mesh section (nav-mesh, matching jak2/jak3's own (define
+;; *default-nav-mesh* (new 'static 'nav-mesh ...))); this weaker provisional
+;; duplicate was shadowing it (check_alltypes_shadowing, last-wins parse
+;; order).
+;; (define-extern *default-nav-mesh* object) ;; provisional: call-site evidence only
 (define-extern *default-vehicle-load-parts* object) ;; provisional: call-site evidence only
 (define-extern *delete-buddy-confirmation* object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier *des-cactus-a-explode-params* extern (des-cactus rung, scripts/check_alltypes_shadowing.py)

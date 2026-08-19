@@ -7,6 +7,356 @@
 
 ;; DECOMP BEGINS
 
+;; nav-mesh tier: this rung's landing lifts the label_types fix on
+;; *nav-mesh-id-hash* that unblocked the whole object's disasm.gc emission
+;; (previously the entire object failed "top level function was not
+;; converted to expressions" per issue 466); the functions below decode
+;; with zero ir2.asm errors under the config fixes landed alongside this
+;; commit and are transcribed verbatim. Held out of this landing: every
+;; nav-mesh method whose slot number in this file's own :methods table does
+;; not match its real decoded body (method 25 declared init-from-entity
+;; decodes as new-nav-control's own body verbatim, format string and all;
+;; method 26 declared handle-birth decodes as remove-nav-control's own
+;; body; both proofs are self-identifying debug format strings, not
+;; guesses) -- the same class of vtable-slot drift already documented for
+;; nav-control and nav-mesh-editor in the jak3 twin map, unresolved here
+;; and out of scope for a config-only rung. Also held: nav-ray-test (calls
+;; the still-erroring advance-ray-to-nearest-poly-edge-or-dest!, method 18,
+;; same drift-suspect table), get-nav-mesh and both id-hash-find-* (jakx-
+;; original *nav-mesh-id-hash* subsystem, no jak2/jak3 twin to type against),
+;; find-nearest-nav-mesh (its own nav-mesh-method-46 call resolves to vtable
+;; byte offset 188, which is this table's slot 43 by the standard 16+4*N
+;; method-table formula, not slot 46; same drift class), and every method
+;; with its own CFG-building or type-prop failure.
+
+;; *nav-mesh-work* decodes byte-identical to jak2's own static definition
+;; (nav-mesh.gc:25-37), landed here as real content (not a provisional
+;; extern) since debug-validate-nav-poly below reads it; goalc reads only
+;; goal_src's own declarations, not the decompiler's all-types.gc, so
+;; declaring the type there does not make the symbol exist here.
+(define *nav-mesh-work* (new 'static 'nav-mesh-work
+                          :vert0-table (new 'static 'array int8 4 0 1 2 3)
+                          :vert1-table (new 'static 'array int8 4 1 2 3 0)
+                          :edge-mask-table (new 'static 'array uint8 3 #x1 #x2 #x4)
+                          :deg-to-rad 0.000095873795
+                          :rad-to-deg 10430.379
+                          :nav-poly-min-dist 204.8
+                          :nav-poly-epsilon 40.96
+                          :debug (new 'static 'nav-mesh-work-debug)
+                          :work-struct-in-scratch 1
+                          :mesh-struct-in-scratch 1
+                          :polys-in-scratch 1
+                          )
+        )
+
+;; og:preserve-this (e2 hazard, not created by this rung): goalc only reads
+;; goal_src's own declarations, not the decompiler's all-types.gc, so the
+;; already-active decompiler extern does not make this symbol callable here;
+;; a provisional extern is needed to compile nav-mesh-connect-from-ent below,
+;; matching the find-instance-by-name-level precedent (drawable.gc, PR for
+;; issue 461). No defun exists anywhere in this corpus, so a call still
+;; crashes if this path is hit at runtime. Retire this note once
+;; nav-mesh-from-res-tag lands a real body.
+(define-extern nav-mesh-from-res-tag (function entity symbol int nav-mesh))
+
+(defun nav-mesh-connect-from-ent ((arg0 process-drawable))
+  "Connect this process to the nav-mesh associate with the entity that spawned the process"
+  (let ((s5-0 (nav-mesh-from-res-tag (-> arg0 entity) 'nav-mesh-actor 0)))
+    (cond
+      (s5-0
+        (if (zero? (-> s5-0 user-list))
+            (format 0 "nav-mesh-connect-from-ent: nav mesh not initialized!~%")
+            )
+        (if (add-connection (-> s5-0 user-list) arg0 nothing arg0 #f (-> arg0 root))
+            #t
+            )
+        )
+      (else
+        (if (-> arg0 entity)
+            (logior! (-> arg0 entity extra perm status) (entity-perm-status error))
+            )
+        #f
+        )
+      )
+    )
+  )
+
+;; WARN: Return type mismatch int vs none.
+(defun-debug connection-validate ((arg0 connection))
+  (when (zero? arg0)
+    (break!)
+    0
+    )
+  (when (zero? (-> arg0 next1))
+    (break!)
+    0
+    )
+  (when (zero? (-> arg0 prev1))
+    (break!)
+    0
+    )
+  (when (-> arg0 next1)
+    (when (!= arg0 (-> arg0 next1 prev1))
+      (break!)
+      0
+      )
+    )
+  (when (-> arg0 prev1)
+    (when (!= arg0 (-> arg0 prev1 next1))
+      (break!)
+      0
+      )
+    )
+  0
+  (none)
+  )
+
+(defun-debug connection-list-validate ((arg0 (inline-array connection)))
+  (let ((gp-0 (the-as object (&-> arg0 3 param3))))
+    (while gp-0
+      (connection-validate (the-as connection gp-0))
+      (set! gp-0 (-> (the-as connection gp-0) next1))
+      )
+    )
+  #f
+  )
+
+;; WARN: Return type mismatch int vs none.
+(defun-debug nav-control-validate ((arg0 process-drawable))
+  (let ((s5-0 (the-as object (-> arg0 nav))))
+    (when (and (-> arg0 nav) (!= arg0 (-> arg0 nav process)))
+      (format 0 "process pointing to wrong nav-control!~%")
+      (break!)
+      0
+      )
+    (let ((s4-0 (-> arg0 nav state mesh)))
+      (when (or (not s4-0) (zero? s4-0))
+        (format 0 "nav control has invalid mesh~%")
+        (break!)
+        0
+        )
+      (let ((v1-12 (- (the-as int s5-0) (the-as uint (the-as int (-> s4-0 nav-control-array 0))))))
+        (when (or (< (the-as uint v1-12) 0)
+                  (< (the-as uint (* (the-as uint 288) (-> s4-0 nav-control-count))) (the-as uint v1-12))
+                  )
+          (format 0 "nav control (~,,8x) is not in the mesh's nav-control-array!~%" (the-as nav-control s5-0))
+          (inspect s4-0)
+          (break!)
+          0
+          )
+        )
+      )
+    )
+  (connection-list-validate (the-as (inline-array connection) arg0))
+  0
+  (none)
+  )
+
+;; WARN: Return type mismatch int vs none.
+(defun-debug debug-validate-nav-poly ((arg0 nav-mesh-link) (arg1 nav-poly))
+  (set! (-> *nav-mesh-work* poly1) (-> *nav-mesh-work* poly0))
+  (set! (-> *nav-mesh-work* poly0) arg1)
+  (when arg1
+    (let ((a2-1 arg1)
+          (a3-0 (+ (-> arg0 dest-mesh-id) 0))
+          (t0-0 (+ (-> arg0 dest-mesh-id) (* (+ (-> arg0 src-switch-poly-id) -1) 64)))
+          )
+      (when (or (< (the-as uint a2-1) a3-0) (< t0-0 (the-as uint a2-1)))
+        (format 0 "validate-nav-poly: bad poly pointer ~x range ~x ~x~%" a2-1 a3-0 t0-0)
+        (break!)
+        0
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+(defun vu-point-triangle-intersection? ((arg0 vector) (arg1 vector) (arg2 vector) (arg3 vector))
+  (local-vars (v1-0 float) (v1-1 int) (v1-3 int) (a0-1 float) (a0-2 int) (a0-4 int) (a1-1 float) (a1-2 int))
+  (rlet ((acc :class vf)
+         (vf1 :class vf)
+         (vf10 :class vf)
+         (vf11 :class vf)
+         (vf12 :class vf)
+         (vf13 :class vf)
+         (vf14 :class vf)
+         (vf15 :class vf)
+         (vf2 :class vf)
+         (vf3 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         (vf9 :class vf)
+         )
+    (.lvf vf1 (&-> arg1 quad))
+    (.lvf vf2 (&-> arg2 quad))
+    (.sub.vf.yw vf1 vf1 vf1)
+    (.lvf vf3 (&-> arg3 quad))
+    (.sub.vf.yw vf2 vf2 vf2)
+    (.lvf vf12 (&-> arg0 quad))
+    (.sub.vf.yw vf3 vf3 vf3)
+    (.sub.vf vf4 vf2 vf1)
+    (.sub.vf vf9 vf1 vf12)
+    (.sub.vf vf5 vf3 vf2)
+    (.sub.vf vf10 vf2 vf12)
+    (.sub.vf vf6 vf1 vf3)
+    (.sub.vf vf11 vf3 vf12)
+    (.outer.product.a.vf acc vf9 vf4)
+    (.outer.product.b.vf vf13 vf4 vf9 acc)
+    (.outer.product.a.vf acc vf10 vf5)
+    (.outer.product.b.vf vf14 vf5 vf10 acc)
+    (.outer.product.a.vf acc vf11 vf6)
+    (.outer.product.b.vf vf15 vf6 vf11 acc)
+    (.mov v1-0 vf13)
+    (.mov a1-1 vf14)
+    (.mov a0-1 vf15)
+    (set-on-less-than v1-1 v1-0 0)
+    (set-on-less-than a1-2 a1-1 0)
+    (set-on-less-than a0-2 a0-1 0)
+    (let ((a0-3 (logxor a1-2 a0-2))
+          (v1-2 (logxor v1-1 a1-2))
+          )
+      (set-on-less-than a0-4 a0-3 1)
+      (set-on-less-than v1-3 v1-2 1)
+      )
+    (logtest? v1-3 a0-4)
+    )
+  )
+
+(defun poly-in-height-range? ((arg0 nav-poly) (arg1 float) (arg2 float))
+  (and (>= (+ (-> arg0 vertex3 w) arg2) arg1) (>= arg1 (- (-> arg0 vertex2 w) arg2)))
+  )
+
+(defun nav-mesh-route-table-bit-index ((arg0 nav-mesh) (arg1 uint) (arg2 int))
+  (* (+ arg2 (* arg1 (-> arg0 poly-count))) 2)
+  )
+
+(defun ray-ccw-line-segment-intersection? ((arg0 vector) (arg1 vector) (arg2 vector) (arg3 vector))
+  (let ((f0-2 (- (* (-> arg2 x) (-> arg1 z)) (* (-> arg2 z) (-> arg1 x))))
+        (f2-4 (- (* (-> arg3 x) (-> arg1 z)) (* (-> arg3 z) (-> arg1 x))))
+        (f3-4 (- (* (-> arg0 x) (-> arg1 z)) (* (-> arg0 z) (-> arg1 x))))
+        (v0-0 #f)
+        )
+    (let ((f1-7 (- f2-4 f0-2))
+          (f2-5 (- f2-4 f3-4))
+          (f3-5 (- f3-4 f0-2))
+          )
+      (when (and (>= (fabs f1-7) (fmax (fabs f3-5) (fabs f2-5))) (!= f1-7 0.0))
+        (let ((f0-7 (+ (* (-> arg1 x) (- (-> arg3 z) (-> arg2 z))) (* (-> arg1 z) (- (-> arg2 x) (-> arg3 x))))))
+          (set! v0-0 (< 0.0 f0-7))
+          )
+        )
+      )
+    v0-0
+    )
+  )
+
+(defun ray-line-segment-intersection? ((arg0 vector) (arg1 vector) (arg2 vector) (arg3 vector))
+  (let ((f1-3 (- (* (-> arg2 x) (-> arg1 z)) (* (-> arg2 z) (-> arg1 x))))
+        (f0-4 (- (* (-> arg3 x) (-> arg1 z)) (* (-> arg3 z) (-> arg1 x))))
+        (f2-6 (- (* (-> arg0 x) (-> arg1 z)) (* (-> arg0 z) (-> arg1 x))))
+        (gp-0 #f)
+        )
+    (let ((f30-0 (- f0-4 f1-3))
+          (f0-5 (- f0-4 f2-6))
+          (f1-4 (- f2-6 f1-3))
+          )
+      (when (and (>= (fabs f30-0) (fmax (fabs f1-4) (fabs f0-5))) (!= f30-0 0.0))
+        (let ((f2-11 (+ (* (-> arg2 x) (-> arg1 x)) (* (-> arg2 z) (-> arg1 z))))
+              (f3-11 (+ (* (-> arg3 x) (-> arg1 x)) (* (-> arg3 z) (-> arg1 z))))
+              (f28-0 (+ (* (-> arg0 x) (-> arg1 x)) (* (-> arg0 z) (-> arg1 z))))
+              )
+          (if (>= (* (+ (* f2-11 f0-5) (* f3-11 f1-4)) (sign f30-0)) (* f28-0 (fabs f30-0)))
+              (set! gp-0 #t)
+              )
+          )
+        )
+      )
+    gp-0
+    )
+  )
+
+(defun plane-height-at-xz-point ((arg0 plane) (arg1 vector))
+  (/ (- (+ (* (-> arg1 x) (-> arg0 x)) (* (-> arg1 z) (-> arg0 z)) (-> arg0 w))) (-> arg0 y))
+  )
+
+;; WARN: Return type mismatch int vs none.
+(defun nav-normal-from-3-points ((arg0 vector) (arg1 vector) (arg2 vector) (arg3 vector))
+  (rlet ((acc :class vf)
+         (Q :class vf)
+         (vf0 :class vf)
+         (vf1 :class vf)
+         (vf2 :class vf)
+         (vf3 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         )
+    (init-vf0-vector)
+    (let ((v1-0 arg0))
+      (let ((a0-1 arg1)
+            (a2-1 arg3)
+            )
+        (.lvf vf3 (&-> arg2 quad))
+        (.lvf vf1 (&-> a0-1 quad))
+        (.lvf vf2 (&-> a2-1 quad))
+        )
+      (.sub.vf vf1 vf3 vf1)
+      (.sub.vf vf2 vf3 vf2)
+      (.outer.product.a.vf acc vf2 vf1)
+      (.outer.product.b.vf vf4 vf1 vf2 acc)
+      (.mul.vf vf5 vf4 vf4)
+      (.add.y.vf.x vf5 vf5 vf5)
+      (.add.z.vf.x vf5 vf5 vf5)
+      (.isqrt.vf Q vf0 vf5 :fsf #b11 :ftf #b0)
+      (.mov.vf.w vf4 vf0)
+      (.wait.vf)
+      (.mul.vf.xyz vf4 vf4 Q)
+      (.nop.vf)
+      (.nop.vf)
+      (.svf (&-> v1-0 quad) vf4)
+      )
+    0
+    (none)
+    )
+  )
+
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch float vs object.
+(defun find-nav-mesh ((arg0 object) (arg1 vector) (arg2 float) (arg3 float) (arg4 float) (arg5 collide-cache))
+  (set! (-> (the-as collide-query arg0) start-pos quad) (-> arg1 quad))
+  (+! (-> (the-as collide-query arg0) start-pos y) arg2)
+  (vector-reset! (-> (the-as collide-query arg0) move-dist))
+  (set! (-> (the-as collide-query arg0) move-dist y) (- (+ arg2 arg3)))
+  (let ((v1-2 (the-as collide-query arg0)))
+    (set! (-> v1-2 radius) arg4)
+    (set! (-> v1-2 collide-with) (collide-spec nav-mesh))
+    (set! (-> v1-2 ignore-process0) #f)
+    (set! (-> v1-2 ignore-process1) #f)
+    (set! (-> v1-2 ignore-pat)
+          (new 'static 'pat-surface :noentity #x1 :nojak #x1 :probe #x1 :noendlessfall #x1 :board #x1)
+          )
+    (set! (-> v1-2 action-mask) (collide-action solid))
+    (set! (-> v1-2 best-other-prim) #f)
+    )
+  (let ((f0-6 (collide-cache-method-10 arg5 (the-as collide-query arg0))))
+    (cond
+      ((>= f0-6 0.0)
+       (vector+float*!
+         (-> (the-as collide-query arg0) rlength)
+         (-> (the-as collide-query arg0) start-pos)
+         (-> (the-as collide-query arg0) move-dist)
+         f0-6
+         )
+       (-> (the-as collide-query arg0) best-other-prim local-sphere x)
+       )
+      (else
+        (the-as float #f)
+        )
+      )
+    )
+  )
+
 ;; og:preserve-this bring-up stub (#108): retail's body is the jak2/jak3 shape,
 ;;   (let ((v1-0 (-> this nav-mesh))) (if (nonzero? v1-0) (init-from-entity v1-0 this)))
 ;; and neither half exists here yet: nav-mesh-h.gc carries only nav-mesh-flag, so the

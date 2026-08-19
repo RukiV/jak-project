@@ -1425,6 +1425,33 @@
   // afterward matches nav-engine's own field layout exactly (offset 8
   // nav-mesh-addr, 24 buf-nav-control-count, 26 output-sphere-hash).
   "(method 24 nav-mesh)": [[[22, 78], "s4", "nav-engine"]],
+  // find-nav-mesh, nav-mesh tier: arg0 arrives typed plain object (its own
+  // define-extern in cam-states.gc keeps it that way on purpose, since
+  // (method 10 target-camera) passes unread scratch it only declares
+  // "vector"); inside this function every field write matches
+  // collide-query's own offsets field-for-field: 208/224/240 are
+  // start-pos/move-dist/rlength (:offset-assert in collide-h.gc, the same
+  // class already landed for (method 71 powercell-footie) below), 88/92 are
+  // ignore-process0/1 (both cleared to #f), 96/100 are ignore-pat/
+  // collide-with (raw bitfield stores), 268 is radius (the 5th float arg,
+  // matching the call sites' literal 8192.0), and 352 is action-mask. Op 1
+  // fails because gp (holding arg0) is still typed object at that point;
+  // op 0 is the plain register mov that copies a0 into gp, so casting a0
+  // there is enough for gp to inherit collide-query too.
+  "find-nav-mesh": [[0, "a0", "collide-query"]],
+  // nav-control-validate, nav-mesh tier: op 29 subtracts two nav-control
+  // pointers to get a byte offset into nav-control-array, matching jak2's
+  // own explicit (- (the-as int s5-0) (the-as uint (the-as int
+  // (-> s4-0 nav-control-array 0)))) (nav-mesh.gc:306); the decompiler
+  // will not auto-resolve pointer-minus-pointer, so v1 (the array-base
+  // operand, set at op 28) needs the same the-as int the source applies.
+  "nav-control-validate": [[29, "v1", "int"], [29, "s5", "int"]],
+  // connection-list-validate, nav-mesh tier: matches jak2's own
+  // (&-> arg0 3 prev1) walk (nav-mesh.gc:284): gp starts at arg0+124 (the
+  // 4th connection's own prev1 field) and the loop reads gp+8 (next0) each
+  // iteration, so gp needs to be understood as connection throughout, not
+  // just (pointer int32) from the raw daddiu.
+  "connection-list-validate": [[5, "gp", "connection"]],
   // (method 13 nav-engine), nav rung: nav-mesh's own next-nav-mesh field is
   // declared basic (the type predates its own full definition), so after the
   // linked-list walk's first hop at op 35 (already correct, basic matches the
