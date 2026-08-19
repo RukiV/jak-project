@@ -24,6 +24,7 @@ missing work; counting it as "stub" would make it look like backlog, and countin
 "landed" would hide that its only content is the marker comment itself.
 """
 import argparse
+import json
 import os
 import re
 import sys
@@ -164,7 +165,6 @@ def main():
 
     os.makedirs(args.out_dir, exist_ok=True)
     out_path = os.path.join(args.out_dir, f"census-{label}.json")
-    import json
     json.dump(dict(label=label, objects=objs), open(out_path, "w"), indent=1)
 
     landed = sum(1 for o in objs.values() if o["state"] == "landed")
