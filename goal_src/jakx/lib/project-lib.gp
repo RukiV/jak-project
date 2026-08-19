@@ -150,6 +150,9 @@
 (defmacro copy-strs (&rest strs)
   `(begin ,@(apply (lambda (x) `(set! *all-str* (cons (copy-iso-file ,x "STR/" ".STR") *all-str*))) strs)))
 
+(defmacro copy-text-files (&rest files)
+  `(begin ,@(apply (lambda (x) `(set! *all-text* (cons (copy-iso-file ,x "TEXT/" ".TXT") *all-text*))) files)))
+
 (defmacro copy-sbk-files (&rest files)
   `(begin ,@(apply (lambda (x) `(set! *all-sbk* (cons (copy-iso-file ,x "SBK/" ".SBK") *all-sbk*))) files)))
 

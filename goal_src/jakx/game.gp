@@ -57,6 +57,7 @@
 (define *all-mus* '())
 (define *all-sbk* '())
 (define *all-vag* '())
+(define *all-text* '())
 (define *all-gc* '())
 
 (define *file-entry-map* (make-string-hash-table))
@@ -523,22 +524,31 @@
 ;; Text
 ;;;;;;;;;;;;;;;;;;;;;
 
-;; (defstep :in "game/assets/jakx/game_text.gp"
-;;   :tool 'text
-;;   :out '("$OUT/iso/0COMMON.TXT"
-;;          "$OUT/iso/1COMMON.TXT"
-;;          "$OUT/iso/2COMMON.TXT"
-;;          "$OUT/iso/3COMMON.TXT"
-;;          "$OUT/iso/4COMMON.TXT"
-;;          "$OUT/iso/5COMMON.TXT"
-;;          "$OUT/iso/6COMMON.TXT"
-;;          "$OUT/iso/7COMMON.TXT")
-;;   )
-
-;; (defstep :in "game/assets/jakx/game_subtitle.gp"
-;;   :tool 'subtitle-v2
-;;   :out '("$OUT/iso/0SUBTIX.TXT")
-;;   )
+;; Jak X ships its XCOMMON.TXT/XSUBTIT.TXT files as pre-linked GOAL v2 objects,
+;; not as decompiled source: load-game-text-info (goal_src/jakx/engine/ui/text.gc)
+;; passes the loaded str-load buffer straight into `link`, so the retail bytes
+;; already are the final loadable artifact, the same as an STR or SBK file.
+;; The decompile/compile round trip jak3 uses for its game_text.gp does not
+;; carry over: write_game_text (decompiler/data/game_text.cpp, called via
+;; goalc/data_compiler/game_text_common.cpp) hardcodes the emitted group-name to
+;; "common" for every extraction pass, so Jak X's "subtitles" group cannot be
+;; told apart from "common" once decompiled and would collide with it on
+;; recompile. Stage the 24 retail TEXT files verbatim instead, same as
+;; TWEAKVAL.MUS above.
+(copy-text-files
+  "0COMMON" "0SUBTIT"
+  "1COMMON" "1SUBTIT"
+  "2COMMON" "2SUBTIT"
+  "3COMMON" "3SUBTIT"
+  "4COMMON" "4SUBTIT"
+  "5COMMON" "5SUBTIT"
+  "6COMMON" "6SUBTIT"
+  "7COMMON" "7SUBTIT"
+  "8COMMON" "8SUBTIT"
+  "9COMMON" "9SUBTIT"
+  "10COMMON" "10SUBTIT"
+  "11COMMON" "11SUBTIT"
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; ISO Group
@@ -549,35 +559,18 @@
 
 (group-list "iso"
  `(
-  ;;  "$OUT/iso/0COMMON.TXT"
-  ;;  "$OUT/iso/1COMMON.TXT"
-  ;;  "$OUT/iso/2COMMON.TXT"
-  ;;  "$OUT/iso/3COMMON.TXT"
-  ;;  "$OUT/iso/4COMMON.TXT"
-  ;;  "$OUT/iso/5COMMON.TXT"
-  ;;  "$OUT/iso/6COMMON.TXT"
-  ;;  "$OUT/iso/7COMMON.TXT"
-  ;;  "$OUT/iso/0SUBTIX.TXT"
   ;;  "$OUT/iso/VAGDIR.AYB"
   ;;  "$OUT/iso/TWEAKVAL.MUS"
   ;;  ,@(reverse *all-vis*)
   ;;  ,@(reverse *all-str*)
   ;;  ,@(reverse *all-sbk*)
   ;;  ,@(reverse *all-vag*)
+   ,@(reverse *all-text*)
    ,@(reverse *all-cgos*))
  )
 
 (group-list "text"
- `("$OUT/iso/0COMMON.TXT"
-   "$OUT/iso/1COMMON.TXT"
-   "$OUT/iso/2COMMON.TXT"
-   "$OUT/iso/3COMMON.TXT"
-   "$OUT/iso/4COMMON.TXT"
-   "$OUT/iso/5COMMON.TXT"
-   "$OUT/iso/6COMMON.TXT"
-   "$OUT/iso/7COMMON.TXT"
-   "$OUT/iso/0SUBTIX.TXT"
-   )
+ `(,@(reverse *all-text*))
  )
 
 ;; used for the type consistency test.
