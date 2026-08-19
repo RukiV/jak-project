@@ -7,22 +7,43 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this text-record-wall rung: field 4 renamed text -> index and
+;; retyped string -> uint32. (method 3 game-text) prints it with the game's own
+;; inspect string "~1Tindex: ~D~%" (text-h_ir2.asm op 18), and every consumer
+;; treats it as a byte offset into the owning game-text-info's text-data buffer
+;; rather than a string pointer: (method 9 game-text-info) reads
+;; (-> this text i index) and immediately indexes (-> this text-data <that
+;; value>). Jak X does not store a string pointer per record the way jak3 does.
 (deftype game-text (structure)
-  ((id    text-id)
-   (text  string)
+  ((id     text-id)
+   (index  uint32)
    )
   :pack-me
   )
 
 
+;; og:preserve-this text-record-wall rung: the four trailing fields are
+;; pointers, not values, and typing them uint32 was the record-field decode
+;; wall (methods 3/9/10/11/12 and load-game-text-info every one failed type
+;; prop on a load through one of them). Jak X replaces jak3's single
+;; (data game-text :dynamic :inline) tail with a four-buffer
+;; dictionary-compressed layout, and (method 3 game-text-info) names all four
+;; itself, printing each with #x~X: "~1Tdic-index:", "~1Tdic-data:",
+;; "~1Ttext:", "~1Ttext-data:".
+;;   text       an 8-byte-stride array of game-text records, binary-searched by
+;;              id in methods 9 and 10 (dsll idx 3, then lwu at +0 and +4)
+;;   text-data  byte buffer, indexed by a record's own index field
+;;   dic-index  word array, indexed by a dictionary code (dsll code 2, lwu)
+;;   dic-data   byte buffer; dic-data[dic-index[code]] is a length and the
+;;              bytes after it are the expansion (methods 9/11/12)
 (deftype game-text-info (basic)
   ((length       int32)
    (language-id  int32)
    (group-name   string)
-   (dic-index    uint32)
-   (dic-data     uint32)
-   (text         uint32)
-   (text-data    uint32)
+   (dic-index    (pointer uint32))
+   (dic-data     (pointer uint8))
+   (text         (inline-array game-text))
+   (text-data    (pointer uint8))
    )
   (:methods
     ;; og:preserve-this net-hud rung: return type retyped none -> string. Both
@@ -41,8 +62,19 @@
     ;; to reach char data, the same +2 string-data shape method 9's own
     ;; string return already uses. See all-types.gc's matching comment.
     (game-text-info-method-10 (_type_ int object) string)
-    (game-text-info-method-11 (_type_ object) none)
-    (game-text-info-method-12 (_type_ object object) none)
+    ;; text-record-wall rung: arg0 retyped object -> string and the return
+    ;; none -> string. The body indexes arg0 as (-> arg0 data i) over
+    ;; (length arg0) (text_ir2.asm ops 27-28: base + i, then l.bu at +4, the
+    ;; string data offset) and returns one of *expanded-text-line0* /
+    ;; *expanded-text-line1*, which the decode reported as "Return type
+    ;; mismatch string vs none" under the old none.
+    (game-text-info-method-11 (_type_ string) string)
+    ;; text-record-wall rung: both args retyped object -> (pointer uint8).
+    ;; arg0 goes straight into copy-charp<-charp, whose own signature is
+    ;; (function (pointer uint8) (pointer uint8) (pointer uint8)), and is
+    ;; byte-stored through; arg1 is byte-loaded at +0..+3 to test for the
+    ;; 0xde 0xad 0xbe 0xef marker (text_ir2.asm ops 11-26).
+    (game-text-info-method-12 (_type_ (pointer uint8) (pointer uint8)) none)
     )
   )
 

@@ -774,10 +774,15 @@
 ;; own define-extern already lived in loader-h.gc), set-pending-file,
 ;; unlock!, inactive?, file-status, link-file and unlink-file (the latter
 ;; two call the already-landed link-art-to-master/unlink-art-to-master).
-;; Held: external-art-buffer's update (method 10) fails type prop at op
-;; 205 ("Called a function, but we do not know its type") and carries two
-;; unsupported sllv inline-asm instructions; a real blocker, not a config
-;; gap.
+;; Held: external-art-buffer's update (method 10). NOTE, text-record-wall
+;; rung: that hold's stated blocker is gone. Op 205 was the kernel's own
+;; link call, and giving `link` its real signature in all-types.gc (from
+;; game/kernel/jak3/klink.cpp's link_and_exec_wrapper, five args) resolved
+;; it; both sllv errors were downstream of that failed type prop and went
+;; with it. The method now decodes clean (199 lines, "Found some very
+;; strange gotos" WARN only) and loader_REF.gc records it. It is left
+;; unlanded here only because that is a loader-scoped landing, not part of
+;; the text rung that cleared it.
 ;;
 ;; Landed from external-art-control: file-status, none-reserved?,
 ;; reserve-alloc, reserve-free (calls external-art-buffer's own update,

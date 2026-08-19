@@ -14354,9 +14354,16 @@
 
 ;; ---main-h:text-id
 
+;; text-record-wall rung: field 4 renamed text -> index and retyped string ->
+;; uint32. (method 3 game-text) prints it with the game's own inspect string
+;; "~1Tindex: ~D~%" (text-h_ir2.asm op 18), and every consumer treats it as a
+;; byte offset into the owning game-text-info's text-data buffer rather than a
+;; string pointer: (method 9 game-text-info) reads (-> this text i index) and
+;; immediately indexes (-> this text-data <that value>). Jak X does not store
+;; string pointers per record the way jak3's twin does.
 (deftype game-text (structure)
-  ((id   text-id  :offset-assert 0) ;; guessed by decompiler
-   (text string   :offset-assert 4) ;; guessed by decompiler
+  ((id    text-id  :offset-assert 0) ;; guessed by decompiler
+   (index uint32   :offset-assert 4)
    )
   :pack-me
   :method-count-assert 9
@@ -14364,15 +14371,27 @@
   :flag-assert         #x900000008
   )
 
-;; TODO - no more dynamic inline?
+;; text-record-wall rung: the four uint32 fields below are pointers, not
+;; values, and typing them as uint32 was the whole record-field decode wall
+;; (methods 3/9/10/11/12 and load-game-text-info all failed type prop on a
+;; load through one of them). Jak X replaces jak3's single (data game-text
+;; :dynamic :inline) tail with a four-buffer dictionary-compressed layout,
+;; and (method 3 game-text-info) names all four itself, printing each with
+;; #x~X: "~1Tdic-index:", "~1Tdic-data:", "~1Ttext:", "~1Ttext-data:".
+;;   text       -> an 8-byte-stride array of game-text records, binary-searched
+;;                 by id in methods 9 and 10 (dsll idx 3 then lwu 0/4).
+;;   text-data  -> byte buffer, indexed by a record's own index field.
+;;   dic-index  -> word array, indexed by a dictionary code (dsll code 2, lwu).
+;;   dic-data   -> byte buffer; dic-data[dic-index[code]] is a length, and the
+;;                 length bytes after it are the expansion (methods 9/11/12).
 (deftype game-text-info (basic)
-  ((length      int32   :offset-assert 4)
-   (language-id int32   :offset-assert 8)
-   (group-name  string  :offset-assert 12) ;; guessed by decompiler
-   (dic-index   uint32  :offset-assert 16)
-   (dic-data    uint32  :offset-assert 20)
-   (text        uint32  :offset-assert 24)
-   (text-data   uint32  :offset-assert 28)
+  ((length      int32                    :offset-assert 4)
+   (language-id int32                    :offset-assert 8)
+   (group-name  string                   :offset-assert 12) ;; guessed by decompiler
+   (dic-index   (pointer uint32)         :offset-assert 16)
+   (dic-data    (pointer uint8)          :offset-assert 20)
+   (text        (inline-array game-text) :offset-assert 24)
+   (text-data   (pointer uint8)          :offset-assert 28)
    )
   :method-count-assert 13
   :size-assert         #x20
@@ -14392,8 +14411,19 @@
     ;; (_type_ object object) string signature uses for +2 string-data
     ;; arithmetic elsewhere in this corpus.
     (game-text-info-method-10 (_type_ int object) string) ;; 10
-    (game-text-info-method-11 (_type_ object) none) ;; 11
-    (game-text-info-method-12 (_type_ object object) none) ;; 12
+    ;; text-record-wall rung: arg0 retyped object -> string and the return
+    ;; none -> string. The body indexes arg0 as (-> arg0 data i) over
+    ;; (length arg0) (text_ir2.asm ops 27-28, base + i then l.bu at +4, the
+    ;; string data offset) and returns one of *expanded-text-line0* /
+    ;; *expanded-text-line1*, which the decode reported as "Return type
+    ;; mismatch string vs none" under the old none.
+    (game-text-info-method-11 (_type_ string) string) ;; 11
+    ;; text-record-wall rung: both args retyped object -> (pointer uint8).
+    ;; arg0 is passed straight to copy-charp<-charp, whose own signature is
+    ;; (function (pointer uint8) (pointer uint8) (pointer uint8)), and is
+    ;; byte-stored through; arg1 is byte-loaded at +0..+3 to test for the
+    ;; 0xde 0xad 0xbe 0xef marker (text_ir2.asm ops 11-26).
+    (game-text-info-method-12 (_type_ (pointer uint8) (pointer uint8)) none) ;; 12
     )
   )
 
@@ -86088,7 +86118,13 @@
 (define-extern *end-credits-proc* (pointer handle))
 (define-extern *engine-sprite-list* object) ;; provisional: call-site evidence only
 (define-extern *enter-pw-acct-name* object) ;; provisional: call-site evidence only
-(define-extern *expand-buf-number* object) ;; provisional: call-site evidence only
+;; text-record-wall rung: retyped object -> int, matching jak3's own entry and
+;; all-types' own suggestion comment above (";; (define-extern
+;; *expand-buf-number* object) ;; int"). It is only ever read, xor'd with 1 and
+;; written back ((logxor *expand-buf-number* 1) in methods 9 and 11, and in
+;; convert-korean-text); under object that xor failed type prop and took the
+;; rest of each of those three functions with it.
+(define-extern *expand-buf-number* int)
 ;; og:preserve-this text.gc's top level killed on this exact class (an
 ;; extern the decompiler type system did not know at all, not merely an
 ;; object-typed guess): its own top-level-login allocates *game-text-word*,
@@ -86117,6 +86153,12 @@
 (define-extern text-is-loading symbol)
 (define-extern convert-korean-text (function string string))
 (define-extern load-game-text-info (function string (pointer object) kheap int))
+;; text-record-wall rung: both are two-instruction setters for
+;; *level-text-file-load-flag* with no arguments and v0 = 0 (text_ir2.asm,
+;; enable- sets #t, disable- sets #f). Without an entry here the decompiler
+;; emitted "Function ... has unknown type" and no OpenGOAL at all.
+(define-extern enable-level-text-file-loading (function none))
+(define-extern disable-level-text-file-loading (function none))
 ;; og:preserve-this provisional extern removed: shadowed the earlier *explosion-debug-sphere* extern (explosion rung, scripts/check_alltypes_shadowing.py)
 (define-extern *fake-msg-count* object) ;; provisional: call-site evidence only
 (define-extern *fake-msg-read* object) ;; provisional: call-site evidence only
@@ -87083,7 +87125,15 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier light-trail deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier lightning-bolt deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier lightning-spans-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
-(define-extern link function) ;; runtime-typed from savestate
+;; text-record-wall rung: given its real signature rather than a bare function.
+;; This is the kernel's own C symbol, not GOAL code: game/kernel/jak3/klink.cpp
+;; binds "link" to link_and_exec_wrapper, which reads exactly five arguments
+;; (Ptr<u8> data, Ptr<char> name, u32 size, Ptr<kheapinfo> heap, u32 flags) and
+;; returns an offset, and jak2/jak3's all-types both carry this same signature.
+;; load-game-text-info's own call passes exactly those five and stores the
+;; result into (-> arg1 0); under a bare function the call failed type prop
+;; ("Called a function, but we do not know its type").
+(define-extern link (function pointer pointer int kheap int pointer))
 (define-extern loader-test-command (function object object object)) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier medius-account-login-request deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier medius-add-to-buddy-list-confirmation-response deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
