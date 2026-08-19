@@ -1466,5 +1466,30 @@
   // field-for-field, then passes its address straight through to
   // nav-mesh-method-42 the same way jak3's find-nearest-nav-mesh passes it
   // to nav-mesh-method-46 (both cast the struct as nav-poly).
-  "find-first-containing-nav-mesh": [[16, "nav-find-poly-parms"]]
+  "find-first-containing-nav-mesh": [[16, "nav-find-poly-parms"]],
+  // (method 71 powercell-footie), football2 rung: sp+16's own start-pos/
+  // move-dist sub-fields (raw offsets 208/224) match collide-query's own
+  // declared field offsets exactly, the same class as
+  // (method 71 coli-atlas-globe) above, BUT declaring the whole 552-byte
+  // region collide-query trades the single "stack use" error for seven
+  // per-field "Failed store" errors (offsets 88/92/96/100/116/268 all
+  // land on real collide-query fields with plausible values: this/#f
+  // into ignore-process0/1, a float into radius, evidence the type is
+  // right but the individual stores still need their own value-side
+  // casts this rung does not have budget to chase). Held: not applied,
+  // named here so a later rung does not have to re-derive it.
+  // (method 11 powercell-dispenser), football2 rung: sp+16 is passed to
+  // (method 49 net-powerup) as its object arg; its own tp/pos/lifetime/
+  // initial-owner/motion-info sub-fields (raw offsets 0/16/32/36/40) are
+  // written directly matching net-powerup-spawn-params's own declared
+  // field offsets exactly (lifetime 3000, initial-owner 8). Absolute
+  // sp+64 (sp+16's own offset 48) is a separate plain vector scratch
+  // used to stage the pos value before its own copy into sp+16's own
+  // offset 16.
+  "(method 11 powercell-dispenser)": [[16, "net-powerup-spawn-params"], [64, "vector"]],
+  // (method 52 powercell-dispenser), football2 rung: sp+16 receives a
+  // single raw quad copy (either the passed-in vector arg or the found
+  // child process's own root-trans) and is passed on as a plain vector
+  // (the same shape as activate-bar above).
+  "(method 52 powercell-dispenser)": [[16, "vector"]]
 }

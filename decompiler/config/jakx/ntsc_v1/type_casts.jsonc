@@ -7964,5 +7964,49 @@
     [3, "a1", "(pointer uint8)"],
     [7, "a1", "(pointer uint8)"],
     [11, "a1", "(pointer uint8)"]
-  ]
+  ],
+  // (code idle powercell-footie) / (code active powercell-footie): the
+  // second reload of (-> draw art-group data N) (the same element
+  // already cast to art-joint-anim on its first load, for frame-group)
+  // is read again for its frames num-frames field; same class as
+  // (method 86 net-enemy) above, raw offset 32 for the declared-36
+  // frames field. Cast targets the exact op where the failing read
+  // happens (net-enemy's own precedent casts the read site, not the
+  // defining op).
+  "(code idle powercell-footie)": [[10, "v1", "art-joint-anim"]],
+  "(code active powercell-footie)": [[10, "v1", "art-joint-anim"]],
+  // (event empty powercell-dispenser-draw) / (event idle
+  // powercell-dispenser-draw): both dereference powerup-draw's
+  // parent-proc handle and dispatch method 48 on the result; the
+  // decompiler's default type for a handle-dereferenced process is the
+  // generic process (14ish methods), but method 48 only exists on
+  // powercell-dispenser (method-count-assert 56), which is what
+  // parent-proc actually points back to here (the draw process's owning
+  // dispenser). Cast targets the type-pointer load's own input (op 23,
+  // the (l.wu (+ v1 -4)) that resolves the vtable), not the merged
+  // definition further upstream.
+  "(event empty powercell-dispenser-draw)": [[23, "v1", "powercell-dispenser"]],
+  "(event idle powercell-dispenser-draw)": [[23, "v1", "powercell-dispenser"]],
+  // powercell-subdraw-init-by-other / (enter idle powercell-dispenser-subdraw)
+  // / (method 52 powercell-dispenser): all three walk (-> (-> self parent) 0
+  // child) to reach a sibling process, then dereference its root field
+  // (raw offset 184, declared 188 on process-drawable); process-tree (the
+  // generic child-link type) has no root field, so the walked-to value is
+  // widened to process-drawable for this one op, the minimum type that
+  // supports the access.
+  "powercell-subdraw-init-by-other": [[12, "a1", "process-drawable"]],
+  "(enter idle powercell-dispenser-subdraw)": [[6, "a1", "process-drawable"]],
+  // (method 52 powercell-dispenser): here the value is child-proc's own
+  // handle deref (already handle-typed above), generically resolved to
+  // process; same root-field access, same widening.
+  "(method 52 powercell-dispenser)": [[16, "a1", "process-drawable"]],
+  // (post idle powercell-dispenser): child-proc's own handle deref
+  // (already handle-typed above), used here for its draw field (raw
+  // offset 192, declared 196 on process-drawable), same widening.
+  "(post idle powercell-dispenser)": [[49, "v1", "process-drawable"]],
+  // (enter active powercell-footie): op72 dereferences powercell-footie's
+  // own owner handle (already handle-typed above); op77 reads the
+  // resulting process's root field (raw offset 184), same widening as
+  // the child-proc cases above.
+  "(enter active powercell-footie)": [[77, "a1", "process-drawable"]]
 }

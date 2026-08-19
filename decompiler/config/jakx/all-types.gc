@@ -56509,8 +56509,16 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; child-proc retyped uint64 -> handle: powercell-dispenser's override of
+;; net-powerup-method-46 loads this field with `l.d` then splits it via
+;; sllv/dsra32 into a process pointer (low 32) and pid (high 32), compared
+;; against the pid stored at process+48, the handle-deref idiom (scoped
+;; decode, this worktree's config, football2).
+;; state 43 renamed net-powerup-state-43 -> wait-respawn: football2's own
+;; decode disagreed, "the state is named wait-respawn, but the slot is
+;; named net-powerup-state-43" (scoped decode, this worktree's config).
 (deftype net-powerup (process-nettable)
-  ((child-proc          uint64         :offset-assert 192)
+  ((child-proc          handle         :offset-assert 192)
    (die-or-respawn-time int32          :offset-assert 200)
    (touched-time        int32          :offset-assert 204)
    (touched-by          int8           :offset-assert 208)
@@ -56524,7 +56532,7 @@
   :flag-assert         #x38007000f4
   (:state-methods
     idle ;; 42
-    net-powerup-state-43 ;; 43
+    wait-respawn ;; 43
     net-powerup-state-44 ;; 44
     )
   (:methods
@@ -56564,8 +56572,13 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; parent-proc retyped uint64 -> handle: powercell-dispenser-draw (subtype)
+;; loads this field with `l.d` then splits it via sllv/dsra32 into a
+;; process pointer (low 32) and pid (high 32), the same handle-deref idiom
+;; as net-powerup's child-proc (scoped decode, this worktree's config,
+;; football2).
 (deftype powerup-draw (process-drawable)
-  ((parent-proc uint64  :offset-assert 248)
+  ((parent-proc handle  :offset-assert 248)
    (glow-sound  basic   :offset-assert 256)
    (part-time   int32   :offset-assert 260)
    )
@@ -56574,7 +56587,9 @@
   :flag-assert         #x3900800108
   (:state-methods
     idle ;; 50
-    powerup-draw-state-51 ;; 51
+    die ;; 51: football2's own decode disagreed, "the state is named
+        ;; die, but the slot is named powerup-draw-state-51" (scoped
+        ;; decode, this worktree's config, football2).
     )
   (:methods
     (powerup-draw-method-52 (_type_) none) ;; 52
@@ -57189,14 +57204,24 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; method 57 moved to state-methods and renamed empty: football2's own
+;; decode disagreed, "Virtual defstate is defining a virtual state
+;; 'empty' in method powercell-dispenser-draw-method-57", the same class
+;; as net-powerup's wait-respawn rename above (scoped decode, this
+;; worktree's config, football2).
+;; subdraw retyped uint64 -> handle: (enter idle powercell-dispenser-draw)
+;; loads this field with `ld` then splits it via sllv/dsra32 into a
+;; process pointer (low 32) and pid (high 32), the same handle-deref
+;; idiom as owner/child-proc/parent-proc above (scoped decode, this
+;; worktree's config, football2).
 (deftype powercell-dispenser-draw (powerup-draw)
-  ((subdraw uint64  :offset-assert 264)
+  ((subdraw handle  :offset-assert 264)
    )
   :method-count-assert 58
   :size-assert         #x110
   :flag-assert         #x3a00800110
-  (:methods
-    (powercell-dispenser-draw-method-57 () none) ;; 57
+  (:state-methods
+    empty ;; 57
     )
   )
 
@@ -57221,8 +57246,13 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; owner retyped uint64 -> handle: football2's anon-functions 0 and 2 both
+;; load this field with `ld` then split it via sllv/dsra32 into a process
+;; pointer (low 32) and pid (high 32), compared against the pid stored at
+;; process+48; that is the handle-deref idiom, not raw uint64 arithmetic
+;; (scoped decode, this worktree's config, football2).
 (deftype powercell-footie (rigid-body-object)
-  ((owner      uint64         :offset-assert 288)
+  ((owner      handle         :offset-assert 288)
    (plyid      int8           :offset-assert 296)
    (tip-vel    vector :inline :offset-assert 304)
    (spring-pos vector :inline :offset-assert 320)
@@ -57233,9 +57263,20 @@
   :method-count-assert 91
   :size-assert         #x168
   :flag-assert         #x5b00e00168
+  (:state-methods
+    die ;; 89: football2's own decode disagreed, "Virtual defstate is
+        ;; defining a virtual state 'die' in method
+        ;; powercell-footie-method-89" (scoped decode, this worktree's
+        ;; config, football2).
+    )
   (:methods
-    (powercell-footie-method-89 () none) ;; 89
-    (powercell-footie-method-90 () none) ;; 90
+    ;; method 90 called from powercell-footie-init-by-other via
+    ;; run-function-in-process, forwarding that function's own arg0
+    ;; (process-drawable, dereferenced here as root trans), a byte read
+    ;; from arg0 at raw offset 2116 (int), and arg2 (vector, used
+    ;; directly as a raw quad address, no deref) (scoped decode, this
+    ;; worktree's config, football2).
+    (powercell-footie-method-90 (_type_ process-drawable int vector) none) ;; 90
     )
   )
 
@@ -78291,17 +78332,25 @@
   :size-assert         #x174
   :flag-assert         #x3400f00174
   (:state-methods
-    powercell-dispenser-subdraw-state-50 ;; 50
-    )
-  (:methods
-    (powercell-dispenser-subdraw-method-51 () none) ;; 51
+    idle ;; 50: football2's own decode disagreed, "the state is named
+         ;; idle, but the slot is named powercell-dispenser-subdraw-
+         ;; state-50" (scoped decode, this worktree's config, football2).
+    poof ;; 51: football2's own decode disagreed, "Virtual defstate is
+         ;; defining a virtual state 'poof' in method
+         ;; powercell-dispenser-subdraw-method-51" (scoped decode, this
+         ;; worktree's config, football2).
     )
   )
 
 
 ;; (define-extern *powercell-footie-constants* object)
 ;; (define-extern *vehicle-control-football-throttle-jammed-open* object)
-;; (define-extern football-find-borrow-level function)
+;; football-find-borrow-level (football2 rung): zero explicit args (only
+;; *level* and *net-game-mgr* globals read); loops the football DGO name
+;; list calling (method 9 level-group) i.e. level-get (_type_ symbol)
+;; level, returning the first match; return type follows level-get's own
+;; (scoped decode, this worktree's config, football/football2).
+(define-extern football-find-borrow-level (function level))
 ;; (define-extern *hud-intro-turbo-meter* object)
 ;; (define-extern *hud-football-stats-aux-view00* array)
 ;; (define-extern *hud-football-stats-aux-view00-proc* object)
@@ -78353,16 +78402,44 @@
 ;; (define-extern *pcell-origin?* object)
 ;; (define-extern birth-func-pcell function)
 ;; (define-extern net-player-football-handle-pcells function)
-;; (define-extern has-powercell? function)
+;; has-powercell?: (method 52 powercell-dispenser) calls this with its own
+;; a1 parameter unmodified (declared process-tree there), checked for
+;; truthiness on return; return type follows the standard predicate
+;; convention (scoped decode, this worktree's config, football2).
+(define-extern has-powercell? (function process-tree symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; football2                      ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; (define-extern spt-func-cell-grabbed function)
-;; (define-extern powercell-subdraw-init-by-other function)
-;; (define-extern powercell-footie-init-by-other function)
-;; (define-extern powercell-footie-update-pos-on-vehicle function)
+;; spt-func-cell-grabbed: used as a :func callback in a defpart, its own
+;; body forwards all three of its own args unchanged into both
+;; sparticle-adopt-accel and sparticle-motion-blur, matching the standard
+;; :func slot signature (scoped decode, this worktree's config, football2).
+(define-extern spt-func-cell-grabbed (function sparticle-system sparticle-cpuinfo sparticle-launchinfo none))
+;; powercell-subdraw-init-by-other: reads no incoming a0-a3 (all four are
+;; clobbered before any read), only self (s6) and a freshly allocated
+;; trsqv; return type follows the general init-by-other convention
+;; (scoped decode, this worktree's config, football2).
+(define-extern powercell-subdraw-init-by-other (function object :behavior powercell-dispenser-subdraw))
+;; powercell-footie-init-by-other: called via run-function-in-process from
+;; (method 52 net-powerup) on powercell-dispenser, forwarding that
+;; method's own a1 (declared process-tree there, but this function derefs
+;; it as (-> arg0 root trans) via method 90 powercell-footie, matching
+;; process-drawable's root field at declared offset 188), the caller's
+;; own offset-64 field (raw store, no further deref inside this
+;; function), and a locally built stack vector (raw quad, no deref).
+;; arg1's exact declared type could not be pinned further within this
+;; function's own body (support, not proof); held at the generic type
+;; that compiles rather than invented (scoped decode, this worktree's
+;; config, football2).
+(define-extern powercell-footie-init-by-other (function process-drawable object vector object :behavior powercell-footie))
+;; powercell-footie-update-pos-on-vehicle: stored into and called from
+;; self's own trans slot with no arguments ever loaded before the call
+;; (both the direct call site and the trans-hook assignment), matching
+;; the zero-arg trans-hook convention used elsewhere in this file
+;; (scoped decode, this worktree's config, football2).
+(define-extern powercell-footie-update-pos-on-vehicle (function none :behavior powercell-footie))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; spargus-obs                    ;;
