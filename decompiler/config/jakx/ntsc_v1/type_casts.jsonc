@@ -7662,10 +7662,23 @@
   ],
   // (method 11 script-context): same generic pair-car idiom, plus a
   // loop-back cdr walk residual at op39.
+  // ops 45-48 are the &rest-branch's own three-deep cdr/cdr/cdr/car walk
+  // (car (cdr (cdr (cdr a1-6)))), matching the jak3 twin's
+  // (set! (-> this param v1-11) (car (cdr (cdr (cdr a1-6))))) line for
+  // line; ops 71/72 are the loop-continuation's (cdr a0-3)/(car a0-3)
+  // pair at the top of the next iteration.
   "(method 11 script-context)": [
     [11, "s3", "pair"],
     [39, "v1", "pair"],
     [43, "a0", "pair"],
+    [45, "a1", "pair"],
+    [46, "a1", "pair"],
+    [47, "a1", "pair"],
+    [48, "a1", "pair"],
+    [71, "a0", "pair"],
+    [72, "a0", "pair"],
+    [81, "v1", "pair"],
+    [89, "v1", "pair"],
     [93, "v1", "pair"],
     [100, "v1", "pair"],
     [105, "v1", "pair"],
@@ -7673,7 +7686,31 @@
     [119, "v1", "pair"],
     [148, "v1", "pair"],
     [149, "v1", "pair"],
-    [168, "v1", "pair"]
+    [160, "v1", "pair"],
+    [165, "v1", "pair"],
+    [168, "v1", "pair"],
+    [198, "s2", "pair"],
+    [199, "a0", "pair"],
+    [200, "a0", "pair"],
+    [201, "a0", "pair"],
+    [216, "s2", "pair"],
+    [217, "a0", "pair"],
+    [218, "a0", "pair"],
+    [219, "a0", "pair"],
+    [244, "v1", "pair"],
+    [247, "s2", "pair"],
+    [248, "v1", "pair"],
+    [266, "s2", "pair"],
+    [267, "v1", "pair"],
+    [268, "v1", "pair"],
+    [281, "s2", "pair"],
+    [294, "s2", "pair"],
+    [295, "v1", "pair"],
+    [296, "v1", "pair"],
+    [302, "v1", "pair"],
+    [305, "v1", "pair"],
+    [308, "v1", "pair"],
+    [311, "v1", "pair"]
   ],
   // key-assoc: walks a pair-valued association list via cdr; op11's own
   // register (v1, not a1) confirmed by re-decode after the first attempt,
@@ -7700,6 +7737,14 @@
   // command-get-trans's op46 is this worktree's own residual (a second
   // read of the same trsqv field after the first branch), not present in
   // jak3's list; found by re-decode after adopting jak3's set.
+  // op86's a0 is get-art-by-name-method's own return, the same value the
+  // part-tracker anon-function casts to joint before reading its number
+  // field (`(the-as joint (get-art-by-name-method ...))`); the prior
+  // "trsqv" cast here was a copy/paste mismatch (trsqv's own offset-4
+  // field is pause-adjust-distance, unrelated to a bone index) and left
+  // the op87 add unable to combine meters with an integer. Retyping a0 to
+  // joint here resolves the same field jak3's landed source reads as
+  // (-> a0-12 number).
   "command-get-trans": [
     [40, "v1", "process-drawable"],
     [43, "v1", "process-drawable"],
@@ -7713,8 +7758,7 @@
     [74, "s4", "process-drawable"],
     [77, "s4", "process-drawable"],
     [85, "s4", "process-drawable"],
-    [86, "a0", "trsqv"],
-    [76, "v0", "joint"],
+    [86, "a0", "joint"],
     [78, "s4", "process-drawable"]
   ],
   "command-get-entity": [[10, "gp", "process"]],
@@ -7736,10 +7780,20 @@
     [198, "s4", "process-drawable"],
     [197, "s4", "process-drawable"],
     [200, "s4", "process-drawable"],
+    [204, "s4", "process-drawable"],
     [206, "s4", "process-drawable"],
+    [211, "s4", "process-drawable"],
     [213, "s4", "process-drawable"],
+    [216, "s4", "process-drawable"],
     [218, "s4", "process-drawable"]
   ],
+  // command-get-param's 4th cond branch ('static-vectorm) nests the same
+  // three-deep car/cdr walk as command-get-time's 'frame-range branch
+  // above (x/y/z each their own (car (cdr ... arg0)) chain); ops
+  // 67/76/86/97 read gp for the symbol check and each component's first
+  // cdr, ops 77/88/100 read the accumulated cdr chain's car for the
+  // component value, and 87/98/99 are the intermediate second/third cdr
+  // hops. jak3 needed no override for this branch either.
   "command-get-param": [
     [9, "gp", "pair"],
     [16, "gp", "pair"],
@@ -7750,8 +7804,26 @@
     [48, "gp", "pair"],
     [55, "gp", "pair"],
     [56, "v1", "pair"],
+    [67, "gp", "pair"],
+    [76, "gp", "pair"],
+    [77, "v1", "pair"],
+    [86, "gp", "pair"],
+    [87, "v1", "pair"],
+    [88, "v1", "pair"],
+    [97, "gp", "pair"],
+    [98, "v1", "pair"],
+    [99, "v1", "pair"],
+    [100, "v1", "pair"],
     [122, "gp", "bfloat"]
   ],
+  // command-get-time's 4th cond branch ('frame-range) nests three car/cdr
+  // walks deep (car of arg0, car of (cdr arg0), car of (cdr (cdr arg0))),
+  // one level deeper than the 'seconds/'frame-time/'frame-time-30 branches
+  // above; ops 69/74/80/87 read gp for the symbol check and each param's
+  // first cdr, ops 75/82/90 read the accumulated cdr chain's car for the
+  // param value itself, and 81/88/89 are the intermediate second/third cdr
+  // hops. Found by rereading this worktree's own scoped decode (jak3 needed
+  // no override at all for this branch, per its type_casts.jsonc entry).
   "command-get-time": [
     [9, "gp", "pair"],
     [16, "gp", "pair"],
@@ -7762,6 +7834,16 @@
     [49, "gp", "pair"],
     [56, "gp", "pair"],
     [57, "v1", "pair"],
+    [69, "gp", "pair"],
+    [74, "gp", "pair"],
+    [75, "v1", "pair"],
+    [80, "gp", "pair"],
+    [81, "v1", "pair"],
+    [82, "v1", "pair"],
+    [87, "gp", "pair"],
+    [88, "v1", "pair"],
+    [89, "v1", "pair"],
+    [90, "v1", "pair"],
     [119, "gp", "bfloat"]
   ],
   "command-get-float": [[20, "gp", "bfloat"]],

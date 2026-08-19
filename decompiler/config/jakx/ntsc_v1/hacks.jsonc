@@ -605,7 +605,72 @@
     // (a mips2c port or a CfgVtx.cpp change, both out of this rung's
     // scope). Landing wcar-skel-template's own decode does not close the
     // extern-no-defun class for this symbol.
-    "get-car-skel-part"
+    "get-car-skel-part",
+    // command-get-process's *task-manager* branch walks
+    // *task-manager-engine*'s alive-list and, once it finds the match, hits
+    // an unconditional break out of the while loop. The instructions that
+    // follow the break in the compiled binary are genuinely dead (never
+    // executed at runtime) but decode as a run of five statements (four
+    // (the-as none ...) casts plus a literal (l.wu 0), a load from address
+    // 0), not the single-statement or all-empty shapes
+    // clean_up_break_final() recognizes (decompiler/analysis/
+    // cfg_builder.cpp:232, "failed to recognize dead code after break");
+    // that function takes no config parameter, so no type_casts.jsonc or
+    // stack_structures.jsonc entry can reach it. jak3's own landed twin hits
+    // the same dead (l.wu 0) load in the identical loop (script.gc's
+    // command-get-process, its own op 111) but its build's dead-code region
+    // happens to reduce to the single-statement shape the checker accepts,
+    // so it decodes with the load preserved verbatim as
+    // "(set! v1-30 (the-as connectable (l.wu 0)))" plus a WARN rather than
+    // throwing. Every other part of this function (the type-tag dispatch
+    // chain, the entity-actor/process-drawable casts, the stack
+    // event-message-block for the 'vehicle branch) resolves cleanly via
+    // type_casts.jsonc and stack_structures.jsonc and is left in place;
+    // only this one dead-code-shape mismatch is unfixable from config, so
+    // the whole function is parked.
+    // command-get-process is already declared in script-h.gc, so it needs
+    // no extern here. RUNTIME HAZARD: it links as zero until a real body
+    // lands, and is called from 6 game-DGO sites (generic-obs.gc's
+    // targeting and event-relay paths), each of which crashes if reached
+    // with this object loaded.
+    "command-get-process",
+    // (anon-function 44 script), the 'send-event script-form command's own
+    // lambda: builds a stack event-message-block (stack_structures.jsonc
+    // entry above) then relays it through an actor-group's raw entry array
+    // (gp-0 + s3-1*8 + 12, the same computed-pointer idiom jak3's own
+    // identically-purposed function uses to reach a raw process pointer).
+    // jak3's version reads that pointer's "child" field once and indexes it
+    // (3) to reach the process it wants; jakx's compiled body instead does
+    // two further loads off it (offset 20, then offset 12 of that result),
+    // and connection's own field layout only explains the first one
+    // (param1, basic-typed, offset-assert 20): the second load (offset 12
+    // of a generically basic-typed value) has no declared field this rung's
+    // evidence can point to, and no call site in this function's own body
+    // pins the runtime type. types2's "Could not figure out load" throws
+    // before type_casts.jsonc is ever consulted for that op (same
+    // ForwardProp.cpp mechanism cited for plow's launch-nearby-players
+    // above), so no cast resolves it. Every other part of this function
+    // (the event-message-block construction, the eval! dispatch loop, the
+    // actor-group-vs-single-process cond) is fully clean, config-fixed
+    // evidence and stays in place.
+    "(anon-function 44 script)",
+    // (anon-function 33 script): calls local-human-player-above-height?, a
+    // symbol with no defun or extern anywhere in goal_src (jak1/2/3/jakx)
+    // and no jak3 twin to transplant from (script.gc's own decode-error
+    // history, commit 9c2db1970, already identified this as an unresolved
+    // net-player-family Unknown symbol, held for that family's own pilot
+    // rather than guessed here). type_casts.jsonc cannot invent a binding
+    // for an undeclared symbol.
+    "(anon-function 33 script)",
+    // (anon-function 39/40 script): "Stack slot load mismatch" is raised by
+    // decompiler/analysis/stack_spill.cpp's StackSpillMap, a fully
+    // automatic scan with no config hook (confirmed by reading the source,
+    // same finding as commit 9c2db1970): once a 4-byte access claims a
+    // stack offset, a later 16-byte access at the same offset is rejected
+    // outright, and stack_structures.jsonc governs a different mechanism
+    // (unknown_stack_structure_tag) that does not reach this check.
+    "(anon-function 39 script)",
+    "(anon-function 40 script)"
   ],
   // these functions use pairs and the decompiler
   // will be less picky about types related to pairs.

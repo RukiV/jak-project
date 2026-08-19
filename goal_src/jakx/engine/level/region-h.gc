@@ -111,3 +111,32 @@ exactly the same size as the parent, so it's okay."
    (items      drawable-region-prim  320)
    )
   )
+
+;; og:preserve-this: region-prim-lookup-by-id is a forward declaration, not
+;; a decoded symbol. script.gc's 'region-prim script-form command (the
+;; script family lane) activates a call to this function, which jak3 lands
+;; as a real defun in region.gc (int symbol int) drawable-region-prim, but
+;; jakx's own region.gc has no defun for it yet (only region-execute is
+;; landed there); decompiler/config/jakx/all-types.gc already resurrected
+;; this same signature from a dead comment (commit 824c4073b) for the
+;; decompiler's own benefit, but that file has no bearing on what goalc can
+;; link. Declared here, matching where jak3 defines it, so a future rung
+;; that lands region.gc's own body can drop this extern and add the real
+;; defun in its place.
+;; RUNTIME HAZARD: region-prim-lookup-by-id links as zero until a real body
+;; lands. script.gc's 'region-prim script command crashes if invoked.
+(define-extern region-prim-lookup-by-id (function int symbol int drawable-region-prim))
+
+;; og:preserve-this: region-lookup-by-id, same class as
+;; region-prim-lookup-by-id directly above (script.gc's 'region script-form
+;; command activates it; jak3 lands it as a real defun in region.gc,
+;; (int) region; jakx's region.gc has no defun for it yet).
+;; decompiler/config/jakx/all-types.gc's own resurrected comment (commit
+;; 824c4073b) had this as (function (int32) region); corrected to plain
+;; int here and there, matching jak3's own proven (arg0 int) signature and
+;; the call site's own (the-as int32 (command-get-int ...)) cast, which
+;; only typechecks against a plain int parameter (int32 rejects it: this
+;; worktree's own build was the evidence, not a style preference).
+;; RUNTIME HAZARD: region-lookup-by-id links as zero until a real body
+;; lands. script.gc's 'region script command crashes if invoked.
+(define-extern region-lookup-by-id (function int region))
