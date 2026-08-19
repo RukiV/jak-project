@@ -11,8 +11,17 @@
 ;; retype to mem-buffer (process-nettable.gc) needs mem-buffer to be a real type, not
 ;; just process-nettable-h.gc's forward declare, or the-as/the on it cannot compile
 ;; (goalc requires a fully defined type for any cast target). Methods 10 and 11 gained
-;; bodies below (dispatched from net-enemy's waiting-respawn state); every other
-;; method, including 28, still has no body.
+;; bodies below (dispatched from net-enemy's waiting-respawn state).
+;;
+;; serialization rung (net-enemy's waiting-respawn enter plus its own landed
+;; methods 65/67/70): methods 14, 15, 16, 22, 23, 27, 29, 33, 40, 46 and 48
+;; gained bodies below, retiring check_method_slots.py's own net-enemy FAILs
+;; for those ids. Methods 32 and 38 also gained bodies though nothing
+;; dispatches either directly; they are method 46's and method 40's own
+;; internal calls and neither would otherwise compile (landing 40 with 38
+;; still a bare declaration would have only moved check_method_slots.py's
+;; own FAIL from method 40's own slot to method 38's, not retired it).
+;; Methods 28 and 45 stay unlanded; see the note below the deftype.
 (deftype mem-buffer (structure)
   ((base   uint32)
    (ptr    uint32)
@@ -34,7 +43,7 @@
     (mem-buffer-method-20 () none)
     (mem-buffer-method-21 () none)
     (mem-buffer-method-22 (_type_ object) none)
-    (mem-buffer-method-23 (_type_ object) none)
+    (mem-buffer-method-23 (_type_ vector) none)
     (mem-buffer-method-24 (_type_ object object) none)
     (mem-buffer-method-25 (_type_ object) none)
     (mem-buffer-method-26 (_type_) none)
@@ -43,13 +52,13 @@
     (mem-buffer-method-29 (_type_ object) none)
     (mem-buffer-method-30 (_type_ object) none)
     (mem-buffer-method-31 (_type_ pointer int) none)
-    (mem-buffer-method-32 (_type_) none)
-    (mem-buffer-method-33 (_type_) none)
+    (mem-buffer-method-32 (_type_) int)
+    (mem-buffer-method-33 (_type_) uint)
     (mem-buffer-method-34 (_type_) none)
     (mem-buffer-method-35 (_type_) none)
     (mem-buffer-method-36 (_type_) none)
     (mem-buffer-method-37 (_type_) none)
-    (mem-buffer-method-38 (_type_) none)
+    (mem-buffer-method-38 (_type_) uint)
     (mem-buffer-method-39 (_type_) uint)
     (mem-buffer-method-40 (_type_) float)
     (mem-buffer-method-41 (_type_ object) none)
@@ -79,6 +88,80 @@
 ;; disagree on whether this method takes an argument and nothing in either
 ;; object resolves which is right, so it is left held rather than
 ;; inventing an argument the call site does not supply.
+;;
+;; og:preserve-this methods 14/15/16/17 (the write-N-bytes family): ptr is
+;; declared uint32 (an address kept as raw integer so it can be advanced
+;; with plain arithmetic), so every byte store through it needed an op-level
+;; (pointer uint8) cast in type_casts.jsonc before the store would type-prop
+;; (ntsc_v1/type_casts.jsonc, "mem-buffer serialization rung" entries).
+;; arg0 stays object rather than retyping to int: net-enemy.gc's own three
+;; call sites to method 15 pass mem-buffer-method-11's own return value
+;; (declared uint) with no cast, and goalc's strict argument typecheck
+;; rejects a bare uint where int is declared ("got a uint when expecting an
+;; int"), confirmed by trying the retype and hitting that exact compile
+;; error against net-enemy-method-65's own landed call site. object accepts
+;; every caller's value untouched (the int/uint arithmetic results, the
+;; truthy-to-0/1 result via method 29, and the float bits via method 22)
+;; and the decompiler's own per-store (the-as uint arg0) / (the-as int
+;; arg0) casts, generated once the address side resolved, carry each byte
+;; out correctly regardless. Method 17 (the 8-byte writer) has no landed
+;; caller anywhere in the corpus, so it is left as a bare declaration
+;; rather than retyped and landed speculatively; its own body is the same
+;; shape as 16 one byte longer and can be landed the same way once
+;; something calls it.
+;;
+;; og:preserve-this method 22: forwards its own object-typed arg0 to method
+;; 16 unchanged, both before and after this rung; net-enemy.gc's own call
+;; site passes a float field (local-damage) directly with no explicit
+;; conversion, which only compiles because both method 22 and method 16
+;; keep arg0 as object all the way through, a plain register move carrying
+;; the float's raw bits, the same convention method 40 already uses the
+;; other direction (the-as float on an int-returning read).
+;;
+;; og:preserve-this method 23: arg1 retyped object -> vector; its raw body
+;; reads x/y/z at offsets 0/4/8 via fpr->gpr and forwards each through
+;; method 16, matching net-enemy.gc's own two call sites exactly
+;; ((-> arg0 point) and (-> arg0 velocity), both attack-info's own vector
+;; fields).
+;;
+;; og:preserve-this method 27: arg0 stays object, the same reasoning as
+;; 14/15/16 above; net-enemy.gc's own three call sites all pass
+;; (&-> some-stack-mem-buffer base), a raw (pointer uint32) rather than a
+;; real mem-buffer value (retyping the parameter itself broke every one of
+;; them: "got a (pointer uint32) when expecting a mem-buffer"). The body
+;; reads arg0's own base field and calls arg0's own method 11 (get used
+;; bytes) twice to mem-copy! a whole source buffer's contents into this one
+;; and advance this.ptr by the copied length; type_casts.jsonc casts s5
+;; (the register arg0 lands in) to mem-buffer for the span the body treats
+;; it as one, the same address-typing gap as the write family, just against
+;; a whole-struct value instead of a scalar.
+;;
+;; og:preserve-this methods 32/33: read-side mirror of 14/15, same
+;; (pointer uint8)/(pointer int8) op casts (33's own top byte is a signed
+;; l.b, sign-extended into the logior, so that op alone needs int8 while
+;; the low byte stays uint8). Method 32 is landed only because method 46
+;; calls it internally (nonzero? needs a typed operand, not the placeholder
+;; none); nothing in the corpus dispatches method 32 directly.
+;;
+;; og:preserve-this method 38: the 4-byte unsigned reader, same (pointer
+;; uint8) op casts, all four bytes read via an unsigned l.bu (unlike 32's
+;; signed top byte). Landed only because method 40 (net-enemy's own
+;; 'damage transition case) calls it internally; nothing in the corpus
+;; dispatches method 38 directly. Retyped none -> uint matching method 39's
+;; own already-landed precedent for the same 8-byte family.
+;;
+;; og:preserve-this method 45: stays unlanded, the same disagreement class
+;; as method 28. Its raw body reads an uninitialized a0 (needed as the
+;; receiver for its own internal call to method 33) and contains an inline
+;; instruction the decompiler cannot render at all (daddu v0, v1, s7, the
+;; raw-address-into-symbol-table idiom used to turn a small integer into a
+;; basic symbol), while net-enemy.gc's own call site
+;; ((method-of-type mem-buffer mem-buffer-method-45)) is a bare zero-arg
+;; call with nothing to supply either register. level-bounding-box-method-10
+;; (also in this file, itself unlanded) shows the identical unset-register
+;; shape against method 23, which suggests this is a systemic decode gap in
+;; this whole zero-arg-declared method family rather than something
+;; specific to 45; held rather than guessed.
 
 ;; definition for method 10 of type mem-buffer
 (defmethod mem-buffer-method-10 ((this mem-buffer) (arg0 pointer) (arg1 int))
@@ -92,5 +175,123 @@
 ;; definition for method 11 of type mem-buffer
 (defmethod mem-buffer-method-11 ((this mem-buffer))
   (- (-> this ptr) (-> this base))
+  )
+
+;; definition for method 14 of type mem-buffer
+(defmethod mem-buffer-method-14 ((this mem-buffer) (arg0 object))
+  (set! (-> (the-as (pointer uint8) (-> this ptr)) 0) (the-as uint arg0))
+  (+! (-> this ptr) 1)
+  0
+  (none)
+  )
+
+;; definition for method 15 of type mem-buffer
+(defmethod mem-buffer-method-15 ((this mem-buffer) (arg0 object))
+  (set! (-> (the-as (pointer uint8) (-> this ptr)) 0) (the-as uint arg0))
+  (set! (-> (the-as (pointer uint8) (-> this ptr)) 1) (/ (the-as int arg0) 256))
+  (+! (-> this ptr) 2)
+  0
+  (none)
+  )
+
+;; definition for method 16 of type mem-buffer
+(defmethod mem-buffer-method-16 ((this mem-buffer) (arg0 object))
+  (set! (-> (the-as (pointer uint8) (-> this ptr)) 0) (the-as uint arg0))
+  (set! (-> (the-as (pointer uint8) (-> this ptr)) 1) (/ (the-as int arg0) 256))
+  (set! (-> (the-as (pointer uint8) (-> this ptr)) 2) (sar (the-as int arg0) 16))
+  (set! (-> (the-as (pointer uint8) (-> this ptr)) 3) (sar (the-as int arg0) 24))
+  (+! (-> this ptr) 4)
+  0
+  (none)
+  )
+
+;; definition for method 22 of type mem-buffer
+(defmethod mem-buffer-method-22 ((this mem-buffer) (arg0 object))
+  (mem-buffer-method-16 this arg0)
+  (none)
+  )
+
+;; definition for method 23 of type mem-buffer
+(defmethod mem-buffer-method-23 ((this mem-buffer) (arg0 vector))
+  (mem-buffer-method-16 this (the-as int (-> arg0 x)))
+  (mem-buffer-method-16 this (the-as int (-> arg0 y)))
+  (mem-buffer-method-16 this (the-as int (-> arg0 z)))
+  0
+  (none)
+  )
+
+;; definition for method 27 of type mem-buffer
+(defmethod mem-buffer-method-27 ((this mem-buffer) (arg0 object))
+  (mem-copy!
+    (the-as pointer (-> this ptr))
+    (the-as pointer (-> (the-as mem-buffer arg0) base))
+    (the-as int (mem-buffer-method-11 (the-as mem-buffer arg0)))
+    )
+  (+! (-> this ptr) ((method-of-type mem-buffer mem-buffer-method-11) (the-as mem-buffer arg0)))
+  0
+  (none)
+  )
+
+;; definition for method 29 of type mem-buffer
+(defmethod mem-buffer-method-29 ((this mem-buffer) (arg0 object))
+  (mem-buffer-method-14 this (if arg0
+                                 1
+                                 0
+                                 )
+                        )
+  0
+  (none)
+  )
+
+;; definition for method 32 of type mem-buffer
+(defmethod mem-buffer-method-32 ((this mem-buffer))
+  (let ((v0-0 (-> (the-as (pointer int8) (-> this ptr)) 0)))
+    (+! (-> this ptr) 1)
+    v0-0
+    )
+  )
+
+;; definition for method 33 of type mem-buffer
+(defmethod mem-buffer-method-33 ((this mem-buffer))
+  (let ((v0-0
+          (logior (-> (the-as (pointer uint8) (-> this ptr)) 0) (* (-> (the-as (pointer int8) (-> this ptr)) 1) 256))
+          )
+        )
+    (+! (-> this ptr) 2)
+    v0-0
+    )
+  )
+
+;; definition for method 38 of type mem-buffer
+(defmethod mem-buffer-method-38 ((this mem-buffer))
+  (let ((v0-0
+          (logior (logior (logior (-> (the-as (pointer uint8) (-> this ptr)) 0) (* (-> (the-as (pointer uint8) (-> this ptr)) 1) 256))
+                          (shl (-> (the-as (pointer uint8) (-> this ptr)) 2) 16)
+                          )
+                  (shl (-> (the-as (pointer uint8) (-> this ptr)) 3) 24)
+                  )
+          )
+        )
+    (+! (-> this ptr) 4)
+    v0-0
+    )
+  )
+
+;; definition for method 40 of type mem-buffer
+(defmethod mem-buffer-method-40 ((this mem-buffer))
+  (the-as float (mem-buffer-method-38 this))
+  )
+
+;; definition for method 46 of type mem-buffer
+(defmethod mem-buffer-method-46 ((this mem-buffer))
+  (nonzero? (mem-buffer-method-32 this))
+  )
+
+;; definition for method 48 of type mem-buffer
+(defmethod mem-buffer-method-48 ((this mem-buffer) (arg0 pointer) (arg1 int))
+  (mem-copy! arg0 (the-as pointer (-> this ptr)) arg1)
+  (+! (-> this ptr) arg1)
+  0
+  (none)
   )
 

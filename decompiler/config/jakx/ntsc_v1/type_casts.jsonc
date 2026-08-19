@@ -7915,5 +7915,54 @@
     // stack region via relative math" shape.
     [101, "gp", "(pointer uint8)"],
     [109, "gp", "(pointer uint8)"]
+  ],
+  // mem-buffer serialization rung (mem-buffer-h.gc): mem-buffer's own ptr
+  // field is declared uint32 (an address kept as a raw integer so it can be
+  // advanced with plain arithmetic), so every direct byte load/store through
+  // it fails type prop ("Could not figure out load" / "Failed store") until
+  // the register holding that address is cast to a real byte pointer at the
+  // exact op the l.b/l.bu/s.b touches it; this is the same shape as
+  // play-anim-along-path's own (pointer uint8) casts above, just against a
+  // uint32 field instead of a vector's own bounds.
+  "(method 14 mem-buffer)": [[1, "v1", "(pointer uint8)"]],
+  "(method 15 mem-buffer)": [
+    [1, "v1", "(pointer uint8)"],
+    [4, "a1", "(pointer uint8)"]
+  ],
+  "(method 16 mem-buffer)": [
+    [1, "v1", "(pointer uint8)"],
+    [4, "a2", "(pointer uint8)"],
+    [7, "a2", "(pointer uint8)"],
+    [10, "a1", "(pointer uint8)"]
+  ],
+  // (method 32 mem-buffer) and (method 33 mem-buffer): read-side mirror of
+  // the write casts above; method 32 reads 1 byte (mem-buffer-method-46's
+  // own nonzero? caller), method 33 reads 2 (net-enemy's own transition
+  // data-len read). The top byte of each uses a signed l.b (sign-extends
+  // into the logior), so that op needs (pointer int8) rather than uint8 or
+  // the load still fails type prop even with an address-typed pointer.
+  "(method 32 mem-buffer)": [[1, "v1", "(pointer int8)"]],
+  "(method 33 mem-buffer)": [
+    [1, "v1", "(pointer uint8)"],
+    [3, "a1", "(pointer int8)"]
+  ],
+  // (method 27 mem-buffer): arg0 stays object (its own three net-enemy.gc
+  // call sites all pass (&-> some-stack-mem-buffer base), a raw (pointer
+  // uint32) rather than a real mem-buffer value, so retyping the parameter
+  // itself broke every one of them with the same strict-typecheck rejection
+  // as methods 14/15/16 above). s5 (the register arg0 lands in after its
+  // own entry move) is cast to mem-buffer for the span where the body reads
+  // its own base field and calls its own method 11 twice to copy a whole
+  // source buffer's contents into this one.
+  "(method 27 mem-buffer)": [[[1, 17], "s5", "mem-buffer"]],
+  // (method 38 mem-buffer): the 4-byte unsigned reader, landed only because
+  // method 40 (net-enemy's own 'damage transition case) calls it; same
+  // (pointer uint8) op casts as the write family, all four bytes here read
+  // via an unsigned l.bu.
+  "(method 38 mem-buffer)": [
+    [1, "v1", "(pointer uint8)"],
+    [3, "a1", "(pointer uint8)"],
+    [7, "a1", "(pointer uint8)"],
+    [11, "a1", "(pointer uint8)"]
   ]
 }
