@@ -35,14 +35,48 @@ style); whether NAME is bound anywhere in goal_src by `defun`, `defun-debug`,
 `defbehavior`, `def-mips2c`, or a `define` / `define-perm` whose value is a
 `(lambda ...)` form (directly or under one `(the-as TYPE ...)` / `(the TYPE
 ...)` wrapper); and, for every NAME left unbound and not a kernel builtin,
-every real call site `(NAME ...)` in the landed text (below `;; DECOMP BEGINS`
-when that marker is present, comments stripped) of a `.gc` file that some DGO
-actually links. A call is `(NAME ...)` at expression position: an open paren
-immediately followed by NAME. Declarations never match this shape (NAME
-follows `define-extern`, not an open paren), and block comments, line
-comments and therefore og:preserve-this comment blocks are stripped before the
-call scan runs, so prose mentions of NAME inside commentary are invisible to
-it.
+every real call site in the landed text (below `;; DECOMP BEGINS` when that
+marker is present, comments stripped) of a `.gc` file that some DGO actually
+links. A call site is either direct, `(NAME ...)` at expression position (an
+open paren immediately followed by NAME), or the decompiler's indirect idiom,
+`(let ((VAR NAME) ...) ... (VAR ...) ...)`: NAME let-bound straight to a local
+(almost always a tN-M register temp, t9 by MIPS o32 convention for a
+jump-register callee) and called through that local rather than by its own
+name. Both shapes are scanned; NAME never appears at call position itself in
+the indirect idiom, which is exactly how auto-save-user's `(let ((t9-0
+auto-save-command)) (t9-0 ...))` call evaded a direct-only scan (issue #482).
+Declarations never match either call shape (NAME follows `define-extern` or a
+let-binding's own open paren, not a call's).
+
+Comment stripping runs before both definition and call-site scanning, char by
+char rather than as one regex over the whole file: a `;` outside a block
+comment starts a line comment that runs to the next newline, a `#|` outside a
+line comment starts a block comment that runs to the next `|#`, and each kind
+is blind to the other's delimiters while it is active. That line-comment
+awareness matters because a naive `#|...|#` regex over raw text pairs
+delimiters wherever they appear, including inside `;;` prose that merely
+mentions the block-comment syntax; pov-camera.gc's own og:preserve-this note
+about this checker's block-comment blind spot is a live instance ("... does
+not account for a #|" / ";; |#-commented defbehavior ..."), where a naive
+regex paired the `#|` on one line with the `|#` on the next and silently
+merged them, harmless there only because both lines were already comment
+prose. check_alltypes_shadowing.py avoids the same trap by requiring a
+block-comment delimiter to be alone on its own line; this checker tracks
+line-comment state instead of adopting that literally, because real inline
+block comments are common at expression position in this tree (`(new 'static
+'vu-function #|:length 9 :qlength 5|#)`) and an own-line-only rule would stop
+seeing them as comments at all. A block-commented `defun`/`defbehavior`/etc.
+is therefore invisible both as a definer and, when the call itself is what is
+commented out, as a call site; only a real, uncommented call into a real,
+uncommented definer counts either way. True *nested* `#| #| |# |#` block
+comments are not handled; none exist anywhere in goal_src/jakx today (every
+file's open/close counts balance and no file opens a second block before its
+first one closes, swept file by file as part of this fix).
+
+Known remaining gaps, unverified either way: a funcall through a value stored
+in a struct field rather than a plain local, and a method-of-object chain
+that resolves to a plain function rather than a method, are both invisible to
+this call-site scan the same way the pre-fix indirect idiom was.
 
 Findings are grouped by the calling object (the .gc file's own name, matching
 the DGO listings), the same split check_spawn_init.py and check_method_slots.py
@@ -74,11 +108,55 @@ DEF_RE = re.compile(r"\((?:defun|defun-debug|defbehavior|def-mips2c)\s+([^\s()]+
 # the value (`(define-perm NAME TYPE VALUE)`); `define` does not.
 DEFINE_HEAD_RE = re.compile(r"\((define|define-perm)\s+([^\s()]+)\s+")
 SYM_RE = re.compile(r"^[A-Za-z0-9!?*<>=+/._%&$#-]+$")
+# The decompiler's indirect-call idiom: `(let ((VAR NAME) ...) ... (VAR ...) ...)`.
+# The lookahead stops right at the bindings list's own open paren so callers can
+# feed that index straight to matching_close.
+LET_HEAD_RE = re.compile(r"\(let\*?\s+(?=\()")
 
 
 def strip_comments(text):
-    text = re.sub(r"#\|.*?\|#", "", text, flags=re.S)
-    return "\n".join(line.split(";", 1)[0] for line in text.split("\n"))
+    """Strip `;` line comments and `#| ... |#` block comments in one pass,
+    each blind to the other's delimiters while it is active: a `;` only
+    starts a line comment when not already inside a block comment, and
+    `#|`/`|#` are only special when not already inside a line comment. That
+    is what keeps a `;;` comment merely talking about `#|`/`|#` syntax (see
+    the module docstring) from having its prose delimiters paired with a real
+    block comment elsewhere in the file. Newlines are always preserved so
+    line numbers computed against the result still match the original file.
+    """
+    out = []
+    in_block = False
+    in_line = False
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c == "\n":
+            in_line = False
+            out.append("\n")
+            i += 1
+            continue
+        if in_block:
+            if text.startswith("|#", i):
+                in_block = False
+                i += 2
+            else:
+                i += 1
+            continue
+        if in_line:
+            i += 1
+            continue
+        if text.startswith("#|", i):
+            in_block = True
+            i += 2
+            continue
+        if c == ";":
+            in_line = True
+            i += 1
+            continue
+        out.append(c)
+        i += 1
+    return "".join(out)
 
 
 def matching_close(text, open_idx):
@@ -204,6 +282,37 @@ def find_call_sites(landed_stripped_text, names):
     return hits
 
 
+def find_indirect_call_sites(landed_stripped_text, names):
+    """{name: [(line, var), ...]} for the decompiler's indirect-call idiom:
+    `(let ((VAR NAME) ...) ... (VAR ...) ...)`. NAME is let-bound straight to
+    a local (almost always a tN-M register temp) and the call itself lands on
+    VAR, never on NAME, so find_call_sites's direct-position scan cannot see
+    it. Only a VAR actually invoked at expression position inside that same
+    let's own body counts as a call; a VAR bound and never called (handed off
+    as a callback, say) is not one."""
+    hits = defaultdict(list)
+    for m in LET_HEAD_RE.finditer(landed_stripped_text):
+        let_start = m.start()
+        bindings_start = m.end()
+        bindings_end = matching_close(landed_stripped_text, bindings_start)
+        let_end = matching_close(landed_stripped_text, let_start)
+        bindings_text = landed_stripped_text[bindings_start + 1:bindings_end]
+        for b in tokens_of(bindings_text):
+            if not b.startswith("("):
+                continue
+            btoks = tokens_of(b[1:-1])
+            if len(btoks) < 2:
+                continue
+            var, val = btoks[0], btoks[1]
+            if val not in names:
+                continue
+            body = landed_stripped_text[bindings_end + 1:let_end]
+            for cm in re.finditer(r"\(" + re.escape(var) + r"(?=[\s)])", body):
+                line = line_of(landed_stripped_text, bindings_end + 1 + cm.start())
+                hits[val].append((line, var))
+    return hits
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n", 1)[0], formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--game", default="jakx")
@@ -255,13 +364,22 @@ def main():
             continue
         marker_line, landed = landed_offset_and_text(raw)
         stripped_landed = strip_comments(landed)
-        hits = find_call_sites(stripped_landed, unresolved)
-        for name, lines in hits.items():
+        direct_hits = find_call_sites(stripped_landed, unresolved)
+        indirect_hits = find_indirect_call_sites(stripped_landed, unresolved)
+        for name in set(direct_hits) | set(indirect_hits):
             decl_note = "declared in %s" % ", ".join(sorted(set(decl_files[name])))
-            for rel_line in lines:
+            entries = [
+                (rel_line, "(%s ...) calls %s" % (name, name))
+                for rel_line in direct_hits.get(name, [])
+            ]
+            entries += [
+                (rel_line, "(%s ...) calls %s indirectly (let-bound)" % (var, name))
+                for rel_line, var in indirect_hits.get(name, [])
+            ]
+            for rel_line, call_desc in sorted(entries):
                 abs_line = marker_line + rel_line - 1
-                msg = "%s:%d: (%s ...) calls %s, %s, but no defun/defbehavior/def-mips2c/lambda-define binds it anywhere in goal_src" % (
-                    os.path.relpath(path, root).replace("\\", "/"), abs_line, name, name, decl_note,
+                msg = "%s:%d: %s, %s, but no defun/defbehavior/def-mips2c/lambda-define binds it anywhere in goal_src" % (
+                    os.path.relpath(path, root).replace("\\", "/"), abs_line, call_desc, decl_note,
                 )
                 (fails if 0 in rank[obj] else notes).append((obj, abs_line, msg))
 
