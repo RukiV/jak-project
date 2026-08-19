@@ -183,7 +183,12 @@ jobs:
             tc="all"
             echo "shared paths widen the consistency scope to all games:"; echo "$shared"
           else
-            tc="$(echo "$changed" | grep -oE "$pergame" | grep -oE 'jak1|jak2|jak3|jakx' | sort -u | tr '\n' ' ' | sed 's/ $//')"
+            # The || true is load-bearing: on a neutral-only diff (docs, scripts)
+            # the grep pipeline matches nothing and exits 1, and the runner shell
+            # runs with pipefail, so without it the whole classifier step dies and
+            # reddens exactly the changes that touch no game at all. Bitten once
+            # on the first scripts-only PR after this filter merged.
+            tc="$(echo "$changed" | grep -oE "$pergame" | grep -oE 'jak1|jak2|jak3|jakx' | sort -u | tr '\n' ' ' | sed 's/ $//' || true)"
             [ -z "$tc" ] && tc="none"
           fi
           echo "tc_games=$tc" >> "$GITHUB_OUTPUT"
