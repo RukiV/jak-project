@@ -65,6 +65,44 @@ DEFMETHOD_RE = re.compile(
 )
 DGO_OBJ_RE = re.compile(r'"([^"]+)\.o"')
 
+# Types held out of the single-home sweep (issue 540). Each entry is a
+# specific, checked reason a merge is unsafe or out of scope right now, not
+# a blanket permission to skip: this allowlist only suppresses the
+# informational "duplicated name" tally below, never violation detection
+# (a held name that ever gains a defmethod host creating a real link-order
+# violation still fails this check, same as any other duplicated type).
+# Remove an entry only when its cited reason no longer holds.
+ALLOWLIST = {
+    "net-audio-data-characteristics": (
+        "scert-2-h.gc duplicates stream-media-h.gc's own copy for a verified "
+        "compile-order need: scert-9-h.gc (all_objs.json index 272) needs "
+        "net-stream-media-params :inline (via medius-connect-in-params) "
+        "before stream-media-h.gc compiles (index 503), and scert-2-h.gc "
+        "compiles earlier still (index 265). Neither copy hosts a defmethod "
+        "for this type in goal_src/jakx (zero violations), so this is a "
+        "build-order duplicate, not a vtable-wipe risk (issue 534). Retiring "
+        "stream-media-h.gc's own copy would leave that file with no content "
+        "of its own; the file's own note explicitly frames this as a "
+        "duplication, not a relocation, and holding here avoids restructuring "
+        "an unrelated file for this sweep."
+    ),
+    "net-stream-media-params": (
+        "Same cluster and same reasoning as net-audio-data-characteristics "
+        "above: scert-2-h.gc (all_objs.json index 265) duplicates "
+        "stream-media-h.gc's copy (index 503) because scert-9-h.gc (index "
+        "272) needs this type :inline before stream-media-h.gc compiles. "
+        "Zero defmethod hosts for this type in goal_src/jakx."
+    ),
+    "net-video-data-characteristics": (
+        "Same cluster and same reasoning as net-audio-data-characteristics "
+        "above: scert-2-h.gc (all_objs.json index 265) duplicates "
+        "stream-media-h.gc's copy (index 503) because scert-9-h.gc (index "
+        "272) needs net-stream-media-params :inline (which embeds this type "
+        "inline in turn) before stream-media-h.gc compiles. Zero defmethod "
+        "hosts for this type in goal_src/jakx."
+    ),
+}
+
 
 def strip_comments(text):
     text = re.sub(r"#\|.*?\|#", "", text, flags=re.S)
@@ -146,10 +184,16 @@ def main():
             f"zeros this method's custom slot on link (issue 534)"
         )
 
+    held = sorted(name for name in dup_names if name in ALLOWLIST)
+    reported_dup_names = [name for name in dup_names if name not in ALLOWLIST]
+
+    held_suffix = (
+        f"; {len(held)} held via ALLOWLIST ({', '.join(held)})" if held else ""
+    )
     print(
-        f"check_type_singlehome ({args.game}): {len(dup_names)} type name(s) with "
-        f"a duplicated column-0 deftype in goal_src/{args.game} (linked or not); "
-        f"{len(violations)} link-order violation(s)"
+        f"check_type_singlehome ({args.game}): {len(reported_dup_names)} type name(s) "
+        f"with a duplicated column-0 deftype in goal_src/{args.game} (linked or not); "
+        f"{len(violations)} link-order violation(s){held_suffix}"
     )
     if violations:
         return 1
