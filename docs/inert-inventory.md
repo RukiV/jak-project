@@ -44,7 +44,7 @@ written is read-only by design and not a finding.
 
 | symbol | reading files | defined in |
 |---|---:|---|
-| `*game-mode*` | 4 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*game-mode*` | 5 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-marks*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
