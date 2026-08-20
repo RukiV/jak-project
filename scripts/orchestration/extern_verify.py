@@ -16,7 +16,10 @@ use. This tool never writes into it.
 METHOD: proposed arity is the typespec's own top-level argument count minus the return
 type (zero-arg is "(function RETURN)", never "(function () RETURN)", matching the
 factory's own convention; a malformed typespec is a hard error for that proposal, not a
-silent skip). Observed arity, per call site, is extern_corpus.register_arity: the
+silent skip), with any ":TAG VALUE" pair (e.g. ":behavior process") stripped before
+counting -- see proposed_arity/_strip_type_tags below for the wave 11 twin tier's
+hand-check of this against common/type_system/deftype.cpp's real parser. Observed
+arity, per call site, is extern_corpus.register_arity: the
 argument registers (a0-a3, t0-t3) actually set between the "lw t9, SYMBOL(s7)" load and
 the "jalr ra, t9" that calls it, read off each argument instruction's OWN "(set! aN
 ...)" IR annotation. This tool's first version instead trusted the jalr line's own
@@ -56,15 +59,44 @@ class ProposalParseError(Exception):
     """A proposed typespec did not parse as (function ARG... RET)."""
 
 
+def _strip_type_tags(tokens):
+    """Remove every (":TAG", VALUE) pair from a typespec's token stream, matching
+    common/type_system/deftype.cpp's parse_typespec: any token whose first character
+    is ':' consumes itself and the following token as a tag/value pair and
+    contributes nothing to the arg list (":behavior" is the only tag the parser
+    currently accepts, but this strips generically on the ':' marker, matching the
+    parser's own dispatch rather than hardcoding "behavior"). Hand-checked against a
+    real landed reference before trusting it, same as this module's arity-counting
+    convention below: jak3's own printer (TypeSystem.cpp's append_plain_method /
+    new_method_string paths) always appends ":behavior TAG" AFTER the return type,
+    e.g. jakx all-types.gc's "(function joint-control-channel float float float
+    float :behavior process)" (num-func-none) is a 4-argument, float-returning
+    function, not a 6-argument one. This surfaced against the wave 11 twin tier: 13
+    of the twin-held bucket's 102 jak2/jak3 signatures carry a trailing ":behavior"
+    tag verbatim, and counting ":behavior"/"process" as two more argument tokens
+    would overcount every one of them by 2, producing false arity contradictions."""
+    out = []
+    i = 0
+    while i < len(tokens):
+        if tokens[i].startswith(":"):
+            i += 2  # skip the tag name and its value
+            continue
+        out.append(tokens[i])
+        i += 1
+    return out
+
+
 def proposed_arity(signature):
-    """(function ARG1 ... ARGN RET) -> N. (function RET) -> 0."""
+    """(function ARG1 ... ARGN RET) -> N. (function RET) -> 0. A trailing ":behavior
+    TAG" (or any other ':TAG VALUE' pair -- see _strip_type_tags) is stripped before
+    counting, since it is a type-spec tag, not an argument or return slot."""
     sig = signature.strip()
     if not (sig.startswith("(") and sig.endswith(")")):
         raise ProposalParseError(f"not a parenthesized form: {signature!r}")
     tokens = ec.split_top_level(sig[1:-1])
     if not tokens or tokens[0] != "function":
         raise ProposalParseError(f"does not start with 'function': {signature!r}")
-    rest = tokens[1:]
+    rest = _strip_type_tags(tokens[1:])
     if not rest:
         raise ProposalParseError(f"(function) with no return type at all: {signature!r}")
     return len(rest) - 1  # last token is the return type
