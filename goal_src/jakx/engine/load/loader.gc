@@ -36,6 +36,13 @@
 (define-extern ja-play-spooled-no-sync-anim (function spool-anim art-joint-anim art-joint-anim (function process-drawable symbol) spooler-flags int :behavior process-drawable))
 (define-extern ja-play-spooled-anim (function spool-anim art-joint-anim art-joint-anim (function process-drawable symbol) spooler-flags int :behavior process-drawable))
 
+;; og:preserve-this target-nearest-dist, scene chain (issue 522): the
+;; defun itself lands in target.gc; this file calls it from three sites
+;; (gui-control-method-12 twice, external-art-control's spool-push once)
+;; and needs its own forward declaration to compile, matching this
+;; file's existing ja-play-spooled-anim precedent above.
+(define-extern target-nearest-dist (function vector float))
+
 ;; DECOMP BEGINS
 
 ;; og:note the art slice of loader.o lands here (the load-dir mem-usage,
@@ -61,31 +68,31 @@
 ;; (get-status), each landed below once the type_casts.jsonc casts already
 ;; established for methods 9/16 (the connectable-list-walk-as-connection
 ;; idiom) were extended to their own walk registers, plus the two arg-count
-;; fixes recorded on the deftype above. Still held: method 12 (target!)
-;; fails type prop at a call to target-nearest-dist, a symbol not defined
-;; anywhere in goal_src/jakx (the identical blocker class already recorded
-;; above for external-art-control's own method 11, spool-push; not a
-;; type_casts fix, an actually-missing function, so it is not landed here
-;; either). Also still erroring: methods 10, 13, 18-24 (unchanged from the
-;; prior rung's own note). ja-play-spooled-no-sync-anim (both overloads) and
-;; ja-abort-spooled-anim remain fully blocked ("function has no type
-;; analysis. Cannot decompile."), as does gui-control's own method 23
-;; ("function was not converted to expressions. Cannot decompile.").
-;; gui-control's own inspect (method 3), same for spooler-block and
-;; subtitle-range, are the deftype macro's own auto-generated default field
-;; printer (byte-identical shape to load-dir's own undecoded method 3 and
-;; to every other basic type's default inspect in this tree); jak3's twin
-;; never hand-lands these either, so they are not landed here.
+;; fixes recorded on the deftype above. Also still erroring: methods 10, 13,
+;; 18-24 (unchanged from the prior rung's own note). ja-play-spooled-no-
+;; sync-anim (both overloads) and ja-abort-spooled-anim remain fully blocked
+;; ("function has no type analysis. Cannot decompile."), as does gui-
+;; control's own method 23 ("function was not converted to expressions.
+;; Cannot decompile."). gui-control's own inspect (method 3), same for
+;; spooler-block and subtitle-range, are the deftype macro's own auto-
+;; generated default field printer (byte-identical shape to load-dir's own
+;; undecoded method 3 and to every other basic type's default inspect in
+;; this tree); jak3's twin never hand-lands these either, so they are not
+;; landed here.
 ;;
-;; The global instance itself, (define *gui-control* ...), decodes clean too
-;; (this object's own top-level, `(new 'global 'gui-control 64)`, matching
-;; jak3's twin exactly) but stays out of this commit: method 12 is called
-;; from scene.gc's own scene-player states (four call sites) and from
-;; ambient.gc, both live on the same scene-playback path this lane exists to
-;; unblock, so instantiating *gui-control* now would trade issue 522's
-;; null-deref crash for an empty-method-slot crash on method 12 moments
-;; later in the same attempt, not a strictly smaller failure. See issue 522
-;; for the define's own follow-up once target-nearest-dist lands.
+;; og:note the scene chain's own two remaining links (issue 522): method 12
+;; (target!) was the only thing still holding this object back, blocked on
+;; a call to target-nearest-dist, a symbol with no body anywhere in
+;; goal_src/jakx (the identical blocker class already recorded above for
+;; external-art-control's own method 11, spool-push, which stays held: its
+;; own three more sllv instructions are untouched by this rung). This rung
+;; lands target-nearest-dist's own body in target.gc first (a narrow,
+;; evidence-backed (function vector float) signature, not the wide one PR
+;; 519 rejected), which lets method 12's own type prop run to completion;
+;; see its own og:preserve-this note below for the extended casts. With
+;; method 12 landed, the global instance itself, (define *gui-control*
+;; ...), lands too (see its own og:preserve-this note further below for the
+;; full reachability audit this required).
 
 ;; og:preserve-this gui-control carries the full reconstructed field layout,
 ;; matching all-types, gui-h.gc and cam-states.gc (each file that dispatches
@@ -322,6 +329,53 @@
     gp-0
     )
   )
+
+;; og:preserve-this the global instance, scene chain (issue 522): decodes
+;; clean at the retail position (this file's own top-level, immediately
+;; after the constructor above, matching jak3's twin exactly), landed now
+;; that method 12 is too. The raw decode wraps it in a kmemopen/kmemclose
+;; pair alongside a separate, unrelated zero-guard init for
+;; external-art-control's own global instance; neither the wrapper nor
+;; that unrelated init is part of this lane's own chain, so only the one
+;; define lands here, matching the brief's own scope.
+;;
+;; Reachability audit (AGENTS.md rule 5: landing a definition activates its
+;; guarded callers), scoped to the boot path and scene-player-init per this
+;; lane's own brief, since those are what the scene probe exercises:
+;;
+;; - Boot path: game-info.gc's own initialize! calls (kill-current-talker
+;;   '() '() 'die) unconditionally on every boot (ambient.gc's own
+;;   og:preserve-this note on kill-current-talker names this exact call as
+;;   the R10 boot crash this instance's own absence used to guard against).
+;;   kill-current-talker's body is gated on (nonzero? *gui-control*), the
+;;   only such guard on the symbol itself anywhere in goal_src/jakx (grepped
+;;   whole-tree); once nonzero, its five calls all reach gui-control-method-
+;;   16 (landed) with arg0 hard-coded to the integer 4 in every one of them.
+;;   Method 16's own body dispatches gui-control-method-19 (held) via
+;;   method-of-object, but only inside an (and (= sv-16 'play) ...) guard,
+;;   sv-16 being arg0 itself; comparing an int against the quoted symbol
+;;   'play is never true, so this dispatch is unreached from every one of
+;;   kill-current-talker's five calls. The same check holds for every other
+;;   landed gui-control-method-16 call site in the tree (scene.gc's states,
+;;   ambient.gc's talker states, speech.gc): all pass an int literal (2 or
+;;   4), never 'play, so the method-19 dispatch is provably unreached from
+;;   any currently-landed caller, not just the boot path.
+;; - scene-player-init (scene.gc): calls only gui-control-method-9 (landed),
+;;   which touches no held method internally (add-connection is an engine
+;;   method, unrelated to this audit).
+;;
+;; Outside this audit's own scope but worth recording: gui-control-method-17
+;; (landed) also dispatches gui-control-method-19 internally, and those
+;; dispatches are real, condition-gated reachable code, not provably dead
+;; like method 16's; method 17 itself is not called from the boot path or
+;; scene-player-init (its callers are ambient.gc's talker states and
+;; scene.gc's own wait/play-anim states, both post-init). gui-control-
+;; method-20 (held) is dispatched from cam-vehicle-crash (a camera-slave
+;; state for an actual vehicle crash event) and from a coliseum level
+;; object (coliseum-obs-female-statue.gc); neither is boot-path or
+;; scene-player-init reachable either. Both are flagged for whoever lands
+;; methods 17/19/20 next, not blockers for this instance.
+(define *gui-control* (new 'global 'gui-control 64))
 
 ;; og:preserve-this add-process: clean decode, no config edits needed on the
 ;; body itself (the connectable-list-walk-as-connection idiom needed
@@ -733,6 +787,143 @@
           )
         )
       )
+    )
+  )
+
+;; og:preserve-this method 12 (target!), scene chain (issue 522), the last
+;; link before the *gui-control* define: held since PR 530 on a call to
+;; target-nearest-dist, a symbol with no body anywhere in goal_src/jakx;
+;; this rung lands that body in target.gc first, which is what lets this
+;; method's own type prop run to completion. PR 530's own partial casts
+;; ([21,77] v1 and [92,116] a0, both single windows then) were never
+;; exercised past target-nearest-dist's own block, so every further cast
+;; below is a newly-surfaced defect in that undertested ground, not new
+;; territory: op 94's own address-build add (index*64 + 12, then + this)
+;; needs the gui-connection cast to start one op later, at its own output,
+;; or the add types as gui-connection + gui-control and the compiler
+;; rejects it; ops 32-40 are the standard handle->process fold (the "(idle
+;; manipy)" class the offline-test config's own skip_compile_states
+;; comment documents), unrecognized until the loaded handle value itself
+;; is cast away from the ambient gui-connection typing; op 52 alone needs
+;; process instead of gui-connection for its own (-> v1 -4) type-pointer
+;; read (compared against scene-player); and the free-slot candidate's own
+;; spill through stack offset 16 needed a cast at each further reload site
+;; target-nearest-dist's landing first let analysis reach. The
+;; target-nearest-dist call itself (the arg5 -99.0 sentinel branch, "auto-
+;; compute this priority from distance") resolves through the identical
+;; (the-as target ...) root/trans cast target-get-any-pos's own landing
+;; note explains; none of the five real call sites (ambient.gc's
+;; can-display-query?, scene.gc's four scene-player states) pass -99.0, so
+;; this branch is unexercised by known callers but still compiles and type-
+;; checks. Verified the landed signature against all five call sites
+;; (caller-outranks-registers): every one passes (gui-control, process,
+;; gui-channel, gui-action, string, int, float, sound-id) in that order,
+;; matching the deftype's own declaration exactly.
+(defmethod gui-control-method-12 ((this gui-control)
+                                 (arg0 process)
+                                 (arg1 gui-channel)
+                                 (arg2 gui-action)
+                                 (arg3 string)
+                                 (arg4 int)
+                                 (arg5 float)
+                                 (arg6 sound-id)
+                                 )
+  (let ((sv-48 arg6)
+        (sv-16 (the-as gui-connection #f))
+        (sv-20 0)
+        )
+    (let ((sv-32 32))
+      (while (nonzero? sv-32)
+        (+! sv-32 -1)
+        (let ((sv-24 (-> this connections sv-32)))
+          (when (the-as
+                  gui-connection
+                  (and (nonzero? (the-as gui-connection (-> (the-as gui-connection sv-24) id)))
+                       (= arg1 (the-as gui-connection (-> (the-as gui-connection sv-24) channel)))
+                       (let* ((v1-13 (-> (the-as gui-connection sv-24) handle))
+                              (v1-14 (and (nonzero? (l32-false-check v1-13)) (let ((a0-4 (-> v1-13 process 0)))
+                                                                               (if (= (the-as handle (-> v1-13 pid)) (-> a0-4 pid))
+                                                                                   a0-4
+                                                                                   )
+                                                                               )
+                                          )
+                                     )
+                              )
+                         (and (or (= (the-as gui-connection v1-14) arg0)
+                                  (= (-> arg0 type) scene-player)
+                                  (and (the-as gui-connection v1-14) (= (the-as gui-connection (-> (the-as process v1-14) type)) scene-player))
+                                  )
+                              (and (string= arg3 (-> (the-as gui-connection sv-24) name))
+                                   (the-as gui-connection (= arg4 (the-as gui-connection (-> (the-as gui-connection sv-24) anim-part))))
+                                   )
+                              )
+                         )
+                       )
+                  )
+            (when (< (-> (the-as gui-connection sv-24) priority) arg5)
+              (set! (-> sv-24 time-stamp) (the-as time-frame (the-as gui-connection (-> this update-time))))
+              (return (the-as sound-id (-> (the-as gui-connection sv-24) id)))
+              )
+            (set! sv-16 sv-24)
+            (goto cfg-44)
+            )
+          )
+        )
+      )
+    (countdown (v1-33 32)
+      (let ((a0-13 (-> this connections v1-33)))
+        (when (or (zero? (-> a0-13 id)) (not (handle->process (-> a0-13 handle))))
+          (set! sv-16 a0-13)
+          (set! (-> sv-16 param3) 0)
+          (set! (-> sv-16 flags) (gui-connection-flags))
+          (goto cfg-44)
+          )
+        )
+      )
+    (label cfg-44)
+    (the-as sound-id (cond
+                       (sv-16
+                         (when (zero? (-> (the-as gui-connection sv-16) id))
+                           (when (zero? sv-20)
+                             (let ((v1-46 (gui-control-method-15 this arg0 arg1 arg3 (new 'static 'sound-id))))
+                               (if v1-46
+                                   (set! sv-20 (the-as int (-> v1-46 id)))
+                                   )
+                               )
+                             )
+                           (if (zero? sv-20)
+                               (set! sv-20 (the-as int sv-48))
+                               )
+                           (set! (-> (the-as gui-connection sv-16) param3) (if (nonzero? sv-20)
+                                                                               sv-20
+                                                                               (the-as int (new-sound-id))
+                                                                               )
+                                 )
+                           )
+                         (when (= arg5 -99.0)
+                           (let ((sv-28 (as-type arg0 process-drawable)))
+                             (set! arg5 (if sv-28
+                                            (target-nearest-dist (-> (the-as target sv-28) root trans))
+                                            -1.0
+                                            )
+                                   )
+                             )
+                           )
+                         (set! (-> (the-as gui-connection sv-16) time-stamp) (-> this update-time))
+                         (set! (-> (the-as gui-connection sv-16) handle) (process->handle arg0))
+                         (set! (-> (the-as gui-connection sv-16) priority) arg5)
+                         (set! (-> (the-as gui-connection sv-16) channel) arg1)
+                         (set! (-> (the-as gui-connection sv-16) action) arg2)
+                         (set! (-> (the-as gui-connection sv-16) anim-part) (the-as uint arg4))
+                         (set! (-> (the-as gui-connection sv-16) param2) (the-as int arg3))
+                         (set! (-> (the-as gui-connection sv-16) fade) (the-as uint 0))
+                         (the-as int (-> (the-as gui-connection sv-16) id))
+                         )
+                       (else
+                         0
+                         )
+                       )
+            )
     )
   )
 

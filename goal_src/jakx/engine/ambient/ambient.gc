@@ -61,29 +61,34 @@
   )
 
 ;; WARN: Return type mismatch int vs none.
-;; og:preserve-this runtime-link guard: kill-current-talker's own body
-;; unconditionally calls gui-control-method-16 on *gui-control*, and
-;; *gui-control* has no landed instantiation anywhere in goal_src (only the
-;; forward (define-extern *gui-control* gui-control) declaration; its true
-;; home, the file that would (set! *gui-control* (new ...)) it, is not
-;; landed). Confirmed as the R10 boot crash: game-info.gc's own initialize!
-;; calls (kill-current-talker '() '() 'die) unconditionally on every boot
+;; og:preserve-this runtime-link guard, now dead by design (scene chain,
+;; issue 522): kill-current-talker's own body unconditionally calls gui-
+;; control-method-16 on *gui-control*, which used to have no landed
+;; instantiation anywhere in goal_src, only the forward (define-extern
+;; *gui-control* gui-control) declaration; this was confirmed as the R10
+;; boot crash, since game-info.gc's own initialize! calls
+;; (kill-current-talker '() '() 'die) unconditionally on every boot
 ;; (guarded only on kill-current-talker itself being landed, R3a's own
 ;; guard above), and kill-current-talker's first (member 'daxter '())
-;; check is false, so its first gui-control-method-16 call runs with
+;; check is false, so its first gui-control-method-16 call ran with
 ;; *gui-control* still 0; the method dispatch's own [a0 - 4] type read then
-;; faults (ambient.gc's own (mi) (asm-file "ambient.gc" :color :disassemble
-;; <out>) shows this exact instruction, "mov eax, [r15+rdi*1-0x04]", inside
+;; faulted (ambient.gc's own (mi) (asm-file "ambient.gc" :color :disassemble
+;; <out>) showed this exact instruction, "mov eax, [r15+rdi*1-0x04]", inside
 ;; kill-current-talker, rdi holding '*gui-control*; the crash report's own
-;; register dump matches every argument value of that first call: rsi=4,
-;; rdx=1, rcx=0x14=20, r8=0, r9/r10/r11/r14=#f). Same class as *common-
-;; text*'s own guard (text-h.gc:54 defines it (the-as game-text-info #f),
-;; main.gc:299 and in-game-menu-hud.gc:76 both check (not *common-text*)
-;; before use) and this file's own kill-current-talker/task-node-reset/
-;; reset-actors guards just above and below; nonzero? rather than a
-;; truthy check, matching those three, since an unset extern's raw value
-;; is not guaranteed to be the #f singleton. Retires when gui-control's own
-;; owning file lands and populates *gui-control* for real.
+;; register dump matched every argument value of that first call: rsi=4,
+;; rdx=1, rcx=0x14=20, r8=0, r9/r10/r11/r14=#f). loader.gc now lands
+;; *gui-control*'s own owning define at its retail position (this rung's
+;; own reachability audit there covers this exact call chain, proving
+;; method 16's own internal method-19 dispatch is unreached from every one
+;; of kill-current-talker's five calls), so the guard's condition is
+;; always true from here on; left in place rather than removed, since
+;; retiring the guard itself is a separate cleanup this rung does not
+;; scope. Same class as *common-text*'s own guard (text-h.gc:54 defines it
+;; (the-as game-text-info #f), main.gc:299 and in-game-menu-hud.gc:76 both
+;; check (not *common-text*) before use) and this file's own kill-current-
+;; talker/task-node-reset/reset-actors guards just above and below;
+;; nonzero? rather than a truthy check, matching those three, since an
+;; unset extern's raw value is not guaranteed to be the #f singleton.
 (defun kill-current-talker ((arg0 pair) (arg1 pair) (arg2 symbol))
   (when (nonzero? *gui-control*)
     (if (not (member 'daxter arg1))

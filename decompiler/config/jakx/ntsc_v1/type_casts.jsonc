@@ -7767,10 +7767,72 @@
   // spills it through stack offset 16 for the rest of the body; without the
   // cast here too, the stack reload at op 125-126 stays unresolved even
   // though the first walk's own v1 window (below) is fixed.
+  // (method 12 gui-control), target! (scene chain, #522): PR 530's own
+  // partial casts below ([21,77] v1 and [92,116] a0, both originally single
+  // windows) were never exercised past op 171's own unresolved
+  // target-nearest-dist load, so type prop always stopped before reaching
+  // any of what this rung's landing exposed underneath; each addition below
+  // is a real, newly-surfaced defect in that undertested ground rather than
+  // new territory. Cast ranges cannot overlap the same op (a decompiler-side
+  // assertion that aborts the whole run, not a soft warning), so every split
+  // below is forced by that rule, not stylistic.
+  //
+  // ops 21-31: the first (occupied-slot) array walk's candidate, found via
+  // pure index arithmetic against this (op 19's own add already infers
+  // gui-connection unaided). op 31 reads its handle field (l.d, 8 bytes).
+  //
+  // ops 32-40: the handle->process fold (id/channel matched, now resolve
+  // the saved handle to a live process to compare against arg0). Without
+  // this cast the ambient gui-connection typing leaks into the loaded
+  // handle value too, so the sllv/lwu/sra sequence here (the "(idle
+  // manipy)" class the offline-test config's own skip_compile_states
+  // comment documents) never gets recognized as the standard fold and op
+  // 36's own load fails outright.
+  //
+  // ops 41-51 and 53-76: back to the candidate itself (arg0/scene-player
+  // comparisons at 41-42 read the fold's own v1-14 output loosely enough
+  // that gui-connection resolves fine there too; 53-76 are the stack+24
+  // reloads for the string=/anim-part/priority/name/time-stamp checks,
+  // genuinely gui-connection). Op 52 alone needs process: it is still
+  // v1-14, and its own (-> v1 -4) type-pointer read (compared against
+  // scene-player) only auto-resolves typed process, not gui-connection.
+  //
+  // ops 92-94 build the free-slot candidate's own address as pure integer
+  // arithmetic (index*64 + 12, then + this); casting a0 to gui-connection
+  // starting at op 92 (PR 530's own boundary) types op 94's own add
+  // (a0-12 + a0-0) as gui-connection + gui-control, which the compiler
+  // rejects (pointer + pointer). The candidate is only a real gui-connection
+  // once that add finishes, so the window starts one op later, at its
+  // output (a0-13).
+  //
+  // op 171: the target-nearest-dist call itself, cast to target for the
+  // same root/trans reason target-get-any-pos's own landing note explains.
+  //
+  // ops 125-207: the free-slot candidate's own spill through stack offset
+  // 16 for the rest of the body (times/group/cmd table writes, then the
+  // final id read at op 207); each window below is one reload-then-use
+  // site. Ops 128-132 in between are an unrelated branch (a raw
+  // (-> this -4) type-pointer read for a different vtable dispatch, not
+  // this candidate) and stay uncast.
   "(method 12 gui-control)": [
-    [[21, 77], "v1", "gui-connection"],
-    [[92, 116], "a0", "gui-connection"],
-    [[125, 127], "v1", "gui-connection"]
+    [[21, 32], "v1", "gui-connection"],
+    [[32, 41], "v1", "handle"],
+    [[41, 52], "v1", "gui-connection"],
+    [[52, 53], "v1", "process"],
+    [[53, 77], "v1", "gui-connection"],
+    [[95, 116], "a0", "gui-connection"],
+    [171, "v1", "target"],
+    [[125, 127], "v1", "gui-connection"],
+    [[152, 154], "v1", "gui-connection"],
+    [[179, 181], "a0", "gui-connection"],
+    [[191, 193], "a0", "gui-connection"],
+    [[194, 196], "v1", "gui-connection"],
+    [[196, 198], "v1", "gui-connection"],
+    [[198, 200], "v1", "gui-connection"],
+    [[200, 202], "v1", "gui-connection"],
+    [[202, 204], "v1", "gui-connection"],
+    [[204, 206], "v1", "gui-connection"],
+    [[206, 208], "v1", "gui-connection"]
   ],
   // hud-widgets-tier rung: spawn-hud-side-split-bar, spawn-hud-top-split-bar
   // and spawn-hud-slowmo each store 0 at machine offset 6372 of the newly
