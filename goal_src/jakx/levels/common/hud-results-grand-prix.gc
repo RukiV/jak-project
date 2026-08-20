@@ -28,199 +28,24 @@
 (declare-type net-game-mgr process-nettable)
 (define-extern *net-game-mgr* net-game-mgr)
 
-;; og:preserve-this hud-static-literals rung: hud-results-base, hud-results,
-;; hud-rank-name-score and hud-medal-results forward declarations retired
-;; (hud-results rung): hud-results.gc now lands the real deftype for all
-;; four (its own scoped decode confirms the retail type-new calls all live
-;; there), field-for-field and method-24-signature identical to what was
-;; forward-declared here, so this block is a plain duplicate deftype and
-;; had to go rather than stay as a harmless redundancy the way a bare
-;; declare-type would.
-
-;; og:preserve-this hud-static-literals rung: the full hud-effect-* subtype
-;; family (group, slide, font-effect, offscreen, trigger-sound,
-;; text-effect-sound, move, throb, fade, scale, emit-score-icon,
-;; trigger-score-sound) forward-declared here for the same reason as the
-;; hud-results family above; their retail type-new calls all live in
-;; hud-effects.gc (own scoped decode confirms it: hud-effects_ir2.asm),
-;; which decodes with two genuine, unrelated errors of its own this rung (a
-;; net-game-mgr field read past its own known layout and a net-player field
-;; read past its own :size-assert, both outside a static-literals rung's
-;; evidence), so it stays a stub rather than being landed here too. Retire
-;; all twelve declarations once hud-effects.gc lands the real definitions.
-(deftype hud-effect-group (hud-effect)
-  ((items (array hud-effect)  :offset-assert 28)
-   )
-  :method-count-assert 15
-  :size-assert         #x20
-  :flag-assert         #xf00000020
-  )
-
-(deftype hud-effect-slide (hud-effect)
-  ((slide-type       uint64  :offset-assert 32)
-   (slide-time       float   :offset-assert 40)
-   (start-time       int32   :offset-assert 44)
-   (message-is-enter symbol  :offset-assert 48)
-   )
-  :method-count-assert 15
-  :size-assert         #x34
-  :flag-assert         #xf00000034
-  )
-
-(deftype hud-effect-font-effect (hud-effect)
-  ((font-effect uint8  :offset-assert 28)
-   )
-  :method-count-assert 15
-  :size-assert         #x1d
-  :flag-assert         #xf0000001d
-  )
-
-(deftype hud-effect-offscreen (hud-effect)
-  ((offscreen-type uint64  :offset-assert 32)
-   )
-  :method-count-assert 15
-  :size-assert         #x28
-  :flag-assert         #xf00000028
-  )
-
-(deftype hud-effect-trigger-sound (hud-effect)
-  ((soundname uint16  :offset-assert 28)
-   )
-  :method-count-assert 15
-  :size-assert         #x1e
-  :flag-assert         #xf0000001e
-  )
-
-(deftype hud-text-effect-sound (hud-effect)
-  ((soundname      uint16  :offset-assert 28)
-   (next-play-time int32   :offset-assert 32)
-   (length         int32   :offset-assert 36)
-   (force-length   int32   :offset-assert 40)
-   (player-rank    int32   :offset-assert 44)
-   (increment      int32   :offset-assert 48)
-   )
-  :method-count-assert 15
-  :size-assert         #x34
-  :flag-assert         #xf00000034
-  )
-
-(deftype hud-effect-move (hud-effect)
-  ((offset-x   float  :offset-assert 28)
-   (offset-y   float  :offset-assert 32)
-   (move-time  float  :offset-assert 36)
-   (start-time int32  :offset-assert 40)
-   )
-  :method-count-assert 15
-  :size-assert         #x2c
-  :flag-assert         #xf0000002c
-  )
-
-(deftype hud-effect-throb (hud-effect)
-  ((start-time  int32  :offset-assert 28)
-   (throb-time  int32  :offset-assert 32)
-   (u           float  :offset-assert 36)
-   (scale       float  :offset-assert 40)
-   (throb-alpha float  :offset-assert 44)
-   (max-alpha   float  :offset-assert 48)
-   )
-  :method-count-assert 15
-  :size-assert         #x34
-  :flag-assert         #xf00000034
-  )
-
-;; og:preserve-this hud-widgets-2 rung: fade-out-on retyped basic -> symbol,
-;; matching the same fix landed against this same type in
-;; decompiler/config/jakx/all-types.gc this rung. hud-widgets-2_ir2.asm's
-;; static hud-effect-fade instances (the death-indicator-view-N family's own
-;; effect lists) store a real symbol ('exit/'enter) at this exact offset, and
-;; jakx's own symbol type derives from object directly, not from basic, so a
-;; basic-typed field cannot hold a SYM_PTR; kept in sync here so this file's
-;; own hud-effect-fade static instances still typecheck against the same
-;; layout hud-effects.gc will eventually land for real.
-(deftype hud-effect-fade (hud-effect)
-  ((fade-time   float  :offset-assert 28)
-   (start-time  int32  :offset-assert 32)
-   (fade-out-on symbol :offset-assert 36)
-   )
-  :method-count-assert 15
-  :size-assert         #x28
-  :flag-assert         #xf00000028
-  )
-
-(deftype hud-effect-scale (hud-effect)
-  ((scale-time   float  :offset-assert 28)
-   (target-scale float  :offset-assert 32)
-   (start-scale  float  :offset-assert 36)
-   (start-time   int32  :offset-assert 40)
-   (dont-move-me basic  :offset-assert 44)
-   )
-  :method-count-assert 15
-  :size-assert         #x30
-  :flag-assert         #xf00000030
-  )
-
-(deftype hud-effect-emit-score-icon (hud-effect)
-  ((point-value int16  :offset-assert 28)
-   )
-  :method-count-assert 15
-  :size-assert         #x1e
-  :flag-assert         #xf0000001e
-  )
-
-(deftype hud-effect-trigger-score-sound (hud-effect)
-  ((soundname uint16  :offset-assert 28)
-   )
-  :method-count-assert 15
-  :size-assert         #x1e
-  :flag-assert         #xf0000001e
-  )
-
-;; og:preserve-this hud-static-literals rung: hud-player-icon,
-;; hud-localized-string and hud-item-string-big forward-declared here for
-;; the same reason as the hud-results family above; their retail type-new
-;; calls live in hud-widgets.gc (own scoped decode confirms it:
-;; hud-widgets_ir2.asm), still a 9-line stub in this tree. Retire once
-;; hud-widgets.gc lands the real definitions.
-(deftype hud-player-icon (hud-item-group)
-  ((player-id int32  :offset-assert 44)
-   )
-  :method-count-assert 28
-  :size-assert         #x30
-  :flag-assert         #x1c00000030
-  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
-  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
-  ;; this corpus), and hud-player-icon-method-24 (defined once hud-widgets.gc
-  ;; lands) is an override of the base slot (proven by the decompiler's own
-  ;; method-set!-derived label staying "24" after hud-item's own count
-  ;; changed), not a new addition.
-  )
-
-;; og:preserve-this hud-widgets-2 rung: hud-player-icon-name forward-declared
-;; here alongside its own hud-player-icon base above, for the same reason;
-;; hud-widgets-2.gc's own static death-indicator-view-N item arrays
-;; (hud-widgets-2_ir2.asm) construct real hud-player-icon-name instances, but
-;; its retail type-new call, like hud-player-icon's own, lives in
-;; hud-widgets.gc. Retire alongside hud-player-icon once hud-widgets.gc lands.
-(deftype hud-player-icon-name (hud-player-icon)
-  ()
-  :method-count-assert 28
-  :size-assert         #x30
-  :flag-assert         #x1c00000030
-  )
-
-(deftype hud-localized-string (hud-item-string)
-  ()
-  :method-count-assert 29
-  :size-assert         #x3c
-  :flag-assert         #x1d0000003c
-  )
-
-(deftype hud-item-string-big (hud-item-string)
-  ()
-  :method-count-assert 29
-  :size-assert         #x3c
-  :flag-assert         #x1d0000003c
-  )
+;; og:preserve-this issue 540: this file previously carried forward-declare
+;; duplicates for the full hud-effect-* subtype family (group, slide,
+;; font-effect, offscreen, trigger-sound, text-effect-sound, move, throb,
+;; fade, scale, emit-score-icon, trigger-score-sound), for hud-player-icon,
+;; hud-localized-string and hud-item-string-big, and for hud-player-icon-name,
+;; all now deleted. new_type rewrites every custom method slot on every
+;; deftype execution of the same interned type (issue 534); each of these
+;; duplicates risked wiping methods landed in its own real home the moment
+;; this file linked after it (game.gd link position 537, after hud-effects.o
+;; at 534 and hud-widgets.o at 535). hud-effects.gc has since landed the
+;; real hud-effect-* family (including the fade-out-on basic -> symbol
+;; retype this file's own note used to track separately) and hud-widgets.gc
+;; the real hud-player-icon/hud-localized-string/hud-item-string-big;
+;; hud-player-icon-name is single-homed to hud-results.gc instead (link
+;; position 536, earlier than this file), the only one of the four still a
+;; bare forward-declare stub in either file. hud-results-base,
+;; hud-results, hud-rank-name-score and hud-medal-results were already
+;; retired from this file the same way in an earlier rung.
 
 ;; definition for function calc-grand-prix-score
 (defun calc-grand-prix-score ((arg0 (pointer int8)))

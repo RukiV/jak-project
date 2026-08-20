@@ -17,6 +17,18 @@
 ;; plain function, not a method).
 (define-extern create-points-icon-from-screen-pos (function vector2 int vector object))
 
+;; og:preserve-this issue 540: the full hud-effect-* subtype family landed
+;; in this file (group, slide, font-effect, offscreen, trigger-sound,
+;; text-effect-sound, move, throb, fade, scale, emit-score-icon,
+;; trigger-score-sound) is single-homed here (game.gd link position 534,
+;; hud-results-grand-prix.gc's own 537, which previously carried an
+;; identical forward-declare duplicate of every one of these twelve types,
+;; now deleted). new_type rewrites every custom method slot on every
+;; deftype execution of the same interned type (issue 534); that duplicate
+;; risked wiping every method this file lands below the moment
+;; hud-results-grand-prix.o linked after it. This file compiles first
+;; (all_objs.json index 76 vs hud-results-grand-prix.gc's own 79).
+
 ;; definition of type hud-effect-group
 ;; og:preserve-this hud-effects rung: items retyped basic -> (array hud-effect);
 ;; methods 9/10/11/12/13 all read items+0 as a length (l.w) then index

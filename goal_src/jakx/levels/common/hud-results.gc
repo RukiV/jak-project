@@ -10,31 +10,30 @@
 ;; signatures hud-high-scores.gc already declared for the same reason
 ;; ("Unrecognized symbol ... as head of form" without this); all three
 ;; are defined in hud-cash.gc, which compiles after this file.
-;; og:preserve-this hud-results rung: hud-player-icon, hud-player-icon-
-;; name, hud-localized-string and hud-item-string-big relanded here too
-;; (full deftype, transcribed verbatim from decompiler/config/jakx/
-;; all-types.gc), matching hud-results-grand-prix.gc's own identical
-;; forward declarations for the same four types (their own retail type-
-;; new calls live in hud-widgets.gc, still a stub in this tree); goalc
-;; tolerates the identical redefinition (the same net-player deftype
-;; already lives, unconflicted, in both net-player-h.gc and cam-
-;; states.gc), and this file's own static hud-item arrays construct real
-;; instances of hud-localized-string directly ("Type hud-localized-string
-;; is unknown" without this).
-(deftype hud-player-icon (hud-item-group)
-  ((player-id int32  :offset-assert 44)
-   )
-  :method-count-assert 28
-  :size-assert         #x30
-  :flag-assert         #x1c00000030
-  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
-  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
-  ;; this corpus), and hud-player-icon-method-24 (defined once hud-widgets.gc
-  ;; lands) is an override of the base slot (proven by the decompiler's own
-  ;; method-set!-derived label staying "24" after hud-item's own count
-  ;; changed), not a new addition.
-  )
+;; og:preserve-this issue 540: hud-player-icon single-homed to
+;; hud-widgets.gc (game.gd link position 535, this file's own 536); this
+;; file's own duplicate deftype is deleted, along with the identical
+;; duplicate hud-results-grand-prix.gc carried (link position 537,
+;; likewise deleted). This file's own note used to call the duplicate
+;; here harmless because "goalc tolerates the identical redefinition";
+;; that claim is now known false (issue 534), and hud-widgets.gc hosts
+;; hud-player-icon's own defmethods and compiles first (all_objs.json
+;; index 77 vs this file's own 78), so this file's own static data below
+;; resolves the type against the already-registered definition without a
+;; local redefinition.
 
+;; og:preserve-this issue 540: single-homed here (game.gd link position
+;; 536, hud-results-grand-prix.gc's own 537, which previously carried an
+;; identical duplicate now deleted). new_type rewrites every custom method
+;; slot on every deftype execution of the same interned type (issue 534);
+;; neither copy hosts a defmethod for this type today, but the duplicate
+;; was still latent risk under the same class. hud-widgets-2.gc's own
+;; static death-indicator-view-N item arrays construct real
+;; hud-player-icon-name instances; its own retail type-new call, like
+;; hud-player-icon's own, lives in hud-widgets.gc, which does not yet land
+;; this type for real (still commented out there), so this stays the
+;; earliest-linking of the two remaining forward-declare copies rather than
+;; a real landed definition.
 (deftype hud-player-icon-name (hud-player-icon)
   ()
   :method-count-assert 28
@@ -42,19 +41,11 @@
   :flag-assert         #x1c00000030
   )
 
-(deftype hud-localized-string (hud-item-string)
-  ()
-  :method-count-assert 29
-  :size-assert         #x3c
-  :flag-assert         #x1d0000003c
-  )
-
-(deftype hud-item-string-big (hud-item-string)
-  ()
-  :method-count-assert 29
-  :size-assert         #x3c
-  :flag-assert         #x1d0000003c
-  )
+;; og:preserve-this issue 540: hud-localized-string and hud-item-string-big
+;; single-homed to hud-widgets.gc (game.gd link position 535, this file's
+;; own 536); this file's own duplicate deftypes are deleted, since
+;; hud-widgets.gc compiles first (all_objs.json index 77 vs this file's
+;; own 78).
 
 ;; og:preserve-this hud-results rung: hud-headset-talker-race forward-
 ;; declared here (name-only, matching *net-game-mgr*'s own precedent);
@@ -1368,14 +1359,18 @@
   (none)
   )
 
-;; og:preserve-this hud-results rung: hud-name-score's own deftype is
-;; relanded here too rather than dropped; goalc tolerates the identical
-;; redefinition (the same net-player deftype already lives, unconflicted,
-;; in both net-player-h.gc and cam-states.gc), and hud-high-scores.gc
-;; compiles after this file, so this file's own methods need the type
-;; known locally regardless ("Type hud-name-score is unknown" without
-;; it). Field-for-field identical to hud-high-scores.gc's own copy.
 ;; definition of type hud-name-score
+;; og:preserve-this issue 540: single-homed here (game.gd link position
+;; 536, hud-high-scores.gc's own 538, which previously carried an
+;; identical duplicate now deleted). The earlier note here called this
+;; file's own copy a harmless "relanding" because "goalc tolerates the
+;; identical redefinition"; that claim is now known false (issue 534):
+;; new_type rewrites every custom method slot on every deftype execution
+;; of the same interned type, so a defmethod host linking before the last
+;; duplicate deftype has its methods silently zeroed. This file hosts
+;; hud-name-score's own defmethods and compiles first (all_objs.json index
+;; 78 vs hud-high-scores.gc's own 80), so it is the correct home regardless
+;; of the old note's reasoning.
 (deftype hud-name-score (hud-item-group)
   ((player-id  int32)
    (stat-type  uint64)
@@ -1728,13 +1723,12 @@
 ;; per-frame stats-type cycling and team-score text update this override
 ;; drives do not fire.
 
-;; og:preserve-this hud-results rung: hud-results-background-item's own
-;; deftype is relanded here too rather than dropped, the same reasoning
-;; as hud-name-score above (goalc tolerates the identical redefinition;
-;; this file's own methods need the type known locally since hud-high-
-;; scores.gc compiles after it). Field-for-field identical (bare, no
-;; fields) to hud-high-scores.gc's own copy.
 ;; definition of type hud-results-background-item
+;; og:preserve-this issue 540: single-homed here, same reasoning and same
+;; correction as hud-name-score above (game.gd link position 536,
+;; hud-high-scores.gc's own 538, which previously carried an identical
+;; duplicate now deleted; this file compiles first, all_objs.json index 78
+;; vs hud-high-scores.gc's own 80).
 (deftype hud-results-background-item (hud-item-group)
   ()
   )
