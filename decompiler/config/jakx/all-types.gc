@@ -41298,7 +41298,7 @@
 ;; collide-func                   ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-(define-extern raw-ray-sphere-intersect function)
+(define-extern raw-ray-sphere-intersect (function object none))
 (define-extern ray-sphere-intersect (function vector vector vector float float))
 (define-extern ray-circle-intersect (function vector vector vector float float))
 (define-extern ray-cylinder-intersect (function vector vector vector vector float float vector float))
@@ -49598,7 +49598,7 @@
 (define-extern calc-realtime-lights (function light-group draw-control uint none))
 (define-extern calc-vu1-lights (function vu-lights draw-control symbol none))
 (define-extern calc-particle-average-color function) ;; jakx-new, refine after unlock
-(define-extern calc-particle-directional-color function) ;; jakx-new, refine after unlock
+(define-extern calc-particle-directional-color (function object object object none)) ;; jakx-new, refine after unlock
 (define-extern real-dma-add-process-drawable (function process-drawable draw-control symbol dma-buffer none)) ;; jakx-only indirection under dma-add-process-drawable, same arg shape
 (define-extern dma-add-process-drawable (function process-drawable draw-control symbol dma-buffer none))
 (define-extern *hud-lights* vu-lights)
@@ -81207,7 +81207,7 @@
 (define-extern *desired-number-of-cars* object)
 (define-extern position-train-car function)
 (define-extern train-move function)
-(define-extern cars-spawn function)
+(define-extern cars-spawn (function none))
 (define-extern play-horn function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -87380,14 +87380,14 @@
 (define-extern etn-vu1-block vu-function) ;; matches tie-vu1-block's landed vu-function typing (tie.gc)
 (define-extern fake-msg object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier flow-section-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
-(define-extern fmv-get-mem-requirements function) ;; runtime-typed from savestate
+(define-extern fmv-get-mem-requirements (function object object object object object)) ;; runtime-typed from savestate
 (define-extern fmv-player-get-texture function) ;; runtime-typed from savestate
 ;; lobby-menu-manager rung: called identically to kill-by-type one function
 ;; up (a1 = *default-pool*, typed process-tree); a0 is a raw field read of
 ;; unresolved concrete type, kept int; return stored but not read further at
 ;; its one call site, kept symbol matching kill-by-type's own return type.
 (define-extern fmv-player-run-texture (function int process-tree symbol)) ;; provisional: call-site evidence only
-(define-extern fmv-player-terminate function) ;; runtime-typed from savestate
+(define-extern fmv-player-terminate (function none)) ;; runtime-typed from savestate
 ;; og:preserve-this provisional extern removed: shadowed the earlier fmv-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier game-save-tag deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; lobby-menu-manager rung: one arg, a computed address (this + index*2)
@@ -87436,11 +87436,11 @@
 (define-extern knet-get-dynamic-patches function) ;; runtime-typed from savestate
 (define-extern knet-lg-aread function) ;; runtime-typed from savestate
 (define-extern knet-lg-awrite function) ;; runtime-typed from savestate
-(define-extern knet-lg-tick function) ;; runtime-typed from savestate
-(define-extern knet-scert-function-1-args function) ;; runtime-typed from savestate
+(define-extern knet-lg-tick (function object none)) ;; runtime-typed from savestate
+(define-extern knet-scert-function-1-args (function object object)) ;; runtime-typed from savestate
 (define-extern knet-scert-function-2-args function) ;; runtime-typed from savestate
 (define-extern knet-scert-function-3-args (function object function object object)) ;; proven: called with (request-buffer callback-function context) throughout net-mgr-medius-buddies, matching its 1/2-args siblings' family
-(define-extern knet-tcp-socket-open function) ;; runtime-typed from savestate
+(define-extern knet-tcp-socket-open (function object none)) ;; runtime-typed from savestate
 (define-extern knet-tcp-socket-send function) ;; runtime-typed from savestate
 ;; og:preserve-this provisional extern removed: shadowed the earlier light-trail deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier lightning-bolt deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
@@ -87506,7 +87506,7 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier player-info-menu deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern print-game-text-work object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier profile-error-string deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
-(define-extern psplink-stop function) ;; runtime-typed from savestate
+(define-extern psplink-stop (function object none)) ;; runtime-typed from savestate
 ;; og:preserve-this provisional extern removed: shadowed the race-line deftype and broke goal_src's (declare-type race-line ...) in JakXTypeConsistency
 ;; og:preserve-this provisional extern removed: shadowed the earlier race-mesh-hash-search deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier raceline-weapon deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
@@ -87558,3 +87558,324 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier wvehicle-part-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier wvehicle-physics-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier wvehicle-sound-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
+
+;; wave-10 extern-arity-tier fixpoint (issue 515/516)
+(define-extern v-wpn-type->gunmount-config (function object none)) ;; mechanical-arity fixpoint
+(define-extern get-next-training-task (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-intro-hud (function object)) ;; mechanical-arity fixpoint
+(define-extern adventure-map-fade-out (function object object)) ;; mechanical-arity fixpoint
+(define-extern keybd-read-ascii (function object)) ;; mechanical-arity fixpoint
+(define-extern adventure-task-init (function none)) ;; mechanical-arity fixpoint
+(define-extern ctf-base-b-spawn (function object object object)) ;; mechanical-arity fixpoint
+(define-extern filter-highscore-venues (function none)) ;; mechanical-arity fixpoint
+(define-extern get-max-password-chars (function object)) ;; mechanical-arity fixpoint
+(define-extern helmet-hud-spawn (function object object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-race-stats (function object)) ;; mechanical-arity fixpoint
+(define-extern wrong-way-linebot-spawn (function object object)) ;; mechanical-arity fixpoint
+(define-extern print-intro-text (function object none)) ;; mechanical-arity fixpoint
+(define-extern net-hw-start-part2 (function object)) ;; mechanical-arity fixpoint
+(define-extern race-banner-spawn (function object object)) ;; mechanical-arity fixpoint
+(define-extern v-wpn-choose-random (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern flag-at-base? (function object)) ;; mechanical-arity fixpoint
+(define-extern fmv-fade-out (function none)) ;; mechanical-arity fixpoint
+(define-extern generic-tie-convert (function object none)) ;; mechanical-arity fixpoint
+(define-extern generic-tie-dma-to-spad-sync (function object object none)) ;; mechanical-arity fixpoint
+(define-extern get-clean-driver-heap (function object none)) ;; mechanical-arity fixpoint
+(define-extern get-medius-language (function none)) ;; mechanical-arity fixpoint
+(define-extern get-top-chat-msg (function object)) ;; mechanical-arity fixpoint
+(define-extern guided-missile-base-trans (function none)) ;; mechanical-arity fixpoint
+(define-extern lobby-awards-test-qualifier (function object)) ;; mechanical-arity fixpoint
+(define-extern shield-jiggle-scale! (function object object none)) ;; mechanical-arity fixpoint
+(define-extern shuffle-race-grid (function object object none)) ;; mechanical-arity fixpoint
+(define-extern spawn-special-intro-hud (function object object)) ;; mechanical-arity fixpoint
+(define-extern starting-linebot-spawn (function object object object object object)) ;; mechanical-arity fixpoint
+(define-extern wait-for-fmvlev (function none)) ;; mechanical-arity fixpoint
+(define-extern headset-deactivate (function none)) ;; mechanical-arity fixpoint
+(define-extern view-print (function object object)) ;; mechanical-arity fixpoint
+(define-extern convert-car-info-to-load-parts (function object object)) ;; mechanical-arity fixpoint
+(define-extern dme-disconnect (function object)) ;; mechanical-arity fixpoint
+(define-extern get-player-name (function object none)) ;; mechanical-arity fixpoint
+(define-extern get-vehicle-name (function object object)) ;; mechanical-arity fixpoint
+(define-extern headset-activate (function none)) ;; mechanical-arity fixpoint
+(define-extern init-local-world (function none)) ;; mechanical-arity fixpoint
+(define-extern lobby-dma-reserve-hook (function none)) ;; mechanical-arity fixpoint
+(define-extern net-get-client-ip (function object none)) ;; mechanical-arity fixpoint
+(define-extern net-packet-recv-time-reset-all (function none)) ;; mechanical-arity fixpoint
+(define-extern net-process-mgr-stop (function none)) ;; mechanical-arity fixpoint
+(define-extern refresh-lan-games (function none)) ;; mechanical-arity fixpoint
+(define-extern set-flag-event (function object object)) ;; mechanical-arity fixpoint
+(define-extern view-get-real-active (function object)) ;; mechanical-arity fixpoint
+(define-extern add-recent-opponent (function object object)) ;; mechanical-arity fixpoint
+(define-extern adventure-map-update (function object none)) ;; mechanical-arity fixpoint
+(define-extern adventure-venue-init (function none)) ;; mechanical-arity fixpoint
+(define-extern ai-driver-allowed (function object object object)) ;; mechanical-arity fixpoint
+(define-extern align-to-interface-world-map (function none)) ;; mechanical-arity fixpoint
+(define-extern anim-test-edit-seq-insert-item (function object object object)) ;; mechanical-arity fixpoint
+(define-extern anim-test-obj-init (function object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-test-obj-item-valid? (function object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-test-obj-remove-invalid (function object none)) ;; mechanical-arity fixpoint
+(define-extern anim-test-seq-item-copy! (function object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-test-seq-mark-as-edited (function object object)) ;; mechanical-arity fixpoint
+(define-extern anim-test-sequence-init (function none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-add-newobj (function object object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-adjust-frame (function object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-disp-frame-num (function object object object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-get-playing-item (function object object)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-interface (function object object)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-load-object-seqs (function object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-num-print (function object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-pick-item-setup (function object object object none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-real-post (function none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-reset (function none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-save-all-objects (function object none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-save-object-seqs (function object object)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-stop (function none)) ;; mechanical-arity fixpoint
+(define-extern anim-tester-update-anim-info (function object none)) ;; mechanical-arity fixpoint
+(define-extern artist-clean-up-net-mgr (function none)) ;; mechanical-arity fixpoint
+(define-extern award-overall-score (function object object)) ;; mechanical-arity fixpoint
+(define-extern bm-equal (function object object none)) ;; mechanical-arity fixpoint
+(define-extern can-start-clan-challenge (function none)) ;; mechanical-arity fixpoint
+(define-extern change-weapon-table (function object none)) ;; mechanical-arity fixpoint
+(define-extern char-allowed (function object object object)) ;; mechanical-arity fixpoint
+(define-extern check-entities (function none)) ;; mechanical-arity fixpoint
+(define-extern check-for-kill-player (function none)) ;; mechanical-arity fixpoint
+(define-extern check-for-player-dead (function none)) ;; mechanical-arity fixpoint
+(define-extern check-game-on-me (function object)) ;; mechanical-arity fixpoint
+(define-extern check-lan-crap (function object none)) ;; mechanical-arity fixpoint
+(define-extern chicken-drone-2-spawn (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern chicken-drone-spawn (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern clan-allowed-to-join-game (function object none)) ;; mechanical-arity fixpoint
+(define-extern cleanup-at-game-end (function object object)) ;; mechanical-arity fixpoint
+(define-extern clear-game-list-filters (function none)) ;; mechanical-arity fixpoint
+(define-extern clear-local-players (function none)) ;; mechanical-arity fixpoint
+(define-extern construct-patch-file-name (function none)) ;; mechanical-arity fixpoint
+(define-extern continue-point-copy! (function object object none)) ;; mechanical-arity fixpoint
+(define-extern count-ai (function none)) ;; mechanical-arity fixpoint
+(define-extern crappy-atof (function object object)) ;; mechanical-arity fixpoint
+(define-extern ctf-base-c-spawn (function object object object)) ;; mechanical-arity fixpoint
+(define-extern ctf-captured-flag-spawn (function object object object object object none)) ;; mechanical-arity fixpoint
+(define-extern ctf-flag-spawn (function object object)) ;; mechanical-arity fixpoint
+(define-extern decode-green-room-stats (function object object object)) ;; mechanical-arity fixpoint
+(define-extern decode-net-available-game-info (function object object object)) ;; mechanical-arity fixpoint
+(define-extern decode-net-world-state (function object object none)) ;; mechanical-arity fixpoint
+(define-extern disable-green-eco (function none)) ;; mechanical-arity fixpoint
+(define-extern display-list-control (function object object)) ;; mechanical-arity fixpoint
+(define-extern display-net-problem-icon (function object object)) ;; mechanical-arity fixpoint
+(define-extern dma-is-empty (function none)) ;; mechanical-arity fixpoint
+(define-extern do-decode-net-world-state (function object object none)) ;; mechanical-arity fixpoint
+(define-extern do-ghost-ai-setup (function object none)) ;; mechanical-arity fixpoint
+(define-extern do-late-join (function object none)) ;; mechanical-arity fixpoint
+(define-extern do-loading-text (function object)) ;; mechanical-arity fixpoint
+(define-extern do-net-update (function none)) ;; mechanical-arity fixpoint
+(define-extern do-race-end (function none)) ;; mechanical-arity fixpoint
+(define-extern do-split-chat-msg (function object none)) ;; mechanical-arity fixpoint
+(define-extern driver-allowed (function object object)) ;; mechanical-arity fixpoint
+(define-extern driver-anim (function object object none)) ;; mechanical-arity fixpoint
+(define-extern encode-green-room-stats (function object object none)) ;; mechanical-arity fixpoint
+(define-extern encode-net-world-state (function object object none)) ;; mechanical-arity fixpoint
+(define-extern evaluate-font-curve (function object object none)) ;; mechanical-arity fixpoint
+(define-extern fixup-netstring (function object object)) ;; mechanical-arity fixpoint
+(define-extern flag-fall (function none)) ;; mechanical-arity fixpoint
+(define-extern flag-post (function none)) ;; mechanical-arity fixpoint
+(define-extern game-connect-failed (function object)) ;; mechanical-arity fixpoint
+(define-extern get-anim-offset (function object object object object object none)) ;; mechanical-arity fixpoint
+(define-extern get-best-defensive-powerup (function object object object object object)) ;; mechanical-arity fixpoint
+(define-extern get-clan-challenge-pair-status (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern get-clans-in-challenge-info (function object none)) ;; mechanical-arity fixpoint
+(define-extern get-closest-human-player (function object object)) ;; mechanical-arity fixpoint
+(define-extern get-dist-based-path-pos (function object object none)) ;; mechanical-arity fixpoint
+(define-extern get-dnas-error (function object object)) ;; mechanical-arity fixpoint
+(define-extern get-game-status-cached (function object none)) ;; mechanical-arity fixpoint
+(define-extern get-medal-reward (function object object)) ;; mechanical-arity fixpoint
+(define-extern get-nearest-race-point (function object none)) ;; mechanical-arity fixpoint
+(define-extern get-new-qualifier (function object)) ;; mechanical-arity fixpoint
+(define-extern get-other-clan-id (function object object)) ;; mechanical-arity fixpoint
+(define-extern get-password-flags (function object)) ;; mechanical-arity fixpoint
+(define-extern get-ping-crapness (function object object)) ;; mechanical-arity fixpoint
+(define-extern get-player-amplitude (function object object)) ;; mechanical-arity fixpoint
+(define-extern get-race-line-info (function object object object none)) ;; mechanical-arity fixpoint
+(define-extern get-recent-players (function object object)) ;; mechanical-arity fixpoint
+(define-extern get-skill-level (function object object)) ;; mechanical-arity fixpoint
+(define-extern get-task-node-id-from-location-and-event (function object object none)) ;; mechanical-arity fixpoint
+(define-extern get-total-humans (function object)) ;; mechanical-arity fixpoint
+(define-extern ghost-crc-ok (function object object)) ;; mechanical-arity fixpoint
+(define-extern go-running (function object)) ;; mechanical-arity fixpoint
+(define-extern got-other-players (function none)) ;; mechanical-arity fixpoint
+(define-extern gunmount-get-change-anim (function object object object)) ;; mechanical-arity fixpoint
+(define-extern handle-chat-msg (function object object object)) ;; mechanical-arity fixpoint
+(define-extern handle-pause (function object object)) ;; mechanical-arity fixpoint
+(define-extern handle-unpause (function object object)) ;; mechanical-arity fixpoint
+(define-extern heap-sort (function object object none)) ;; mechanical-arity fixpoint
+(define-extern helmet-garage-spawn (function object object)) ;; mechanical-arity fixpoint
+(define-extern id-hash-find-free-index (function object object)) ;; mechanical-arity fixpoint
+(define-extern in-out-curve (function object object object none)) ;; mechanical-arity fixpoint
+(define-extern init-local-net-eco-mgr (function object)) ;; mechanical-arity fixpoint
+(define-extern init-player-lists (function object)) ;; mechanical-arity fixpoint
+(define-extern init-spartacus-library (function none)) ;; mechanical-arity fixpoint
+(define-extern is-ghost? (function object none)) ;; mechanical-arity fixpoint
+(define-extern is-whitespace (function object object)) ;; mechanical-arity fixpoint
+(define-extern jak-owner (function object object)) ;; mechanical-arity fixpoint
+(define-extern late-join-spawn-players (function object)) ;; mechanical-arity fixpoint
+(define-extern load-sound-banks (function none)) ;; mechanical-arity fixpoint
+(define-extern lobby-non-fatal-error (function object object)) ;; mechanical-arity fixpoint
+(define-extern lobby-results-awarded-car-parts (function object)) ;; mechanical-arity fixpoint
+(define-extern lobby-results-awarded-event (function object)) ;; mechanical-arity fixpoint
+(define-extern lobby-results-awarded-vehicle (function object)) ;; mechanical-arity fixpoint
+(define-extern lobby-results-first-awarded-vehicle (function object object)) ;; mechanical-arity fixpoint
+(define-extern lobby-speech-gtb-new-venue (function object none)) ;; mechanical-arity fixpoint
+(define-extern lookup-clan-challenge (function object object object)) ;; mechanical-arity fixpoint
+(define-extern make-vehicle-weapon-slot (function object object object none)) ;; mechanical-arity fixpoint
+(define-extern medius-cache-tick (function object object)) ;; mechanical-arity fixpoint
+(define-extern medius-player-info-retrieve-behavior (function object none)) ;; mechanical-arity fixpoint
+(define-extern medius-start-account-stats-update (function object object object)) ;; mechanical-arity fixpoint
+(define-extern medius-start-clan-stats-update (function object)) ;; mechanical-arity fixpoint
+(define-extern mine-b-common-trans (function none)) ;; mechanical-arity fixpoint
+(define-extern mine-compute-landing-point! (function object object object object object object object)) ;; mechanical-arity fixpoint
+(define-extern move-captured-flag (function none)) ;; mechanical-arity fixpoint
+(define-extern movement-post (function none)) ;; mechanical-arity fixpoint
+(define-extern net-colarb-clear (function none)) ;; mechanical-arity fixpoint
+(define-extern net-colarb-request-id (function object object)) ;; mechanical-arity fixpoint
+(define-extern net-filter-text (function object object none)) ;; mechanical-arity fixpoint
+(define-extern net-get-local-ip (function object)) ;; mechanical-arity fixpoint
+(define-extern net-log-remove-lock (function none)) ;; mechanical-arity fixpoint
+(define-extern net-log-stop (function object)) ;; mechanical-arity fixpoint
+(define-extern net-mgr-process-pending-behavior (function object)) ;; mechanical-arity fixpoint
+(define-extern net-mgr-start (function object none)) ;; mechanical-arity fixpoint
+(define-extern net-packet-recv-time-reset-client (function object none)) ;; mechanical-arity fixpoint
+(define-extern net-player-football-handle-pcells (function none)) ;; mechanical-arity fixpoint
+(define-extern net-process-mgr-default-handler (function none)) ;; mechanical-arity fixpoint
+(define-extern net-process-mgr-start (function object)) ;; mechanical-arity fixpoint
+(define-extern net-process-msg-handler (function object object object)) ;; mechanical-arity fixpoint
+(define-extern next-language (function object none)) ;; mechanical-arity fixpoint
+(define-extern oil-emitter-spawn (function object object object)) ;; mechanical-arity fixpoint
+(define-extern oil-flame-emitter-spawn (function object object object)) ;; mechanical-arity fixpoint
+(define-extern oil-slick-spawn (function object object)) ;; mechanical-arity fixpoint
+(define-extern overall-score-amount-to-gamble (function object object)) ;; mechanical-arity fixpoint
+(define-extern parse-ip (function object object)) ;; mechanical-arity fixpoint
+(define-extern place-on-car (function none)) ;; mechanical-arity fixpoint
+(define-extern player-finished-adventure-mode? (function object none)) ;; mechanical-arity fixpoint
+(define-extern player-in-game (function object none)) ;; mechanical-arity fixpoint
+(define-extern player-info-screen-check-buttons (function none)) ;; mechanical-arity fixpoint
+(define-extern post-game-clan-stats-adjust (function object none)) ;; mechanical-arity fixpoint
+(define-extern prev-language (function object none)) ;; mechanical-arity fixpoint
+(define-extern process-is-in-tree (function object object)) ;; mechanical-arity fixpoint
+(define-extern pulse-new-font-color (function none)) ;; mechanical-arity fixpoint
+(define-extern reset-training-table (function none)) ;; mechanical-arity fixpoint
+(define-extern retrieve-my-clan-data (function none)) ;; mechanical-arity fixpoint
+(define-extern safe-mod (function object none)) ;; mechanical-arity fixpoint
+(define-extern save-vehicle-camera-inside-state (function none)) ;; mechanical-arity fixpoint
+(define-extern seek-default-size (function none)) ;; mechanical-arity fixpoint
+(define-extern seek-size (function object none)) ;; mechanical-arity fixpoint
+(define-extern send-chat-with-game-id (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern send-fake-msg (function object object none)) ;; mechanical-arity fixpoint
+(define-extern set-ai-vehicle (function object object object)) ;; mechanical-arity fixpoint
+(define-extern set-children-position-and-orientation (function none)) ;; mechanical-arity fixpoint
+(define-extern set-cstring-from-text-id (function object object none)) ;; mechanical-arity fixpoint
+(define-extern set-driver-license-info (function object none)) ;; mechanical-arity fixpoint
+(define-extern set-filter-state (function object object)) ;; mechanical-arity fixpoint
+(define-extern set-net-task-mask (function none)) ;; mechanical-arity fixpoint
+(define-extern set-position-and-orientation (function none)) ;; mechanical-arity fixpoint
+(define-extern set-race-end-camera (function object object none)) ;; mechanical-arity fixpoint
+(define-extern setup-clan-info-buttons (function object none)) ;; mechanical-arity fixpoint
+(define-extern setup-cup-menu-score (function object object none)) ;; mechanical-arity fixpoint
+(define-extern setup-existing-clan-stats (function none)) ;; mechanical-arity fixpoint
+(define-extern setup-player-info-buttons (function object none)) ;; mechanical-arity fixpoint
+(define-extern should-suppress-eco? (function object object)) ;; mechanical-arity fixpoint
+(define-extern should-talk-to (function object none)) ;; mechanical-arity fixpoint
+(define-extern sift-down (function object object object object object)) ;; mechanical-arity fixpoint
+(define-extern smoke-render (function none)) ;; mechanical-arity fixpoint
+(define-extern smoke-update (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-boss-hud (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-chicken-drone-weapon (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern spawn-green-eco (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-ctf-indicators-view1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-score-drop (function object object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-score-drop-view-10 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-score-drop-view-11 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-score-drop-view-20 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-score-drop-view-21 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-single (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-split (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-split-view-0 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathmatch-split-view-1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathrace-stats-multi (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathrace-stats-single (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathrace-stats-split (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathrace-stats-split-view-0 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-deathrace-stats-split-view-1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-managed-intro0 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-managed-intro1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-managed-intro2 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-managed-intro3 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-managed-intro4 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-aux-view00 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-aux-view01 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-aux-view10 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-aux-view11 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-top-view (function object none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-top-view-view-0 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-top-view-view-1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-view (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-view-view-0 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-football-stats-view-view-1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-hunt-indicators-view1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-race-stats-side-view-0 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-race-stats-single (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-race-stats-top-view-0 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-race-stats-view-1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-rushhour-stats (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-rushhour-stats-view-0 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-rushhour-stats-view-1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-time-box-stats (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-hud-training-clock (function object object)) ;; mechanical-arity fixpoint
+(define-extern spawn-intro-hud-view (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-net-entity (function object object)) ;; mechanical-arity fixpoint
+(define-extern spawn-special-intro-hud-view (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-success-seeker-weapon (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern spawn-training2-race-hud (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-training3-race-hud (function object object)) ;; mechanical-arity fixpoint
+(define-extern spawn-unused-hud-deathmatch-score-drop-view-1 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-unused-hud-deathmatch-score-drop-view-2 (function none)) ;; mechanical-arity fixpoint
+(define-extern spawn-unused-hud-football-managed-intro (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-unused-hud-football-stats-aux-view0 (function object)) ;; mechanical-arity fixpoint
+(define-extern spawn-unused-hud-football-stats-aux-view1 (function object object)) ;; mechanical-arity fixpoint
+(define-extern spawn-vehicle-hud-training (function object none)) ;; mechanical-arity fixpoint
+(define-extern stats-player-cash (function object none)) ;; mechanical-arity fixpoint
+(define-extern stats-player-died (function none)) ;; mechanical-arity fixpoint
+(define-extern stats-player-end-mode (function object object)) ;; mechanical-arity fixpoint
+(define-extern stats-player-ranking (function object none)) ;; mechanical-arity fixpoint
+(define-extern stats-player-score (function object none)) ;; mechanical-arity fixpoint
+(define-extern stats-player-time (function object object)) ;; mechanical-arity fixpoint
+(define-extern stats-weapon-used (function object object object)) ;; mechanical-arity fixpoint
+(define-extern success-seeker-1-spawn (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern success-seeker-2-spawn (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern targeting-reticle-for-this-weapon-type? (function object object)) ;; mechanical-arity fixpoint
+(define-extern targeting-reticle-line-of-sight? (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern text-id-class-for-vehicle-type (function object object)) ;; mechanical-arity fixpoint
+(define-extern text-id-for-vehicle-type (function object object object)) ;; mechanical-arity fixpoint
+(define-extern tidy-clan-challenges (function none)) ;; mechanical-arity fixpoint
+(define-extern timeout-lobby-fatal-error (function object)) ;; mechanical-arity fixpoint
+(define-extern turbodash-seeker-spawn (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern tweak-sound (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern update-adventure-map-data (function none)) ;; mechanical-arity fixpoint
+(define-extern update-client-state (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern update-high-scores (function object object)) ;; mechanical-arity fixpoint
+(define-extern update-lobby-camera (function object none)) ;; mechanical-arity fixpoint
+(define-extern update-local-net-entities (function object none)) ;; mechanical-arity fixpoint
+(define-extern update-stored-network-account (function object none)) ;; mechanical-arity fixpoint
+(define-extern v-wpn-choose-increasing-lethality (function object object object)) ;; mechanical-arity fixpoint
+(define-extern v-wpn-get-selection-table (function object object object)) ;; mechanical-arity fixpoint
+(define-extern v-wpn-mask-selection-table! (function object object object none)) ;; mechanical-arity fixpoint
+(define-extern v-wpn-num-available (function object object none)) ;; mechanical-arity fixpoint
+(define-extern vehicle-antenna-spawn (function object object object)) ;; mechanical-arity fixpoint
+(define-extern vehicle-respawn-invul-spawn (function object object)) ;; mechanical-arity fixpoint
+(define-extern vehicle-rev-manager-spawn (function object object object)) ;; mechanical-arity fixpoint
+(define-extern verify-msg (function object none)) ;; mechanical-arity fixpoint
+(define-extern wait-for-lobby-to-die (function none)) ;; mechanical-arity fixpoint
+(define-extern wait-for-lock (function none)) ;; mechanical-arity fixpoint
+(define-extern wait-target-load (function none)) ;; mechanical-arity fixpoint
+(define-extern whoosh-shake-camera (function object object object object)) ;; mechanical-arity fixpoint
+(define-extern write-process-as-handle (function object object none)) ;; mechanical-arity fixpoint
+(define-extern wrong-way-spawn (function object object object object)) ;; mechanical-arity fixpoint
