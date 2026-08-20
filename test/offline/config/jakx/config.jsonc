@@ -387,6 +387,18 @@
     // goal_src); goal_src lands the compilable version, proven via the
     // same clean full-project (mi) build.
     "hud-player-indicators",
+    // hud-widgets rung: the raw decode leaves the *net-player-names* offset
+    // sum untyped (int, not (pointer uint8)) at hud-item-player-name's own
+    // method 19, the same class of hand-cast divergence hud-results and
+    // hud-player-indicators above already carry; goal_src lands the
+    // compilable version, proven via a clean full-project (mi) build. The
+    // decomp-vs-REF diff still gates every field offset and every other
+    // function's own text; the file's own held functions (see
+    // skip_compile_functions below) are excluded there too.
+    "hud-widgets",
+    // hud-cash rung: same class of divergence; goal_src lands the
+    // compilable, hand-cast version of its own held-methods scaffolding.
+    "hud-cash",
     // gsound's *sound-handles* (L383) and *sound-bank-reload-names* (L356) statics
     // emit as bare label refs; goal_src lands compilable hand-carries and the
     // decomp-vs-REF diff still gates all the code
@@ -1192,6 +1204,78 @@
     "(method 19 hud-cash-stats)",
     "(method 24 hud-cash-stats)",
     "(method 26 hud-cash-stats)",
+    // hud-widgets rung: six further hud-item-method-24/26/27 downstream
+    // blockers, exposed only once hud-item's own base slots 24/25/26/27
+    // land (this rung) and the prior wave's dormant type_casts.jsonc casts
+    // for this band start actually being exercised.
+    // (method 9 hud-clock): the prior "hud-widgets-tier rung"'s own
+    // type_casts.jsonc comment on this method already documents ops
+    // 14/18/22/26/36 as an unresolved wall (extending the op-10 cast to
+    // them regresses an unrelated op-3 store, mechanism not understood);
+    // this rung reconfirms the same op-14 failure fresh, still held.
+    "(method 9 hud-clock)",
+    // (method 24 hud-clock): op 7 divides its own arg0 by 18000 while arg0
+    // is still typed object ("Couldn't figure out integer mod/divide"); the
+    // compiled function itself reads two incoming args (a1 into s5, a2 into
+    // s4 at ops 1-2), an arity wider than hud-item-method-24's own declared
+    // one-arg (_type_ object) interface, so a signature-level fix is not
+    // available without widening the base slot for every other override.
+    // No landed body.
+    "(method 24 hud-clock)",
+    // (method 24 hud-player-icon-name): op 79 multiplies a literal 96 by
+    // its own incoming arg0 (still typed object, "Couldn't figure out
+    // integer multiplication") to index *net-player-names*; same class as
+    // hud-clock's own arg0 issue above, an override that wants a narrower
+    // arg0 type than the inherited (_type_ object) slot declares. No
+    // landed body.
+    "(method 24 hud-player-icon-name)",
+    // (method 24 hud-player-icon): op 10 reads a byte off net-world's own
+    // task-info-adjacent region using a raw pointer offset that includes
+    // player-id, a decoder fallback the expression builder cannot resolve
+    // to a real GOAL form ("Failed load"). No landed body.
+    "(method 24 hud-player-icon)",
+    // (method 19 hud-medal): expression building fails converting a float
+    // to int on a uint intermediate ("Used float to int on a uint:
+    // (f2i f0-3)"). No landed body.
+    "(method 19 hud-medal)",
+    // (method 24 hud-score-single): expression building fails outright
+    // ("Error while inserting lets: invalid unordered_map<K, T> key"), the
+    // decompiler prints its own internal error string where a body would
+    // be. No landed body.
+    "(method 24 hud-score-single)",
+    // (method 19 hud-item-score): op 72 reads a byte at raw net-world.task-
+    // info+5 while task-info is still typed basic ("Could not figure out
+    // load"), the same game-task-node-info net-play-mode field
+    // spawn-hud-in-game-menu and (method 19 hud-medal) already cast
+    // elsewhere in this file; a single-op cast here did not clear the
+    // function's own second error ("Unsupported inline assembly
+    // instruction kind - [srl v1, a0, 24]"), a raw MIPS fallback goalc
+    // cannot compile regardless. No landed body.
+    "(method 19 hud-item-score)",
+    // (method 19 hud-score-single): op 139 reads its own items-array
+    // element's method-24 dispatch return value (s2, typed none per
+    // hud-item-method-24's own declared signature) as if it were a
+    // net-player pointer at raw offset 232 ("Could not figure out load");
+    // the dispatch is virtual (through the base hud-item slot), so the
+    // decompiler cannot narrow the return past hud-item's own declared
+    // none, unlike the same offset's already-resolved direct net-player
+    // read earlier in this same function (op 124). No landed body.
+    "(method 19 hud-score-single)",
+    // (method 19 hud-place-event): op 71 reads a byte at raw
+    // net-world.task-info+4 (task-info still typed basic, "Could not
+    // figure out load"), the same game-task-node-info field class as
+    // (method 19 hud-item-score) above, at a different field offset
+    // (declared 8, game-task-node-info's own task field). No landed body.
+    "(method 19 hud-place-event)",
+    // (method 19 hud-lap) and (method 9 hud-position): both re-read their
+    // own nested hud-item-group's items field a further time past the two
+    // per-op type_casts.jsonc entries this rung already added (op numbers
+    // keep moving to a later, identical-shaped read each time an earlier
+    // one is cast, the same "no carry forward" class documented elsewhere
+    // in type_casts.jsonc for hud-clock); held rather than chasing the
+    // moving op indefinitely. No landed bodies.
+    "(method 19 hud-lap)",
+    "(method 9 hud-position)",
     // hud-widgets-tier rung: (method 19 cash-hud) dispatches net-game-mgr-
     // method-50 and net-game-mgr-method-51 by name; net-game-mgr itself is
     // only a name-only declare-type in this tree (hud-results-grand-

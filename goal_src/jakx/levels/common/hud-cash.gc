@@ -31,14 +31,18 @@
    (time       int32)
    (last-time  int32)
    )
+  ;; og:preserve-this hud-widgets rung: only method 27's own shape matches
+  ;; hud-item's own now-declared method 27 exactly; goalc's own defmethod
+  ;; type-check rejected methods 24/25/26 as overrides directly, so those
+  ;; three are genuinely new slots, renamed from the stale 24/25/26 to
+  ;; 28/29/30. Method 27 keeps no entry here (a pure override).
   (:methods
-    (hud-cash-stats-method-24 (_type_ object object) none)
+    (hud-cash-stats-method-28 (_type_ object object) none)
     ;; og:preserve-this hud-widgets-tier rung: arg0 retyped object -> float,
     ;; mirrored from decompiler/config/jakx/all-types.gc; see that file's
     ;; comment on this method for the evidence.
-    (hud-cash-stats-method-25 (_type_ float) none)
-    (hud-cash-stats-method-26 (_type_ object object) float)
-    (hud-cash-stats-method-27 (_type_ object) none)
+    (hud-cash-stats-method-29 (_type_ float) none)
+    (hud-cash-stats-method-30 (_type_ object object) float)
     )
   )
 
@@ -289,7 +293,7 @@
 
 ;; definition for method 27 of type hud-cash-stats
 ;; WARN: Return type mismatch int vs none.
-(defmethod hud-cash-stats-method-27 ((this hud-cash-stats) (arg0 object))
+(defmethod hud-item-method-27 ((this hud-cash-stats) (arg0 object))
   (let ((s5-1 (max 0 (the-as int arg0))))
     (when (and (< 90 (-> this time)) (< (-> this time) 150) (>= s5-1 150))
       (hud-item-method-23 this #f 0 'throb #f)
@@ -326,13 +330,13 @@
 ;; sites in its own large cond, which goalc rejects outright ("Unrecognized
 ;; symbol call! as head of form", this rung's own mi build); those sites were
 ;; never reached during the prior rung's narrower op-288 investigation. Held
-;; as a whole rather than patched piecemeal: hud-cash-stats-method-24 (this
+;; as a whole rather than patched piecemeal: hud-item-method-24 (this
 ;; type's own landed caller) inherits hud-item-group's own method 26 in the
 ;; meantime, the normal virtual-dispatch behavior for an unfilled vtable
 ;; slot, not a jump to zero. Retire this note if a future rung resolves both
 ;; the op 288 read and the call! sites.
 
-;; (defmethod hud-cash-stats-method-26 ((a0-0 hud-cash-stats) (a1-0 object) (a2-0 object))
+;; (defmethod hud-item-method-26 ((a0-0 hud-cash-stats) (a1-0 object) (a2-0 object))
 ;;   (local-vars
 ;;     (v0-0 object)
 ;;     (v0-1 number)
@@ -997,7 +1001,7 @@
 ;; the deftype comment above); (the-as float (gpr->fpr arg0)) simplified to
 ;; arg0 directly, since gpr->fpr's own job (bit-reinterpret a plain register
 ;; as a float) is exactly what a real float-typed argument no longer needs.
-(defmethod hud-cash-stats-method-25 ((this hud-cash-stats) (arg0 float))
+(defmethod hud-cash-stats-method-29 ((this hud-cash-stats) (arg0 float))
   (if (and (zero? (-> this last-time))
            (> (-> this time) 0)
            (< (-> this time) 150)
@@ -1006,7 +1010,7 @@
       (hud-item-method-23 this #f 0 'play-sound #f)
       )
   (let* ((s5-1 (-> this items 2))
-         (s4-0 (method-of-object (the-as hud-item-string s5-1) hud-item-string-method-24))
+         (s4-0 (method-of-object (the-as hud-item-string s5-1) hud-item-method-24))
          )
     (format (clear *temp-string*) "$ $ ~,,0f" arg0)
     (s4-0 (the-as hud-item-string s5-1) *temp-string*)
@@ -1016,20 +1020,23 @@
 
 ;; og:preserve-this hud-widgets-tier rung: (method 24 hud-cash-stats) is held
 ;; unlanded. Its own decode is otherwise clean, but it calls
-;; hud-cash-stats-method-26 directly by name three times, and that method is
+;; hud-item-method-26 directly by name three times, and that method is
 ;; held below for the same op 288 net-player read and call! raw-form
 ;; defects a prior "hud-cash rung" already investigated (type_casts.jsonc
 ;; comment on that method); a direct-by-name call needs the callee's real
 ;; symbol to exist at compile time, so this method cannot be landed
-;; independently of it. hud-item-group has no method 24 of its own (this
-;; type's method 24 is a new vtable slot hud-cash-stats itself introduces,
-;; not an override), so there is no inherited fallback; hud-cash-stats-
-;; method-19 above (also held, same reason) is this type's only known
-;; caller, so nothing else in this corpus dispatches this slot yet. Retire
-;; this note together with the method 19 and method 26 notes.
+;; independently of it. hud-widgets rung update: hud-item itself now declares
+;; method 24 (a real base-level virtual slot, hud-widgets rung, this corpus),
+;; and hud-item-method-24 is this type's own override of it, not a new
+;; vtable slot; the inherited fallback (hud-item-method-24's own dispatch
+;; from hud-item's base implementation) does not help this type's own logic
+;; though, since hud-cash-stats-method-19 above (also held, same reason) is
+;; this type's only known caller of the override specifically, so nothing
+;; else in this corpus dispatches this slot yet. Retire this note together
+;; with the method 19 and method 26 notes.
 
 ;; ;; definition for method 24 of type hud-cash-stats
-;; (defmethod hud-cash-stats-method-24 ((this hud-cash-stats) (arg0 object) (arg1 object))
+;; (defmethod hud-item-method-24 ((this hud-cash-stats) (arg0 object) (arg1 object))
 ;;   (let ((s1-0 (-> (the-as hud-item-group (-> this items 1)) items 1))
 ;;         (s2-0 (-> (the-as hud-item-group (-> this items 1)) items 0))
 ;;         (s3-0 (-> (the-as hud-item-group (-> this items 1)) items 0))
@@ -1038,25 +1045,25 @@
 ;;         )
 ;;     (cond
 ;;       ((zero? v1-12)
-;;        (hud-item-string-method-24 s1-0 "")
-;;        (hud-item-string-method-24 s2-0 "")
+;;        (hud-item-method-24 s1-0 "")
+;;        (hud-item-method-24 s2-0 "")
 ;;        (case (get-medal-ignore-gamestate (the-as net-player arg1))
 ;;          ((3)
-;;           (hud-item-string-method-25 s0-0 311)
+;;           (hud-item-method-25 s0-0 311)
 ;;           )
 ;;          ((2)
-;;           (hud-item-string-method-25 s0-0 312)
+;;           (hud-item-method-25 s0-0 312)
 ;;           )
 ;;          ((1)
-;;           (hud-item-string-method-25 s0-0 313)
+;;           (hud-item-method-25 s0-0 313)
 ;;           )
 ;;          (else
-;;            (hud-item-string-method-25 s0-0 114)
+;;            (hud-item-method-25 s0-0 114)
 ;;            )
 ;;          )
 ;;        )
 ;;       ((= v1-12 1)
-;;        (hud-item-string-method-24 s0-0 "")
+;;        (hud-item-method-24 s0-0 "")
 ;;        (let ((t9-8 (method-of-object *net-game-mgr* net-game-mgr-method-45)))
 ;;          (cond
 ;;            ((-> *game-info* playing-grand-prix?)
@@ -1074,19 +1081,19 @@
 ;;                                      )
 ;;                    )
 ;;              )
-;;          (hud-item-string-method-26 s1-0 (+ s3-1 1))
+;;          (hud-item-method-26 s1-0 (+ s3-1 1))
 ;;          (cond
 ;;            ((zero? s3-1)
-;;             (hud-item-string-method-25 s2-0 2017)
+;;             (hud-item-method-25 s2-0 2017)
 ;;             )
 ;;            ((= s3-1 1)
-;;             (hud-item-string-method-25 s2-0 2016)
+;;             (hud-item-method-25 s2-0 2016)
 ;;             )
 ;;            ((= s3-1 2)
-;;             (hud-item-string-method-25 s2-0 2014)
+;;             (hud-item-method-25 s2-0 2014)
 ;;             )
 ;;            (else
-;;              (hud-item-string-method-25 s2-0 2015)
+;;              (hud-item-method-25 s2-0 2015)
 ;;              )
 ;;            )
 ;;          )
@@ -1103,7 +1110,7 @@
 ;;             (if (not (logtest? (-> this flags) 1))
 ;;                 (hud-item-method-22 this)
 ;;                 )
-;;             (let ((s2-1 (method-of-object (the-as hud-item-string s3-0) hud-item-string-method-24)))
+;;             (let ((s2-1 (method-of-object (the-as hud-item-string s3-0) hud-item-method-24)))
 ;;               (format (clear *temp-string*) "~,,2f" (-> (the-as net-player arg1) best-power-slide))
 ;;               (s2-1 (the-as hud-item-string s3-0) *temp-string*)
 ;;               )
@@ -1116,32 +1123,32 @@
 ;;        )
 ;;       ((= v1-12 5)
 ;;        (print-time (clear *temp-string*) (the-as time-frame (-> (the-as net-player arg1) best-hang-time)))
-;;        (hud-item-string-method-24 s3-0 *temp-string*)
+;;        (hud-item-method-24 s3-0 *temp-string*)
 ;;        )
 ;;       ((= v1-12 2)
-;;        (hud-item-string-method-26 s3-0 (-> (the-as net-player arg1) kills))
+;;        (hud-item-method-26 s3-0 (-> (the-as net-player arg1) kills))
 ;;        )
 ;;       ((= v1-12 3)
-;;        (hud-item-string-method-26 s3-0 (-> (the-as net-player arg1) deaths))
+;;        (hud-item-method-26 s3-0 (-> (the-as net-player arg1) deaths))
 ;;        )
 ;;       ((= v1-12 6)
-;;        (hud-item-string-method-24 s3-0 "")
+;;        (hud-item-method-24 s3-0 "")
 ;;        )
 ;;       )
 ;;     )
 ;;   (let ((f30-0 (fmax 0.0 (fmin 1.0 (* 0.006666667 (the float (-> this time))))))
-;;         (f0-2 (hud-cash-stats-method-26 this arg0 arg1))
+;;         (f0-2 (hud-item-method-26 this arg0 arg1))
 ;;         )
 ;;     (cond
 ;;       ((< 0.0 f0-2)
-;;        (let ((t9-27 (method-of-object this hud-cash-stats-method-25))
+;;        (let ((t9-27 (method-of-object this hud-item-method-25))
 ;;              (f0-3 (* f30-0 f0-2))
 ;;              )
 ;;          (t9-27 this (the float (the int (+ 0.5 f0-3))))
 ;;          )
 ;;        )
 ;;       (else
-;;         (hud-cash-stats-method-25 this (* f30-0 f0-2))
+;;         (hud-item-method-25 this (* f30-0 f0-2))
 ;;         )
 ;;       )
 ;;     )
@@ -1156,7 +1163,7 @@
 
 ;; og:preserve-this hud-widgets-tier rung: (method 19 hud-cash-stats) is held
 ;; unlanded. Its own decode is otherwise clean, but it calls both
-;; hud-cash-stats-method-24 and hud-cash-stats-method-26 directly by name
+;; hud-item-method-24 and hud-item-method-26 directly by name
 ;; (not through vtable dispatch), and both of those are held below for the
 ;; same op 288 net-player read and call! raw-form defects; a direct-by-name
 ;; call needs the callee's real symbol to exist at compile time, so this
@@ -1180,7 +1187,7 @@
 ;;               )
 ;;         )
 ;;     (when s5-0
-;;       (hud-cash-stats-method-24 this (-> this stat-type) s5-0)
+;;       (hud-item-method-24 this (-> this stat-type) s5-0)
 ;;       (when (and *net-game-mgr*
 ;;                  (or (and (zero? (view-get-active-index)) (!= (-> *net-game-mgr* pid) *last-cash-game-mgr-for-player-0*))
 ;;                      (and (= 1 (view-get-active-index)) (!= (-> *net-game-mgr* pid) *last-cash-game-mgr-for-player-1*))
@@ -1193,7 +1200,7 @@
 ;;              (let ((f30-0 0.0)
 ;;                    (f28-0 999000000.0)
 ;;                    (f26-0 (-> *game-info* player-info 0 cash))
-;;                    (f0-0 (hud-cash-stats-method-26 this 6 s5-0))
+;;                    (f0-0 (hud-item-method-26 this 6 s5-0))
 ;;                    )
 ;;                (set! (-> *game-info* player-info 0 cash)
 ;;                      (fmax f30-0 (fmin f28-0 (+ f26-0 (the float (the int (+ 0.5 f0-0))))))
@@ -1205,7 +1212,7 @@
 ;;              (let ((f30-1 0.0)
 ;;                    (f28-1 999000000.0)
 ;;                    (f26-1 (-> *game-info* player-info 1 cash))
-;;                    (f0-8 (hud-cash-stats-method-26 this 6 s5-0))
+;;                    (f0-8 (hud-item-method-26 this 6 s5-0))
 ;;                    )
 ;;                (set! (-> *game-info* player-info 1 cash)
 ;;                      (fmax f30-1 (fmin f28-1 (+ f26-1 (the float (the int (+ 0.5 f0-8))))))
@@ -1269,7 +1276,7 @@
 ;; there is no candidate body to transcribe, decompiled or raw fallback.
 ;; A prior "hud-cash rung" (see the type_casts.jsonc comment on this same
 ;; method) already found and documented the underlying cause: the method
-;; dispatches a hud-item-string-method-27 slot on a looped items-array
+;; dispatches a hud-item-method-27 slot on a looped items-array
 ;; element, and while one occurrence (op 326) is cast to hud-item-string,
 ;; a second occurrence at the same shape (op 337) cannot be cast alongside
 ;; it without regressing an unrelated part of the same function (a
@@ -2111,13 +2118,13 @@
 ;;           ;; resolves the dispatch method name correctly (hud-item-string-
 ;;           ;; method-27, not a raw vtable offset) but leaves the array
 ;;           ;; element typed as the generic hud-item.
-;;           (hud-item-string-method-27
+;;           (hud-item-method-27
 ;;             (the-as hud-item-string (-> (the-as hud-item-group s1-0) items s0-0))
 ;;             (- s4-0 (the-as time-frame (* 75 v1-20)))
 ;;             )
 ;;           )
 ;;         )
-;;       (hud-item-string-method-27 (the-as hud-item-string s2-0)
+;;       (hud-item-method-27 (the-as hud-item-string s2-0)
 ;;                                   (- s4-0 (the-as time-frame (* 75 (if s5-0
 ;;                                                                         4
 ;;                                                                         5
@@ -2126,7 +2133,7 @@
 ;;                                                    )
 ;;                                       )
 ;;                                  )
-;;       (hud-item-string-method-27 (the-as hud-item-string s3-0)
+;;       (hud-item-method-27 (the-as hud-item-string s3-0)
 ;;                                   (- s4-0 (the-as time-frame (* 75 (if s5-0
 ;;                                                                         5
 ;;                                                                         6

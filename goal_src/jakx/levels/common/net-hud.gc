@@ -93,6 +93,32 @@
     (hud-item-method-21 (_type_) none)
     (hud-item-method-22 (_type_) none)
     (hud-item-method-23 (_type_ object object object object) none)
+    ;; og:preserve-this hud-widgets rung: base-level virtual slot, proven by
+    ;; hud-place-event's own method 19 (hud-widgets_ir2.asm, this rung)
+    ;; dispatching offset-112 on a bare hud-item array element with a single
+    ;; a1 arg (a static string-label address); hud-item-method-24 and
+    ;; hud-item-method-24 (both already landed, this same corpus)
+    ;; already share this exact (_type_ object) none shape as their own
+    ;; override of this slot, previously misdeclared as each subtype's own
+    ;; new method because this slot was missing here.
+    (hud-item-method-24 (_type_ object) none)
+    ;; og:preserve-this hud-widgets rung: contiguity companion to 24/26/27; no
+    ;; bare-hud-item call site in this rung's own corpus resolves id 25
+    ;; directly, but the vtable is a contiguous table and
+    ;; hud-item-method-25 (already landed) shares the same
+    ;; (_type_ object) none shape, so a gap here is not representable.
+    (hud-item-method-25 (_type_ object) none)
+    ;; og:preserve-this hud-widgets rung: proven by hud-leader-score's own
+    ;; method 19 (hud-widgets_ir2.asm, this rung) dispatching offset-120 on a
+    ;; bare hud-item array element with a single a1 arg (an int,
+    ;; calc-team-score's own result); hud-item-method-26 (already
+    ;; landed) shares this shape.
+    (hud-item-method-26 (_type_ object) none)
+    ;; og:preserve-this hud-widgets rung: proven by hud-leader-score's own
+    ;; method 19 (hud-widgets_ir2.asm, this rung) dispatching offset-124 on a
+    ;; bare hud-item array element with a single a1 arg (the int literal 3);
+    ;; hud-item-method-27 (already landed) shares this shape.
+    (hud-item-method-27 (_type_ object) none)
     )
   )
 
@@ -902,11 +928,12 @@
    (font-flags         uint16)
    (has-outline        symbol)
    )
+  ;; og:preserve-this hud-widgets rung: methods 24/25/26/27 dropped from this
+  ;; type's own :methods list; hud-item now declares those slots itself
+  ;; (hud-widgets rung, this corpus), and hud-item-method-24/25/26/27
+  ;; below are overrides of the base slots, not new additions of this type's
+  ;; own. Only method-28 remains a genuinely new slot of hud-item-string.
   (:methods
-    (hud-item-string-method-24 (_type_ object) none)
-    (hud-item-string-method-25 (_type_ object) none)
-    (hud-item-string-method-26 (_type_ object) none)
-    (hud-item-string-method-27 (_type_ object) none)
     (hud-item-string-method-28 (_type_) none)
     )
   )
@@ -1013,7 +1040,7 @@
 
 ;; definition for method 27 of type hud-item-string
 ;; WARN: Return type mismatch object vs none.
-(defmethod hud-item-string-method-27 ((this hud-item-string) (arg0 object))
+(defmethod hud-item-method-27 ((this hud-item-string) (arg0 object))
   (when (!= (-> this color) arg0)
     (set! (-> this color) (the-as uint arg0))
     (let ((v1-1 (-> this string)))
@@ -1027,7 +1054,7 @@
 
 ;; definition for method 26 of type hud-item-string
 ;; WARN: Return type mismatch int vs none.
-(defmethod hud-item-string-method-26 ((this hud-item-string) (arg0 object))
+(defmethod hud-item-method-26 ((this hud-item-string) (arg0 object))
   (let ((v1-0 (-> this string)))
     (if v1-0
         (itoa (the-as int arg0) (-> v1-0 text data))
@@ -1038,7 +1065,7 @@
 
 ;; definition for method 24 of type hud-item-string
 ;; WARN: Return type mismatch string vs none.
-(defmethod hud-item-string-method-24 ((this hud-item-string) (arg0 object))
+(defmethod hud-item-method-24 ((this hud-item-string) (arg0 object))
   (let ((v1-0 (-> this string)))
     (if v1-0
         (copy-string<-string (-> v1-0 text) (the-as string arg0))
@@ -1049,7 +1076,7 @@
 
 ;; definition for method 25 of type hud-item-string
 ;; WARN: Return type mismatch string vs none.
-(defmethod hud-item-string-method-25 ((this hud-item-string) (arg0 object))
+(defmethod hud-item-method-25 ((this hud-item-string) (arg0 object))
   (let ((v1-0 (-> this string)))
     (when v1-0
       (set! (-> this text-id) (the-as uint arg0))
@@ -1094,9 +1121,10 @@
    (sprite-flags  uint16)
    (angle         float)
    )
-  (:methods
-    (hud-item-sprite-method-24 (_type_ object) none)
-    )
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-item-method-24 below is an override of the
+  ;; base slot, not a new addition of this type's own.
   )
 
 ;; definition for method 3 of type hud-item-sprite
@@ -1151,7 +1179,7 @@
 
 ;; definition for method 24 of type hud-item-sprite
 ;; WARN: Return type mismatch object vs none.
-(defmethod hud-item-sprite-method-24 ((this hud-item-sprite) (arg0 object))
+(defmethod hud-item-method-24 ((this hud-item-sprite) (arg0 object))
   (let ((v1-0 (-> this sprite)))
     (if v1-0
         (set! (-> v1-0 tex) (the-as texture arg0))
@@ -1177,7 +1205,7 @@
             )
         (logior! (-> s4-0 flags) (-> this sprite-flags))
         )
-      (hud-item-sprite-method-24 this (lookup-texture-by-id (the-as texture-id (-> this tex-id))))
+      (hud-item-method-24 this (lookup-texture-by-id (the-as texture-id (-> this tex-id))))
       (+! (-> s5-0 num-sprites) 1)
       (when (>= (-> s5-0 num-sprites) 50)
         (break!)

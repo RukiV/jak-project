@@ -184,12 +184,15 @@
 (deftype hud-player-icon (hud-item-group)
   ((player-id int32  :offset-assert 44)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1900000030
-  (:methods
-    (hud-player-icon-method-24 (_type_ object) none) ;; 24
-    )
+  :flag-assert         #x1c00000030
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-player-icon-method-24 (defined once hud-widgets.gc
+  ;; lands) is an override of the base slot (proven by the decompiler's own
+  ;; method-set!-derived label staying "24" after hud-item's own count
+  ;; changed), not a new addition.
   )
 
 ;; og:preserve-this hud-widgets-2 rung: hud-player-icon-name forward-declared
@@ -200,9 +203,9 @@
 ;; hud-widgets.gc. Retire alongside hud-player-icon once hud-widgets.gc lands.
 (deftype hud-player-icon-name (hud-player-icon)
   ()
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1900000030
+  :flag-assert         #x1c00000030
   )
 
 (deftype hud-localized-string (hud-item-string)

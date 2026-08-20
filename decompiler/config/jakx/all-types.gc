@@ -68832,9 +68832,9 @@
    (effect          hud-effect :offset-assert 32)
    (parent          hud-item   :offset-assert 36)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x28
-  :flag-assert         #x1800000028
+  :flag-assert         #x1c00000028
   (:methods
     (hud-item-method-9 (_type_) none) ;; 9
     (hud-item-method-10 (_type_) none) ;; 10
@@ -68851,6 +68851,10 @@
     (hud-item-method-21 (_type_) none) ;; 21
     (hud-item-method-22 (_type_) none) ;; 22
     (hud-item-method-23 (_type_ object object object object) none) ;; 23
+    (hud-item-method-24 (_type_ object) none) ;; 24 ;; og:preserve-this hud-widgets rung: base-level virtual slot, proven by hud-place-event's own method 19 (hud-widgets_ir2.asm, this rung) dispatching offset-112 on a bare hud-item array element with a single a1 arg (a static string-label address); hud-item-string-method-24 and hud-item-sprite-method-24 (both already landed, this same corpus) already share this exact (_type_ object) none shape as their own override of this slot, previously misdeclared as each subtype's own new method because this slot was missing here
+    (hud-item-method-25 (_type_ object) none) ;; 25 ;; og:preserve-this hud-widgets rung: contiguity companion to 24/26/27; no bare-hud-item call site in this rung's own corpus resolves id 25 directly, but the vtable is a contiguous table and hud-item-string-method-25 (already landed) shares the same (_type_ object) none shape, so a gap here is not representable
+    (hud-item-method-26 (_type_ object) none) ;; 26 ;; og:preserve-this hud-widgets rung: proven by hud-leader-score's own method 19 (hud-widgets_ir2.asm, this rung) dispatching offset-120 on a bare hud-item array element with a single a1 arg (an int, calc-team-score's own result); hud-item-string-method-26 (already landed) shares this shape
+    (hud-item-method-27 (_type_ object) none) ;; 27 ;; og:preserve-this hud-widgets rung: proven by hud-leader-score's own method 19 (hud-widgets_ir2.asm, this rung) dispatching offset-124 on a bare hud-item array element with a single a1 arg (the int literal 3); hud-item-string-method-27 (already landed) shares this shape
     )
   )
 
@@ -69057,11 +69061,12 @@
   :method-count-assert 29
   :size-assert         #x3c
   :flag-assert         #x1d0000003c
+  ;; og:preserve-this hud-widgets rung: methods 24/25/26/27 dropped from this
+  ;; type's own :methods list; hud-item now declares those slots itself
+  ;; (hud-widgets rung, this corpus), and hud-item-string-method-24/25/26/27
+  ;; below are overrides of the base slots, not new additions of this type's
+  ;; own. Only method-28 remains a genuinely new slot of hud-item-string.
   (:methods
-    (hud-item-string-method-24 (_type_ object) none) ;; 24 ;; og:preserve-this net-hud rung: reads a1 as an incoming source string and forwards it straight into copy-string<-string with no other setup, the same shape as method-25's arg0; the old self-only () signature flagged "may read a1" (net-hud_ir2.asm, this rung)
-    (hud-item-string-method-25 (_type_ object) none) ;; 25
-    (hud-item-string-method-26 (_type_ object) none) ;; 26
-    (hud-item-string-method-27 (_type_ object) none) ;; 27
     (hud-item-string-method-28 (_type_) none) ;; 28 ;; og:preserve-this net-hud rung: gains _type_; the bare () signature makes the decompiler pretty-print a self-less (defmethod NAME () ...) form that GOALC's real defmethod macro rejects ("Method type must be a symbol, got ()"), proven by offline-test's own scoped compile of the raw decompile; the method's only call site (from hud-item-string's own method-9 override, via method-of-object) never sets a1+, so self-only stays correct, just named (net-hud_ir2.asm, this rung)
     )
   )
@@ -69099,12 +69104,13 @@
    (sprite-flags uint16                             :offset-assert 68)
    (angle        float                              :offset-assert 72)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x4c
-  :flag-assert         #x190000004c
-  (:methods
-    (hud-item-sprite-method-24 (_type_ object) none) ;; 24
-    )
+  :flag-assert         #x1c0000004c
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-item-sprite-method-24 below is an override of the
+  ;; base slot, not a new addition of this type's own.
   ;; adjudicated: ASSERTS RIGHT (proven). (method 3 hud-item-sprite) in
   ;; net-hud_ir2.asm prints the whole inherited hud-item block and then reaches
   ;; BACK to the same two halfwords: "scale-x" is `lh 22` and "real-scale-x" is
@@ -69139,9 +69145,9 @@
 (deftype hud-item-group (hud-item)
   ((items (array hud-item)  :offset-assert 40)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
@@ -69531,29 +69537,34 @@
 (deftype hud-player-icon (hud-item-group)
   ((player-id int32  :offset-assert 44)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1900000030
-  (:methods
-    (hud-player-icon-method-24 (_type_ object) none) ;; 24
-    )
+  :flag-assert         #x1c00000030
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-player-icon-method-24 below is an override of the
+  ;; base slot, not a new addition of this type's own. Proven by the
+  ;; decompiler's own method-set!-derived label ("(method 24
+  ;; hud-player-icon)") staying 24 after hud-item's own count changed, since
+  ;; that label reads the retail binary's literal method-set! immediate, not
+  ;; all-types.gc's declared count.
   )
 
 
 #|
 (deftype hud-player-icon-name (hud-player-icon)
   ()
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1900000030
+  :flag-assert         #x1c00000030
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-player-icon-name (hud-player-icon)
   ()
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1900000030
+  :flag-assert         #x1c00000030
   )
 
 
@@ -69585,16 +69596,21 @@
    (text-id         uint32  :offset-assert 64)
    (fixed-time-val  int32   :offset-assert 68)
    )
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x48
-  :flag-assert         #x1900000048
+  :flag-assert         #x1d00000048
+  ;; og:preserve-this hud-widgets rung: method 24's own 2-arg shape (int,
+  ;; object) is NOT compatible with hud-item's own now-declared 1-arg
+  ;; method 24 (matching the same class of rejection goalc's own defmethod
+  ;; type-check proved directly for the sibling widgets in this same rung).
+  ;; A genuinely new slot, not an override, renamed to method-28.
   (:methods
     ;; hud-widgets-tier rung: arg0 retyped object -> int. Body stack-stores
     ;; it, reloads it and divides it by 18000 to split minutes from seconds
     ;; ("Couldn't figure out integer mod/divide: (/.si v1 a0) (object and
     ;; <integer 18000>)" with the old object typing); a clock value in
     ;; milliseconds. hud-widgets_ir2.asm, this rung.
-    (hud-clock-method-24 (_type_ int object) none) ;; 24
+    (hud-clock-method-28 (_type_ int object) none) ;; 28
     )
   )
 
@@ -69603,18 +69619,18 @@
 (deftype hud-medal (hud-item-group)
   ((score-as-time basic  :offset-assert 44)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1800000030
+  :flag-assert         #x1c00000030
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-medal (hud-item-group)
   ((score-as-time basic  :offset-assert 44)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1800000030
+  :flag-assert         #x1c00000030
   )
 
 
@@ -69625,9 +69641,9 @@
    (total-laps         int8   :offset-assert 52)
    (current-laps       int8   :offset-assert 53)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x36
-  :flag-assert         #x1800000036
+  :flag-assert         #x1c00000036
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -69637,9 +69653,9 @@
    (total-laps         int8   :offset-assert 52)
    (current-laps       int8   :offset-assert 53)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x36
-  :flag-assert         #x1800000036
+  :flag-assert         #x1c00000036
   )
 
 
@@ -69647,18 +69663,18 @@
 (deftype hud-position (hud-item-group)
   ((race-position int32  :offset-assert 44)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1800000030
+  :flag-assert         #x1c00000030
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-position (hud-item-group)
   ((race-position int32  :offset-assert 44)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1800000030
+  :flag-assert         #x1c00000030
   )
 
 
@@ -69722,9 +69738,9 @@
    (previous-score     int32   :offset-assert 52)
    (initial-texture-id uint32  :offset-assert 56)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x3c
-  :flag-assert         #x180000003c
+  :flag-assert         #x1c0000003c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -69734,9 +69750,9 @@
    (previous-score     int32   :offset-assert 52)
    (initial-texture-id uint32  :offset-assert 56)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x3c
-  :flag-assert         #x180000003c
+  :flag-assert         #x1c0000003c
   )
 
 
@@ -69760,19 +69776,14 @@
    (other-human              basic  :offset-assert 48)
    (display-score            int32  :offset-assert 52)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x38
-  :flag-assert         #x1900000038
-  (:methods
-    ;; hud-widgets-tier rung: dropped both its own arg and its own return.
-    ;; Walks *active-net-players*, comparing each entry's own player-id
-    ;; (machine 284, declared 288 via the +4 basics trap) against a1 (a
-    ;; player-id searched for, read with no prior definition: "Function may
-    ;; read a register that is not set: a1"), and returns the matching
-    ;; net-player pointer or #f (WARN: "Return type mismatch net-player vs
-    ;; none" on the same op). hud-widgets_ir2.asm, this rung.
-    (hud-score-single-method-24 (_type_ int) net-player) ;; 24
-    )
+  :flag-assert         #x1c00000038
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-score-single-method-24 below is an override of the
+  ;; base slot (proven by the decompiler's own method-set!-derived label
+  ;; staying "24" after hud-item's own count changed), not a new addition.
   )
 
 
@@ -69781,9 +69792,9 @@
   ((force-visible basic  :offset-assert 44)
    (only-humans   basic  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -69791,9 +69802,9 @@
   ((force-visible basic  :offset-assert 44)
    (only-humans   basic  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 
 
@@ -69802,9 +69813,9 @@
   ((ignore-self             basic  :offset-assert 44)
    (active-net-player-count int32  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -69812,9 +69823,9 @@
   ((ignore-self             basic  :offset-assert 44)
    (active-net-player-count int32  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 
 
@@ -69840,9 +69851,9 @@
   ((should-be-visible basic  :offset-assert 44)
    (hide-titles       basic  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -69850,9 +69861,9 @@
   ((should-be-visible basic  :offset-assert 44)
    (hide-titles       basic  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 
 
@@ -69974,9 +69985,9 @@
    (grand-prix        symbol  :offset-assert 52)
    (grand-prix-totals symbol  :offset-assert 56)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x3c
-  :flag-assert         #x180000003c
+  :flag-assert         #x1c0000003c
   )
 
 
@@ -70004,12 +70015,14 @@
    (grand-prix        symbol  :offset-assert 48)
    (grand-prix-totals symbol  :offset-assert 52)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x38
-  :flag-assert         #x1900000038
-  (:methods
-    (hud-rank-name-score-method-24 (_type_ object) none) ;; 24
-    )
+  :flag-assert         #x1c00000038
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-rank-name-score-method-24 below is an override of
+  ;; the base slot (proven by the decompiler's own method-set!-derived label
+  ;; staying "24" after hud-item's own count changed), not a new addition.
   )
 
 
@@ -70032,11 +70045,21 @@
    (stats-type  uint64     :offset-assert 64)
    (pad-tail    uint8 8    :offset-assert 72)
    )
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x50
-  :flag-assert         #x1900000050
+  :flag-assert         #x1d00000050
+  ;; og:preserve-this hud-widgets rung: method 24's own ORIGINAL zero-arg
+  ;; shape (`() none`) is NOT compatible with hud-item's own now-declared
+  ;; method 24 (`(_type_ object) none`, hud-widgets rung, this corpus);
+  ;; goalc's own defmethod type-check proved this directly ("was originally
+  ;; defined as (function _type_ object none), but has been redefined as
+  ;; (function none)") when the mistaken override-removal from this same
+  ;; rung was first tried. hud-results' own method-24 is therefore a
+  ;; genuinely new slot, not an override, landing at 28 (the first free id
+  ;; past hud-results-base's own unchanged 28), renamed from the stale
+  ;; hud-results-method-24 to hud-results-method-28.
   (:methods
-    (hud-results-method-24 () none) ;; 24
+    (hud-results-method-28 () none) ;; 28
     )
   ;; adjudicated: ASSERTS RIGHT (proven), FIELD LIST short 8 trailing bytes.
   ;; (method 3 hud-results) in hud-results_ir2.asm walks the whole inherited
@@ -70072,14 +70095,22 @@
   ((i-got-medal        uint8  :offset-assert 60)
    (has-sent-inc-event basic  :offset-assert 64)
    )
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x44
-  :flag-assert         #x1900000044
+  :flag-assert         #x1d00000044
   ;; og:preserve-this hud-results rung: retyped object -> hud-item-string,
   ;; matching the same fix landed against this same method in goal_src/
   ;; jakx/levels/common/hud-results.gc this rung.
+  ;; og:preserve-this hud-widgets rung: method 24's own 2-arg shape
+  ;; (hud-item-string, float) is NOT compatible with hud-item's own
+  ;; now-declared 1-arg method 24 (hud-widgets rung, this corpus); goalc's
+  ;; own defmethod type-check proved this directly when the mistaken
+  ;; override-removal from this same rung was first tried. A genuinely new
+  ;; slot, not an override, landing at 28 (the first free id past
+  ;; hud-results-base's own unchanged 28), renamed from the stale
+  ;; hud-medal-results-method-24 to hud-medal-results-method-28.
   (:methods
-    (hud-medal-results-method-24 (_type_ hud-item-string float) none) ;; 24
+    (hud-medal-results-method-28 (_type_ hud-item-string float) none) ;; 28
     )
   )
 
@@ -70089,9 +70120,9 @@
   ((player-id int32   :offset-assert 44)
    (stat-type uint64  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x38
-  :flag-assert         #x1800000038
+  :flag-assert         #x1c00000038
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -70099,9 +70130,9 @@
   ((player-id int32   :offset-assert 44)
    (stat-type uint64  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x38
-  :flag-assert         #x1800000038
+  :flag-assert         #x1c00000038
   )
 
 
@@ -70110,9 +70141,9 @@
   ((team-id    int32  :offset-assert 44)
    (team-score int32  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -70120,9 +70151,9 @@
   ((team-id    int32  :offset-assert 44)
    (team-score int32  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 
 
@@ -70133,9 +70164,9 @@
    (red-team-score  int32   :offset-assert 72)
    (blue-team-score int32   :offset-assert 76)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x50
-  :flag-assert         #x1800000050
+  :flag-assert         #x1c00000050
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -70145,43 +70176,43 @@
    (red-team-score  int32   :offset-assert 72)
    (blue-team-score int32   :offset-assert 76)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x50
-  :flag-assert         #x1800000050
+  :flag-assert         #x1c00000050
   )
 
 
 #|
 (deftype hud-results-background-item (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-results-background-item (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
 #|
 (deftype hud-results-background (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-results-background (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
@@ -70422,35 +70453,35 @@
 (deftype hud-high-score (hud-item-group)
   ((position int32  :offset-assert 44)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1800000030
+  :flag-assert         #x1c00000030
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-high-score (hud-item-group)
   ((position int32  :offset-assert 44)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1800000030
+  :flag-assert         #x1c00000030
   )
 
 
 #|
 (deftype hud-high-scores (hud-results-base)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x3c
-  :flag-assert         #x180000003c
+  :flag-assert         #x1c0000003c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-high-scores (hud-results-base)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x3c
-  :flag-assert         #x180000003c
+  :flag-assert         #x1c0000003c
   )
 
 
@@ -70604,20 +70635,28 @@
    (time      int32   :offset-assert 56)
    (last-time int32   :offset-assert 60)
    )
-  :method-count-assert 28
+  :method-count-assert 31
   :size-assert         #x40
-  :flag-assert         #x1c00000040
+  :flag-assert         #x1f00000040
+  ;; og:preserve-this hud-widgets rung: only method 27's own shape
+  ;; ((_type_ object) none) matches hud-item's own now-declared method 27
+  ;; exactly; goalc's own defmethod type-check rejected methods 24 (2-arg),
+  ;; 25 (float arg0) and 26 (2-arg, float return) as overrides directly
+  ;; (arity/type mismatch against hud-item's own base declarations), so
+  ;; those three are genuinely new slots, renamed from the stale 24/25/26 to
+  ;; 28/29/30 (the first free ids past hud-item-group's own unchanged 28).
+  ;; Method 27 keeps no entry here (a pure override of hud-item-method-27).
   (:methods
-    (hud-cash-stats-method-24 (_type_ object object) none) ;; 24
+    (hud-cash-stats-method-28 (_type_ object object) none) ;; 28
     ;; hud-widgets-tier rung: arg0 retyped object -> float. Its only call
-    ;; site (hud-cash-stats-method-24, the same file, held unlanded this
+    ;; site (hud-cash-stats-method-28, the same file, held unlanded this
     ;; rung for an unrelated reason) passes (the float ...) explicitly, and
     ;; the body's own first use is (gpr->fpr arg0), the standard
     ;; bit-reinterpret idiom for a float value that arrived in a plain
     ;; register; goalc rejects that verbatim under the old object typing
     ;; ("No method or function named gpr->fpr for type object"), same class
     ;; as hud-item-method-17's own arg0 fix below.
-    (hud-cash-stats-method-25 (_type_ float) none) ;; 25
+    (hud-cash-stats-method-29 (_type_ float) none) ;; 29
     ;; hud-cash rung: return type retyped to float, not the bare "none"
     ;; placeholder; its own body (this rung's own hud-cash_ir2.asm) ends
     ;; every cond arm by converting a computed float into v0 via
@@ -70625,8 +70664,7 @@
     ;; hud-cash-stats) calls this same slot and mtc1's the result straight
     ;; into float math, flagged "Floating point math attempted on invalid
     ;; types" under the old none typing.
-    (hud-cash-stats-method-26 (_type_ object object) float) ;; 26
-    (hud-cash-stats-method-27 (_type_ object) none) ;; 27
+    (hud-cash-stats-method-30 (_type_ object object) float) ;; 30
     )
   )
 
@@ -70635,18 +70673,18 @@
 (deftype end-menu (hud-item-group)
   ((selection int8  :offset-assert 44)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2d
-  :flag-assert         #x180000002d
+  :flag-assert         #x1c0000002d
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype end-menu (hud-item-group)
   ((selection int8  :offset-assert 44)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2d
-  :flag-assert         #x180000002d
+  :flag-assert         #x1c0000002d
   )
 
 
@@ -70723,9 +70761,9 @@
   ((spawn-time int32  :offset-assert 44)
    (start-time int32  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -70733,9 +70771,9 @@
   ((spawn-time int32  :offset-assert 44)
    (start-time int32  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 
 
@@ -70902,11 +70940,15 @@
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-indicate-death (hud-item-group)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x2c
-  :flag-assert         #x190000002c
+  :flag-assert         #x1d0000002c
+  ;; og:preserve-this hud-widgets rung: method 24's own 2-arg shape
+  ;; (object object) is NOT compatible with hud-item's own now-declared
+  ;; 1-arg method 24; goalc's own defmethod type-check proved this directly.
+  ;; A genuinely new slot, not an override, renamed to method-28.
   (:methods
-    (hud-indicate-death-method-24 (_type_ object object) none) ;; 24
+    (hud-indicate-death-method-28 (_type_ object object) none) ;; 28
     )
   )
 
@@ -71312,9 +71354,9 @@
    (since-exit-time   int32  :offset-assert 56)
    (sent-exit-event   basic  :offset-assert 60)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x40
-  :flag-assert         #x1800000040
+  :flag-assert         #x1c00000040
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -71325,9 +71367,9 @@
    (since-exit-time   int32  :offset-assert 56)
    (sent-exit-event   basic  :offset-assert 60)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x40
-  :flag-assert         #x1800000040
+  :flag-assert         #x1c00000040
   )
 
 
@@ -71563,9 +71605,9 @@
    (points      int32          :offset-assert 108)
    (min-scale   float          :offset-assert 112)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x74
-  :flag-assert         #x1800000074
+  :flag-assert         #x1c00000074
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -71579,9 +71621,9 @@
    (points      int32          :offset-assert 108)
    (min-scale   float          :offset-assert 112)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x74
-  :flag-assert         #x1800000074
+  :flag-assert         #x1c00000074
   )
 
 
@@ -71794,9 +71836,9 @@
 (deftype hud-headset-talker (hud-item-group)
   ((decoder-talk-times uint32 8 :offset-assert 44) ;; offset basis: ancestry fallback, unconfirmed
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x4c
-  :flag-assert         #x180000004c
+  :flag-assert         #x1c0000004c
   )
 |#
 ;; resurrected from the dead block above (hud-follow-through rung): top-level-login
@@ -71808,9 +71850,9 @@
 (deftype hud-headset-talker (hud-item-group)
   ((decoder-talk-times uint32 8 :offset-assert 44) ;; offset basis: ancestry fallback, unconfirmed
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x4c
-  :flag-assert         #x180000004c
+  :flag-assert         #x1c0000004c
   )
 
 #|
@@ -71925,17 +71967,16 @@
 ;; generic object already declared here to float on that evidence.
 (deftype hud-bar-slider (hud-item-group)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x2c
-  :flag-assert         #x190000002c
+  :flag-assert         #x1d0000002c
+  ;; og:preserve-this hud-widgets rung: method 24's own float arg0 is NOT
+  ;; compatible with hud-item's own now-declared object-typed method 24
+  ;; once that slot's own type is locked in by an earlier-compiling
+  ;; override; goalc's own defmethod type-check proved this directly. A
+  ;; genuinely new slot, not an override, renamed to method-28.
   (:methods
-    ;; in-game-menu-hud rung: arg0 retyped float, not the bare "object"
-    ;; placeholder; the body (this rung's own in-game-menu-hud_ir2.asm)
-    ;; converts it straight into an fpr and multiplies it against a scale
-    ;; factor with no other use, flagged "Floating point math attempted on
-    ;; invalid types" under the old object typing, the same defect class as
-    ;; (method 17 hud-item) fixed earlier this session.
-    (hud-bar-slider-method-24 (_type_ float) none) ;; 24
+    (hud-bar-slider-method-28 (_type_ float) none) ;; 28
     )
   )
 
@@ -71946,20 +71987,24 @@
    (old-clock-ratio float 22    :offset-assert 60)
    (sound-id        uint32      :offset-assert 148)
    )
-  :method-count-assert 26
+  :method-count-assert 30
   :size-assert         #x98
-  :flag-assert         #x1a00000098
+  :flag-assert         #x1e00000098
+  ;; og:preserve-this hud-widgets rung: methods 24/25's own zero-arg shape is
+  ;; NOT compatible with hud-item's own now-declared 1-arg methods 24/25;
+  ;; goalc's own defmethod type-check proved this directly. Genuinely new
+  ;; slots, not overrides, renamed to 28/29.
   (:methods
-    (in-game-menu-hud-method-24 (_type_) none) ;; 24
-    (in-game-menu-hud-method-25 (_type_) none) ;; 25
+    (in-game-menu-hud-method-28 (_type_) none) ;; 28
+    (in-game-menu-hud-method-29 (_type_) none) ;; 29
     )
   )
 
 (deftype in-game-menu-hud-options (in-game-menu-hud)
   ()
-  :method-count-assert 26
+  :method-count-assert 30
   :size-assert         #x98
-  :flag-assert         #x1a00000098
+  :flag-assert         #x1e00000098
   )
 
 
@@ -72464,11 +72509,15 @@
   :method-count-assert 36
   :size-assert         #xe4
   :flag-assert         #x24000000e4
+  ;; og:preserve-this hud-widgets rung: methods 24/25/26/27 dropped from this
+  ;; type's own :methods list; hud-item now declares those slots itself
+  ;; (hud-widgets rung, this corpus), and hud-player-positions-method-24/25/
+  ;; 26/27 (not shown here, held elsewhere) are overrides of the base slots,
+  ;; proven by the decompiler's own method-set!-derived labels staying at
+  ;; their original numbers after hud-item's own count changed. Methods
+  ;; 28-35 below are this type's genuinely own new slots (already beyond
+  ;; hud-item's real range in the original decode), unrenumbered.
   (:methods
-    (hud-player-positions-method-24 () none) ;; 24
-    (hud-player-positions-method-25 () none) ;; 25
-    (hud-player-positions-method-26 () none) ;; 26
-    (hud-player-positions-method-27 () none) ;; 27
     (hud-player-positions-method-28 () none) ;; 28
     (hud-player-positions-method-29 () none) ;; 29
     (hud-player-positions-method-30 () none) ;; 30
@@ -72493,11 +72542,15 @@
   :method-count-assert 36
   :size-assert         #xe4
   :flag-assert         #x24000000e4
+  ;; og:preserve-this hud-widgets rung: methods 24/25/26/27 dropped from this
+  ;; type's own :methods list; hud-item now declares those slots itself
+  ;; (hud-widgets rung, this corpus), and hud-player-positions-method-24/25/
+  ;; 26/27 (not shown here, held elsewhere) are overrides of the base slots,
+  ;; proven by the decompiler's own method-set!-derived labels staying at
+  ;; their original numbers after hud-item's own count changed. Methods
+  ;; 28-35 below are this type's genuinely own new slots (already beyond
+  ;; hud-item's real range in the original decode), unrenumbered.
   (:methods
-    (hud-player-positions-method-24 () none) ;; 24
-    (hud-player-positions-method-25 () none) ;; 25
-    (hud-player-positions-method-26 () none) ;; 26
-    (hud-player-positions-method-27 () none) ;; 27
     (hud-player-positions-method-28 () none) ;; 28
     (hud-player-positions-method-29 () none) ;; 29
     (hud-player-positions-method-30 () none) ;; 30
@@ -72524,13 +72577,15 @@
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-player-progress (hud-item-group)
   ()
-  :method-count-assert 26
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x1a0000002c
-  (:methods
-    (hud-player-progress-method-24 (_type_) none) ;; 24
-    (hud-player-progress-method-25 () none) ;; 25
-    )
+  :flag-assert         #x1c0000002c
+  ;; og:preserve-this hud-widgets rung: methods 24/25 dropped from this type's
+  ;; own :methods list; hud-item now declares slots 24/25 itself (hud-widgets
+  ;; rung, this corpus), and hud-player-progress-method-24/25 below are
+  ;; overrides of the base slots (proven by the decompiler's own
+  ;; method-set!-derived labels staying at their original numbers after
+  ;; hud-item's own count changed), not new additions of this type's own.
   )
 
 
@@ -72758,9 +72813,9 @@
   ((player-id int32  :offset-assert 44)
    (health    float  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
@@ -72768,9 +72823,9 @@
   ((player-id int32  :offset-assert 44)
    (health    float  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x34
-  :flag-assert         #x1800000034
+  :flag-assert         #x1c00000034
   )
 
 
@@ -73459,12 +73514,14 @@
    (angle float   :offset-assert 48)
    (side  uint64  :offset-assert 56)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x40
-  :flag-assert         #x1900000040
-  (:methods
-    (hud-vehicle-large-bar-method-24 (_type_ object) none) ;; 24
-    )
+  :flag-assert         #x1c00000040
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-vehicle-large-bar-method-24 below is an override of
+  ;; the base slot (proven by the decompiler's own method-set!-derived label
+  ;; staying "24" after hud-item's own count changed), not a new addition.
   )
 
 
@@ -73493,19 +73550,15 @@
    (part-filled basic   :offset-assert 64)
    (part-init   basic   :offset-assert 68)
    )
-  :method-count-assert 26
+  :method-count-assert 28
   :size-assert         #x48
-  :flag-assert         #x1a00000048
-  (:methods
-    ;; wvehicle-hud-tier rung: arg0 retyped object -> float. Body converts
-    ;; it straight into an fpr and clamps it into [0.0, 1.0] via min.s/max.s
-    ;; with no other use ("Floating point math attempted on invalid types:
-    ;; float and object in op (min.s f1-0 f2-0)" with the old object
-    ;; typing), matching the eco-bar's own fill fraction. wvehicle-hud_ir2.asm,
-    ;; this rung.
-    (hud-vehicle-eco-bar-method-24 (_type_ float) none) ;; 24
-    (hud-vehicle-eco-bar-method-25 (_type_ object) none) ;; 25
-    )
+  :flag-assert         #x1c00000048
+  ;; og:preserve-this hud-widgets rung: methods 24/25 dropped from this type's
+  ;; own :methods list; hud-item now declares slots 24/25 itself (hud-widgets
+  ;; rung, this corpus), and hud-vehicle-eco-bar-method-24/25 below are
+  ;; overrides of the base slots (proven by the decompiler's own
+  ;; method-set!-derived labels staying at their original numbers after
+  ;; hud-item's own count changed), not new additions of this type's own.
   )
 
 
@@ -73513,18 +73566,18 @@
 (deftype hud-vehicle-ammo (hud-item-group)
   ((side uint64  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x38
-  :flag-assert         #x1800000038
+  :flag-assert         #x1c00000038
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-vehicle-ammo (hud-item-group)
   ((side uint64  :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x38
-  :flag-assert         #x1800000038
+  :flag-assert         #x1c00000038
   )
 
 
@@ -73572,12 +73625,14 @@
    (hud-w-stelnova-01                basic   :offset-assert 164)
    (hud-w-clone-car-01               basic   :offset-assert 212)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #xd8
-  :flag-assert         #x19000000d8
-  (:methods
-    (hud-weapon-field-method-24 () none) ;; 24
-    )
+  :flag-assert         #x1c000000d8
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-weapon-field-method-24 below is an override of the
+  ;; base slot (proven by the decompiler's own method-set!-derived label
+  ;; staying "24" after hud-item's own count changed), not a new addition.
   )
 |#
 ;; resurrected from the dead block above (hud-widgets-tier rung): every
@@ -73636,45 +73691,47 @@
    (hud-w-unknown-208                basic   :offset-assert 208)
    (hud-w-clone-car-01               basic   :offset-assert 212)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #xd8
-  :flag-assert         #x19000000d8
-  (:methods
-    (hud-weapon-field-method-24 () none) ;; 24
-    )
+  :flag-assert         #x1c000000d8
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-weapon-field-method-24 below is an override of the
+  ;; base slot (proven by the decompiler's own method-set!-derived label
+  ;; staying "24" after hud-item's own count changed), not a new addition.
   )
 
 #|
 (deftype hud-vehicle-left (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-vehicle-left (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
 #|
 (deftype hud-vehicle-right (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-vehicle-right (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
@@ -75051,11 +75108,15 @@
 (deftype hud-health (hud-item-group)
   ((health float  :offset-assert 44)
    )
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x30
-  :flag-assert         #x1900000030
+  :flag-assert         #x1d00000030
+  ;; og:preserve-this hud-widgets rung: method 24's own 2-arg shape (float,
+  ;; net-player) is NOT compatible with hud-item's own now-declared 1-arg
+  ;; method 24; goalc's own defmethod type-check proved this directly. A
+  ;; genuinely new slot, not an override, renamed to method-28.
   (:methods
-    (hud-health-method-24 (_type_ float net-player) none) ;; 24
+    (hud-health-method-28 (_type_ float net-player) none) ;; 28
     )
   )
 
@@ -75106,13 +75167,17 @@
    (no-direction-indicator basic          :offset-assert 108)
    (indicator-alpha        float          :offset-assert 112)
    )
-  :method-count-assert 27
+  :method-count-assert 31
   :size-assert         #x74
-  :flag-assert         #x1b00000074
+  :flag-assert         #x1f00000074
+  ;; og:preserve-this hud-widgets rung: none of methods 24 (0-arg), 25
+  ;; (2-arg) or 26 (4-arg) match hud-item's own now-declared 1-arg slots;
+  ;; goalc's own defmethod type-check proved this directly. Genuinely new
+  ;; slots, not overrides, renamed 24/25/26 -> 28/29/30.
   (:methods
-    (hud-indicator-method-24 (_type_) none) ;; 24
-    (hud-indicator-method-25 (_type_ object object) none) ;; 25
-    (hud-indicator-method-26 (_type_ vector vector float float) none) ;; 26 ;; og:preserve-this hud-player-indicators rung: gains a second float arg, landing in t0; the old three-arg signature flagged "may read a register that is not set: t0" (hud-player-indicators_ir2.asm), the body converts it straight into an fpr for a min/max clamp against the same on-screen bounds box the first float already clamps
+    (hud-indicator-method-28 (_type_) none) ;; 28
+    (hud-indicator-method-29 (_type_ object object) none) ;; 29
+    (hud-indicator-method-30 (_type_ vector vector float float) none) ;; 30 ;; og:preserve-this hud-player-indicators rung: gains a second float arg, landing in t0; the old three-arg signature flagged "may read a register that is not set: t0" (hud-player-indicators_ir2.asm), the body converts it straight into an fpr for a min/max clamp against the same on-screen bounds box the first float already clamps
     )
   )
 
@@ -75140,11 +75205,15 @@
 ;; twin read in (method 19 hud-assassin-indicators)), returning #t/#f.
 (deftype hud-player-indicators (hud-item-group)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x2c
-  :flag-assert         #x190000002c
+  :flag-assert         #x1d0000002c
+  ;; og:preserve-this hud-widgets rung: method 24's own (net-player)->symbol
+  ;; shape is NOT compatible with hud-item's own now-declared 1-arg
+  ;; (object)->none method 24; goalc's own defmethod type-check proved this
+  ;; directly. A genuinely new slot, not an override, renamed to method-28.
   (:methods
-    (hud-player-indicators-method-24 (_type_ net-player) symbol) ;; 24
+    (hud-player-indicators-method-28 (_type_ net-player) symbol) ;; 28
     )
   )
 
@@ -75152,34 +75221,34 @@
 #|
 (deftype hud-artifact-indicators (hud-player-indicators)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x2c
-  :flag-assert         #x190000002c
+  :flag-assert         #x1d0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-artifact-indicators (hud-player-indicators)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x2c
-  :flag-assert         #x190000002c
+  :flag-assert         #x1d0000002c
   )
 
 
 #|
 (deftype hud-assassin-indicators (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-assassin-indicators (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
@@ -77518,17 +77587,17 @@
 #|
 (deftype hud-ctf-indicators (hud-player-indicators)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x2c
-  :flag-assert         #x190000002c
+  :flag-assert         #x1d0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-ctf-indicators (hud-player-indicators)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x2c
-  :flag-assert         #x190000002c
+  :flag-assert         #x1d0000002c
   )
 
 
@@ -77591,18 +77660,18 @@
 (deftype hud-hunt-indicators (hud-item-group)
   ((last-position vector :inline :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x40
-  :flag-assert         #x1800000040
+  :flag-assert         #x1c00000040
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-hunt-indicators (hud-item-group)
   ((last-position vector :inline :offset-assert 48)
    )
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x40
-  :flag-assert         #x1800000040
+  :flag-assert         #x1c00000040
   )
 
 
@@ -78311,17 +78380,17 @@
 #|
 (deftype hud-item-football-lap (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-item-football-lap (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
@@ -78339,29 +78408,31 @@
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-powerbar-slider (hud-item-group)
   ()
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x190000002c
-  (:methods
-    (hud-powerbar-slider-method-24 (_type_ object) none) ;; 24
-    )
+  :flag-assert         #x1c0000002c
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-powerbar-slider-method-24 below is an override of
+  ;; the base slot (proven by the decompiler's own method-set!-derived label
+  ;; staying "24" after hud-item's own count changed), not a new addition.
   )
 
 
 #|
 (deftype hud-football-turbojuice-meter (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-football-turbojuice-meter (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
@@ -78820,34 +78891,34 @@
 #|
 (deftype hud-time-collected (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-time-collected (hud-item-group)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
 #|
 (deftype time-freeze-clock (hud-clock)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x48
-  :flag-assert         #x1900000048
+  :flag-assert         #x1d00000048
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype time-freeze-clock (hud-clock)
   ()
-  :method-count-assert 25
+  :method-count-assert 29
   :size-assert         #x48
-  :flag-assert         #x1900000048
+  :flag-assert         #x1d00000048
   )
 
 
@@ -79370,34 +79441,34 @@
 #|
 (deftype hud-vehicle-left-training (hud-vehicle-left)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-vehicle-left-training (hud-vehicle-left)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 
 #|
 (deftype hud-vehicle-right-training (hud-vehicle-right)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-vehicle-right-training (hud-vehicle-right)
   ()
-  :method-count-assert 24
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x180000002c
+  :flag-assert         #x1c0000002c
   )
 
 

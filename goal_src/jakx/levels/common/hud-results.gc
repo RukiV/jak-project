@@ -24,19 +24,22 @@
 (deftype hud-player-icon (hud-item-group)
   ((player-id int32  :offset-assert 44)
    )
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1900000030
-  (:methods
-    (hud-player-icon-method-24 (_type_ object) none) ;; 24
-    )
+  :flag-assert         #x1c00000030
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-player-icon-method-24 (defined once hud-widgets.gc
+  ;; lands) is an override of the base slot (proven by the decompiler's own
+  ;; method-set!-derived label staying "24" after hud-item's own count
+  ;; changed), not a new addition.
   )
 
 (deftype hud-player-icon-name (hud-player-icon)
   ()
-  :method-count-assert 25
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1900000030
+  :flag-assert         #x1c00000030
   )
 
 (deftype hud-localized-string (hud-item-string)
@@ -220,9 +223,9 @@
 ;; og:preserve-this hud-results rung: arg0 retyped object -> hud-item-
 ;; string; the decompiler could not narrow a free function's own arg type
 ;; the way a method dispatch would, but every call site in this body
-;; (hud-item-string-method-24/26, and the pre-existing (the-as hud-item-
+;; (hud-item-method-24/26, and the pre-existing (the-as hud-item-
 ;; string arg0) cast just below) already treats it as one ("No method or
-;; function named hud-item-string-method-24 for type object" without
+;; function named hud-item-method-24 for type object" without
 ;; this retype).
 ;; WARN: Return type mismatch none vs object.
 (defun set-stats-text ((arg0 hud-item-string) (arg1 object) (arg2 net-player-race))
@@ -241,37 +244,37 @@
                  )
             (s4-0 a0-3 (the-as time-frame (the int (* f0-0 (the float (the int (+ 0.5 f1-1)))))))
             )
-          (hud-item-string-method-24 arg0 *temp-string*)
+          (hud-item-method-24 arg0 *temp-string*)
           )
          (else
-           (hud-item-string-method-26 arg0 (-> arg2 score))
+           (hud-item-method-26 arg0 (-> arg2 score))
            )
          )
        )
       ((= v1-1 1)
-       (let ((s4-1 (method-of-object (the-as hud-item-string arg0) hud-item-string-method-24)))
+       (let ((s4-1 (method-of-object (the-as hud-item-string arg0) hud-item-method-24)))
          (format (clear *temp-string*) "~,,2f" (-> arg2 best-power-slide))
          (s4-1 (the-as hud-item-string arg0) *temp-string*)
          )
        )
       ((= v1-1 2)
        (print-time (clear *temp-string*) (the-as time-frame (-> arg2 best-hang-time)))
-       (hud-item-string-method-24 arg0 *temp-string*)
+       (hud-item-method-24 arg0 *temp-string*)
        )
       ((= v1-1 3)
-       (hud-item-string-method-26 arg0 (-> arg2 kills))
+       (hud-item-method-26 arg0 (-> arg2 kills))
        )
       ((= v1-1 4)
-       (hud-item-string-method-26 arg0 (-> arg2 deaths))
+       (hud-item-method-26 arg0 (-> arg2 deaths))
        )
       ((= v1-1 6)
-       (hud-item-string-method-26
+       (hud-item-method-26
          arg0
          (-> (the-as (pointer int32) (+ (* (net-player-method-71 arg2) 4) (the-as int *game-info*))) 377)
          )
        )
       ((= v1-1 7)
-       (hud-item-string-method-26
+       (hud-item-method-26
          arg0
          (-> (the-as (pointer int32) (+ (* (net-player-method-71 arg2) 4) (the-as int *game-info*))) 400)
          )
@@ -547,9 +550,11 @@
    (grand-prix         symbol)
    (grand-prix-totals  symbol)
    )
-  (:methods
-    (hud-rank-name-score-method-24 (_type_ object) none)
-    )
+  ;; og:preserve-this hud-widgets rung: method 24 dropped from this type's own
+  ;; :methods list; hud-item now declares that slot itself (hud-widgets rung,
+  ;; this corpus), and hud-item-method-24 below is an override of
+  ;; the base slot (proven by the decompiler's own method-set!-derived label
+  ;; staying "24" after hud-item's own count changed), not a new addition.
   )
 
 ;; definition for method 3 of type hud-rank-name-score
@@ -587,7 +592,7 @@
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch object vs none.
 ;; WARN: Function (method 24 hud-rank-name-score) has a return type of none, but the expression builder found a return statement.
-(defmethod hud-rank-name-score-method-24 ((this hud-rank-name-score) (arg0 object))
+(defmethod hud-item-method-24 ((this hud-rank-name-score) (arg0 object))
   (local-vars (a1-4 int))
   (let ((sv-16 (-> (the-as hud-item-group (-> this items 1)) items 0))
         (s0-0 (-> (the-as hud-item-group (-> this items 1)) items 1))
@@ -604,7 +609,7 @@
       ;; checks for the decoded text but not for the real static dispatch
       ;; goalc performs here ("No method or function named hud-item-
       ;; string-method-24 for type hud-item" without the cast).
-      (hud-item-string-method-24 (the-as hud-item-string (-> this items 0)) (-> s4-0 player-id))
+      (hud-item-method-24 (the-as hud-item-string (-> this items 0)) (-> s4-0 player-id))
       (if (= (-> this player-id) (+ (view-get-active-index) (* (if *net-mgr*
                                                                    (-> *net-mgr* game-state local-machine-idx)
                                                                    0
@@ -616,7 +621,7 @@
           (set! (-> (the-as hud-item-string s1-0) color) (the-as uint 56))
           (set! (-> (the-as hud-item-string s1-0) color) (the-as uint 57))
           )
-      ((method-of-object (the-as hud-item-string sv-16) hud-item-string-method-26)
+      ((method-of-object (the-as hud-item-string sv-16) hud-item-method-26)
        (the-as hud-item-string sv-16)
        (+ sv-32 1)
        )
@@ -639,7 +644,7 @@
       ;; cast to hud-item-string at their own call sites below, the same
       ;; class of compile-only cast as (-> this items 0) above (all three
       ;; come off items sub-accesses the decompiler printed generic).
-      (hud-item-string-method-25 (the-as hud-item-string s0-0) a1-4)
+      (hud-item-method-25 (the-as hud-item-string s0-0) a1-4)
       ;; og:preserve-this hud-results rung: the arg1 offset sum below
       ;; needs an explicit (pointer uint8) cast; string<-charp declares
       ;; that exact arg type, but the decompiler printed the raw pointer
@@ -688,7 +693,7 @@
                 ;; to hud-item-string at both its own call sites below,
                 ;; the same class of compile-only cast as (-> this items
                 ;; 0) above.
-                (hud-item-string-method-24 (the-as hud-item-string s5-0) "--:--:--")
+                (hud-item-method-24 (the-as hud-item-string s5-0) "--:--:--")
                 (return #f)
                 )
               )
@@ -707,8 +712,14 @@
    (stats-type   uint64)
    (pad-tail     uint8  8)
    )
+  ;; og:preserve-this hud-widgets rung: this type's own method 24 is zero-arg
+  ;; (`() none`), not compatible with hud-item's own now-declared 1-arg
+  ;; method 24; goalc's own defmethod type-check proved this directly. A
+  ;; genuinely new slot, not an override, renamed to method-28 (the first
+  ;; free id past hud-results-base's own unchanged 28); see the matching
+  ;; all-types.gc comment for the full evidence.
   (:methods
-    (hud-results-method-24 () none)
+    (hud-results-method-28 () none)
     )
   )
 
@@ -748,13 +759,13 @@
   this
   )
 
-;; definition for method 24 of type hud-results
+;; definition for method 28 of type hud-results
 ;; og:preserve-this hud-results rung: zero-arg-method printer bug (issue
 ;; 483), fixed with the explicit-type-name defmethod form already landed
 ;; for vehicle-method-180, process-nettable-method-28 and net-powerup-
 ;; method-55 ("Method type must be a symbol, got ()" without it).
 ;; WARN: Return type mismatch symbol vs none.
-(defmethod hud-results-method-24 hud-results () (case (if *net-world*
+(defmethod hud-results-method-28 hud-results () (case (if *net-world*
                                             (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
                                             18
                                             )
@@ -961,13 +972,13 @@
     )
   (cond
     ((and (-> this grand-prix) (not (-> this grand-prix-totals)))
-     (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 3283)
+     (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 3283)
      )
     ((is-nonstandard-mode?)
-     (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 4273)
+     (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 4273)
      )
     (else
-      (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 3284)
+      (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 3284)
       )
     )
   (none)
@@ -1008,11 +1019,16 @@
    )
   ;; og:preserve-this hud-results rung: method 24's own arg0 retyped
   ;; object -> hud-item-string; every call site in this file passes a
-  ;; hud-item-string and the body dispatches hud-item-string-method-24/26
+  ;; hud-item-string and the body dispatches hud-item-method-24/26
   ;; on it directly with no cast ("No method or function named hud-item-
   ;; string-method-24 for type object" without the retype).
+  ;; og:preserve-this hud-widgets rung: this type's own method 24 takes two
+  ;; args (hud-item-string, float), not compatible with hud-item's own
+  ;; now-declared 1-arg method 24; goalc's own defmethod type-check proved
+  ;; this directly. A genuinely new slot, not an override, renamed to
+  ;; method-28 (the first free id past hud-results-base's own unchanged 28).
   (:methods
-    (hud-medal-results-method-24 (_type_ hud-item-string float) none)
+    (hud-medal-results-method-28 (_type_ hud-item-string float) none)
     )
   )
 
@@ -1051,17 +1067,17 @@
   )
 
 ;; definition for method 24 of type hud-medal-results
-(defmethod hud-medal-results-method-24 ((this hud-medal-results) (arg0 hud-item-string) (arg1 float))
+(defmethod hud-medal-results-method-28 ((this hud-medal-results) (arg0 hud-item-string) (arg1 float))
   (case (if *net-world*
             (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
             18
             )
     ((2)
      (print-time (clear *temp-string*) (the-as time-frame (the int (* 300.0 arg1))))
-     (hud-item-string-method-24 arg0 *temp-string*)
+     (hud-item-method-24 arg0 *temp-string*)
      )
     (else
-      (hud-item-string-method-26 arg0 (the int arg1))
+      (hud-item-method-26 arg0 (the int arg1))
       )
     )
   (none)
@@ -1195,8 +1211,8 @@
       (hud-item-method-21 (-> this items 9))
       )
   (if (is-nonstandard-mode?)
-      (hud-item-string-method-25 (the-as hud-item-string (-> this items 9)) 3283)
-      (hud-item-string-method-25 (the-as hud-item-string (-> this items 9)) 3284)
+      (hud-item-method-25 (the-as hud-item-string (-> this items 9)) 3283)
+      (hud-item-method-25 (the-as hud-item-string (-> this items 9)) 3284)
       )
   (hud-item-method-12 (-> this items 9))
   (hud-item-method-14 (-> this items 9))
@@ -1208,7 +1224,7 @@
      (let ((s5-1 (-> *net-players* 0)))
        (when s5-1
          (let* ((s4-0 (-> (the-as hud-item-group (-> this items 3)) items 1))
-                (s3-0 (method-of-object (the-as hud-item-string s4-0) hud-item-string-method-24))
+                (s3-0 (method-of-object (the-as hud-item-string s4-0) hud-item-method-24))
                 )
            (format
              (clear *temp-string*)
@@ -1243,33 +1259,33 @@
                       )
                   )
             )
-        (hud-medal-results-method-24 this (the-as hud-item-string a1-5) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 19))
-        (hud-medal-results-method-24 this (the-as hud-item-string s3-1) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 17))
-        (hud-medal-results-method-24 this (the-as hud-item-string s4-1) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 15))
+        (hud-medal-results-method-28 this (the-as hud-item-string a1-5) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 19))
+        (hud-medal-results-method-28 this (the-as hud-item-string s3-1) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 17))
+        (hud-medal-results-method-28 this (the-as hud-item-string s4-1) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 15))
         )
       (let ((s4-2 (-> this items 1))
             (s5-3 (-> (the-as hud-item-group (-> this items 2)) items 0))
             )
         (cond
           ((is-nonstandard-mode?)
-           (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 4473 #f))
-           (hud-item-string-method-24 (the-as hud-item-string s5-3) #f)
+           (hud-item-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 4473 #f))
+           (hud-item-method-24 (the-as hud-item-string s5-3) #f)
            )
           ((begin (set! v1-83 (-> this i-got-medal)) (= v1-83 1))
-           (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2032 #f))
-           (hud-item-string-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11c :page #x9)))
+           (hud-item-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2032 #f))
+           (hud-item-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11c :page #x9)))
            )
           ((= v1-83 2)
-           (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2031 #f))
-           (hud-item-string-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11e :page #x9)))
+           (hud-item-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2031 #f))
+           (hud-item-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11e :page #x9)))
            )
           ((= v1-83 3)
-           (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2030 #f))
-           (hud-item-string-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11d :page #x9)))
+           (hud-item-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2030 #f))
+           (hud-item-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11d :page #x9)))
            )
           (else
-            (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2029 #f))
-            (hud-item-string-method-24 (the-as hud-item-string s5-3) #f)
+            (hud-item-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2029 #f))
+            (hud-item-method-24 (the-as hud-item-string s5-3) #f)
             )
           )
         )
@@ -1332,25 +1348,25 @@
                    )
               (cond
                 ((not (time-elapsed? (the-as time-frame (-> this start-time)) (seconds 4.5)))
-                 (hud-medal-results-method-24 this (the-as hud-item-string s5-4) (+ 10.0 f30-0))
+                 (hud-medal-results-method-28 this (the-as hud-item-string s5-4) (+ 10.0 f30-0))
                  )
                 (else
                   (when (not (-> this has-sent-inc-event))
                     (send-event *current-hud* 'bonus-time-show)
                     (set! (-> this has-sent-inc-event) (the-as basic #t))
                     )
-                  (hud-medal-results-method-24 this (the-as hud-item-string s5-4) f30-0)
+                  (hud-medal-results-method-28 this (the-as hud-item-string s5-4) f30-0)
                   )
                 )
               )
              (else
-               (hud-medal-results-method-24 this (the-as hud-item-string s5-4) f30-0)
+               (hud-medal-results-method-28 this (the-as hud-item-string s5-4) f30-0)
                )
              )
            )
          )
         (else
-          (hud-medal-results-method-24 this (the-as hud-item-string s5-4) f30-0)
+          (hud-medal-results-method-28 this (the-as hud-item-string s5-4) f30-0)
           )
         )
       )
@@ -1523,7 +1539,7 @@
     )
   (let ((s5-1 (-> this items 1)))
     (set! (-> this team-score) (max (calc-team-score (-> this team-id)) (-> this team-score)))
-    (hud-item-string-method-26 (the-as hud-item-string s5-1) (-> this team-score))
+    (hud-item-method-26 (the-as hud-item-string s5-1) (-> this team-score))
     )
   (none)
   )

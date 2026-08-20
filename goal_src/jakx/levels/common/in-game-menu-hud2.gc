@@ -22,9 +22,13 @@
    (old-clock-ratio float 22)
    (sound-id        uint32)
    )
+  ;; og:preserve-this hud-widgets rung: methods 24/25's own zero-arg shape is
+  ;; NOT compatible with hud-item's own now-declared 1-arg methods 24/25;
+  ;; goalc's own defmethod type-check proved this directly. Genuinely new
+  ;; slots, not overrides, renamed to 28/29 (defined in in-game-menu-hud.gc).
   (:methods
-    (in-game-menu-hud-method-24 (_type_) none)
-    (in-game-menu-hud-method-25 (_type_) none)
+    (in-game-menu-hud-method-28 (_type_) none)
+    (in-game-menu-hud-method-29 (_type_) none)
     )
   )
 
@@ -34,8 +38,13 @@
 
 (deftype hud-bar-slider (hud-item-group)
   ()
+  ;; og:preserve-this hud-widgets rung: method 24's own float arg0 is NOT
+  ;; compatible with hud-item's own now-declared object-typed method 24;
+  ;; goalc's own defmethod type-check proved this directly. A genuinely new
+  ;; slot, not an override, renamed to method-28 (defined in
+  ;; in-game-menu-hud.gc).
   (:methods
-    (hud-bar-slider-method-24 (_type_ float) none)
+    (hud-bar-slider-method-28 (_type_ float) none)
     )
   )
 
@@ -1859,7 +1868,7 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
        (set! *in-game-menu-process* (the-as (pointer process) #f))
        (set-master-mode 'game)
-       (in-game-menu-hud-method-25 this)
+       (in-game-menu-hud-method-29 this)
        (deactivate *current-hud*)
        )
       ((cpad-pressed? (view-get-active-index) x)
@@ -1881,7 +1890,7 @@
            ((or (zero? v1-109) (= v1-109 526))
             (set! *in-game-menu-process* (the-as (pointer process) #f))
             (set-master-mode 'game)
-            (in-game-menu-hud-method-25 this)
+            (in-game-menu-hud-method-29 this)
             (deactivate *current-hud*)
             )
            ((or (zero? v1-109) (= v1-109 127))
@@ -1899,7 +1908,7 @@
             (deactivate *current-hud*)
             )
            ((or (zero? v1-109) (= v1-109 28))
-            (in-game-menu-hud-method-25 this)
+            (in-game-menu-hud-method-29 this)
             (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu-options))))
             (set! (-> *in-game-menu-struct* last-selection-index) (-> this selection-index))
             (deactivate *current-hud*)
@@ -1989,7 +1998,7 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons triangle))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-       (in-game-menu-hud-method-25 this)
+       (in-game-menu-hud-method-29 this)
        (if (and (handle->process (-> *game-info* player-info (view-get-active-index) vehicle))
                 (nonzero? suppress-look-start)
                 )
@@ -2011,9 +2020,9 @@
     ;; already resolved the method name correctly; the raw form does not
     ;; compile without the explicit cast added here.
     (dotimes (s4-25 s5-0)
-      (hud-item-string-method-27 (the-as hud-item-string (-> this items s4-25)) 52)
+      (hud-item-method-27 (the-as hud-item-string (-> this items s4-25)) 52)
       (if (= s4-25 (-> this selection-index))
-          (hud-item-string-method-27 (the-as hud-item-string (-> this items s4-25)) 51)
+          (hud-item-method-27 (the-as hud-item-string (-> this items s4-25)) 51)
           )
       )
     )
@@ -2175,7 +2184,7 @@
       ((cpad-pressed? (view-get-active-index) start)
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-       (in-game-menu-hud-method-25 this)
+       (in-game-menu-hud-method-29 this)
        (set! *in-game-menu-process* (the-as (pointer process) #f))
        (set-master-mode 'game)
        (deactivate *current-hud*)
@@ -2185,7 +2194,7 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons triangle))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-       (in-game-menu-hud-method-25 this)
+       (in-game-menu-hud-method-29 this)
        (let ((v1-187 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
          (cond
            (v1-187
@@ -2224,14 +2233,14 @@
              (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                    (the-as uint 16)
                    )
-             (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
+             (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
              )
             (else
               (set! (-> *setting-control* user-default unknown-usd-8) (the-as basic #t))
               (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                     (the-as uint 15)
                     )
-              (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
+              (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
               )
             )
           (let ((v1-237 (make-sound-instance (-> *sound-info* 348) (new 'static 'sound-id) (the-as handle #f))))
@@ -2264,14 +2273,14 @@
              (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                    (the-as uint 16)
                    )
-             (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
+             (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
              )
             (else
               (set! (-> *setting-control* user-default unknown-usd-3) (the-as basic #t))
               (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                     (the-as uint 15)
                     )
-              (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
+              (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
               )
             )
           (let ((v1-303 (make-sound-instance (-> *sound-info* 348) (new 'static 'sound-id) (the-as handle #f))))
@@ -2304,14 +2313,14 @@
              (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                    (the-as uint 16)
                    )
-             (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
+             (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
              )
             (else
               (set! (-> *setting-control* user-default unknown-usd-6) (the-as basic #t))
               (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                     (the-as uint 15)
                     )
-              (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
+              (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
               )
             )
           (let ((v1-369 (make-sound-instance (-> *sound-info* 348) (new 'static 'sound-id) (the-as handle #f))))
@@ -2344,14 +2353,14 @@
              (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                    (the-as uint 16)
                    )
-             (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
+             (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 16)
              )
             (else
               (set! (-> *setting-control* user-default unknown-usd-7) (the-as basic #t))
               (set! (-> (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) text-id)
                     (the-as uint 15)
                     )
-              (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
+              (hud-item-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 (-> this selection-index))) items 1)) 15)
               )
             )
           (let ((v1-435 (make-sound-instance (-> *sound-info* 348) (new 'static 'sound-id) (the-as handle #f))))
@@ -2380,9 +2389,9 @@
       0
       )
     (dotimes (s4-57 (-> s5-0 length))
-      (hud-item-string-method-27 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 s4-57)) items 0)) 52)
+      (hud-item-method-27 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 s4-57)) items 0)) 52)
       (if (= s4-57 (-> this selection-index))
-          (hud-item-string-method-27 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 s4-57)) items 0)) 51)
+          (hud-item-method-27 (the-as hud-item-string (-> (the-as hud-item-group (-> s5-0 s4-57)) items 0)) 51)
           )
       )
     )
@@ -2395,9 +2404,9 @@
   (set! (-> *setting-control* user-default music-volume)
         (fmax 0.0 (fmin 1.0 (-> *setting-control* user-default music-volume)))
         )
-  (hud-item-string-method-24 (the-as hud-item-string (-> this items 0)) (-> *setting-control* user-default sfx-volume))
-  (hud-item-string-method-24 (the-as hud-item-string (-> this items 1)) (-> *setting-control* user-default dialog-volume))
-  (hud-item-string-method-24 (the-as hud-item-string (-> this items 2)) (-> *setting-control* user-default music-volume))
+  (hud-item-method-24 (the-as hud-item-string (-> this items 0)) (-> *setting-control* user-default sfx-volume))
+  (hud-item-method-24 (the-as hud-item-string (-> this items 1)) (-> *setting-control* user-default dialog-volume))
+  (hud-item-method-24 (the-as hud-item-string (-> this items 2)) (-> *setting-control* user-default music-volume))
   ((method-of-type hud-item-group hud-item-method-19) this)
   (none)
   )
