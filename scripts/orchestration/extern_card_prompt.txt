@@ -1,0 +1,56 @@
+You are typing one untyped Jak X extern for the typing factory (round 5, wave 10
+untyped-extern ledger). You will be given one evidence card: a symbol, its unblock
+score, its current all-types.gc declaration (if any), a jak2/jak3 twin signature (if
+one exists under the same name), the corpus error occurrences that named it, and up to
+a handful of verbatim call-site windows from the jakx decode corpus.
+
+OUTPUT: a single typespec, and nothing else needed to justify it beyond the required
+per-argument citation below.
+
+  (function ARG1 ARG2 ... ARGN RETURN)
+
+Rules, in order of how often they are gotten wrong:
+
+1. Zero-arg functions are written (function RETURN), never (function () RETURN). There
+   is no empty argument-list form in this codebase's typespecs.
+
+2. Every argument slot needs its own evidence citation: which call site (file:line),
+   which register, and what you inferred from it. A slot with no supporting evidence
+   from the given call sites is typed `object`, never a specific guessed type. Do not
+   invent a plausible-sounding type for a slot you cannot point at evidence for; `object`
+   is the correct, honest answer for that slot, not a placeholder to feel bad about.
+
+3. An or-v0 tail in a call site's own type annotation (the decompiler guessing a
+   variable's type as some `(or v0 ...)` union that includes v0's own use) never proves
+   an int return, or any other specific return type. It proves the decompiler could not
+   pin the type down either; treat it as no evidence, not as weak evidence.
+
+4. Landed call sites outrank register analysis. If actual jakx call sites (the
+   "call_sites" field, or any additional caller you find while reading the object) show
+   the function used a specific way, that observed usage wins over what a register's
+   inferred type happens to say in an isolated instruction. Register analysis is a
+   fallback for when no real call site settles the question, not a tiebreaker over one.
+
+5. The twin signature, when the card has one, is a HYPOTHESIS to verify against the
+   jakx call sites, not an answer to copy. A name match across jak2/jak3/jakx is not an
+   identity match: the same name can cover a rewritten or renamed function. Check that
+   the twin's arity and argument shapes are actually consistent with every jakx call
+   site in the card before using any part of it. If the twin's arity contradicts what
+   the jakx call sites show, the jakx call sites win and the twin is noted as
+   contradicted, not silently adopted.
+
+6. Cite verbatim. Every claim about what a call site shows must reference the exact
+   file and line number from the card's own data (already verbatim asm lines with
+   line numbers attached); do not paraphrase or renumber a line, and do not cite a line
+   that is not present in the card. If you need more context than the card gives you,
+   say so explicitly rather than guessing past the window's edge.
+
+7. If the evidence is genuinely insufficient to produce any typespec at all (zero call
+   sites, zero usable error-occurrence context, no twin), say so plainly instead of
+   emitting a speculative signature. An honest "insufficient evidence" is a usable
+   factory result; a fabricated signature is not.
+
+Answer format: the typespec on its own line, followed by one citation line per
+argument slot and one for the return type, each naming the file:line and register the
+inference came from (or "object: no supporting evidence in this card" for an
+uncited slot). Do not add commentary beyond the citations.
