@@ -1468,7 +1468,13 @@
        (set-blackout-frames (seconds 0.2))
        (let ((a0-9 (-> self anim)))
          (when (and a0-9 (= (-> *setting-control* user-current spooling) (process->ppointer self)))
-           (ja-abort-spooled-anim a0-9 (the-as art-joint-anim #f) -1)
+           ;; og:preserve-this guard: ja-abort-spooled-anim's body is held in
+           ;; loader.gc behind the missing spooler-block constructor, so the
+           ;; extern links 0 (truthy); calling it would jump through zero.
+           ;; Retire this guard when the spooler family lands in loader.gc.
+           (if (nonzero? ja-abort-spooled-anim)
+               (ja-abort-spooled-anim a0-9 (the-as art-joint-anim #f) -1)
+               )
            (ja-channel-set! 0)
            )
          )
@@ -1669,13 +1675,19 @@
                            1
                            )
                   )
-            (t9-10
-              a0-18
-              (the-as art-joint-anim a1-6)
-              (the-as art-joint-anim a2-3)
-              (the-as (function process-drawable symbol) a3-0)
-              (the-as spooler-flags t0-0)
-              )
+            ;; og:preserve-this guard: ja-play-spooled-no-sync-anim's body is held
+            ;; in loader.gc behind the missing spooler-block constructor, so the
+            ;; extern links 0 (truthy); calling it would jump through zero.
+            ;; Retire this guard when the spooler family lands in loader.gc.
+            (if (nonzero? (the-as int t9-10))
+                (t9-10
+                  a0-18
+                  (the-as art-joint-anim a1-6)
+                  (the-as art-joint-anim a2-3)
+                  (the-as (function process-drawable symbol) a3-0)
+                  (the-as spooler-flags t0-0)
+                  )
+                )
             )
           )
         (else
@@ -1701,13 +1713,20 @@
                            1
                            )
                   )
-            (t9-11
-              a0-19
-              (the-as art-joint-anim a1-7)
-              (the-as art-joint-anim a2-4)
-              (the-as (function process-drawable symbol) a3-0)
-              (the-as spooler-flags t0-0)
-              )
+            ;; og:preserve-this guard: ja-play-spooled-anim's body is held in
+            ;; loader.gc behind the missing spooler-block constructor, so the
+            ;; extern links 0 (truthy); this call sits on play-anim's DEFAULT
+            ;; branch and would jump through zero on any normal scene playback.
+            ;; Retire this guard when the spooler family lands in loader.gc.
+            (if (nonzero? (the-as int t9-11))
+                (t9-11
+                  a0-19
+                  (the-as art-joint-anim a1-7)
+                  (the-as art-joint-anim a2-4)
+                  (the-as (function process-drawable symbol) a3-0)
+                  (the-as spooler-flags t0-0)
+                  )
+                )
             )
           )
         )
