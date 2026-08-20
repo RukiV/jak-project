@@ -7,3 +7,172 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this wave-9 effect-control-completion rung: only the hud-slowmo
+;; cluster is landed here, not the full object. spawn-hud-slowmo's true home is
+;; this file (all-types.gc's own section banners place it, spawn-hud-top-split-bar
+;; and spawn-hud-side-split-bar under the "hud-widgets" header, not "hud-classes"),
+;; confirmed by a fresh scoped decode (allowed_objects: [hud-widgets]) against this
+;; worktree's config: cam-states.gc:263's own "hud-classes land later" comment
+;; and the brief that cited it both point at the wrong file. This landing is
+;; scoped to the extern-no-defun retirement (issue: cam-states.gc's
+;; spawn-hud-slowmo extern) and takes exactly the self-contained cluster the
+;; decode produced clean with zero errors: hud-item-string-big (spawn-hud-slowmo's
+;; *hud-slowmo* literal is typed with it), *hud-slowmo*, *hud-slowmo-proc*, the
+;; hud-slowmo type and its six retail-defined methods, and spawn-hud-slowmo
+;; itself. The other ~80 functions in this object (hud-top-split-bar,
+;; hud-side-split-bar, death-indicator-*, and more) stay stubbed for a future
+;; rung; retire this note once hud-widgets.gc lands for real.
+
+;; definition of type hud-item-string-big
+(deftype hud-item-string-big (hud-item-string)
+  ()
+  )
+
+;; definition for method 3 of type hud-item-string-big
+(defmethod inspect ((this hud-item-string-big))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~1Talpha: ~D~%" (-> this alpha))
+  (format #t "~1Treal-alpha: ~D~%" (-> this real-alpha))
+  (format #t "~1Tposition-x: ~D~%" (-> this position-x))
+  (format #t "~1Tposition-y: ~D~%" (-> this position-y))
+  (format #t "~1Treal-position-x: ~D~%" (-> this real-position-x))
+  (format #t "~1Treal-position-y: ~D~%" (-> this real-position-y))
+  (format #t "~1Twidth: ~D~%" (-> this width))
+  (format #t "~1Theight: ~D~%" (-> this height))
+  (format #t "~1Treal-width: ~D~%" (-> this real-width))
+  (format #t "~1Treal-height: ~D~%" (-> this real-height))
+  (format #t "~1Tzval: ~D~%" (-> this zval))
+  (format #t "~1Treal-scale: ~D~%" (-> this real-scale))
+  (format #t "~1Tscale: ~D~%" (-> this scale))
+  (format #t "~1Tflags: ~D~%" (-> this flags))
+  (format #t "~1Teffect: ~A~%" (-> this effect))
+  (format #t "~1Tparent: ~A~%" (-> this parent))
+  (format #t "~1Tstring: #<hud-string @ #x~X>~%" (-> this string))
+  (format #t "~1Ttext-id: ~D~%" (-> this text-id))
+  (format #t "~1Tfont-effect: ~D~%" (-> this font-effect))
+  (format #t "~1Tfont-effect-color: ~D~%" (-> this font-effect-color))
+  (format #t "~1Tcolor: ~D~%" (-> this color))
+  (format #t "~1Tfont-flags: ~D~%" (-> this font-flags))
+  (format #t "~1Thas-outline: ~A~%" (-> this has-outline))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 28 of type hud-item-string-big
+(defmethod hud-item-string-method-28 ((this hud-item-string-big))
+  (hud-method-29 *current-hud* (-> *current-hud* num-strings) 128)
+  (none)
+  )
+
+;; definition for symbol *hud-slowmo*, type object
+(define *hud-slowmo*
+  (the-as object (new 'static 'boxed-array :type hud-item (new 'static 'hud-item-string-big
+                                                            :alpha #xff
+                                                            :position-x -20
+                                                            :position-y -10
+                                                            :width #x258
+                                                            :height 32
+                                                            :zval #xfff0
+                                                            :scale #x99
+                                                            :flags #xa00
+                                                            :effect #f
+                                                            :text-id #x6cc
+                                                            :color #x5
+                                                            :font-flags #x10
+                                                            :has-outline #t
+                                                            )
+                                                          )
+                 )
+  )
+
+;; definition for symbol *hud-slowmo-proc*, type object
+(define *hud-slowmo-proc* (the-as object #f))
+
+;; definition of type hud-slowmo
+(deftype hud-slowmo (in-game-hud)
+  ()
+  )
+
+;; definition for method 3 of type hud-slowmo
+(defmethod inspect ((this hud-slowmo))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type in-game-hud inspect)))
+    (t9-0 this)
+    )
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 7 of type hud-slowmo
+;; WARN: Return type mismatch in-game-hud vs hud-slowmo.
+(defmethod relocate ((this hud-slowmo) (offset int))
+  (set! *hud-slowmo-proc* this)
+  (if (nonzero? *hud-slowmo-proc*)
+      (set! *hud-slowmo-proc* (+ (the-as uint *hud-slowmo-proc*) offset))
+      )
+  (the-as hud-slowmo ((method-of-type in-game-hud relocate) this offset))
+  )
+
+;; definition for method 26 of type hud-slowmo
+(defmethod hud-method-26 ((this hud-slowmo))
+  (set! (-> this items) (the-as (array hud-item) *hud-slowmo*))
+  (set! (-> this manager) (new 'static 'basic-manager))
+  (set! *hud-slowmo-proc* this)
+  ((method-of-type in-game-hud hud-method-26) this)
+  (none)
+  )
+
+;; definition for method 10 of type hud-slowmo
+(defmethod deactivate ((this hud-slowmo))
+  "Make a process dead, clean it up, remove it from the active pool, and return to dead pool."
+  (set! *hud-slowmo-proc* (the-as object #f))
+  ((method-of-type in-game-hud deactivate) this)
+  (none)
+  )
+
+;; definition for method 24 of type hud-slowmo
+(defmethod hud-method-24 ((this hud-slowmo))
+  (when *debug-hud*
+    (set! (-> this real-items) (the-as (array hud-item) *hud-slowmo*))
+    (hud-method-26 this)
+    )
+  ((method-of-type in-game-hud hud-method-24) this)
+  (none)
+  )
+
+;; definition for function spawn-hud-slowmo
+(defun spawn-hud-slowmo ()
+  (cond
+    (*hud-slowmo-proc*
+      *hud-slowmo-proc*
+      )
+    (*net-game-mgr*
+      (let ((v0-0
+              (ppointer->process (process-spawn hud-slowmo :init hud-init-by-other :name "hud-slowmo" :to *net-game-mgr*))
+              )
+            )
+        (when (the-as process v0-0)
+          (set! (-> (the-as in-game-hud v0-0) inited-strings-count) 0)
+          0
+          )
+        v0-0
+        )
+      )
+    (else
+      #f
+      )
+    )
+  )
+
+;; definition for method 17 of type hud-slowmo
+;; WARN: Return type mismatch symbol vs none.
+(defmethod hud-method-17 ((this hud-slowmo))
+  (none)
+  )
