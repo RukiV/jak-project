@@ -15,6 +15,13 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this car-feeders rung: retyped skel field basic -> skeleton-
+;; group. vehicle-debris-init-by-other's own decode reads raw offset 56 of
+;; this field (placement 60 under the +4 basics convention, skeleton-group's
+;; own bounds.w / radius overlay field) to scale the spawned debris's own
+;; draw bounds by the source skeleton's radius; the read does not resolve
+;; under plain basic. Matches wvehicle-wheel.gc's own vehicle-wheel-init-
+;; params.vehicle retype precedent for the identical defect class.
 ;; definition of type vehicle-debris-init-params
 (deftype vehicle-debris-init-params (structure)
   ((mat            matrix  :inline)
@@ -22,7 +29,7 @@
    (ang-velocity   vector  :inline)
    (color          rgbaf   :inline)
    (radius         float)
-   (skel           basic)
+   (skel           skeleton-group)
    (info           rigid-body-object-constants)
    (level          basic)
    (impact-sound   uint16)
@@ -258,11 +265,86 @@
     )
   )
 
-;; og:preserve-this vehicle-debris-init-by-other and
-;; vehicle-debris-spawn are omitted rather than landed: both have no
-;; type analysis at all (their externs are commented out in
-;; all-types.gc with no prior derivation attempt), and given the
-;; density of raw-fallback decode elsewhere in this same object,
-;; activating either without first understanding that root cause risks
-;; the same kind of decompiler crash weapon-mask->type hit elsewhere in
-;; this band. Not attempted.
+;; car-feeders rung: vehicle-debris-init-by-other and vehicle-debris-spawn
+;; landed together (the spawner's own run-now-in-process call needs its
+;; callee defined, the AGENTS.md section 5 hazard the other way around).
+;; Both were held only by their own commented-out externs (all-types.gc,
+;; bare "function" typespecs with no prior derivation); typed both by direct
+;; symmetry with wvehicle-wheel.gc's own already-landed vehicle-wheel-init-
+;; by-other/vehicle-wheel-spawn pair (the identical init-params-plus-process
+;; shape) and corroborated vehicle-debris-spawn's own two-argument call site
+;; in vehicle-util.gc's raw decode (t9=vehicle-debris-spawn, a0=arg1-0 of the
+;; containing function, a1=the address of a stack-built vehicle-debris-init-
+;; params). Once typed, vehicle-debris-init-by-other's own decode had one
+;; remaining gap: an inlined rand-float-gen bit-pattern trick (mtc1 typed the
+;; source GPR uint instead of float, decompiler/config/jakx/ntsc_v1/
+;; type_casts.jsonc's own established fix class for this exact idiom, op 30)
+;; and the skel field retype recorded above. Both functions now decode with
+;; no errors (spawn keeps one ordinary WARN, a process/vehicle-debris return-
+;; type widening, landed as-is per this campaign's own convention for that
+;; class of warning). vehicle-debris-init-by-other's own body adds self to
+;; *rigid-body-queue* via method 11 right after rigid-body-object-method-66,
+;; the queue feeder PR 526 left starved.
+;;
+;; Neither function has a landed caller: vehicle-debris-spawn's own caller
+;; (vehicle-util.gc, some vehicle-destruction handler) stays raw/unlanded,
+;; so this rung adds no new boot-path exposure.
+;; definition for function vehicle-debris-init-by-other
+(defbehavior vehicle-debris-init-by-other vehicle-debris ((arg0 vehicle-debris-init-params))
+  (logior! (-> self mask) (process-mask vehicle))
+  (rigid-body-object-method-65 self)
+  (matrix->transformq (the-as transformq (-> self root trans)) (-> arg0 mat))
+  (if (and (-> arg0 has-particles) (let* ((f30-0 0.5)
+                                          (v1-9 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+                                          (v1-10 (the-as number (logior #x3f800000 v1-9)))
+                                          )
+                                     (< f30-0 (+ -1.0 (the-as float v1-10)))
+                                     )
+           )
+      (set! (-> self part) (create-launch-control (-> *part-group-id-table* 43) self))
+      )
+  (set! (-> self level) (the-as level (-> arg0 level)))
+  (initialize-skeleton self (-> arg0 skel) (the-as pair 0))
+  (set! (-> self draw color-mult quad) (-> arg0 color quad))
+  (set! (-> self draw lod-set lod 0 dist) 819200.0)
+  (let ((f0-6 (fmax
+                (fmax (vector-length (-> arg0 mat rvec)) (vector-length (-> arg0 mat uvec)))
+                (vector-length (-> arg0 mat fvec))
+                )
+              )
+        )
+    (set! (-> self draw bounds w) (* (-> arg0 skel bounds w) f0-6))
+    (set! (-> self draw longest-edge) (* (-> arg0 skel longest-edge) f0-6))
+    )
+  (set! (-> self impact-sound) (-> arg0 impact-sound))
+  (rigid-body-object-method-64 self (-> arg0 info))
+  (rigid-body-object-method-66 self)
+  (rigid-body-queue-method-11 *rigid-body-queue* self)
+  (let ((s5-0 (-> self rbody)))
+    (rigid-body-control-method-31 s5-0 (-> arg0 velocity))
+    (rigid-body-control-method-32 s5-0 (-> arg0 ang-velocity))
+    )
+  (go-virtual explode)
+  )
+
+;; definition for function vehicle-debris-spawn
+;; WARN: Return type mismatch process vs vehicle-debris.
+(defun vehicle-debris-spawn ((arg0 process) (arg1 vehicle-debris-init-params))
+  (let ((gp-0 (the-as process #f)))
+    (let* ((s3-0 (get-process *default-dead-pool* vehicle-debris #x4000 1))
+           (v1-1 (when s3-0
+                   (let ((t9-1 (method-of-type process activate)))
+                     (t9-1 s3-0 arg0 "vehicle-debris" (the-as pointer #x70004000))
+                     )
+                   (run-now-in-process s3-0 vehicle-debris-init-by-other arg1)
+                   (-> s3-0 ppointer)
+                   )
+                 )
+           )
+      (if v1-1
+          (set! gp-0 (-> v1-1 0))
+          )
+      )
+    (the-as vehicle-debris gp-0)
+    )
+  )

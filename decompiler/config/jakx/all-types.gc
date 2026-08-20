@@ -63697,13 +63697,20 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this car-feeders rung: retyped skel field basic -> skeleton-
+;; group. vehicle-debris-init-by-other's own decode reads raw offset 56 of
+;; this field (placement 60 under the +4 basics convention, skeleton-group's
+;; own bounds.w / radius overlay field) to scale the spawned debris's own
+;; draw bounds by the source skeleton's radius; the read does not resolve
+;; under plain basic. Matches wvehicle-wheel.gc's own vehicle-wheel-init-
+;; params.vehicle retype precedent for the identical defect class.
 (deftype vehicle-debris-init-params (structure)
   ((mat           matrix                      :inline :offset-assert 0)
    (velocity      vector                      :inline :offset-assert 64)
    (ang-velocity  vector                      :inline :offset-assert 80)
    (color         rgbaf                       :inline :offset-assert 96)
    (radius        float                               :offset-assert 112)
-   (skel          basic                               :offset-assert 116)
+   (skel          skeleton-group                      :offset-assert 116)
    (info          rigid-body-object-constants         :offset-assert 120)
    (level         basic                               :offset-assert 124)
    (impact-sound  uint16                              :offset-assert 128)
@@ -63747,8 +63754,14 @@
 
 
 ;; (define-extern *vehicle-debris-constants* object)
-;; (define-extern vehicle-debris-init-by-other function)
-;; (define-extern vehicle-debris-spawn function)
+;; og:preserve-this car-feeders rung: activated, matching wvehicle-wheel.gc's
+;; own vehicle-wheel-init-by-other/vehicle-wheel-spawn precedent exactly
+;; (both take an init-params structure and a :behavior/return pair). Neither
+;; references *vehicle-debris-constants*, left commented above; the active
+;; duplicate at this file's own object-typed provisional block still stands
+;; unshadowed (unused by any landed content, same as before this rung).
+(define-extern vehicle-debris-init-by-other (function vehicle-debris-init-params object :behavior vehicle-debris))
+(define-extern vehicle-debris-spawn (function process vehicle-debris-init-params vehicle-debris))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; vehicle-effects                ;;

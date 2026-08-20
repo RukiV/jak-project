@@ -300,11 +300,65 @@
        )
       )
     )
-  ;; og:preserve-this the retail :enter handler decoded as a raw label
-  ;; (L13), an anon-function the decompiler never recognized as a proper
-  ;; function; raw label references are not valid GOAL, so the key is
-  ;; omitted entirely rather than left broken or given an invented stub
-  ;; body, matching the credits-obs precedent for the same defect class.
+  ;; car-feeders rung: the prior hold's own "raw label, never recognized as
+  ;; a proper function" claim did not reproduce in a fresh decode. The real,
+  ;; sole blocker was the same inlined rand-float-gen bit-pattern trick
+  ;; vehicle-debris-init-by-other hit in this same rung (mtc1 typed the
+  ;; source GPR uint instead of float; decompiler/config/jakx/ntsc_v1/
+  ;; type_casts.jsonc's own established fix class for this idiom, op 14 of
+  ;; this handler). Once cast, the label resolved into a normal behavior
+  ;; body. This handler adds self to *rigid-body-queue* via method 11, the
+  ;; queue feeder PR 526 left starved; it has no landed caller (the message
+  ;; send lives in gameplay code this rung does not touch, and no landed
+  ;; code spawns a vehicle-wheel process yet: vehicle-wheel-spawn's only
+  ;; caller, wvehicle-method-213, is a declared but unfilled method slot
+  ;; across every wcar-* file), so this rung adds no new boot-path exposure.
+  :enter (behavior ()
+    (set-time! (-> self state-time))
+    (let* ((f30-0 0.5)
+           (v1-4 (/ (the-as int (rand-uint31-gen *random-generator*)) 256))
+           (v1-5 (the-as number (logior #x3f800000 v1-4)))
+           )
+      (when (< f30-0 (+ -1.0 (the-as float v1-5)))
+        (set! (-> *launch-matrix* trans quad) (-> *null-vector* quad))
+        (set! (-> *part-tracker-params-default* group) (-> *part-group-id-table* 42))
+        (vector-reset! (-> *part-tracker-params-default* local-offset))
+        (set! (-> *part-tracker-params-default* duration) (the-as uint 1500))
+        (set! (-> *part-tracker-params-default* callback) #f)
+        (set! (-> *part-tracker-params-default* userdata) (the-as uint #f))
+        (set! (-> *part-tracker-params-default* target) self)
+        (set! (-> *part-tracker-params-default* mat-joint) (the-as object 0))
+        (set! (-> *part-tracker-params-default* local-space-param) 0)
+        (set! (-> *part-tracker-params-default* local-space-callback) #f)
+        (set! (-> *part-tracker-params-default* subsampler-num) 1.0)
+        *part-tracker-params-default*
+        (if (logtest? (-> *part-group-id-table* 42 flags) (sp-group-flag sp13))
+            (process-spawn
+              part-tracker-subsampler
+              :init part-tracker-subsampler-init
+              *part-tracker-params-default*
+              :name "part-tracker-subsampler"
+              :to *entity-pool*
+              :unk 0
+              )
+            (process-spawn
+              part-tracker
+              :init part-tracker-init
+              *part-tracker-params-default*
+              :name "part-tracker"
+              :to *entity-pool*
+              :unk 0
+              )
+            )
+        )
+      )
+    (logior! (-> self rbody flags) 10)
+    (rigid-body-queue-method-11 *rigid-body-queue* self)
+    (let ((v1-42 (-> self root root-prim)))
+      (set! (-> v1-42 prim-core collide-as) (-> self root backup-collide-as))
+      (set! (-> v1-42 prim-core collide-with) (-> self root backup-collide-with))
+      )
+    )
   :trans #f
   :code sleep-code
   :post (behavior ()
