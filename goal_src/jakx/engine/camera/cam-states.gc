@@ -321,13 +321,28 @@
     (gui-control-method-15 (_type_ object object string sound-id) gui-connection)
     (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; set-action!
     (gui-control-method-17 (_type_ uint) uint) ;; get-status
-    (gui-control-method-18 () none)
+    ;; og:preserve-this arg count and return type widened () none ->
+    ;; (gui-channel) symbol (gui-control completion lane, issue 531):
+    ;; loader.gc's own og:preserve-this note on this exact method carries
+    ;; the full raw-asm evidence; this deftype must stay byte-identical to
+    ;; loader.gc's own copy.
+    (gui-control-method-18 (_type_ gui-channel) symbol)
     (gui-control-method-19 (_type_ gui-channel gui-connection) symbol)
-    (gui-control-method-20 (_type_ uint symbol int int int float) object) ;; sound-params-set!
+    ;; og:preserve-this arg count widened 6 -> 7 (gui-control completion
+    ;; lane, issue 531): loader.gc's own og:preserve-this note on this exact
+    ;; method carries the full raw-asm evidence (all three jakx call sites
+    ;; plus the callee's own "Bad register dependency on t3"); this deftype
+    ;; must stay byte-identical to loader.gc's own copy.
+    (gui-control-method-20 (_type_ uint symbol int int int float symbol) object) ;; sound-params-set!
     (gui-control-method-21 () none)
     (gui-control-method-22 () none)
     (gui-control-method-23 () none)
-    (gui-control-method-24 () none)
+    ;; og:preserve-this arg count and return type widened () none ->
+    ;; (gui-channel gui-channel symbol gui-connection) symbol (gui-control
+    ;; completion lane, issue 531): loader.gc's own og:preserve-this note on
+    ;; this exact method carries the full raw-asm evidence; this deftype
+    ;; must stay byte-identical to loader.gc's own copy.
+    (gui-control-method-24 (_type_ gui-channel gui-channel symbol gui-connection) symbol)
     (gui-control-method-25 (_type_ gui-connection object) none)
     )
   )
@@ -1896,6 +1911,22 @@
     (let ((a1-1 (handle->process (-> (the-as camera-master (view-get-active-camera)) focus handle))))
       (when a1-1
         (let ((gp-1 (gui-control-method-9 *gui-control* a1-1 18 2 "crshwall" -99.0 0)))
+          ;; og:preserve-this gui-control-method-20 arg count widened 6 -> 7
+          ;; (gui-control completion lane, issue 531): the prior 6-arg
+          ;; declaration left this call's own 7th register set (t3, always
+          ;; #t here, identical to this method's two sibling call sites in
+          ;; ambient.gc and coliseum-obs-female-statue.gc) as a dead
+          ;; statement immediately before the dispatch; loader.gc's own
+          ;; deftype note carries the full callee-side evidence. This
+          ;; enclosing :enter behavior does not decode clean as a whole (an
+          ;; unrelated, pre-existing blocker earlier in the same function,
+          ;; "Could not figure out load: (set! v1 (l.d (+ v0 316)))"), so
+          ;; there is no fresh clean pretty-print to transcribe for this
+          ;; specific call the way ambient.gc's and coliseum-obs-female-
+          ;; statue.gc's own siblings got; this is a minimal hand patch
+          ;; instead, moving the existing dead #t into the call as its own
+          ;; 8th argument and leaving the already-landed let* structure
+          ;; otherwise untouched.
           (let* ((a0-5 *gui-control*)
                  (t9-3 (method-of-object a0-5 gui-control-method-20))
                  (a1-3 gp-1)
@@ -1905,8 +1936,7 @@
                  (t1-1 #x3f800000)
                  (t2-1 0.5)
                  )
-            #t
-            (t9-3 a0-5 a1-3 a2-1 a3-1 t0-1 t1-1 t2-1)
+            (t9-3 a0-5 a1-3 a2-1 a3-1 t0-1 t1-1 t2-1 #t)
             )
           (set! (-> self slow-mo-sound-id) gp-1)
           )

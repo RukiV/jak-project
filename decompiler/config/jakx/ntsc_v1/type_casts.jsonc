@@ -7762,6 +7762,37 @@
     [13, "v1", "gui-connection"],
     [[43, 269], "gp", "gui-connection"]
   ],
+  // (method 19 gui-control), handle-command-list (scene chain, issue 522):
+  // this's own cmd field is (pair 112), a fixed array whose each slot is the
+  // head of a nested (event . action) list; op 29 (and op 119, the loop's own
+  // re-fetch after advancing s2 to (cdr s2-0) at op 118) each read that
+  // slot's car, which is generically object per pair's own field typing.
+  // Ops 31 and 33 then re-read car/cdr off that same value (v1) to split it
+  // into the event code and action payload for the case dispatch below, a
+  // second, nested car/cdr the decompiler cannot auto-resolve off an
+  // object-typed value ("Could not figure out load: (set! a0 (l.w (+ v1
+  // -2)))" at op 31). v1 holds no other role in this narrow window (op 34
+  // immediately repurposes it to the shifted event-code integer), so
+  // casting it to pair for ops 29-33 is enough there; the same op range
+  // also covers op 31/33's reads on every loop-back pass, since the cast is
+  // keyed to the op index, not the dynamic iteration.
+  //
+  // The loop's own advance (op 118, cdr of s2) hits the identical class one
+  // level up: cdr of a pair is generically object too, so s2 itself needs
+  // the same pair recast for op 119's own car read to resolve ("Could not
+  // figure out load: (set! v1 (l.w (+ s2 -2)))" at op 119, surfaced only
+  // once the first fix above let type prop reach this far). s2 keeps no
+  // other role across ops 118-119 (op 120 rebuilds the '() sentinel into a0,
+  // untouched by this cast), and the resulting pair typing carries cleanly
+  // into op 121's own s2-vs-'() loop test.
+  //
+  // jak3's own twin needs no equivalent cast for either window (its own
+  // (cmd) field element typing resolves this without help), so both are
+  // jakx's own windows, not a transcription of jak3's op numbers.
+  "(method 19 gui-control)": [
+    [[29, 34], "v1", "pair"],
+    [[118, 120], "s2", "pair"]
+  ],
   // method 12's second (free-slot) array walk holds its candidate in a0
   // (ops 92-116, the same array-index formula as the first walk's v1), then
   // spills it through stack offset 16 for the rest of the body; without the

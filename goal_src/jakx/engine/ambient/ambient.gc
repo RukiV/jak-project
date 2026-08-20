@@ -312,17 +312,25 @@
               (gui-control-method-9 *gui-control* self (the-as int (-> arg0 channel)) 1 (-> arg0 name) 81920.0 0)
               )
             )
-      (let* ((a0-6 *gui-control*)
-             (t9-1 (method-of-object a0-6 gui-control-method-20))
-             (a1-3 (-> self voice-id))
-             (a2-2 #f)
-             (a3-1 -1082130432)
-             (t0-1 -1082130432)
-             (t1-1 #x3f800000)
-             (t2-1 (-> *setting-control* user-current talker-volume))
-             )
+      ;; og:preserve-this gui-control-method-20 arg count widened 6 -> 7
+      ;; (gui-control completion lane, issue 531): the prior 6-arg
+      ;; declaration left this call's own 7th register set (t3, always #t
+      ;; here) as a dead statement immediately before an indirect
+      ;; method-of-object dispatch; loader.gc's own deftype note carries the
+      ;; full callee-side evidence (the raw asm reads t3 unconditionally at
+      ;; op 5, "Bad register dependency on t3" without the fix). A fresh
+      ;; scoped decode of this object against the widened declaration
+      ;; resolves the call cleanly to the direct call form below (no
+      ;; residual dead statement, no WARN), transcribed verbatim.
+      (gui-control-method-20
+        *gui-control*
+        (the-as uint (-> self voice-id))
+        #f
+        -1082130432
+        -1082130432
+        #x3f800000
+        (-> *setting-control* user-current talker-volume)
         #t
-        (t9-1 a0-6 (the-as uint a1-3) a2-2 a3-1 t0-1 t1-1 t2-1)
         )
       )
     )

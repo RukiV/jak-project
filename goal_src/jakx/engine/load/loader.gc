@@ -69,7 +69,8 @@
 ;; established for methods 9/16 (the connectable-list-walk-as-connection
 ;; idiom) were extended to their own walk registers, plus the two arg-count
 ;; fixes recorded on the deftype above. Also still erroring: methods 10, 13,
-;; 18-24 (unchanged from the prior rung's own note). ja-play-spooled-no-
+;; 18, 20-24 (method 19 landed by a later rung, see its own og:preserve-this
+;; note below its deftype entry and its own defmethod). ja-play-spooled-no-
 ;; sync-anim (both overloads) and ja-abort-spooled-anim remain fully blocked
 ;; ("function has no type analysis. Cannot decompile."), as does gui-
 ;; control's own method 23 ("function was not converted to expressions.
@@ -122,7 +123,8 @@
 ;; arg typed sound-id.
 ;;
 ;; A third fix, found while landing method 17 below: gui-control-method-19
-;; (still unlanded) is dispatched via method-of-object from both method 16
+;; (landed by a later rung, see its own og:preserve-this note near its
+;; defmethod below) is dispatched via method-of-object from both method 16
 ;; (already landed) and method 17, and both raw call sites set a1 to a byte
 ;; read off the found connection's own channel field (offset 21) and a2 to
 ;; the connection itself before the jalr, not zero args as the previously-
@@ -167,13 +169,73 @@
     (gui-control-method-15 (_type_ object object string sound-id) gui-connection)
     (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; set-action!
     (gui-control-method-17 (_type_ uint) uint) ;; get-status
-    (gui-control-method-18 () none)
+    ;; og:preserve-this arg count and return type widened () none ->
+    ;; (gui-channel) symbol (gui-control completion lane, issue 531): method
+    ;; 19's own body below dispatches this method inside a (not ...)
+    ;; condition, which the compiler rejects outright for a none-typed
+    ;; callee ("Cannot use none-typed variable in a condition"), the same
+    ;; tell this file's own method 17 note above already names for the
+    ;; identical class. The raw asm settles both the count and the type:
+    ;; method 19's own vtable read at op 6 (slot 88) is followed by op 7
+    ;; ("or a1, s4, r0"), setting a1 to arg0 (the gui-channel) before the
+    ;; jalr, not a no-arg call; jak3's own twin (gui-control-method-18,
+    ;; still unnamed in jakx) carries the identical one-arg, symbol-return
+    ;; shape per this file's own all-types.gc hint comment. The method's own
+    ;; body stays unlanded (unchanged from the "still erroring" note above);
+    ;; only the declaration widens so method 19 compiles honestly.
+    (gui-control-method-18 (_type_ gui-channel) symbol)
     (gui-control-method-19 (_type_ gui-channel gui-connection) symbol)
-    (gui-control-method-20 (_type_ uint symbol int int int float) object) ;; sound-params-set!
+    ;; og:preserve-this arg count widened 6 -> 7 (gui-control completion
+    ;; lane, issue 531): all three jakx call sites (ambient.gc's talker-
+    ;; init, cam-states.gc's cam-vehicle-crash :enter, coliseum-obs-female-
+    ;; statue.gc's coli-break-object-init-by-other) carry a bare #t
+    ;; statement immediately before this method's own dispatch, the same
+    ;; dead-statement tell as method 19's own arg-count defect above; a
+    ;; fresh scoped decode of this object's own method 20 confirms it from
+    ;; the callee side too ("Bad register dependency on t3", plus the raw
+    ;; asm's own op 5, "or s1, t3, r0", reading a 7th register right after
+    ;; arg5/t2 at op 4 with no declared slot for it). The body branches on
+    ;; that 7th argument directly (op 18, "beq s7, s1, L283", i.e. (if
+    ;; t3-0 ...)): when truthy it runs the exact jak3-twin body (the
+    ;; existing 6-arg logic, "(if arg1 (logior! flags gcf1))"); when false
+    ;; it unconditionally sets a bitfield flag jak3 has no twin for
+    ;; (gui-connection-flags value 0x40, bit 6, not yet named in this
+    ;; file's enum). Every current call site passes #t here (the orphan is
+    ;; always the literal symbol, not a computed value), so the false arm
+    ;; is currently dead from every landed caller; the type still needs the
+    ;; slot; jak3's own twin config comment (all-types.gc's held block)
+    ;; matches the old 6-arg shape exactly, the copied-from-twin trap this
+    ;; issue names. The method's own body stays unlanded (still erroring
+    ;; per the note above, now missing only the gui-connection-flags bit
+    ;; and the arg-count fix this rung already makes); this rung only
+    ;; widens the declaration and its three callers so the type is honest
+    ;; and the compiled calls stop dropping the argument. Mirrored into
+    ;; gui-h.gc and cam-states.gc's own copies below, byte-identical.
+    (gui-control-method-20 (_type_ uint symbol int int int float symbol) object) ;; sound-params-set!
     (gui-control-method-21 () none)
     (gui-control-method-22 () none)
     (gui-control-method-23 () none)
-    (gui-control-method-24 () none)
+    ;; og:preserve-this arg count and return type widened () none ->
+    ;; (gui-channel gui-channel symbol gui-connection) symbol (gui-control
+    ;; completion lane, issue 531): method 19's own body below dispatches
+    ;; this method four times, each inside a (not ...) condition, which the
+    ;; compiler rejects for a none-typed callee, the same "Cannot use
+    ;; none-typed variable in a condition" tell as method 18 above. The raw
+    ;; asm settles the shape: all four call sites read the vtable slot at
+    ;; offset 112, then set a1 to arg0 (the outer gui-channel), a2 to a
+    ;; per-branch channel value, a3 to the cmd-list entry's own cdr (the
+    ;; action payload split out in method 19's own loop body), and t0 to
+    ;; arg1 (the gui-connection); jak3's own twin (handle-command) carries
+    ;; the identical four-arg, symbol-return shape per this file's own
+    ;; all-types.gc hint comment, and jak3's own handle-command-list body
+    ;; calls it with the exact same argument shape at each of its own three
+    ;; case branches plus its else arm. The method's own body stays
+    ;; unlanded (its own fresh decode still fails type prop at op 5, "add
+    ;; failed: int <uninitialized>"; deriving its true body is its own
+    ;; rung's work); only the declaration widens so method 19 compiles
+    ;; honestly and its own dispatches carry their real arguments instead
+    ;; of the decompiler's dead-statement artifacts.
+    (gui-control-method-24 (_type_ gui-channel gui-channel symbol gui-connection) symbol)
     (gui-control-method-25 (_type_ gui-connection object) none) ;; channel-id-set!
     )
   )
@@ -394,6 +456,14 @@
 ;; (the 'play path the scene probe itself needs) are landed AND a
 ;; REPL-attached probe shows every method slot this boot dispatches
 ;; nonzero with the define live.
+;;
+;; og:note gui-control completion lane (issue 531): the first half of the
+;; retirement condition above is now met (method 25 was already landed;
+;; method 19 lands in this rung, see its own og:preserve-this note above).
+;; The REPL-attached probe is unrun and stays out of this lane's own scope
+;; (it belongs to the runtime-observer track, tracked separately); the
+;; define stays held until that probe reports every dispatched slot
+;; nonzero, per this note's own standing condition, not re-decided here.
 ;; (define *gui-control* (new 'global 'gui-control 64))
 
 ;; og:preserve-this add-process: clean decode, no config edits needed on the
@@ -622,6 +692,108 @@
       )
     )
   (the-as gui-connection #f)
+  )
+
+;; og:preserve-this handle-command-list (method 19): gui-control completion
+;; lane (issue 531), clean decode with two new type_casts.jsonc windows
+;; (ntsc_v1/type_casts.jsonc, "(method 19 gui-control)"). this's own cmd
+;; field is (pair 112), each slot the head of a nested (event . action)
+;; list; walking it needs a car read off an already-car'd value (the outer
+;; walk's own candidate, itself generically object per pair's own field
+;; typing) to split it into the event code and action payload, a second,
+;; nested car/cdr the decompiler cannot auto-resolve without help ("Could
+;; not figure out load: (set! a0 (l.w (+ v1 -2)))"); the loop's own advance
+;; (cdr of the outer list) hits the identical class one level up for its
+;; own next car read, surfaced only once the first cast let type prop
+;; reach that far. Both windows cast the narrow, single-purpose op range
+;; each register holds the value for, not the whole loop, since both
+;; registers get reused for unrelated values a few ops later. jak3's own
+;; twin needs neither cast (its own (cmd) field typing resolves this
+;; without help), so both are jakx's own windows, not a transcription of
+;; jak3's op numbers.
+;;
+;; Dispatches gui-control-method-18 and gui-control-method-24 directly (not
+;; through method-of-object; the decompiler resolves these to plain calls
+;; once the declared types are honest). Both were still declared "() none"
+;; on this rung's own first pass, and the compiler rejected the result
+;; outright ("Cannot use none-typed variable in a condition", both
+;; dispatches sit inside a (not ...) test), the same tell this file's own
+;; method 17 note above already names for method 19's identical class.
+;; Both widened on their own deftype entries above (see their own
+;; og:preserve-this notes); with the widened declarations in place, this
+;; method's own dispatches carry their real arguments (method 18 gets
+;; arg0; method 24 gets arg0, the loop's own per-branch channel value or,
+;; in the else arm, the raw event code itself per jak3's identical twin
+;; shape, the cmd-list entry's own cdr, and arg1), matching jak3's own
+;; handle-command-list body structurally case for case. Neither method's
+;; own body lands here (both stay unlanded per the note above); only their
+;; declarations widen, matching this rung's own method-20 fix.
+(defmethod gui-control-method-19 ((this gui-control) (arg0 gui-channel) (arg1 gui-connection))
+  (let ((gp-0 #t))
+    (cond
+      ((or (not (gui-control-method-18 this arg0)) (< (-> *display* base-clock frame-counter) (-> this times arg0)))
+       #f
+       )
+      ((not (null? (-> this cmd arg0)))
+       (let* ((s2-0 (the-as object (-> this cmd arg0)))
+              (v1-9 (-> (the-as pair s2-0) car))
+              )
+         (while (not (null? s2-0))
+           (let ((a2-1 (/ (the-as int (-> (the-as pair v1-9) car)) 8))
+                 (s1-0 (-> (the-as pair v1-9) cdr))
+                 )
+             (case a2-1
+               ((95)
+                (let ((s0-0 80)
+                      (sv-16 92)
+                      )
+                  (while (>= (the-as uint sv-16) (the-as uint s0-0))
+                    (if (not (gui-control-method-24 this arg0 (the-as gui-channel s0-0) (the-as symbol s1-0) arg1))
+                        (set! gp-0 #f)
+                        )
+                    (+! s0-0 1)
+                    )
+                  )
+                )
+               ((79)
+                (let ((s0-1 66)
+                      (sv-32 70)
+                      )
+                  (while (>= (the-as uint sv-32) (the-as uint s0-1))
+                    (if (not (gui-control-method-24 this arg0 (the-as gui-channel s0-1) (the-as symbol s1-0) arg1))
+                        (set! gp-0 #f)
+                        )
+                    (+! s0-1 1)
+                    )
+                  )
+                )
+               ((47)
+                (let ((s0-2 18)
+                      (sv-48 32)
+                      )
+                  (while (>= (the-as uint sv-48) (the-as uint s0-2))
+                    (if (not (gui-control-method-24 this arg0 (the-as gui-channel s0-2) (the-as symbol s1-0) arg1))
+                        (set! gp-0 #f)
+                        )
+                    (+! s0-2 1)
+                    )
+                  )
+                )
+               (else
+                 (if (not (gui-control-method-24 this arg0 (the-as gui-channel a2-1) (the-as symbol s1-0) arg1))
+                     (set! gp-0 #f)
+                     )
+                 )
+               )
+             )
+           (set! s2-0 (-> (the-as pair s2-0) cdr))
+           (set! v1-9 (-> (the-as pair s2-0) car))
+           )
+         )
+       gp-0
+       )
+      )
+    )
   )
 
 ;; og:preserve-this get-status (method 17): gui-control keystone lane (issue
