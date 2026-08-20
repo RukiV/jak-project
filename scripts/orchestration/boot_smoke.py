@@ -81,7 +81,13 @@ def main():
     print("PROJ-PATH:", pl[0].strip() if pl else "NOT FOUND")
     # "assert" is word-bounded (case-insensitive) so a substring inside an unrelated
     # word (a symbol name, a path, an unrelated log line) cannot fire a false crash marker.
-    markers = re.findall(r"(?i)crash report|\bassert\b|Unknown mips2c|kmalloc fail|unmapped object|rip=0x", text)
+    # "assertion failed" is matched separately: \bassert\b does NOT match "Assertion"
+    # (the trailing "i" is a word character, so there is no boundary after "assert"),
+    # which let a C++ ASSERT(false) fail-fast die with crash_markers=0 on 2026-08-19;
+    # the run still read RED from the other signals, but the marker must catch it.
+    markers = re.findall(
+        r"(?i)crash report|\bassert\b|assertion failed|Unknown mips2c|kmalloc fail|"
+        r"unmapped object|rip=0x|\[die\]", text)
     links = len(re.findall(r"\[link and exec\]", text))
     adding = len(re.findall(r"Adding level", text))
     campath = len(re.findall(r"campath", text))
