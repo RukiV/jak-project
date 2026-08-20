@@ -310,33 +310,25 @@
 ;; scene-player-init reachable either. Both are flagged for whoever lands
 ;; methods 17/19/20 next, not blockers for this instance.
 ;;
-;; og:preserve-this HELD AGAIN after an empirical red (scene chain, issue
-;; 522): a 240s boot smoke with this define live crashed at game-info.gc's
-;; own initialize! -> kill-current-talker, rip landing on goal address 0
-;; with the first gui-control-method-16 call's own argument values still in
-;; the argument registers (rsi=4 rdx=1 rcx=20 r8=0) and rbp holding goal 0
-;; (the loaded, empty dispatch slot), while a boot with everything else in
-;; this rung but the define held is green (crash_markers=0). The audit
-;; above reasoned method 16's own held-method dispatch unreachable, and the
-;; crash contradicts the conclusion one level earlier than that dispatch:
-;; the method-16 dispatch itself jumped to 0 on a live, validly-typed
-;; instance, which the audit had no lens for. Why the slot reads 0 at
-;; dispatch time when loader.gc's own defmethod fills it at link is NOT
-;; established (the three deftype copies are method-list-identical, so a
-;; positional-id skew between compile units is ruled out); the runtime
-;; probe for it is issue 522's next step. Retires when methods 19 and 25
-;; (the 'play path the scene probe itself needs) are landed AND a
-;; REPL-attached probe shows every method slot this boot dispatches
-;; nonzero with the define live.
-;;
-;; og:note gui-control completion lane (issue 531): the first half of the
-;; retirement condition above is now met (method 25 was already landed;
-;; method 19 lands in this rung, see its own og:preserve-this note above).
-;; The REPL-attached probe is unrun and stays out of this lane's own scope
-;; (it belongs to the runtime-observer track, tracked separately); the
-;; define stays held until that probe reports every dispatched slot
-;; nonzero, per this note's own standing condition, not re-decided here.
-;; (define *gui-control* (new 'global 'gui-control 64))
+;; og:preserve-this RE-ARMED (issues 522/534): this define was held twice,
+;; the second time after an empirical red where the boot crashed at the
+;; first gui-control-method-16 dispatch reading a zero slot on a live,
+;; validly-typed instance. Root cause was NOT this define or the audit
+;; above: the gui-control deftype used to execute in three objects, and
+;; the kernel's new_type (kscheme.cpp) zeros every custom slot on every
+;; execution, so cam-states.o's copy (DGO 467) wiped the vtable loader.o
+;; (248) had filled. The deftype is single-homed in gui-h.gc since issue
+;; 540's first slice, and the retirement condition this note's held form
+;; carried is fully met: methods 19 and 25 are landed, and the
+;; REPL-attached re-probe at that tip read every landed slot nonzero
+;; (new at loader-region 0xd26614, methods 9/11/12/14/15/16/17/19/25 all
+;; live, unlanded slots exactly 0), constructed a well-formed instance
+;; (engine nonzero and typed), and executed the previously-crashing
+;; method-16 call to a clean int-0 return with zero crash markers. The
+;; boot smoke on this rung is the arming's own empirical gate:
+;; kill-current-talker's three method-16 calls run live at every boot
+;; from here on.
+(define *gui-control* (new 'global 'gui-control 64))
 
 ;; og:preserve-this add-process: clean decode, no config edits needed on the
 ;; body itself (the connectable-list-walk-as-connection idiom needed

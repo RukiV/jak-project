@@ -76,15 +76,16 @@
 ;; <out>) showed this exact instruction, "mov eax, [r15+rdi*1-0x04]", inside
 ;; kill-current-talker, rdi holding '*gui-control*; the crash report's own
 ;; register dump matched every argument value of that first call: rsi=4,
-;; rdx=1, rcx=0x14=20, r8=0, r9/r10/r11/r14=#f). The scene-chain rung
-;; (issue 522) attempted to land *gui-control*'s own owning define in
-;; loader.gc and pulled it back after an empirical red: with the define
-;; live, this exact first call's own DISPATCH jumped to goal 0 (an empty
-;; slot read, the same argument values in the registers, rbp holding the
-;; loaded 0), a different crash one level past the one this guard covers;
-;; see loader.gc's own held-define note for the full evidence. So this
-;; guard stays LIVE and load-bearing: it retires only when the define
-;; lands for real (methods 19 and 25 plus the slot probe named there).
+;; rdx=1, rcx=0x14=20, r8=0, r9/r10/r11/r14=#f). A first arming attempt
+;; (issue 522) hit a second crash one level past this one: the dispatch
+;; itself jumped to goal 0 off an empty slot, root-caused on issue 534 as
+;; the duplicate-deftype vtable wipe and fixed by single-homing the
+;; deftype (issue 540's first slice). The define is now ARMED in
+;; loader.gc: the re-probe read every landed slot nonzero and executed
+;; this exact first call cleanly, so this guard's condition is true on
+;; every boot from here on. Left in place as cheap defense in depth (it
+;; also covers any future boot ordering where this object links before
+;; loader), no longer load-bearing on a healthy boot.
 ;; Same class as *common-text*'s own guard (text-h.gc:54 defines it
 ;; (the-as game-text-info #f), main.gc:299 and in-game-menu-hud.gc:76 both
 ;; check (not *common-text*) before use) and this file's own kill-current-
