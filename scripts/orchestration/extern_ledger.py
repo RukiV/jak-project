@@ -67,8 +67,8 @@ wins), restricted to declarations whose type starts with "(function" (a real spe
 another bare placeholder or a non-function type). jak3 is preferred as primary when
 both games have a twin; if jak2 disagrees with jak3's text, it is kept as `also` on the
 entry rather than dropped, since a factory reviewer benefits from seeing the mismatch
-up front rather than rediscovering it. A name match is not an identity match: every
-twin here still needs jakx call-site verification before landing, per the brief.
+up front rather than rediscovering it. A name match is not an identity match: a twin
+signature is a hypothesis that extern_verify.py checks against jakx call sites (#515).
 
 Outputs (both deterministically ordered by rank, so a rerun against unchanged inputs
 byte-diffs clean):
