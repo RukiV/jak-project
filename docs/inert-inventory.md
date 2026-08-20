@@ -28,7 +28,7 @@ written is read-only by design and not a finding.
 
 | symbol | reading files | switch commented in |
 |---|---:|---|
-| `*gui-control*` | 8 | `goal_src/jakx/engine/ambient/ambient.gc` |
+| `*gui-control*` | 9 | `goal_src/jakx/engine/ambient/ambient.gc` |
 | `*jakx-boot-task*` | 2 | `goal_src/jakx/engine/level/level-h.gc` |
 | `*display-bug-report*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-level-border*` | 1 | `goal_src/jakx/engine/game/main.gc` |
@@ -40,7 +40,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (192)
+### Never written (190)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -49,7 +49,6 @@ written is read-only by design and not a finding.
 | `*stats-profile-bars*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-reverb*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-entity-errors*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-path-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-vol-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
@@ -87,7 +86,6 @@ written is read-only by design and not a finding.
 | `*debug-engine-sounds*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-force-highspeed*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-hud-disable*` | 1 | `goal_src/jakx/engine/ui/hud.gc` |
-| `*debug-menu-scene-play*` | 1 | `goal_src/jakx/engine/scene/scene-h.gc` |
 | `*debug-move-rigid-body*` | 1 | `goal_src/jakx/engine/physics/rigid-body.gc` |
 | `*debug-pause*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-player-vehicle-unkillable*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
