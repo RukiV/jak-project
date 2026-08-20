@@ -7724,6 +7724,45 @@
     [[110, 131], "v1", "gui-connection"],
     [[125, 127], "a0", "gui-connection"]
   ],
+  // (method 14 gui-control) / (method 15 gui-control) / (method 17 gui-control)
+  // / (method 12 gui-control): scene lane (issue 522), the same connectable-
+  // list-walk-as-connection idiom as methods 9 and 16 above. Method 14
+  // (lookup-gui-connection-id) and method 15 (lookup-gui-connection) each walk
+  // the engine's alive-list once with the found candidate held in s2 (method
+  // 14) or s1 (method 15); jak3's own twin config casts the identical register
+  // shape ("(method 14 gui-control)": [[7, 41], "s2", ...], "(method 15
+  // gui-control)" casting s1) confirming the class. Method 17 (get-status)
+  // holds its found candidate in gp for nearly the whole body (status-code
+  // dispatch keeps re-reading channel/id off it), matching jak3's own
+  // (method 17 gui-control) gp-window cast. Method 12 (target!) spills its
+  // first connections-array walk's candidate through stack offset 24 (sw/lwu
+  // round-trip breaks the auto array-index inference that resolves the
+  // second, direct-register walk on its own, same as methods 14/15's own
+  // second loops), so only that reload window needs a cast; jak3's own
+  // config casts single ops in its differently-shaped (longer,
+  // process-drawable-spawning) twin body, so this is jakx's own window, not
+  // a transcription of jak3's op numbers.
+  "(method 14 gui-control)": [[[5, 33], "s2", "gui-connection"]],
+  "(method 15 gui-control)": [[[6, 46], "s1", "gui-connection"]],
+  // method 17's alive-list walk (ops 7-24, register v1) reads id (offset 28)
+  // to find the candidate before it is copied into gp at op 15; once found,
+  // the rest of the body (status-code dispatch) holds it in gp for nearly
+  // the whole function, matching jak3's own two-part cast for this exact
+  // method (a single v1 op plus a wide gp window).
+  "(method 17 gui-control)": [
+    [13, "v1", "gui-connection"],
+    [[43, 269], "gp", "gui-connection"]
+  ],
+  // method 12's second (free-slot) array walk holds its candidate in a0
+  // (ops 92-116, the same array-index formula as the first walk's v1), then
+  // spills it through stack offset 16 for the rest of the body; without the
+  // cast here too, the stack reload at op 125-126 stays unresolved even
+  // though the first walk's own v1 window (below) is fixed.
+  "(method 12 gui-control)": [
+    [[21, 77], "v1", "gui-connection"],
+    [[92, 116], "a0", "gui-connection"],
+    [[125, 127], "v1", "gui-connection"]
+  ],
   // hud-widgets-tier rung: spawn-hud-side-split-bar, spawn-hud-top-split-bar
   // and spawn-hud-slowmo each store 0 at machine offset 6372 of the newly
   // spawned child process (clearing the manager field before the caller

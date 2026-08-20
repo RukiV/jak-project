@@ -145,6 +145,15 @@
 ;; all-types (verified byte-for-byte against the live instance per findings.md) so the
 ;; JakXTypeConsistency gate agrees; the same shape lives in cam-states.gc, which builds
 ;; later and redefines it identically. generic-obs's sound-on-path needs m9/m17/m20 here.
+;;
+;; og:preserve-this gui-control keystone lane (issue 522): method 0's own raw decode
+;; reads a2 (an int) and passes it straight through to (method-of-type engine new)'s
+;; own count arg, matching jak3's twin constructor exactly ((defmethod new gui-control
+;; ((allocation symbol) (type-to-make type) (arg0 int)) ...)); the 2-arg declaration
+;; here dropped it (AGENTS.md's most-repeated defect class), which the raw asm exposed
+;; as "Function may read a register that is not set: a2" until widened. The retail
+;; top-level's own `(new 'global 'gui-control 64)` call site (loader.gc, its own
+;; scoped decode) confirms the literal value the sole in-tree caller passes.
 (deftype gui-control (basic)
   ((engine             engine)
    (update-time        time-frame)
@@ -156,7 +165,7 @@
    (group              uint8           112)
    )
   (:methods
-    (new (symbol type) _type_)
+    (new (symbol type int) _type_)
     (gui-control-method-9 (_type_ process int int string float int) uint) ;; add-request
     (gui-control-method-10 () none)
     (gui-control-method-11 (_type_ gui-connection) none)
@@ -179,11 +188,25 @@
     ;; scene-player)'s own call site casts and truthiness-tests the
     ;; result as gui-connection/none, which a none return cannot support
     ;; ("Cannot use none-typed variable in a condition").
-    (gui-control-method-15 (_type_ object object string) gui-connection)
+    ;;
+    ;; og:preserve-this arg count widened 3 -> 4 (gui-control keystone lane,
+    ;; issue 522): the raw decode reads a 4th register (t0, an id filter
+    ;; compared against each candidate's own id field) that the 3-arg
+    ;; declaration left unset ("Function may read a register that is not
+    ;; set: t0"); jak3's own twin, lookup-gui-connection, carries the
+    ;; identical 4th arg typed sound-id. Kept as the loose object/object
+    ;; types already declared for args 1-2 (those decode clean as-is;
+    ;; widening only the genuinely missing one, not re-guessing the rest).
+    (gui-control-method-15 (_type_ object object string sound-id) gui-connection)
     (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; set-action!
     (gui-control-method-17 (_type_ uint) uint) ;; get-status
     (gui-control-method-18 () none)
-    (gui-control-method-19 () none)
+    ;; og:preserve-this arg count widened () -> (gui-channel gui-connection),
+    ;; return type widened none -> symbol (gui-control keystone lane, issue
+    ;; 522): loader.gc's own og:preserve-this note on this exact method
+    ;; carries the full raw-asm evidence from both its jakx call sites; this
+    ;; deftype must stay byte-identical to loader.gc's own copy.
+    (gui-control-method-19 (_type_ gui-channel gui-connection) symbol)
     (gui-control-method-20 (_type_ uint symbol int int int float) object) ;; sound-params-set!
     (gui-control-method-21 () none)
     (gui-control-method-22 () none)
