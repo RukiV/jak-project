@@ -7,6 +7,30 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this target-nearest-dist, scene chain (issue 522): retail's own
+;; body is a two-instruction stub, (set! v0 0) (ret-value v0), reading no
+;; argument register at all, so the parameter type cannot be proven from the
+;; body the way AGENTS.md rule 4 usually asks; it is proven from the three
+;; call sites instead (all in loader.gc: gui-control-method-12 twice,
+;; external-art-control's spool-push once), each of which sets up only a0
+;; before the jalr, computed as (&+ (-> <process> root) 12), the identical
+;; trans-address expression target-get-any-pos below already returns typed
+;; vector (that function's own og:preserve-this note: root at raw 184 =
+;; declared 188, trans at root's own +12). A wide (function object object)
+;; proposal for this symbol was tried and rejected earlier (PR 519, the
+;; extern-arity-tier rejected.json ref_drift entry) because applying it
+;; drifted loader's REF with unnarrowed junk; this is the narrow,
+;; evidence-backed signature instead. The float return is proven at the call
+;; site too, not the body: the first call site's own v0 is moved into f30 via
+;; mtc1 and compared with c.lt.s against another float; the body's own
+;; integer 0 is the bit-identical encoding of float 0.0. Scoped decode
+;; (--config-override allowed_objects: ["target"]) confirms zero ERROR/WARN
+;; for this function once all-types.gc's own entry is uncommented to
+;; (function vector float).
+(defun target-nearest-dist ((arg0 vector))
+  0.0
+  )
+
 ;; og:preserve-this landed for real, R5a (#122): transcribed from target_ir2.asm with
 ;; one hand-resolved cast. The decompiler leaves the offset-184/+12 load unresolved
 ;; (view-get-target's return is typed process, generic like view-get-active-target);

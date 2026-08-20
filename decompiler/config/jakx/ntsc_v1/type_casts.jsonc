@@ -9168,5 +9168,26 @@
   "(method 10 effect-control)": [
     [[147, 150], "v1", "collide-shape-moving"],
     [[400, 491], "s3", "death-info"]
+  ],
+  // target-get-any-pos (scene chain, #522): this function already carries a
+  // landed body (R5a, #122) that hand-casts the found process to target
+  // directly in goal_src ("(-> (the-as target found) root trans)"), but no
+  // matching type_casts.jsonc entry was ever added, so the raw decompile
+  // (what offline-test's own compile step actually compiles, per
+  // execution.cpp's data.output_with_skips, not the hand-fixed goal_src)
+  // still fails type prop at op 19 and never got a REF file; landing
+  // target-nearest-dist in the same object is what surfaces it, since
+  // bringing "target" into the REF corpus for the first time needs the
+  // whole object's raw decompile clean, not just the one function this rung
+  // is chasing. gp holds the process found by the view-get-target walk; op
+  // 19 (l.wu (+ gp 184)) is the first read of its root field, op 22 the
+  // identical re-read the raw decode's own redundant-reevaluation shape
+  // performs (documented in the landed function's own og:preserve-this
+  // note). Both need the same target cast the landed source already applies
+  // by hand, cast at each consuming load rather than a spanning window,
+  // since gp holds plain #f/process everywhere else in the body.
+  "target-get-any-pos": [
+    [19, "gp", "target"],
+    [22, "gp", "target"]
   ]
 }

@@ -1,0 +1,52 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; definition for function target-nearest-dist
+(defun target-nearest-dist ((arg0 vector))
+  0.0
+  )
+
+;; definition for function target-get-any-pos
+(defun target-get-any-pos ()
+  (let ((gp-0 (the-as process #f)))
+    (dotimes (s5-0 *view-count*)
+      (if (view-get-target s5-0)
+          (set! gp-0 (view-get-target s5-0))
+          )
+      )
+    (cond
+      ((and gp-0 (-> (the-as target gp-0) root trans))
+       (-> (the-as target gp-0) root trans)
+       )
+      (else
+        (view-push-context 0)
+        (let ((gp-1 (camera-pos)))
+          (view-pop-context)
+          gp-1
+          )
+        )
+      )
+    )
+  )
+
+;; failed to figure out what this is:
+(defstate target-float (target)
+  :event target-generic-event-handler
+  :exit (behavior ()
+    (let ((v1-1 (make-sound-instance (-> *sound-info* 314) (new 'static 'sound-id) (the-as handle #f))))
+      (cond
+        (v1-1
+          (set! (-> v1-1 fo-power) 0.0)
+          (logior! (-> v1-1 flags) 328)
+          (-> v1-1 id)
+          )
+        (else
+          0
+          )
+        )
+      )
+    (target-exit)
+    )
+  :code sleep-code
+  :post target-post
+  )
