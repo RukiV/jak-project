@@ -200,6 +200,12 @@ Lower number segments are larger and have hi-res versions of textures."
    (data       texture               :dynamic)
    )
   (:methods
+    ;; issue 531: inherited relocate (basic's 2-arg default) is wrong here.
+    ;; texture.gc:2344's call site discards (charp-basename (-> s3-1 data))
+    ;; right before the dispatch, and the landed body itself the-as casts
+    ;; its declared int "offset" param to kheap before use; matches
+    ;; texture-page-dir's own :replace at this same method id.
+    (relocate (_type_ kheap (pointer uint8)) none :replace)
     (remove-data-from-heap (_type_ kheap) _type_)
     (get-leftover-block-count (_type_ int int) int)
     (relocate-dests! (_type_ int int) none)

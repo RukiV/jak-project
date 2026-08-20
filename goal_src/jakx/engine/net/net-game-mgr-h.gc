@@ -60,14 +60,14 @@
   (:methods
     (net-game-mgr-method-43 () none)
     (net-game-mgr-method-44 () none)
-    ;; og:preserve-this Lane B rung: audit evidence suggested self+a1, but
-    ;; hud-widgets.gc:3163-3164's landed (hud-item-method-19
-    ;; hud-leader-score) calls this exact method via (method-of-object
-    ;; *net-game-mgr* net-game-mgr-method-45) then invokes the result
-    ;; with zero extra args ((t9-1)); (_type_ object) broke that real
-    ;; call site ("Expected 2 arguments but got 0"), so this stays bare
-    ;; per the landed-object-regression-reverts rule.
-    (net-game-mgr-method-45 () none)
+    ;; issue 531 overturns the Lane B ruling above: a landed caller with the
+    ;; orphan tell is not caller evidence, it IS the defect. Callee reads a1
+    ;; as a truthy/falsy flag only; all 4 real call sites explicitly set a1
+    ;; right before the dispatch to either #f or a symbol-typed field
+    ;; (grand-prix / grand-prix-totals). The prior (_type_ object) attempt
+    ;; failed only because the call sites were never re-landed to pass the
+    ;; arg; this rung re-lands them.
+    (net-game-mgr-method-45 (_type_ symbol) none)
     (net-game-mgr-method-46 () none)
     (net-game-mgr-method-47 (_type_) none)
     (net-game-mgr-method-48 () none)

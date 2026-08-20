@@ -6978,6 +6978,13 @@
   :size-assert         #x80
   :flag-assert         #xf00000080
   (:methods
+    ;; issue 531: inherited relocate (basic's 2-arg default) is wrong for
+    ;; texture-page. texture.gc:2344's call site discards (charp-basename
+    ;; (-> s3-1 data)) right before the dispatch (the orphan tell), and the
+    ;; landed body itself the-as casts its declared int "offset" param to
+    ;; kheap before use (texture.gc:2292), matching texture-page-dir's own
+    ;; :replace at this same method id exactly.
+    (relocate (_type_ kheap (pointer uint8)) none :replace) ;; 7
     (remove-data-from-heap (_type_ kheap) _type_) ;; 9
     (get-leftover-block-count (_type_ int int) int) ;; 10
     (relocate-dests! (_type_ int int) none) ;; 11
@@ -33377,7 +33384,7 @@
     (process-nettable-method-25 (_type_) symbol) ;; 25 ;; truthy gate read by nsd-mgr's idle-enter (net-active?)
     (process-nettable-method-26 (_type_ object object) none) ;; 26
     (process-nettable-method-27 (_type_ object) mem-buffer) ;; 27 ;; begin-message: returns the mem-buffer to fill; peak-obs the-as-casts the result to mem-buffer before mem-buffer-method-22, jungle-obs/net-simple-destruct thread the same return into method-29 as its buffer arg
-    (process-nettable-method-28 () none) ;; 28
+    (process-nettable-method-28 (_type_ mem-buffer) none) ;; 28 ;; issue 531: callee body is (free-msg-buffer arg0), arg0 read unset at a1 (process-nettable_ir2.asm:2324); all 6 call sites set a1 to the mem-buffer var obtained from the preceding method-27 call
     (process-nettable-method-29 (_type_ object object object) none) ;; 29
     (process-nettable-method-30 (_type_ object object) none) ;; 30
     (process-nettable-method-31 (_type_ object) none) ;; 31
@@ -40874,11 +40881,11 @@
     (grid-hash-method-19 (_type_ object object) none) ;; 19 ;; (grid-hash-method-19 (_type_ object object) none)
     (grid-hash-method-20 (_type_ object object) none) ;; 20 ;; (do-search! (_type_ object object)) none)
     (grid-hash-method-21 (_type_ object object) none) ;; 21 ;; (set-up-box (_type_ object object) none)
-    (grid-hash-method-22 () none) ;; 22 ;; (sphere-to-grid-box (_type_ grid-hash-box sphere) none)
+    (grid-hash-method-22 (_type_ grid-hash-box (pointer uint128)) (pointer uint128)) ;; 22 ;; issue 531: callee reads a1 (grid-hash-box) and a2 (pointer, zero-filled then bit-filled) at spatial-hash_ir2.asm:9810+, returns a2; the twin's "sphere-to-grid-box" label belongs to method 24, not this one
     (grid-hash-method-23 (_type_ grid-hash-box vector vector) none) ;; 23
-    (grid-hash-method-24 () none) ;; 24 ;; (update-grid (_type_) none)
-    (grid-hash-method-25 () none) ;; 25
-    (grid-hash-method-26 () none) ;; 26
+    (grid-hash-method-24 (_type_ grid-hash-box sphere) none) ;; 24 ;; issue 531: callee lq-loads a2 as a 16-byte quad (sphere) at spatial-hash_ir2.asm:9634, read-modifies-writes a1 (grid-hash-box) in place; matches "sphere-to-grid-box"
+    (grid-hash-method-25 (_type_ grid-hash-box vector vector float) none) ;; 25 ;; issue 531: callee reads a1 (quad, box copy), a2/a3 (quad, vector-loaded via vf regs, summed to a centroid), t0 (float, gpr->fpr) at spatial-hash_ir2.asm:9365+; forwards a computed sphere pair into two method-24 calls
+    (grid-hash-method-26 (_type_) none) ;; 26 ;; issue 531: callee reads a0/this throughout (spatial-hash_ir2.asm:8300+) despite the bare () declaration; no other args read
     )
   )
 
@@ -51663,14 +51670,16 @@
     (net-process-mgr-method-49 (_type_ object object) none) ;; 49
     (net-process-mgr-method-50 (_type_ object object object) none) ;; 50
     (net-process-mgr-method-51 () none) ;; 51
-    ;; og:preserve-this Lane B rung: audit evidence suggested self+a1, but
-    ;; net-enemy.gc:803-805's landed (case 'transition) branch calls this
-    ;; exact method via (method-of-object *net-process-mgr*
-    ;; net-process-mgr-method-52) then invokes the result with zero extra
-    ;; args ((s3-0)); (_type_ object) broke that real call site
-    ;; ("Expected 2 arguments but got 0"), so this stays bare per the
-    ;; landed-object-regression-reverts rule.
-    (net-process-mgr-method-52 () none) ;; 52
+    ;; issue 531 overturns the Lane B ruling above: a landed caller with the
+    ;; orphan tell is not caller evidence, it IS the defect. Callee reads a1
+    ;; unset (net-process-mgr_ir2.asm:7749+) and uses it in an integer
+    ;; subtract against two clock deltas, returning the final subtraction
+    ;; result (a real computed int, not a 0/none filler). net-enemy.gc:804's
+    ;; discarded (mem-buffer-method-33 arg1) result (declared uint) flows
+    ;; into a1 at the call. The prior attempt at (_type_ object) failed only
+    ;; because the call site was never re-landed to pass the arg; this rung
+    ;; re-lands it.
+    (net-process-mgr-method-52 (_type_ uint) int) ;; 52
     (net-process-mgr-method-53 (_type_ object object object object) none) ;; 53
     (net-process-mgr-method-54 (_type_ object object) none) ;; 54
     (net-process-mgr-method-55 (_type_ process-nettable int rgba) symbol) ;; 55 ;; local net-process-id allocation; sig from (method 34 process-nettable)'s call, truthy = allocated
@@ -54258,7 +54267,7 @@
     (vehicle-method-177 () none) ;; 177
     (vehicle-method-178 (_type_) none) ;; 178
     (vehicle-method-179 (_type_ object) none) ;; 179
-    (vehicle-method-180 () none) ;; 180
+    (vehicle-method-180 (_type_) none) ;; 180 ;; issue 531: base body is a no-op stub, but wvehicle's own override (wvehicle-util_ir2.asm:12430) reads a0/this throughout; declaration must accommodate the override
     (vehicle-method-181 (_type_ object) none) ;; 181
     (vehicle-method-182 (_type_ object) none) ;; 182
     (vehicle-method-183 (_type_ object) none) ;; 183
@@ -54269,7 +54278,7 @@
     (vehicle-method-188 (_type_) none) ;; 188
     (vehicle-method-189 (_type_) none) ;; 189
     (vehicle-method-190 () none) ;; 190
-    (vehicle-method-191 () none) ;; 191
+    (vehicle-method-191 (_type_) none) ;; 191 ;; issue 531: base body is a no-op stub, but wvehicle's own override (wvehicle-net_ir2.asm:156) reads a0/this throughout; declaration must accommodate the override
     (vehicle-method-192 (_type_) none) ;; 192
     (vehicle-method-193 () none) ;; 193
     (vehicle-method-194 (_type_ object) none) ;; 194
@@ -56930,14 +56939,16 @@
   (:methods
     (net-game-mgr-method-43 () none) ;; 43
     (net-game-mgr-method-44 () none) ;; 44
-    ;; og:preserve-this Lane B rung: audit evidence suggested self+a1, but
-    ;; hud-widgets.gc:3163-3164's landed (hud-item-method-19
-    ;; hud-leader-score) calls this exact method via (method-of-object
-    ;; *net-game-mgr* net-game-mgr-method-45) then invokes the result
-    ;; with zero extra args ((t9-1)); (_type_ object) broke that real
-    ;; call site ("Expected 2 arguments but got 0"), so this stays bare
-    ;; per the landed-object-regression-reverts rule.
-    (net-game-mgr-method-45 () none) ;; 45
+    ;; issue 531 overturns the Lane B ruling above: a landed caller with the
+    ;; orphan tell is not caller evidence, it IS the defect. Callee reads a0
+    ;; and a1 unset (net-game-mgr_ir2.asm:6707+), using a1 purely in
+    ;; truthy/falsy branches; all 4 real call sites explicitly set a1 right
+    ;; before the dispatch (hud-results_ir2.asm:12821/15275/17392/17524,
+    ;; hud-widgets_ir2.asm:10383) to either #f or a symbol-typed field
+    ;; (grand-prix / grand-prix-totals, both declared symbol). The prior
+    ;; attempt at (_type_ object) failed only because the call sites were
+    ;; never re-landed to pass the arg; this rung re-lands them.
+    (net-game-mgr-method-45 (_type_ symbol) none) ;; 45
     (net-game-mgr-method-46 () none) ;; 46
     (net-game-mgr-method-47 (_type_) none) ;; 47
     (net-game-mgr-method-48 () none) ;; 48

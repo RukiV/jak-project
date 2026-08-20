@@ -91,14 +91,14 @@
     (net-process-mgr-method-49 (_type_ object object) none)
     (net-process-mgr-method-50 (_type_ object object object) none)
     (net-process-mgr-method-51 () none)
-    ;; og:preserve-this Lane B rung: audit evidence suggested self+a1, but
-    ;; net-enemy.gc:803-805's landed (case 'transition) branch calls this
-    ;; exact method via (method-of-object *net-process-mgr*
-    ;; net-process-mgr-method-52) then invokes the result with zero extra
-    ;; args ((s3-0)); (_type_ object) broke that real call site
-    ;; ("Expected 2 arguments but got 0"), so this stays bare per the
-    ;; landed-object-regression-reverts rule.
-    (net-process-mgr-method-52 () none)
+    ;; issue 531 overturns the Lane B ruling above: a landed caller with the
+    ;; orphan tell is not caller evidence, it IS the defect. Callee reads a1
+    ;; and uses it in an integer subtract against two clock deltas,
+    ;; returning the computed int; net-enemy.gc:804's discarded
+    ;; (mem-buffer-method-33 arg1) result (declared uint) flows into a1 at
+    ;; the call. The prior (_type_ object) attempt failed only because the
+    ;; call site was never re-landed to pass the arg; this rung re-lands it.
+    (net-process-mgr-method-52 (_type_ uint) int)
     (net-process-mgr-method-53 (_type_ object object object object) none)
     (net-process-mgr-method-54 (_type_ object object) none)
     (net-process-mgr-method-55 (_type_ process-nettable int rgba) symbol) ;; local net-process-id allocation; sig from (method 34 process-nettable)'s call, truthy = allocated
