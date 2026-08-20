@@ -9060,5 +9060,32 @@
   // register that the decompiler does not carry the narrowing to. Cast at
   // op128, the offset-20 read that consumes it, so it resolves against
   // entity-actor instead of vector.
-  "(method 14 engine-minimap)": [[128, "a0", "entity-actor"]]
+  "(method 14 engine-minimap)": [[128, "a0", "entity-actor"]],
+  // (method 10 effect-control) (do-effect, effect-control rung), two casts:
+  // op142-145 runs (type? s2-0 collide-shape-moving) against the
+  // process-drawable's root (raw offset 184, declared 188, the standard +4
+  // basic-tag trap, already typed trsqv per all-types.gc:33446); op147
+  // copies that same value into v1-38 only on the truthy branch, but the
+  // copy keeps the un-narrowed trsqv type, so op149's raw offset 276 load
+  // (declared 280, the same +4 trap) cannot resolve. jak3's own twin body
+  // (goal_src/jak3/engine/game/effect-control.gc:355) reads this exact
+  // field through (the-as collide-shape-moving v1-38) before naming it
+  // ground-pat (all-types.gc:34978). Cast at the defining copy through the
+  // failing load; the range end is exclusive (json_util.cpp's
+  // parse_json_optional_integer_range), so 150 is needed to cover op149
+  // itself.
+  // op400 reads a symbol's value slot ((l.w (+ v0-25 -1)), the standard
+  // (-> sym value) shape) into s3-1, generically typed object; jak3's twin
+  // (effect-control.gc:421-467) binds the identical read then reads it
+  // through repeated (the-as death-info s3-1) casts (vertex-skip, timer,
+  // overlap, effect, sound), matching death-info's own field layout
+  // (all-types.gc:20186-20195: vertex-skip raw 0, timer raw 2, overlap raw
+  // 3, effect raw 4, sound raw 8) against ops 416/418/459/453/461/466/470
+  // here. s3 keeps this value through op490's argument-array store and is
+  // reused for the unrelated s3-0 string starting op499, so the range ends
+  // before that reuse.
+  "(method 10 effect-control)": [
+    [[147, 150], "v1", "collide-shape-moving"],
+    [[400, 491], "s3", "death-info"]
+  ]
 }

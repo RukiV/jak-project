@@ -533,20 +533,12 @@
              (else
                (set! (-> s5-1 spec volume) 1024)
                (set! (-> s5-1 spec pitch-mod) 0)
-               ;; og:preserve-this runtime-link guard: effect-param->sound-spec's home
-               ;; (effect-control.o) is an empty stub, so the symbol reads 0 until that leg
-               ;; lands -- an unguarded call here segfaulted the boot the moment the first
-               ;; sound-spawner constructed its ambient-sound at level birth. The params
-               ;; stay unapplied (spec keeps the defaults above), which only mutes the
-               ;; lump-tuned volume/pitch shaping. Drop the guard when effect-control lands.
-               (if (nonzero? effect-param->sound-spec)
-                   (effect-param->sound-spec
-                     (-> s5-1 spec)
-                     (the-as (pointer float) sv-52)
-                     sv-56
-                     (the-as process-focusable pp)
-                     )
-                   )
+               (effect-param->sound-spec
+                 (-> s5-1 spec)
+                 (the-as (pointer float) sv-52)
+                 sv-56
+                 (the-as process-focusable pp)
+                 )
                ;; the hand-carried srl/pcpyud replacement: lowercase the sound-name in place
                (let ((sname (new 'stack-no-clear 'array 'sound-name 1)))
                  (set! (-> sname 0) sv-32)
