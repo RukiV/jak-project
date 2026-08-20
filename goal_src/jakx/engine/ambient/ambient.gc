@@ -61,8 +61,8 @@
   )
 
 ;; WARN: Return type mismatch int vs none.
-;; og:preserve-this runtime-link guard, now dead by design (scene chain,
-;; issue 522): kill-current-talker's own body unconditionally calls gui-
+;; og:preserve-this runtime-link guard, LIVE (scene chain, issue 522):
+;; kill-current-talker's own body unconditionally calls gui-
 ;; control-method-16 on *gui-control*, which used to have no landed
 ;; instantiation anywhere in goal_src, only the forward (define-extern
 ;; *gui-control* gui-control) declaration; this was confirmed as the R10
@@ -76,14 +76,16 @@
 ;; <out>) showed this exact instruction, "mov eax, [r15+rdi*1-0x04]", inside
 ;; kill-current-talker, rdi holding '*gui-control*; the crash report's own
 ;; register dump matched every argument value of that first call: rsi=4,
-;; rdx=1, rcx=0x14=20, r8=0, r9/r10/r11/r14=#f). loader.gc now lands
-;; *gui-control*'s own owning define at its retail position (this rung's
-;; own reachability audit there covers this exact call chain, proving
-;; method 16's own internal method-19 dispatch is unreached from every one
-;; of kill-current-talker's five calls), so the guard's condition is
-;; always true from here on; left in place rather than removed, since
-;; retiring the guard itself is a separate cleanup this rung does not
-;; scope. Same class as *common-text*'s own guard (text-h.gc:54 defines it
+;; rdx=1, rcx=0x14=20, r8=0, r9/r10/r11/r14=#f). The scene-chain rung
+;; (issue 522) attempted to land *gui-control*'s own owning define in
+;; loader.gc and pulled it back after an empirical red: with the define
+;; live, this exact first call's own DISPATCH jumped to goal 0 (an empty
+;; slot read, the same argument values in the registers, rbp holding the
+;; loaded 0), a different crash one level past the one this guard covers;
+;; see loader.gc's own held-define note for the full evidence. So this
+;; guard stays LIVE and load-bearing: it retires only when the define
+;; lands for real (methods 19 and 25 plus the slot probe named there).
+;; Same class as *common-text*'s own guard (text-h.gc:54 defines it
 ;; (the-as game-text-info #f), main.gc:299 and in-game-menu-hud.gc:76 both
 ;; check (not *common-text*) before use) and this file's own kill-current-
 ;; talker/task-node-reset/reset-actors guards just above and below;
