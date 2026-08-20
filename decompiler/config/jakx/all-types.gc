@@ -67488,14 +67488,60 @@
 
 
 (define-extern *last-menu-action* object)
-(define-extern default-base-menu-post function)
+;; og:preserve-this retyped from bare function (menu2-GAME survey rung, 2026-08-19):
+;; both are real defuns landed nowhere else, decoded whole inside menu2-GAME
+;; itself, so the arg registers each body actually reads are read straight off
+;; that decode rather than guessed. default-base-menu-post takes no explicit
+;; args and reads s6 directly (op 2, same 0-arg-off-pp shape as
+;; find-first-selectable below); its only caller, (anon-function 79 menu2-GAME),
+;; tail-returns it directly and that anon-function's own declared type below is
+;; "(function object :behavior map-menu)", so the return is object.
+(define-extern default-base-menu-post (function object))
+;; og:preserve-this menu2-GAME survey rung, 2026-08-19: left at the bare
+;; function guess. The body (ops 0-3) reads a0/a1/a2/a3 as real inputs and a2
+;; compares against the symbol 'die (op 5), matching the standard process
+;; event-handler shape, so (function process int symbol event-message-block
+;; object) is the right arg/return signature by itself -- but the body ALSO
+;; dispatches through (-> (-> s6 type) <slot 55>) at op 8-9 to reach the state
+;; transition, and s6 (never explicitly loaded, so never typed) defaults to
+;; generic process, which does not carry a slot 55, producing a NEW "method
+;; with id 55 of type process could not be found" error that bare `function`
+;; was silently swallowing. A type_cast on s6 at ops 0-20 to base-menu did not
+;; clear it either (net error count rose from 176 to 191 in that experiment).
+;; This needs the same :behavior/:state-methods self-typing mechanism go-virtual
+;; needs (see jakx-behavior-state-typing), which is a landing-rung change, not
+;; a config-only one; retyping the extern alone is a net regression here
+;; (174 -> 176 corpus-wide on this object) and is deliberately NOT applied.
 (define-extern base-menu-event-handler function)
-(define-extern base-menu-init-by-other function)
+;; base-menu-init-by-other: a0 is checked against #f (op 34, an optional
+;; "other" object), a1 is copied field-by-field (offsets 0/4/8, all lwc1) into
+;; three consecutive s6 floats matching base-menu's own pos-x/pos-y/pos-z
+;; layout, so a1 is vector; a2 is stored as a raw byte (op 22) into an s6
+;; field. The tail return is enter-state's own passthrough (declared object
+;; below), so the return is object.
+(define-extern base-menu-init-by-other (function object vector int object))
+;; og:preserve-this menu2-GAME survey rung, 2026-08-19: left at the bare
+;; function guess. a0 is a raw pointer written through at four fixed offsets
+;; (82/0/36/28) never read back, and the offsets line up plausibly with
+;; prim-strip's own flags/adnops layout (offset 0 stores the literal 3, which
+;; is exactly (prim-flags alpha-blend-enable texture-enable) per prim-strip's
+;; own `new` method in prim-h.gc), but typing a0 as object (rather than
+;; prim-strip) turned these into "Failed store" errors instead of the raw
+;; asm-fallback stores bare `function` was producing, and typing a0 as
+;; prim-strip via a type_cast at op 0 only cleared one of the four. Left
+;; unfixed pending a fuller prim-strip field-offset check at landing; retyping
+;; alone is a net regression here, same as base-menu-event-handler above.
 (define-extern menu-clear-strip function)
 ;; og:preserve-this retyped float, not the dead block's object: menu2-GAME's own
 ;; use is (s.f! METERS_PER_TEXEL f0-1), a float store, at op 365 of top-level-login.
 (define-extern METERS_PER_TEXEL float)
-(define-extern find-first-selectable function)
+;; find-first-selectable: no args are read (no a0/a1 setup at entry; the body
+;; reads s6 directly at op 2 like default-base-menu-post above), and its
+;; result is used as a truthy value at its call site in (method 61
+;; selection-menu-manager). Zero explicit args, object return, matching the
+;; same "(function object)" shape already used for the zero-arg anon-functions
+;; in this same object's own entries below (indices 21/22/23/35).
+(define-extern find-first-selectable (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; intro-part                     ;;
