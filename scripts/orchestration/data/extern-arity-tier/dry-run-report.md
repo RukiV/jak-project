@@ -184,8 +184,16 @@ regression found traces to that pattern (a struct written field-by-field
 through an "object"-typed arg, a second untyped extern one call deeper, an
 unresolved global one load deeper).
 
-Given that, this report states only a floor and an unmeasured hypothesis, not a
-validated projection:
+The brief's own literal framing -- sum of the 490 verified proposals' attributed
+ledger occurrences -- is 658 raw `;; ERROR:` lines directly attributed to these
+symbols (1.34 per proposal on average). This is the number if every attributed
+line simply vanished with no downstream consequence; the dry run above shows
+that is not what happens even for the symbols that resolve cleanly (8 of the 10
+clean survivors swap to a DIFFERENT line, net 0, not a vanish), so 658 is a raw
+upper bound on directly-attributed lines, not a marker-count reduction estimate.
+
+Given that, this report states three numbers, in decreasing order of how much
+they should be trusted, not a single validated projection:
 
 - Floor: the DIRECT "unknown type" error class retires from all 490 symbols'
   own bodies the moment their declaration lands, unconditionally (arity_verify
