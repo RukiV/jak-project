@@ -10,6 +10,29 @@
     [66, "v1", "game-text-info"],
     [73, "v1", "game-text-info"]
   ],
+  // (method 10 rigid-body-queue) (rigid-body-queue-tick rung): the per-frame
+  // physics tick, unparked from hacks.jsonc's asm_functions_by_name. Casts
+  // discovered iteratively, each one fixing the type-prop failure the
+  // previous cast exposed (a scoped decode of just rigid-body-queue,
+  // --proj-path a scratch dir junctioned to this worktree's own decompiler/
+  // config). Mirrors jak3's own six-cast shape for its twin body (jak3
+  // type_casts.jsonc's own "(method 10 rigid-body-queue)" entry) even
+  // though the op indices differ (jakx's raw body is not byte-identical to
+  // jak3's): loop 1's a0 (the process resolved from the countdown's own
+  // array read) needs process-focusable to resolve its rbody field read,
+  // then rigid-body-object to resolve the method-85 vtable dispatch; loop
+  // 2's s3 (the process resolved from the count-indexed array read) needs
+  // process-focusable for its own rbody/flags reads and mask-gate read,
+  // then rigid-body-object to resolve the method-86/87/88 vtable dispatches.
+  "(method 10 rigid-body-queue)": [
+    [20, "a0", "process-focusable"],
+    [28, "a0", "rigid-body-object"],
+    [58, "s3", "process-focusable"],
+    [64, "s3", "process-focusable"],
+    [76, "s3", "rigid-body-object"],
+    [81, "s3", "rigid-body-object"],
+    [86, "s3", "rigid-body-object"]
+  ],
   // scene-player-init (scene lane): arg0 (object) is dispatched by rtype-of
   // into array/pair/else cases, jak3's own twin body doing the identical
   // (case (rtype-of arg0) ((array) (set! (-> self scene-list) (new 'process

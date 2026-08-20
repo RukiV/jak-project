@@ -54,15 +54,6 @@
   :flag-assert         #x900000070
   )
 
-;; og:preserve-this forward declaration for rigid-body-queue-manager-init-by-
-;; other, this file's own function held below (its body diverges from jak3's
-;; twin in ways this rung cannot verify, see the note below rigid-body-queue-
-;; manager's method 10 override): rigid-body-queue-manager-spawn's own
-;; process-spawn expansion embeds this symbol by name at compile time, so
-;; spawn needs the declaration even though nothing calls it directly. Drop
-;; this line and land the real body once method 10 below is verified.
-(define-extern rigid-body-queue-manager-init-by-other (function rigid-body-queue object :behavior rigid-body-queue-manager))
-
 ;; definition for symbol *rigid-body-queue*, type rigid-body-queue
 (define *rigid-body-queue* (new 'static 'rigid-body-queue))
 
@@ -149,36 +140,123 @@
 ;; definition for symbol *rb-raw-time-val*, type int
 (define *rb-raw-time-val* 0)
 
-;; og:preserve-this rigid-body-queue rung (held): method 10, the per-frame
-;; physics tick, called from rigid-body-queue-manager's idle :post. This
-;; rung's own raw decode of it diverges from jak3's twin in ways this rung
-;; cannot verify: jak3's per-rbody reset touches time-remaining, blocked-by
-;; and step-count, but this rung's own raw ops touch only time-remaining and
-;; a raw flags mask (rigid-body-flag has no landed enum to name the cleared
-;; bits against), and the two per-body callbacks dispatch through a virtual
-;; method at a machine offset this rung has no other evidence for, where
-;; jak3 calls a named function directly. It also inlines process<->handle
-;; three times via a raw "sllv reg, reg, r0" triple the decompiler's macro
-;; matcher does not recognize (the same idiom hand-folded elsewhere in this
-;; tree, see generic-obs.gc's 'mirror case), which here also blocks the type
-;; prop needed to resolve the rbody-flags read. Parked in decompiler/config/
-;; jakx/ntsc_v1/hacks.jsonc's asm_functions_by_name; landing a guessed body
-;; would be presenting a guess as a finding. A future landing can re-derive
-;; from the framework's own dump (offline-test -f rigid-body-queue -d),
-;; verifying each field offset independently rather than trusting jak3's
-;; twin.
+;; og:preserve-this rigid-body-queue-tick rung: method 10, the per-frame
+;; physics tick, unparked from decompiler/config/jakx/ntsc_v1/hacks.jsonc's
+;; asm_functions_by_name. The earlier hold's own divergence claim was real,
+;; not an artifact: this rung's clean decode confirms a 2-loop design with no
+;; float compares, no retry back-branch and no third loop, dispatching
+;; rigid-body-object's virtual methods 85/86/87/88 (85 in loop 1 under a pp
+;; swap, 86/87/88 in loop 2 under one pp swap) rather than calling jak3's
+;; named rigid-body-object-method-54/clear-impulse-force-flag!; jak3's own
+;; blocked-by/step-count fields do not exist on jakx's rbody layout, so
+;; jak3's twin body is not transcribable here regardless. What WAS an
+;; artifact was the asm park itself: the "sllv reg, reg, r0" handle<->process
+;; idiom decodes fine on its own (see method 9 and 16 above); what actually
+;; blocked type prop was six missing rigid-body-object/process-focusable
+;; casts (decompiler/config/jakx/ntsc_v1/type_casts.jsonc, ops 20/28 for
+;; loop 1's a0 and 58/64/76/81/86 for loop 2's s3), the same six-cast shape
+;; jak3's own twin needed (jak3 type_casts.jsonc's "(method 10
+;; rigid-body-queue)" entry) at different op indices. flags stays a bare
+;; uint16 with literal masks (no rigid-body-flag enum): see the note at
+;; decompiler/config/jakx/all-types.gc:48505-48513 on retail jakx printing a
+;; flag bit (0x100) outside jak3's own enum's bit space. The raw decode's own
+;; pretty-printer omits the (the-as rigid-body-object ...) wrapper on the
+;; method-85 and method-88 call args (a0-2/s3-0 already carry that flow-
+;; sensitive type internally by those ops), but a fresh compile of this
+;; source has only handle->process's own declared process return to start
+;; from; restored both wrappers, the same bootstrapping-decode-artifact
+;; class documented on rigid-body-object.gc's own methods 62/63/87.
+(defmethod rigid-body-queue-method-10 ((this rigid-body-queue))
+  (with-pp
+    (let ((f30-0 (seconds-per-frame)))
+      (countdown (s5-0 (-> this count))
+        (let ((a0-2 (handle->process (-> this array s5-0))))
+          (cond
+            (a0-2
+              (let ((v1-6 (-> (the-as process-focusable a0-2) rbody)))
+                (set! (-> v1-6 time-remaining) f30-0)
+                (logand! (-> v1-6 flags) -1793)
+                )
+              (let ((s4-0 pp))
+                (set! pp a0-2)
+                (rigid-body-object-method-85 (the-as rigid-body-object a0-2))
+                (set! pp s4-0)
+                )
+              0
+              )
+            (else
+              )
+            )
+          )
+        )
+      )
+    (let ((s5-1 (-> *kernel-context* prevent-from-run)))
+      (dotimes (s4-1 (-> this count))
+        (let ((s3-0 (handle->process (-> this array s4-1))))
+          (when (and s3-0
+                     (logtest? (-> (the-as process-focusable s3-0) rbody flags) 2)
+                     (not (logtest? (-> (the-as process-focusable s3-0) rbody flags) 4))
+                     )
+            (when (not (logtest? s5-1 (-> s3-0 mask)))
+              (let ((s2-0 pp))
+                (set! pp s3-0)
+                0
+                0
+                (rigid-body-object-method-86 (the-as rigid-body-object s3-0))
+                (rigid-body-object-method-87 (the-as rigid-body-object s3-0))
+                (rigid-body-object-method-88 (the-as rigid-body-object s3-0))
+                0
+                (set! pp s2-0)
+                )
+              )
+            )
+          )
+        )
+      )
+    0
+    (none)
+    )
+  )
 
-;; og:preserve-this rigid-body-queue rung (held): methods 11, 13 and 15 all
-;; inline the same process<->handle triple as method 9 above, but here it
-;; breaks CFG resolution outright ("CFG building failed", no expression tree
-;; at all, confirmed by reverting the asm-park and re-decoding, still red)
-;; rather than merely leaving unfolded syntax the way method 9 did. Not
-;; reached by anything this rung lands (rigid-body-queue-manager's own idle
-;; :post only calls method 10, itself held above); parked in decompiler/
-;; config/jakx/ntsc_v1/hacks.jsonc's asm_functions_by_name rather than
-;; hand-written from the jak3 twin blind, since this rung has no rendered
-;; jakx expression tree to check field offsets against. Re-derive once a
-;; caller needs them.
+;; og:preserve-this rigid-body-queue-tick rung: methods 11, 13 and 15,
+;; unparked alongside method 10 above. The earlier hold's own claim ("CFG
+;; building failed", confirmed red by reverting the park and re-decoding)
+;; does not reproduce in this rung's own fresh decode: all three decode at
+;; zero ERROR today, with only the standard "Found some very strange gotos"
+;; WARN also seen on several other already-landed jakx files (level.gc,
+;; spatial-hash.gc, text.gc, wcar-skel-template.gc, title-obs.gc). This rung
+;; could not identify what changed between the two decodes; reported as a
+;; mismatch against the prior hold rather than guessed at.
+(defmethod rigid-body-queue-method-11 ((this rigid-body-queue) (arg0 process))
+  (let ((v1-0 -1))
+    (let ((a2-0 0))
+      (goto cfg-9)
+      (until (>= a2-0 (-> this count))
+        (when (not (handle->process (-> this array a2-0)))
+          (set! v1-0 a2-0)
+          (goto cfg-11)
+          )
+        (+! a2-0 1)
+        (label cfg-9)
+        )
+      )
+    (label cfg-11)
+    (cond
+      ((!= v1-0 -1)
+       (set! (-> this array v1-0) (process->handle arg0))
+       )
+      (else
+        (when (< (-> this count) 128)
+          (set! (-> this array (-> this count)) (process->handle arg0))
+          (+! (-> this count) 1)
+          )
+        )
+      )
+    )
+  0
+  0
+  (none)
+  )
 
 ;; definition for method 14 of type rigid-body-queue
 ;; WARN: Return type mismatch int vs none.
@@ -213,6 +291,45 @@
       (set! (-> this array arg0) a2-3)
       )
     )
+  0
+  (none)
+  )
+
+;; og:preserve-this rigid-body-queue-tick rung: method 13, unparked alongside
+;; method 10 (see the note above method 11 for the mismatch against the
+;; earlier hold's "CFG building failed" claim).
+(defmethod rigid-body-queue-method-13 ((this rigid-body-queue) (arg0 int) (arg1 process))
+  (let ((v1-2 (process->handle arg1))
+        (a2-4 (+ arg0 1))
+        )
+    (while (< a2-4 (-> this count))
+      (when (= (-> this array a2-4) v1-2)
+        (rigid-body-queue-method-12 this arg0 a2-4)
+        (goto cfg-11)
+        )
+      (+! a2-4 1)
+      )
+    )
+  (label cfg-11)
+  0
+  0
+  (none)
+  )
+
+;; og:preserve-this rigid-body-queue-tick rung: method 15, unparked alongside
+;; method 10 (see the note above method 11 for the mismatch against the
+;; earlier hold's "CFG building failed" claim).
+(defmethod rigid-body-queue-method-15 ((this rigid-body-queue) (arg0 process))
+  (let ((v1-2 (process->handle arg0)))
+    (dotimes (a1-4 (-> this count))
+      (when (= (-> this array a1-4) v1-2)
+        (rigid-body-queue-method-14 this a1-4)
+        (goto cfg-11)
+        )
+      )
+    )
+  (label cfg-11)
+  0
   0
   (none)
   )
@@ -263,22 +380,47 @@
   (none)
   )
 
-;; og:preserve-this rigid-body-queue rung (held): rigid-body-queue-manager-
-;; init-by-other, the idle state and rigid-body-queue-manager-post are
-;; omitted as one cluster. Their own decode is clean (init-by-other's
-;; stack-size-set!/queue-assign/init-queue!/go-virtual idle body, the idle
-;; state's :exit/:code sleep-code/:post shape, and rigid-body-queue-manager-
-;; post's own call into rigid-body-queue's method 10, all render without
-;; error once given the :behavior tag), but idle's :post reaches method 10
-;; (the physics tick) on the very first frame, and method 10 is the function
-;; held above with the unverified body. Landing this cluster without a
-;; verified tick body would activate a guarded caller
-;; (vehicle-manager-init-by-other, see vehicle-manager.gc) into a state that
-;; runs unverified code every frame. Nothing in this rung calls rigid-body-
-;; queue-manager-spawn (vehicle-manager-init-by-other, its only caller, is
-;; held for the same reason), so leaving this cluster undefined is
-;; boot-safe today; retire together with method 10 above once its own tick
-;; body is independently verified (offline-test -f rigid-body-queue -d).
+;; og:preserve-this rigid-body-queue-tick rung: rigid-body-queue-manager-
+;; init-by-other, the idle state and rigid-body-queue-manager-post, landed
+;; together as the cluster the prior hold named (its own retirement
+;; condition was method 10's tick body reaching independent verification,
+;; done above). Still boot-safe: rigid-body-queue-manager-spawn's only
+;; caller, vehicle-manager-init-by-other, stays held in vehicle-manager.gc
+;; (untouched by this rung; that file's own note now names a satisfied
+;; condition but is left as-is, arming the vehicle chain being a decision
+;; outside this rung's scope). The forward-declare this file used to carry
+;; for init-by-other is dropped: the real body now lands ahead of
+;; rigid-body-queue-manager-spawn's own definition below, which is the only
+;; place in this file that needs the symbol at compile time.
+(defbehavior rigid-body-queue-manager-post rigid-body-queue-manager ()
+  (local-vars (v1-2 int) (v1-5 int))
+  0
+  0
+  (.mfc0 v1-2 Count)
+  (rigid-body-queue-method-10 (-> self queue))
+  (.mfc0 v1-5 Count)
+  0
+  (none)
+  )
+
+(defstate idle (rigid-body-queue-manager)
+  :virtual #t
+  :exit (behavior ()
+    (set! (-> self queue count) 0)
+    0
+    )
+  :code sleep-code
+  :post (behavior ()
+    (rigid-body-queue-manager-post)
+    )
+  )
+
+(defbehavior rigid-body-queue-manager-init-by-other rigid-body-queue-manager ((arg0 rigid-body-queue))
+  (stack-size-set! (-> self main-thread) 128)
+  (set! (-> self queue) arg0)
+  (rigid-body-queue-method-9 (-> self queue) self)
+  (go-virtual idle)
+  )
 
 ;; definition for method 10 of type rigid-body-queue-manager
 (defmethod deactivate ((this rigid-body-queue-manager))
