@@ -69596,21 +69596,28 @@
    (text-id         uint32  :offset-assert 64)
    (fixed-time-val  int32   :offset-assert 68)
    )
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x48
-  :flag-assert         #x1d00000048
-  ;; og:preserve-this hud-widgets rung: method 24's own 2-arg shape (int,
-  ;; object) is NOT compatible with hud-item's own now-declared 1-arg
-  ;; method 24 (matching the same class of rejection goalc's own defmethod
-  ;; type-check proved directly for the sibling widgets in this same rung).
-  ;; A genuinely new slot, not an override, renamed to method-28.
+  :flag-assert         #x1c00000048
+  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
+  ;; inherited slot with a genuinely incompatible 1-arg int shape; :replace
+  ;; reuses hud-item's own id without the compatibility check (the wave-1
+  ;; attempt to give this its own new slot 28 broke the decoder's own by-id
+  ;; lookup; see the matching hud-player-indicators comment for the full
+  ;; mechanism). The stray second `object` param from the wave-1 slot-28
+  ;; declaration was never real: all three call sites in hud-clock's own
+  ;; landed method 19 (hud-widgets.gc, this rung) dispatch it with exactly
+  ;; one argument after self, each an int-typed value (fixed-time-val or a
+  ;; computed time delta); (mi) rejected the 2-arg form outright ("Expected
+  ;; 3 arguments but got 2") once :replace made this type's own signature
+  ;; the one method-of-object resolves.
   (:methods
     ;; hud-widgets-tier rung: arg0 retyped object -> int. Body stack-stores
     ;; it, reloads it and divides it by 18000 to split minutes from seconds
     ;; ("Couldn't figure out integer mod/divide: (/.si v1 a0) (object and
     ;; <integer 18000>)" with the old object typing); a clock value in
     ;; milliseconds. hud-widgets_ir2.asm, this rung.
-    (hud-clock-method-28 (_type_ int object) none) ;; 28
+    (hud-item-method-24 (_type_ int) none :replace) ;; 24
     )
   )
 
@@ -70045,21 +70052,20 @@
    (stats-type  uint64     :offset-assert 64)
    (pad-tail    uint8 8    :offset-assert 72)
    )
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x50
-  :flag-assert         #x1d00000050
-  ;; og:preserve-this hud-widgets rung: method 24's own ORIGINAL zero-arg
-  ;; shape (`() none`) is NOT compatible with hud-item's own now-declared
-  ;; method 24 (`(_type_ object) none`, hud-widgets rung, this corpus);
-  ;; goalc's own defmethod type-check proved this directly ("was originally
-  ;; defined as (function _type_ object none), but has been redefined as
-  ;; (function none)") when the mistaken override-removal from this same
-  ;; rung was first tried. hud-results' own method-24 is therefore a
-  ;; genuinely new slot, not an override, landing at 28 (the first free id
-  ;; past hud-results-base's own unchanged 28), renamed from the stale
-  ;; hud-results-method-24 to hud-results-method-28.
+  :flag-assert         #x1c00000050
+  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
+  ;; inherited slot with a genuinely incompatible zero-arg shape (`()
+  ;; none` vs the base `(_type_ object) none`); :replace reuses hud-item's
+  ;; own id without the compatibility check goalc's plain defmethod
+  ;; override path enforces (the wave-1 attempt to give this its own new
+  ;; slot 28 broke the decoder's own by-id lookup, regressing this
+  ;; object's decode from 3 to 5 errors, corpus_mover_diff vs e1417c458;
+  ;; see the matching hud-player-indicators comment for the full
+  ;; mechanism).
   (:methods
-    (hud-results-method-28 () none) ;; 28
+    (hud-item-method-24 () none :replace) ;; 24
     )
   ;; adjudicated: ASSERTS RIGHT (proven), FIELD LIST short 8 trailing bytes.
   ;; (method 3 hud-results) in hud-results_ir2.asm walks the whole inherited
@@ -70095,22 +70101,22 @@
   ((i-got-medal        uint8  :offset-assert 60)
    (has-sent-inc-event basic  :offset-assert 64)
    )
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x44
-  :flag-assert         #x1d00000044
+  :flag-assert         #x1c00000044
   ;; og:preserve-this hud-results rung: retyped object -> hud-item-string,
   ;; matching the same fix landed against this same method in goal_src/
   ;; jakx/levels/common/hud-results.gc this rung.
-  ;; og:preserve-this hud-widgets rung: method 24's own 2-arg shape
-  ;; (hud-item-string, float) is NOT compatible with hud-item's own
-  ;; now-declared 1-arg method 24 (hud-widgets rung, this corpus); goalc's
-  ;; own defmethod type-check proved this directly when the mistaken
-  ;; override-removal from this same rung was first tried. A genuinely new
-  ;; slot, not an override, landing at 28 (the first free id past
-  ;; hud-results-base's own unchanged 28), renamed from the stale
-  ;; hud-medal-results-method-24 to hud-medal-results-method-28.
+  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
+  ;; inherited slot with a genuinely incompatible 2-arg (hud-item-string,
+  ;; float) shape; :replace reuses hud-item's own id without the
+  ;; compatibility check (the wave-1 attempt to give this its own new slot
+  ;; 28 broke the decoder's own by-id lookup, contributing to hud-results'
+  ;; decode regression from 3 to 5 errors, corpus_mover_diff vs
+  ;; e1417c458; see the matching hud-player-indicators comment for the
+  ;; full mechanism).
   (:methods
-    (hud-medal-results-method-28 (_type_ hud-item-string float) none) ;; 28
+    (hud-item-method-24 (_type_ hud-item-string float) none :replace) ;; 24
     )
   )
 
@@ -70635,28 +70641,30 @@
    (time      int32   :offset-assert 56)
    (last-time int32   :offset-assert 60)
    )
-  :method-count-assert 31
+  :method-count-assert 28
   :size-assert         #x40
-  :flag-assert         #x1f00000040
-  ;; og:preserve-this hud-widgets rung: only method 27's own shape
-  ;; ((_type_ object) none) matches hud-item's own now-declared method 27
-  ;; exactly; goalc's own defmethod type-check rejected methods 24 (2-arg),
-  ;; 25 (float arg0) and 26 (2-arg, float return) as overrides directly
-  ;; (arity/type mismatch against hud-item's own base declarations), so
-  ;; those three are genuinely new slots, renamed from the stale 24/25/26 to
-  ;; 28/29/30 (the first free ids past hud-item-group's own unchanged 28).
-  ;; Method 27 keeps no entry here (a pure override of hud-item-method-27).
+  :flag-assert         #x1c00000040
+  ;; og:preserve-this hud-widgets rung 2: methods 24/25/26 all REPLACE
+  ;; hud-item's own inherited slots with genuinely incompatible shapes
+  ;; (2-arg, float-arg, 2-arg-float-return vs the base 1-arg object);
+  ;; :replace reuses hud-item's own ids without the compatibility check,
+  ;; keeping the decoder's own by-id lookup resolving on this type
+  ;; directly (see the matching hud-player-indicators comment for the full
+  ;; mechanism). Corrects a wave-1 mistake (renumbering to 28/29/30) that
+  ;; regressed this object's decode from 3 to 6 errors (corpus_mover_diff
+  ;; vs e1417c458). Method 27 keeps no entry here (a pure override of
+  ;; hud-item-method-27, exact-shape match, no :replace needed).
   (:methods
-    (hud-cash-stats-method-28 (_type_ object object) none) ;; 28
+    (hud-item-method-24 (_type_ object object) none :replace) ;; 24
     ;; hud-widgets-tier rung: arg0 retyped object -> float. Its only call
-    ;; site (hud-cash-stats-method-28, the same file, held unlanded this
-    ;; rung for an unrelated reason) passes (the float ...) explicitly, and
-    ;; the body's own first use is (gpr->fpr arg0), the standard
-    ;; bit-reinterpret idiom for a float value that arrived in a plain
-    ;; register; goalc rejects that verbatim under the old object typing
-    ;; ("No method or function named gpr->fpr for type object"), same class
-    ;; as hud-item-method-17's own arg0 fix below.
-    (hud-cash-stats-method-29 (_type_ float) none) ;; 29
+    ;; site (hud-cash-stats' own method 24, the same file, held unlanded
+    ;; this rung for an unrelated reason) passes (the float ...)
+    ;; explicitly, and the body's own first use is (gpr->fpr arg0), the
+    ;; standard bit-reinterpret idiom for a float value that arrived in a
+    ;; plain register; goalc rejects that verbatim under the old object
+    ;; typing ("No method or function named gpr->fpr for type object"),
+    ;; same class as hud-item-method-17's own arg0 fix below.
+    (hud-item-method-25 (_type_ float) none :replace) ;; 25
     ;; hud-cash rung: return type retyped to float, not the bare "none"
     ;; placeholder; its own body (this rung's own hud-cash_ir2.asm) ends
     ;; every cond arm by converting a computed float into v0 via
@@ -70664,7 +70672,7 @@
     ;; hud-cash-stats) calls this same slot and mtc1's the result straight
     ;; into float math, flagged "Floating point math attempted on invalid
     ;; types" under the old none typing.
-    (hud-cash-stats-method-30 (_type_ object object) float) ;; 30
+    (hud-item-method-26 (_type_ object object) float :replace) ;; 26
     )
   )
 
@@ -70940,15 +70948,18 @@
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-indicate-death (hud-item-group)
   ()
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x1d0000002c
-  ;; og:preserve-this hud-widgets rung: method 24's own 2-arg shape
-  ;; (object object) is NOT compatible with hud-item's own now-declared
-  ;; 1-arg method 24; goalc's own defmethod type-check proved this directly.
-  ;; A genuinely new slot, not an override, renamed to method-28.
+  :flag-assert         #x1c0000002c
+  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
+  ;; inherited slot with a genuinely incompatible 2-arg (object object)
+  ;; shape; :replace reuses hud-item's own id without the compatibility
+  ;; check, keeping the decoder's own by-id lookup resolving on this type
+  ;; directly (see the matching hud-player-indicators comment for the full
+  ;; mechanism). Corrects a wave-1 mistake that regressed this object's
+  ;; decode from 0 to 1 error (corpus_mover_diff vs e1417c458).
   (:methods
-    (hud-indicate-death-method-28 (_type_ object object) none) ;; 28
+    (hud-item-method-24 (_type_ object object) none :replace) ;; 24
     )
   )
 
@@ -71967,16 +71978,18 @@
 ;; generic object already declared here to float on that evidence.
 (deftype hud-bar-slider (hud-item-group)
   ()
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x1d0000002c
-  ;; og:preserve-this hud-widgets rung: method 24's own float arg0 is NOT
-  ;; compatible with hud-item's own now-declared object-typed method 24
-  ;; once that slot's own type is locked in by an earlier-compiling
-  ;; override; goalc's own defmethod type-check proved this directly. A
-  ;; genuinely new slot, not an override, renamed to method-28.
+  :flag-assert         #x1c0000002c
+  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
+  ;; inherited slot with a genuinely incompatible float-arg shape;
+  ;; :replace reuses hud-item's own id without the compatibility check,
+  ;; keeping the decoder's own by-id lookup resolving on this type
+  ;; directly (see the matching hud-player-indicators comment for the full
+  ;; mechanism). Corrects a wave-1 mistake that regressed in-game-menu-hud's
+  ;; decode from 1 to 3 errors (corpus_mover_diff vs e1417c458).
   (:methods
-    (hud-bar-slider-method-28 (_type_ float) none) ;; 28
+    (hud-item-method-24 (_type_ float) none :replace) ;; 24
     )
   )
 
@@ -71987,24 +72000,27 @@
    (old-clock-ratio float 22    :offset-assert 60)
    (sound-id        uint32      :offset-assert 148)
    )
-  :method-count-assert 30
+  :method-count-assert 28
   :size-assert         #x98
-  :flag-assert         #x1e00000098
-  ;; og:preserve-this hud-widgets rung: methods 24/25's own zero-arg shape is
-  ;; NOT compatible with hud-item's own now-declared 1-arg methods 24/25;
-  ;; goalc's own defmethod type-check proved this directly. Genuinely new
-  ;; slots, not overrides, renamed to 28/29.
+  :flag-assert         #x1c00000098
+  ;; og:preserve-this hud-widgets rung 2: methods 24/25 both REPLACE
+  ;; hud-item's own inherited slots with genuinely incompatible zero-arg
+  ;; shapes; :replace reuses hud-item's own ids without the compatibility
+  ;; check, keeping the decoder's own by-id lookup resolving on this type
+  ;; directly (see the matching hud-player-indicators comment for the full
+  ;; mechanism). Corrects a wave-1 mistake that regressed in-game-menu-hud
+  ;; and in-game-menu-hud2's decode (corpus_mover_diff vs e1417c458).
   (:methods
-    (in-game-menu-hud-method-28 (_type_) none) ;; 28
-    (in-game-menu-hud-method-29 (_type_) none) ;; 29
+    (hud-item-method-24 (_type_) none :replace) ;; 24
+    (hud-item-method-25 (_type_) none :replace) ;; 25
     )
   )
 
 (deftype in-game-menu-hud-options (in-game-menu-hud)
   ()
-  :method-count-assert 30
+  :method-count-assert 28
   :size-assert         #x98
-  :flag-assert         #x1e00000098
+  :flag-assert         #x1c00000098
   )
 
 
@@ -75108,15 +75124,18 @@
 (deftype hud-health (hud-item-group)
   ((health float  :offset-assert 44)
    )
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x30
-  :flag-assert         #x1d00000030
-  ;; og:preserve-this hud-widgets rung: method 24's own 2-arg shape (float,
-  ;; net-player) is NOT compatible with hud-item's own now-declared 1-arg
-  ;; method 24; goalc's own defmethod type-check proved this directly. A
-  ;; genuinely new slot, not an override, renamed to method-28.
+  :flag-assert         #x1c00000030
+  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
+  ;; inherited slot with a genuinely incompatible 2-arg (float, net-player)
+  ;; shape; :replace reuses hud-item's own id without the compatibility
+  ;; check, keeping the decoder's own by-id lookup resolving on this type
+  ;; directly (see the matching hud-player-indicators comment for the full
+  ;; mechanism). Corrects a wave-1 mistake that regressed this object's
+  ;; decode.
   (:methods
-    (hud-health-method-28 (_type_ float net-player) none) ;; 28
+    (hud-item-method-24 (_type_ float net-player) none :replace) ;; 24
     )
   )
 
@@ -75167,17 +75186,20 @@
    (no-direction-indicator basic          :offset-assert 108)
    (indicator-alpha        float          :offset-assert 112)
    )
-  :method-count-assert 31
+  :method-count-assert 28
   :size-assert         #x74
-  :flag-assert         #x1f00000074
-  ;; og:preserve-this hud-widgets rung: none of methods 24 (0-arg), 25
-  ;; (2-arg) or 26 (4-arg) match hud-item's own now-declared 1-arg slots;
-  ;; goalc's own defmethod type-check proved this directly. Genuinely new
-  ;; slots, not overrides, renamed 24/25/26 -> 28/29/30.
+  :flag-assert         #x1c00000074
+  ;; og:preserve-this hud-widgets rung 2: methods 24/25/26 all REPLACE
+  ;; hud-item's own inherited slots with genuinely incompatible shapes
+  ;; (0-arg, 2-arg, 4-arg vs the base 1-arg); :replace reuses hud-item's
+  ;; own ids without the compatibility check, and keeps the decoder's own
+  ;; by-id lookup resolving on this type directly (see the matching
+  ;; hud-player-indicators comment for the full mechanism). Corrects a
+  ;; wave-1 mistake that regressed this object's decode.
   (:methods
-    (hud-indicator-method-28 (_type_) none) ;; 28
-    (hud-indicator-method-29 (_type_ object object) none) ;; 29
-    (hud-indicator-method-30 (_type_ vector vector float float) none) ;; 30 ;; og:preserve-this hud-player-indicators rung: gains a second float arg, landing in t0; the old three-arg signature flagged "may read a register that is not set: t0" (hud-player-indicators_ir2.asm), the body converts it straight into an fpr for a min/max clamp against the same on-screen bounds box the first float already clamps
+    (hud-item-method-24 (_type_) none :replace) ;; 24
+    (hud-item-method-25 (_type_ object object) none :replace) ;; 25
+    (hud-item-method-26 (_type_ vector vector float float) none :replace) ;; 26 ;; og:preserve-this hud-player-indicators rung: gains a second float arg, landing in t0; the old three-arg signature flagged "may read a register that is not set: t0" (hud-player-indicators_ir2.asm), the body converts it straight into an fpr for a min/max clamp against the same on-screen bounds box the first float already clamps
     )
   )
 
@@ -75205,15 +75227,25 @@
 ;; twin read in (method 19 hud-assassin-indicators)), returning #t/#f.
 (deftype hud-player-indicators (hud-item-group)
   ()
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x1d0000002c
-  ;; og:preserve-this hud-widgets rung: method 24's own (net-player)->symbol
-  ;; shape is NOT compatible with hud-item's own now-declared 1-arg
-  ;; (object)->none method 24; goalc's own defmethod type-check proved this
-  ;; directly. A genuinely new slot, not an override, renamed to method-28.
+  :flag-assert         #x1c0000002c
+  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
+  ;; inherited slot 24 with a genuinely incompatible signature ((net-player)
+  ;; symbol vs the base (object) none), using :replace to reuse hud-item's
+  ;; own id without the strict compatibility check a plain override
+  ;; triggers. This corrects a wave-1 mistake (renumbering to a genuinely
+  ;; new slot 28): TypeSystem::lookup_method's own by-id path
+  ;; (common/type_system/TypeSystem.cpp) is what the DECOMPILER uses to
+  ;; type this function's own incoming args from a fresh decode, and it
+  ;; walks from hud-player-indicators UP looking for id 24 specifically;
+  ;; moving the declaration to id 28 orphaned id 24 on this type, so the
+  ;; lookup fell through to hud-item's own generic (object) declaration,
+  ;; regressing this object's decode from 0 to 9 errors (corpus_mover_diff
+  ;; vs e1417c458, wave-1 tip). :replace keeps the declaration AT id 24, so
+  ;; the decoder's own by-id lookup finds the correct signature directly.
   (:methods
-    (hud-player-indicators-method-28 (_type_ net-player) symbol) ;; 28
+    (hud-item-method-24 (_type_ net-player) symbol :replace) ;; 24
     )
   )
 
@@ -75221,17 +75253,17 @@
 #|
 (deftype hud-artifact-indicators (hud-player-indicators)
   ()
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x1d0000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-artifact-indicators (hud-player-indicators)
   ()
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x1d0000002c
+  :flag-assert         #x1c0000002c
   )
 
 
@@ -77587,17 +77619,17 @@
 #|
 (deftype hud-ctf-indicators (hud-player-indicators)
   ()
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x1d0000002c
+  :flag-assert         #x1c0000002c
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
 (deftype hud-ctf-indicators (hud-player-indicators)
   ()
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x2c
-  :flag-assert         #x1d0000002c
+  :flag-assert         #x1c0000002c
   )
 
 
@@ -78914,11 +78946,13 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this hud-widgets rung 2: child mc cascade of hud-clock's own
+;; 29->28 revert (:replace fix); no own :methods change needed.
 (deftype time-freeze-clock (hud-clock)
   ()
-  :method-count-assert 29
+  :method-count-assert 28
   :size-assert         #x48
-  :flag-assert         #x1d00000048
+  :flag-assert         #x1c00000048
   )
 
 

@@ -22,13 +22,12 @@
    (old-clock-ratio float 22)
    (sound-id        uint32)
    )
-  ;; og:preserve-this hud-widgets rung: methods 24/25's own zero-arg shape is
-  ;; NOT compatible with hud-item's own now-declared 1-arg methods 24/25;
-  ;; goalc's own defmethod type-check proved this directly. Genuinely new
-  ;; slots, not overrides, renamed to 28/29 (defined in in-game-menu-hud.gc).
+  ;; og:preserve-this hud-widgets rung 2: methods 24/25 both REPLACE
+  ;; hud-item's own inherited slots (see the matching all-types.gc comment
+  ;; for the full mechanism; defined in in-game-menu-hud.gc).
   (:methods
-    (in-game-menu-hud-method-28 (_type_) none)
-    (in-game-menu-hud-method-29 (_type_) none)
+    (hud-item-method-24 (_type_) none :replace)
+    (hud-item-method-25 (_type_) none :replace)
     )
   )
 
@@ -38,13 +37,11 @@
 
 (deftype hud-bar-slider (hud-item-group)
   ()
-  ;; og:preserve-this hud-widgets rung: method 24's own float arg0 is NOT
-  ;; compatible with hud-item's own now-declared object-typed method 24;
-  ;; goalc's own defmethod type-check proved this directly. A genuinely new
-  ;; slot, not an override, renamed to method-28 (defined in
-  ;; in-game-menu-hud.gc).
+  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
+  ;; inherited slot (see the matching all-types.gc comment for the full
+  ;; mechanism; defined in in-game-menu-hud.gc).
   (:methods
-    (hud-bar-slider-method-28 (_type_ float) none)
+    (hud-item-method-24 (_type_ float) none :replace)
     )
   )
 
@@ -1868,7 +1865,7 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
        (set! *in-game-menu-process* (the-as (pointer process) #f))
        (set-master-mode 'game)
-       (in-game-menu-hud-method-29 this)
+       (hud-item-method-25 this)
        (deactivate *current-hud*)
        )
       ((cpad-pressed? (view-get-active-index) x)
@@ -1890,7 +1887,7 @@
            ((or (zero? v1-109) (= v1-109 526))
             (set! *in-game-menu-process* (the-as (pointer process) #f))
             (set-master-mode 'game)
-            (in-game-menu-hud-method-29 this)
+            (hud-item-method-25 this)
             (deactivate *current-hud*)
             )
            ((or (zero? v1-109) (= v1-109 127))
@@ -1908,7 +1905,7 @@
             (deactivate *current-hud*)
             )
            ((or (zero? v1-109) (= v1-109 28))
-            (in-game-menu-hud-method-29 this)
+            (hud-item-method-25 this)
             (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu-options))))
             (set! (-> *in-game-menu-struct* last-selection-index) (-> this selection-index))
             (deactivate *current-hud*)
@@ -1998,7 +1995,7 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons triangle))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-       (in-game-menu-hud-method-29 this)
+       (hud-item-method-25 this)
        (if (and (handle->process (-> *game-info* player-info (view-get-active-index) vehicle))
                 (nonzero? suppress-look-start)
                 )
@@ -2184,7 +2181,7 @@
       ((cpad-pressed? (view-get-active-index) start)
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-       (in-game-menu-hud-method-29 this)
+       (hud-item-method-25 this)
        (set! *in-game-menu-process* (the-as (pointer process) #f))
        (set-master-mode 'game)
        (deactivate *current-hud*)
@@ -2194,7 +2191,7 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons triangle))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-       (in-game-menu-hud-method-29 this)
+       (hud-item-method-25 this)
        (let ((v1-187 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
          (cond
            (v1-187

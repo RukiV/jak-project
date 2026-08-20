@@ -31,18 +31,17 @@
    (time       int32)
    (last-time  int32)
    )
-  ;; og:preserve-this hud-widgets rung: only method 27's own shape matches
-  ;; hud-item's own now-declared method 27 exactly; goalc's own defmethod
-  ;; type-check rejected methods 24/25/26 as overrides directly, so those
-  ;; three are genuinely new slots, renamed from the stale 24/25/26 to
-  ;; 28/29/30. Method 27 keeps no entry here (a pure override).
+  ;; og:preserve-this hud-widgets rung 2: methods 24/25/26 all REPLACE
+  ;; hud-item's own inherited slots (see the matching all-types.gc comment
+  ;; for the full mechanism). Method 27 keeps no entry here (a pure
+  ;; override, exact-shape match).
   (:methods
-    (hud-cash-stats-method-28 (_type_ object object) none)
+    (hud-item-method-24 (_type_ object object) none :replace)
     ;; og:preserve-this hud-widgets-tier rung: arg0 retyped object -> float,
     ;; mirrored from decompiler/config/jakx/all-types.gc; see that file's
     ;; comment on this method for the evidence.
-    (hud-cash-stats-method-29 (_type_ float) none)
-    (hud-cash-stats-method-30 (_type_ object object) float)
+    (hud-item-method-25 (_type_ float) none :replace)
+    (hud-item-method-26 (_type_ object object) float :replace)
     )
   )
 
@@ -1001,7 +1000,7 @@
 ;; the deftype comment above); (the-as float (gpr->fpr arg0)) simplified to
 ;; arg0 directly, since gpr->fpr's own job (bit-reinterpret a plain register
 ;; as a float) is exactly what a real float-typed argument no longer needs.
-(defmethod hud-cash-stats-method-29 ((this hud-cash-stats) (arg0 float))
+(defmethod hud-item-method-25 ((this hud-cash-stats) (arg0 float))
   (if (and (zero? (-> this last-time))
            (> (-> this time) 0)
            (< (-> this time) 150)

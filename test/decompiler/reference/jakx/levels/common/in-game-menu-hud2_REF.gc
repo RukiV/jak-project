@@ -1673,9 +1673,7 @@
   )
 
 ;; definition for method 19 of type in-game-menu-hud
-;; ERROR: Function may read a register that is not set: a1
 (defmethod hud-item-method-19 ((this in-game-menu-hud))
-  (local-vars (a1-0 none))
   (let ((s5-0 (-> this items length)))
     (cond
       ((< (current-time) (the-as time-frame (-> this start-time)))
@@ -1717,138 +1715,128 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
        (set! *in-game-menu-process* (the-as (pointer process) #f))
        (set-master-mode 'game)
-       (hud-item-method-25 this a1-0)
+       (hud-item-method-25 this)
        (deactivate *current-hud*)
        )
       ((cpad-pressed? (view-get-active-index) x)
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons x))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons x))
-       (let ((t9-25 make-sound-instance)
-             (a0-31 (-> *sound-info* 315))
-             (a1-3 0)
+       (let ((v1-102 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
+         (cond
+           (v1-102
+             (logior! (-> v1-102 flags) 320)
+             (-> v1-102 id)
              )
-         (let ((v1-102 (t9-25 a0-31 (the-as sound-id a1-3) (the-as handle #f))))
-           (cond
-             (v1-102
-               (logior! (-> v1-102 flags) 320)
-               (-> v1-102 id)
-               )
-             (else
-               0
-               )
+           (else
+             0
              )
            )
-         (let ((v1-109 (-> (the-as hud-item-string (-> this items (-> this selection-index))) text-id)))
-           (cond
-             ((or (zero? v1-109) (begin (set! a1-3 (the-as int (+ v1-109 -526))) (zero? (the-as uint a1-3))))
-              (set! *in-game-menu-process* (the-as (pointer process) #f))
-              (set-master-mode 'game)
-              (hud-item-method-25 this (the-as none a1-3))
-              (deactivate *current-hud*)
-              )
-             ((or (zero? v1-109) (begin (set! a1-3 (the-as int (+ v1-109 -127))) (zero? (the-as uint a1-3))))
-              (set! *in-game-menu-process* (the-as (pointer process) #f))
-              (set-master-mode 'game)
-              (set-blackout-frames (seconds 1))
-              (send-event *net-game-mgr* 'restart-game)
-              (deactivate *current-hud*)
-              )
-             ((or (zero? v1-109) (begin (set! a1-3 (the-as int (+ v1-109 -1510))) (zero? (the-as uint a1-3))))
-              (set! *in-game-menu-process* (the-as (pointer process) #f))
-              (set-master-mode 'game)
-              (set-blackout-frames (seconds 1))
-              (send-event *net-game-mgr* 'abort-game)
-              (deactivate *current-hud*)
-              )
-             ((or (zero? v1-109) (begin (set! a1-3 (the-as int (+ v1-109 -28))) (zero? (the-as uint a1-3))))
-              (hud-item-method-25 this a1-3)
-              (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu-options))))
-              (set! (-> *in-game-menu-struct* last-selection-index) (-> this selection-index))
-              (deactivate *current-hud*)
-              )
-             ((or (zero? v1-109) (= v1-109 52))
-              (cond
-                ((demo?)
-                 (set! *master-exit* 'force)
-                 )
-                (else
-                  (quit-game-stats-update)
-                  (send-event *net-mgr* 'quit-game)
-                  (if (and (< 1500 (cond
-                                     ((not *net-game-mgr*)
-                                      0
-                                      )
-                                     ((< (-> *net-game-mgr* intro-end-time) 0)
-                                      0
-                                      )
-                                     (else
-                                       (max 0 (- (- (- (if *net-mgr*
-                                                           (-> *net-mgr* game-state time)
-                                                           0
-                                                           )
-                                                       (if *net-world*
-                                                           (-> *net-world* net-state game-start-time)
-                                                           0
-                                                           )
-                                                       )
-                                                    (if *net-world*
-                                                        (-> *net-world* net-state total-pause-time)
-                                                        0
-                                                        )
-                                                    )
-                                                 (-> *net-game-mgr* intro-end-time)
-                                                 )
-                                            )
-                                       )
+         )
+       (let ((v1-109 (-> (the-as hud-item-string (-> this items (-> this selection-index))) text-id)))
+         (cond
+           ((or (zero? v1-109) (= v1-109 526))
+            (set! *in-game-menu-process* (the-as (pointer process) #f))
+            (set-master-mode 'game)
+            (hud-item-method-25 this)
+            (deactivate *current-hud*)
+            )
+           ((or (zero? v1-109) (= v1-109 127))
+            (set! *in-game-menu-process* (the-as (pointer process) #f))
+            (set-master-mode 'game)
+            (set-blackout-frames (seconds 1))
+            (send-event *net-game-mgr* 'restart-game)
+            (deactivate *current-hud*)
+            )
+           ((or (zero? v1-109) (= v1-109 1510))
+            (set! *in-game-menu-process* (the-as (pointer process) #f))
+            (set-master-mode 'game)
+            (set-blackout-frames (seconds 1))
+            (send-event *net-game-mgr* 'abort-game)
+            (deactivate *current-hud*)
+            )
+           ((or (zero? v1-109) (= v1-109 28))
+            (hud-item-method-25 this)
+            (set! *in-game-menu-process* (process->ppointer (the-as process (spawn-hud-in-game-menu-options))))
+            (set! (-> *in-game-menu-struct* last-selection-index) (-> this selection-index))
+            (deactivate *current-hud*)
+            )
+           ((or (zero? v1-109) (= v1-109 52))
+            (cond
+              ((demo?)
+               (set! *master-exit* 'force)
+               )
+              (else
+                (quit-game-stats-update)
+                (send-event *net-mgr* 'quit-game)
+                (if (and (< 1500 (cond
+                                   ((not *net-game-mgr*)
+                                    0
+                                    )
+                                   ((< (-> *net-game-mgr* intro-end-time) 0)
+                                    0
+                                    )
+                                   (else
+                                     (max 0 (- (- (- (if *net-mgr*
+                                                         (-> *net-mgr* game-state time)
+                                                         0
+                                                         )
+                                                     (if *net-world*
+                                                         (-> *net-world* net-state game-start-time)
+                                                         0
+                                                         )
+                                                     )
+                                                  (if *net-world*
+                                                      (-> *net-world* net-state total-pause-time)
+                                                      0
+                                                      )
+                                                  )
+                                               (-> *net-game-mgr* intro-end-time)
+                                               )
+                                          )
                                      )
-                              )
-                           (!= (if *net-world*
-                                   (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
-                                   18
                                    )
-                               3
-                               )
-                           )
-                      (stat-info-method-11
-                        (-> *net-player-ladder-stats-info* 3)
-                        (the-as int (&-> (the-as (pointer uint8) *medius-my-player*) 364))
-                        1.0
-                        )
+                            )
+                         (!= (if *net-world*
+                                 (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
+                                 18
+                                 )
+                             3
+                             )
+                         )
+                    (stat-info-method-11
+                      (-> *net-player-ladder-stats-info* 3)
+                      (the-as int (&-> (the-as (pointer uint8) *medius-my-player*) 364))
+                      1.0
                       )
-                  )
+                    )
                 )
-              (set-blackout-frames (seconds 1))
-              (set-master-mode 'game)
-              (deactivate *current-hud*)
               )
-             )
+            (set-blackout-frames (seconds 1))
+            (set-master-mode 'game)
+            (deactivate *current-hud*)
+            )
            )
          )
        )
       ((cpad-pressed? (view-get-active-index) triangle)
        (set! *in-game-menu-process* (the-as (pointer process) #f))
        (set-master-mode 'game)
-       (let ((t9-49 make-sound-instance)
-             (a0-76 (-> *sound-info* 315))
-             (a1-14 0)
+       (let ((v1-156 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
+         (cond
+           (v1-156
+             (logior! (-> v1-156 flags) 320)
+             (-> v1-156 id)
              )
-         (let ((v1-156 (t9-49 a0-76 (the-as sound-id a1-14) (the-as handle #f))))
-           (cond
-             (v1-156
-               (logior! (-> v1-156 flags) 320)
-               (-> v1-156 id)
-               )
-             (else
-               0
-               )
+           (else
+             0
              )
            )
-         (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons triangle))
-         (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons triangle))
-         (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
-         (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-         (hud-item-method-25 this (the-as none a1-14))
          )
+       (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons triangle))
+       (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons triangle))
+       (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
+       (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
+       (hud-item-method-25 this)
        (if (handle->process (-> *game-info* player-info (view-get-active-index) vehicle))
            (suppress-look-start)
            )
@@ -1874,9 +1862,7 @@
   )
 
 ;; definition for method 19 of type in-game-menu-hud-options
-;; ERROR: Function may read a register that is not set: a1
 (defmethod hud-item-method-19 ((this in-game-menu-hud-options))
-  (local-vars (a1-0 none))
   (let ((s5-0 (-> this items)))
     (cond
       ((cpad-pressed? (view-get-active-index) down)
@@ -2029,7 +2015,7 @@
       ((cpad-pressed? (view-get-active-index) start)
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-       (hud-item-method-25 this a1-0)
+       (hud-item-method-25 this)
        (set! *in-game-menu-process* (the-as (pointer process) #f))
        (set-master-mode 'game)
        (deactivate *current-hud*)
@@ -2039,7 +2025,7 @@
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons triangle))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-abs 0) (pad-buttons start))
        (logclear! (-> *cpad-list* cpads (view-get-active-index) button0-rel 0) (pad-buttons start))
-       (hud-item-method-25 this a1-0)
+       (hud-item-method-25 this)
        (let ((v1-187 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
          (cond
            (v1-187

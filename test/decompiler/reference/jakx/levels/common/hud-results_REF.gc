@@ -474,7 +474,7 @@
    (pad-tail     uint8  8)
    )
   (:methods
-    (hud-results-method-28 () none)
+    (hud-item-method-24 () none :replace)
     )
   )
 
@@ -516,17 +516,16 @@
 
 ;; definition for method 24 of type hud-results
 ;; WARN: Return type mismatch symbol vs none.
-(defmethod hud-item-method-24 ((this hud-results) (arg0 object))
-  (case (if *net-world*
-            (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
-            18
-            )
-    ((13 1)
-     )
-    (else
-      #t
-      )
-    )
+(defmethod hud-item-method-24 () (case (if *net-world*
+                                         (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
+                                         18
+                                         )
+                                 ((13 1)
+                                  )
+                                 (else
+                                   #t
+                                   )
+                                 )
   (none)
   )
 
@@ -733,7 +732,7 @@
    (has-sent-inc-event  basic)
    )
   (:methods
-    (hud-medal-results-method-28 (_type_ hud-item-string float) none)
+    (hud-item-method-24 (_type_ hud-item-string float) none :replace)
     )
   )
 
@@ -772,74 +771,20 @@
   )
 
 ;; definition for method 24 of type hud-medal-results
-;; ERROR: Function may read a register that is not set: a2
-;; ERROR: Expression building failed: In (method 24 hud-medal-results): [OP: 19] - Floating point math attempted on invalid types: float and <uninitialized> in op (*.s f0-0 f1-0).
-(defmethod hud-item-method-24 ((this hud-medal-results) (arg0 object))
-  (local-vars
-    (v0-0 string)
-    (v0-1 none)
-    (v0-2 none)
-    (v0-3 none)
-    (v1-3 int)
-    (v1-4 float)
-    (v1-5 type)
-    (v1-6 type)
-    (a0-2 string)
-    (a0-3 string)
-    (a0-4 object)
-    (a0-5 object)
-    (a1-1 int)
-    (a1-2 string)
-    (a1-3 int)
-    (a2-0 none)
-    (s4-0 (function object time-frame none))
-    (t9-0 (function string string))
-    (t9-1 (function object time-frame none))
-    (t9-2 (function hud-item-string object none))
-    (t9-3 (function hud-item-string object none))
-    (f0-0 float)
-    (f0-1 float)
-    (f0-2 int)
-    (f0-3 none)
-    (f0-4 int)
-    (f1-0 none)
-    )
-  (if *net-world*
-      (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
-      18
-      )
-  (cond
-    ((= v1-3 2)
-     (set! s4-0 print-time)
-     (set! t9-0 clear)
-     (set! a0-2 *temp-string*)
-     (set! v0-0 (clear *temp-string*))
-     (set! a0-3 v0-0)
-     (set! v1-4 300.0)
-     (set! f0-0 300.0)
-     (set! f1-0 (gpr->fpr a2-0))
-     (set! f0-1 (*.s f0-0 f1-0))
-     (set! f0-2 (f2i f0-1))
-     (set! a1-1 (fpr->gpr f0-2))
-     (set! t9-1 s4-0)
-     (call! a0-3 a1-1)
-     (set! v1-5 (-> (the-as hud-item-string arg0) type))
-     (set! t9-2 (method-of-type v1-5 hud-item-method-24))
-     (set! a1-2 *temp-string*)
-     (set! a0-4 arg0)
-     (call! a0-4 a1-2)
+(defmethod hud-item-method-24 ((this hud-medal-results) (arg0 hud-item-string) (arg1 float))
+  (case (if *net-world*
+            (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
+            18
+            )
+    ((2)
+     (print-time (clear *temp-string*) (the-as time-frame (the int (* 300.0 arg1))))
+     (hud-item-method-24 arg0 *temp-string*)
      )
     (else
-      (set! a0-5 arg0)
-      (set! v1-6 (-> (the-as hud-item-string a0-5) type))
-      (set! t9-3 (method-of-type v1-6 hud-item-method-26))
-      (set! f0-3 (gpr->fpr a2-0))
-      (set! f0-4 (f2i f0-3))
-      (set! a1-3 (fpr->gpr f0-4))
-      (call! a0-5 a1-3)
+      (hud-item-method-26 arg0 (the int arg1))
       )
     )
-  (ret-none)
+  (none)
   )
 
 ;; definition for method 9 of type hud-medal-results
@@ -1018,23 +963,20 @@
                       )
                   )
             )
-        (let* ((a0-23 this)
-               (t9-17 (method-of-object a0-23 hud-item-method-24))
-               )
+        (hud-item-method-24
+          this
+          (the-as hud-item-string a1-5)
           (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 19)
-          (t9-17 a0-23 a1-5)
           )
-        (let* ((a0-24 this)
-               (t9-18 (method-of-object a0-24 hud-item-method-24))
-               )
+        (hud-item-method-24
+          this
+          (the-as hud-item-string s3-1)
           (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 17)
-          (t9-18 a0-24 s3-1)
           )
-        (let* ((a0-25 this)
-               (t9-19 (method-of-object a0-25 hud-item-method-24))
-               )
+        (hud-item-method-24
+          this
+          (the-as hud-item-string s4-1)
           (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 15)
-          (t9-19 a0-25 s4-1)
           )
         )
       (let ((s4-2 (-> this items 1))
@@ -1116,28 +1058,25 @@
                    )
               (cond
                 ((not (time-elapsed? (the-as time-frame (-> this start-time)) (seconds 4.5)))
-                 (let ((t9-41 (method-of-object this hud-item-method-24)))
-                   (+ 10.0 f30-0)
-                   (t9-41 this s5-4)
-                   )
+                 (hud-item-method-24 this (the-as hud-item-string s5-4) (+ 10.0 f30-0))
                  )
                 (else
                   (when (not (-> this has-sent-inc-event))
                     (send-event *current-hud* 'bonus-time-show)
                     (set! (-> this has-sent-inc-event) (the-as basic #t))
                     )
-                  (hud-item-method-24 this s5-4)
+                  (hud-item-method-24 this (the-as hud-item-string s5-4) f30-0)
                   )
                 )
               )
              (else
-               (hud-item-method-24 this s5-4)
+               (hud-item-method-24 this (the-as hud-item-string s5-4) f30-0)
                )
              )
            )
          )
         (else
-          (hud-item-method-24 this s5-4)
+          (hud-item-method-24 this (the-as hud-item-string s5-4) f30-0)
           )
         )
       )
