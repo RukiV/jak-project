@@ -1106,6 +1106,18 @@ enum class BucketId {
   SHRUB_L0_SHRUB = 131,
   TEX_L1_SHRUB = 140,
   SHRUB_L1_SHRUB = 141,
+
+  // HUD tex/draw pair (issue #500 fix): upload-vram-data's PC_PORT guard
+  // (texture.gc) makes 786 direct-safe again since it also carries genuine direct
+  // GIF data (vehicle-states.gc:212, blit-displays.gc:654), jak3-578 parity. 787 is
+  // a plain DirectRenderer, NOT ProgressRenderer: jakx's fbp is 406 and
+  // ProgressRenderer asserts 408 (ProgressRenderer.h:15). foreground-init's real
+  // machine-code chain targets are 781/782 (foreground.gc:125-128), out of scope
+  // here; the stale vu1-user-h.gc comments naming 783/787 as mercneric targets
+  // are fixed separately.
+  TEX_HUD = 786,
+  HUD_DRAW = 787,
+
   DEBUG = 793,           // debug-draw target (add-debug-box/sphere)
   DEBUG_NO_ZBUF2 = 794,  // end-display's stdcon text
   DEBUG_MENU = 795,

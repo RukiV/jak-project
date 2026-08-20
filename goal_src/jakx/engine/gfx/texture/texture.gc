@@ -1239,6 +1239,14 @@
 ;; definition for function upload-vram-data
 ;; WARN: Return type mismatch symbol vs none.
 (defun upload-vram-data ((arg0 dma-buffer) (arg1 int) (arg2 pointer) (arg3 int) (arg4 int))
+  ;; og:preserve-this PC port, mirroring jak2/jak3: both carry this exact
+  ;; (#when PC_PORT (return #f)) guard on upload-vram-data, since the GS bitbltbuf/
+  ;; trxpos/trxreg/trxdir transfer path below is not parsed on PC (see the
+  ;; upload-vram-pages comment at line 1354).
+  (#when PC_PORT
+    ;; disabled.
+    (return #f)
+    )
   ;; og:preserve-this bring-up guard: jakx-new *display* dma bookkeeping; *display* is
   ;; unset until the display loop (display.gc) is decompiled, and on PC the built
   ;; buffer is never sent anyway (__pc-texture-upload-now handles the real upload).

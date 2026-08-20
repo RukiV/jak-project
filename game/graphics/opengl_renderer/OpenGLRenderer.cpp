@@ -611,6 +611,20 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
                                                  m_texture_animator);
     }
 
+    // HUD (issue #500 fix): 786 now carries genuine direct GIF data as well as tex
+    // uploads (vehicle-states.gc:212, blit-displays.gc:654), so add_direct=true is
+    // safe once upload-vram-data's PC_PORT guard (texture.gc) drops the dead GS
+    // bitbltbuf packet from the DMA stream, jak3-578 parity. 787 is the HUD/font
+    // draw bucket (hud sprites plus print-game-text strings); ProgressRenderer's
+    // kScreenFbp=408 assert does not match jakx's fbp 406 (display.gc:177-179), so
+    // this is a plain DirectRenderer, matching jakx's own text buckets 793-795
+    // above. 791 (hud-string-draw-all's only writer) stays SkipRenderer: the body
+    // is a landed stub, not yet real.
+    init_bucket_renderer<TextureUploadHandler>("tex-hud", BucketCategory::TEX, BucketId::TEX_HUD,
+                                               m_texture_animator, true);
+    init_bucket_renderer<DirectRenderer>("hud-draw", BucketCategory::OTHER, BucketId::HUD_DRAW,
+                                         0x8000);
+
     // Generic (#57 rung 4): the mercneric (mode 2 -> Generic2 NORMAL) and mercneric2
     // (mode 4 -> Generic2 PRIM) destinations, read mechanically out of the landed
     // *bucket-map* by the same extraction as kMercBuckets above; its mode-0 output
