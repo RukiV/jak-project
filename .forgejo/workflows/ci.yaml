@@ -369,6 +369,24 @@ jobs:
           git show "origin/$BASE:scripts/check_state_inherit.py" > "$GUARDS/check_state_inherit.py"
           python3 "$GUARDS/check_state_inherit.py" --root .
 
+      # A duplicated deftype silently zeros every custom method slot the
+      # earlier-linking copies filled (new_type rewipes the vtable on every
+      # execution; issue 534 root cause, issue 540 class sweep). The checker
+      # models link order from game.gd; same base-ref tooling split as the
+      # steps above so contributor branches predating the script skip it.
+      - name: No duplicated deftype rewipes a landed vtable
+        run: |
+          set -eu
+          BASE="${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags --depth=200 origin "$BASE"
+          if ! git show "origin/$BASE:scripts/check_type_singlehome.py" > /dev/null 2>&1; then
+            echo "::notice::This branch's base predates scripts/check_type_singlehome.py, so the type single-home check is skipped."
+            exit 0
+          fi
+          GUARDS="$(mktemp -d)"
+          git show "origin/$BASE:scripts/check_type_singlehome.py" > "$GUARDS/check_type_singlehome.py"
+          python3 "$GUARDS/check_type_singlehome.py" --root .
+
       - name: Required checks
         run: |
           python3 ./scripts/ci/lint-trailing-whitespace.py
