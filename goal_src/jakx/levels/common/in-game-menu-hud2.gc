@@ -5,59 +5,18 @@
 ;; name in dgo: in-game-menu-hud2
 ;; dgos: COMMON, GAME
 
-;; og:preserve-this in-game-menu-hud2 rung: in-game-menu-hud and
-;; in-game-menu-hud-options's own home is in-game-menu-hud.gc, still
-;; unlanded this rung (its own decode carries two open blockers: a raw
-;; type-registration blob at top-level-login that the decompiler cannot
-;; guess a label use for, and a hand-inlined handle->process check in
-;; in-game-menu-allowed? that prints as unsupported pseudo-ops, the same
-;; class jakx's rigid-body-debug.gc already documents). Several of this
-;; file's own methods dispatch on these two types, so they are forward-
-;; declared here; when in-game-menu-hud.gc lands, its own deftype forms
-;; for these two types should be dropped in favor of these to avoid a
-;; duplicate-definition throw.
-(deftype in-game-menu-hud (hud-item-group)
-  ((start-time      uint64)
-   (selection-index int8)
-   (old-clock-ratio float 22)
-   (sound-id        uint32)
-   )
-  ;; og:preserve-this hud-widgets rung 2: methods 24/25 both REPLACE
-  ;; hud-item's own inherited slots (see the matching all-types.gc comment
-  ;; for the full mechanism; defined in in-game-menu-hud.gc).
-  (:methods
-    (hud-item-method-24 (_type_) none :replace)
-    (hud-item-method-25 (_type_) none :replace)
-    )
-  )
-
-(deftype in-game-menu-hud-options (in-game-menu-hud)
-  ()
-  )
-
-(deftype hud-bar-slider (hud-item-group)
-  ()
-  ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
-  ;; inherited slot (see the matching all-types.gc comment for the full
-  ;; mechanism; defined in in-game-menu-hud.gc).
-  (:methods
-    (hud-item-method-24 (_type_ float) none :replace)
-    )
-  )
-
-;; og:preserve-this in-game-menu-hud2 rung: *in-game-menu-struct* and its
-;; own type are also homed in in-game-menu-hud.gc, populated there via a
-;; runtime (method-set! ...) top-level form rather than a static instance,
-;; so it cannot simply be dropped into this file's own static data; forward
-;; declared for the same open-blocker reason as the two deftypes above.
-(deftype in-game-menu-struct (structure)
-  ((last-selection-index int8)
-   (confirmation-sym     basic)
-   )
-  (:methods
-    (in-game-menu-struct-method-9 (_type_) none)
-    )
-  )
+;; og:preserve-this issue 540: in-game-menu-hud, in-game-menu-hud-options,
+;; hud-bar-slider and in-game-menu-struct single-homed to in-game-menu-hud.gc
+;; (game.gd link position 543, this file's own 544). new_type rewrites
+;; every custom method slot on every deftype execution of the same interned
+;; type (issue 534); this file previously carried its own forward-declared
+;; duplicates (written when in-game-menu-hud.gc was still unlanded, blocked
+;; on a raw type-registration blob and a hand-inlined handle->process
+;; check), which risked wiping every method in-game-menu-hud.gc lands the
+;; moment this file linked after it. in-game-menu-hud.gc has since landed
+;; and compiles first (all_objs.json index 85 vs this file's own 86), so
+;; this file's own methods below (and *in-game-menu-struct* here) resolve
+;; against the already-registered types without a local redefinition.
 (define-extern *in-game-menu-struct* in-game-menu-struct)
 
 ;; og:preserve-this in-game-menu-hud2 rung: quit-game-stats-update homes to
@@ -127,15 +86,12 @@
 (define-extern *hud-in-game-menu-view-shared-0-proc* object)
 ;; *hud-in-game-menu-view-shared-1-proc* and -2-proc* are already typed to
 ;; their own concrete types in all-types.gc (a previous rung's real
-;; evidence), so those two forward-declare their owning types too rather
-;; than a bare object placeholder, to avoid a define-extern retype throw.
-(deftype hud-in-game-menu-view-shared-1 (in-game-hud)
-  ()
-  )
+;; evidence). og:preserve-this issue 540: hud-in-game-menu-view-shared-1
+;; and -2 single-homed to in-game-menu-hud.gc (game.gd link position 543,
+;; this file's own 544); this file's own duplicate forward declares are
+;; deleted, since in-game-menu-hud.gc compiles first (all_objs.json index
+;; 85 vs this file's own 86).
 (define-extern *hud-in-game-menu-view-shared-1-proc* hud-in-game-menu-view-shared-1)
-(deftype hud-in-game-menu-view-shared-2 (in-game-hud)
-  ()
-  )
 (define-extern *hud-in-game-menu-view-shared-2-proc* hud-in-game-menu-view-shared-2)
 (define-extern *hud-in-game-menu-networked-view-0-proc* object)
 (define-extern *hud-in-game-menu-networked-view-1-proc* object)
