@@ -6105,15 +6105,22 @@
     [70, "a0", "hud-item-string"],
     [76, "s4", "hud-item-group"],
     [78, "s2", "hud-item-string"],
+    // s4 stores the assassin's own mark-derived id (s5, the same loop
+    // index used to read net-game-mgr-assassin's mark array) into its own
+    // hud-indicator id field (machine 76, declared 80) later in this same
+    // branch than op59/60's own narrowing.
+    [94, "s4", "hud-indicator"],
     [39, "s4", "hud-item-group"],
     [41, "a0", "hud-item-string"],
     [43, "s2", "vehicle"],
     // *net-game-mgr*'s own dynamically indexed byte read (index s5, no
     // stride multiply, offset 305) is net-game-mgr-assassin's own mark
     // field (resurrected this rung), which the base net-game-mgr type
-    // does not declare; cast the base pointer to the concrete subtype
-    // before the addition.
-    [11, "v1", "net-game-mgr-assassin"]
+    // does not declare; cast the base pointer to the concrete subtype at
+    // op12, the add that actually consumes it (a cast at op11, the raw
+    // *net-game-mgr* load itself, has no downstream effect since that op
+    // does not take v1 as an input).
+    [12, "v1", "net-game-mgr-assassin"]
   ],
   // (method 19 hud-artifact-indicators): s4 (a dynamic-index element off
   // this group's own items array) needs hud-item-group narrowing at op12
@@ -6126,10 +6133,21 @@
     // offset 316) is net-game-mgr-artifact's own artifact field
     // (resurrected this rung, declared 320, reached via the +4 basic-tag
     // trap), which the base net-game-mgr type does not declare; cast the
-    // base pointer to the concrete subtype before the addition.
-    [4, "a0", "net-game-mgr-artifact"],
+    // base pointer to the concrete subtype at op5, the add that actually
+    // consumes it (a cast at op4, the raw *net-game-mgr* load itself, has
+    // no downstream effect since that op does not take a0 as an input).
+    [5, "a0", "net-game-mgr-artifact"],
+    // second, identical read of the same artifact array later in this
+    // same loop body (op21-23), needing the same subtype narrowing at its
+    // own consuming add.
+    [22, "a0", "net-game-mgr-artifact"],
     [12, "s4", "hud-item-group"],
     [14, "a0", "hud-item-string"],
+    // s4 stores the raw artifact value (op6/23's own uint64 read) into
+    // its own hud-indicator target field (machine 44, declared 48, an
+    // 8-byte handle write) well before op26's own narrowing; the same
+    // subtype is needed at this earlier consuming store.
+    [24, "s4", "hud-indicator"],
     [26, "s4", "hud-indicator"],
     [31, "s3", "hud-item-string"],
     [42, "s4", "hud-item-group"],
@@ -6341,6 +6359,12 @@
   // hud-results rung: six functions read *net-world*'s own task-node-info
   // field then its own net-play-mode byte, the same pattern already fixed
   // repeatedly throughout this band.
+  // current-finish-mode (net-game-mgr-h.gc): reads *net-world*'s own
+  // task-node-info field then its own net-play-mode byte, the same
+  // pattern already fixed repeatedly throughout this band.
+  "current-finish-mode": [
+    [14, "a0", "game-task-node-info"]
+  ],
   "calc-player-rank": [
     [6, "v1", "game-task-node-info"],
     [34, "v1", "hud-team-score-results"],
@@ -6381,7 +6405,11 @@
   // (hud-item-string-method-25), the same recipe already proven
   // throughout this band.
   "(method 19 hud-team-score-results)": [
-    [378, "v1", "(pointer int32)"],
+    [378, "v1", "(pointer uint32)"],
+    // second, later read of the same generically-typed *challenge-clans*
+    // array (declared plain "array" with no element type); needs the
+    // same unsigned-pointer narrowing at its own consuming load.
+    [429, "v1", "(pointer uint32)"],
     [5, "a0", "hud-item-string"],
     [117, "a0", "hud-item-group"],
     [119, "a0", "hud-item-group"],
@@ -6391,7 +6419,44 @@
     [313, "a0", "hud-item-string"],
     [318, "s4", "hud-item-string"],
     [337, "s4", "hud-item-string"],
-    [363, "a0", "hud-item-string"]
+    [363, "a0", "hud-item-string"],
+    // a0 (carried in from s5, another items element) needs the same
+    // hud-item-string narrowing at its own consuming op to reach slot
+    // 112 (hud-item-string-method-24).
+    [415, "a0", "hud-item-string"],
+    // second, later branch reusing s5 for a different message id; needs
+    // the same narrowing at its own consuming op.
+    [466, "a0", "hud-item-string"],
+    // third branch reusing s5 for yet another message id, dispatching
+    // slot 116 (hud-item-string-method-25) this time.
+    [476, "a0", "hud-item-string"],
+    // op5's own a0 stays the same value across the four sibling arms of
+    // this same message-id ladder (ops 13/21/29/37), but each arm's own
+    // consuming op needs its own cast entry.
+    [13, "a0", "hud-item-string"],
+    [21, "a0", "hud-item-string"],
+    [29, "a0", "hud-item-string"],
+    [37, "a0", "hud-item-string"],
+    // two more sibling branches further down, each reusing s5 for its
+    // own message id.
+    [486, "a0", "hud-item-string"],
+    [495, "a0", "hud-item-string"],
+    // a0 (this items element, generically typed hud-item) stores the
+    // freshly read artifact-style value into its own hud-indicator target
+    // field (machine 44, declared 48, an 8-byte handle write), the same
+    // recipe already proven on hud-player-indicators's own sibling sites.
+    [130, "a0", "hud-indicator"],
+    // eight sibling branches through this same big message-id ladder each
+    // store a constant into s5's own color field (machine 46, declared 50);
+    // needs hud-item-string narrowing at each one's own store op.
+    [329, "s5", "hud-item-string"],
+    [351, "s5", "hud-item-string"],
+    [369, "s5", "hud-item-string"],
+    [421, "s5", "hud-item-string"],
+    [472, "s5", "hud-item-string"],
+    [482, "s5", "hud-item-string"],
+    [492, "s5", "hud-item-string"],
+    [501, "s5", "hud-item-string"]
   ],
   // (method 9 hud-team-score-results): a3 (a nested items element) needs
   // hud-item-group narrowing to reach its own nested items field (raw 36,
@@ -6424,7 +6489,16 @@
   ],
   "(method 19 hud-team-score-list)": [
     [22, "v1", "net-game-mgr"],
-    [23, "v1", "(pointer uint8)"],
+    [23, "v1", "(pointer int8)"],
+    [32, "a0", "game-task-node-info"],
+    // a0 (this group's own items[3], generically typed hud-item off the
+    // boxed array read at op52-53) needs hud-item-string narrowing to
+    // reach its own color field (machine 46, declared 50).
+    [54, "a0", "hud-item-string"],
+    // s2 (a sibling items element carried in from earlier in the
+    // function) needs the same hud-item-string narrowing to reach its
+    // own text-id field (machine 40, declared 44).
+    [63, "s2", "hud-item-string"],
     [97, "s5", "hud-item-string"]
   ],
   // (method 19 hud-name-score): s3 is hud-item-string narrowing to its own
@@ -6495,7 +6569,62 @@
     [391, "v1", "hud-item-group"],
     [393, "v1", "hud-item-group"],
     [397, "v1", "hud-item-group"],
-    [424, "a0", "game-task-node-info"]
+    [424, "a0", "game-task-node-info"],
+    // v1 (a stack-cached nested items element, generically typed hud-item
+    // off the array reads at op382-387) needs hud-item-string narrowing
+    // to resolve its own dispatch to slot 112 (hud-item-string-method-24),
+    // matching the a1 object arg passed alongside it (*temp-string*).
+    [481, "v1", "hud-item-string"],
+    // second, later branch reusing the same stack-cached slot (stack
+    // offset 128) for a different message id; needs the same narrowing
+    // at its own consuming op to reach slot 116 (hud-item-string-method-25).
+    [511, "a0", "hud-item-string"],
+    // third branch, same stack-cached slot 128, same slot-116 dispatch,
+    // yet another message id.
+    [543, "a0", "hud-item-string"],
+    // fourth and fifth branches, same stack-cached slot 128, same
+    // slot-116 dispatch, each its own message id.
+    [578, "a0", "hud-item-string"],
+    [613, "a0", "hud-item-string"],
+    // sixth branch, same stack-cached slot 128, dispatching slot 100
+    // (hud-item-method-21) instead of the hud-item-string-specific slots
+    // the other five branches use.
+    [646, "a0", "hud-item-string"],
+    // s0 (a sibling local, not the stack-cached slot) needs the same
+    // hud-item-string narrowing at its own consuming op to reach slot 116
+    // (hud-item-string-method-25).
+    [548, "a0", "hud-item-string"],
+    // s1, copied into gp, needs the same narrowing at its own consuming
+    // op to reach slot 112 (hud-item-string-method-24). Two more sibling
+    // copies of the same pattern recur later in the same ladder.
+    [553, "gp", "hud-item-string"],
+    [588, "gp", "hud-item-string"],
+    [623, "gp", "hud-item-string"],
+    // s2 (a nested items element read directly, no separate a0 copy)
+    // dispatches slot 112 too, near the top of this same big message-id
+    // dispatch ladder.
+    [161, "s2", "hud-item-string"],
+    // s5 gets reused across six sibling branches further down the same
+    // ladder, each with its own message id, all dispatching slot 116.
+    [229, "a0", "hud-item-string"],
+    [236, "a0", "hud-item-string"],
+    [245, "a0", "hud-item-string"],
+    [254, "a0", "hud-item-string"],
+    [263, "a0", "hud-item-string"],
+    [272, "a0", "hud-item-string"],
+    // s0 gets reused for two more branches later in the ladder.
+    [583, "a0", "hud-item-string"],
+    [618, "a0", "hud-item-string"],
+    // s5 and s4 close out the ladder with one branch each.
+    [682, "a0", "hud-item-string"],
+    [687, "a0", "hud-item-string"],
+    // s2 dispatches slot 120 (hud-item-string-method-26) at its own
+    // consuming op.
+    [655, "s2", "hud-item-string"],
+    // v1's own defining store into the stack-cached slot (offset 128,
+    // consumed by the seven reload sites cast above) needs the same
+    // narrowing at its own op so the spilled value carries a real type.
+    [388, "v1", "hud-item-string"]
   ],
   "(method 9 hud-results)": [
     [32, "a0", "hud-item-group"],

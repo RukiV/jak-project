@@ -26,13 +26,12 @@
 
 ;; og:preserve-this hud-high-scores rung: hud-name-score's own home is
 ;; hud-results.gc (its deftype decodes there, decompiler config attribution,
-;; full-corpus baseline), still unlanded this rung, but a (new 'static
-;; 'hud-name-score ...) literal appears in this file's own decoded static
-;; data below, so the type has to be declared here first. No new methods
-;; over hud-item-group (method-count-assert unchanged), so landing the type
-;; here does not block hud-results.gc's own methods landing later; when
-;; hud-results.gc lands, its own deftype for hud-name-score should be
-;; dropped in favor of this one to avoid a duplicate-definition throw.
+;; full-corpus baseline); a (new 'static 'hud-name-score ...) literal
+;; appears in this file's own decoded static data below, so the type has
+;; to be declared here first. No new methods over hud-item-group
+;; (method-count-assert unchanged). hud-results-rung update: hud-results.gc
+;; has since landed and its own deftype was dropped in favor of this one,
+;; exactly per this note's own retirement condition; this stays canonical.
 (deftype hud-name-score (hud-item-group)
   ((player-id int32)
    (stat-type uint64)
@@ -40,13 +39,14 @@
   )
 
 ;; og:preserve-this hud-high-scores rung: same forward-declaration class as
-;; hud-name-score above. hud-position's own home is hud-widgets.gc and
-;; hud-results-background-item's own home is hud-results.gc, both still
-;; unlanded this rung and both bands objects; neither adds new methods over
-;; hud-item-group, so landing them here does not block their own methods
-;; landing later. When those files land, their own deftype forms for these
-;; two types should be dropped in favor of these to avoid a
-;; duplicate-definition throw.
+;; hud-name-score above. hud-position's own home is hud-widgets.gc, still
+;; unlanded, and stays a pure forward declaration here for that reason.
+;; hud-results-background-item's own home is hud-results.gc; neither adds
+;; new methods over hud-item-group, so landing them here does not block
+;; their own methods landing later. hud-results-rung update:
+;; hud-results-background-item's own retirement condition is now met the
+;; same way hud-name-score's is (dropped there, canonical here); hud-position
+;; stays pending hud-widgets.gc.
 (deftype hud-position (hud-item-group)
   ((race-position int32)
    )
@@ -835,7 +835,12 @@
          (return (spawn-high-scores-list))
          )
         ((= v1-16 1)
-         (if (= (-> (the-as (pointer int8) (&+ *net-game-mgr* 197)) 0) 1)
+         ;; og:preserve-this net-game-mgr rung: *net-game-mgr* now has a
+         ;; real #f definer, so this read-site audit added the truthy
+         ;; guard this branch was missing, matching the same fix already
+         ;; landed on medal-instead-of-place?'s own sibling net-play-mode-1
+         ;; branch in hud-cash.gc.
+         (if (and *net-game-mgr* (= (-> (the-as (pointer int8) (&+ *net-game-mgr* 197)) 0) 1))
              (return (spawn-high-scores-list))
              )
          )

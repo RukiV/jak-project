@@ -1,205 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: hud-results.gc
-;; name in dgo: hud-results
-;; dgos: COMMON, GAME
-
-;; og:preserve-this hud-results rung: spawn-hud-game-end, cash-stats-on?
-;; and end-game-menu-on? forward-declared here, matching the exact
-;; signatures hud-high-scores.gc already declared for the same reason
-;; ("Unrecognized symbol ... as head of form" without this); all three
-;; are defined in hud-cash.gc, which compiles after this file.
-;; og:preserve-this hud-results rung: hud-player-icon, hud-player-icon-
-;; name, hud-localized-string and hud-item-string-big relanded here too
-;; (full deftype, transcribed verbatim from decompiler/config/jakx/
-;; all-types.gc), matching hud-results-grand-prix.gc's own identical
-;; forward declarations for the same four types (their own retail type-
-;; new calls live in hud-widgets.gc, still a stub in this tree); goalc
-;; tolerates the identical redefinition (the same net-player deftype
-;; already lives, unconflicted, in both net-player-h.gc and cam-
-;; states.gc), and this file's own static hud-item arrays construct real
-;; instances of hud-localized-string directly ("Type hud-localized-string
-;; is unknown" without this).
-(deftype hud-player-icon (hud-item-group)
-  ((player-id int32  :offset-assert 44)
-   )
-  :method-count-assert 25
-  :size-assert         #x30
-  :flag-assert         #x1900000030
-  (:methods
-    (hud-player-icon-method-24 (_type_ object) none) ;; 24
-    )
-  )
-
-(deftype hud-player-icon-name (hud-player-icon)
-  ()
-  :method-count-assert 25
-  :size-assert         #x30
-  :flag-assert         #x1900000030
-  )
-
-(deftype hud-localized-string (hud-item-string)
-  ()
-  :method-count-assert 29
-  :size-assert         #x3c
-  :flag-assert         #x1d0000003c
-  )
-
-(deftype hud-item-string-big (hud-item-string)
-  ()
-  :method-count-assert 29
-  :size-assert         #x3c
-  :flag-assert         #x1d0000003c
-  )
-
-;; og:preserve-this hud-results rung: hud-headset-talker-race forward-
-;; declared here (name-only, matching *net-game-mgr*'s own precedent);
-;; spawn-hud-results passes it to kill-by-type as a plain type-symbol
-;; argument, no field access, so a name-only declare-type is enough. Its
-;; own home is unclear in this tree (no goal_src file defines it yet).
-(declare-type hud-headset-talker-race in-game-hud)
-(declare-type hud-headset-talker-other in-game-hud)
-
-(define-extern spawn-hud-game-end (function object))
-(define-extern cash-stats-on? (function object))
-(define-extern end-game-menu-on? (function object))
-(define-extern spawn-high-score-hud (function object))
-(define-extern spawn-hud-results-background (function object))
-(define-extern spawn-hud-results-grand-prix (function object))
-(define-extern spawn-hud-results-grand-prix-totals (function object))
-(define-extern spawn-hud-results-medal-1 (function object))
-(define-extern calc-grand-prix-score (function (pointer int8) int))
-;; og:preserve-this hud-results rung: report-score forward-declared here,
-;; matching all-types.gc's own already-active extern; no landed body
-;; anywhere in this corpus yet.
-(define-extern report-score (function int int))
-(define-extern reset-hud-cash-time (function object))
-(define-extern grand-prix-totals-on? (function object))
-(define-extern get-medal-reward-ignore-medal (function float int))
-(define-extern is-clan-challenge (function object))
-;; og:preserve-this hud-results rung: calc-team-score forward-declared
-;; here, matching all-types.gc's own already-active extern; no landed
-;; body anywhere in this corpus yet.
-(define-extern calc-team-score (function int int))
-;; og:preserve-this hud-results rung: calc-player-rank forward-declared
-;; here; its own defun lands much later in this same file (retail's own
-;; DGO function order, not dependency order), but (method 24 hud-rank-
-;; name-score) calls it earlier in file order ("No method or function
-;; named calc-player-rank for type int" without this).
-(define-extern calc-player-rank (function int object int))
-;; og:preserve-this hud-results rung: *net-player-names* forward-declared
-;; here, matching all-types.gc's own already-active extern; its own real
-;; home is unclear in this tree (no goal_src file defines it yet), so
-;; this stays a pure extern like the pointer typing already established.
-(define-extern *net-player-names* (pointer uint8))
-
-;; og:preserve-this hud-results rung: net-game-mgr-race forward-declared
-;; here (full deftype, transcribed verbatim from decompiler/config/jakx/
-;; all-types.gc). (method 24 hud-rank-name-score) and calc-player-rank
-;; both read its own auto-end-time field (declared 360, machine 356 via
-;; the +4 basic-tag trap) off a (the-as net-game-mgr-race *net-game-mgr*)
-;; cast. net-game-mgr-race's own home is net-race-h.gc, still a stub in
-;; this tree and out of this rung's scope. Retire once net-race-h.gc lands
-;; the real definition.
-(deftype net-game-mgr-race (net-game-mgr)
-  ((lap-count       int8       :offset-assert 304)
-   (racer-ct        int8       :offset-assert 305)
-   (racer-ids       uint8 24 :offset-assert 306)
-   (race-count-down int8       :offset-assert 330)
-   (pad-to-banner   uint8 13   :offset-assert 331)
-   (banner          uint64     :offset-assert 344)
-   (hud-clock       uint64     :offset-assert 352)
-   (auto-end-time   int32      :offset-assert 360)
-   )
-  :method-count-assert 88
-  :size-assert         #x16c
-  :flag-assert         #x5800e0016c
-  (:methods
-    (net-game-mgr-race-method-80 () none) ;; 80
-    (net-game-mgr-race-method-81 () none) ;; 81
-    (net-game-mgr-race-method-82 () none) ;; 82
-    (net-game-mgr-race-method-83 () none) ;; 83
-    (net-game-mgr-race-method-84 () none) ;; 84
-    (net-game-mgr-race-method-85 () none) ;; 85
-    (net-game-mgr-race-method-86 () none) ;; 86
-    (net-game-mgr-race-method-87 () none) ;; 87
-    )
-  )
-
-;; og:preserve-this hud-results rung: net-player-race forward-declared here
-;; (full deftype, transcribed verbatim from decompiler/config/jakx/
-;; all-types.gc), the same class as hud-results-base's own family was
-;; before this rung. set-stats-text below needs real field access
-;; (finish-time, its own field) alongside fields net-player-race inherits
-;; from the already-landed net-player-h.gc (score, kills, deaths,
-;; best-power-slide, best-hang-time); net-player-race's own home is
-;; net-race-h.gc, still a stub in this tree and out of this rung's scope.
-;; Retire once net-race-h.gc lands the real definition.
-(deftype net-player-race (net-player)
-  ((last-on-track-pos       vector      :inline :offset-assert 400)
-   (last-on-track-rot       quaternion  :inline :offset-assert 416)
-   (wrong-way-bot           uint64              :offset-assert 432)
-   (finish-time             int32               :offset-assert 440)
-   (last-lap-update-time    int32               :offset-assert 444)
-   (last-on-track-time      int32               :offset-assert 448)
-   (last-slice              int32               :offset-assert 452)
-   (last-slice-change-time  int32               :offset-assert 456)
-   (last-valid-vehicle-time uint64              :offset-assert 464)
-   (rstate                  racer-state         :offset-assert 472)
-   (current-lap             int8                :offset-assert 476)
-   (racer-idx               int8                :offset-assert 477)
-   (current-lap-start-time  int32               :offset-assert 480)
-   (best-lap-time           int32               :offset-assert 484)
-   (speed-factor            float               :offset-assert 488)
-   (max-lap-reached         int32               :offset-assert 492)
-   )
-  :method-count-assert 108
-  :size-assert         #x1f0
-  :flag-assert         #x6c016001f0
-  (:methods
-    (net-player-race-method-98 (_type_) none) ;; 98
-    (net-player-race-method-99 (_type_) none) ;; 99
-    (net-player-race-method-100 (_type_) none) ;; 100
-    (net-player-race-method-101 () none) ;; 101
-    (net-player-race-method-102 (_type_ object object) none) ;; 102
-    (net-player-race-method-103 (_type_) none) ;; 103
-    (net-player-race-method-104 (_type_ object) none) ;; 104
-    (net-player-race-method-105 (_type_ object) none) ;; 105
-    (net-player-race-method-106 (_type_ object) none) ;; 106
-    (net-player-race-method-107 (_type_) none) ;; 107
-    )
-  )
-
-;; og:preserve-this hud-results rung: net-player-time-box forward-declared
-;; here (full deftype, transcribed verbatim from decompiler/config/jakx/
-;; all-types.gc); (method 9 hud-medal-results) casts net-players entries
-;; to it directly. Its own home is net-race-h.gc, still a stub in this
-;; tree and out of this rung's scope. Retire once net-race-h.gc lands the
-;; real definition.
-(deftype net-player-time-box (net-player-race)
-  ((player-timer          float   :offset-assert 496)
-   (start-time            uint32  :offset-assert 500)
-   (freeze-time-total     uint32  :offset-assert 504)
-   (freeze-time-current   uint32  :offset-assert 508)
-   (freeze-time-remaining uint32  :offset-assert 512)
-   (start-freeze-time     uint32  :offset-assert 516)
-   (total-race-time       uint32  :offset-assert 520)
-   (lose-time             uint32  :offset-assert 524)
-   (pickup-total          int32   :offset-assert 528)
-   (pickup-collected      int32   :offset-assert 532)
-   (bonus-time            int32   :offset-assert 536)
-   )
-  :method-count-assert 109
-  :size-assert         #x21c
-  :flag-assert         #x6d0190021c
-  (:methods
-    (net-player-time-box-method-108 (_type_) none) ;; 108
-    )
-  )
-
-;; DECOMP BEGINS
-
 ;; definition for function score-is-time
 ;; WARN: Return type mismatch symbol vs object.
 (defun score-is-time ()
@@ -217,16 +18,9 @@
   )
 
 ;; definition for function set-stats-text
-;; og:preserve-this hud-results rung: arg0 retyped object -> hud-item-
-;; string; the decompiler could not narrow a free function's own arg type
-;; the way a method dispatch would, but every call site in this body
-;; (hud-item-string-method-24/26, and the pre-existing (the-as hud-item-
-;; string arg0) cast just below) already treats it as one ("No method or
-;; function named hud-item-string-method-24 for type object" without
-;; this retype).
 ;; WARN: Return type mismatch none vs object.
-(defun set-stats-text ((arg0 hud-item-string) (arg1 object) (arg2 net-player-race))
-  (set! (-> arg0 color) (the-as uint 54))
+(defun set-stats-text ((arg0 object) (arg1 object) (arg2 net-player-race))
+  (set! (-> (the-as hud-item-string arg0) color) (the-as uint 54))
   (let ((v1-1 arg1))
     (cond
       ((zero? v1-1)
@@ -331,13 +125,7 @@
     (t9-0 this)
     )
   (set! (-> this start-time) (the-as int (current-time)))
-  ;; og:preserve-this net-mgr rung: *net-mgr*'s own read below was bare
-  ;; (-> *net-mgr* game-type) in this method's own decode; *net-mgr* audit
-  ;; flagged it live-and-unguarded (method 9 runs on every hud-results-
-  ;; base-derived spawn, matching the sibling fix already landed on
-  ;; cash-hud's own identical pattern in hud-cash.gc), guarded with the
-  ;; same (and *net-mgr* ...) idiom.
-  (if (and (zero? (-> *viewport-array* mode)) *net-mgr* (= (-> *net-mgr* game-type) 4))
+  (if (and (zero? (-> *viewport-array* mode)) (= (-> *net-mgr* game-type) 4))
       (set! (-> this spawn-time) -1)
       (set! (-> this spawn-time) (the-as int (current-time)))
       )
@@ -598,13 +386,7 @@
         (sv-32 (calc-player-rank (-> this player-id) (-> this grand-prix-totals)))
         )
     (when (and (!= -1 (-> this player-id)) s4-0)
-      ;; og:preserve-this hud-results rung: (-> this items 0) explicitly
-      ;; cast to hud-item-string; the decompiler's own printed form left
-      ;; it generic hud-item (items is (array hud-item)), which type-
-      ;; checks for the decoded text but not for the real static dispatch
-      ;; goalc performs here ("No method or function named hud-item-
-      ;; string-method-24 for type hud-item" without the cast).
-      (hud-item-string-method-24 (the-as hud-item-string (-> this items 0)) (-> s4-0 player-id))
+      (hud-item-string-method-24 (-> this items 0) (-> s4-0 player-id))
       (if (= (-> this player-id) (+ (view-get-active-index) (* (if *net-mgr*
                                                                    (-> *net-mgr* game-state local-machine-idx)
                                                                    0
@@ -635,24 +417,15 @@
           (set! a1-4 2015)
           )
         )
-      ;; og:preserve-this hud-results rung: s0-0, s5-0 and s2-0 explicitly
-      ;; cast to hud-item-string at their own call sites below, the same
-      ;; class of compile-only cast as (-> this items 0) above (all three
-      ;; come off items sub-accesses the decompiler printed generic).
-      (hud-item-string-method-25 (the-as hud-item-string s0-0) a1-4)
-      ;; og:preserve-this hud-results rung: the arg1 offset sum below
-      ;; needs an explicit (pointer uint8) cast; string<-charp declares
-      ;; that exact arg type, but the decompiler printed the raw pointer
-      ;; arithmetic as int math ("got a int when expecting a (pointer
-      ;; uint8)" without the wrap).
+      (hud-item-string-method-25 s0-0 a1-4)
       (string<-charp
         (-> (the-as hud-string (-> (the-as hud-item-string s1-0) string)) text)
-        (the-as (pointer uint8) (+ (+ (* 96 (-> this player-id)) 32) (the-as int *net-player-names*)))
+        (+ (+ (* 96 (-> this player-id)) 32) (the-as int *net-player-names*))
         )
       (cond
         ((-> this grand-prix-totals)
-         (set-stats-text (the-as hud-item-string s5-0) 6 (the-as net-player-race s4-0))
-         (set-stats-text (the-as hud-item-string s2-0) 7 (the-as net-player-race s4-0))
+         (set-stats-text s5-0 6 (the-as net-player-race s4-0))
+         (set-stats-text s2-0 7 (the-as net-player-race s4-0))
          )
         (else
           (when (zero? (if *net-world*
@@ -684,16 +457,12 @@
                              0
                              )
                          )
-                ;; og:preserve-this hud-results rung: s5-0 explicitly cast
-                ;; to hud-item-string at both its own call sites below,
-                ;; the same class of compile-only cast as (-> this items
-                ;; 0) above.
-                (hud-item-string-method-24 (the-as hud-item-string s5-0) "--:--:--")
+                (hud-item-string-method-24 s5-0 "--:--:--")
                 (return #f)
                 )
               )
             )
-          (set-stats-text (the-as hud-item-string s5-0) arg0 (the-as net-player-race s4-0))
+          (set-stats-text s5-0 arg0 (the-as net-player-race s4-0))
           )
         )
       )
@@ -749,12 +518,8 @@
   )
 
 ;; definition for method 24 of type hud-results
-;; og:preserve-this hud-results rung: zero-arg-method printer bug (issue
-;; 483), fixed with the explicit-type-name defmethod form already landed
-;; for vehicle-method-180, process-nettable-method-28 and net-powerup-
-;; method-55 ("Method type must be a symbol, got ()" without it).
 ;; WARN: Return type mismatch symbol vs none.
-(defmethod hud-results-method-24 hud-results () (case (if *net-world*
+(defmethod hud-results-method-24 () (case (if *net-world*
                                             (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
                                             18
                                             )
@@ -770,20 +535,8 @@
 ;; definition for symbol *reset-hud-results*, type object
 (define *reset-hud-results* (the-as object #f))
 
-;; og:preserve-this hud-results rung: *last-game-mgr-grand-prix*'s own
-;; backing store hand-transcribed from the raw .word dump (decompiler/
-;; config/jakx/ntsc_v1/label_types.jsonc's own L1404 entry gets the
-;; decompiler as far as recognizing a 24-element int32 array but "Type
-;; int32 with length 24 is not yet supported by the data decompiler"
-;; stops it printing the literal); all 24 words are zero in the raw
-;; static data, matching a plain (new 'static 'array int32 24 ...)
-;; literal with no header (a bare 24-word .word block, not a boxed-array).
 ;; definition for symbol *last-game-mgr-grand-prix*, type (pointer int32)
-(define *last-game-mgr-grand-prix*
-  (the-as (pointer int32)
-   (new 'static 'array int32 24 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
-   )
-  )
+(define *last-game-mgr-grand-prix* (the-as (pointer int32) <static-data L1404>))
 
 ;; definition for method 9 of type hud-results
 (defmethod hud-item-method-9 ((this hud-results))
@@ -880,14 +633,14 @@
   (when (-> this grand-prix)
     (dotimes (s5-0 (the-as int *active-net-player-count*))
       (let ((s4-0 (-> *active-net-players* s5-0)))
-        (when (!= (-> (&+ *last-game-mgr-grand-prix* (* (net-player-method-71 s4-0) 4)) 0) (-> *net-game-mgr* pid))
+        (when (!= (-> *last-game-mgr-grand-prix* (net-player-method-71 s4-0)) (-> *net-game-mgr* pid))
           (set! (-> (the-as (pointer int32) (+ (* (net-player-method-71 s4-0) 4) (the-as int *game-info*))) 377)
                 (calc-grand-prix-score (the-as (pointer int8) s4-0))
                 )
           (+! (-> (the-as (pointer int32) (+ (* (net-player-method-71 s4-0) 4) (the-as int *game-info*))) 400)
               (calc-grand-prix-score (the-as (pointer int8) s4-0))
               )
-          (set! (-> (&+ *last-game-mgr-grand-prix* (* (net-player-method-71 s4-0) 4)) 0) (-> *net-game-mgr* pid))
+          (set! (-> *last-game-mgr-grand-prix* (net-player-method-71 s4-0)) (-> *net-game-mgr* pid))
           )
         )
       )
@@ -961,56 +714,26 @@
     )
   (cond
     ((and (-> this grand-prix) (not (-> this grand-prix-totals)))
-     (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 3283)
+     (hud-item-string-method-25 (-> (the-as hud-item-group (-> this items 10)) items 0) 3283)
      )
     ((is-nonstandard-mode?)
-     (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 4273)
+     (hud-item-string-method-25 (-> (the-as hud-item-group (-> this items 10)) items 0) 4273)
      )
     (else
-      (hud-item-string-method-25 (the-as hud-item-string (-> (the-as hud-item-group (-> this items 10)) items 0)) 3284)
+      (hud-item-string-method-25 (-> (the-as hud-item-group (-> this items 10)) items 0) 3284)
       )
     )
   (none)
   )
 
 ;; definition for method 19 of type hud-results
-;; og:preserve-this hud-results rung: this method's own body is withheld,
-;; not decoded. It is a huge text-message-id dispatch ladder that spills
-;; one hud-item-string pointer to the stack once and reloads it across
-;; roughly a dozen sibling branches; every one of the ~40 individual
-;; reload and store sites type-checks cleanly once hand-cast to
-;; hud-item-string in decompiler/config/jakx/ntsc_v1/type_casts.jsonc
-;; (this rung's own scoped decode proves it: ForwardProp completes across
-;; the whole function with zero remaining type-prop errors), but the
-;; later types2 pass still throws "TP_Type::get_slot failed: 128"
-;; building the final expression tree from the spilled value. This is
-;; the same decompiler-internal spill-tracking wall already documented on
-;; (method 10 minimap) and (method 11 minimap) in hacks.jsonc (hand-
-;; casting every reload clears the reported errors but leaves types2
-;; unable to finish); a stack_structures.jsonc declaration for the spill
-;; offset was not attempted here since minimap's own attempt at the
-;; analogous fix aborted outright with a different crash, and disabling
-;; type analysis for the whole method (hacks.jsonc's
-;; no_type_analysis_functions_by_name) was tried and rejected: it trades
-;; this failure for an earlier one ("didn't know its type"), producing no
-;; usable body at all rather than a degraded one. Retirement condition:
-;; a decompiler fix for cross-branch stack-spill type tracking, or a
-;; verified-safe hand transcription of the raw MIPS body (not attempted
-;; this rung given its size, dozens of branches over roughly 700 atomic
-;; ops). Until then hud-results falls back to hud-item-group's own
-;; generic method 19; the retail per-message-id text/texture updates this
-;; override drives do not fire.
+;; ERROR: function was not converted to expressions. Cannot decompile.
 
 ;; definition of type hud-medal-results
 (deftype hud-medal-results (hud-results-base)
   ((i-got-medal         uint8)
    (has-sent-inc-event  basic)
    )
-  ;; og:preserve-this hud-results rung: method 24's own arg0 retyped
-  ;; object -> hud-item-string; every call site in this file passes a
-  ;; hud-item-string and the body dispatches hud-item-string-method-24/26
-  ;; on it directly with no cast ("No method or function named hud-item-
-  ;; string-method-24 for type object" without the retype).
   (:methods
     (hud-medal-results-method-24 (_type_ hud-item-string float) none)
     )
@@ -1195,8 +918,8 @@
       (hud-item-method-21 (-> this items 9))
       )
   (if (is-nonstandard-mode?)
-      (hud-item-string-method-25 (the-as hud-item-string (-> this items 9)) 3283)
-      (hud-item-string-method-25 (the-as hud-item-string (-> this items 9)) 3284)
+      (hud-item-string-method-25 (-> this items 9) 3283)
+      (hud-item-string-method-25 (-> this items 9) 3284)
       )
   (hud-item-method-12 (-> this items 9))
   (hud-item-method-14 (-> this items 9))
@@ -1243,33 +966,45 @@
                       )
                   )
             )
-        (hud-medal-results-method-24 this (the-as hud-item-string a1-5) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 19))
-        (hud-medal-results-method-24 this (the-as hud-item-string s3-1) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 17))
-        (hud-medal-results-method-24 this (the-as hud-item-string s4-1) (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 15))
+        (hud-medal-results-method-24
+          this
+          (the-as hud-item-string a1-5)
+          (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 19)
+          )
+        (hud-medal-results-method-24
+          this
+          (the-as hud-item-string s3-1)
+          (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 17)
+          )
+        (hud-medal-results-method-24
+          this
+          (the-as hud-item-string s4-1)
+          (-> (the-as (pointer float) (+ (* s2-1 4) (the-as int s5-2))) 15)
+          )
         )
       (let ((s4-2 (-> this items 1))
             (s5-3 (-> (the-as hud-item-group (-> this items 2)) items 0))
             )
         (cond
           ((is-nonstandard-mode?)
-           (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 4473 #f))
-           (hud-item-string-method-24 (the-as hud-item-string s5-3) #f)
+           (hud-item-string-method-24 s4-2 (game-text-info-method-9 *common-text* 4473 #f))
+           (hud-item-string-method-24 s5-3 #f)
            )
           ((begin (set! v1-83 (-> this i-got-medal)) (= v1-83 1))
-           (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2032 #f))
-           (hud-item-string-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11c :page #x9)))
+           (hud-item-string-method-24 s4-2 (game-text-info-method-9 *common-text* 2032 #f))
+           (hud-item-string-method-24 s5-3 (get-texture is-medal-bronze-01 level-default-minimap))
            )
           ((= v1-83 2)
-           (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2031 #f))
-           (hud-item-string-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11e :page #x9)))
+           (hud-item-string-method-24 s4-2 (game-text-info-method-9 *common-text* 2031 #f))
+           (hud-item-string-method-24 s5-3 (get-texture is-medal-silver-01 level-default-minimap))
            )
           ((= v1-83 3)
-           (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2030 #f))
-           (hud-item-string-method-24 (the-as hud-item-string s5-3) (lookup-texture-by-id (new 'static 'texture-id :index #x11d :page #x9)))
+           (hud-item-string-method-24 s4-2 (game-text-info-method-9 *common-text* 2030 #f))
+           (hud-item-string-method-24 s5-3 (get-texture is-medal-gold-01 level-default-minimap))
            )
           (else
-            (hud-item-string-method-24 (the-as hud-item-string s4-2) (game-text-info-method-9 *common-text* 2029 #f))
-            (hud-item-string-method-24 (the-as hud-item-string s5-3) #f)
+            (hud-item-string-method-24 s4-2 (game-text-info-method-9 *common-text* 2029 #f))
+            (hud-item-string-method-24 s5-3 #f)
             )
           )
         )
@@ -1278,26 +1013,20 @@
   (let ((v1-107 (-> (the-as hud-item-group (-> this items 2)) items 1))
         (s5-4 (-> (the-as hud-item-group (-> this items 2)) items 2))
         )
-    ;; og:preserve-this hud-results rung: the arg1 offset sum below needs
-    ;; an explicit (pointer uint8) cast, the same class of fix as this
-    ;; method's own sibling call above.
     (string<-charp
       (-> (the-as hud-string (-> (the-as hud-item-string v1-107) string)) text)
-      (the-as
-        (pointer uint8)
-        (+ (+ (* 96 (+ (view-get-active-index) (* (if *net-mgr*
-                                                      (-> *net-mgr* game-state local-machine-idx)
-                                                      0
-                                                      )
-                                                  2
-                                                  )
-                       )
-                 )
-              32
-              )
-           (the-as int *net-player-names*)
-           )
-        )
+      (+ (+ (* 96 (+ (view-get-active-index) (* (if *net-mgr*
+                                                    (-> *net-mgr* game-state local-machine-idx)
+                                                    0
+                                                    )
+                                                2
+                                                )
+                     )
+               )
+            32
+            )
+         (the-as int *net-player-names*)
+         )
       )
     (let ((f30-0 (the float (-> *net-players*
                                 (* (if *net-mgr*
@@ -1358,13 +1087,6 @@
   (none)
   )
 
-;; og:preserve-this hud-results rung: hud-name-score's own deftype is
-;; relanded here too rather than dropped; goalc tolerates the identical
-;; redefinition (the same net-player deftype already lives, unconflicted,
-;; in both net-player-h.gc and cam-states.gc), and hud-high-scores.gc
-;; compiles after this file, so this file's own methods need the type
-;; known locally regardless ("Type hud-name-score is unknown" without
-;; it). Field-for-field identical to hud-high-scores.gc's own copy.
 ;; definition of type hud-name-score
 (deftype hud-name-score (hud-item-group)
   ((player-id  int32)
@@ -1420,16 +1142,11 @@
           (set! (-> (the-as hud-item-string s3-0) color) (the-as uint 5))
           (set! (-> (the-as hud-item-string s3-0) color) (the-as uint 20))
           )
-      ;; og:preserve-this hud-results rung: the arg1 offset sum below
-      ;; needs an explicit (pointer uint8) cast, the same class of fix as
-      ;; (method 24 hud-rank-name-score)'s own sibling call.
       (string<-charp
         (-> (the-as hud-string (-> (the-as hud-item-string s3-0) string)) text)
-        (the-as (pointer uint8) (+ (+ (* 96 (-> this player-id)) 32) (the-as int *net-player-names*)))
+        (+ (+ (* 96 (-> this player-id)) 32) (the-as int *net-player-names*))
         )
-      ;; og:preserve-this hud-results rung: s5-0 explicitly cast to
-      ;; hud-item-string, the same class of compile-only cast as above.
-      (set-stats-text (the-as hud-item-string s5-0) (-> this stat-type) (the-as net-player-race s4-0))
+      (set-stats-text s5-0 (-> this stat-type) (the-as net-player-race s4-0))
       )
     )
   (let ((t9-3 (method-of-type hud-item-group hud-item-method-19)))
@@ -1523,7 +1240,7 @@
     )
   (let ((s5-1 (-> this items 1)))
     (set! (-> this team-score) (max (calc-team-score (-> this team-id)) (-> this team-score)))
-    (hud-item-string-method-26 (the-as hud-item-string s5-1) (-> this team-score))
+    (hud-item-string-method-26 s5-1 (-> this team-score))
     )
   (none)
   )
@@ -1694,38 +1411,8 @@
   )
 
 ;; definition for method 19 of type hud-team-score-results
-;; og:preserve-this hud-results rung: this method's own body is withheld,
-;; not decoded. Three of its own sub-branches (adventure-mode gold-medal
-;; text, and both is-clan-challenge score-comparison branches) do
-;; (copy-charp<-charp ... (&+ <static-data L131> #xf2d8)), reaching a
-;; short string (almost certainly a literal separator, by its own call
-;; position between two localized text fragments) via a far-offset
-;; pointer computed off L131, a genuine MIPS code label sitting right
-;; after this method's own stack-adjust prologue rather than any data
-;; symbol; decompiler/config/jakx/ntsc_v1/label_types.jsonc's own L131
-;; entry (this rung) gets the decompiler as far as recognizing it needs a
-;; sized type but "Type X with length N is not yet supported by the data
-;; decompiler" stops it printing a real literal for any size tried, and
-;; without that no addressable GOAL symbol exists to hand-transcribe the
-;; pointer arithmetic against (writing a raw hex address would be
-;; guessing, not transcribing). The rest of this method (dispatch on
-;; stats-type, pad input to cycle the stat display, red/blue team-score
-;; comparison for the non-adventure non-clan-challenge branches) decodes
-;; and type-checks cleanly and was held back only because it shares this
-;; one defmethod form with the three blocked branches. Retirement
-;; condition: a decompiler fix for printing sized data at an
-;; unconventional (code-adjacent) label, or independent evidence for
-;; what L131+0xf2d8 actually names. Until then hud-team-score-results
-;; falls back to hud-results-base's own generic method 19; the retail
-;; per-frame stats-type cycling and team-score text update this override
-;; drives do not fire.
+;; ERROR: function was not converted to expressions. Cannot decompile.
 
-;; og:preserve-this hud-results rung: hud-results-background-item's own
-;; deftype is relanded here too rather than dropped, the same reasoning
-;; as hud-name-score above (goalc tolerates the identical redefinition;
-;; this file's own methods need the type known locally since hud-high-
-;; scores.gc compiles after it). Field-for-field identical (bare, no
-;; fields) to hud-high-scores.gc's own copy.
 ;; definition of type hud-results-background-item
 (deftype hud-results-background-item (hud-item-group)
   ()

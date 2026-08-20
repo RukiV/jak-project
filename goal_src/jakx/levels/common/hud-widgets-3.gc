@@ -139,13 +139,19 @@
     ;; array, declared offset 256, indexed by the active viewport) is read
     ;; as a raw pointer here rather than forward-declaring the full,
     ;; still-partially-provisional net-game-mgr type for one field.
-    (send-event
-      (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index)))
-      'update-score
-      (view-get-active-index)
-      (-> this combo-points)
+    ;; net-game-mgr rung: both reads below were unguarded in this method's
+    ;; own decode; the read-site audit added the truthy guard since
+    ;; *net-game-mgr* now has a real #f definer and this :post-style
+    ;; update method runs every frame.
+    (when *net-game-mgr*
+      (send-event
+        (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index)))
+        'update-score
+        (view-get-active-index)
+        (-> this combo-points)
+        )
+      (send-event (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index))) 'update-score-sound2)
       )
-    (send-event (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index))) 'update-score-sound2)
     )
   ((method-of-type hud-item-group hud-item-method-19) this)
   (none)
@@ -1907,7 +1913,13 @@
         (send-event *current-hud* 'kill-hud 0)
         (set! (-> this sent-exit) (the-as basic #t))
         )
-      (when (and (not (-> this sent-update)) (< 150 s5-0))
+      ;; og:preserve-this net-game-mgr rung: the two stats-hud reads below
+      ;; were unguarded in this method's own decode; the read-site audit
+      ;; added the truthy guard since *net-game-mgr* now has a real #f
+      ;; definer and this :post-style update method runs every frame
+      ;; (matching the sibling fix already landed on hud-points-combo's own
+      ;; identical pattern above).
+      (when (and (not (-> this sent-update)) (< 150 s5-0) *net-game-mgr*)
         (send-event
           (handle->process (-> (the-as (pointer handle) (&+ *net-game-mgr* 256)) (view-get-active-index)))
           'update-score

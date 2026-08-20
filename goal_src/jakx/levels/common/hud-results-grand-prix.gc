@@ -20,68 +20,22 @@
 ;; here for the same reason as hud-classes.gc's *minimap*. Its spawn
 ;; functions use it only as a truthy guard and as process-spawn's :to
 ;; target, no field access, so a name-only declare-type (matching its own
-;; declared parent, process-nettable) is enough; the real net-game-mgr type
-;; and instance are not landed anywhere in this tree yet.
+;; declared parent, process-nettable) is enough. The real net-game-mgr type
+;; and its own definer now land in net-game-mgr-h.gc (net-game-mgr rung);
+;; this file's own forward declare stays as a harmless, order-independent
+;; safety net (an ENGINE-dgo file compiling after a COMMON-dgo file is not
+;; a case this rung verified) rather than being removed outright.
 (declare-type net-game-mgr process-nettable)
 (define-extern *net-game-mgr* net-game-mgr)
 
 ;; og:preserve-this hud-static-literals rung: hud-results-base, hud-results,
-;; hud-rank-name-score and hud-medal-results forward-declared here (full
-;; deftype, transcribed verbatim from decompiler/config/jakx/all-types.gc).
-;; This file's own static hud-item arrays construct real instances of all
-;; four, but none of the four get a type-new call anywhere in this object's
-;; own decode; the retail type-new calls for this family live in
-;; hud-results.gc (own scoped decode confirms it: hud-results_ir2.asm),
-;; which is still a 9-line stub in this tree. Retire these four declarations
-;; once hud-results.gc lands the real definitions.
-(deftype hud-results-base (hud-item-group)
-  ((spawn-time        int32   :offset-assert 44)
-   (start-time        int32   :offset-assert 48)
-   (grand-prix        symbol  :offset-assert 52)
-   (grand-prix-totals symbol  :offset-assert 56)
-   )
-  :method-count-assert 24
-  :size-assert         #x3c
-  :flag-assert         #x180000003c
-  )
-
-(deftype hud-rank-name-score (hud-item-group)
-  ((player-id         int32   :offset-assert 44)
-   (grand-prix        symbol  :offset-assert 48)
-   (grand-prix-totals symbol  :offset-assert 52)
-   )
-  :method-count-assert 25
-  :size-assert         #x38
-  :flag-assert         #x1900000038
-  (:methods
-    (hud-rank-name-score-method-24 (_type_ object) none) ;; 24
-    )
-  )
-
-(deftype hud-results (hud-results-base)
-  ((i-got-medal uint8      :offset-assert 60)
-   (stats-type  uint64     :offset-assert 64)
-   (pad-tail    uint8 8    :offset-assert 72)
-   )
-  :method-count-assert 25
-  :size-assert         #x50
-  :flag-assert         #x1900000050
-  (:methods
-    (hud-results-method-24 () none) ;; 24
-    )
-  )
-
-(deftype hud-medal-results (hud-results-base)
-  ((i-got-medal        uint8  :offset-assert 60)
-   (has-sent-inc-event basic  :offset-assert 64)
-   )
-  :method-count-assert 25
-  :size-assert         #x44
-  :flag-assert         #x1900000044
-  (:methods
-    (hud-medal-results-method-24 (_type_ object float) none) ;; 24
-    )
-  )
+;; hud-rank-name-score and hud-medal-results forward declarations retired
+;; (hud-results rung): hud-results.gc now lands the real deftype for all
+;; four (its own scoped decode confirms the retail type-new calls all live
+;; there), field-for-field and method-24-signature identical to what was
+;; forward-declared here, so this block is a plain duplicate deftype and
+;; had to go rather than stay as a harmless redundancy the way a bare
+;; declare-type would.
 
 ;; og:preserve-this hud-static-literals rung: the full hud-effect-* subtype
 ;; family (group, slide, font-effect, offscreen, trigger-sound,

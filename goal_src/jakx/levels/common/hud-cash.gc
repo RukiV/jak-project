@@ -252,8 +252,11 @@
      ;; declaration class as hud-high-scores.gc's own spawn-high-score-hud
      ;; note above (net-game-mgr.gc is unlanded, all-types.gc only); rewritten
      ;; as the same raw offset-197 int8 pointer read that file already uses
-     ;; for this exact field.
-     (if (< (-> (the-as (pointer int8) (&+ *net-game-mgr* 197)) 0) 2)
+     ;; for this exact field. net-game-mgr rung: *net-game-mgr* now has a
+     ;; real #f definer, so this read-site audit added the truthy guard
+     ;; this branch was missing (net-play-mode 1 does not by itself
+     ;; guarantee *net-game-mgr* is spawned yet).
+     (if (and *net-game-mgr* (< (-> (the-as (pointer int8) (&+ *net-game-mgr* 197)) 0) 2))
          (return (the-as object #t))
          )
      )
@@ -2040,7 +2043,12 @@
   (if (= (-> this start-time) -1)
       (set! (-> this start-time) (the-as int (current-time)))
       )
-  (if (and (not (and (zero? (-> *viewport-array* mode)) (= (-> *net-mgr* game-type) 4)))
+  ;; og:preserve-this net-mgr rung: *net-mgr*'s own read below was bare
+  ;; (-> *net-mgr* game-type) in this method's own decode; *net-mgr* audit
+  ;; flagged it live-and-unguarded (method 9 runs on every cash-hud spawn,
+  ;; a common gameplay path), guarded with the same (and *net-mgr* ...)
+  ;; idiom the very next clause already uses for *net-game-mgr*.
+  (if (and (not (and (zero? (-> *viewport-array* mode)) *net-mgr* (= (-> *net-mgr* game-type) 4)))
            (and *net-game-mgr*
                 (or (and (zero? (view-get-active-index)) (!= (-> *net-game-mgr* pid) *last-cash-game-mgr-for-player-0*))
                     (and (= 1 (view-get-active-index)) (!= (-> *net-game-mgr* pid) *last-cash-game-mgr-for-player-1*))

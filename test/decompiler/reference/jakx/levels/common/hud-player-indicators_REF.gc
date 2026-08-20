@@ -1,89 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: hud-player-indicators.gc
-;; name in dgo: hud-player-indicators
-;; dgos: COMMON, GAME
-
-;; og:preserve-this hud-player-indicators rung: *net-player-names*
-;; forward-declared here, matching all-types.gc's own already-active
-;; extern and the identical fix landed in hud-results.gc this rung; its
-;; own real home is unclear in this tree (no goal_src file defines it
-;; yet), so this stays a pure extern like the pointer typing already
-;; established.
-(define-extern *net-player-names* (pointer uint8))
-;; og:preserve-this hud-player-indicators rung: get-artifact-position and
-;; get-artifact-color forward-declared here, matching all-types.gc's own
-;; already-active externs; no landed body anywhere in this corpus yet.
-(define-extern get-artifact-position (function vector int none))
-(define-extern get-artifact-color (function int object))
-;; og:preserve-this hud-player-indicators rung: spawn-hud-ctf-indicators-
-;; view0 and spawn-hud-hunt-indicators-view0 forward-declared here;
-;; hud-indicators-spawn calls both but neither is landed in this tree
-;; yet (their own home is presumably a sibling deathmatch-mode hud file,
-;; still unlanded).
-(define-extern spawn-hud-ctf-indicators-view0 (function object))
-(define-extern spawn-hud-hunt-indicators-view0 (function object))
-(define-extern spawn-unused-hud-ctf-indicators-view (function object))
-(define-extern spawn-unused-hud-hunt-indicators-view (function object))
-
-;; og:preserve-this hud-player-indicators rung: net-game-mgr-deathmatch,
-;; net-game-mgr-assassin and net-game-mgr-artifact forward-declared here
-;; (full deftype, transcribed verbatim from decompiler/config/jakx/
-;; all-types.gc). (method 19 hud-assassin-indicators) reads net-game-mgr-
-;; assassin's own mark field and (method 19 hud-artifact-indicators)
-;; reads net-game-mgr-artifact's own artifact field, both off a cast
-;; *net-game-mgr*; net-game-mgr-deathmatch is the shared parent both
-;; subtypes need declared first. Their own home is net-race-h.gc, still
-;; a stub in this tree and out of this rung's scope. Retire once
-;; net-race-h.gc lands the real definitions.
-(deftype net-game-mgr-deathmatch (net-game-mgr)
-  ((spawner-array basic  :offset-assert 304)
-   (spawner-count int8   :offset-assert 308)
-   )
-  :method-count-assert 84
-  :size-assert         #x135
-  :flag-assert         #x5400b00135
-  (:methods
-    (net-game-mgr-deathmatch-method-80 () none) ;; 80
-    (net-game-mgr-deathmatch-method-81 () none) ;; 81
-    (net-game-mgr-deathmatch-method-82 () none) ;; 82
-    (net-game-mgr-deathmatch-method-83 () none) ;; 83
-    )
-  )
-
-(deftype net-game-mgr-assassin (net-game-mgr-deathmatch)
-  ((mark    int8 24 :offset-assert 309)
-   )
-  :method-count-assert 86
-  :size-assert         #x14d
-  :flag-assert         #x5600c0014d
-  (:methods
-    (net-game-mgr-assassin-method-84 () none) ;; 84
-    (net-game-mgr-assassin-method-85 () none) ;; 85
-    )
-  )
-
-(deftype net-game-mgr-artifact (net-game-mgr-deathmatch)
-  ((artifact-location-array basic     :offset-assert 312)
-   (artifact-location-count int8      :offset-assert 316)
-   (artifact                uint64 6 :offset-assert 320)
-   (num-artifacts           int32     :offset-assert 368)
-   (last-artifact-index     int32     :offset-assert 372)
-   (last-position-index     uint32 6 :offset-assert 376)
-   (special-rule            basic     :offset-assert 400)
-   )
-  :method-count-assert 86
-  :size-assert         #x194
-  :flag-assert         #x5601100194
-  (:methods
-    (net-game-mgr-artifact-method-84 () none) ;; 84
-    (net-game-mgr-artifact-method-85 () none) ;; 85
-    )
-  )
-
-;; DECOMP BEGINS
-
 ;; definition of type hud-health
 (deftype hud-health (hud-item-group)
   ((health  float)
@@ -155,14 +72,6 @@
           0
           )
         )
-      ;; og:preserve-this hud-player-indicators rung: the six mem-copy!
-      ;; sources below (L501-L506 in this method's own scoped decode)
-      ;; failed to print as literals ("Unimplemented decompile_at_label")
-      ;; and are hand-transcribed here from the raw .word dump instead;
-      ;; each is exactly 16 bytes / 4 words, matching the vector4w color
-      ;; literal shape used throughout this same file's own static hud
-      ;; item trees (mem-copy!'s own destination is a hud-item-sprite's
-      ;; color field).
       (let ((v1-8 (the-as process #f)))
         (if arg1
             (set! v1-8 (net-player-method-49 arg1))
@@ -171,24 +80,24 @@
           ((and v1-8 (>= (-> (the-as vehicle v1-8) unknown-float-704) 1.0))
            (cond
              ((< f30-0 0.4)
-              (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) (the-as pointer (new 'static 'vector4w :x #xa :y #x0 :z #x5a :w #x80)) 16)
+              (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) <static-data L506> 16)
               )
              ((< f30-0 0.7)
-              (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) (the-as pointer (new 'static 'vector4w :x #x3c :y #x0 :z #x82 :w #x80)) 16)
+              (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) <static-data L505> 16)
               )
              (else
-               (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) (the-as pointer (new 'static 'vector4w :x #x82 :y #x0 :z #x82 :w #x80)) 16)
+               (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) <static-data L504> 16)
                )
              )
            )
           ((< f30-0 0.4)
-           (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) (the-as pointer (new 'static 'vector4w :x #xff :y #x0 :z #x0 :w #x80)) 16)
+           (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) <static-data L503> 16)
            )
           ((< f30-0 0.7)
-           (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) (the-as pointer (new 'static 'vector4w :x #xff :y #xff :z #x0 :w #x80)) 16)
+           (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) <static-data L502> 16)
            )
           (else
-            (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) (the-as pointer (new 'static 'vector4w :x #x0 :y #xff :z #x0 :w #x80)) 16)
+            (mem-copy! (the-as pointer (-> (the-as hud-item-sprite gp-0) color)) <static-data L501> 16)
             )
           )
         )
@@ -263,12 +172,8 @@
       (set! (-> (the-as (pointer symbol) (-> this items 0)) 13) #t)
       (set! (-> (the-as (pointer symbol) (-> this items 0)) 13) #f)
       )
-  (set! (-> this hud-direction-arrow-01)
-        (lookup-texture-by-id-fast (new 'static 'texture-id :index #x72 :page #x9))
-        )
-  (set! (-> this hud-namebar-shape-01)
-        (lookup-texture-by-id-fast (new 'static 'texture-id :index #x69 :page #x9))
-        )
+  (set! (-> this hud-direction-arrow-01) (get-texture hud-direction-arrow-01 level-default-minimap))
+  (set! (-> this hud-namebar-shape-01) (get-texture hud-namebar-shape-01 level-default-minimap))
   (set! (-> this id) -1)
   (set! (-> this indicator-alpha) 1.0)
   (set! (-> this target) (the-as handle #f))
@@ -335,7 +240,7 @@
               0
               )
              (else
-               (hud-item-string-method-24 (the-as hud-item-string s2-2) (-> this hud-direction-arrow-01))
+               (hud-item-string-method-24 (the-as hud-item s2-2) (-> this hud-direction-arrow-01))
                (let ((v1-32 179))
                  (set! (-> (the-as (pointer int16) s2-2) 20) v1-32)
                  (set! (-> (the-as hud-item s2-2) real-scale) v1-32)
@@ -363,7 +268,7 @@
               (set! (-> this scale) (the int (* 256.0 (lerp-scale 1.0 0.5 f0-35 409600.0 2457600.0))))
               )
             (set! (-> this offscreen) #f)
-            (hud-item-string-method-24 (the-as hud-item-string s2-2) (-> this hud-namebar-shape-01))
+            (hud-item-string-method-24 (the-as hud-item s2-2) (-> this hud-namebar-shape-01))
             (set! (-> (the-as (pointer float) s2-2) 17) 32768.0)
             )
           )
@@ -577,7 +482,7 @@
                  )
             (cond
               ((not (t9-1 a0-2 a1-0))
-               (hud-item-string-method-24 (the-as hud-item-string (-> this items s4-0)) (the-as none a1-0))
+               (hud-item-string-method-24 (-> this items s4-0) (the-as none a1-0))
                )
               (else
                 (let ((sv-16 (net-player-method-49 s2-0)))
@@ -593,8 +498,8 @@
                                  )
                               (logtest? (-> (the-as rigid-body-object sv-16) flags) 8)
                               )
-                          (hud-item-string-method-24 (the-as hud-item-string (-> (the-as hud-item-group s1-0) items 1)) 0)
-                          (hud-item-string-method-24 (the-as hud-item-string (-> (the-as hud-item-group s1-0) items 1)) (-> (the-as vehicle sv-16) health))
+                          (hud-item-string-method-24 (-> (the-as hud-item-group s1-0) items 1) 0)
+                          (hud-item-string-method-24 (-> (the-as hud-item-group s1-0) items 1) (-> (the-as vehicle sv-16) health))
                           )
                       (case (if *net-world*
                                 (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
@@ -624,18 +529,13 @@
                                   18
                                   )
                           ((7)
-                           (hud-item-string-method-24 (the-as hud-item-string (-> (the-as hud-item-group s1-0) items 0)) "")
+                           (hud-item-string-method-24 (-> (the-as hud-item-group s1-0) items 0) "")
                            )
                           (else
                             (let ((sv-64 (-> (the-as hud-item-group s1-0) items 0)))
                               ((method-of-object (the-as hud-item-string sv-64) hud-item-string-method-24)
                                (the-as hud-item-string sv-64)
-                               ;; og:preserve-this hud-player-indicators
-                               ;; rung: the arg1 offset sum below needs an
-                               ;; explicit (pointer uint8) cast, the same
-                               ;; class of fix landed on hud-results.gc's
-                               ;; own sibling calls this rung.
-                               (string<-charp *temp-string* (the-as (pointer uint8) (+ (+ (* 96 s0-0) 32) (the-as int *net-player-names*))))
+                               (string<-charp *temp-string* (+ (+ (* 96 s0-0) 32) (the-as int *net-player-names*)))
                                )
                               )
                             )
@@ -712,7 +612,7 @@
         5
         (s2-0 (the-as hud-item-string s3-0) a1-2)
         )
-      (hud-item-string-method-24 (the-as hud-item-string (-> (the-as hud-item-group s4-0) items 0)) "")
+      (hud-item-string-method-24 (-> (the-as hud-item-group s4-0) items 0) "")
       )
     )
   ((method-of-type hud-player-indicators hud-item-method-19) this)
@@ -770,18 +670,11 @@
         (when s2-0
           (let ((s4-0 (-> this items 0)))
             (if (logtest? (-> (the-as rigid-body-object s2-0) flags) 8)
-                (hud-item-string-method-24 (the-as hud-item-string (-> (the-as hud-item-group s4-0) items 1)) 0)
-                (hud-item-string-method-24 (the-as hud-item-string (-> (the-as hud-item-group s4-0) items 1)) (-> (the-as vehicle s2-0) health))
+                (hud-item-string-method-24 (-> (the-as hud-item-group s4-0) items 1) 0)
+                (hud-item-string-method-24 (-> (the-as hud-item-group s4-0) items 1) (-> (the-as vehicle s2-0) health))
                 )
             (set! (-> (the-as hud-indicator s4-0) target) (process->handle s2-0))
-            ;; og:preserve-this hud-player-indicators rung: s2-0 (a plain
-            ;; process from net-player-method-49) needs process-focusable
-            ;; narrowing to dispatch get-trans, the same recipe already
-            ;; used for sv-16's own identical call in hud-assassin-
-            ;; indicators's own sibling method 19.
-            (set! (-> (the-as hud-indicator s4-0) target-position quad)
-                  (-> ((method-of-object (the-as process-focusable s2-0) get-trans) (the-as process-focusable s2-0) 0) quad)
-                  )
+            (set! (-> (the-as hud-indicator s4-0) target-position quad) (-> (get-trans s2-0 0) quad))
             (let* ((a0-10 s4-0)
                    (t9-5 (method-of-object (the-as hud-item-string a0-10) hud-item-string-method-25))
                    (a1-3 (-> s3-0 color))
@@ -790,12 +683,8 @@
               (t9-5 (the-as hud-item-string a0-10) a1-3)
               )
             (hud-item-string-method-24
-              (the-as hud-item-string (-> (the-as hud-item-group s4-0) items 0))
-              ;; og:preserve-this hud-player-indicators rung: the arg1
-              ;; offset sum below needs an explicit (pointer uint8) cast,
-              ;; the same class of fix as this file's own sibling call
-              ;; above.
-              (string<-charp *temp-string* (the-as (pointer uint8) (+ (+ (* 96 (-> s3-0 player-id)) 32) (the-as int *net-player-names*))))
+              (-> (the-as hud-item-group s4-0) items 0)
+              (string<-charp *temp-string* (+ (+ (* 96 (-> s3-0 player-id)) 32) (the-as int *net-player-names*)))
               )
             (set! (-> (the-as hud-indicator s4-0) id) s5-0)
             )
@@ -1764,26 +1653,8 @@
     )
   )
 
-;; og:preserve-this hud-player-indicators rung: this static item array's
-;; own body is withheld, not decoded. Its own scoped decode fails with
-;; "In structure of type hud-indicator at label L402 offset 108, there
-;; was unknown data" (a raw zero word at hud-indicator's own no-
-;; direction-indicator field with no .symbol tag the static-data printer
-;; recognizes), so the decompiler falls back to an unprintable
-;; <static-data L327> token this rung cannot resolve. The array is large
-;; (matching the ~5-item nested hud-item tree shape *hud-player-
-;; indicators-view0* uses, spanning roughly 1500 raw disassembly lines),
-;; and hand-transcribing it field-by-field from the raw .word dump risks
-;; a transcription error this rung cannot cross-check (unlike the six
-;; short vector4w constants resolved the same way earlier in this file).
-;; Retirement condition: a decompiler fix for the zero-word basic-field
-;; case, or a verified field-by-field hand transcription. Until then this
-;; symbol is #f; spawn-hud-artifact-indicators-view0 (hud-cash.gc, if it
-;; calls this view) would need its own null-guard, and hud-artifact-
-;; indicators-view0's own display stays blank rather than crashing (items
-;; set from a #f array, never populated).
 ;; definition for symbol *hud-artifact-indicators-view0*, type object
-(define *hud-artifact-indicators-view0* (the-as object #f))
+(define *hud-artifact-indicators-view0* (the-as object <static-data L327>))
 
 ;; definition for symbol *hud-artifact-indicators-view0-proc*, type object
 (define *hud-artifact-indicators-view0-proc* (the-as object #f))
@@ -1872,12 +1743,8 @@
     )
   )
 
-;; og:preserve-this hud-player-indicators rung: same class of withheld
-;; static array as *hud-artifact-indicators-view0* above, same L402
-;; unknown-data wall, same reasoning. Retirement condition: see the
-;; sibling note above.
 ;; definition for symbol *hud-artifact-indicators-view1*, type object
-(define *hud-artifact-indicators-view1* (the-as object #f))
+(define *hud-artifact-indicators-view1* (the-as object <static-data L242>))
 
 ;; definition for symbol *hud-artifact-indicators-view1-proc*, type object
 (define *hud-artifact-indicators-view1-proc* (the-as object #f))

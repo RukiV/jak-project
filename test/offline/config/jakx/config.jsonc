@@ -370,6 +370,23 @@
     "DGO/XIMLEV.DGO"
   ],
   "skip_compile_files": [
+    // hud-results rung: the raw decode leaves dozens of hud-item-string-
+    // method-2N call sites and static-hud-tree items typed generic hud-
+    // item (no method dispatch info the decompiler can recover on its
+    // own), plus two genuinely unresolvable spots (a stack-spill types2
+    // wall on method 19 hud-results itself, and a far-offset code-label
+    // anchor on method 19 hud-team-score-results); goal_src lands the
+    // full hand-cast, compilable version (proven via a clean full-project
+    // (mi) build) and the decomp-vs-REF diff still gates every field
+    // offset and every other function's own text.
+    "hud-results",
+    // hud-player-indicators rung: same class of hud-item-string-method
+    // dispatch casts as hud-results above, plus two static hud-item
+    // trees (*hud-artifact-indicators-view0/1*) this rung could not
+    // safely hand-transcribe (see the og:preserve-this notes on both in
+    // goal_src); goal_src lands the compilable version, proven via the
+    // same clean full-project (mi) build.
+    "hud-player-indicators",
     // gsound's *sound-handles* (L383) and *sound-bank-reload-names* (L356) statics
     // emit as bare label refs; goal_src lands compilable hand-carries and the
     // decomp-vs-REF diff still gates all the code

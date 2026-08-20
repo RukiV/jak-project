@@ -863,6 +863,13 @@
     (call-parent-state-handler enter)
     (send-event (handle->process (-> self child-proc)) 'toggle #t)
     )
+  ;; og:preserve-this net-game-mgr rung: intro-end-time's own read below was
+  ;; a bare (-> *net-game-mgr* intro-end-time) in this state's own decode,
+  ;; the same class of live-and-unguarded site *net-game-mgr*'s own read-
+  ;; site audit flagged (this :post runs every frame while child-proc is
+  ;; live, matching the *net-mgr*/*net-world* guards already in the same
+  ;; expression); guarded with the same 0-fallback idiom already
+  ;; established for those two sibling reads in this exact comparison.
   :post (behavior ()
     (let ((v1-1 (handle->process (-> self child-proc))))
       (when v1-1
@@ -880,7 +887,10 @@
                              0
                              )
                          )
-                      (-> *net-game-mgr* intro-end-time)
+                      (if *net-game-mgr*
+                          (-> *net-game-mgr* intro-end-time)
+                          0
+                          )
                       )
                    (!= (-> self original-owner) (if *net-mgr*
                                                     (-> *net-mgr* game-state local-machine-idx)
