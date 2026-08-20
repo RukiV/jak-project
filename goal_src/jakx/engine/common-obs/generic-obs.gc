@@ -2272,20 +2272,14 @@
     )
   )
 
-(deftype simple-prim (process-drawable)
-  ((strip  prim-strip)
-   )
-  (:state-methods
-    active
-    )
-  (:methods
-    (init-strip! (_type_) none)
-    (strip-setup (_type_) none)
-    (get-alpha (_type_) int)
-    (allocate-trans-and-strip! (_type_) prim-strip)
-    (get-color (_type_) rgba)
-    )
-  )
+;; og:preserve-this issue 540: simple-prim single-homed to generic-obs-h.gc
+;; (game.gd link position 142, this file's own 297). new_type rewrites
+;; every custom method slot on every deftype execution of the same interned
+;; type (issue 534); a duplicate deftype here would have wiped every method
+;; this file lands below the moment this file linked after generic-obs-h.o.
+;; generic-obs-h.gc compiles first (all_objs.json index 290 vs this file's
+;; 445), so the type is already known by the time this file's own methods
+;; below need it.
 
 (defmethod init-from-entity! ((this simple-prim) (arg0 entity-actor))
   (rlet ((vf0 :class vf)

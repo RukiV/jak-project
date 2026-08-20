@@ -7,18 +7,15 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this temp home: try-to-look-at-info + last-try-to-look-at-data live in
-;; joint-mod.gc on jak3; move them when jakx joint-mod lands.
-(deftype try-to-look-at-info (basic)
-  ((who  handle  :offset-assert 8)
-   (horz float   :offset-assert 16)
-   (vert float   :offset-assert 20)
-   )
-  :method-count-assert 9
-  :size-assert         #x18
-  :flag-assert         #x900000018
-  )
-
+;; og:preserve-this issue 540: try-to-look-at-info single-homed to
+;; joint-mod-h.gc (game.gd link position 138, this file's own 282), matching
+;; jak3's own home for the type (joint-mod.gc there). new_type rewrites
+;; every custom method slot on every deftype execution of the same interned
+;; type (issue 534); this file previously carried its own deftype as a
+;; "temp home" pending jakx joint-mod landing, which has since happened
+;; (joint-mod-h.gc compiles at all_objs.json index 286, well before this
+;; file's own 430), so last-try-to-look-at-data below resolves against the
+;; already-registered type without a local redefinition.
 (define last-try-to-look-at-data (new 'global 'try-to-look-at-info))
 
 ;; og:preserve-this forward state externs: the slave states live in cam-states.o

@@ -7,36 +7,14 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this rigid-body-surface-flag resolved to uint8 (surface-type
-;; immediately follows at offset 1, leaving exactly one byte for flags).
-;; tire-roll-mix/tire-slide-mix (both captured UNKNOWN N) dropped as
-;; duplicate names for the same bytes the individually-named tire-roll-*/
-;; tire-slide-* floats already cover, same class as the other union-alias
-;; fixes this rung.
-(deftype rigid-body-surface (structure)
-  ((flags            uint8   :offset-assert 0)
-   (surface-type     uint8   :offset-assert 1)
-   (friction         float   :offset-assert 4)
-   (bounce           float   :offset-assert 8)
-   (drag             float   :offset-assert 12)
-   (depth            float   :offset-assert 16)
-   (damage           float   :offset-assert 20)
-   (scrape-sound     uint16  :offset-assert 24)
-   (glance-sound     uint16  :offset-assert 26)
-   (impact-sound     uint16  :offset-assert 28)
-   (tire-roll-hum    float   :offset-assert 32)
-   (tire-roll-dirt   float   :offset-assert 36)
-   (tire-roll-sand   float   :offset-assert 40)
-   (tire-roll-snow   float   :offset-assert 44)
-   (tire-roll-grass  float   :offset-assert 48)
-   (tire-roll-knobby float   :offset-assert 52)
-   (tire-slide-road  float   :offset-assert 56)
-   (tire-slide-dirt  float   :offset-assert 60)
-   )
-  :method-count-assert 9
-  :size-assert         #x40
-  :flag-assert         #x900000040
-  )
+;; og:preserve-this issue 540: rigid-body-surface single-homed to
+;; rigid-body-surface-h.gc (game.gd link position 365, this file's own
+;; 373). new_type rewrites every custom method slot on every deftype
+;; execution of the same interned type (issue 534); this file's own
+;; duplicate deftype is deleted (its field-choice evidence, the
+;; rigid-body-surface-flag/tire-roll-mix note, moved with it), since
+;; rigid-body-surface-h.gc compiles first (all_objs.json index 513 vs this
+;; file's own 521).
 
 ;; og:preserve-this vehicle-wheel-info moved to vehicle-h.gc. The game registers
 ;; it in vehicle-h, not here, and vehicle-h.o precedes wvehicle-h.o in build
@@ -122,48 +100,25 @@
 ;; wvehicle itself is declared later in this same file.
 (declare-type wvehicle basic)
 
-;; og:preserve-this :pack-me: wvehicle's own race field lands at the
-;; confirmed offset 2168, not 16-byte aligned; see wvehicle-net-extra above
-;; for why plain pointer-only structures need this to place correctly.
-(deftype race-control (structure)
-  ((state       race-state   :offset-assert 0)
-   (racer-state racer-state  :offset-assert 4)
-   (mesh        race-mesh    :offset-assert 8) ;; guessed by decompiler
-   (line        race-line    :offset-assert 12)
-   )
-  :method-count-assert 10
-  :size-assert         #x10
-  :flag-assert         #xa00000010
-  :pack-me
-  ;; method 9's own call site (wvehicle-method-262) proves self.state = arg1
-  ;; (a race-state, in fact *race-state* itself) and self.racer-state = arg2
-  ;; (a racer-state, indexed out of *race-state*'s own racer-array), matching
-  ;; the body's own (the-as race-state arg1) / (the-as racer-state arg2).
-  (:methods
-    (race-control-method-9 (_type_ wvehicle race-state racer-state) none) ;; 9
-    )
-  )
+;; og:preserve-this issue 540: race-control single-homed to
+;; race-control.gc (game.gd link position 371, this file's own 373).
+;; new_type rewrites every custom method slot on every deftype execution of
+;; the same interned type (issue 534); this file's own duplicate deftype is
+;; deleted (its :pack-me and method-9 call-site evidence moved with it),
+;; since race-control.gc compiles first (all_objs.json index 519 vs this
+;; file's own 521).
 
-;; og:preserve-this nav-location is a forced dependency outside the brief's
-;; M1 header list (wvehicle-ai-destination needs it :inline): the whole nav
-;; system (nav-mesh.gc equivalent) is still a goal_src stub despite
-;; all-types.gc showing nav-mesh with 46 real methods, so nav-location has
-;; no home to pull from yet. Landed at the minimum per the brief's §5
-;; guidance: nav-mesh/nav-poly forward-declared (nav-location only holds
-;; pointers to them), nav-location itself fully defined since it is used
-;; inline here. Belongs in nav-mesh.gc or nav-control-h.gc once that system
-;; lands; relocate then rather than duplicate.
-(declare-type nav-mesh basic)
-(declare-type nav-poly structure)
-
-(deftype nav-location (structure)
-  ((nav-mesh nav-mesh :offset-assert 0)
-   (nav-poly nav-poly :offset-assert 4)
-   )
-  :method-count-assert 9
-  :size-assert         #x8
-  :flag-assert         #x900000008
-  )
+;; og:preserve-this issue 540: nav-location single-homed to nav-mesh-h.gc
+;; (game.gd link position 181, this file's own 373). new_type rewrites
+;; every custom method slot on every deftype execution of the same interned
+;; type (issue 534); this file previously carried its own deftype (with
+;; nav-mesh/nav-poly forward-declared alongside it) because the nav system
+;; was still a goal_src stub when wvehicle-ai-destination below first
+;; needed nav-location :inline. nav-mesh-h.gc has since landed the real nav
+;; system, including nav-mesh, nav-poly and nav-location itself, and
+;; compiles first (all_objs.json index 329 vs this file's 521), so
+;; wvehicle-ai-destination below resolves nav-location against the
+;; already-registered type without a local redefinition or forward declare.
 
 (deftype wvehicle-ai-destination (structure)
   ((final-position vector       :inline :offset-assert 0)

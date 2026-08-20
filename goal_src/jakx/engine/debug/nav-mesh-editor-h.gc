@@ -31,11 +31,15 @@
 ;; this file is debug only
 (declare-file (debug))
 
-;; definition of type vector-array
-(deftype vector-array (inline-array-class)
-  ((data  vector  :inline :dynamic)
-   )
-  )
+;; og:preserve-this issue 540: vector-array single-homed to vector-h.gc
+;; (game.gd link position 3, this file's own 499, jak3 keeps the same twin
+;; split but jakx has not swept jak3). new_type rewrites every custom
+;; method slot on every deftype execution of the same interned type (issue
+;; 534); a duplicate deftype here would have wiped this file's own method 3
+;; below the moment this file linked, since it links after vector-h.o.
+;; vector-h.gc compiles first (all_objs.json index 151 vs this file's 647),
+;; so the type is already known by the time this file's own method below
+;; needs it.
 
 ;; definition for method 3 of type vector-array
 (defmethod inspect ((this vector-array))

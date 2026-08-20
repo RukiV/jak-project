@@ -14,6 +14,18 @@
 (declare-type wvehicle basic)
 
 ;; definition of type race-control
+;; og:preserve-this :pack-me: wvehicle's own race field lands at the
+;; confirmed offset 2168, not 16-byte aligned; every :inline structure in
+;; this type system defaults to 16-byte alignment (STRUCTURE_ALIGNMENT)
+;; regardless of its own contents unless marked :pack-me, in which case
+;; inline placement uses the type's own tightest field alignment instead
+;; (matches wvehicle-net-extra's own :pack-me reasoning in wvehicle-h.gc).
+;; og:preserve-this issue 540: single-homed to this file (game.gd link
+;; position 371, wvehicle-h.gc's own 373). new_type rewrites every custom
+;; method slot on every deftype execution of the same interned type (issue
+;; 534); wvehicle-h.gc previously carried an identical duplicate deftype,
+;; now deleted, since this file compiles first (all_objs.json index 519 vs
+;; wvehicle-h.gc's own 521).
 (deftype race-control (structure)
   ((state        race-state)
    (racer-state  racer-state)
@@ -21,6 +33,10 @@
    (line         race-line)
    )
   :pack-me
+  ;; method 9's own call site (wvehicle-method-262) proves self.state = arg1
+  ;; (a race-state, in fact *race-state* itself) and self.racer-state = arg2
+  ;; (a racer-state, indexed out of *race-state*'s own racer-array), matching
+  ;; the body's own (the-as race-state arg1) / (the-as racer-state arg2).
   (:methods
     (race-control-method-9 (_type_ wvehicle race-state racer-state) none)
     )

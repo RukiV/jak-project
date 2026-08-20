@@ -7,22 +7,16 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this level-bounding-box only exists in all-types.gc, not duplicated in
-;; any goal_src file (same class of gap nav-mesh-editor-h hit for its two flag enums).
-;; Copied verbatim so this file's own method 9 defmethod has a type to attach to.
-(deftype level-bounding-box (structure)
-  ((bmin vector :inline :offset-assert 0)
-   (bsz  vector :inline :offset-assert 16)
-   )
-  :method-count-assert 12
-  :size-assert         #x20
-  :flag-assert         #xc00000020
-  (:methods
-    (level-bounding-box-method-9 (_type_) none) ;; 9
-    (level-bounding-box-method-10 () none) ;; 10
-    (level-bounding-box-method-11 (_type_ object mem-buffer) none) ;; 11
-    )
-  )
+;; og:preserve-this issue 540: level-bounding-box single-homed to
+;; hud-classes.gc (game.gd link position 343, this file's own 352). This
+;; file's own note used to call the duplicate here harmless ("not
+;; duplicated in any goal_src file"), written unaware hud-classes.gc
+;; carried an identical copy; new_type rewrites every custom method slot
+;; on every deftype execution of the same interned type (issue 534), so
+;; the duplicate was latent risk under that same class regardless.
+;; hud-classes.gc compiles first (all_objs.json index 491 vs this file's
+;; own 500), so method 9 below resolves against the already-registered
+;; type without a local redefinition.
 
 ;; definition for method 9 of type level-bounding-box
 ;; INFO: Used lq/sq

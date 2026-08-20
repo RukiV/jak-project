@@ -38,10 +38,15 @@
 ;; and init-level-bbox-from-map (both defined below) do direct field access
 ;; (-> *level-bounding-box* bmin x), which needs the real field layout, not
 ;; just a declare-type name stub. Transcribed verbatim from
-;; decompiler/config/jakx/all-types.gc; no other jakx goal_src file references
-;; this symbol yet, so its true home file is unknown from this rung's scope
-;; alone. Retire this declaration once that home file lands the real type and
-;; instance.
+;; decompiler/config/jakx/all-types.gc.
+;; og:preserve-this issue 540: single-homed here (game.gd link position
+;; 343, mem-buffer.gc's own 352, which independently carried an identical
+;; duplicate deftype so its own method 9 defmethod had a type to attach
+;; to, now deleted). new_type rewrites every custom method slot on every
+;; deftype execution of the same interned type (issue 534); this file
+;; compiles first (all_objs.json index 491 vs mem-buffer.gc's own 500), so
+;; mem-buffer.gc's own method 9 defmethod resolves against the
+;; already-registered type without a local redefinition.
 (deftype level-bounding-box (structure)
   ((bmin vector :inline)
    (bsz  vector :inline)
