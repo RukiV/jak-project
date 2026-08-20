@@ -18,8 +18,200 @@
   // across the array-case body (the length read at op 37 and the copy loop
   // through op 49); untouched outside that range so the pair/else cases
   // keep reading arg0 as plain object.
+  // op 82 is the pair-case branch's own dynamic boxed-array constructor
+  // call ((method-of-type array new) 'process array scene length), whose
+  // return the compiler cannot resolve narrower than plain array on its
+  // own; jak3's own twin body wraps the identical call expression with
+  // (the-as (array scene) ...) before the set! into scene-list (goal_src/
+  // jak3/engine/scene/scene.gc), so this rung casts the call's own
+  // return (v0) the same way at its defining op.
   "scene-player-init": [
-    [[32, 49], "s5", "(array scene)"]
+    [[32, 49], "s5", "(array scene)"],
+    [82, "v0", "(array scene)"]
+  ],
+  // (method 9 scene-actor) (setup-manipy-for-scene!, activation-cluster
+  // blocker 1, issue 502): s3 is bound at op 43 from a type? check against
+  // skeleton-group (the as-type idiom, a type? call followed by a
+  // conditional move), but the static type carried forward is still
+  // art-group (the art-group-get-by-name return the type? call narrows at
+  // runtime, not statically). op 106 confirms the same value is later
+  // passed as manipy-init's own third positional arg, declared
+  // skeleton-group; op 177 is the field read that actually fails
+  // (l.bu (+ s3 111), raw; declared 115, skeleton-group's own light-index
+  // field, +4 basic-tag offset), matching jak3's own twin body reading
+  // (-> (the-as skeleton-group s3-0) light-index) at the identical logical
+  // point (goal_src/jak3/engine/scene/scene.gc). The cast applies to a
+  // register's *input* at the op given (type_analysis.cpp's
+  // modify_input_types_for_casts runs before propagate_types, so an
+  // upper-bound range of N is exclusive of op N itself, common/util/
+  // Range.h); the range below runs one past op 177 to actually cover it.
+  // The eight casts below (ops 284/310/318/394/600/608 on a0, 314/604 on
+  // v1) are the same function's own handle->process derefs reading draw
+  // (raw offset 192, declared 196, process-drawable's own field, +4
+  // basic-tag offset), matching jak3's twin body's repeated (nonzero?
+  // (-> (the-as process-drawable (-> s4-0 0)) draw)) and (-> (the-as
+  // process-drawable (-> s1-2 0)) draw) checks across the manipy and
+  // mirror-manipy spawn branches, the same field this file's own
+  // (method 55 scene-player) entry below already widens for a different
+  // function.
+  // The five casts below (ops 398/406/412/427/433, all on v1) are this
+  // function's own (nonzero? (-> (the-as manipy (-> s4-0 0)) joint 0))
+  // check and its little-head/big-head joint-mod branches (raw offset
+  // 316, declared 320, manipy's own joint field, +4 basic-tag offset).
+  "(method 9 scene-actor)": [
+    [[43, 178], "s3", "skeleton-group"],
+    [284, "a0", "process-drawable"],
+    [310, "a0", "process-drawable"],
+    [314, "v1", "process-drawable"],
+    [318, "a0", "process-drawable"],
+    [394, "a0", "process-drawable"],
+    [600, "a0", "process-drawable"],
+    [604, "v1", "process-drawable"],
+    [608, "a0", "process-drawable"],
+    [398, "v1", "manipy"],
+    [406, "v1", "manipy"],
+    [412, "v1", "manipy"],
+    [427, "v1", "manipy"],
+    [433, "v1", "manipy"]
+  ],
+  // (post play-anim scene-player) (activation-cluster blocker 2, issue
+  // 502): same cdr-chain class as (method 55 scene-player) below; op 55
+  // steps gp with (cdr gp), op 56 immediately takes (car gp) in the same
+  // block. cdr's generic object return leaves it unresolved without a
+  // cast to pair at the *reading* op itself (op 56, not op 55's own
+  // defining copy; casts apply to an op's input, so the read is what
+  // needs the cast, matching this file's own (method 10 idle-control)
+  // precedent above, which casts at the car op, not the preceding cdr).
+  // The nine casts below are this function's own version of the (method 9
+  // scene-actor)/(method 55 scene-player) draw-field widening (raw offset
+  // 192, declared 196, process-drawable's own field), across the
+  // function's four manipy-frame update blocks (draw-frames/scissor-
+  // frames/shadow-frames/cloth-reset-frames-equivalent logic for :post).
+  // Individual ops, not a range: v1 is reused for unrelated index
+  // arithmetic (a scene-actor array offset shift) between several of
+  // them, and a blanket range corrupted that read on first attempt
+  // ("add failed: process-drawable (array scene-actor)" at op 243, v1's
+  // shift-by-2 at op 240 caught by an over-wide [214,336) range).
+  "(post play-anim scene-player)": [
+    [55, "gp", "pair"],
+    [56, "gp", "pair"],
+    [214, "v1", "process-drawable"],
+    [220, "v1", "process-drawable"],
+    [222, "v1", "process-drawable"],
+    [265, "v1", "process-drawable"],
+    [277, "v1", "process-drawable"],
+    [284, "v1", "process-drawable"],
+    [287, "v1", "process-drawable"],
+    [328, "v1", "process-drawable"],
+    [335, "v1", "process-drawable"],
+    // The five casts below (ops 582/591/627/658/716) are jak3's own
+    // (-> gp-7 id) reads, gp-7 bound earlier in this function from
+    // lookup-gui-connection's own gui-connection return; id overlays
+    // connection's own param3 field (declared offset 28, no +4 basic-tag
+    // shift since connection extends the structure-typed connectable,
+    // not a basic).
+    // ops 588/713 are two separate get-sound-buffer-entry blocks in this
+    // function (one per scene-flags branch), each casting the same way
+    // jak3's own (the-as sound-rpc-set-param (get-sound-buffer-entry))
+    // does; get-sound-buffer-entry's declared return is plain pointer.
+    // The range runs from each block's own defining move (v1 := v0,
+    // right after the call) through its final (-> v1-190 id) read six-
+    // plus ops later, not a single op at either end: a single-op cast at
+    // just the final read corrupts every raw store in between (proven:
+    // ops 600/731 alone turned six clean stores per block into "Failed
+    // store" each, the decompiler's second, no-restore "final casts"
+    // pass permanently overwriting the immediately preceding op's own
+    // output state, which is also what those stores use to print
+    // themselves), and a single-op cast at just the defining move fixed
+    // one block's own final read while leaving the other's still broken
+    // (proven twice, each direction), so both ends of the span need
+    // their own tuple.
+    [[588, 601], "v1", "sound-rpc-set-param"],
+    [[713, 732], "v1", "sound-rpc-set-param"],
+    [582, "gp", "gui-connection"],
+    [591, "gp", "gui-connection"],
+    [627, "gp", "gui-connection"],
+    [658, "gp", "gui-connection"],
+    [716, "gp", "gui-connection"]
+  ],
+  // (code wait scene-player), (code release scene-player), (code play-anim
+  // scene-player), (trans play-anim scene-player) (activation-cluster
+  // blocker 1, issue 502): view-get-active-target's declared return is
+  // plain process (matching this file's own target-pos/target-rot
+  // precedent, target-util.gc), so every raw offset 244 (declared 248)
+  // read off its result fails; process-focusable's own focus-status field
+  // sits exactly there (all-types.gc, :offset-assert 248), and each
+  // load is immediately ANDed against a single-bit or compound mask
+  // matching a real focus-status enum value (128 = bit 7 = grabbed at the
+  // (code wait)/(code play-anim) sites, 32 = bit 5 = in-air at (code
+  // wait)'s second site, a compound multi-flag mask at (code wait)'s
+  // third site, bit 30 at (code release)). (trans play-anim)'s own raw
+  // offset 252 (declared 256) is different: the subu-s7/sllv/lwu/dsra32
+  // handle-to-process idiom right after it is the same one target-h.gc's
+  // own vehicle field comment documents, so that one call site casts to
+  // target instead. Each cast sits at the load op itself (v0's reader),
+  // not the call op that defines v0 one op earlier. (code wait)'s own
+  // ops 53/62 are a third view-get-active-target call site reading raw
+  // offset 332 (declared 336, target's own current-level field, no +4
+  // basic-tag correction needed since target's declared offsets already
+  // include it); cast to target directly rather than process-focusable.
+  "(code wait scene-player)": [
+    [45, "v0", "process-focusable"],
+    [88, "v0", "process-focusable"],
+    [127, "v0", "process-focusable"],
+    [463, "v0", "process-focusable"],
+    [53, "v0", "target"],
+    [62, "v0", "target"]
+  ],
+  "(code release scene-player)": [
+    [516, "v0", "process-focusable"]
+  ],
+  "(code play-anim scene-player)": [
+    [223, "v0", "process-focusable"]
+  ],
+  // ops 71/78 are the same function's own draw-field widening as (method
+  // 9 scene-actor)/(method 55 scene-player) above, but reading root
+  // instead (raw offset 184, declared 188, process-drawable's own field,
+  // the same widening target-util.gc's own target-pos/target-rot already
+  // use), off a plain handle->process deref two ops earlier.
+  "(trans play-anim scene-player)": [
+    [57, "v0", "target"],
+    [71, "v1", "process-drawable"],
+    [78, "v1", "process-drawable"]
+  ],
+  // (event play-anim scene-player) (activation-cluster blocker 4, issue
+  // 502): the 'eval case calls a function pointer read straight out of
+  // event-message-block's own param slot, declared generic uint64; jak3's
+  // own twin body casts the identical read before calling it
+  // ((the-as (function scene-player none) (-> block param 0)) self)).
+  // The cast lands at op 11, the jalr that actually reads t9 as the
+  // callee (op 9's own l.d just defines t9's natural uint type).
+  "(event play-anim scene-player)": [
+    [11, "t9", "(function scene-player none)"]
+  ],
+  // draw-subtitle-image (activation-cluster blocker 5, issue 502): jak3's
+  // own twin (goal_src/jak3/engine/scene/scene.gc) applies two different
+  // inline casts to the same dma-buffer base pointer at different offsets
+  // per block: (the-as (pointer uint128) v1-28) for the three quad stores
+  // at +0/+16/+32, then (the-as vector4w (&+ v1-28 N)) for the four
+  // sub-word component stores at each of +48/+64/+80/+96, each computed
+  // into its own fresh register by a separate daddiu. The offset-0 store
+  // in each of the seven sub-blocks always resolves without help (any
+  // pointer type supports a bare base-address store); only the non-zero
+  // offsets need the cast, applied at each store op itself. Two symmetric
+  // blocks (v1-28 then, after the +112 dma-buffer advance, v1-32), same
+  // op-shape offset by 60 ops.
+  "draw-subtitle-image": [
+    [[190, 194], "v1", "(pointer uint128)"],
+    [[196, 199], "t0", "vector4w"],
+    [[203, 206], "t0", "vector4w"],
+    [[210, 213], "a2", "vector4w"],
+    [[217, 220], "v1", "vector4w"],
+    [[250, 254], "v1", "(pointer uint128)"],
+    [[256, 259], "t0", "vector4w"],
+    [[263, 266], "t0", "vector4w"],
+    [[270, 273], "a1", "vector4w"],
+    [[277, 280], "v1", "vector4w"]
   ],
   // process-drawable-draw-subtitles (scene lane): res-lump-struct returns
   // plain structure; jak3's own twin body immediately treats the result as
@@ -33,8 +225,112 @@
   // process only ever returns plain process; jak3's own twin body casts
   // this exact value with (the-as process-drawable s1-1) before reading
   // draw (raw offset 192, declared 196, the standard +4 basic-tag offset).
+  // The four s0 casts below are the activation-cluster follow-up (issue
+  // 502, blocker 2): four cdr-chain loops (draw-frames, scissor-frames,
+  // shadow-frames, cloth-reset-frames) step with (set! s0 (cdr s0)) then
+  // immediately (car s0) in the same block; cdr's declared return is
+  // generic object, so the very next car cannot resolve without a cast
+  // back to pair, matching this file's own (method 10 idle-control)
+  // precedent above. The cast lands at the car op itself (the one doing
+  // the failing (l.w (+ s0 -2)) read), one op after each cdr's own
+  // defining copy: casts apply to an op's *input* typestate
+  // (type_analysis.cpp's modify_input_types_for_casts runs before
+  // propagate_types), so the reading op is what needs the cast.
+  // op 416 is a second, nested cdr-chain access inside the same
+  // cloth-commands block: once s0 resolves as a real pair at op 411 (the
+  // let* binding jak3 calls sv-224, the current command-list entry),
+  // jak3's own body immediately does (car sv-224) for its own min/max
+  // check ((let ((a0-44 (car sv-224)) (sv-208 (car (cdr sv-224)))) ...)).
+  // Op 419 is that same expression's (car (cdr sv-224)) half, cdr's
+  // generic object return needing its own cast at the following car read.
+  // Ops 442/443 are a third read of the identical (car (cdr sv-224))
+  // shape, this time the inline argument to the command-get-float call
+  // in the actual min/max comparison rather than the earlier sv-208
+  // let*-bound copy; same fix, same stack slot (320), different op pair.
   "(method 55 scene-player)": [
-    [[97, 250], "s1", "process-drawable"]
+    [[97, 250], "s1", "process-drawable"],
+    // draw-frames and scissor-frames (the first two of this method's five
+    // list-stepping loops) carry the identical inner nested pair-check
+    // cluster the cloth-reset-frames/cloth-commands comments below
+    // describe in full (a (car s0-0) at the pair? check itself, a
+    // (car (cdr s0-0)) let*-bound copy, and a second, later
+    // (car (cdr s0-0)) as the inline command-get-float argument for the
+    // max comparison); shadow-frames, the third loop, compiles without
+    // needing any (its own min/max block never actually decodes the
+    // nested pair down to this depth in this rung's own scoped decode).
+    // ops 17/18/19 are a second, earlier copy of draw-frames' own first
+    // two reads (the pair? check's own (car s0-0) and the (car (cdr
+    // s0-0)) copy), operating directly on the fresh s0/register value
+    // before it gets spilled to the stack slot the later ops 182-186
+    // reload from; same fix, different register generation.
+    [17, "s0", "pair"],
+    [18, "s0", "pair"],
+    [19, "v1", "pair"],
+    // ops 41/42 are that same first-generation copy's own third read (the
+    // inline command-get-float argument for the max comparison), the
+    // same relation ops 209/210 have to ops 183/185/186.
+    [41, "s0", "pair"],
+    [42, "v1", "pair"],
+    // ops 53/54 are draw-frames' own loop-back step-and-car (jak3's (set!
+    // s1-0 (cdr s1-0)) (set! s0-0 (car s1-0))), the same shape already
+    // fixed at ops 221-222/290-291/394-395/408-411/469-470 for the other
+    // four loops (both the cdr and the car need the cast, not just one).
+    [53, "s1", "pair"],
+    [54, "s1", "pair"],
+    [183, "v1", "pair"],
+    [185, "v1", "pair"],
+    [186, "v1", "pair"],
+    [209, "v1", "pair"],
+    [210, "v1", "pair"],
+    [252, "v1", "pair"],
+    [254, "v1", "pair"],
+    [255, "v1", "pair"],
+    [278, "v1", "pair"],
+    [279, "v1", "pair"],
+    // Each loop-back step needs the cast at both the cdr (defining) and
+    // the car (consuming) op, not the car alone: proven at cloth-commands
+    // (op 469 as well as 470, see below) and shadow-frames/cloth-reset-
+    // frames' own step here (221/290/394 alongside 222/291/395).
+    [221, "s0", "pair"],
+    [222, "s0", "pair"],
+    [290, "s0", "pair"],
+    [291, "s0", "pair"],
+    [394, "s0", "pair"],
+    [395, "s0", "pair"],
+    [408, "s0", "pair"],
+    [411, "s0", "pair"],
+    [416, "v1", "pair"],
+    [418, "v1", "pair"],
+    [419, "v1", "pair"],
+    [442, "v1", "pair"],
+    [443, "v1", "pair"],
+    // op 466 is the loop body's own closing call, jak3's
+    // (process-drawable-cloth-command (the-as process-drawable s1-1)
+    // (cdr s0-4)); s0 needs pair again here since the restore after each
+    // per-op cast does not persist across ops.
+    [466, "s0", "pair"],
+    // ops 469/470 are the outer cloth-commands loop's own step-and-car
+    // (jak3's (set! s2-1 (cdr s2-1)) (set! s0-4 (car s2-1)) pair, the
+    // fifth and last of this method's five list-stepping loops), the
+    // same shape already fixed at ops 222/291/395/411/54 for the other
+    // four; unlike those, this loop's back-edge needs the cast at both
+    // the cdr (469) and the car (470), not the car alone.
+    [469, "s2", "pair"],
+    [470, "s2", "pair"],
+    // ops 336/338/339 are the cloth-reset-frames loop's own inner nested
+    // pair-check-then-car cluster, the same shape already fixed at
+    // ops 411/416/418/419/442/443 for the cloth-commands loop below it
+    // (jak3's (let ((a0-38 (car sv-192)) (sv-176 (car (cdr sv-192))))
+    // ...)).
+    [336, "v1", "pair"],
+    [338, "v1", "pair"],
+    [339, "v1", "pair"],
+    // ops 367/368 are a third read of the identical (car (cdr sv-192))
+    // shape for cloth-reset-frames, the inline command-get-float argument
+    // rather than the earlier sv-176 let*-bound copy, the same relation
+    // ops 442/443 have to ops 418/419 for cloth-commands below.
+    [367, "v1", "pair"],
+    [368, "v1", "pair"]
   ],
   // coli-break-object-init-by-other (coliseum-obs-female-statue rung,
   // jakx-levels-other-tier-4): pp (s6) is only ever typed generically as

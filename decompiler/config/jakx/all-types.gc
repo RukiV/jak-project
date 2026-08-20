@@ -14510,6 +14510,16 @@
   (scene-controls-7)
   (scene-controls-8)
   (display-controls)
+  ;; og:preserve-this scene-controls-10 added, scene lane (issue 502,
+  ;; activation-cluster blocker 2 follow-up): (method 55 scene-player)'s
+  ;; own debug-sphere block tests *display-scene-control* against 0x400
+  ;; (bit 10), one past display-controls (bit 9), the previous top of this
+  ;; enum in both this file and jak3's own identical copy (decompiler/
+  ;; config/jak3/all-types.gc); jak3's own scene-player-method-25 never
+  ;; exercises this specific bit, so there is no twin name to borrow,
+  ;; matching the same class of placeholder scene-controls-7/8 already
+  ;; use for undeciphered bits in this exact enum.
+  (scene-controls-10)
   )
 ;; ---main-h:scene-controls
 
@@ -33911,7 +33921,18 @@
    (scene-task       uint16                       :offset-assert 120)
    (on-running       pair                         :offset-assert 124) ;; guessed by decompiler
    (on-complete      pair                         :offset-assert 128) ;; guessed by decompiler
-   (vehicles         basic                        :offset-assert 132)
+   ;; og:preserve-this vehicles retyped (array symbol) (was basic, then
+   ;; briefly (array uint32)): (enter wait scene-player)'s own dotimes
+   ;; bound check reads (-> vehicles length) (raw offset 0, the array
+   ;; type's own length slot), then the loop body itself indexes (->
+   ;; vehicles data gp) with a 4-byte stride (dsll gp 2) and an unsigned
+   ;; 4-byte load (lwu); intro-scenes2.gc's own static scene tables
+   ;; construct this field with (new 'static 'boxed-array :type symbol
+   ;; '(mongl)), which is what forced the correction from uint32 to
+   ;; symbol (both are 4-byte unsigned, so the load evidence alone
+   ;; underdetermined the element type). No jak3 twin (scene has no
+   ;; vehicles/ipu fields there at all, jakx-original).
+   (vehicles         (array symbol)               :offset-assert 132)
    (ipu              basic                        :offset-assert 136)
    )
   :method-count-assert 18
@@ -38457,8 +38478,8 @@
     (gui-control-method-11 (_type_ gui-connection) none) ;; 11 ;; (stop-str (_type_ gui-connection) int)
     (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id) ;; 12
     (gui-control-method-13 () none) ;; 13 ;; (update (_type_ symbol) int)
-    (gui-control-method-14 (_type_ string object object) none) ;; 14 ;; (lookup-gui-connection-id (_type_ string gui-channel gui-action) sound-id)
-    (gui-control-method-15 (_type_ object object string) none) ;; 15 ;; (lookup-gui-connection (_type_ process gui-channel string sound-id) gui-connection)
+    (gui-control-method-14 (_type_ string object object) sound-id) ;; 14 ;; (lookup-gui-connection-id (_type_ string gui-channel gui-action) sound-id)
+    (gui-control-method-15 (_type_ object object string) gui-connection) ;; 15 ;; (lookup-gui-connection (_type_ process gui-channel string sound-id) gui-connection)
     (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; 16 ;; (set-action! (_type_ gui-action sound-id gui-channel gui-action string (function gui-connection symbol) process) int)
     (gui-control-method-17 (_type_ uint) uint) ;; 17 ;; (get-status (_type_ sound-id) gui-status)
     (gui-control-method-18 () none) ;; 18 ;; (gui-control-method-18 (_type_ gui-channel) symbol)
@@ -43546,8 +43567,21 @@
 (define-extern external-art-buffer-init (function external-art-buffer int))
 (define-extern *preload-spool-anims* symbol)
 (define-extern ja-play-spooled-anim (function spool-anim art-joint-anim art-joint-anim (function process-drawable symbol) spooler-flags int :behavior process-drawable))
-;; (define-extern ja-play-spooled-no-sync-anim function)
-;; (define-extern ja-abort-spooled-anim function) ;; (function spool-anim art-joint-anim int int :behavior process-drawable)
+;; og:preserve-this ja-play-spooled-no-sync-anim activated, scene lane
+;; (issue 502, activation-cluster blocker 4 follow-up): (code play-anim
+;; scene-player)'s own *record-fma*-gated branch calls it with the exact
+;; same five-arg shape as ja-play-spooled-anim right above (spool-anim
+;; from the anim field, #f, #f, a lambda or false-func, an int 0/1 built
+;; from a scene-flags bit test), so this rung declares it with the
+;; identical signature rather than guessing a narrower one. Neither this
+;; function nor ja-abort-spooled-anim below has a landed defbehavior body
+;; anywhere in this tree (goal_src/jakx/engine/load/loader.gc's own
+;; header names both as fully blocked, "function has no type analysis");
+;; both remain e2-class provisional externs, each gated behind a non-
+;; default runtime path (*record-fma* for this one, an explicit 'abort
+;; event for ja-abort-spooled-anim), not exercised by a default boot.
+(define-extern ja-play-spooled-no-sync-anim (function spool-anim art-joint-anim art-joint-anim (function process-drawable symbol) spooler-flags int :behavior process-drawable))
+(define-extern ja-abort-spooled-anim (function spool-anim art-joint-anim int int :behavior process-drawable))
 ;; (define-extern *gui-control* object) ;; gui-control
 ;; (define-extern *art-control* object) ;; external-art-control
 

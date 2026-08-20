@@ -824,21 +824,24 @@
     // trips offline-test's own compile pass here. The decomp-vs-REF diff
     // still gates the whole object.
     "collide-mesh",
-    // scene (wave 8 flagship rung): scene-player-init, the wait/release/
-    // play-anim virtual states, (method 9 scene-actor) (setup-manipy-for-
-    // scene!), (method 10 scene-player) (deactivate), (method 55 scene-
-    // player), process-drawable-draw-subtitles and draw-subtitle-image
-    // form one activation cluster (scene-player-init's own body ends with
-    // (go-virtual wait arg1); process-drawable-draw-subtitles calls draw-
-    // subtitle-image directly) and are held, not landed; see goal_src/
-    // jakx/engine/scene/scene.gc's own og:preserve-this header for the
-    // per-handler and per-function evidence. The clean remainder (print,
-    // relocate, init-spool-by-scene!, scene-decode-continue, scene-lookup,
-    // the subtitle-work deftype and its static instance) compiles and
-    // links fine under (mi); the held cluster's raw fallback text (bare
-    // label references for blocked state handlers, unresolved loads) is
-    // what actually trips offline-test's own compile pass here. The
-    // decomp-vs-REF diff still gates the whole object.
+    // scene (scene lane, issue 502): the full activation cluster (scene-
+    // player-init, the wait/release/play-anim virtual states, (method 9
+    // scene-actor), (method 10 scene-player), (method 55 scene-player),
+    // process-drawable-draw-subtitles and draw-subtitle-image) is landed
+    // and every function decodes at zero ir2 errors; (mi) links the
+    // whole object clean. One residual, the same class pov-camera above
+    // already documents: scene-player-init's own pair-case branch builds
+    // its scene-list array via a dynamic (method-of-type array new)
+    // dispatch that the compiler cannot resolve narrower than plain
+    // array on its own; jak3's own twin body (goal_src/jak3/engine/
+    // scene/scene.gc) wraps the identical call expression with (the-as
+    // (array scene) ...), and goal_src carries that same cast by hand
+    // (a type_casts entry on the call's own defining op narrows the
+    // decompiler's internal type tracking but the pretty-printer never
+    // emits a textual cast for an inlined dynamic-dispatch call
+    // expression, so the fresh decompile text offline-test's own
+    // compile pass uses still lacks it). The decomp-vs-REF diff still
+    // gates the whole object.
     "scene"
   ],
   "skip_compile_functions": [

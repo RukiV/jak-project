@@ -32,6 +32,23 @@
 ;; a scene-player arg, but scene-player itself is not deftype'd until below.
 (declare-type scene-player process-drawable)
 
+;; og:preserve-this forward declare: scene lane (issue 502). (code play-
+;; anim scene-player)'s own body reads *rigid-body-queue-manager*, but
+;; rigid-body-queue.gc (which defines it) compiles after scene.gc in this
+;; worktree's own build order, unlike jak3's twin body (goal_src/jak3/
+;; engine/scene/scene.gc), whose own build order apparently has it the
+;; other way and needs no forward declare at all.
+(declare-type rigid-body-queue-manager process)
+(define-extern *rigid-body-queue-manager* rigid-body-queue-manager)
+
+;; og:preserve-this forward declare: scene lane (issue 502). (code play-
+;; anim scene-player)'s own body calls task-node-open! on the scene's own
+;; scene-task field; game-task-h.gc (which would otherwise declare this
+;; free function) carries no define-extern for it at all yet, matching
+;; this worktree's own decompiler config entry (decompiler/config/jakx/
+;; all-types.gc), which already carries the real signature.
+(define-extern task-node-open! (function game-task-node symbol int))
+
 ;; DECOMP BEGINS
 
 (deftype scene-actor (basic)
@@ -86,7 +103,21 @@
    (scene-task        uint16)
    (on-running        pair)
    (on-complete       pair)
-   (vehicles          basic)
+   ;; og:preserve-this vehicles retyped (array symbol) (was basic, then
+   ;; briefly (array uint32) before this fix): scene lane (issue 502).
+   ;; (enter wait scene-player)'s own dotimes bound check reads (->
+   ;; vehicles length) and the loop body indexes (-> vehicles data gp)
+   ;; with a 4-byte stride (dsll gp 2) and an unsigned 4-byte load (lwu),
+   ;; matching either a uint32 or symbol element (both are 4-byte
+   ;; unsigned); that same call site immediately re-casts the read value
+   ;; with (the-as symbol ...), and the static scene tables in
+   ;; intro-scenes2.gc construct this exact field with (new 'static
+   ;; 'boxed-array :type symbol '(mongl)) (a vehicle-name symbol list),
+   ;; which is what forced the correction: (array uint32) fails to
+   ;; typecheck against that literal ("(array symbol) when expecting
+   ;; (array uint32)"). No jak3 twin (scene has no vehicles/ipu fields
+   ;; there at all, jakx-original).
+   (vehicles          (array symbol))
    (ipu               basic)
    )
   (:methods

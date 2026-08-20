@@ -162,8 +162,24 @@
     (gui-control-method-11 (_type_ gui-connection) none)
     (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id)
     (gui-control-method-13 () none)
-    (gui-control-method-14 (_type_ string object object) none)
-    (gui-control-method-15 (_type_ object object string) none)
+    ;; og:preserve-this return type retyped sound-id (was none): scene
+    ;; lane (issue 502), (code wait scene-player)'s own call site feeds
+    ;; the result straight into gui-control-method-17's own uint arg
+    ;; (the-as uint a1-30); matches this file's own all-types.gc twin,
+    ;; which already carried the hint comment identifying this method as
+    ;; lookup-gui-connection-id returning sound-id (JakXTypeConsistency
+    ;; enforces goal_src == all-types, so the declared type here must
+    ;; match that hint exactly, not just be call-site-compatible).
+    (gui-control-method-14 (_type_ string object object) sound-id)
+    ;; og:preserve-this return type retyped gui-connection (was none):
+    ;; scene lane (issue 502); this file's own all-types.gc twin already
+    ;; carries the hint comment identifying this method as
+    ;; lookup-gui-connection returning gui-connection (jak3's own twin
+    ;; call, goal_src/jak3/engine/scene/scene.gc). (code play-anim
+    ;; scene-player)'s own call site casts and truthiness-tests the
+    ;; result as gui-connection/none, which a none return cannot support
+    ;; ("Cannot use none-typed variable in a condition").
+    (gui-control-method-15 (_type_ object object string) gui-connection)
     (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; set-action!
     (gui-control-method-17 (_type_ uint) uint) ;; get-status
     (gui-control-method-18 () none)

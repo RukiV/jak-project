@@ -13,6 +13,29 @@
   )
 ;; ---loader:spooler-flags
 
+;; og:preserve-this ja-play-spooled-no-sync-anim and ja-play-spooled-anim:
+;; scene lane (issue 502). Both declared with the identical five-arg
+;; signature (spool-anim, two art-joint-anim, a (function process-
+;; drawable symbol), spooler-flags, returning int), evidenced by
+;; scene.gc's own (code play-anim scene-player) call sites for each: the
+;; same arg-source shape (the anim field, #f, #f, a lambda or false-func,
+;; an int 0/1 built from a scene-flags bit test) as every other call in
+;; this tree. ja-play-spooled-anim's own extern below was already active
+;; in this file's all-types.gc twin (not a provisional guess, unlike
+;; ja-play-spooled-no-sync-anim's own commented-out all-types.gc entry
+;; before this rung activated it); goal_src carried no define-extern for
+;; either until now. Neither this function, ja-play-spooled-anim, nor
+;; ja-abort-spooled-anim (loader-h.gc) has a landed defbehavior body
+;; anywhere in this tree (this file's own og:preserve-this note on ja-
+;; play-spooled-anim below names all three as fully blocked, "function
+;; has no type analysis"); each is an e2-class provisional extern. ja-
+;; play-spooled-no-sync-anim's own call site is gated behind
+;; *record-fma*; ja-play-spooled-anim's is the state's default (non-
+;; *record-fma*) branch, so it is exercised on a normal scene playback,
+;; same as the whole rest of this activation cluster.
+(define-extern ja-play-spooled-no-sync-anim (function spool-anim art-joint-anim art-joint-anim (function process-drawable symbol) spooler-flags int :behavior process-drawable))
+(define-extern ja-play-spooled-anim (function spool-anim art-joint-anim art-joint-anim (function process-drawable symbol) spooler-flags int :behavior process-drawable))
+
 ;; DECOMP BEGINS
 
 ;; og:note the art slice of loader.o lands here (the load-dir mem-usage,
@@ -72,8 +95,16 @@
     (gui-control-method-11 (_type_ gui-connection) none) ;; stop-str
     (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id)
     (gui-control-method-13 () none)
-    (gui-control-method-14 (_type_ string object object) none)
-    (gui-control-method-15 (_type_ object object string) none)
+    ;; og:preserve-this return type retyped sound-id (was none), mirroring
+    ;; gui-h.gc's own og:preserve-this note on this exact method (scene
+    ;; lane, issue 502): this deftype must stay byte-identical to gui-
+    ;; h.gc's own copy.
+    (gui-control-method-14 (_type_ string object object) sound-id)
+    ;; og:preserve-this return type retyped gui-connection (was none),
+    ;; mirroring gui-h.gc's own og:preserve-this note on this exact
+    ;; method (scene lane, issue 502): this deftype must stay byte-
+    ;; identical to gui-h.gc's own copy.
+    (gui-control-method-15 (_type_ object object string) gui-connection)
     (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; set-action!
     (gui-control-method-17 (_type_ uint) uint) ;; get-status
     (gui-control-method-18 () none)
