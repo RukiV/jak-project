@@ -284,68 +284,14 @@
 (define-extern make-sound-instance (function sound-info sound-id handle sound-instance)) ;; gsound.gc
 (declare-type vehicle-AI-control-timer process) ;; deftype emitted in the body below
 
-;; og:preserve-this gui-control carries the full reconstructed field layout, matching
-;; all-types and gui-h.gc (which builds first); kept identical here so the
-;; JakXTypeConsistency gate agrees. Only m9/m16 are called from here.
-;;
-;; og:preserve-this gui-control keystone lane (issue 522): method 0 and
-;; method 15's arg counts widened to match loader.gc's own copy (its
-;; og:preserve-this note carries the full evidence); mirrored here only to
-;; keep the three copies byte-identical, not re-derived independently.
-(deftype gui-control (basic)
-  ((engine             engine)
-   (update-time        time-frame)
-   (connections        gui-connection  32  :inline)
-   (spool-connections  gui-connection  4   :inline)
-   (ids                sound-id        112)
-   (times              time-frame      112)
-   (cmd                pair            112)
-   (group              uint8           112)
-   )
-  (:methods
-    (new (symbol type int) _type_)
-    (gui-control-method-9 (_type_ process int int string float int) uint) ;; add-request
-    (gui-control-method-10 () none)
-    (gui-control-method-11 (_type_ gui-connection) none)
-    (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id)
-    (gui-control-method-13 () none)
-    ;; og:preserve-this return type retyped sound-id (was none), mirroring
-    ;; gui-h.gc's own og:preserve-this note on this exact method (scene
-    ;; lane, issue 502): this deftype must stay byte-identical to gui-
-    ;; h.gc's own copy.
-    (gui-control-method-14 (_type_ string object object) sound-id)
-    ;; og:preserve-this return type retyped gui-connection (was none),
-    ;; mirroring gui-h.gc's own og:preserve-this note on this exact
-    ;; method (scene lane, issue 502): this deftype must stay byte-
-    ;; identical to gui-h.gc's own copy.
-    (gui-control-method-15 (_type_ object object string sound-id) gui-connection)
-    (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; set-action!
-    (gui-control-method-17 (_type_ uint) uint) ;; get-status
-    ;; og:preserve-this arg count and return type widened () none ->
-    ;; (gui-channel) symbol (gui-control completion lane, issue 531):
-    ;; loader.gc's own og:preserve-this note on this exact method carries
-    ;; the full raw-asm evidence; this deftype must stay byte-identical to
-    ;; loader.gc's own copy.
-    (gui-control-method-18 (_type_ gui-channel) symbol)
-    (gui-control-method-19 (_type_ gui-channel gui-connection) symbol)
-    ;; og:preserve-this arg count widened 6 -> 7 (gui-control completion
-    ;; lane, issue 531): loader.gc's own og:preserve-this note on this exact
-    ;; method carries the full raw-asm evidence (all three jakx call sites
-    ;; plus the callee's own "Bad register dependency on t3"); this deftype
-    ;; must stay byte-identical to loader.gc's own copy.
-    (gui-control-method-20 (_type_ uint symbol int int int float symbol) object) ;; sound-params-set!
-    (gui-control-method-21 () none)
-    (gui-control-method-22 () none)
-    (gui-control-method-23 () none)
-    ;; og:preserve-this arg count and return type widened () none ->
-    ;; (gui-channel gui-channel symbol gui-connection) symbol (gui-control
-    ;; completion lane, issue 531): loader.gc's own og:preserve-this note on
-    ;; this exact method carries the full raw-asm evidence; this deftype
-    ;; must stay byte-identical to loader.gc's own copy.
-    (gui-control-method-24 (_type_ gui-channel gui-channel symbol gui-connection) symbol)
-    (gui-control-method-25 (_type_ gui-connection object) none)
-    )
-  )
+;; og:preserve-this gui-control is single-homed in gui-h.gc (issue 534): the
+;; identical-copy convention this file used to follow was itself the bug
+;; (new_type rewrites every method slot, including custom ones back to 0, on
+;; every deftype execution of the same interned type; cam-states.o linked
+;; last of the three copies, so its redefinition was the one blanking the
+;; vtable loader.o had just filled). Only gui-control-method-9 and
+;; gui-control-method-16 are called from this file; see gui-h.gc's own
+;; og:preserve-this note for the full field layout and method evidence.
 (define-extern *gui-control* gui-control)
 
 ;; failed to figure out what this is:
