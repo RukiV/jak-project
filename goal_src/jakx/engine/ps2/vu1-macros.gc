@@ -98,3 +98,58 @@
       )
     )
   )
+
+;; og:preserve-this ported from jak3: 28.4 fixed-point convert; no jakx
+;; consumer yet (#317 ports the full trio so decodes and hand-landings match
+;; the other games' register set)
+(defmacro vitof4.xyzw (dst src)
+  "convert from a 28.4 integer. This does the multiply while the number is still
+   a float. This will have issues for very large floats, but it seems like this
+   is how PCSX2 does it as well, so maybe it's right?
+   NOTE: this is the only version of the instruction used in Jak 1, so we
+   don't need to worry about masks."
+
+  `(begin
+    (rlet ((temp :class vf))
+      (.itof.vf ,dst ,src)
+      (set! temp 0.0625)
+      (.mul.x.vf ,dst ,dst temp)
+      )
+    )
+  )
+
+;; og:preserve-this ported from jak3: 20.12 fixed-point convert used by
+;; convert-eye-data (eye.gc)
+(defmacro vitof12.xyzw (dst src)
+  "convert from a 20.12 integer. This does the multiply while the number is still
+   a float. This will have issues for very large floats, but it seems like this
+   is how PCSX2 does it as well, so maybe it's right?
+   NOTE: this is the only version of the instruction used in Jak 1, so we
+   don't need to worry about masks."
+
+`(begin
+   (rlet ((temp :class vf))
+         (.itof.vf ,dst ,src)
+         (set! temp 0.000244140625)
+         (.mul.x.vf ,dst ,dst temp)
+         )
+   )
+)
+
+;; og:preserve-this ported from jak3: 17.15 fixed-point convert used by
+;; convert-eye-data (eye.gc)
+(defmacro vitof15.xyzw (dst src)
+  "convert from a 17.15 integer. This does the multiply while the number is still
+   a float. This will have issues for very large floats, but it seems like this
+   is how PCSX2 does it as well, so maybe it's right?
+   NOTE: this is the only version of the instruction used in Jak 1, so we
+   don't need to worry about masks."
+
+`(begin
+   (rlet ((temp :class vf))
+         (.itof.vf ,dst ,src)
+         (set! temp 0.000030517578125)
+         (.mul.x.vf ,dst ,dst temp)
+         )
+   )
+)
