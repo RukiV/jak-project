@@ -1469,13 +1469,15 @@
   (none)
   )
 
-;; og:preserve-this gui-control-method-22, gui-art pump lane (issues 522/
-;; 550/551): arg count and return type widened () none -> (gui-connection
-;; vector) int (this file's own deftype note, gui-h.gc); the old zero-arg
-;; declaration made gui-control-method-13's own two dispatches print with
-;; no args at all and this method itself failed type prop outright at op 2.
-;; This rung's own narrowed type_casts.jsonc window ("(method 22 gui-
-;; control)", op 53, v1 to process-drawable) is the only cast this body
+;; og:preserve-this gui-control-method-22, gui-control update-connection
+;; completion lane (issues 522/550/551): arg count and return type widened
+;; () none -> (gui-connection) int (this file's own deftype note, gui-h.gc).
+;; A prior rung on this pump lane declared a second vector arg here,
+;; reasoning from gui-control-method-13's own two dispatches; that vector
+;; was manufactured, not something this method's own body ever reads, and
+;; the corrected 1-arg declaration below is what a fresh scoped decode
+;; settles on. This rung's own narrowed type_casts.jsonc window ("(method 22
+;; gui-control)", op 53, v1 to process-drawable) is the only cast this body
 ;; needs. Channel-banded (only channels 1-2, shr by 4, act on it): for a
 ;; queue/play/playing/fade action, if the connection's priority is the
 ;; -99.0 sentinel, resolves a real priority from target-nearest-dist
@@ -1483,12 +1485,11 @@
 ;; owns the channel's current id, or if get-process/as-type fails), then
 ;; inserts the connection into this's own 4-slot spool-connections array by
 ;; priority, shifting lower-priority entries down and dropping the last
-;; slot, or replacing an existing same-id entry in place. Landed here
-;; without a landed caller in this tree yet: gui-control-method-13, its
-;; only dispatcher, stays held (see this method's own og:preserve-this note
-;; below); jak3's own twin, update, calls it the same way (goal_src/jak3/
-;; engine/load/loader.gc's own update body).
-(defmethod gui-control-method-22 ((this gui-control) (arg0 gui-connection) (arg1 vector))
+;; slot, or replacing an existing same-id entry in place. gui-control-
+;; method-13, its only dispatcher, lands in this same rung below; jak3's
+;; own twin, update, calls it the same way (goal_src/jak3/engine/load/
+;; loader.gc's own update body).
+(defmethod gui-control-method-22 ((this gui-control) (arg0 gui-connection))
   (case (shr (the-as int (-> arg0 channel)) 4)
     ((1 2)
      (let ((s5-0 (-> this spool-connections)))
@@ -1560,50 +1561,463 @@
   (none)
   )
 
-;; og:preserve-this gui-control-method-13, HELD, gui-art pump lane (issues
-;; 522/550/551): this is the rung's own primary target (jak3's twin, update,
-;; is the second pump call in level-update, level.gc:3573) and it is NOT
-;; landed here even though it decodes fully clean under its own corrected
-;; declaration (deftype's own og:preserve-this note, gui-h.gc: arg count
-;; widened () -> (symbol vector), the vector arg settled by this rung's own
-;; decode against the investigation's own unverified symbol guess) with one
-;; narrowed type_casts.jsonc window ("(method 13 gui-control)", [55, 75],
-;; s4 to gui-connection).
+;; og:preserve-this gui-control-method-21, HELD (gui-control update-
+;; connection completion lane, issues 522/550/551): the prior held note on
+;; this method (gui-art pump lane) reasoned it could not be reached
+;; because both of its own dispatch sites (in gui-control-method-23,
+;; landed below) were behind a CFG wall the caller could not clear. That
+;; premise is gone: method 23 decodes clean this rung (the wall was a
+;; missing hacks.jsonc block-list entry, not a signature or reachability
+;; problem, see method 23's own og:preserve-this note below), so method 21
+;; is genuinely reachable the moment either of method 23's own flags-bit
+;; guards is satisfied. It still fails on its own merits: a fresh scoped
+;; decode of this method's own body fails type prop at op 40 ("Could not
+;; figure out load: (set! a1 (l.wu (+ v1 184)))") and cannot guess stack
+;; use for a 16-byte stack allocation. This is the same wall the
+;; investigation that staged this rung's other config deltas hit and left
+;; unresolved; no stack_structures.jsonc entry from that investigation
+;; exists to retire this note, and this rung did not derive one either.
+;; Retirement condition: a verified stack_structures.jsonc entry (plus at
+;; most one type_casts.jsonc cast) that takes a fresh scoped decode of this
+;; method's own body fully clean.
 ;;
-;; The blocker: this method's own body unconditionally dispatches gui-
-;; control-method-23 (update-connection) via method-of-object, twice, once
-;; per live alive-list entry (the backward connectable walk) and once per
-;; occupied connections-array slot, exactly mirroring jak3's own twin
-;; structure (two unconditional update-connection calls, level.gc's
-;; update). gui-control-method-23 itself is walled: "function was not
-;; converted to expressions. Cannot decompile" (CFG build failure) even
-;; after widening its own declaration to the known 3-arg shape (all-types.
-;; gc's own hint comment, matching jak3's update-connection) as a direct
-;; probe this rung ran and reverted once it confirmed the CFG failure
-;; persists regardless of arg count. This is a structural decode wall, not
-;; an arg-count or cast gap; landing method 13 anyway would call an unset
-;; vtable slot the first time the alive-list holds any live gui-connection
-;; or any connections-array slot has a nonzero id, both of which happen on
-;; a routine boot the moment anything registers a connection (scene-player-
-;; init, ambient talkers). The dispatch is not provably unreachable, so per
-;; AGENTS.md's own argument-count and evidence rules this method stays
-;; unlanded until method 23 itself decodes.
-;;
-;; Independent second reason: the level.gc call site itself (this rung's
-;; own scoped decode of level.o, ir2 ops 13-17) sets a1 to #t but never
-;; sets a2 before the jalr; the decompiler's own dataflow reports it
-;; "a2: <uninitialized>". Whatever value the retail binary actually carries
-;; into the vector arg at that specific call site is not established by
-;; this rung's evidence, a second, independent reason not to wire the call
-;; even if method 23 were clear. Neither the body nor the level-update call
-;; site are landed this rung; retire this note once method 23 decodes and
-;; the level.gc call site's own a2 source is traced.
-;;
-;; gui-control-method-21, distinct from the above: measured zero-error by
-;; the investigation but out of this rung's own scope (not named in issues
-;; 550/551's landmine list); still fails type prop here ("Could not figure
-;; out load", op 8) under the config this rung actually applied, since no
-;; narrowed window was staged for it. Left untouched.
+;; Its call sites while unlanded are argued safe rather than unreachable:
+;; method 9's own body sets flags to gcf0 alone (flags == 1) on the null
+;; slot, and both of method 23's own guards require a masked bit in
+;; addition to gcf0, so a scene connection's null slot never dispatches
+;; method 21. Sound and speech connections that method 20 (sound-params-
+;; set!) enriches with the wider flag set CAN reach it; that path is a real,
+;; not merely theoretical, hazard while this method stays unlanded (issue
+;; 551's e2-class concern), tracked open by this note rather than argued
+;; away.
+
+;; og:preserve-this gui-control-method-23, update-connection (gui-control
+;; update-connection completion lane, issues 522/550/551): landed this
+;; rung. The prior wall ("function was not converted to expressions.
+;; Cannot decompile") was a CFG build failure, not a signature or type
+;; problem: jakx's own fade path carries one extra join block past jak3's
+;; twin structure, and the decompiler's CFG builder cannot resolve an
+;; asm-branch block it was never told terminates a block. hacks.jsonc's
+;; "(method 23 gui-control)" entry, [10, 46, 50, 58, 81, 91, 102], is jak3's
+;; own twin list, [10, 46, 50, 58, 81, 90, 101], shifted by one on the last
+;; two entries to account for that extra block; jak3's own list applied
+;; verbatim hard-kills the decompiler on this object (CfgVtx.cpp:45's
+;; assertion), and this rung re-derived the shift from the jakx CFG rather
+;; than trusting the twin list blind. With that entry in place, this
+;; method's own body decodes fully clean with no cast or arg-count work
+;; needed beyond the deftype's own corrected 3-arg declaration (gui-h.gc).
+;; Channel-banded on the outer id-region guard (channel in [16, 17]): on a
+;; queue action, spool-pushes into *art-control* and may flip the
+;; connection straight to playing; then, keyed off the connection's own
+;; action (play, playing/fade, stop, abort, hide, hidden), dispatches
+;; gui-control-method-19's own command-list handling, gui-control-method-21
+;; under a flags-bit guard (still unlanded, see the held note above this
+;; method's own call sites are its only reachability argument),
+;; gui-control-method-25's own channel-id bookkeeping, and either starts a
+;; str-play-async stream or advances an in-progress fade via find-sound-
+;; instance, before deciding whether to retire the connection to the dead
+;; list (move-to-dead) or hold it for another cycle. jakx's own second
+;; method-21 guard masks (gcf1 fo-curve fo-min volume), one bit narrower
+;; than the first guard's (gcf1 fo-curve fo-min fo-max volume): jak3's twin
+;; masks the same full set on both guards, a genuine retail divergence, not
+;; a decode artifact, and this landing keeps it as decoded rather than
+;; matching the twin. Likewise the fade path calls find-sound-instance,
+;; where jak3's twin uses its own sound-buffer idiom; jakx has no such
+;; buffer here, so this is the real retail body, not a simplification.
+(defmethod gui-control-method-23 ((this gui-control) (arg0 gui-connection) (arg1 process) (arg2 symbol))
+  (local-vars (v1-77 symbol))
+  (when (and (>= (the-as uint (-> arg0 channel)) (the-as uint 16))
+             (>= (the-as uint 17) (the-as uint (-> arg0 channel)))
+             )
+    (case (-> arg0 action)
+      (((gui-action queue))
+       (spool-push *art-control* (-> arg0 name) (the-as int (-> arg0 anim-part)) arg1 (-> arg0 priority))
+       (if (and (logtest? (-> arg0 flags) (gui-connection-flags gcf0))
+                (= (gui-control-method-17 this (the-as uint (-> arg0 id))) 3)
+                )
+           (set! (-> arg0 action) (gui-action playing))
+           )
+       )
+      )
+    )
+  (let ((v1-16 (-> arg0 action)))
+    (b! (!= v1-16 (gui-action play)) cfg-47 :delay (empty-form))
+    (if (gui-control-method-19 this (-> arg0 channel) arg0)
+        (gui-control-method-25 this arg0 (-> arg0 id))
+        )
+    (let ((s3-0 (gui-control-method-17 this (the-as uint (-> arg0 id)))))
+      (if (and (logtest? (-> arg0 flags) (gui-connection-flags gcf1 fo-curve fo-min fo-max volume))
+               (logtest? (-> arg0 flags) (gui-connection-flags gcf0))
+               )
+          (gui-control-method-21 this arg0)
+          )
+      (cond
+        ((or (not (gui-control-method-18 this (-> arg0 channel))) (= s3-0 5))
+         (if (= (-> this ids (-> arg0 channel)) (-> arg0 id))
+             (gui-control-method-25 this arg0 0)
+             )
+         (if (and arg2 (or (< (shr (the-as int (-> arg0 channel)) 4) (the-as uint 4)) (= s3-0 5)))
+             (move-to-dead arg0)
+             )
+         )
+        ((= (-> this ids (-> arg0 channel)) (-> arg0 id))
+         (cond
+           ((= s3-0 2)
+            (case (shr (the-as int (-> arg0 channel)) 4)
+              ((1 2)
+               (if (not (paused?))
+                   (str-play-async
+                     (-> arg0 name)
+                     (-> arg0 id)
+                     (the int (* 1024.0 (if (logtest? (-> arg0 flags) (gui-connection-flags volume))
+                                            (-> arg0 volume)
+                                            1.0
+                                            )
+                                 )
+                          )
+                     (the-as int (-> this group (-> arg0 channel)))
+                     )
+                   )
+               )
+              )
+            )
+           ((= s3-0 3)
+            (set! (-> arg0 action) (gui-action playing))
+            )
+           )
+         )
+        )
+      )
+    (b! #t cfg-125 :delay (nop!))
+    (label cfg-47)
+    (b! (not (or (= v1-16 (gui-action playing)) (= v1-16 (gui-action fade)))) cfg-103 :delay (empty-form))
+    (b!
+      (not (and (= (gui-control-method-17 this (the-as uint (-> arg0 id))) 3)
+                (gui-control-method-18 this (-> arg0 channel))
+                (or (= (-> arg0 action) (gui-action playing)) (< (-> arg0 fade) (the-as uint 30)))
+                )
+           )
+      cfg-92
+      :delay (nop!)
+      )
+    (gui-control-method-25 this arg0 (-> arg0 id))
+    (set! (-> this times 0) 0)
+    (let ((v1-75 (shr (the-as int (-> arg0 channel)) 4)))
+      (set! v1-77 (and (or (= v1-75 1) (= v1-75 2))
+                       (not (and (>= (the-as uint (-> arg0 channel)) (the-as uint 16))
+                                 (>= (the-as uint 17) (the-as uint (-> arg0 channel)))
+                                 )
+                            )
+                       (begin
+                         (dotimes (s3-1 4)
+                           (when (and (string-charp= (-> arg0 name) (-> *sound-iop-info* stream-name s3-1 name))
+                                      (= (-> arg0 id) (-> *sound-iop-info* stream-id s3-1))
+                                      (logtest? (-> *sound-iop-info* stream-status s3-1) (stream-status ss6))
+                                      )
+                             (set! v1-77 #t)
+                             (goto cfg-81)
+                             )
+                           )
+                         #f
+                         )
+                       )
+            )
+      )
+    (label cfg-81)
+    (b! v1-77 cfg-92 :delay (nop!))
+    (if (and (logtest? (-> arg0 flags) (gui-connection-flags gcf1 fo-curve fo-min volume))
+             (logtest? (-> arg0 flags) (gui-connection-flags gcf0))
+             )
+        (gui-control-method-21 this arg0)
+        )
+    (when (= (-> arg0 action) (gui-action fade))
+      (set! (-> arg0 fade) (the-as uint (seekl (the-as int (-> arg0 fade)) 30 1)))
+      (let ((s5-1 (find-sound-instance (-> arg0 id) #t)))
+        (cond
+          (s5-1
+            (set! (-> s5-1 volume) (the int (* 1024.0 (lerp-scale 1.0 0.0 (the float (-> arg0 fade)) 0.0 30.0))))
+            (logior! (-> s5-1 flags) 64)
+            (-> s5-1 id)
+            )
+          (else
+            0
+            )
+          )
+        )
+      )
+    (b! #t cfg-102 :delay (nop!))
+    (label cfg-92)
+    (when (= (-> this ids (-> arg0 channel)) (-> arg0 id))
+      (gui-control-method-25 this arg0 0)
+      (set! (-> this times (-> arg0 channel)) (+ (-> *display* base-clock frame-counter) (-> arg0 hold-time)))
+      )
+    (if (and arg2 (or (< (shr (the-as int (-> arg0 channel)) 4) (the-as uint 4))
+                      (= (gui-control-method-17 this (the-as uint (-> arg0 id))) 5)
+                      )
+             )
+        (move-to-dead arg0)
+        (set! (-> arg0 action) (gui-action play))
+        )
+    (label cfg-102)
+    (b! #t cfg-125 :delay (nop!))
+    (label cfg-103)
+    (cond
+      ((= v1-16 (gui-action stop))
+       (gui-control-method-11 this arg0)
+       (if arg2
+           (move-to-dead arg0)
+           )
+       )
+      ((= v1-16 (gui-action abort))
+       (if (= (-> this ids (-> arg0 channel)) (-> arg0 id))
+           (gui-control-method-25 this arg0 0)
+           )
+       (if arg2
+           (move-to-dead arg0)
+           )
+       )
+      ((= v1-16 (gui-action hide))
+       )
+      ((= v1-16 (gui-action hidden))
+       (cond
+         ((or (< (shr (the-as int (-> arg0 channel)) 4) (the-as uint 4))
+              (= (gui-control-method-17 this (the-as uint (-> arg0 id))) 5)
+              )
+          (gui-control-method-11 this arg0)
+          (if arg2
+              (move-to-dead arg0)
+              )
+          )
+         (else
+           (if (= (-> this ids (-> arg0 channel)) (-> arg0 id))
+               (gui-control-method-25 this arg0 0)
+               )
+           )
+         )
+       )
+      )
+    )
+  (label cfg-125)
+  0
+  (none)
+  )
+
+;; og:preserve-this gui-control-method-13, update, the gui-control update-
+;; connection completion lane's own primary target (issues 522/550/551):
+;; landed this rung, dispatching the now-landed gui-control-method-22,
+;; gui-control-method-23, and gui-control-method-25 across this's own
+;; alive-list and connections-array. The previous held note argued this
+;; method could not land while method 23 was CFG-walled and while the
+;; level.gc call site's own second argument was unestablished; both
+;; premises are gone: method 23 decodes clean this rung (its own
+;; og:preserve-this note above), and this method's own corrected 1-arg
+;; declaration (gui-h.gc) drops the second argument outright, since the
+;; corpus-wide settling check this rung ran (a full decode grepped for
+;; "not set: a2" and any new method 1[23]|2[123] gui-control diagnostic)
+;; found no other object dispatching methods 13 or 22 with a second
+;; argument set; the manufactured vector never existed. No type_casts.jsonc
+;; change was needed: the existing "(method 13 gui-control)" window,
+;; [[55, 75], "s4", "gui-connection"], already takes this method's own body
+;; fully clean under the corrected declaration; a wider [45, 75] window was
+;; sketched as a possible cleanup but this rung's own fresh decode shows no
+;; residual cast noise for it to clean, so it is left unchanged. One config
+;; addition beyond the sketch: the str-play-queue call's own 4-entry
+;; sound-id array (sp+16) auto-guessed as untyped pointer math ("the-as
+;; uint sp-0"), which decodes syntactically but fails GOAL compilation
+;; outright ("Cannot access array of type uint") on the array-index write;
+;; a stack_structures.jsonc entry (decompiler/config, "(method 13
+;; gui-control)") retypes it, matching jak3's own twin, which allocates
+;; the identical shape explicitly, (new 'stack-no-clear 'array 'sound-id
+;; 4). No caller is landed here either: the level-update pump call
+;; (level.gc) is this rung's own separate wiring change, not part of this
+;; defmethod.
+;; Sets this's own sound-id slot 65 (a blackout gate keyed off *game-info*
+;; blackout-time and the current background alpha settings), clears the
+;; spool-connections scratch array, walks the alive-list dispatching method
+;; 22 (spooler priority insertion) per entry and method 25 (channel-id
+;; bookkeeping) for any entry mid-playing, walks the 32-slot connections
+;; array dispatching method 22 for any entry whose time-stamp matches this's
+;; own update-time or otherwise clearing its param3, builds the 4-name
+;; str-play-queue call from the spool-connections array plus a bitmask
+;; flagging art-load channels and a name match against the current movie,
+;; then walks both the alive-list (backward) and the connections array
+;; dispatching method 23 (update-connection) on every live entry, and
+;; finally, when a debug symbol is passed and the matching display flags
+;; are set, prints the spool-connections, sound-iop-info, alive-list and
+;; connections-array debug rows exactly as jak3's own twin does.
+(defmethod gui-control-method-13 ((this gui-control) (arg0 symbol))
+  (set! (-> this ids 65)
+        (the-as
+          sound-id
+          (if (and (>= (-> *display* base-clock frame-counter) (the-as time-frame (-> *game-info* blackout-time)))
+                   (= (-> *setting-control* user-current bg-a) 0.0)
+                   (= (-> *setting-control* user-current bg-a-force) 0.0)
+                   )
+              0
+              1
+              )
+          )
+        )
+  (dotimes (v1-8 4)
+    (set! (-> this spool-connections v1-8 param2) (the-as int #f))
+    (set! (-> this spool-connections v1-8 param3) 0)
+    (set! (-> this spool-connections v1-8 priority) 100000000.0)
+    )
+  (let ((s4-0 (-> this engine alive-list next0)))
+    (-> this engine)
+    (let ((s3-0 (-> s4-0 next0)))
+      (while (!= (the-as gui-connection s4-0) (-> this engine alive-list-end))
+        (gui-control-method-22 this (the-as gui-connection s4-0))
+        (case (-> (the-as gui-connection s4-0) action)
+          (((gui-action playing))
+           (gui-control-method-25 this (the-as gui-connection s4-0) (-> (the-as gui-connection s4-0) id))
+           )
+          )
+        (set! s4-0 s3-0)
+        (-> this engine)
+        (set! s3-0 (-> s3-0 next0))
+        )
+      )
+    )
+  (let ((s4-1 (-> this update-time)))
+    (countdown (s3-1 32)
+      (let ((s2-0 (-> this connections s3-1)))
+        (when (nonzero? (-> s2-0 id))
+          (cond
+            ((= (-> s2-0 time-stamp) s4-1)
+             (gui-control-method-22 this s2-0)
+             )
+            (else
+              (if (= (-> this ids (-> s2-0 channel)) (-> s2-0 id))
+                  (gui-control-method-25 this s2-0 0)
+                  )
+              (set! (-> s2-0 param3) 0)
+              0
+              )
+            )
+          )
+        )
+      )
+    )
+  (let ((s4-2 (new 'stack-no-clear 'array 'sound-id 4))
+        (s3-2 0)
+        )
+    (let ((s2-1 (-> *setting-control* user-current movie-name)))
+      (dotimes (s1-0 4)
+        (set! (-> s4-2 s1-0) (-> this spool-connections s1-0 id))
+        (when (and (-> this spool-connections s1-0 name) (case (-> this spool-connections s1-0 channel)
+                                                           (((gui-channel art-load) (gui-channel art-load-next))
+                                                            #t
+                                                            )
+                                                           )
+                   )
+          (set! s3-2 (logior s3-2 (ash 1 s1-0)))
+          (if (and s2-1 (string= (-> this spool-connections s1-0 name) (the-as string s2-1)))
+              (set! s3-2 (logior s3-2 (ash 1 (+ s1-0 4))))
+              )
+          )
+        )
+      )
+    (let* ((t9-5 str-play-queue)
+           (v1-64 (-> this spool-connections 0 name))
+           (a0-28 (if v1-64
+                      v1-64
+                      )
+                  )
+           (v1-65 (-> this spool-connections 1 name))
+           (a1-7 (if v1-65
+                     v1-65
+                     )
+                 )
+           (v1-66 (-> this spool-connections 2 name))
+           (a2-2 (if v1-66
+                     v1-66
+                     )
+                 )
+           (v1-67 (-> this spool-connections 3 name))
+           )
+      (t9-5
+        a0-28
+        a1-7
+        a2-2
+        (if v1-67
+            v1-67
+            )
+        s4-2
+        (the-as pointer s3-2)
+        )
+      )
+    )
+  (-> this engine)
+  (let ((a0-29 (-> this engine alive-list-end prev0)))
+    (-> this engine)
+    (let ((s4-3 (-> a0-29 prev0)))
+      (while (!= a0-29 (-> this engine alive-list))
+        (gui-control-method-23
+          this
+          (the-as gui-connection a0-29)
+          ((method-of-type connection get-process) (the-as connection a0-29))
+          #t
+          )
+        (set! a0-29 s4-3)
+        (-> this engine)
+        (set! s4-3 (-> s4-3 prev0))
+        )
+      )
+    )
+  (countdown (s4-4 32)
+    (let ((v1-85 (-> this connections s4-4)))
+      (if (nonzero? (-> v1-85 id))
+          (gui-control-method-23 this v1-85 (handle->process (-> v1-85 handle)) #f)
+          )
+      )
+    )
+  (when arg0
+    (when *display-art-control*
+      (dotimes (s5-1 4)
+        (let ((a3-4 (-> this spool-connections s5-1)))
+          (if (-> a3-4 name)
+              (format *stdcon* "~D: ~`gui-connection`P~%" s5-1 a3-4)
+              )
+          )
+        )
+      (dotimes (s5-2 4)
+        (format
+          *stdcon*
+          "~0KCh ~D: ~8D ~5X ~6D ~G~1K~%"
+          s5-2
+          (-> *sound-iop-info* stream-id-signed s5-2)
+          (-> *sound-iop-info* stream-status s5-2)
+          (-> *sound-iop-info* stream-position s5-2)
+          (-> *sound-iop-info* stream-name s5-2)
+          )
+        )
+      )
+    (when *display-gui-control*
+      (-> this engine)
+      (let ((a2-10 (-> this engine alive-list-end prev0)))
+        (-> this engine)
+        (let ((s5-3 (-> a2-10 prev0)))
+          (while (!= a2-10 (-> this engine alive-list))
+            (format *stdcon* "c: ~`gui-connection`P~%" a2-10)
+            (set! a2-10 s5-3)
+            (-> this engine)
+            (set! s5-3 (-> s5-3 prev0))
+            )
+          )
+        )
+      (countdown (s5-4 32)
+        (let ((a2-11 (-> this connections s5-4)))
+          (if (nonzero? (-> a2-11 id))
+              (format *stdcon* "l: ~`gui-connection`P~%" a2-11)
+              )
+          )
+        )
+      )
+    )
+  (set! (-> this update-time) (-> *display* base-clock frame-counter))
+  0
+  )
 
 ;; WARN: Return type mismatch symbol vs load-dir.
 (defmethod mem-usage ((this load-dir) (usage memory-usage-block) (flags int))

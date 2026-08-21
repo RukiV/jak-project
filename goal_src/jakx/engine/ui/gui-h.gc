@@ -200,20 +200,20 @@
     (gui-control-method-10 (_type_ process gui-channel) int)
     (gui-control-method-11 (_type_ gui-connection) none) ;; stop-str
     (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id)
-    ;; og:preserve-this arg count widened () -> (symbol vector), return type
-    ;; widened none -> int (gui-art pump lane, issue 522/550/551): jak3's own
-    ;; twin, update, is a 2-arg (_type_ symbol) call (level.gc:3573, (update
-    ;; *gui-control* #t)) that computes (target-pos 0) internally as a local
-    ;; and passes it to gui-control-method-22. jakx's own scoped decode
-    ;; shows the identical value hoisted out to a caller-supplied second
-    ;; argument instead: both of this method's own gui-control-method-22
-    ;; dispatches pass it straight through as (the-as vector arg1). The
-    ;; investigation that staged this lane's config deltas guessed symbol
-    ;; for this arg and flagged that guess itself as unverified; the raw
-    ;; decode settles it as vector, not symbol, the copied-from-twin trap
-    ;; issue 522 names. See the defmethod's own og:preserve-this note,
-    ;; loader.gc, for the full call-site evidence.
-    (gui-control-method-13 (_type_ symbol vector) int)
+    ;; og:preserve-this arg count corrected back to jak3's own 1-arg shape,
+    ;; (_type_ symbol) int (gui-control update-connection completion lane,
+    ;; issue 522/550/551): a prior rung on this pump lane widened this to a
+    ;; second vector arg, reasoning that gui-control-method-22's dispatches
+    ;; from this method's own body pass a value through as (the-as vector
+    ;; arg1); that vector was itself manufactured, not something method 13
+    ;; ever receives from a caller. jak3's own twin, update, is a genuine
+    ;; 2-arg (_type_ symbol) call (level.gc, (update *gui-control* #t));
+    ;; the retail call site here sets no second argument, a fresh scoped
+    ;; decode of this method's own body never writes one, and method 22's
+    ;; own corrected 1-arg signature (below) never reads one either. See
+    ;; the defmethod's own og:preserve-this note, loader.gc, for the full
+    ;; call-site evidence.
+    (gui-control-method-13 (_type_ symbol) int)
     ;; og:preserve-this return type retyped sound-id (was none): scene
     ;; lane (issue 502), (code wait scene-player)'s own call site feeds
     ;; the result straight into gui-control-method-17's own uint arg
@@ -321,20 +321,44 @@
     ;; its three callers widen so the type is honest and the compiled calls
     ;; stop dropping the argument.
     (gui-control-method-20 (_type_ uint symbol int int int float symbol) object) ;; sound-params-set!
-    (gui-control-method-21 () none)
     ;; og:preserve-this arg count and return type widened () none -> (gui-
-    ;; connection vector) int (gui-art pump lane, issue 522/550/551):
-    ;; gui-control-method-13's own body (the pump target, this file's own
-    ;; defmethod, loader.gc) dispatches this method twice via method-of-
-    ;; object with a gui-connection cursor and a vector, and the old zero-
-    ;; arg declaration made both dispatches print with no args at all, the
-    ;; dropped-argument tell AGENTS.md names as the most repeated defect
-    ;; class here; the callee itself also fails type prop outright at op 2
-    ;; ("Could not figure out load") under the old shape. jak3's own twin
-    ;; call site (level.gc's update) matches this file's own all-types.gc
-    ;; hint comment.
-    (gui-control-method-22 (_type_ gui-connection vector) int)
-    (gui-control-method-23 () none)
+    ;; connection) int (gui-control update-connection completion lane, issue
+    ;; 522/550/551): both of gui-control-method-23's own dispatch sites
+    ;; (loader.gc) pass a single gui-connection to this method under a
+    ;; flags-bit guard; the old zero-arg declaration was a placeholder.
+    ;; STILL UNLANDED: a fresh scoped decode of this method's own body still
+    ;; fails type prop at op 40 ("Could not figure out load: (set! a1 (l.wu
+    ;; (+ v1 184)))") and cannot guess stack use for a 16-byte stack
+    ;; allocation, the same wall the investigation that staged this rung's
+    ;; other config deltas hit and did not resolve; no stack_structures.jsonc
+    ;; entry from that investigation exists to retire this note. Retirement
+    ;; condition: a verified stack_structures.jsonc entry (plus at most one
+    ;; type_casts.jsonc cast) that takes a fresh scoped decode of this
+    ;; method's own body fully clean. Its own safety while unlanded is
+    ;; argued on the caller side, gui-control-method-23's own defmethod,
+    ;; loader.gc.
+    (gui-control-method-21 (_type_ gui-connection) int)
+    ;; og:preserve-this arg count corrected back to a 1-arg shape, (_type_
+    ;; gui-connection) int (gui-control update-connection completion lane,
+    ;; issue 522/550/551): the previously declared second vector arg was the
+    ;; same manufactured parameter as method 13's own (see that method's own
+    ;; note above); this method's own dispatches, both from method 13's body,
+    ;; pass only the connection cursor, and a fresh scoped decode of this
+    ;; method's own body never reads a second argument. jak3's own twin call
+    ;; site (level.gc's update) still matches this file's own all-types.gc
+    ;; hint comment for the corrected 1-arg shape.
+    (gui-control-method-22 (_type_ gui-connection) int)
+    ;; og:preserve-this arg count and return type widened () none -> (gui-
+    ;; connection process symbol) none, update-connection (gui-control
+    ;; update-connection completion lane, issue 522/550/551): the CFG
+    ;; failure this method's own body previously hit ("failed to build
+    ;; control flow graph") was never a signature defect; it was a missing
+    ;; blocks_ending_in_asm_branch entry for an extra join block jakx's own
+    ;; fade path carries that jak3's twin does not (hacks.jsonc). With that
+    ;; entry in place, a fresh scoped decode of this method's own body goes
+    ;; fully clean under the shape jak3's own twin, update-connection,
+    ;; already carries. Landed this rung, loader.gc.
+    (gui-control-method-23 (_type_ gui-connection process symbol) none)
     ;; og:preserve-this arg count and return type widened () none ->
     ;; (gui-channel gui-channel symbol gui-connection) symbol (gui-control
     ;; completion lane, issue 531): loader.gc's own method 19 body
