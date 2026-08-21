@@ -623,13 +623,27 @@
                             (-> ((method-of-object (the-as process-focusable sv-16) get-trans) (the-as process-focusable sv-16) 0) quad)
                             )
                       (when (!= s0-0 (-> (the-as hud-indicator s1-0) id))
-                        (let* ((a0-22 s1-0)
-                               (t9-9 (method-of-object (the-as hud-item-string a0-22) hud-item-method-25))
-                               (a1-4 (-> s2-0 color))
-                               )
-                          (-> s2-0 font-color)
-                          (t9-9 (the-as hud-item-string a0-22) a1-4)
-                          )
+                        ;; og:preserve-this hud-item-arity rung (issue 531):
+                        ;; s1-0's runtime type here is hud-indicator, proven
+                        ;; by the surrounding target/target-position/id
+                        ;; writes on this same variable just above, all
+                        ;; hud-indicator-only fields. A prior rung's
+                        ;; (the-as hud-item-string ...) cast on this
+                        ;; dispatch forced it to resolve via hud-item's
+                        ;; 2-arg base declaration instead of hud-indicator's
+                        ;; own landed 3-arg :replace (all-types.gc:75262),
+                        ;; leaving font-color computed into a2 but silently
+                        ;; discarded by the call (hud-player-indicators_ir2.asm
+                        ;; 7081-7083). Retyping the type_casts.jsonc hint to
+                        ;; hud-indicator resolves the real 3-arg call
+                        ;; directly, folding the orphaned font-color read
+                        ;; into its genuine second argument; the decompiler's
+                        ;; own pretty-print elides the cast (its internal
+                        ;; per-op tracking already treats s1-0 as
+                        ;; hud-indicator here), but goalc types the let
+                        ;; binding itself, so the explicit (the-as
+                        ;; hud-indicator ...) below is required to compile.
+                        (hud-item-method-25 (the-as hud-indicator s1-0) (-> s2-0 color) (-> s2-0 font-color))
                         (case (if *net-world*
                                   (the-as int (-> (the-as game-task-node-info (-> *net-world* task-node-info)) net-play-mode))
                                   18
@@ -716,13 +730,12 @@
             (the-as handle (-> (the-as net-game-mgr-artifact *net-game-mgr*) artifact s5-0))
             )
       (get-artifact-position (-> (the-as hud-indicator s4-0) target-position) s5-0)
-      (let* ((s3-0 s4-0)
-             (s2-0 (method-of-object (the-as hud-item-string s3-0) hud-item-method-25))
-             (a1-2 (get-artifact-color s5-0))
-             )
-        5
-        (s2-0 (the-as hud-item-string s3-0) a1-2)
-        )
+      ;; og:preserve-this hud-item-arity rung (issue 531): s4-0's runtime
+      ;; type here is hud-indicator, same evidence and same fix as the
+      ;; matching comment on hud-player-indicators's own method 19 above;
+      ;; the discarded literal 5 was the orphaned second argument
+      ;; (hud-player-indicators_ir2.asm 6685).
+      (hud-item-method-25 (the-as hud-indicator s4-0) (get-artifact-color s5-0) 5)
       (hud-item-method-24 (the-as hud-item-string (-> (the-as hud-item-group s4-0) items 0)) "")
       )
     )
@@ -793,13 +806,11 @@
             (set! (-> (the-as hud-indicator s4-0) target-position quad)
                   (-> ((method-of-object (the-as process-focusable s2-0) get-trans) (the-as process-focusable s2-0) 0) quad)
                   )
-            (let* ((a0-10 s4-0)
-                   (t9-5 (method-of-object (the-as hud-item-string a0-10) hud-item-method-25))
-                   (a1-3 (-> s3-0 color))
-                   )
-              (-> s3-0 font-color)
-              (t9-5 (the-as hud-item-string a0-10) a1-3)
-              )
+            ;; og:preserve-this hud-item-arity rung (issue 531): s4-0's
+            ;; runtime type here is hud-indicator, same evidence and same
+            ;; fix as the matching comment on hud-player-indicators's own
+            ;; method 19 above (hud-player-indicators_ir2.asm 6496-6497).
+            (hud-item-method-25 (the-as hud-indicator s4-0) (-> s3-0 color) (-> s3-0 font-color))
             (hud-item-method-24
               (the-as hud-item-string (-> (the-as hud-item-group s4-0) items 0))
               ;; og:preserve-this hud-player-indicators rung: the arg1
