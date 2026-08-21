@@ -48841,10 +48841,36 @@
     ;; trailing args.
     (rigid-body-object-method-62 (_type_ float) none) ;; 62
     (rigid-body-object-method-63 (_type_) none) ;; 63
+    ;; og:preserve-this issue 571 R7: checked, left object
+    ;; (unpinnable-with-current-evidence) on this shared declaration. vehicle's
+    ;; own override (this rung's scoped decode, vehicle object) stores arg0
+    ;; straight into `info` (already declared rigid-body-vehicle-constants on
+    ;; vehicle, an :override), matching vehicle-h.gc's own comment that every
+    ;; wcar body passes a rigid-body-vehicle-constants-typed *v-<car>-
+    ;; constants* here. But this declaration is shared by every
+    ;; rigid-body-object subtype's landed generic body
+    ;; (goal_src/jakx/engine/physics/rigid-body-object.gc:161), and those
+    ;; non-vehicle callers pass heterogeneous types for arg0 -- confirmed by
+    ;; *train-constants* (object) and *snowball-constants* (pointer float)
+    ;; alongside *v-cheetah-constants* (rigid-body-vehicle-constants).
+    ;; Narrowing this shared slot would break the landed base body and every
+    ;; non-vehicle caller; the widest type the evidence supports across ALL
+    ;; callers is still object. A future rung that lands vehicle's own
+    ;; override can retype arg0 rigid-body-vehicle-constants on that specific
+    ;; defmethod without touching this table entry.
     (rigid-body-object-method-64 (_type_ object) none) ;; 64
     (rigid-body-object-method-65 (_type_) none) ;; 65
     (rigid-body-object-method-66 (_type_) none) ;; 66
     (rigid-body-object-method-67 (_type_) none) ;; 67
+    ;; og:preserve-this issue 571 R7: checked, left object object
+    ;; (unpinnable-with-current-evidence) on this shared declaration, same
+    ;; reasoning as method 64 immediately above. vehicle's own override (this
+    ;; rung's scoped decode, vehicle-util object) copies arg0's fields at
+    ;; offsets 3120/3124/3136 -- the same offsets `info`
+    ;; (rigid-body-vehicle-constants) uses -- suggesting arg0 is
+    ;; rigid-body-vehicle-constants-shaped for vehicle specifically, but the
+    ;; base declaration is shared by every rigid-body-object subtype's landed
+    ;; generic body (rigid-body-object.gc:39) and cannot be narrowed here.
     (rigid-body-object-method-68 (_type_ object object) none) ;; 68
     (rigid-body-object-method-69 (_type_) none) ;; 69
     ;; og:preserve-this method 70 was declared with zero arguments, not even
@@ -54277,12 +54303,46 @@
     (vehicle-method-100 (_type_) none) ;; 100 ;; (vehicle-method-100 (_type_) none)
     (vehicle-method-101 (_type_) none) ;; 101 ;; (vehicle-method-101 (_type_) none)
     (vehicle-method-102 (_type_) none) ;; 102 ;; (vehicle-method-102 (_type_) symbol)
-    (vehicle-method-103 (_type_ object object) none) ;; 103 ;; (vehicle-method-103 (_type_ object object) none)
-    (vehicle-method-104 (_type_ object) none) ;; 104 ;; (vehicle-method-104 (_type_ object) none)
+    ;; og:preserve-this issue 571 R7 object-arg rung: arg0 promoted object ->
+    ;; vector, arg1 object -> int. This rung's scoped decode (vehicle-util
+    ;; object) has arg1 indexing `info rider seat-array` (an inline-array of
+    ;; vehicle-seat-info, sll 4 = *16 stride) and arg0 passed straight into
+    ;; vector-matrix*! as its output vector, sourced from that seat's
+    ;; position quad rotated by `node-list`'s matrix; arg0 is never read,
+    ;; only written, matching the other hardpoint-query slots (150/151)
+    ;; below.
+    (vehicle-method-103 (_type_ vector int) none) ;; 103
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> int. Compared
+    ;; directly against `info rider seat-count` and used as the sll-3 (x8)
+    ;; index into the seat-rider handle array at raw offset 748; a seat
+    ;; index, not a pointer (this rung's scoped decode, vehicle-util
+    ;; object).
+    (vehicle-method-104 (_type_ int) none) ;; 104
     (vehicle-method-105 (_type_) none) ;; 105 ;; (vehicle-method-105 (_type_) none)
-    (vehicle-method-106 (_type_ object object) none) ;; 106 ;; (vehicle-method-106 (_type_ object object) none)
-    (vehicle-method-107 (_type_ object object object) none) ;; 107 ;; (vehicle-method-107 (_type_ object object object) none)
-    (vehicle-method-108 (_type_ object) none) ;; 108 ;; (vehicle-method-108 (_type_ object) none)
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> int (same
+    ;; seat-count-bounded index as 104/108, sll-3 into the 748 handle array).
+    ;; arg1 is read at its own offset 28 and double-dereferenced through a
+    ;; process-shaped handle (offset 0 = process pointer, offset 48 = pid,
+    ;; the same validate idiom method 104/105/108 use) before being packed
+    ;; into the new seat handle; no candidate type in this rung's scope
+    ;; matches a handle field at offset 28, so arg1 is left object
+    ;; (unpinnable-with-current-evidence, this rung's scoped decode).
+    (vehicle-method-106 (_type_ int object) none) ;; 106
+    ;; og:preserve-this issue 571 R7: arg0 object -> vector (passed directly
+    ;; as the first argument to vector-vector-distance-squared), arg1 object
+    ;; -> int (ANDed against a per-section flags byte read from
+    ;; `info`+3070+section*16, a bitmask test), arg2 object -> int (a
+    ;; tri-state 0/1/2 mode selector gating which vtable-432 call, if any,
+    ;; runs). This rung's own scoped decode of vehicle-util (vector-vector-
+    ;; distance-squared call site) is the first evidence to see arg0's real
+    ;; role.
+    (vehicle-method-107 (_type_ vector int int) none) ;; 107
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> process. Looped
+    ;; against every occupied seat in the 748 handle array (resolved via the
+    ;; same handle->process validate idiom as 104/105/106) and compared for
+    ;; pointer equality; the matching seat is cleared. Not an index like
+    ;; 104/181 (this rung's scoped decode, vehicle-util object).
+    (vehicle-method-108 (_type_ process) none) ;; 108
     (vehicle-method-109 (_type_) none) ;; 109 ;; (vehicle-method-109 (_type_) none)
     (vehicle-method-110 (_type_) none) ;; 110 ;; (vehicle-method-110 (_type_) none)
     ;; og:preserve-this vehicle-util rung: promoted (_type_) -> (_type_ vector
@@ -54297,7 +54357,14 @@
     (vehicle-method-113 (_type_) none) ;; 113 ;; (vehicle-method-113 (_type_) none)
     (vehicle-method-114 (_type_ int) none) ;; 114
     (vehicle-method-115 (_type_) none) ;; 115
-    (vehicle-method-116 (_type_ object object) none) ;; 116 ;; (vehicle-method-116 (_type_ object object) none)
+    ;; og:preserve-this issue 571 R7: promoted object -> draw-control-status
+    ;; (both args), same precedent already landed on vehicle-section-method-16
+    ;; (goal_src/jakx/engine/vehicle/vehicle-h.gc). This slot's own decode
+    ;; reads `this draw status`, ORs in arg0 and ANDs OUT (lognot arg1), a
+    ;; set-some/clear-some status update where both operands are the same
+    ;; enum as the field itself (this rung's scoped decode, vehicle-util
+    ;; object).
+    (vehicle-method-116 (_type_ draw-control-status draw-control-status) none) ;; 116
     (vehicle-method-117 (_type_) none) ;; 117 ;; (vehicle-method-117 (_type_) none)
     (vehicle-method-118 (_type_) none) ;; 118 ;; (vehicle-method-118 (_type_) none)
     (vehicle-method-119 (_type_ object) none) ;; 119 ;; (vehicle-method-119 (_type_ object) none)
@@ -54311,7 +54378,20 @@
     (vehicle-method-127 (_type_) none) ;; 127 ;; (check-player-get-on (_type_) symbol)
     (vehicle-method-128 (_type_) none) ;; 128 ;; (vehicle-method-128 (_type_) symbol)
     (vehicle-method-129 (_type_ vehicle-controls) none) ;; 129 ;; (vehicle-method-129 (_type_) none)
-    (vehicle-method-130 (_type_ object) none) ;; 130 ;; (vehicle-method-130 (_type_ object) none)
+    ;; og:preserve-this issue 571 R7: checked, left object
+    ;; (unpinnable-with-current-evidence). This slot's own decode (vehicle
+    ;; object) writes exactly five floats at offsets 0/4/8/12/16 with values
+    ;; (0.0 0.0 1.0 0.0 1.0), landing on the same offsets as
+    ;; vehicle-controls' steering/throttle/brake/lean-z/handbrake -- the
+    ;; "five floats" issue 571 itself flagged as proof of the object-arg
+    ;; class. Two narrower candidates were tried and both were falsified by
+    ;; goalc against real call sites: vehicle-controls failed (see 133's own
+    ;; note below), and this rung's own follow-up guess of (pointer float)
+    ;; is unproven for this specific slot (no landed caller exists yet to
+    ;; check it against) and is not risked here given 133's identical write
+    ;; pattern turned out to be genuinely polymorphic once every real caller
+    ;; was checked. Left object pending a landed call site for 130 itself.
+    (vehicle-method-130 (_type_ object) none) ;; 130
     ;; og:preserve-this S1 hazard (brief §1.5): the captured annotations for
     ;; 131-133 cited traffic-object-spawn-params, a type that does not exist
     ;; anywhere in Jak X. Dropped per the owner's standing rule (the decode
@@ -54319,12 +54399,37 @@
     ;; numeric placeholders.
     (vehicle-method-131 () none) ;; 131
     (vehicle-method-132 (_type_) none) ;; 132
+    ;; og:preserve-this issue 571 R7: checked, left object
+    ;; (unpinnable-with-current-evidence), proven genuinely polymorphic by
+    ;; goalc against TWO real call sites with incompatible concrete types:
+    ;; vehicle-states.gc:96 passes `(&-> gp-0 steering)`, which GOAL types
+    ;; (pointer float) (arg0's own field, not the containing struct, even at
+    ;; offset 0); wvehicle-race.gc:84 passes `(-> s5-0 0)`, which GOAL types
+    ;; vector. Neither narrows to the other and neither is a subtype of the
+    ;; other, so object is the only type both callers satisfy without an
+    ;; explicit cast that does not exist in either landed call site. This
+    ;; slot's own decode (vehicle object) reads floats at offsets 0/4/8/12
+    ;; and a byte at offset 20, landing on the same offsets as
+    ;; vehicle-controls' steering/throttle/brake/lean-z and flags fields, but
+    ;; the type cannot be narrowed to vehicle-controls, vector, or (pointer
+    ;; float) without breaking one of its two real callers. The two seek()
+    ;; calls feed vehicle-method-129's own vehicle-controls arg (already
+    ;; landed), and vehicle-idle-post's own extern comment already names
+    ;; both 129 and 133 as the vtable pair vehicle-idle-post dispatches
+    ;; through.
     (vehicle-method-133 (_type_ object) none) ;; 133
     (vehicle-method-134 () none) ;; 134 ;; (vehicle-method-134 (_type_) none)
     (vehicle-method-135 (_type_) none) ;; 135 ;; (vehicle-method-135 (_type_) none)
     (vehicle-method-136 (_type_ vector float) none) ;; 136 ;; (vehicle-method-136 (_type_ vector float) none)
     (vehicle-method-137 (_type_ float) none) ;; 137 ;; (vehicle-method-137 (_type_ float) none)
-    (vehicle-method-138 (_type_ object) none) ;; 138 ;; (vehicle-method-138 (_type_ object) none)
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> float. arg0 is
+    ;; moved gpr->fpr directly (the mtc1 idiom already established on
+    ;; vehicle-section-method-13/vehicle-method-158/159) then multiplied
+    ;; against info's inv-mass/damage fields to produce an impact-scaled
+    ;; damage-factor write; a raw float bit-pattern passed in a gpr, same
+    ;; shape as sibling slots 182/183 below (this rung's scoped decode,
+    ;; vehicle-util object).
+    (vehicle-method-138 (_type_ float) none) ;; 138
     (vehicle-method-139 (_type_) none) ;; 139 ;; (vehicle-method-139 (_type_) none)
     (vehicle-method-140 (_type_) none) ;; 140 ;; (vehicle-method-140 (_type_) none)
     (vehicle-method-141 () none) ;; 141 ;; (vehicle-method-141 (_type_) symbol)
@@ -54333,11 +54438,34 @@
     (vehicle-method-144 (_type_) none) ;; 144 ;; (vehicle-method-144 (_type_) none)
     (vehicle-method-145 (_type_) none) ;; 145 ;; (vehicle-method-145 (_type_) none)
     (vehicle-method-146 (_type_) none) ;; 146 ;; (vehicle-method-146 (_type_) none)
-    (vehicle-method-147 (_type_ object) none) ;; 147 ;; (vehicle-method-147 (_type_ object) none)
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> vector. A single
+    ;; quadword copy of `lin-acceleration quad` into arg0 (s.q!), an
+    ;; out-param getter with no read of arg0 (this rung's scoped decode,
+    ;; vehicle-util object).
+    (vehicle-method-147 (_type_ vector) none) ;; 147
     (vehicle-method-148 (_type_ object) none) ;; 148 ;; (vehicle-method-148 (_type_ object) none)
     (vehicle-method-149 (_type_ object object) none) ;; 149 ;; (vehicle-method-149 (_type_ object object) none)
-    (vehicle-method-150 (_type_ object object) none) ;; 150 ;; (vehicle-method-150 (_type_ object object) none)
-    (vehicle-method-151 (_type_ object object) none) ;; 151 ;; (set-hit-points (_type_ object object) none)
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> vector, arg1
+    ;; object -> int. arg1 indexes `info hardpoint local-pos-array` (an
+    ;; inline-array vector, sll 4 = *16 stride) and arg0 is passed straight
+    ;; into vector-matrix*! as its output vector, sourced from that
+    ;; hardpoint's local position rotated by `node-list`'s matrix (this
+    ;; rung's scoped decode, vehicle-util object).
+    (vehicle-method-150 (_type_ vector int) none) ;; 150
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> vector, arg1
+    ;; object -> int, same hardpoint-array indexing as 150 immediately above
+    ;; (arg1 -> `info hardpoint local-pos-array`, sll 4 stride). arg0 gets a
+    ;; vector-matrix*! output at offset 0, `(-> this root rot)` copied in as
+    ;; a quaternion at offset 16, and `(-> this root scale)` copied in as a
+    ;; raw quad at offset 32 -- a full 48-byte hardpoint transform write. No
+    ;; existing type in this rung's scope matches that exact 48-byte
+    ;; trans/rot/scale layout as a non-basic structure, so arg0 is typed by
+    ;; its first (and call-site-mandated) field only; the trailing writes are
+    ;; legal raw pointer arithmetic regardless of the declared arg type. The
+    ;; old "set-hit-points" trailing-comment guess does not match this body
+    ;; at all and is dropped (the decode wins, AGENTS.md rule 9/10); this
+    ;; rung's scoped decode, vehicle-util object.
+    (vehicle-method-151 (_type_ vector int) none) ;; 151
     (vehicle-method-152 (_type_) none) ;; 152
     (vehicle-method-153 (_type_) none) ;; 153
     (vehicle-method-154 () none) ;; 154
@@ -54359,6 +54487,12 @@
     (vehicle-method-164 (_type_) none) ;; 164
     (vehicle-method-165 () none) ;; 165
     (vehicle-method-166 (_type_) none) ;; 166
+    ;; og:preserve-this issue 571 R7: checked, left object
+    ;; (unpinnable-with-current-evidence). arg0 is read at byte offsets 94/95
+    ;; only to feed a call to `driver-spawn`, a symbol undefined anywhere in
+    ;; this corpus; the decompiler fails type prop at op 1 and the rest of
+    ;; the body is unreliable guesswork built on that failure (this rung's
+    ;; scoped decode, vehicle-util object).
     (vehicle-method-167 (_type_ object) none) ;; 167
     (vehicle-method-168 (_type_) none) ;; 168
     (vehicle-method-169 (_type_) none) ;; 169
@@ -54373,9 +54507,21 @@
     (vehicle-method-178 (_type_) none) ;; 178
     (vehicle-method-179 (_type_ object) none) ;; 179
     (vehicle-method-180 (_type_) none) ;; 180 ;; issue 531: base body is a no-op stub, but wvehicle's own override (wvehicle-util_ir2.asm:12430) reads a0/this throughout; declaration must accommodate the override
-    (vehicle-method-181 (_type_ object) none) ;; 181
-    (vehicle-method-182 (_type_ object) none) ;; 182
-    (vehicle-method-183 (_type_ object) none) ;; 183
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> int. Used as the
+    ;; sll-6 (x64, vehicle-section's own stride) index into `sections`,
+    ;; identical shape to the section-index evidence already landed on
+    ;; sections 9-13 (this rung's scoped decode, vehicle-util object).
+    (vehicle-method-181 (_type_ int) none) ;; 181
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> float, same
+    ;; mtc1 raw-bit-pattern idiom as 138 above; multiplied against
+    ;; *game-info* global-speed-factor and info's car-info tuning field to
+    ;; write speed-factor (this rung's scoped decode, vehicle-util object).
+    (vehicle-method-182 (_type_ float) none) ;; 182
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> float, same
+    ;; mtc1 raw-bit-pattern idiom as 138/182; multiplied against info's
+    ;; car-info tuning field to write damage-factor (this rung's scoped
+    ;; decode, vehicle-util object).
+    (vehicle-method-183 (_type_ float) none) ;; 183
     (vehicle-method-184 (_type_ object) none) ;; 184
     (vehicle-method-185 (_type_) none) ;; 185
     (vehicle-method-186 (_type_) none) ;; 186
@@ -54392,10 +54538,26 @@
     (vehicle-method-197 (_type_ object object) none) ;; 197
     (vehicle-method-198 (_type_ object) none) ;; 198
     (vehicle-method-199 (_type_) none) ;; 199
-    (vehicle-method-200 (_type_ object object) none) ;; 200
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> vector, arg1
+    ;; object -> quaternion. arg0 is a single quadword loaded then copied
+    ;; into both `root`+12 (collide-shape's own position vector) and
+    ;; `rbody`+44 (a vector-sized slot of rigid-body-control); arg1 is fed
+    ;; twice into quaternion-copy! as its source, once into `rbody`+60 and
+    ;; once into `root`+28. Same shape already landed on vehicle-method-111
+    ;; (this rung's scoped decode, vehicle object).
+    (vehicle-method-200 (_type_ vector quaternion) none) ;; 200
     (vehicle-method-201 () none) ;; 201
-    (vehicle-method-202 (_type_ object) none) ;; 202
-    (vehicle-method-203 (_type_ object) none) ;; 203
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> int. Stored
+    ;; directly into `draw force-lod` (an int8 field) and compared with a
+    ;; signed less-than against 0 to pick the LOD distance; a plain int, not
+    ;; a pointer (this rung's scoped decode, vehicle-util object).
+    (vehicle-method-202 (_type_ int) none) ;; 202
+    ;; og:preserve-this issue 571 R7: arg0 promoted object -> vector. Four
+    ;; sequential floats (0.0, cos, sin, 1.0) are stored into arg0 then
+    ;; passed straight into vector-rotate*! as both its output and input
+    ;; vector against `rbody matrix`; a plain out/in-place vector (this
+    ;; rung's scoped decode, vehicle-util object).
+    (vehicle-method-203 (_type_ vector) none) ;; 203
     )
   )
 
