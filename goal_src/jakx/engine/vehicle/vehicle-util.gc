@@ -9,7 +9,7 @@
 
 ;; og:preserve-this this rung lands only vehicle-section's own clean
 ;; methods (7, 9, 14, 15, 16, 18, 19; see the individual method notes
-;; below). vehicle-section methods 10/11/12/13 and every vehicle-type
+;; below). vehicle-section methods 10/12/13 and every vehicle-type
 ;; method this file also implements (dozens, per the baseline scoped
 ;; decode: methods including 78, 103, 138, 172, 182, 183 and
 ;; debug-draw-merc among them) are entirely unsurveyed and unlanded
@@ -22,13 +22,16 @@
 ;; pass.
 ;;
 ;; og:preserve-this issue 571 R11 (the falcon-panels rung): (method 68
-;; vehicle) is the one vehicle-type exception to the paragraph above,
-;; hand-translated rather than surveyed clean -- this same worktree's own
-;; scoped decode of this file still walls it ("failed type prop at 28:
-;; add failed: <integer 1088 + (144 x int)> object", vehicle-util_ir2.asm),
-;; a structural wall from the base declaration's own `object` arg0/arg1
-;; typing, not a config gap. See the method's own header note for the
-;; full per-instruction citation.
+;; vehicle) and vehicle-section-method-11 are two further exceptions to
+;; the paragraph above, both hand-translated rather than surveyed clean
+;; -- this same worktree's own scoped decode of this file walls both
+;; ("failed type prop at 28: add failed: <integer 1088 + (144 x int)>
+;; object" for method 68; "function was not converted to expressions"
+;; for method 11, a four-predecessor join at raw L186), structural walls
+;; from, respectively, the base declaration's own `object` arg0/arg1
+;; typing and a genuine CFG join the decompiler cannot build, not config
+;; gaps. See each method's own header note for the full per-instruction
+;; citation.
 
 ;; definition for method 9 of type vehicle-section
 (defmethod vehicle-section-method-9 ((this vehicle-section) (arg0 vehicle) (arg1 art-group) (arg2 int))
@@ -168,27 +171,197 @@
   (none)
   )
 
-;; og:preserve-this vehicle-spawn-chain rung (issue 571): the note above
-;; said method 11 "is still a CFG building failure (no expression tree,
-;; unaffected by the retype)"; that remains true (this rung's own scoped
-;; decode still reports "function was not converted to expressions. Cannot
-;; decompile."), a structural CFG wall, not a config gap -- a 4-predecessor
-;; join at raw L186, swept against 35 hack configurations, with no
-;; blocks_ending_in_asm_branch set resolving it. Landed below as a stub
-;; instead: the real body's own first instructions (raw asm, offset 24 =
-;; `draw`) test `(if (nonzero? (-> this draw)) ... )` and jump straight to
-;; a bare return when draw is zero (raw L190: `v0 = 0; return`), so an
-;; unconditional immediate return is behaviorally identical to retail
-;; whenever a section's draw-control has not been set up yet, and a silent
-;; no-op otherwise (the section's own transform/blerc updates go missing).
-;; This is what unblocks vehicle-init-by-other (vehicle-manager.gc, this
-;; same rung), whose own dotimes loop calls this method unconditionally
-;; across all 12 sections. Retirement of this stub is its own lane: the
-;; real ~180-instruction body via hand translation or mips2c.
+;; og:preserve-this issue 571 R11: retired by this rung: the real body is
+;; hand-translated from vehicle-util.o's machine code (raw L177-L190, 424
+;; instructions). The CFG wall is unchanged and unfixable -- the
+;; four-predecessor join at L186 is genuine, not a config gap -- but the
+;; shape renders goto-free in hand-written GOAL as a three-armed cond plus
+;; fallthrough. Two retail branches remain held on absent callees
+;; (vehicle-section-method-12, setup-blerc-chains); see the note on the
+;; defmethod.
 
 ;; definition for method 11 of type vehicle-section
+;; og:preserve-this vehicle-spawn-chain rung (issue 571): hand-translated
+;; from vehicle-util.o's own machine code (424 instructions, raw L177-L190)
+;; because the decompiler cannot build a CFG here -- a four-predecessor
+;; join at raw L186, swept against 35 blocks_ending_in_asm_branch
+;; configurations with no set resolving it. The raw asm IS the citation for
+;; every claim below; there is no twin (jak2/jak3 both declare
+;; vehicle-section as a one-float structure with 9 methods). Every touched
+;; field resolves to a NAMED field at this lane's current layouts
+;; (vehicle-h.gc): joint-local, hinge-axis, min-angle/max-angle, mass and
+;; cm-offset-joint (both via rbody info), and the rbody/info/node-list
+;; paths on arg0 all checked directly against the landed deftypes before
+;; landing, no dossier-generic name needed renaming.
+;;
+;; Implementer checks: (a) vector-dot is landed in jakx (vector-h.gc:469),
+;; used directly below, no rlet fallback needed. (b) the perp-lever
+;; computation uses the readable vector-algebra shape (vector-dot/vector-!/
+;; vector-float*!), not the byte-faithful fused vmulax/vmaddw rlet: every
+;; primitive it needs is already landed and idiomatic, and the rest of this
+;; body already reads at that same level (vector-cross!, vector-!,
+;; vector-normalize!), so a raw vu rlet here would be the only one of its
+;; kind in the function.
+;;
+;; Two retail branches are intentionally NOT reproduced, both because their
+;; callee does not exist in this port:
+;;   - raw L185's (vehicle-section-method-12 this arg0): declared at
+;;     vehicle-h.gc:123 with no defmethod anywhere, so the dispatch would
+;;     jump to address 0 (kscheme.cpp:1069-1075 zero-fills unimplemented
+;;     slots). Reached only when a section's damage reaches 1.0.
+;;   - raw L186's setup-blerc-chains tail: the symbol does not exist in
+;;     jakx at all (merc-blend-shape.gc is a 21-line stub; no mips2c body
+;;     shipped). The flag lifecycle around it is reproduced exactly so the
+;;     retirement is a one-line edit.
+;; PREREQUISITE: (method 68 vehicle), landed earlier in this same lane
+;; (issue 571 R11's own first commit), is the only writer of (-> section
+;; info); this body dereferences it immediately.
 (defmethod vehicle-section-method-11 ((this vehicle-section) (arg0 vehicle))
-  (none)
+  (with-pp
+    (when (nonzero? (-> this draw))
+      (let* ((dc   (-> this draw))
+             (sinf (-> this info))
+             (dt   (seconds-per-frame))
+             (mat  (new 'stack-no-clear 'matrix))
+             (matq (new 'stack-no-clear 'matrix))
+             (quat (new 'stack-no-clear 'quaternion))
+             )
+        ;; ---- base transform: joint-local x parent bone -----------------
+        (matrix*! mat
+                  (-> sinf joint-local)
+                  (-> arg0 node-list data (-> this parent-node-index) bone transform)
+                  )
+        ;; flag bit 3: adopt the rigid body's world orientation, keep translation
+        (when (logtest? (-> this flags) 8)
+          (set! (-> mat vector 0 quad) (-> arg0 rbody matrix vector 0 quad))
+          (set! (-> mat vector 1 quad) (-> arg0 rbody matrix vector 1 quad))
+          (set! (-> mat vector 2 quad) (-> arg0 rbody matrix vector 2 quad))
+          )
+        ;; ---- hinge rotation ---------------------------------------------
+        (quaternion-vector-angle! quat (-> sinf hinge-axis) (-> this angle))
+        (quaternion->matrix matq quat)
+        (matrix*! mat matq mat)
+
+        ;; ---- publish to the section's draw-control -----------------------
+        (logclear! (-> dc status) (draw-control-status no-draw-temp uninited))
+        (set! (-> dc global-effect) (-> arg0 draw global-effect))
+        ;; flag: bones 3 matches the landed convention elsewhere
+        ;; (process-drawable.gc:489, debris.gc:387), unproven for a
+        ;; section's own skeleton specifically.
+        (let ((bt (-> dc skeleton bones 3 transform)))
+          (set! (-> bt vector 0 quad) (-> mat vector 0 quad))
+          (set! (-> bt vector 1 quad) (-> mat vector 1 quad))
+          (set! (-> bt vector 2 quad) (-> mat vector 2 quad))
+          (set! (-> bt vector 3 quad) (-> mat vector 3 quad))
+          )
+        (let ((tmp (new 'stack-no-clear 'vector)))
+          (set! (-> tmp quad) (-> dc bounds quad))
+          (set! (-> tmp w) 1.0)
+          (vector-matrix*! (-> dc origin) tmp mat)
+          )
+        (set! (-> dc origin w) (-> dc radius))
+
+        ;; ---- damage-driven hinge physics (raw L179..L184) ------------------
+        (cond
+          ((not (< 0.5 (-> this damage))))          ;; raw: fall straight to L186
+          ((< (-> this damage) 1.0)
+           (let ((wpos   (new 'stack-no-clear 'vector))
+                 (waxis  (new 'stack-no-clear 'vector))
+                 ;; flag: raw asm sets lever's w to 1.0; vector-!'s own
+                 ;; docstring implies 0; nothing downstream reads w on
+                 ;; lever, so the discrepancy is inert and not reproduced.
+                 (lever  (new 'stack-no-clear 'vector))
+                 (normal (new 'stack-no-clear 'vector))
+                 (pvel   (new 'stack-no-clear 'vector))
+                 (dvel   (new 'stack-no-clear 'vector))
+                 (force  (new 'stack-no-clear 'vector))
+                 (mass   (-> sinf rbody info mass))
+                 )
+             (vector-matrix*! wpos (-> sinf rbody info cm-offset-joint) mat)
+             (vector-rotate*! waxis (-> sinf hinge-axis) mat)
+             (vector-! lever wpos (-> mat trans))
+             (vector-normalize! lever 1.0)
+             (vector-cross! normal waxis lever)
+             (vector-normalize! normal 1.0)
+
+             (rigid-body-control-method-24 (-> arg0 rbody) wpos pvel)
+             (vector-! dvel pvel (-> this vel))
+             ;; flag: (* -1.0 (/ -1.0 dt) mass) is unambiguously mass/dt;
+             ;; the doubled negation matches the raw asm exactly (raw
+             ;; 193-202) and suggests a lost named intermediate upstream,
+             ;; not a sign error.
+             (vector-float*! force dvel (* -1.0 (/ -1.0 dt) mass))
+             (+! (-> force y) (* -245760.0 mass))   ;; (meters -60) * mass, gravity
+             (set! (-> this vel quad) (-> pvel quad))
+
+             ;; perpendicular lever arm about the hinge axis
+             (let ((perp (new 'stack-no-clear 'vector)))
+               (set! (-> perp quad) (-> sinf rbody info cm-offset-joint quad))
+               (let ((d (vector-dot (-> sinf hinge-axis) perp)))
+                 (vector-! perp perp (vector-float*! (new 'stack-no-clear 'vector)
+                                                     (-> sinf hinge-axis) d))
+                 )
+               (let ((dlen (vector-length perp)))
+                 (+! (-> this d-angle) (* (/ (vector-dot normal force) (* mass dlen)) dt))
+                 )
+               )
+             (set! (-> this d-angle) (* 0.97 (-> this d-angle)))
+             (+! (-> this angle) (* 10430.3789 dt (-> this d-angle)))  ;; rad -> goal angle
+             )
+
+           ;; clamp against the section's own limits; the 4-pred join renders as a cond
+           (when (cond
+                   ((< (-> this angle) (-> sinf min-angle))
+                    (set! (-> this angle) (-> sinf min-angle))
+                    #t
+                    )
+                   ((< (-> sinf max-angle) (-> this angle))
+                    (set! (-> this angle) (-> sinf max-angle))
+                    #t
+                    )
+                   )
+             (let* ((f1 (* 0.015625 (fmax 0.0 (+ -10.0 (fabs (-> this d-angle))))))
+                    (f0 (* f1 f1))
+                    )
+               (when (< 0.0 f0)
+                 (vehicle-section-method-13 this f0)
+                 )
+               )
+             (vehicle-section-method-14 this)
+             (set! (-> this d-angle) (* -0.7 (-> this d-angle)))
+             )
+           )
+          (else
+            ;; raw L185: (if (not (logtest? (-> this flags) 2))
+            ;;               (vehicle-section-method-12 this arg0))
+            ;; HELD: method 12 has no defmethod; the call would dispatch to 0.
+            )
+          )
+
+        ;; ---- blerc tail (raw L186..L190) ------------------------------------
+        (when (and (logtest? (-> this flags) 1)
+                   (not (logtest? (-> dc status) (draw-control-status no-draw)))
+                   )
+          (when (nonzero? (-> dc mgeo header blend-target-count))
+            (let ((weights (new 'stack-no-clear 'array 'int16 8)))
+              ;; flag: literal bound 1, slot 0 immediately overwritten below;
+              ;; degenerate but faithful to the raw asm's own zero loop.
+              (dotimes (i 1)
+                (set! (-> weights i) (the-as int16 0))
+                )
+              (set! (-> weights 0) (the int (* 8192.0 (fmin 1.0 (-> this damage)))))
+              ;; HELD: (setup-blerc-chains (-> dc mgeo) weights
+              ;;         (-> *display* frames (-> *display* on-screen) global-buf))
+              ;; -- symbol does not exist in jakx; blerc is unported in this game.
+              )
+            (logclear! (-> this flags) 1)
+            )
+          )
+        )
+      )
+    0
+    (none)
+    )
   )
 
 ;; og:preserve-this issue 571 R11: hand-translated from raw asm
