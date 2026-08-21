@@ -10377,15 +10377,22 @@
   "local-space-proc-vehicle-turbo": [
     [6, "a0", "(pointer process)"]
   ],
+  // issue 571 R10b: op 16 here (and on vehicle-respawn-invul-init-by-other
+  // below, method 201/213/222/232/233/266 wvehicle further down) is a
+  // logior, not a deref: `(set! v1 (logior a0 v1))` packing the
+  // process->handle idiom (pid << 32) | ppointer before an s.d! into the
+  // vehicle-typed field. int resolves the packed result identically to
+  // uint/handle at this rung's own scoped decode; kept as int with this note
+  // since the choice among the three is not unique from the op alone.
   "vehicle-suppress-look-init-by-other": [
-    [16, "v1", "(pointer process)"]
+    [16, "v1", "int"]
   ],
   "(anon-function 3 wvehicle-util)": [
     [19, "a0", "(pointer process)"],
     [52, "a0", "(pointer process)"]
   ],
   "vehicle-respawn-invul-init-by-other": [
-    [16, "v1", "(pointer process)"],
+    [16, "v1", "int"],
     [37, "a0", "(pointer process)"]
   ],
   "(anon-function 6 wvehicle-util)": [
@@ -10394,10 +10401,10 @@
   "(method 266 wvehicle)": [
     [25, "a0", "(pointer process)"],
     [53, "a0", "(pointer process)"],
-    [79, "v1", "(pointer process)"]
+    [79, "v1", "int"] // issue 571 R10b: logior, see the note on 16 above
   ],
   "(method 222 wvehicle)": [
-    [85, "v1", "(pointer process)"],
+    [85, "v1", "int"], // issue 571 R10b: logior, see the note above
     [140, "a0", "(pointer process)"],
     [157, "a0", "(pointer process)"],
     [210, "a0", "(pointer process)"],
@@ -10416,11 +10423,11 @@
     [738, "a0", "(pointer process)"]
   ],
   "(method 213 wvehicle)": [
-    [64, "v1", "(pointer process)"]
+    [64, "v1", "int"] // issue 571 R10b: logior, see the note above
   ],
   "(method 201 wvehicle)": [
-    [70, "v1", "(pointer process)"],
-    [106, "v1", "(pointer process)"]
+    [70, "v1", "int"], // issue 571 R10b: logior, see the note above
+    [106, "v1", "int"] // issue 571 R10b: logior, same shape as op 70 above
   ],
   "(method 116 wvehicle)": [
     [35, "a0", "(pointer process)"],
@@ -10431,10 +10438,10 @@
     [65, "a0", "(pointer process)"]
   ],
   "(method 233 wvehicle)": [
-    [9, "v1", "(pointer process)"]
+    [9, "v1", "int"] // issue 571 R10b: logior, see the note above
   ],
   "(method 232 wvehicle)": [
-    [10, "v1", "(pointer process)"]
+    [10, "v1", "int"] // issue 571 R10b: logior, see the note above
   ],
   "(method 231 wvehicle)": [
     [7, "a0", "(pointer process)"]

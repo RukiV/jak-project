@@ -424,7 +424,12 @@
     (wvehicle-method-218 (_type_ vehicle-wheel-state vehicle-wheel-info) none) ;; 218
     (wvehicle-method-219 (_type_ vehicle-wheel-state vehicle-wheel-info) none) ;; 219
     (wvehicle-method-220 (_type_) none) ;; 220
-    (wvehicle-method-221 (_type_ object) none) ;; 221
+    ;; og:preserve-this issue 571 R10d: arg0 promoted object -> int. Multiplied
+    ;; against a fixed 288 (`(*.si v1 a1)`, an array-stride index) at the
+    ;; point type prop first fails on this slot's own decode (wvehicle-util
+    ;; object); retyping advances the wall rather than clearing it (further
+    ;; failures noted below at 232).
+    (wvehicle-method-221 (_type_ int) none) ;; 221
     (wvehicle-method-222 (_type_) none) ;; 222
     (wvehicle-method-223 (_type_) none) ;; 223
     ;; og:preserve-this wvehicle-core rung: retyped from the guessed "(object
@@ -439,12 +444,37 @@
     (wvehicle-method-225 (_type_) none) ;; 225
     (wvehicle-method-226 (_type_) none) ;; 226
     (wvehicle-method-227 (_type_) none) ;; 227
-    (wvehicle-method-228 (_type_ object object) none) ;; 228
+    ;; og:preserve-this issue 571 R10d: arg0 promoted object -> vector, arg1
+    ;; object -> int, the identical shape as vehicle-method-149/150. arg0 is
+    ;; passed straight into vector-matrix*! as its output vector (via `info
+    ;; rider attach-point-array`'s own trans field); arg1 is shifted (sll 6,
+    ;; *64 stride) to index that same attach-point-array (this rung's scoped
+    ;; decode, wvehicle-util object).
+    (wvehicle-method-228 (_type_ vector int) none) ;; 228
     (wvehicle-method-229 (_type_ object object) none) ;; 229
     (wvehicle-method-230 (_type_ object) none) ;; 230
-    (wvehicle-method-231 (_type_ object) none) ;; 231
-    (wvehicle-method-232 (_type_ object object) none) ;; 232
-    (wvehicle-method-233 (_type_ object) none) ;; 233
+    ;; og:preserve-this issue 571 R10d: arg0 promoted object -> int. Read as
+    ;; `(l.d (+ (* arg0 8) this 3948))`, an 8-byte-stride index into a handle
+    ;; array at `this`+3948, then handle->process resolved and type-checked
+    ;; against process-focusable; this slot's own decode (wvehicle-util
+    ;; object) already fully resolves once arg0 is int (this rung's scoped
+    ;; decode).
+    (wvehicle-method-231 (_type_ int) none) ;; 231
+    ;; og:preserve-this issue 571 R10d: arg0 promoted object -> int, arg1
+    ;; object -> process-focusable. arg0 is shifted (sll 3, *8 stride) to
+    ;; index the same handle array wvehicle-method-231 reads at `this`+3948;
+    ;; arg1 is null-checked then read at +28 (a type-table style deref) to
+    ;; build the handle stored at that slot, the same shape as
+    ;; wvehicle-method-233 immediately below. Retyping advances the wall
+    ;; rather than clearing it (further failures noted below).
+    (wvehicle-method-232 (_type_ int process-focusable) none) ;; 232
+    ;; og:preserve-this issue 571 R10d: arg0 promoted object -> process-
+    ;; focusable. Null-checked then read at +28 (a type-table style deref)
+    ;; feeding the same handle-construction idiom as 232 immediately above,
+    ;; but against `this`+3948 directly (no separate int index arg); this
+    ;; slot's own decode (wvehicle-util object) resolves cleanly once arg0 is
+    ;; process-focusable (this rung's scoped decode).
+    (wvehicle-method-233 (_type_ process-focusable) none) ;; 233
     (wvehicle-method-234 (_type_) none) ;; 234
     (wvehicle-method-235 (_type_ object object object) none) ;; 235
     (wvehicle-method-236 (_type_) none) ;; 236
@@ -487,7 +517,14 @@
     (wvehicle-method-267 (_type_) none) ;; 267
     (wvehicle-method-268 (_type_ object object) none) ;; 268
     (wvehicle-method-269 (_type_ object) none) ;; 269
-    (wvehicle-method-270 () none) ;; 270
+    ;; og:preserve-this issue 571 R10a: bare () -> (_type_ float object).
+    ;; arg0 is moved gpr->fpr at entry (`(set! f1-0 (gpr->fpr a1-0))`, the
+    ;; same mtc1 raw-bit-pattern idiom already landed on 214 above) and
+    ;; multiplied against a random-vu-scaled constant; arg1 is read via
+    ;; >=0.si before being reassigned, the same sign-check idiom this rung
+    ;; also used on vehicle-method-201 (this rung's scoped decode,
+    ;; wvehicle-util object).
+    (wvehicle-method-270 (_type_ float object) none) ;; 270
     (wvehicle-method-271 (_type_) none) ;; 271
     )
   )

@@ -888,7 +888,24 @@
    ;; vector and lacks :pack-me, the same mechanism already documented on
    ;; vehicle-controls above.
    (sections                        vehicle-section                     12    :inline :offset-assert 1024)
-   (pad-pre-pred                    uint8                                16    :offset-assert 1792)
+   ;; og:preserve-this issue 571 R10f: 8 bytes carved off this pad's front for
+   ;; event-target-handle. Deviates from the brief's suggested "v-flags-3"
+   ;; name/framing (a flag word): this rung's own scoped decode of all 17
+   ;; family sites at this offset (vehicle, vehicle-net, wvehicle-events,
+   ;; wvehicle-util, wvehicle-weapons) shows the identical
+   ;; `(l.d (+ this 1792))` / `(subu-s7 ...)` / zero-check idiom immediately
+   ;; preceding a `send-event-function` call, plus one direct write of #f
+   ;; (vehicle_ir2.asm:372's `(s.d! (+ this 1792) #f)`) -- the standard
+   ;; handle-nil-check-then-forward pattern, not a single AND/OR bitmask site
+   ;; anywhere in the 17. Named after the already-landed `cam-target-handle`
+   ;; field above (offset 752), same `handle` typing, describing what every
+   ;; site actually does with it: resolve to a process and forward an event.
+   ;; The brief cited "37 family-wide l.d/s.d sites"; this rung's own count
+   ;; across vehicle*/wvehicle*-prefixed objects is 17, all this same shape;
+   ;; recorded as a discrepancy against the investigation's own ledger, not
+   ;; resolved further (decode wins per AGENTS.md rule 9/10).
+   (event-target-handle             handle                                      :offset-assert 1792)
+   (pad-pre-pred                    uint8                                8     :offset-assert 1800)
    (pred                            net-predictor-sphcol                :inline :offset-assert 1808)
    (next-reliable-send-time         int32                                       :offset-assert 2116)
    (player-id                       int8                                        :offset-assert 2120)
@@ -1031,8 +1048,19 @@
     (vehicle-method-120 (_type_ object) none) ;; 120 ;; (apply-gravity (_type_ float) none)
     (vehicle-method-121 (_type_) none) ;; 121 ;; (apply-gravity1 (_type_ float) none)
     (vehicle-method-122 (_type_) none) ;; 122 ;; (vehicle-method-122 (_type_) none)
-    (vehicle-method-123 () none) ;; 123 ;; (vehicle-method-123 (_type_) none)
-    (vehicle-method-124 () none) ;; 124 ;; (vehicle-method-124 (_type_) none)
+    ;; og:preserve-this issue 571 R10a: bare () omits the implicit this pointer
+    ;; every method carries. This slot's own decode (wvehicle-util object)
+    ;; reads only a0 (offset 4108 arithmetic against `this`, then a per-section
+    ;; loop at +4268) and never touches a1 or later; the bare () left the
+    ;; decompiler unable to resolve a0 at all ("Function may read a register
+    ;; that is not set: a0"). _type_ restores the implicit arg with no
+    ;; explicit args added (this rung's scoped decode, wvehicle-util object).
+    (vehicle-method-123 (_type_) none) ;; 123
+    ;; og:preserve-this issue 571 R10a: same class as 123 immediately above,
+    ;; same this-only body shape (offset 4108/4268 arithmetic, joint-mod-
+    ;; trans-rot-local dispatch instead of joint-mod-rotate-local), no a1 or
+    ;; later register read (this rung's scoped decode, wvehicle-util object).
+    (vehicle-method-124 (_type_) none) ;; 124
     (vehicle-method-125 (_type_) none) ;; 125 ;; (vehicle-method-125 (_type_) none)
     (vehicle-method-126 (_type_) none) ;; 126 ;; (vehicle-method-126 (_type_) none)
     (vehicle-method-127 (_type_) none) ;; 127 ;; (check-player-get-on (_type_ process-focusable) symbol)
@@ -1099,7 +1127,13 @@
     ;; vehicle-util object).
     (vehicle-method-147 (_type_ vector) none) ;; 147
     (vehicle-method-148 (_type_ object) none) ;; 148 ;; (vehicle-method-148 (_type_) none)
-    (vehicle-method-149 (_type_ object object) none) ;; 149 ;; (vehicle-method-149 (_type_) none)
+    ;; og:preserve-this issue 571 R10d: arg0 promoted object -> vector, arg1
+    ;; object -> int, the identical shape already landed on vehicle-method-150
+    ;; immediately below. arg0 is passed straight into vector-matrix*! as its
+    ;; output vector; arg1 is shifted (sll 4, *16 stride) to index the same
+    ;; `info hardpoint local-pos-array` inline-array vector 150 indexes (this
+    ;; rung's scoped decode, wvehicle-util object).
+    (vehicle-method-149 (_type_ vector int) none) ;; 149
     ;; og:preserve-this issue 571 R7: arg0 promoted object -> vector, arg1
     ;; object -> int. arg1 indexes `info hardpoint local-pos-array` (an
     ;; inline-array vector, sll 4 = *16 stride) and arg0 is passed straight
@@ -1156,9 +1190,25 @@
     (vehicle-method-172 (_type_) none) ;; 172
     (vehicle-method-173 (_type_) none) ;; 173
     (vehicle-method-174 (_type_) none) ;; 174
-    (vehicle-method-175 () none) ;; 175
-    (vehicle-method-176 () none) ;; 176
-    (vehicle-method-177 () none) ;; 177
+    ;; og:preserve-this issue 571 R10a: bare () same class as 123/124 above.
+    ;; This slot's own decode (wvehicle-util object) writes a fixed 3 to
+    ;; `this`+724 then dispatches through `this`+(-4)+680, a this-only vtable
+    ;; forward with no a1 or later register read (this rung's scoped decode,
+    ;; wvehicle-util object).
+    (vehicle-method-175 (_type_) none) ;; 175
+    ;; og:preserve-this issue 571 R10a: bare () -> (_type_ vector). arg0 is
+    ;; fed straight into vector-float*!2 as its source vector (the scaled dst
+    ;; is `this`+3644, the scale a float read off `s6-0 clock`), so arg0 is
+    ;; vector-typed by its own consumer, not just this-only (this rung's
+    ;; scoped decode, wvehicle-util object).
+    (vehicle-method-176 (_type_ vector) none) ;; 176
+    ;; og:preserve-this issue 571 R10a: bare () same class as 123/124/175
+    ;; above. This slot's own decode (wvehicle-util object) never reads a1;
+    ;; the only reported failure is a0 ("Function may read a register that is
+    ;; not set: a0"); a later a1-0 write inside the loop body is a reused
+    ;; scratch register, not a live incoming arg (this rung's scoped decode,
+    ;; wvehicle-util object).
+    (vehicle-method-177 (_type_) none) ;; 177
     (vehicle-method-178 (_type_) none) ;; 178
     (vehicle-method-179 (_type_ object) none) ;; 179
     (vehicle-method-180 (_type_) none) ;; 180 ;; issue 531: wvehicle's own override reads this throughout
@@ -1201,7 +1251,14 @@
     ;; once into `root`+28. Same shape already landed on vehicle-method-111
     ;; above (this rung's scoped decode, vehicle object).
     (vehicle-method-200 (_type_ vector quaternion) none) ;; 200
-    (vehicle-method-201 () none) ;; 201
+    ;; og:preserve-this issue 571 R10a: bare () -> (_type_ object). arg0 is
+    ;; read at raw byte offsets (+268 through +285, an `info`-shaped struct)
+    ;; and once directly sign-checked with >=0.si; no narrower type resolves
+    ;; against those offsets in this rung's scope, but the register-not-set
+    ;; failure this bare () produces ("may read a register that is not set:
+    ;; a1") proves the arg is real and read, not zero (this rung's scoped
+    ;; decode, wvehicle-util object).
+    (vehicle-method-201 (_type_ object) none) ;; 201
     ;; og:preserve-this issue 571 R7: arg0 promoted object -> int. Stored
     ;; directly into `draw force-lod` (an int8 field) and compared with a
     ;; signed less-than against 0 to pick the LOD distance; a plain int, not

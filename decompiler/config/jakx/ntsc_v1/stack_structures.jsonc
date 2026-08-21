@@ -1,4 +1,16 @@
 {
+  // issue 571 R10c: jak3 twin transplant. jak3 wires the same shapes at its
+  // own methods 149 (wvehicle-stack-type2) and 173 (wvehicle-stack-type1);
+  // jakx's ids for the same two vtable slots are 177 and 230. Both land
+  // here on the "Failed to guess stack use for 16" error this rung's own
+  // scoped decode reports for each (method 177 wvehicle):1 and (method 230
+  // wvehicle):2, and the stack-frame sizes agree: method 177's frame is
+  // 0x2e0/696 stack_vars bytes, comfortably fitting type2's 676-byte span;
+  // method 230's frame is 0x80/40 stack_vars bytes, fitting type1's 25-byte
+  // span. Method 230 clears outright; 177 advances past this wall (see the
+  // remaining-errors accounting in this rung's own report).
+  "(method 177 wvehicle)": [[16, "wvehicle-stack-type2"]],
+  "(method 230 wvehicle)": [[16, "wvehicle-stack-type1"]],
   // activate-bar, 3d-menu-elements rung: sp+16 is passed as the trailing
   // arg to run-function-in-process (interface-cam-init-by-other's own
   // side reads it with a 16-byte l.q load), matching a plain vector.
