@@ -19,7 +19,7 @@
 
 ;; definition of type vehicle-weapon-slot
 (deftype vehicle-weapon-slot (process-drawable)
-  ((owning-vehicle  uint64)
+  ((owning-vehicle  handle)
    (ammunition      int8)
    (flags           uint8)
    (in-slot         uint8)
@@ -63,12 +63,11 @@
 
 ;; definition for function v-wpn-base-common-trans
 ;; WARN: Return type mismatch uint vs object.
-;; WARN: .subu (32-bit) used on a uint at idx 1. This probably should be a handle.
 (defbehavior v-wpn-base-common-trans vehicle-weapon-slot ()
   (let* ((v1-0 (-> self owning-vehicle))
          (gp-0
-           (and (nonzero? (l32-false-check v1-0)) (let ((a0-2 (-> (the-as (pointer process) (.asm.sllv.r0 v1-0)) 0)))
-                                                    (if (= (sar v1-0 32) (-> a0-2 pid))
+           (and (nonzero? (l32-false-check v1-0)) (let ((a0-2 (-> (the-as (pointer process) (-> v1-0 process)) 0)))
+                                                    (if (= (-> v1-0 pid) (-> a0-2 pid))
                                                         a0-2
                                                         )
                                                     )
