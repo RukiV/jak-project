@@ -5520,6 +5520,42 @@ drive/camera logic below ever runs."
   ;; Gated on *jakx-racer* inside the tick itself, like its neighbors above.
   (jakx-racer-tick)
   (update-level-inside-boxes this)
+  ;; og:preserve-this gui/art pump, gui-art pump lane (issues 522/550/551):
+  ;; jak3's own level-update runs a four-call pump block here (level.gc:
+  ;; 3572-3576, (update *setting-control*) (update *gui-control* #t)
+  ;; (update *art-control* #t) (clear-rec *art-control*)); jakx's landed
+  ;; level-update omitted it entirely, so nothing pumped the gui or art
+  ;; state machines and any queued gui connection (the scene-player's
+  ;; art-load requests among them) sat at birth status forever. This
+  ;; rung's own scoped decode of jakx's own retail level-update (level.o's
+  ;; ir2, ops 8-28) confirms three of jak3's own four calls at the
+  ;; identical relative position and settles their real jakx argument
+  ;; shapes directly from the machine code, not copied from jak3's twin:
+  ;;
+  ;; - setting-control-method-24 (ops 8-11, vtable offset 112, zero args
+  ;;   beyond this): jakx has not aliased this method "update" the way
+  ;;   jak3 has, so it is called by its own landed name here, matching its
+  ;;   own existing landed caller (main.gc's display-loop init, issue
+  ;;   550/551's own grep found no other jakx caller before this one).
+  ;;   Already landed (settings.gc), safe to wire.
+  ;; - external-art-control's own update (ops 19-23, vtable offset 52, one
+  ;;   explicit arg, #t): landed this same rung (loader.gc).
+  ;; - clear-rec (ops 25-28, vtable offset 56, zero explicit args): already
+  ;;   landed.
+  ;;
+  ;; gui-control-method-13 (ops 13-17, vtable offset 68) is NOT wired: its
+  ;; own body stays held (loader.gc's own og:preserve-this note on that
+  ;; method has the full evidence) because it unconditionally dispatches
+  ;; the walled gui-control-method-23, and independently, this exact call
+  ;; site's own second argument register (a2) is never set before the
+  ;; jalr ("a2: <uninitialized>" per the decompiler's own dataflow),
+  ;; leaving no settled value to pass even if the callee were safe.
+  ;; *gui-control* and *art-control* are both bound at link (loader.gc's
+  ;; own og:preserve-this notes on their global instances); no nonzero?
+  ;; guard here, matching retail, which has none either.
+  (setting-control-method-24 *setting-control*)
+  (update *art-control* #t)
+  (clear-rec *art-control*)
   (update! *load-state*)
   ;; og:preserve-this vis-self-index reset, hand-ported from jak3's level-update
   ;; (goal_src/jak3/engine/level/level.gc:3662-3667), which zeroes it for every
