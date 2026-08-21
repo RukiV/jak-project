@@ -103,14 +103,19 @@
 ;; og:preserve-this function collide-list-fill-bg-using-box is deferred, not
 ;; landed. Compiles clean through offline-test's narrower context (which does not
 ;; exercise the full game.gp rlet/macro environment), but (mi) rejects it: past a
-;; hand-corrected matrix4h vector4h/long tie (same class as main-collide's
+;; matrix4h vector4h/long offset-0 tie (same class as main-collide's
 ;; instance-sphere-box-intersect?, fixed the same way there), vitof12.xyzw fails
-;; with "No method or function named vitof12.xyzw for type object", meaning some
-;; vf register in this function's own VU macro block is missing its rlet :class vf
-;; declaration in the printed text. The decompiler's own decode does not flag this
-;; as a decode error (it is a real compile-time gap, not a decode ambiguity), so
-;; the earlier partial hand-fix is not enough on its own; reverted to fully
-;; deferred rather than land a function proven not to compile under (mi).
+;; with "No method or function named vitof12.xyzw for type object". The old text
+;; here blamed a missing rlet :class vf declaration in this function's own VU
+;; macro block; that theory was wrong -- the vf registers are declared here, same
+;; as convert-eye-data's pair. The real cause was that jakx's
+;; engine/ps2/vu1-macros.gc did not register the vitof trio at all, and PR #317
+;; ports it verbatim from jak3, so the macro half of this blocker is now
+;; resolved. The decompiler's own decode does not flag this as a decode error (it
+;; is a real compile-time gap, not a decode ambiguity). The remaining blocker is
+;; the offset-0 tie class above, which gates this function independently of the
+;; macros; reverted to fully deferred rather than land a function still proven
+;; not to compile under (mi).
 ;;   (defun collide-list-fill-bg-using-box ((arg0 collide-cache) (arg1 collide-list) (arg2 collide-query))
 ;;     ...
 ;;     )
@@ -120,8 +125,9 @@
 ;; passes this symbol by name as fill-from-bg's own arg1 callback, the same
 ;; shape as jak3's own twin. That call site is unreachable today (method 12's
 ;; own vtable target, collide-cache-method-18/fill-from-bg, is itself held),
-;; so this stays a bare declaration, not a landing; retire this note once the
-;; vitof12.xyzw gap above is fixed and the real defun replaces it.
+;; so this stays a bare declaration, not a landing. The vitof12.xyzw gap above
+;; is fixed by #317; the remaining blocker is the offset-0 tie class, so keep
+;; this note until that tie is resolved and the real defun replaces it.
 (define-extern collide-list-fill-bg-using-box (function collide-cache collide-list collide-query none))
 
 
