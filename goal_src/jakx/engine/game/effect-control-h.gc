@@ -51,3 +51,38 @@
     (play-effects-from-res-lump (_type_ float float float) none)
     )
   )
+
+;; og:preserve-this issue 559/562: this type declared (new (symbol type process-drawable) _type_)
+;; with no defmethod new anywhere in goal_src, so slot 0 fell through to basic's C new_basic, whose
+;; extra-argument parameter is dropped (kscheme.cpp:170-172), returning a zeroed object instead of
+;; retail's initialized one. A zeroed object is not #f, so it silently defeated every downstream #f
+;; guard; the first ja-post on the first skeletal actor birthed within range then read a null
+;; process field off it and crashed (effect-control-method-9's (-> this process skel), machine
+;; +0xc4, effect-control.gc:116). Landed verbatim from a fresh scoped decode, byte-identical to
+;; effect-control-h_REF.gc:46-70, jak3-parity (jak3 effect-control-h.gc:59-71). effect-control is
+;; the dangerous member of the declared-new-without-defmethod class issue 562 tracks: its declared
+;; new takes an extra constructor argument (process-drawable) that new_basic silently drops.
+
+;; definition for method 0 of type effect-control
+(defmethod new effect-control ((allocation symbol) (type-to-make type) (arg0 process-drawable))
+  (cond
+    ((res-lump-struct (-> arg0 draw jgeo extra) 'effect-name structure)
+     (let ((v0-1 (object-new allocation type-to-make (the-as int (-> type-to-make size)))))
+       (set! (-> v0-1 process) arg0)
+       (set! (-> v0-1 last-frame-group) #f)
+       v0-1
+       )
+     )
+    (else
+      (the-as effect-control #f)
+      )
+    )
+  )
+
+;; definition for method 13 of type effect-control
+;; WARN: Return type mismatch int vs none.
+(defmethod set-channel-offset! ((this effect-control) (offset int))
+  (set! (-> this channel-offset) offset)
+  0
+  (none)
+  )
