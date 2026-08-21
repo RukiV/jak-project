@@ -146,3 +146,225 @@
     (net-world-method-86 (_type_ object) none) ;; 86
     )
   )
+
+;; og:preserve-this vehicle-spawn-chain rung (issue 571): lands only the two
+;; pieces the spawn chain itself needs from this object's clean 1,339-line
+;; decode. net-player-name, prebuilt-ai-vehicle and *prebuilt-ai-vehicles*
+;; sit between the landed net-world block above and net-vehicle below in the
+;; retail decode order but are untouched by this rung; *net-drivers* comes
+;; right after net-vehicle's own static array. All three stay held:
+;; *prebuilt-ai-vehicles* and *net-drivers* both decode to an unresolved
+;; <static-data LN> blob (an unsized label the decompiler could not size),
+;; and none of them are read anywhere on vehicle-spawn's call path.
+;; definition of type net-vehicle
+(deftype net-vehicle (structure)
+  ((id          uint32)
+   (name        symbol)
+   (levname     symbol)
+   (vt          uint8)
+   (ct          int8)
+   (tex-name    string)
+   (sound-bank  symbol)
+   (index       int8)
+   (cup-mask    uint32)
+   (id-variant  uint32)
+   (ai-levels   (array symbol))
+   )
+  )
+
+;; definition for symbol *net-vehicles*, type (array net-vehicle)
+(define *net-vehicles* (new 'static 'boxed-array :type net-vehicle
+                         (new 'static 'net-vehicle
+                           :id #x600
+                           :name 'falcon
+                           :levname 'falcl
+                           :vt #x1
+                           :ct 1
+                           :tex-name "icon-car-falcon-01"
+                           :sound-bank 'falc
+                           :cup-mask #x80
+                           :id-variant #xcf0
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x719
+                           :name 'possum
+                           :levname 'possl
+                           :vt #x3
+                           :ct 3
+                           :tex-name "icon-car-possum-01"
+                           :sound-bank 'poss
+                           :index 1
+                           :cup-mask #x80
+                           :id-variant #xcf9
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x715
+                           :name 'bobcat
+                           :levname 'bobcl
+                           :vt #x4
+                           :ct 4
+                           :tex-name "icon-car-bobcat-01"
+                           :sound-bank 'bobc
+                           :index 2
+                           :cup-mask #x80
+                           :id-variant #xced
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x716
+                           :name 'cougar
+                           :levname 'cougl
+                           :vt #x5
+                           :ct 5
+                           :tex-name "icon-car-cougar-01"
+                           :sound-bank 'coug
+                           :index 3
+                           :cup-mask #x80
+                           :id-variant #xcef
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x60e
+                           :name 'wombat
+                           :levname 'wombl
+                           :vt #x2
+                           :ct 2
+                           :tex-name "icon-car-wombat-01"
+                           :sound-bank 'womb
+                           :index 4
+                           :cup-mask #x100
+                           :id-variant #xd02
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x709
+                           :name 'leopard
+                           :levname 'leopl
+                           :vt #x8
+                           :ct 8
+                           :tex-name "icon-car-leopard-01"
+                           :sound-bank 'leop
+                           :index 5
+                           :cup-mask #x100
+                           :id-variant #xcf4
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x717
+                           :name 'wolf
+                           :levname 'wolfl
+                           :vt #x6
+                           :ct 6
+                           :tex-name "icon-car-wolf-01"
+                           :sound-bank 'wolf
+                           :index 6
+                           :cup-mask #x100
+                           :id-variant #xd01
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x70a
+                           :name 'panther
+                           :levname 'pantl
+                           :vt #x9
+                           :ct 9
+                           :tex-name "icon-car-panther-01"
+                           :sound-bank 'pant
+                           :index 7
+                           :cup-mask #x100
+                           :id-variant #xcf7
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x70b
+                           :name 'tiger
+                           :levname 'tigel
+                           :vt #xa
+                           :ct 10
+                           :tex-name "icon-car-tiger-01"
+                           :sound-bank 'tige
+                           :index 8
+                           :cup-mask #x200
+                           :id-variant #xcfd
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x718
+                           :name 'bear
+                           :levname 'bearl
+                           :vt #x7
+                           :ct 7
+                           :tex-name "icon-car-bear-01"
+                           :sound-bank 'bear
+                           :index 9
+                           :cup-mask #x200
+                           :id-variant #xcec
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #xd2f
+                           :name 'gila
+                           :levname 'gilal
+                           :vt #xc
+                           :ct 12
+                           :tex-name "icon-car-gila-01"
+                           :sound-bank 'gila
+                           :index 10
+                           :cup-mask #x200
+                           :id-variant #xd30
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x70c
+                           :name 'cheetah
+                           :levname 'cheel
+                           :vt #xb
+                           :ct 11
+                           :tex-name "icon-car-cheetah-01"
+                           :sound-bank 'chee
+                           :index 11
+                           :cup-mask #x200
+                           :id-variant #xcee
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x70f
+                           :name 'snake
+                           :levname 'snakl
+                           :vt #xd
+                           :ct 13
+                           :tex-name "icon-car-snake-01"
+                           :sound-bank 'snak
+                           :index 12
+                           :cup-mask #x400
+                           :id-variant #xcfb
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #x5ff
+                           :name 'mongoose
+                           :levname 'mongl
+                           :tex-name "icon-car-mongoose-01"
+                           :sound-bank 'mong
+                           :index 13
+                           :cup-mask #x400
+                           :id-variant #xcf6
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         (new 'static 'net-vehicle
+                           :id #xe3b
+                           :name 'daxtermobile
+                           :levname 'daxtl
+                           :vt #xe
+                           :ct 14
+                           :tex-name "icon-car-daxtermobile-01"
+                           :sound-bank 'daxt
+                           :index 14
+                           :cup-mask #x400
+                           :id-variant #xe3c
+                           :ai-levels (new 'static 'boxed-array :type symbol :length 0 :allocated-length 4)
+                           )
+                         )
+        )
