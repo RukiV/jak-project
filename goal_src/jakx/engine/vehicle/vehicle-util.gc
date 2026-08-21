@@ -364,6 +364,50 @@
     )
   )
 
+;; og:preserve-this issue 571 (the falcon-panels rung continues): this is
+;; the fix for the spawn-crash regression (method 68 vehicle)'s own landing
+;; introduced. (method 68 vehicle)'s retail-faithful tail dispatch
+;; ((method-of-type rigid-body-vehicle-constants
+;; rigid-body-vehicle-constants-method-10) (-> this info)) below reaches
+;; this slot (declared vehicle-h.gc:651, :method-count-assert 11 against
+;; the parent's 10, kernel zero-fills any slot with no defmethod) on every
+;; single spawn, because rigid-body-object.gc:172's
+;; (rigid-body-object-method-68 this (the-as rigid-body-object-constants
+;; arg0) #t) always passes #t as the guard arg. The body below is retail's
+;; own asm, restated verbatim (spawninv-raw/jakx/vehicle-util.asm:4836-4849;
+;; task-output files read empty to other agents, so this is the only
+;; surviving citation):
+;;   lw v1, *vehicle-particle-common-info*(s7)
+;;   sw v1, 3256(a0)               ; particle-common@3256 (vehicle-h.gc:641)
+;;   lwu a0, 3256(a0)
+;;   lw v1, vehicle-particle-common-info(s7)
+;;   lwu t9, 52(v1)                ; method (52-16)/4 = 9
+;;   jalr ra, t9
+;; Both callees are already landed and link before this file: the symbol
+;; *vehicle-particle-common-info* (vehicle-effects.gc:121) and
+;; vehicle-particle-common-info-method-9 (vehicle-effects.gc:78, pure field
+;; assignments, no unlanded dispatch of its own) -- game.gd links
+;; vehicle-effects.o at 478 before vehicle-util.o at 481. Two further
+;; siblings off the same canonical spawn path (vehicle-manager.gc's
+;; vehicle-init-by-other) are flag/behavior-gated and still dodge this
+;; landing: vehicle-method-177 (flags bit 2, vehicle-manager.gc:417) and
+;; vehicle-method-184 (behavior nonzero, vehicle-manager.gc:426); neither
+;; fires on the falcon's own canonical spawn.
+;; Signature check: vehicle-h.gc:651 declares (_type_) none, matching
+;; all-types.gc's own live (resurrected) deftype (line 53859's :methods).
+;; A dead, commented-out duplicate deftype block earlier in that same file
+;; (line 53822) still carries the pre-retype () arity -- pre-existing
+;; noise this rung does not touch.
+;;
+;; definition for method 10 of type rigid-body-vehicle-constants
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-vehicle-constants-method-10 ((this rigid-body-vehicle-constants))
+  (set! (-> this particle-common) *vehicle-particle-common-info*)
+  (vehicle-particle-common-info-method-9 (-> this particle-common))
+  0
+  (none)
+  )
+
 ;; og:preserve-this issue 571 R11: hand-translated from raw asm
 ;; (vehicle-util.asm:4581-4684, ~104 instructions), the twin-less
 ;; convention -- this worktree's own scoped decode of this file walls the
