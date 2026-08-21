@@ -7542,12 +7542,13 @@ take the nearest one (a continue-point-count-scarcity problem the origin issue
 root-caused the icelands dead zone to -- the whole circuit has exactly two usable
 continues). It now reads real level geometry from the generated *jakx-level-bounds*
 table above (drawable-tree BVH bounding spheres, K-means clustered by
-scripts/jakx/gen_level_bounds.py) every 30 frames: the nearest built tiny-center level
-picks the active family (a HARD filter -- family-id comes from the co-want graph's
-connected components, never from geometry, since armed families overlap in coordinate
-space; see that script's header for why), then the two nearest built 'tiny members of
-that same family are held, swapping the farther for a nearer non-member only when the
-non-member beats it by the existing 1.4x hysteresis factor. Composes with R1:
+scripts/jakx/gen_level_bounds.py) every 30 frames: the active family is picked by
+scoring built tiny/tiny-center MEMBERS, not tiny-center rows directly (issue 581; see
+below), a HARD filter -- family-id comes from the co-want graph's connected
+components, never from geometry, since armed families overlap in coordinate space; see
+that script's header for why), then the two nearest built 'tiny members of that same
+family are held, swapping the farther for a nearer non-member only when the non-member
+beats it by the existing 1.4x hysteresis factor. Composes with R1:
 jakx-level-name-built? gates every candidate against the same generated
 *jakx-built-levels* allowlist jakx-continue-buildable? uses. Continue points are no
 longer the selection index but are kept as the boot seed (`play`'s boot-cp arming path)
@@ -7555,7 +7556,22 @@ and as a richness donor: *jakx-want-driver-cp* still gets set, via
 jakx-nearest-continue-in-family, to the nearest buildable continue in whichever family
 the geometry just picked, so the vehicle-type/sound-adjacent bring-up code that reads it
 keeps working unchanged. *jakx-want-driver-level* is new: the current primary (tiny-center)
-level symbol, used to detect a family change from one tick to the next."
+level symbol, used to detect a family change from one tick to the next.
+
+Issue 581: pass 1 originally scored the tiny-center row itself, and point-to-sphere
+distance systematically favors coarse-clustered families (few large spheres -- krasw's
+8 clusters at 300-580m radii) over fine ones (icew's many small real spheres) even when
+the fine family's own territory is where the camera actually sits: at iced-start krasw
+scored 1224m to icew's 1715m though the camera sat inside an iced cluster, so
+family-changed below tripped on every single tick and the swap arm's 1.4x rule never
+ran, the whole circuit stuck rescoring the same dead bootstrap forever. The fix scores
+every built tiny/tiny-center member whose family owns a built tiny-center at all, takes
+the family of the nearest such member, then re-selects that family's own nearest built
+tiny-center. Hysteresis on this scan was measured and rejected: the krasw flip at
+iced-start survives the swap arm's 1.4x factor by only 0.08%. Honest limit: family
+attribution stays ill-posed in overlap zones -- 57 mis-attributions under the old rule
+fall to 41 under this one, across 128 sampled member positions; a residency preference
+would close more of those and is deliberately not added here."
   (when *jakx-campath-record*
     (+! *jakx-campath-frame* 1)
     (when (>= *jakx-campath-frame* 20)
@@ -7577,19 +7593,51 @@ level symbol, used to detect a family change from one tick to the next."
                 (best-center (the jakx-level-bound #f))
                 (best-center-d 1000000000000000000.0)
                 )
-            ;; pass 1: the nearest built tiny-center picks the active family. No
-            ;; hysteresis here -- there is one tiny-center per family and they sit far
-            ;; enough apart that the oscillation risk the swap rule's 1.4x factor guards
-            ;; against below is not a concern at this level.
-            (dotimes (i (-> *jakx-level-bounds* length))
-              (let ((lb (-> *jakx-level-bounds* i)))
-                (when (and (= (-> lb memory-mode) 'tiny-center)
-                           (jakx-level-name-built? (-> lb name))
-                           )
-                  (let ((d (jakx-level-bound-dist lb cam)))
-                    (when (< d best-center-d)
-                      (set! best-center-d d)
-                      (set! best-center lb)
+            ;; pass 1 (issue 581 fix, see the docstring above): score the family a
+            ;; candidate member belongs to, not the tiny-center row directly, then take
+            ;; that family's own nearest built tiny-center as best-center. Restricting
+            ;; the family scan to members whose family owns a built tiny-center avoids
+            ;; ever landing on a family with none to select below.
+            (let ((best-family (the int32 -1)) (best-family-d 1000000000000000000.0))
+              (dotimes (i (-> *jakx-level-bounds* length))
+                (let ((lb (-> *jakx-level-bounds* i)))
+                  (when (and (or (= (-> lb memory-mode) 'tiny) (= (-> lb memory-mode) 'tiny-center))
+                             (jakx-level-name-built? (-> lb name))
+                             )
+                    (let ((fam (-> lb family-id)) (has-center #f))
+                      (dotimes (j (-> *jakx-level-bounds* length))
+                        (let ((cb (-> *jakx-level-bounds* j)))
+                          (if (and (= (-> cb memory-mode) 'tiny-center)
+                                   (= (-> cb family-id) fam)
+                                   (jakx-level-name-built? (-> cb name))
+                                   )
+                              (set! has-center #t)
+                              )
+                          )
+                        )
+                      (when has-center
+                        (let ((d (jakx-level-bound-dist lb cam)))
+                          (when (< d best-family-d)
+                            (set! best-family-d d)
+                            (set! best-family fam)
+                            )
+                          )
+                        )
+                      )
+                    )
+                  )
+                )
+              (dotimes (i (-> *jakx-level-bounds* length))
+                (let ((lb (-> *jakx-level-bounds* i)))
+                  (when (and (= (-> lb memory-mode) 'tiny-center)
+                             (= (-> lb family-id) best-family)
+                             (jakx-level-name-built? (-> lb name))
+                             )
+                    (let ((d (jakx-level-bound-dist lb cam)))
+                      (when (< d best-center-d)
+                        (set! best-center-d d)
+                        (set! best-center lb)
+                        )
                       )
                     )
                   )
