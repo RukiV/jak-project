@@ -7106,87 +7106,29 @@
   )
 
 ;; definition for method 18 of type gui-control
-;; ERROR: failed type prop at 42: Could not figure out load: (set! v1 (l.d (+ v0 244)))
-(defmethod gui-control-method-18 ((a0-0 gui-control) (a1-0 gui-channel))
-  (local-vars
-    (v0-0 process)
-    (v0-1 process)
-    (v0-2 symbol)
-    (v1-0 gui-channel)
-    (v1-1 external-art-control)
-    (v1-2 uint)
-    (v1-3 uint)
-    (v1-4 symbol)
-    (v1-5 symbol)
-    (v1-6 external-art-control)
-    (v1-7 uint)
-    (v1-8 uint)
-    (v1-9 symbol)
-    (v1-10 symbol)
-    (v1-11 none)
-    (v1-12 none)
-    (a0-1 gui-channel)
-    (a0-2 symbol)
-    (a0-3 gui-channel)
-    (a0-4 symbol)
-    (a0-5 int)
-    (a0-6 symbol)
-    (a1-1 symbol)
-    (a1-2 symbol)
-    (a1-3 gui-channel)
-    (t9-0 (function process))
-    (t9-1 (function process))
-    (gp-0 symbol)
-    (gp-1 symbol)
-    )
-  (cond
-    ((begin
-       (or (begin (set! v1-0 a1-0) (set! a0-1 (+ v1-0 -67)) (set! a1-1 (zero? a0-1)) a1-1)
-           (begin (set! a0-3 (+ v1-0 -68)) (set! a1-2 (zero? a0-3)) a1-2)
-           (begin (set! a1-3 (+ v1-0 -71)) (set! a0-2 (zero? a1-3)))
-           )
-       a0-2
-       )
-     (or (begin
-           (set! v1-1 *art-control*)
-           (set! v1-2 (-> v1-1 frame-mask))
-           (set! v1-3 (logand v1-2 28))
-           (nonzero? v1-3)
-           )
-         (begin (set! v1-5 *master-mode*) (set! a0-4 'game) (set! v1-4 (!= v1-5 a0-4)))
+;; WARN: Return type mismatch object vs symbol.
+;; WARN: disable def twice: 34. This may happen when a cond (no else) is nested inside of another conditional, but it should be rare.
+(defmethod gui-control-method-18 ((this gui-control) (arg0 gui-channel))
+  (let ((v1-0 arg0))
+    (the-as
+      symbol
+      (cond
+        ((or (= v1-0 (gui-channel message)) (= v1-0 (gui-channel notice)) (= v1-0 (gui-channel notice-low)))
+         (not (or (logtest? (-> *art-control* frame-mask) 28) (!= *master-mode* 'game)))
          )
-     (set! gp-0 (not v1-4))
-     )
-    (else
-      (if (begin (set! a0-5 66) (= v1-0 a0-5))
-          (and (begin
-                 (or (begin
-                       (set! v1-6 *art-control*)
-                       (set! v1-7 (-> v1-6 frame-mask))
-                       (set! v1-8 (logand v1-7 28))
-                       (nonzero? v1-8)
-                       )
-                     (begin (set! v1-10 *master-mode*) (set! a0-6 'game) (set! v1-9 (!= v1-10 a0-6)))
-                     )
-                 (not v1-9)
-                 )
-               (and (begin (set! t9-0 view-get-active-target) (set! v0-0 (call!)) v0-0)
-                    (begin
-                      (set! gp-1 #t)
-                      (set! t9-1 view-get-active-target)
-                      (set! v0-1 (call!))
-                      (set! v1-11 (the-as none (l.d (+ v0-1 244))))
-                      (set! v1-12 (the-as none (logand v1-11 66)))
-                      (cmove-#f-nonzero gp-0 v1-12 gp-1)
-                      )
-                    )
-               )
-          (set! gp-0 (the-as symbol #t))
+        ((= v1-0 (gui-channel query))
+         (and (not (or (logtest? (-> *art-control* frame-mask) 28) (!= *master-mode* 'game)))
+              (and (view-get-active-target)
+                   (not (logtest? (-> (the-as process-focusable (view-get-active-target)) focus-status) (focus-status dead hit)))
+                   )
+              )
+         )
+        (else
+          #t
           )
+        )
       )
     )
-  (set! v0-2 gp-0)
-  (ret-value v0-2)
   )
 
 ;; definition for method 24 of type gui-control
