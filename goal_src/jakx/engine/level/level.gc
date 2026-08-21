@@ -7387,7 +7387,7 @@ frame."
   (none)
   )
 
-(defun jakx-want-slide-safe? ((cand continue-point))
+(defun jakx-want-slide-safe? ((cand-names (pointer symbol)) (cand-count int))
   "og:preserve-this bring-up guard: refuse a slide whose want set would evict a section
 the camera is inside. Proven live on icelands (2026-08-12): ice-icea-1's two-entry want
 set evicted iced at the border, deactivate(kill) under the racer, because want-levels'
@@ -7395,7 +7395,14 @@ name diff discards anything the new set omits. A slide may only fire once every 
 window member the camera is inside-boxes? of survives into the candidate's set, so
 evictions happen behind the racer, never underneath. The 2026-08-12 net-world decode
 proved retail has no mid-race slide to inherit this rule from: races stage one want set
-via wait-for-levels and never move it, so border safety is this driver's own problem."
+via wait-for-levels and never move it, so border safety is this driver's own problem.
+
+Issue 550 rung R6 retired the continue-point candidate this took (the driver no longer
+selects by continue): cand-names/cand-count are the plain window it is about to commit
+(tiny-center, tiny0, tiny1). The swap rule that produces that window provably implies
+this guard already (0 refusals in 33 simulated swap attempts, design comment), so this
+stays wired in as a belt-and-braces assertion rather than the load-bearing gate it used
+to be."
   (let ((safe #t))
     (dotimes (i 6)
       (let ((cur-name (-> *load-state* want i name)))
@@ -7407,8 +7414,8 @@ via wait-for-levels and never move it, so border safety is this driver's own pro
                          (-> lev inside-boxes?)
                          )
                 (let ((kept #f))
-                  (dotimes (k (min 4 (the int (-> cand want-count))))
-                    (if (= (-> cand want k name) cur-name)
+                  (dotimes (k cand-count)
+                    (if (= (-> cand-names k) cur-name)
                         (set! kept #t)
                         )
                     )
@@ -7426,6 +7433,101 @@ via wait-for-levels and never move it, so border safety is this driver's own pro
     )
   )
 
+(defun jakx-level-name-built? ((name symbol))
+  "og:preserve-this buildability check (issue 550 rung R1/R6): linear scan of the
+generated *jakx-built-levels* allowlist above. Same scan jakx-continue-buildable? does
+per want slot, factored out here so the geometry selection below (which checks
+buildability per CANDIDATE LEVEL, not per continue) does not duplicate it inline."
+  (let ((found #f))
+    (dotimes (i (-> *jakx-built-levels* length))
+      (if (= (-> *jakx-built-levels* i) name)
+          (set! found #t)
+          )
+      )
+    found
+    )
+  )
+
+(defun jakx-find-level-bound ((name symbol))
+  "og:preserve-this row lookup (issue 550 rung R6): linear scan of the generated
+*jakx-level-bounds* table above for the row matching `name`, or #f. The table is under
+400 entries and this runs a handful of times per 30-frame tick, not per frame."
+  (let ((found (the jakx-level-bound #f)))
+    (dotimes (i (-> *jakx-level-bounds* length))
+      (if (= (-> (-> *jakx-level-bounds* i) name) name)
+          (set! found (-> *jakx-level-bounds* i))
+          )
+      )
+    found
+    )
+  )
+
+(defun jakx-level-bound-dist ((lb jakx-level-bound) (p vector))
+  "og:preserve-this distance primitive (issue 550 rung R6 design): d(L, p) = min over the
+row's K clustered bounding spheres of |sphere-center - p| - sphere-radius, clamped at 0
+(inside any sphere counts as distance 0, never negative)."
+  (let ((best 1000000000000000000.0))
+    (dotimes (i (-> lb sphere-count))
+      (let* ((s (-> lb spheres i))
+             (dx (- (-> s x) (-> p x)))
+             (dy (- (-> s y) (-> p y)))
+             (dz (- (-> s z) (-> p z)))
+             (d (- (sqrtf (+ (* dx dx) (* dy dy) (* dz dz))) (-> s w)))
+             )
+        (when (< d best)
+          (set! best d)
+          )
+        )
+      )
+    (fmax 0.0 best)
+    )
+  )
+
+(defun jakx-nearest-continue-in-family ((family int) (p vector))
+  "og:preserve-this richness-donor lookup (issue 550 rung R6): the nearest buildable
+continue point whose owning level's family-id matches `family`, or #f. *jakx-want-driver-cp*
+no longer drives window selection (jakx-want-driver-tick below does that from
+*jakx-level-bounds* geometry), but other bring-up code still reads it -- vehicle type,
+the boot-cp arming path in `play`, jakx-racer-tick, jakx-cam-fly-tick -- so the driver
+keeps it populated as a representative continue for whichever family the geometry
+selected. Walk structure mirrors jakx-cam-fly-tick's *level-load-list* walk above."
+  (let ((best (the continue-point #f))
+        (best-d 1000000000000000000.0)
+        )
+    (let ((lst *level-load-list*))
+      (while (not (null? lst))
+        (let* ((info (the-as level-load-info (-> (the-as symbol (car lst)) value)))
+               (conts (-> info continues))
+               )
+          (while (not (null? conts))
+            (let ((cp (the-as continue-point (car conts))))
+              (when (jakx-continue-buildable? cp)
+                (let ((lb (jakx-find-level-bound (-> cp level))))
+                  (when (and lb (= (-> lb family-id) family))
+                    (let* ((dx (- (-> cp trans x) (-> p x)))
+                           (dy (- (-> cp trans y) (-> p y)))
+                           (dz (- (-> cp trans z) (-> p z)))
+                           (d (+ (* dx dx) (* dy dy) (* dz dz)))
+                           )
+                      (when (or (not best) (< d best-d))
+                        (set! best cp)
+                        (set! best-d d)
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            (set! conts (cdr conts))
+            )
+          )
+        (set! lst (cdr lst))
+        )
+      )
+    best
+    )
+  )
+
 (defun jakx-want-driver-tick ()
   "og:preserve-this bring-up want driver for free exploration of the section families.
 An earlier docstring claimed retail refreshes wants from race position through
@@ -7434,15 +7536,27 @@ continue block is an empty-bodied guard, set-continue! never touches wants, and 
 stage their window once through net-world (task-selected continue, method 76,
 check-start-load, wait-for-levels) with no positional input anywhere. Free exploration
 of the w-families therefore has no retail mechanism to port, and this driver is the
-authored stand-in: every 30 frames pick the continue point nearest the active camera
-whose whole want set is buildable and apply its want set when it changes, guarded by
-jakx-want-slide-safe? above; update! then streams the section window. The candidate
-filter used to pin :level to the boot continue's own family, since only built DGO
-want sets are safe to request; issue 550 supersedes that pin with
-jakx-continue-buildable? against the generated *jakx-built-levels* allowlist above,
-so the same safety property (only built want sets are ever requested) now holds
-across family boundaries instead of inside just the one the boot happened to land
-in."
+authored stand-in.
+
+Issue 550 rung R6 replaced the SELECTION index: this used to walk continue points and
+take the nearest one (a continue-point-count-scarcity problem the origin issue
+root-caused the icelands dead zone to -- the whole circuit has exactly two usable
+continues). It now reads real level geometry from the generated *jakx-level-bounds*
+table above (drawable-tree BVH bounding spheres, K-means clustered by
+scripts/jakx/gen_level_bounds.py) every 30 frames: the nearest built tiny-center level
+picks the active family (a HARD filter -- family-id comes from the co-want graph's
+connected components, never from geometry, since armed families overlap in coordinate
+space; see that script's header for why), then the two nearest built 'tiny members of
+that same family are held, swapping the farther for a nearer non-member only when the
+non-member beats it by the existing 1.4x hysteresis factor. Composes with R1:
+jakx-level-name-built? gates every candidate against the same generated
+*jakx-built-levels* allowlist jakx-continue-buildable? uses. Continue points are no
+longer the selection index but are kept as the boot seed (`play`'s boot-cp arming path)
+and as a richness donor: *jakx-want-driver-cp* still gets set, via
+jakx-nearest-continue-in-family, to the nearest buildable continue in whichever family
+the geometry just picked, so the vehicle-type/sound-adjacent bring-up code that reads it
+keeps working unchanged. *jakx-want-driver-level* is new: the current primary (tiny-center)
+level symbol, used to detect a family change from one tick to the next."
   (when *jakx-campath-record*
     (+! *jakx-campath-frame* 1)
     (when (>= *jakx-campath-frame* 20)
@@ -7461,116 +7575,175 @@ in."
       (let ((mc (view-get-math-camera 0)))
         (when (nonzero? (the-as int mc))
           (let ((cam (-> mc trans))
-                (home (-> *jakx-want-driver-cp* level))
-                (best (the continue-point #f))
-                (best-d 1000000000000000000.0)
-                (best-any (the continue-point #f))
-                (best-any-d 1000000000000000000.0)
-                (cur-d 1000000000000000000.0)
+                (best-center (the jakx-level-bound #f))
+                (best-center-d 1000000000000000000.0)
                 )
-            (let ((lst *level-load-list*))
-              (while (not (null? lst))
-                (let* ((info (the-as level-load-info (-> (the-as symbol (car lst)) value)))
-                       (conts (-> info continues))
-                       )
-                  (while (not (null? conts))
-                    (let ((cp (the-as continue-point (car conts))))
-                      (when (jakx-continue-buildable? cp)
-                        (let* ((dx (- (-> cp trans x) (-> cam x)))
-                               (dy (- (-> cp trans y) (-> cam y)))
-                               (dz (- (-> cp trans z) (-> cam z)))
-                               (d (+ (* dx dx) (* dy dy) (* dz dz)))
-                               )
-                          (when (or (not best-any) (< d best-any-d))
-                            (set! best-any cp)
-                            (set! best-any-d d)
-                            )
-                          ;; skip grid-start continues (the lightjak flag marks them, on
-                          ;; both jungle-wide-start and the havjung equivalent) as the
-                          ;; PREFERRED candidate: they are pre-race configurations whose
-                          ;; want sets drop the arrival section, so crossing the start
-                          ;; line under one unloads the world around the camera. They
-                          ;; share a trans with the first lap checkpoint, which must win
-                          ;; the tie; lap flow belongs to the plain race continues.
-                          ;; best-any above still tracks excluded continues so the
-                          ;; fallback below can reach one when nothing eligible is
-                          ;; nearer (#152: icea's only continue is excluded so icea can
-                          ;; never display after a reload; havjung-wide-start's
-                          ;; exclusion starved havenb the moment the window first slid).
-                          (when (not (logtest? (-> cp flags) (continue-flags lightjak)))
-                            (if (= cp *jakx-want-driver-cp*)
-                                (set! cur-d d)
+            ;; pass 1: the nearest built tiny-center picks the active family. No
+            ;; hysteresis here -- there is one tiny-center per family and they sit far
+            ;; enough apart that the oscillation risk the swap rule's 1.4x factor guards
+            ;; against below is not a concern at this level.
+            (dotimes (i (-> *jakx-level-bounds* length))
+              (let ((lb (-> *jakx-level-bounds* i)))
+                (when (and (= (-> lb memory-mode) 'tiny-center)
+                           (jakx-level-name-built? (-> lb name))
+                           )
+                  (let ((d (jakx-level-bound-dist lb cam)))
+                    (when (< d best-center-d)
+                      (set! best-center-d d)
+                      (set! best-center lb)
+                      )
+                    )
+                  )
+                )
+              )
+            (when best-center
+              (let* ((family (-> best-center family-id))
+                     (family-changed (!= (-> best-center name) *jakx-want-driver-level*))
+                     (cur0-name (-> *jakx-want-driver-tiny* 0))
+                     (cur1-name (-> *jakx-want-driver-tiny* 1))
+                     (cand-tiny0-name cur0-name)
+                     (cand-tiny1-name cur1-name)
+                     (slid #f)
+                     )
+                (cond
+                  (family-changed
+                    ;; bootstrap: hold the two geometrically nearest built 'tiny members
+                    ;; outright, no hysteresis on first entry to a family
+                    (let ((n0 (the jakx-level-bound #f)) (n0-d 1000000000000000000.0)
+                          (n1 (the jakx-level-bound #f)) (n1-d 1000000000000000000.0)
+                          )
+                      (dotimes (i (-> *jakx-level-bounds* length))
+                        (let ((lb (-> *jakx-level-bounds* i)))
+                          (when (and (= (-> lb memory-mode) 'tiny)
+                                     (= (-> lb family-id) family)
+                                     (jakx-level-name-built? (-> lb name))
+                                     )
+                            (let ((d (jakx-level-bound-dist lb cam)))
+                              (cond
+                                ((< d n0-d)
+                                 (set! n1 n0) (set! n1-d n0-d)
+                                 (set! n0 lb) (set! n0-d d)
+                                 )
+                                ((< d n1-d)
+                                 (set! n1 lb) (set! n1-d d)
+                                 )
                                 )
-                            (when (or (not best) (< d best-d))
-                              (set! best cp)
-                              (set! best-d d)
                               )
                             )
                           )
                         )
+                      (set! cand-tiny0-name (if n0 (-> n0 name) #f))
+                      (set! cand-tiny1-name (if n1 (-> n1 name) #f))
                       )
-                    (set! conts (cdr conts))
+                    )
+                  (else
+                    ;; within-family swap rule (issue 550 design): hold the current two
+                    ;; tiny members; swap the farther for the nearest built non-member
+                    ;; only when nearest*1.4 < farther.
+                    (let* ((cur0 (jakx-find-level-bound cur0-name))
+                           (cur1 (jakx-find-level-bound cur1-name))
+                           (d0 (if cur0 (jakx-level-bound-dist cur0 cam) 1000000000000000000.0))
+                           (d1 (if cur1 (jakx-level-bound-dist cur1 cam) 1000000000000000000.0))
+                           (far-is-0 (> d0 d1))
+                           (far-d (if far-is-0 d0 d1))
+                           (near-non (the jakx-level-bound #f))
+                           (near-non-d 1000000000000000000.0)
+                           )
+                      (dotimes (i (-> *jakx-level-bounds* length))
+                        (let ((lb (-> *jakx-level-bounds* i)))
+                          (when (and (= (-> lb memory-mode) 'tiny)
+                                     (= (-> lb family-id) family)
+                                     (!= (-> lb name) cur0-name)
+                                     (!= (-> lb name) cur1-name)
+                                     (jakx-level-name-built? (-> lb name))
+                                     )
+                            (let ((d (jakx-level-bound-dist lb cam)))
+                              (when (< d near-non-d)
+                                (set! near-non-d d)
+                                (set! near-non lb)
+                                )
+                              )
+                            )
+                          )
+                        )
+                      (when (and near-non (< (* near-non-d 1.4) far-d))
+                        (set! slid #t)
+                        (if far-is-0
+                            (set! cand-tiny0-name (-> near-non name))
+                            (set! cand-tiny1-name (-> near-non name))
+                            )
+                        )
+                      )
                     )
                   )
-                (set! lst (cdr lst))
-                )
-              )
-            ;; og:preserve-this fallback (#152): the exclusion above is a preference, not
-            ;; a hard rule. When the nearest continue overall is an excluded one, use it
-            ;; anyway as long as it beats the nearest eligible continue by the same 1.4x
-            ;; hysteresis factor used below against the current position (0.5 in squared
-            ;; distance); an eligible continue that is merely close still wins, which
-            ;; preserves the jungle-wide-start regression case above by the margin
-            ;; instead of by dropping the exclusion. Measured starvation without this:
-            ;; the icelands family's only icea-displaying continue is excluded so icea
-            ;; could never display after a reload, and havjung-wide-start's exclusion
-            ;; unloaded havenb the moment the window first slid. Retires with the retail
-            ;; continue/race-position system (game-info.gc), which replaces this whole
-            ;; driver.
-            (when (and best-any (!= best-any best) (< best-any-d (* 0.5 best-d)))
-              (set! best best-any)
-              (set! best-d best-any-d)
-              )
-            ;; hysteresis: switch only when the candidate is decisively closer than the
-            ;; current continue (1.4x in linear distance, 0.5 in squared). The margin
-            ;; only needs to prevent oscillation between distinct positions; 2x proved
-            ;; too conservative in flight, starting the next section's load at ~80% of
-            ;; the span between continues, which popped section A in at the lap line
-            ;; (the e-1-to-line span covers all of section E). 1.4x starts it at ~2/3.
-            (when (and best
-                       (!= best *jakx-want-driver-cp*)
-                       (< best-d (* 0.5 cur-d))
-                       (jakx-want-slide-safe? best)
-                       )
-              (format 0 "want-driver: window slides to ~S~%" (-> best name))
-              (set! *jakx-want-driver-cp* best)
-              (let ((a1-11 (new 'stack-no-clear 'array 'symbol 18)))
-                (dotimes (i 18)
-                  (set! (-> a1-11 i) #f)
+                (when (or family-changed slid)
+                  (let ((cand-names (new 'stack-no-clear 'array 'symbol 3)))
+                    (set! (-> cand-names 0) (-> best-center name))
+                    (set! (-> cand-names 1) cand-tiny0-name)
+                    (set! (-> cand-names 2) cand-tiny1-name)
+                    (if (jakx-want-slide-safe? cand-names 3)
+                        (begin
+                          ;; runtime format warning (design acceptance item 3): a want
+                          ;; set should never carry 3 tiny sections (one tiny-center plus
+                          ;; two rotation slots, always) or a duplicate slot -- both are
+                          ;; unreachable by construction above, so this is free insurance
+                          ;; against a future regression, not a live path.
+                          (when (= cand-tiny0-name cand-tiny1-name)
+                            (format 0 "want-driver: WARNING duplicate tiny slot ~A in the ~
+window~%" cand-tiny0-name)
+                            )
+                          (set! *jakx-want-driver-level* (-> best-center name))
+                          (set! (-> *jakx-want-driver-tiny* 0) cand-tiny0-name)
+                          (set! (-> *jakx-want-driver-tiny* 1) cand-tiny1-name)
+                          (let ((donor (jakx-nearest-continue-in-family family cam)))
+                            (when donor
+                              (set! *jakx-want-driver-cp* donor)
+                              )
+                            )
+                          (format 0 "want-driver: window = ~A ~A ~A~%"
+                                  (-> best-center name) cand-tiny0-name cand-tiny1-name
+                                  )
+                          (let ((a1-11 (new 'stack-no-clear 'array 'symbol 18)))
+                            (dotimes (i 18)
+                              (set! (-> a1-11 i) #f)
+                              )
+                            (set! (-> a1-11 0) (-> best-center name))
+                            (set! (-> a1-11 1) cand-tiny0-name)
+                            (set! (-> a1-11 2) cand-tiny1-name)
+                            (want-levels *load-state* a1-11)
+                            )
+                          ;; display every member (the driver already did before this
+                          ;; rung; the un-display bug the old code's comment documented
+                          ;; is unrelated to the selection change and stays fixed here:
+                          ;; want-levels initialises every newly added entry hidden, and
+                          ;; promoting it straight to 'display is what makes a freshly
+                          ;; wanted section actually draw instead of waiting for a later
+                          ;; flip point this driver never reaches).
+                          (want-display-level *load-state* (-> best-center name) 'display)
+                          (when cand-tiny0-name
+                            (want-display-level *load-state* cand-tiny0-name 'display)
+                            )
+                          (when cand-tiny1-name
+                            (want-display-level *load-state* cand-tiny1-name 'display)
+                            )
+                          (want-vis-level *load-state* (-> best-center name))
+                          (let ((snd (new 'stack-no-clear 'array 'symbol 4)))
+                            (set! (-> snd 0) (-> best-center sound))
+                            (set! (-> snd 1) #f)
+                            (set! (-> snd 2) #f)
+                            (set! (-> snd 3) #f)
+                            (want-sound-banks *load-state* snd)
+                            )
+                          )
+                        ;; jakx-want-slide-safe? refused (should not happen -- the swap
+                        ;; rule provably implies it, design comment): leave every
+                        ;; persisted slot untouched and retry from the same base state
+                        ;; next tick, exactly like the old continue-walk driver did.
+                        (none)
+                        )
+                    )
                   )
-                (dotimes (i (min 4 (the int (-> best want-count))))
-                  (set! (-> a1-11 i) (-> best want i name))
-                  )
-                (want-levels *load-state* a1-11)
                 )
-              ;; og:preserve-this display every want: an earlier note here argued the #f
-              ;; push was needed for hidden wants to land, but want-levels already
-              ;; initialises every newly added entry hidden, so the explicit #f only ever
-              ;; un-displayed an already-displayed section; on a back-slide (a-3 sits on
-              ;; the b-1-to-c-1 leg and nearest-continue has no direction) that push
-              ;; deactivated the ground under the racer for ~510 m per lap in the
-              ;; recorded repro. Promoting #f to 'display goes one further: the hidden
-              ;; value is retail's preload staging (net-world's wait-for-levels flips it
-              ;; to 'display once loaded, method 77), and this driver has no later flip
-              ;; point, so hold-until-crossed reads as a void ahead. display-wait in the
-              ;; level flags keeps a still-loading level deferred, so this never draws
-              ;; an unloaded level. Non-#f values ('special task variants) pass through.
-              (dotimes (i (min 4 (the int (-> best want-count))))
-                (let ((w (-> best want i)))
-                  (want-display-level *load-state* (-> w name) (or (-> w display?) 'display))
-                  )
-                )
-              (want-vis-level *load-state* (-> best vis-nick))
               )
             )
           )
