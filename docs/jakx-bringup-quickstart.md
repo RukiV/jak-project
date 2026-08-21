@@ -162,6 +162,29 @@ issue #122, rung 1).
   process rewrites it every frame. Forcing time of day needs the tick-source poke or
   a temporary force inside `update-time-of-day`.
 
+## Debug menu activation
+
+The debug menu (issue 571's UX successor) is fully landed: the framework
+(`goal_src/jakx/engine/debug/menu.gc`), the render bucket (`DEBUG_MENU=795` in
+`OpenGLRenderer.cpp:560`), the hook plumbing (`set-master-mode`'s
+`menu-respond-to-pause` call, `*menu-hook*`), and the menu content itself
+(`goal_src/jakx/engine/debug/default-menu.gc`).
+
+- **Activate from the REPL:**
+  ```
+  (set-master-mode 'menu)
+  (debug-menu-context-send-msg *debug-menu-context* (debug-menu-msg activate) (debug-menu-dest activation))
+  ```
+- **Pad 0 drives it in-game:** dpad to navigate, X to select, square to back
+  out.
+- **The L3+Start chord also works** once `*master-mode*` is `'menu`
+  (`menu-respond-to-pause`'s own dispatch), without going through the REPL at
+  all. L3+Select activates the popup menu instead, and pad 1's Start
+  activates the editable-player menu (only while `*editable*` is live).
+- **The Continue submenu's press path depends on the net-start landing** (a
+  separate lane, R5 of the debug-menu scoping plan); pressing it before that
+  lane lands is a held no-op, not a crash.
+
 ## Captures
 
 In-game captures come from the game's own GPU readback (F2, or `(pc-screen-shot)`
