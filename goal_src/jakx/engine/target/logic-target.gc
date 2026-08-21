@@ -25,6 +25,16 @@
 ;; lesson from view-set-active-target in R4. Retires when the real owning object lands.
 (define-extern target-exit (function none :behavior target))
 
+;; og:preserve-this forward-decl (scene chain, issue 522): target-generic-event-handler
+;; is landed and real (target-handler.gc), but that file compiles after this one in the
+;; build order, so its symbol is not yet visible here; target-continue's own bring-up
+;; 'change-mode stand-in below falls back to it for every non-grab message. Same
+;; compile-order class as target-exit's forward-decl above, evidenced against
+;; all-types.gc's own extern signature (line 49210). Retires if the build order ever
+;; changes to compile target-handler.gc first, or does not retire at all otherwise
+;; (a forward-decl for a real, landed function is not itself a hold).
+(define-extern target-generic-event-handler (function process int symbol event-message-block object :behavior target))
+
 ;; og:preserve-this stop, landed for real, R4 (#122): transcribed verbatim from the
 ;; R0-corrected decode (logic-target_ir2.asm). arg1 is the view-push-context int the
 ;; original 1-arg signature dropped (R0 RESULTS ADDENDUM item 4; the fix lives on
@@ -103,7 +113,41 @@
 ;; zero-arg guess was corrected. This stub's :code still wraps sleep-code verbatim,
 ;; only now behind a (continue-point) arg to satisfy the widened typecheck; behavior is
 ;; unchanged. Retirement condition unchanged from above.
+;;
+;; og:preserve-this bring-up 'change-mode stand-in (scene chain, issue 522):
+;; target-continue's own :event slot is still unlanded (the stub note above), so
+;; event-hook never gets set to a live handler and gstate.gc's send-event-function
+;; guard (its own event-hook check) drops every event sent to a target parked here,
+;; including process-grab?'s handshake (generic-obs.gc:1690, sends ('change-mode
+;; 'grab #t) via command-get-process). scene.gc:1110-1116 retries that handshake
+;; every frame until it sees a truthy answer, so the scene-player's wait state never
+;; advances. A fresh scoped decode of target-handler.gc today (target-standard-
+;; event-handler, 2 errors: an unresolved type-prop load and an unsupported inline
+;; sllv) shows its own 'change-mode dispatch only branches on the pilot-mode symbols
+;; and 'normal; a bare 'grab param0 matches neither arm, and both the matched
+;; branch's delay slot and the fallthrough path set v0-0 to #f (L21/L22 in the
+;; disasm), so landing that function once its own decode errors are resolved would
+;; not answer this handshake either. This stand-in answers 'grab truthily without
+;; moving the target into any real grab state; retail's own grab semantics (parking
+;; the target, disabling control) are out of scope here, matching target-title's own
+;; precedent for the same message (title-obs.gc:717). Retirement condition: the real
+;; target-continue state lands its own :event (same condition as the stub note
+;; above).
 (defstate target-continue (target)
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('change-mode)
+       (case (-> block param 0)
+         (('grab)
+          #t
+          )
+         )
+       )
+      (else
+        (target-generic-event-handler proc argc message block)
+        )
+      )
+    )
   :code (behavior ((arg0 continue-point))
     (sleep-code)
     )
