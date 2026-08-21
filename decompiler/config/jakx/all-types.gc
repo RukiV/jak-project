@@ -16138,11 +16138,12 @@
   (snake 13)
   (daxtermobile 14)
   (drone 15)
+  (dart 16)
 )
 ;; ---car-info-h:vehicle-type
 
 (define-extern *car-type-names* (array string))
-(define-extern type-from-vehicle-type (function vehicle-type traffic-vehicle-type))
+(define-extern type-from-vehicle-type (function vehicle-type type))
 (define-extern level-name-from-vehicle-type (function vehicle-type symbol))
 (define-extern car-type-from-vehicle-type (function int vehicle-type))
 (define-extern vehicle-type-from-car-type "does nothing, returns input" (function int int))
@@ -56796,7 +56797,7 @@
    (task-node                  uint16                  :offset-assert 1106)
    (task-info                  basic                   :offset-assert 1108)
    (task-node-info             basic                   :offset-assert 1112)
-   (player-to-vehicle-slot-map uint8         24      :offset-assert 1116)
+   (player-to-vehicle-slot-map int8         24      :offset-assert 1116)
    (vehicle-slot-to-player-map uint8         6       :offset-assert 1140)
    )
   :method-count-assert 87
@@ -56875,16 +56876,16 @@
 
 (deftype net-vehicle (structure)
   ((id         uint32  :offset-assert 0)
-   (name       basic   :offset-assert 4)
-   (levname    basic   :offset-assert 8)
+   (name       symbol  :offset-assert 4)
+   (levname    symbol  :offset-assert 8)
    (vt         uint8   :offset-assert 12)
    (ct         int8    :offset-assert 13)
-   (tex-name   basic   :offset-assert 16)
-   (sound-bank basic   :offset-assert 20)
+   (tex-name   string  :offset-assert 16)
+   (sound-bank symbol  :offset-assert 20)
    (index      int8    :offset-assert 24)
    (cup-mask   uint32  :offset-assert 28)
    (id-variant uint32  :offset-assert 32)
-   (ai-levels  basic   :offset-assert 36)
+   (ai-levels  (array symbol)   :offset-assert 36)
    )
   :method-count-assert 9
   :size-assert         #x28
@@ -56966,11 +56967,11 @@
 ;; commented out to avoid a redefinition.
 (define-extern *net-drivers* (array net-driver))
 ;; (define-extern get-vehicle-name function)
-;; (define-extern *protect-vehicle-slot-1* object)
+(define-extern *protect-vehicle-slot-1* symbol)
 (define-extern protect-vehicle-slot-1 (function symbol none))
 ;; (define-extern *in-end-of-race-preload* object)
-;; (define-extern *race-end-camera-pos-valid* object)
-;; (define-extern *race-end-camera-pos* object)
+(define-extern *race-end-camera-pos-valid* symbol)
+(define-extern *race-end-camera-pos* vector)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-logging-h                  ;;
@@ -63517,7 +63518,7 @@
 ;; (define-extern driver-anim function)
 ;; (define-extern driver-event-handler function)
 ;; (define-extern driver-init-by-other function)
-;; (define-extern driver-spawn function)
+(define-extern driver-spawn (function driver-type vehicle int process))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; helmet                         ;;
