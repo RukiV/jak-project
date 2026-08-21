@@ -158,3 +158,26 @@
   (-> this damage)
   (none)
   )
+
+;; og:preserve-this vehicle-spawn-chain rung (issue 571): the note above
+;; said method 11 "is still a CFG building failure (no expression tree,
+;; unaffected by the retype)"; that remains true (this rung's own scoped
+;; decode still reports "function was not converted to expressions. Cannot
+;; decompile."), a structural CFG wall, not a config gap -- a 4-predecessor
+;; join at raw L186, swept against 35 hack configurations, with no
+;; blocks_ending_in_asm_branch set resolving it. Landed below as a stub
+;; instead: the real body's own first instructions (raw asm, offset 24 =
+;; `draw`) test `(if (nonzero? (-> this draw)) ... )` and jump straight to
+;; a bare return when draw is zero (raw L190: `v0 = 0; return`), so an
+;; unconditional immediate return is behaviorally identical to retail
+;; whenever a section's draw-control has not been set up yet, and a silent
+;; no-op otherwise (the section's own transform/blerc updates go missing).
+;; This is what unblocks vehicle-init-by-other (vehicle-manager.gc, this
+;; same rung), whose own dotimes loop calls this method unconditionally
+;; across all 12 sections. Retirement of this stub is its own lane: the
+;; real ~180-instruction body via hand translation or mips2c.
+
+;; definition for method 11 of type vehicle-section
+(defmethod vehicle-section-method-11 ((this vehicle-section) (arg0 vehicle))
+  (none)
+  )

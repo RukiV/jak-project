@@ -309,40 +309,267 @@
     )
   )
 
-;; og:preserve-this vehicle rung (R2): the traffic-object-spawn-params
-;; blocker this note used to name is retired -- it never existed in jakx;
-;; the real second argument for vehicle-init-by-other and vehicle-spawn is
-;; vehicle-spawn-params (all-types.gc, traffic-h.gc, already landed).
-;; vehicle-init-by-other and vehicle-in-level? both now have real extern
-;; signatures (all-types.gc, this rung) and both decode completely cleanly
-;; with them (a scoped decode of this worktree's own state): vehicle-init-
-;; by-other's own dotimes loop over `(-> self sections N)` is the direct
-;; confirmation of vehicle-section-method-11's (_type_ vehicle) none
-;; retype (R3), passing the owning vehicle as the second argument at each
-;; of the 12 sections. Neither body lands this rung despite decoding
-;; clean, though, because each calls something with no landed
-;; implementation anywhere in goal_src: vehicle-init-by-other's own loop
-;; calls vehicle-section-method-11, still a CFG-building failure with no
-;; defmethod; vehicle-in-level? calls vehicle-idx-from-level-name (see
-;; below), also unlanded. Landing either body now would arm exactly the
-;; e2 hazard AGENTS.md section 5 warns about (a call with no landed target
-;; links to 0) the moment something actually invokes them at runtime, so
-;; both stay held pending their respective callees. vehicle-spawn itself
-;; is also not landed this rung: with both externs active it now decodes
-;; to op 179 (up from op 113 pre-rung) before failing on "Unknown symbol:
-;; driver-spawn", an undeclared extern outside this rung's scope -- the
-;; new frontier for a future rung. *car-info-default* is still a raw
-;; <static-data L78> blob (a (pointer uint32) with no confirmed element
-;; count or reader anywhere in this file), still omitted. find-vehicle
-;; (above) was in the same cluster but decoded clean once the jakx-menu-
-;; pair band gave it a real extern signature (default-menu rung,
-;; evidenced from that file's own call site: a single int arg, return
-;; read at offset 184 by trsq->continue-point). vehicle-idx-from-level-
-;; name (already active, given a real signature) is still omitted: its
-;; own dynamic net-vehicle array indexing decodes to an unresolved
-;; (dynamic-array-field-access v1-1 PLACEHOLDER) token, a decompiler-side
-;; gap in dynamic field access, not a config gap, unaffected by this
-;; rung. Re-derive vehicle-init-by-other, vehicle-in-level?, vehicle-spawn
-;; and vehicle-idx-from-level-name from the framework's own dump
-;; (offline-test -f vehicle-manager -d) once their respective blockers
-;; close.
+;; og:preserve-this forward declarations for symbols vehicle-init-by-other
+;; and vehicle-spawn reference but this band does not itself define. Each
+;; has a decompiler-config define-extern (decompiler/config/jakx/all-
+;; types.gc) but that config is not visible to goalc, which needs its own
+;; forward declaration to compile a reference to an unlanded symbol -- the
+;; same two-file split vehicle-event-handler's own forward declaration
+;; above (vehicle-states.gc:17) already documents for a function.
+;; Signatures copied from those same all-types.gc entries. Drop each line
+;; if the symbol itself is ever landed with a real definition; none of the
+;; three functions get a defun this rung (see vehicle-spawn's own hold
+;; note below for why).
+(define-extern *car-info-default* (pointer uint32))
+(define-extern driver-spawn (function driver-type vehicle int process))
+(define-extern helmet-garage-spawn (function object object))
+(define-extern vehicle-respawn-invul-spawn (function object object))
+
+;; og:preserve-this vehicle-spawn-chain rung (issue 571): the previous note
+;; here named two blockers keeping vehicle-init-by-other, vehicle-in-level?
+;; and vehicle-spawn held despite each decoding cleanly with their real
+;; extern signatures: vehicle-init-by-other's own dotimes loop calling
+;; vehicle-section-method-11 (a CFG-building failure with no defmethod),
+;; and vehicle-in-level? calling vehicle-idx-from-level-name (unlanded,
+;; itself blocked on an unresolved dynamic-array-field-access token against
+;; net-vehicle.ai-levels). Both retire this rung: net-vehicle.ai-levels is
+;; now typed (array symbol) (this rung's config patch), which resolves
+;; vehicle-idx-from-level-name's own dynamic indexing cleanly -- the prior
+;; note's "decompiler-side gap, not a config gap" turned out to be
+;; downstream of the untyped array after all. vehicle-section-method-11
+;; lands this rung as a stub (vehicle-util.gc), which is enough to unblock
+;; vehicle-init-by-other's own compile. All four land below.
+
+;; definition for function vehicle-idx-from-level-name
+(defun vehicle-idx-from-level-name ((arg0 symbol))
+  (dotimes (s5-0 (length *net-vehicles*))
+    (let ((v1-2 (-> *net-vehicles* s5-0)))
+      (if (= arg0 (-> v1-2 levname))
+          (return s5-0)
+          )
+      (let* ((a0-5 (-> v1-2 ai-levels length))
+             (a1-0 0)
+             (a2-2 (-> v1-2 ai-levels a1-0))
+             )
+        (while (< a1-0 a0-5)
+          (if (= arg0 a2-2)
+              (return s5-0)
+              )
+          (+! a1-0 1)
+          (set! a2-2 (-> v1-2 ai-levels a1-0))
+          )
+        )
+      )
+    )
+  (the-as int #f)
+  )
+
+;; definition for function vehicle-in-level?
+(defun vehicle-in-level? ((arg0 vehicle-type) (arg1 level))
+  (if (= (-> arg1 name) (level-name-from-vehicle-type arg0))
+      (return #t)
+      )
+  (let ((v1-4 (vehicle-idx-from-level-name (-> arg1 name))))
+    (when (not v1-4)
+      (format 0 "!!!!!!!! failed to get vehicle from level ~A !!!!!!!!!!~%" (-> arg1 name))
+      (return #f)
+      )
+    (= (-> *net-vehicles* v1-4 vt) arg0)
+    )
+  )
+
+;; definition for function vehicle-init-by-other
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch none vs object.
+;; og:preserve-this vehicle-spawn-chain rung (issue 571): *car-info-default*
+;; stays a raw <static-data L78> blob (a (pointer uint32) with no confirmed
+;; element count or reader anywhere in this file); it is not on the falcon
+;; path here since level-slot != -1 always takes the *car-level-array*
+;; branch below, so the unresolved blob is never actually dereferenced by
+;; this body. vehicle-method-177 (guarded by flags bit 1), vehicle-method-
+;; 184 (guarded by *net-process-mgr* and a nonzero behavior) and vehicle-
+;; section-method-11 (unconditional, landed as a stub this same rung) are
+;; this body's own callees; see vehicle-spawn's own hold note below for the
+;; full flag/behavior-gated callee list this rung leaves unlanded.
+(defbehavior vehicle-init-by-other vehicle ((arg0 vehicle-type) (arg1 vehicle-spawn-params))
+  (when (>= (-> arg1 player-id) 0)
+    (let ((v1-5 (-> *net-players* (-> arg1 player-id))))
+      (if v1-5
+          (set! *car-appearance-hack* (-> v1-5 player-num))
+          )
+      )
+    )
+  (set! (-> self level) (-> *level* level (-> arg1 level-slot)))
+  (set! (-> self car-info) (the-as car-info-full (if (!= (-> arg1 level-slot) -1)
+                                                     (-> *car-level-array* data (+ (-> arg1 level-slot) -6))
+                                                     *car-info-default*
+                                                     )
+                                   )
+        )
+  (stack-size-set! (-> self main-thread) 16)
+  (logior! (-> self mask) (process-mask vehicle))
+  (rigid-body-object-method-65 self)
+  (set! (-> self root trans quad) (-> arg1 position quad))
+  (quaternion-copy! (the-as quaternion (-> self root rot)) (-> arg1 rotation))
+  (set! (-> self root transv quad) (-> arg1 velocity quad))
+  (set! (-> self behavior) (-> arg1 behavior))
+  (set! (-> self impact-callback) (-> arg1 impact-callback))
+  (if (logtest? (-> arg1 flags) 2)
+      (vehicle-method-177 self)
+      )
+  (if (logtest? (-> arg1 flags) 4)
+      (set! (-> self flags) (the-as uint (logior (shl 1 32) (-> self flags))))
+      )
+  (set! (-> self player-id) (-> arg1 player-id))
+  (rigid-body-object-method-66 self)
+  (rigid-body-queue-method-11 *rigid-body-queue* self)
+  (if (and *net-process-mgr* (nonzero? (-> arg1 behavior)))
+      (vehicle-method-184 self arg1)
+      (set! (-> self player-id) -1)
+      )
+  (format #t "active-index: ~d~%" (-> self player-id))
+  (dotimes (s5-0 12)
+    (vehicle-section-method-11 (-> self sections s5-0) self)
+    )
+  (if (and (nonzero? (-> self draw)) (= *lobby-local-players* 2))
+      (logior! (-> self draw global-effect) (draw-control-global-effect rim-lights3))
+      )
+  (when (logtest? (-> arg1 flags) 8)
+    (set! (-> self draw lod-set lod 0 dist) 0.0)
+    (set! (-> self draw lod-set lod 1 dist) 0.0)
+    (dotimes (gp-1 12)
+      (vehicle-section-method-11 (-> self sections gp-1) self)
+      (when (nonzero? (-> self sections gp-1 draw))
+        (set! (-> self sections gp-1 draw lod-set lod 0 dist) 0.0)
+        (set! (-> self sections gp-1 draw lod-set lod 1 dist) 0.0)
+        )
+      )
+    )
+  (vehicle-method-166 self)
+  )
+
+;; definition for function vehicle-spawn
+;; WARN: Return type mismatch process vs vehicle.
+;; og:preserve-this vehicle-spawn-chain rung (issue 571): this body's own
+;; three flag/behavior-gated branches each call something with no landed
+;; implementation anywhere in goal_src -- driver-spawn (extern activated
+;; this rung, no defun anywhere in this corpus), vehicle-method-106 (only
+;; reachable once driver-spawn returns non-#f), helmet-garage-spawn and
+;; vehicle-respawn-invul-spawn. None of these four is landed this rung, so
+;; any probe of this function must keep arg1's flags bit 0 clear (skips the
+;; driver-spawn/vehicle-method-106 pair), flags bit 4 clear (skips helmet-
+;; garage-spawn) and behavior != 4 (skips vehicle-respawn-invul-spawn) to
+;; avoid the e2 hazard AGENTS.md section 5 warns about -- a call with no
+;; landed target links to 0. type-from-driver-type (unconditional inside
+;; the flags-bit-0 branch, its return discarded) and vehicle-manager-start,
+;; vehicle-in-level?, type-from-vehicle-type and vehicle-init-by-other (all
+;; on the unconditional path) are all landed, either already or earlier in
+;; this same rung.
+(defun vehicle-spawn ((arg0 vehicle-type) (arg1 vehicle-spawn-params))
+  (local-vars (v1-19 float))
+  (rlet ((acc :class vf)
+         (vf0 :class vf)
+         (vf1 :class vf)
+         (vf2 :class vf)
+         )
+    (init-vf0-vector)
+    (cond
+      ((and (>= (-> arg1 player-id) 0) *net-world*)
+       (when (!= (-> *net-world* player-to-vehicle-slot-map (-> arg1 player-id)) -1)
+         (set! (-> arg1 level-slot) (+ (-> *net-world* player-to-vehicle-slot-map (-> arg1 player-id)) 6))
+         (set! (-> arg1 driver-slot) (+ (-> *net-world* player-to-vehicle-slot-map (-> arg1 player-id)) 12))
+         )
+       )
+      (else
+        (format 0 "*** warning - vehicle did not have valid player-id~%")
+        )
+      )
+    (if (not *vehicle-manager*)
+        (vehicle-manager-start (the-as process *entity-pool*))
+        )
+    (let ((s5-0 (the-as process #f)))
+      (let ((f0-2 (square 67108864.0)))
+        (.lvf vf1 (&-> (-> arg1 position) quad))
+        (.add.w.vf.x vf2 vf0 vf0)
+        (.mul.vf vf1 vf1 vf1)
+        (.mul.x.vf.x acc vf2 vf1)
+        (.add.mul.y.vf.x acc vf2 vf1 acc)
+        (.add.mul.z.vf.x vf1 vf2 vf1 acc)
+        (.mov v1-19 vf1)
+        (cond
+          ((or (< f0-2 v1-19) (< 1.1 (quaternion-norm (-> arg1 rotation))))
+           (when *debug-segment*
+             (format 0 "vehicle-spawn: bad position or rotation passed~%")
+             (format
+               0
+               "vehicle-spawn: position (~M ~M ~M)~%"
+               (-> arg1 position x)
+               (-> arg1 position y)
+               (-> arg1 position z)
+               )
+             (format
+               0
+               "vehicle-spawn: rotation (~f ~f ~f ~f)~%"
+               (-> arg1 rotation x)
+               (-> arg1 rotation y)
+               (-> arg1 rotation z)
+               (-> arg1 rotation w)
+               )
+             (break!)
+             0
+             )
+           )
+          ((begin
+             (cond
+               ((and (or (= arg0 (vehicle-type drone))
+                         (= arg0 (vehicle-type dart))
+                         (vehicle-in-level? arg0 (-> *level* level (-> arg1 level-slot)))
+                         )
+                     (or (= (-> *level* level (-> arg1 level-slot) status) 'active)
+                         (= (-> *level* level (-> arg1 level-slot) status) 'loaded)
+                         )
+                     *vehicle-manager*
+                     )
+                (let* ((a1-11 (type-from-vehicle-type arg0))
+                       (s3-0 (get-process *default-dead-pool* a1-11 #x8000 1))
+                       (v1-42 (when s3-0
+                                (let ((t9-9 (method-of-type process activate)))
+                                  (t9-9 s3-0 *vehicle-manager* "vehicle" (the-as pointer #x70004000))
+                                  )
+                                (run-now-in-process s3-0 vehicle-init-by-other arg0 arg1)
+                                (-> s3-0 ppointer)
+                                )
+                              )
+                       )
+                  (if v1-42
+                      (set! s5-0 (-> v1-42 0))
+                      )
+                  )
+                )
+               (else
+                 0
+                 )
+               )
+             s5-0
+             )
+           (when (logtest? (-> arg1 flags) 1)
+             (type-from-driver-type (-> arg1 driver-type))
+             (let ((a2-6 (driver-spawn (-> arg1 driver-type) (the-as vehicle s5-0) (-> arg1 driver-slot))))
+               (if a2-6
+                   (vehicle-method-106 (the-as vehicle s5-0) 0 a2-6)
+                   )
+               )
+             )
+           (if (logtest? (-> arg1 flags) 16)
+               (helmet-garage-spawn s5-0)
+               )
+           (if (= (-> arg1 behavior) 4)
+               (vehicle-respawn-invul-spawn s5-0)
+               )
+           )
+          )
+        )
+      (the-as vehicle s5-0)
+      )
+    )
+  )
