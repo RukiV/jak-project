@@ -7313,11 +7313,22 @@ frame."
 ;; Until the real race/target chain drives the camera, hop it across every buildable
 ;; continue in the game, not just the boot continue's own family: every
 ;; *jakx-cam-fly-dwell* frames, warp onto the next eligible continue in list order,
-;; wrapping at the end for successive laps. Candidate selection mirrors
-;; jakx-want-driver-tick's filter exactly: jakx-continue-buildable? in place of the
-;; old same-:level-home pin (issue 550 supersedes that pin with a generated
-;; buildability gate; lightjak grid-starts stay excluded) so the flight can still only
-;; ever visit continues whose want sets are actually built, now wherever they sit.
+;; wrapping at the end for successive laps. Candidate selection starts from
+;; jakx-want-driver-tick's filter: jakx-continue-buildable? in place of the old
+;; same-:level-home pin (issue 550 supersedes that pin with a generated buildability
+;; gate; lightjak grid-starts stay excluded) so the flight can still only ever visit
+;; continues whose want sets are actually built, now wherever they sit.
+;;
+;; Issue 581 adds one more filter buildability alone does not cover: residency.
+;; jakx-cam-warp-to-continue (cam-start.gc:132) refuses to arm a warp whose target
+;; level is not currently loaded (the same level-get shape used here), so a
+;; buildable-but-not-resident candidate used to warp silently: 104 of 112 hops in one
+;; session no-op'd this way, and the camera sat parked in whatever level the last
+;; successful warp landed in while the want driver had already moved on. Filtering on
+;; residency here turns those silent no-ops into effective hops, and does not weaken
+;; the streaming test: a hop-warp teleports and therefore needs residency NOW, while
+;; continuous approach toward a not-yet-resident continue is the want driver's own
+;; job, and the driver still loads levels as the camera settles at each hop.
 ;;
 ;; Dwell must stay under the re-arm window jakx-cam-warp-to-continue sets, or the pin
 ;; lapses between hops and the ring's settle drags the camera back toward the origin.
@@ -7349,8 +7360,12 @@ frame."
                    )
               (while (not (null? conts))
                 (let ((cp (the-as continue-point (car conts))))
+                  ;; issue 581: skip non-resident targets too -- jakx-cam-warp-to-continue
+                  ;; refuses them downstream anyway (a teleport needs residency now); see
+                  ;; the block comment above.
                   (when (and (jakx-continue-buildable? cp)
                              (not (logtest? (-> cp flags) (continue-flags lightjak)))
+                             (level-get *level* (-> cp level))
                              )
                     (when (and (not pick) (= seen want))
                       (set! pick cp)
