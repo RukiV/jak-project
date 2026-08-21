@@ -74766,7 +74766,12 @@
   )
 
 ;; (define-extern reticle-wad-on-me-base array)
-;; (define-extern reticle-wad-on-me-missile-static array)
+;; activated (wvehicle-weapons-family lane): vehicle-reticle top-level-login
+;; stores an (array reticle-sprite-info) into it directly (op 14), the same
+;; store idiom reticle-wad-on-me-base uses at op 12; object matches
+;; reticle-wad-on-me-base's own already-active type below (the placeholder
+;; comment's bare array is stale, same as that sibling).
+(define-extern reticle-wad-on-me-missile-static object)
 ;; (define-extern reticle-wad-on-me-missile-spinner array)
 ;; (define-extern reticle-wad-on-me-missile-converge array)
 ;; (define-extern reticle-wad-on-me-peacemaker-converge array)
@@ -75796,10 +75801,19 @@
 ;; 429, also the L770 label-use failure at the same call site); array is the
 ;; placeholder's own already-given type, unchanged.
 (define-extern *msg-map-v-yellow-guided-missile* array)
-;; (define-extern *net-process-class-info-v-yellow-guided-missile* object)
+;; activated (wvehicle-weapons-family lane): wvehicle-weapons-proj
+;; top-level-login reads it in a type-new call; net-process-class-info
+;; matches every other active sibling of this name pattern (net-world,
+;; net-powerup, net-game-mgr, chicken-drone, chicken-drone-2, seeker,
+;; red-sentry-bot), not the placeholder comment's bare object.
+(define-extern *net-process-class-info-v-yellow-guided-missile* net-process-class-info)
 ;; (define-extern guided-missile-moving-event-handler function)
 ;; (define-extern guided-missile-base-trans function)
-;; (define-extern v-yellow-defaultgun-hitspang-params object)
+;; activated (wvehicle-weapons-family lane): wvehicle-weapons-proj
+;; top-level-login reads it directly; object matches every other
+;; hitspang-params sibling already active in this file
+;; (v-wpn-yellow-chaingun-2, v-wpn-bulldog).
+(define-extern v-yellow-defaultgun-hitspang-params object)
 ;; (define-extern v-wpn-yellow-chaingun-1-hitspang-params object)
 ;; activated: wvehicle-weapons top-level-login reads it directly (op 240) as a
 ;; hitspang-params argument, same call shape as the already-active chaingun-1
@@ -76481,7 +76495,12 @@
 ;; activated: wvehicle-weapons top-level-login reads it directly; array is
 ;; the placeholder's own already-given type, unchanged.
 (define-extern *msg-map-v-wpn-yellow-guided-missile* array)
-;; (define-extern *net-process-class-info-v-wpn-yellow-guided-missile* object)
+;; activated (wvehicle-weapons-family lane): wvehicle-weapons top-level-login
+;; reads it in a type-new call; net-process-class-info matches every other
+;; active sibling of this name pattern, not the placeholder comment's bare
+;; object (same evidence as *net-process-class-info-v-yellow-guided-missile*
+;; above).
+(define-extern *net-process-class-info-v-wpn-yellow-guided-missile* net-process-class-info)
 ;; (define-extern guided-missile-gen-proj-no-targ-helper function)
 ;; (define-extern guided-missile-gen-proj-targ-helper function)
 ;; (define-extern seismic-blaster-affects-player? function)
@@ -76544,7 +76563,19 @@
 ;; (define-extern red-sentry-bot-common-trans function)
 ;; (define-extern red-sentry-bot-poll-target function)
 ;; (define-extern sentry-bot-base-handler function)
-;; (define-extern v-wpn-yellow-bulldog-rapid-fire-control-params object)
+;; activated (wvehicle-weapons-family lane): wvehicle-weapons-aux
+;; top-level-login reads it directly (op 99); object matches every other
+;; rapid-fire-control-params sibling already active in this file.
+(define-extern v-wpn-yellow-bulldog-rapid-fire-control-params object)
+;; v-wpn-yellow-bulldog-II-rapid-fire-control-params: tried and reverted.
+;; Activating it as object (matching every other sibling in this cluster)
+;; regresses the whole top-level-login: six new "Failed store" errors plus
+;; "Failed to recognize virtual defstate" for red-sentry-bot-method-59,
+;; the exact top-level-killing-provisional-extern class from
+;; [[jakx-provisional-extern-hygiene]] (object used somewhere that needs a
+;; narrower pointer type). Left commented as a wall; the real fix needs the
+;; specific field/array type this symbol is actually stored through, out of
+;; scope for a config-only rung.
 ;; (define-extern v-wpn-yellow-bulldog-II-rapid-fire-control-params object)
 ;; (define-extern drone-compute-pos! function)
 ;; (define-extern drone-trans-set-pos function)
@@ -78469,7 +78500,12 @@
 ;; (define-extern chicken-drone-spawn function)
 ;; (define-extern chicken-drone-local-space function)
 ;; (define-extern chicken-drone-2-init-remote function)
-;; (define-extern *msg-map-chicken-drone-2* array)
+;; activated (wvehicle-weapons-family lane): wvehicle-weapons-chicken-drone
+;; top-level-login both stores and reads it directly (ops 185/188); the
+;; decode's own store site types the source (array symbol), matching the
+;; already-active *msg-map-net-world*/*msg-map-net-powerup* siblings, not
+;; the placeholder comment's bare array.
+(define-extern *msg-map-chicken-drone-2* (array symbol))
 ;; activated: wvehicle-weapons-chicken-drone top-level-login reads it in a
 ;; type-new call, same shape and fix as the other net-process-class-info-*
 ;; siblings activated alongside it this rung; net-process-class-info matches
@@ -78477,18 +78513,35 @@
 (define-extern *net-process-class-info-chicken-drone-2* net-process-class-info)
 ;; (define-extern chicken-drone-2-spawn function)
 ;; (define-extern seeker-init-remote function)
-;; (define-extern *msg-map-seeker* array)
+;; activated (wvehicle-weapons-family lane): wvehicle-weapons-chicken-drone
+;; top-level-login both stores and reads it directly (ops 247/250); the
+;; decode's own store site types the source (array symbol), same evidence
+;; and fix as *msg-map-chicken-drone-2* above.
+(define-extern *msg-map-seeker* (array symbol))
 ;; activated: wvehicle-weapons-proj top-level-login reads it in a type-new
 ;; call, same shape and fix as the net-process-class-info-* siblings above.
 (define-extern *net-process-class-info-seeker* net-process-class-info)
 ;; (define-extern success-seeker-init-remote function)
-;; (define-extern *msg-map-success-seeker* array)
-;; (define-extern *net-process-class-info-success-seeker* object)
+;; activated (wvehicle-weapons-family lane): wvehicle-weapons-chicken-drone
+;; top-level-login both stores and reads it directly (ops 371/374); same
+;; store-site (array symbol) evidence and fix as *msg-map-seeker* above.
+(define-extern *msg-map-success-seeker* (array symbol))
+;; activated (wvehicle-weapons-family lane): surfaced only once
+;; *msg-map-success-seeker* resolved (same top-level-login); net-process-
+;; class-info matches every other active sibling of this name pattern, not
+;; the placeholder comment's bare object.
+(define-extern *net-process-class-info-success-seeker* net-process-class-info)
 ;; (define-extern success-seeker-1-spawn function)
 ;; (define-extern success-seeker-local-space function)
 ;; (define-extern success-seeker-2-init-remote function)
-;; (define-extern *msg-map-success-seeker-2* array)
-;; (define-extern *net-process-class-info-success-seeker-2* object)
+;; activated (wvehicle-weapons-family lane): same top-level-login store (op
+;; 512), same fix and evidence class as *msg-map-success-seeker* above.
+(define-extern *msg-map-success-seeker-2* (array symbol))
+;; activated (wvehicle-weapons-family lane): surfaced only once
+;; *net-process-class-info-success-seeker* resolved (same top-level-login);
+;; net-process-class-info matches every other active sibling of this name
+;; pattern, not the placeholder comment's bare object.
+(define-extern *net-process-class-info-success-seeker-2* net-process-class-info)
 ;; (define-extern success-seeker-2-spawn function)
 ;; (define-extern turbodash-seeker-init-remote function)
 ;; (define-extern *msg-map-turbodash-seeker* array)
