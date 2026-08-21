@@ -55106,8 +55106,19 @@
 ;; resurrected from the dead block above (dead-type sweep); state clause moved
 ;; before methods so textual ids match the comments (idle is slot 50, proven
 ;; from wvehicle-weapons-h login)
+;; owning-vehicle retyped uint64 -> handle (wvehicle-weapons-family lane): the
+;; landed v-wpn-base-common-trans body already reads this field through
+;; handle->process by hand, with its own og:preserve-this note stating
+;; "owning-vehicle is read as a handle here even though its own field is
+;; declared uint64" (wvehicle-weapons-h.gc); every weapon subtype's own
+;; trans/event/fire body repeats the identical subu-s7/sllv/dsra32 sequence
+;; at the same raw offset 244 (placement 248, the usual +4 correction), and
+;; with the field genuinely typed handle the decompiler's own bitfield-sllv
+;; path (FormExpressionAnalysis.cpp push_asm_sllv_to_stack) recognizes the
+;; whole idiom as the handle->process macro with no per-op cast needed, a
+;; decode-clean win measured across the eight-object band this rung covers.
 (deftype vehicle-weapon-slot (process-drawable)
-  ((owning-vehicle uint64  :offset-assert 248)
+  ((owning-vehicle handle  :offset-assert 248)
    (ammunition     int8    :offset-assert 256)
    (flags          uint8   :offset-assert 257)
    (in-slot        uint8   :offset-assert 258)
