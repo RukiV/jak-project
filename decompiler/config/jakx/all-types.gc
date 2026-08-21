@@ -6866,8 +6866,8 @@
     (update-warp-and-hud (_type_) none) ;; 19
     (update-sprites (_type_) none) ;; 20
     (mark-hud-warp-sprite-dirty (_type_ object) none) ;; 21 ;; jakx: reads an extra arg vs jak3
-    (lay-out-car-tex (_type_) none) ;; 22 ;; jakx-new (CAR category)
-    (lay-out-driver-tex (_type_) none) ;; 23 ;; jakx-new (DRIVER category)
+    (lay-out-car-tex (_type_ level) int) ;; 22 ;; jakx-new (CAR category)
+    (lay-out-driver-tex (_type_ level) int) ;; 23 ;; jakx-new (DRIVER category)
     (lay-out-sprite-tex (_type_) none) ;; 24
     (lay-out-hud-tex (_type_) none) ;; 25
     (lay-out-warp-tex (_type_) none) ;; 26
@@ -15881,32 +15881,27 @@
 ;; car-info-h                     ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; Tried and reverted: typing every field below `texture` (evidenced by
-;; car-info-full-method-15/16 reading them for width/height-shaped halfword
-;; fields, and by every one of them feeding adgif-shader<-texture-simple!)
-;; clears method 15/16's "could not figure out load" errors, but the SAME
-;; fields are also read in car-info-full-method-20/21 as a growing raw write
-;; cursor (incremented by 112 bytes per call, building adgif-shader-sized
-;; blocks), and `texture` does not support that pointer math any more than
-;; car-tables' car-upgrade-info-array pointer walk does (label_types.jsonc).
-;; Net effect measured both ways: texture-typing trades 2 load errors for 21
-;; new store errors across methods 20/21; left as `basic` keeps method 15/16
-;; at their original 2 load errors instead. `basic` stays the honest choice
-;; until the two call shapes are disambiguated (car-textures_ir2.asm, this
-;; worktree's config).
+;; issue 571: the write-cursor ambiguity recorded against this deftype in an
+;; earlier revision never existed. It was a false offset-4 coincidence
+;; between dma-buffer's own +4 basic convention (methods 20/21's growing
+;; template cursor, arg0's own offset-4 base field) and this structure's
+;; unshifted convention (car-info-full-method-15/16's width/height-shaped
+;; halfword reads). Typing every field below `texture` and typing methods
+;; 20/21's arg0 as `dma-buffer` (not this structure) clears methods
+;; 15/16/20/21 to zero errors with no regressions (corpus 2724 -> 2716).
 (deftype car-layer-textures (structure)
-  ((data       basic 6 :offset-assert 0)
-   (dest       basic     :offset 0)
-   (base       basic     :offset 4)
-   (stripe     basic     :offset 8)
-   (detail     basic     :offset 12)
-   (damage     basic     :offset 16)
-   (wheel-dest basic     :offset 0)
-   (wheel-base basic     :offset 4)
-   (wheel-blur basic     :offset 8)
-   (tread-dest basic     :offset 12)
-   (tread-base basic     :offset 16)
-   (tread-blur basic     :offset 20)
+  ((data       texture 6 :offset-assert 0)
+   (dest       texture     :offset 0)
+   (base       texture     :offset 4)
+   (stripe     texture     :offset 8)
+   (detail     texture     :offset 12)
+   (damage     texture     :offset 16)
+   (wheel-dest texture     :offset 0)
+   (wheel-base texture     :offset 4)
+   (wheel-blur texture     :offset 8)
+   (tread-dest texture     :offset 12)
+   (tread-base texture     :offset 16)
+   (tread-blur texture     :offset 20)
    )
   :pack-me
   :method-count-assert 9
@@ -16044,13 +16039,13 @@
   )
 
 (deftype car-info-full (car-info)
-  ((level              basic                :offset-assert 52)
+  ((level              level                :offset-assert 52)
    (wheel-blur         float                :offset-assert 56)
-   (tread-texture      basic                :offset-assert 60)
+   (tread-texture      texture              :offset-assert 60)
    (textures           car-textures         :offset-assert 64)
    (first-tbp          uint32               :offset-assert 68)
    (last-tbp           uint32               :offset-assert 72)
-   (damage             int8        14      :offset-assert 76)
+   (damage             uint8       14      :offset-assert 76)
    (lights             vu-lights    :inline :offset-assert 96)
    (shield-vu-lights   vu-lights    :inline :offset-assert 208)
    (shield-light-group light-group  :inline :offset-assert 320)
@@ -16075,27 +16070,22 @@
     ;; pointer walk, so this is a damage-array index, not an object reference.
     (car-info-full-method-14 (_type_ int) none) ;; 14
     (car-info-full-method-15 (_type_) none) ;; 15
-    (car-info-full-method-16 (_type_ object) none) ;; 16
+    (car-info-full-method-16 (_type_ bucket-id) none) ;; 16
     (car-info-full-method-17 (_type_) none) ;; 17
     (car-info-full-method-18 (_type_ vector) none) ;; 18
     (car-info-full-method-19 (_type_ vector vector) none) ;; 19
     ;; methods 20/21: both bodies build one adgif-shader-sized (112-byte)
-    ;; texture-layer template into a growing pointer read from arg1's own
-    ;; offset 4 (car-textures_ir2.asm). arg2 (texture) is proven at the
+    ;; texture-layer template into a growing pointer read from arg0's own
+    ;; offset 4, which is dma-buffer's `base` field, not a car-layer-textures
+    ;; element (issue 571: see car-layer-textures above for the false
+    ;; offset-4 coincidence this resolves). arg1 (texture) is proven at the
     ;; adgif-shader<-texture-simple! call site (all-types.gc, already typed).
-    ;; arg3 is compared against integer constants 1 and 4, never dereferenced,
-    ;; so it is int, not object. t0/t1 are shifted left 4 and stored as raw
-    ;; words (texture-page-scaled indices); both methods read them but
-    ;; neither had them in the declared arg list at all, hence "may read a
-    ;; register that is not set". arg1 stays `object`: it looks like a
-    ;; car-layer-textures element by its offset-4 field read, but typing it
-    ;; that way was tried and reverted (see car-layer-textures above) because
-    ;; the SAME field is read here as a raw, growable write cursor, and no
-    ;; structure type both resolves the field lookup and survives the
-    ;; subsequent pointer math. The offset-4 load itself stays an open
-    ;; "could not figure out load" defect on arg1 pending disambiguation.
-    (car-info-full-method-20 (_type_ object texture int int int) none) ;; 20
-    (car-info-full-method-21 (_type_ object texture int int int) none) ;; 21
+    ;; arg2 is compared against integer constants 1 and 4, never dereferenced,
+    ;; so it is int, not object. arg3/arg4 are shifted left 4 and stored as
+    ;; raw words (texture-page-scaled indices), read but not previously
+    ;; declared, hence "may read a register that is not set".
+    (car-info-full-method-20 (_type_ dma-buffer texture int int int) none) ;; 20
+    (car-info-full-method-21 (_type_ dma-buffer texture int int int) none) ;; 21
     )
   )
 
