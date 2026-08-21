@@ -7,3 +7,16 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this bring-up stub: fmv-player-run-texture is a declaration-
+;; side extern with no defun anywhere (the extern-no-defun class, issue 551).
+;; The live call site is scene.gc:1195, inside (enter wait scene-player)'s
+;; (when (-> self scene ipu) ...) branch; 12 landed tsk-scenes in
+;; task-scenes.gc carry a non-#f :ipu, so any of them reaching that line
+;; jumped straight to address 0 and killed gk. This is NOT retail's body:
+;; retail's fmv-player.o defines roughly 20 functions and none of them are
+;; landed here. Returning #f disarms the landmine without claiming FMV
+;; playback works; retires when the real FMV landing (issue 569) lands the
+;; actual body.
+(defun fmv-player-run-texture ((arg0 int) (arg1 process-tree))
+  #f
+  )
