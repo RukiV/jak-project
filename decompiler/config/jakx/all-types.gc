@@ -69661,24 +69661,33 @@
   :size-assert         #x48
   :flag-assert         #x1c00000048
   ;; og:preserve-this hud-widgets rung 2: method 24 REPLACES hud-item's own
-  ;; inherited slot with a genuinely incompatible 1-arg int shape; :replace
+  ;; inherited slot with a genuinely incompatible int shape; :replace
   ;; reuses hud-item's own id without the compatibility check (the wave-1
   ;; attempt to give this its own new slot 28 broke the decoder's own by-id
   ;; lookup; see the matching hud-player-indicators comment for the full
-  ;; mechanism). The stray second `object` param from the wave-1 slot-28
-  ;; declaration was never real: all three call sites in hud-clock's own
-  ;; landed method 19 (hud-widgets.gc, this rung) dispatch it with exactly
-  ;; one argument after self, each an int-typed value (fixed-time-val or a
-  ;; computed time delta); (mi) rejected the 2-arg form outright ("Expected
-  ;; 3 arguments but got 2") once :replace made this type's own signature
-  ;; the one method-of-object resolves.
+  ;; mechanism).
+  ;; og:preserve-this hud-item-arity rung (issue 531): widened again, from
+  ;; (_type_ int) to (_type_ int int). This is NOT a return of the wave-1
+  ;; 2-arg mistake (that was a distinct new slot 28 with a generic object
+  ;; second arg, correctly rejected). The arity sweep found a genuine
+  ;; second int argument silently dropped at this same slot 24: caller-side,
+  ;; hud-clock's own method 19 (hud-widgets.gc) recomputes or duplicates a
+  ;; distinct int value into a2 immediately before the jalr in all three
+  ;; cond branches, uncredited by the old 1-arg call! annotation
+  ;; (hud-widgets_ir2.asm 16283-16285); callee-side, unset.json records
+  ;; hud-clock::24 reading a2 while unset (hud-widgets_ir2.asm 15285). A
+  ;; fresh scoped decode against this widened signature lands the caller
+  ;; clean and clears both of the callee's prior blocking errors, leaving
+  ;; only an unrelated, pre-existing type-prop gap (a nested items-array
+  ;; walk) that holds the callee's own body un-landed; see hud-widgets.gc's
+  ;; matching comment.
   (:methods
     ;; hud-widgets-tier rung: arg0 retyped object -> int. Body stack-stores
     ;; it, reloads it and divides it by 18000 to split minutes from seconds
     ;; ("Couldn't figure out integer mod/divide: (/.si v1 a0) (object and
     ;; <integer 18000>)" with the old object typing); a clock value in
     ;; milliseconds. hud-widgets_ir2.asm, this rung.
-    (hud-item-method-24 (_type_ int) none :replace) ;; 24
+    (hud-item-method-24 (_type_ int int) none :replace) ;; 24
     )
   )
 
