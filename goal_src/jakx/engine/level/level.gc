@@ -2832,6 +2832,13 @@
 ;; from the REPL to resume streaming/camera-fly experiments on a booted session. This
 ;; flip previously lived only as an uncommitted local edit; it is landed for real here
 ;; so retail-staged boots never carry it active by default.
+;;
+;; Re-measured (issue 550): the "unconditionally arms jakx-racer-spawn's consumer
+;; path" claim above no longer holds technically. That path is now double-gated
+;; behind *jakx-racer*, itself #f by default, so arming *jakx-want-driver* alone no
+;; longer reaches jakx-racer-spawn on its own. #193's skeleton-group root cause is
+;; unaffected by this and the demotion above still stands on it; whether that changes
+;; the default here stays the owner's call.
 (define *jakx-want-driver* #f)
 (define *jakx-want-driver-frame* 0)
 (define *jakx-want-driver-cp* (the continue-point #f))
@@ -2962,11 +2969,14 @@ frame."
 ;; loads the boot continue's want set and then sits there. Every streaming validation
 ;; and every section-boundary repro so far has therefore needed a human on a controller.
 ;;
-;; Until the real race/target chain drives the camera, hop it around the boot continue's
-;; family: every *jakx-cam-fly-dwell* frames, warp onto the next race continue in list
-;; order, wrapping at the end for successive laps. Candidate selection deliberately
-;; mirrors jakx-want-driver-tick's filter (same :level home, lightjak grid-starts
-;; excluded) so the flight can only ever visit continues whose want sets are built.
+;; Until the real race/target chain drives the camera, hop it across every buildable
+;; continue in the game, not just the boot continue's own family: every
+;; *jakx-cam-fly-dwell* frames, warp onto the next eligible continue in list order,
+;; wrapping at the end for successive laps. Candidate selection mirrors
+;; jakx-want-driver-tick's filter exactly: jakx-continue-buildable? in place of the
+;; old same-:level-home pin (issue 550 supersedes that pin with a generated
+;; buildability gate; lightjak grid-starts stay excluded) so the flight can still only
+;; ever visit continues whose want sets are actually built, now wherever they sit.
 ;;
 ;; Dwell must stay under the re-arm window jakx-cam-warp-to-continue sets, or the pin
 ;; lapses between hops and the ring's settle drags the camera back toward the origin.
@@ -2998,7 +3008,7 @@ frame."
                    )
               (while (not (null? conts))
                 (let ((cp (the-as continue-point (car conts))))
-                  (when (and (= (-> cp level) home)
+                  (when (and (jakx-continue-buildable? cp)
                              (not (logtest? (-> cp flags) (continue-flags lightjak)))
                              )
                     (when (and (not pick) (= seen want))
@@ -3083,9 +3093,14 @@ stage their window once through net-world (task-selected continue, method 76,
 check-start-load, wait-for-levels) with no positional input anywhere. Free exploration
 of the w-families therefore has no retail mechanism to port, and this driver is the
 authored stand-in: every 30 frames pick the continue point nearest the active camera
-within the boot continue's family (same :level home, so only built DGO want sets are
-ever requested) and apply its want set when it changes, guarded by jakx-want-slide-safe?
-above; update! then streams the section window."
+whose whole want set is buildable and apply its want set when it changes, guarded by
+jakx-want-slide-safe? above; update! then streams the section window. The candidate
+filter used to pin :level to the boot continue's own family, since only built DGO
+want sets are safe to request; issue 550 supersedes that pin with
+jakx-continue-buildable? against the generated *jakx-built-levels* allowlist above,
+so the same safety property (only built want sets are ever requested) now holds
+across family boundaries instead of inside just the one the boot happened to land
+in."
   (when *jakx-campath-record*
     (+! *jakx-campath-frame* 1)
     (when (>= *jakx-campath-frame* 20)
@@ -3118,7 +3133,7 @@ above; update! then streams the section window."
                        )
                   (while (not (null? conts))
                     (let ((cp (the-as continue-point (car conts))))
-                      (when (= (-> cp level) home)
+                      (when (jakx-continue-buildable? cp)
                         (let* ((dx (- (-> cp trans x) (-> cam x)))
                                (dy (- (-> cp trans y) (-> cam y)))
                                (dz (- (-> cp trans z) (-> cam z)))
