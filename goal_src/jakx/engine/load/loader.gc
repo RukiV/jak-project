@@ -435,6 +435,36 @@
     )
   )
 
+;; og:preserve-this remove-process (method 10), gui-art pump lane (issue
+;; 550/551, secondary per the brief): clean decode once the deftype's own
+;; arg count widened () none -> (process gui-channel) int, matching jak3's
+;; own twin exactly (this file's own all-types.gc hint comment); no
+;; type_casts.jsonc window was needed once the declaration carried the real
+;; shape. Walks the alive-list for a live gui-connection whose channel and
+;; owning process both match, and moves the first hit to the dead list via
+;; the already-landed generic move-to-dead. Has no landed caller in this
+;; tree yet (gui-control-method-13, which would dispatch neither this nor
+;; the callee below, stays held; see loader.gc's own og:preserve-this note
+;; on that method).
+(defmethod gui-control-method-10 ((this gui-control) (arg0 process) (arg1 gui-channel))
+  (let ((s3-0 (-> this engine alive-list next0)))
+    (-> this engine)
+    (let ((s2-0 (-> s3-0 next0)))
+      (while (!= s3-0 (-> this engine alive-list-end))
+        (if (and (= arg1 (-> (the-as gui-connection s3-0) channel))
+                 (= arg0 ((method-of-type gui-connection get-process) (the-as connection s3-0)))
+                 )
+            ((method-of-type gui-connection move-to-dead) (the-as connection s3-0))
+            )
+        (set! s3-0 s2-0)
+        (-> this engine)
+        (set! s2-0 (-> s2-0 next0))
+        )
+      )
+    )
+  0
+  )
+
 ;; og:preserve-this set-action!: clean decode once the arg5 callback retype
 ;; above landed (see the deftype note); the body itself needed no further
 ;; config work. Walks the alive-list applying arg0 (the new gui-action) to
@@ -1439,11 +1469,141 @@
   (none)
   )
 
+;; og:preserve-this gui-control-method-22, gui-art pump lane (issues 522/
+;; 550/551): arg count and return type widened () none -> (gui-connection
+;; vector) int (this file's own deftype note, gui-h.gc); the old zero-arg
+;; declaration made gui-control-method-13's own two dispatches print with
+;; no args at all and this method itself failed type prop outright at op 2.
+;; This rung's own narrowed type_casts.jsonc window ("(method 22 gui-
+;; control)", op 53, v1 to process-drawable) is the only cast this body
+;; needs. Channel-banded (only channels 1-2, shr by 4, act on it): for a
+;; queue/play/playing/fade action, if the connection's priority is the
+;; -99.0 sentinel, resolves a real priority from target-nearest-dist
+;; against the connection's own process (or -1.0 if the connection already
+;; owns the channel's current id, or if get-process/as-type fails), then
+;; inserts the connection into this's own 4-slot spool-connections array by
+;; priority, shifting lower-priority entries down and dropping the last
+;; slot, or replacing an existing same-id entry in place. Landed here
+;; without a landed caller in this tree yet: gui-control-method-13, its
+;; only dispatcher, stays held (see this method's own og:preserve-this note
+;; below); jak3's own twin, update, calls it the same way (goal_src/jak3/
+;; engine/load/loader.gc's own update body).
+(defmethod gui-control-method-22 ((this gui-control) (arg0 gui-connection) (arg1 vector))
+  (case (shr (the-as int (-> arg0 channel)) 4)
+    ((1 2)
+     (let ((s5-0 (-> this spool-connections)))
+       (case (-> arg0 action)
+         (((gui-action queue) (gui-action play) (gui-action playing) (gui-action fade))
+          (let ((f30-0 (-> arg0 priority)))
+            (when (= f30-0 -99.0)
+              (let ((v1-10 (as-type (get-process arg0) process-drawable)))
+                (set! f30-0 (cond
+                              ((= (-> arg0 id) (-> this ids (-> arg0 channel)))
+                               -1.0
+                               )
+                              (v1-10
+                                (target-nearest-dist (-> (the-as process-drawable v1-10) root trans))
+                                )
+                              (else
+                                -1.0
+                                )
+                              )
+                      )
+                )
+              )
+            (dotimes (s4-1 4)
+              (cond
+                ((>= (-> s5-0 s4-1 priority) f30-0)
+                 (let ((s3-1 s4-1))
+                   (while (< s3-1 4)
+                     (when (= (-> s5-0 s3-1 id) (-> arg0 id))
+                       (let ((s2-0 s3-1))
+                         (while (< s2-0 3)
+                           (mem-copy! (the-as pointer (-> s5-0 s2-0)) (the-as pointer (-> s5-0 (+ s2-0 1))) 64)
+                           (+! s2-0 1)
+                           )
+                         )
+                       (set! (-> s5-0 3 param2) (the-as int ""))
+                       (set! (-> s5-0 3 priority) 100000000.0)
+                       )
+                     (+! s3-1 1)
+                     )
+                   )
+                 (let ((s3-2 3))
+                   (while (!= s3-2 s4-1)
+                     (mem-copy! (the-as pointer (-> s5-0 s3-2)) (the-as pointer (-> s5-0 (+ s3-2 -1))) 64)
+                     (+! s3-2 -1)
+                     )
+                   )
+                 (mem-copy! (the-as pointer (-> s5-0 s4-1)) (the-as pointer arg0) 64)
+                 (set! (-> s5-0 s4-1 priority) f30-0)
+                 (goto cfg-42)
+                 )
+                ((= (-> s5-0 s4-1 id) (-> arg0 id))
+                 (goto cfg-42)
+                 )
+                )
+              )
+            )
+          )
+         )
+       )
+     )
+    )
+  (label cfg-42)
+  0
+  )
+
 (defmethod gui-control-method-25 ((this gui-control) (arg0 gui-connection) (arg1 object))
   (set! (-> this ids (-> arg0 channel)) (the-as sound-id arg1))
   0
   (none)
   )
+
+;; og:preserve-this gui-control-method-13, HELD, gui-art pump lane (issues
+;; 522/550/551): this is the rung's own primary target (jak3's twin, update,
+;; is the second pump call in level-update, level.gc:3573) and it is NOT
+;; landed here even though it decodes fully clean under its own corrected
+;; declaration (deftype's own og:preserve-this note, gui-h.gc: arg count
+;; widened () -> (symbol vector), the vector arg settled by this rung's own
+;; decode against the investigation's own unverified symbol guess) with one
+;; narrowed type_casts.jsonc window ("(method 13 gui-control)", [55, 75],
+;; s4 to gui-connection).
+;;
+;; The blocker: this method's own body unconditionally dispatches gui-
+;; control-method-23 (update-connection) via method-of-object, twice, once
+;; per live alive-list entry (the backward connectable walk) and once per
+;; occupied connections-array slot, exactly mirroring jak3's own twin
+;; structure (two unconditional update-connection calls, level.gc's
+;; update). gui-control-method-23 itself is walled: "function was not
+;; converted to expressions. Cannot decompile" (CFG build failure) even
+;; after widening its own declaration to the known 3-arg shape (all-types.
+;; gc's own hint comment, matching jak3's update-connection) as a direct
+;; probe this rung ran and reverted once it confirmed the CFG failure
+;; persists regardless of arg count. This is a structural decode wall, not
+;; an arg-count or cast gap; landing method 13 anyway would call an unset
+;; vtable slot the first time the alive-list holds any live gui-connection
+;; or any connections-array slot has a nonzero id, both of which happen on
+;; a routine boot the moment anything registers a connection (scene-player-
+;; init, ambient talkers). The dispatch is not provably unreachable, so per
+;; AGENTS.md's own argument-count and evidence rules this method stays
+;; unlanded until method 23 itself decodes.
+;;
+;; Independent second reason: the level.gc call site itself (this rung's
+;; own scoped decode of level.o, ir2 ops 13-17) sets a1 to #t but never
+;; sets a2 before the jalr; the decompiler's own dataflow reports it
+;; "a2: <uninitialized>". Whatever value the retail binary actually carries
+;; into the vector arg at that specific call site is not established by
+;; this rung's evidence, a second, independent reason not to wire the call
+;; even if method 23 were clear. Neither the body nor the level-update call
+;; site are landed this rung; retire this note once method 23 decodes and
+;; the level.gc call site's own a2 source is traced.
+;;
+;; gui-control-method-21, distinct from the above: measured zero-error by
+;; the investigation but out of this rung's own scope (not named in issues
+;; 550/551's landmine list); still fails type prop here ("Could not figure
+;; out load", op 8) under the config this rung actually applied, since no
+;; narrowed window was staged for it. Left untouched.
 
 ;; WARN: Return type mismatch symbol vs load-dir.
 (defmethod mem-usage ((this load-dir) (usage memory-usage-block) (flags int))
@@ -1678,36 +1838,33 @@
   )
 
 ;; og:preserve-this the external-art-buffer and external-art-control
-;; machinery decodes mostly clean against this rung's own fresh scoped
-;; decode; the prior rung's og:note calling the whole "external-art-
-;; control/buffer machinery" parked was true only for three methods (see
-;; the held list below), not the other twelve. loader-h.gc already carries
-;; both types' full field layout and :methods block (landed at e8971078d),
-;; so no deftype or config edit was needed for any of this.
+;; machinery, gui/art pump lane (issues 522/550/551): every remaining held
+;; method in this cluster lands here. external-art-buffer's own update
+;; (method 10) was already known clean (text-record-wall rung's own note,
+;; kept below); external-art-control's own update (method 9) and spool-push
+;; (method 11) were the two genuinely new decodes this rung did, each
+;; needing one narrowed type_casts.jsonc window (jakx/ntsc_v1/type_casts.
+;; jsonc, "gui-art pump lane" block) bisected down from the spooler
+;; investigation's own generous scan (issue 522's long investigation
+;; comment): (method 9 external-art-control)'s own s4 (the candidate
+;; external-art-buffer) to [173, 191], (method 11 external-art-control)'s
+;; own s5 (a process-drawable, spool-push's own target-nearest-dist arg) to
+;; [15, 17]. spool-push's own former blocker, an unresolved target-nearest-
+;; dist, was already cleared by an earlier rung (target.gc's own landing);
+;; this rung's fresh decode confirms both callees fully clean, zero further
+;; config needed.
 ;;
 ;; Landed from external-art-buffer: print, external-art-buffer-init (its
 ;; own define-extern already lived in loader-h.gc), set-pending-file,
-;; unlock!, inactive?, file-status, link-file and unlink-file (the latter
-;; two call the already-landed link-art-to-master/unlink-art-to-master).
-;; Held: external-art-buffer's update (method 10). NOTE, text-record-wall
-;; rung: that hold's stated blocker is gone. Op 205 was the kernel's own
-;; link call, and giving `link` its real signature in all-types.gc (from
-;; game/kernel/jak3/klink.cpp's link_and_exec_wrapper, five args) resolved
-;; it; both sllv errors were downstream of that failed type prop and went
-;; with it. The method now decodes clean (199 lines, "Found some very
-;; strange gotos" WARN only) and loader_REF.gc records it. It is left
-;; unlanded here only because that is a loader-scoped landing, not part of
-;; the text rung that cleared it.
+;; unlock!, inactive?, file-status, link-file, unlink-file and now update
+;; (method 10, text-record-wall rung's own note kept below), plus this
+;; rung's own two: none held.
 ;;
-;; Landed from external-art-control: file-status, none-reserved?,
-;; reserve-alloc, reserve-free (calls external-art-buffer's own update,
-;; still held above; an unfilled method-of-object dispatch, not a compile
-;; error) and clear-rec. Held: update (method 9) fails type prop at op
-;; 173 on the same "Could not figure out load" class as ja-play-spooled-
-;; anim below, plus two unsupported sllv instructions; spool-push (method
-;; 11) fails on an unresolved symbol (target-nearest-dist, not defined
-;; anywhere in goal_src/jakx) on top of three more sllv instructions.
-;; Neither is a config gap either.
+;; Landed from external-art-control: file-status, update (method 9, this
+;; rung), none-reserved?, reserve-alloc, reserve-free (dispatches external-
+;; art-buffer's own update above, now landed, not an unfilled method-of-
+;; object dispatch any more), clear-rec and spool-push (method 11, this
+;; rung): none held.
 (defmethod print ((this external-art-buffer))
   (format
     #t
@@ -1773,6 +1930,231 @@
   0
   )
 
+;; og:preserve-this update (method 10), text-record-wall rung's own note:
+;; the prior hold's stated blocker is gone. Op 205 was the kernel's own
+;; link call, and giving `link` its real signature in all-types.gc (from
+;; game/kernel/jak3/klink.cpp's link_and_exec_wrapper, five args) resolved
+;; it; both sllv errors were downstream of that failed type prop and went
+;; with it. Landed here (gui-art pump lane, issue 550/551) because
+;; external-art-control's own reserve-free (below) already dispatches it
+;; unguarded on the level-unload path once (-> this reserve-buffer) is
+;; truthy (issue 551 item 3's own live landmine); leaving it unlanded left
+;; that call site reading an empty vtable slot. Drives the buffer's own
+;; pending/load-file state machine through str-load/str-load-cancel/
+;; str-load-status and the art-group login/link machinery; the "Found some
+;; very strange gotos" WARN is decompiler noise over the retry loop
+;; (label cfg-18), not a defect.
+(defmethod update ((this external-art-buffer))
+  (local-vars (v1-47 symbol))
+  (when (or (not (name= (-> this pending-load-file) (-> this load-file)))
+            (!= (-> this pending-load-file-part) (-> this load-file-part))
+            )
+    (when (not (handle->process (-> this pending-load-file-owner)))
+      (set! (-> this pending-load-file) #f)
+      (set! (-> this pending-load-file-part) -1)
+      (set! (-> this pending-load-file-owner) (the-as handle #f))
+      (set! (-> this pending-load-file-priority) 100000000.0)
+      )
+    (when (= (-> this status) 'initialize)
+      ((-> this init-heap) this)
+      (set! (-> this status) 'inactive)
+      )
+    (cond
+      ((-> this load-file)
+       (if (= (-> this status) 'loading)
+           (str-load-cancel)
+           )
+       (set! (-> this load-file) #f)
+       (set! (-> this load-file-part) -1)
+       (set! (-> this load-file-owner) (the-as handle #f))
+       (set! (-> this load-file-priority) 100000000.0)
+       )
+      (else
+        (set! (-> this load-file) (-> this pending-load-file))
+        (set! (-> this load-file-part) (-> this pending-load-file-part))
+        (set! (-> this load-file-owner) (-> this pending-load-file-owner))
+        (set! (-> this load-file-priority) (-> this pending-load-file-priority))
+        )
+      )
+    )
+  (label cfg-18)
+  (cond
+    ((-> this load-file)
+     (case (-> this status)
+       (('active 'reserved)
+        )
+       (('error)
+        (set! (-> this status) 'inactive)
+        (set! (-> this load-file) #f)
+        (set! (-> this load-file-part) -1)
+        (set! (-> this load-file-owner) (the-as handle #f))
+        (set! (-> this load-file-priority) 100000000.0)
+        (set! (-> this pending-load-file) #f)
+        (set! (-> this pending-load-file-part) -1)
+        (set! (-> this pending-load-file-owner) (the-as handle #f))
+        (set! (-> this pending-load-file-priority) 100000000.0)
+        (set! (-> this art-group) #f)
+        )
+       (('inactive)
+        (let ((v1-31 (-> this heap)))
+          (set! (-> v1-31 current) (-> v1-31 base))
+          )
+        (cond
+          ((string= (-> this load-file) "reserved")
+           (cond
+             ((-> *art-control* reserve-buffer)
+              (format 0 "ERROR: trying double reserve ~A when ~A is reserved~%" this (-> *art-control* reserve-buffer))
+              )
+             (else
+               (set! (-> this status) 'reserved)
+               (set! (-> *art-control* reserve-buffer) this)
+               )
+             )
+           )
+          ((and (!= (-> *level* loading-level) (-> *level* level-default))
+                (or (< 81920.0 (-> this load-file-priority))
+                    (logtest? (-> *level* loading-level info level-flags) (level-flags external))
+                    )
+                )
+           )
+          ((begin
+             (let ((v1-46 (logand -64 (&+ (-> this heap current) 63))))
+               (set! v1-47
+                     (when (str-load (-> this load-file) (-> this load-file-part) v1-46 (&- (-> this heap top) (the-as uint v1-46)))
+                       (set! v1-47 'loading)
+                       (set! (-> this status) v1-47)
+                       v1-47
+                       )
+                     )
+               )
+             v1-47
+             )
+           0
+           )
+          )
+        )
+       (('loading)
+        (case (str-load-status (&-> this len))
+          (('error)
+           (set! (-> this status) 'error)
+           )
+          (('busy)
+           )
+          (else
+            (set! (-> this buf) (logand -64 (&+ (-> this heap current) 63)))
+            (set! (-> this status) 'loaded)
+            (goto cfg-18)
+            )
+          )
+        )
+       (('loaded)
+        (let ((a0-39 (-> this buf)))
+          (cond
+            ((-> this login?)
+             (set! (-> this art-group)
+                   (the-as art-group (link a0-39 (-> this load-file data) (-> this len) (-> this heap) (if *print-login*
+                                                                                                             8
+                                                                                                             0
+                                                                                                             )
+                                           )
+                           )
+                   )
+             (let ((s3-0 (-> this art-group))
+                   (s4-0 (-> this load-file))
+                   )
+               (cond
+                 ((not s3-0)
+                  (format 0 "ERROR: art-group ~A part ~D is not a valid file.~%" s4-0 (-> this load-file-part))
+                  (set! (-> this status) 'error)
+                  )
+                 ((not (type? s3-0 art-group))
+                  (format 0 "ERROR: art-group ~A part ~D is not a art-group.~%" s4-0 (-> this load-file-part))
+                  (set! (-> this status) 'error)
+                  )
+                 ((not (file-info-correct-version? (-> s3-0 info) (file-kind art-group) 0))
+                  (set! (-> this status) 'error)
+                  )
+                 (else
+                   (login s3-0)
+                   (set! (-> this status) 'locked)
+                   )
+                 )
+               )
+             )
+            (else
+              (set! (-> this status) 'locked)
+              (set! (-> this art-group) (the-as art-group a0-39))
+              )
+            )
+          )
+        )
+       (('locked)
+        (when (and (not (-> this locked?)) (handle->process (-> this load-file-owner)))
+          (if (-> this login?)
+              (link-file this (-> this art-group))
+              )
+          (if (-> this other)
+              (set! (-> this other locked?) #t)
+              )
+          (set! (-> this status) 'active)
+          (goto cfg-18)
+          )
+        )
+       )
+     )
+    (else
+      (case (-> this status)
+        (('initialize)
+         )
+        (('reserved)
+         (cond
+           ((= (-> *art-control* reserve-buffer) this)
+            (set! (-> *art-control* reserve-buffer) #f)
+            (set! (-> this status) 'inactive)
+            )
+           (else
+             (format 0 "ERROR: trying tro free ~A when ~A is reserved~%" this (-> *art-control* reserve-buffer))
+             )
+           )
+         )
+        (('active)
+         (if (-> this login?)
+             (unlink-file this (-> this art-group))
+             )
+         (let ((v1-88 (-> this heap)))
+           (set! (-> v1-88 current) (-> v1-88 base))
+           )
+         (set! (-> this art-group) #f)
+         (set! (-> this status) 'inactive)
+         (when (and (-> this other) (-> this other locked?))
+           (unlock! (-> this other))
+           (update (-> this other))
+           )
+         )
+        (else
+          (let ((v1-98 (-> this heap)))
+            (set! (-> v1-98 current) (-> v1-98 base))
+            )
+          (set! (-> this art-group) #f)
+          (set! (-> this status) 'inactive)
+          )
+        )
+      )
+    )
+  0
+  )
+
+;; og:preserve-this *preload-spool-anims*, gui-art pump lane (issue 550/
+;; 551): retail top-level, decoded immediately after external-art-buffer's
+;; own update and immediately before external-art-control's own file-status
+;; (this file's own fresh scoped decode, loader_disasm.gc:543-544), gating
+;; the non-urgent-priority preload skip inside external-art-control's own
+;; update below. Every other game defines this identically (jak1/jak2/jak3
+;; loader.gc, each `(define *preload-spool-anims* #t)` at the same relative
+;; position, each with a matching debug-menu toggle this tree has not
+;; landed); transcribed verbatim, not ported from a twin.
+(define *preload-spool-anims* #t)
+
 (defmethod file-status ((this external-art-control) (arg0 string) (arg1 int))
   (dotimes (s3-0 2)
     (let ((v1-3 (file-status (-> this buffer s3-0) arg0 arg1)))
@@ -1782,6 +2164,140 @@
       )
     )
   #f
+  )
+
+;; og:preserve-this update (method 9), gui-art pump lane (issues 522/550/
+;; 551): held since the scene chain's own scoped decode (op 173, "Could not
+;; figure out load" on the candidate buffer, plus two sllv instructions);
+;; this rung's own narrowed type_casts.jsonc window ("(method 9 external-
+;; art-control)", [173, 191], s4 to external-art-buffer) clears both. Runs
+;; each frame: reserves a buffer for a pending "reserved" spool-push if
+;; dma-reserve-buffer-count is nonzero, resets the per-buffer frame-lock and
+;; per-rec anim-name, links each occupied rec slot to a free, unlocked
+;; buffer (first pass: already-matching file-status; second pass: any free
+;; buffer, gated on *preload-spool-anims* for non-urgent priorities),
+;; releases the reserve buffer's other half when nothing else needs it, and
+;; finally pumps both buffers' own update (landed above) and republishes
+;; rec into queue-stream for the debug display. This is the retail level-
+;; update's own second pump call, jak3 level.gc:3574's (update *art-control*
+;; #t), confirmed at jakx's own call site (level.gc's ir2, op 19-23: a1 =
+;; #t, matching this method's own debug-display gate).
+(defmethod update ((this external-art-control) (arg0 symbol))
+  (if (nonzero? (-> this reserve-buffer-count))
+      (spool-push this "reserved" 0 *dproc* (if (-> this reserve-buffer)
+                                                -110.0
+                                                -0.5
+                                                )
+                  )
+      )
+  (dotimes (v1-5 2)
+    (set! (-> this buffer v1-5 frame-lock) #f)
+    )
+  (dotimes (v1-8 3)
+    (set! (-> this rec v1-8 anim-name) #f)
+    )
+  (dotimes (s4-0 2)
+    (let ((s3-0 (-> this rec s4-0)))
+      (when (-> s3-0 name)
+        (dotimes (s2-0 2)
+          (when (and (file-status (-> this buffer s2-0) (-> s3-0 name) (-> s3-0 parts))
+                     (not (-> this buffer s2-0 frame-lock))
+                     )
+            (set! (-> this buffer s2-0 frame-lock) #t)
+            (set! (-> s3-0 anim-name) (the-as string (-> this buffer s2-0)))
+            (set! (-> this buffer s2-0 pending-load-file-owner) (-> s3-0 owner))
+            (set! (-> this buffer s2-0 load-file-owner) (-> s3-0 owner))
+            (set! (-> this buffer s2-0 pending-load-file-priority) (-> s3-0 priority))
+            (set! (-> this buffer s2-0 load-file-priority) (-> s3-0 priority))
+            (goto cfg-24)
+            )
+          )
+        )
+      )
+    (label cfg-24)
+    )
+  (dotimes (s4-1 2)
+    (let ((s3-1 (-> this rec s4-1)))
+      (when (and (-> s3-1 name) (not (-> s3-1 anim-name)))
+        (if (and (not *preload-spool-anims*) (>= (-> s3-1 priority) 0.0))
+            (goto cfg-46)
+            )
+        (dotimes (s2-1 2)
+          (when (not (-> this buffer s2-1 frame-lock))
+            (set! (-> this buffer s2-1 frame-lock) #t)
+            (set-pending-file (-> this buffer s2-1) (-> s3-1 name) (-> s3-1 parts) (-> s3-1 owner) (-> s3-1 priority))
+            (set! (-> s3-1 anim-name) (the-as string (-> this buffer s2-1)))
+            (goto cfg-46)
+            )
+          )
+        )
+      )
+    (label cfg-46)
+    )
+  (when (not (-> this reserve-buffer))
+    (let ((s4-2 (the-as external-art-buffer (-> this rec 0 anim-name))))
+      (if (and s4-2
+               (-> s4-2 locked?)
+               (not (string= (-> s4-2 pending-load-file) "reserved"))
+               (not (string= (-> s4-2 other pending-load-file) "reserved"))
+               )
+          (set-pending-file (-> s4-2 other) (the-as string #f) -1 (the-as handle #f) 100000000.0)
+          )
+      )
+    )
+  (dotimes (s4-3 2)
+    (update (-> this buffer s4-3))
+    )
+  (let ((s4-4 (-> this queue-stream)))
+    (set! (-> s4-4 length) 0)
+    (dotimes (s3-2 3)
+      (when (-> this rec s3-2 name)
+        (mem-copy! (&-> s4-4 (-> s4-4 length) type) (&-> this rec s3-2 type) 44)
+        (+! (-> s4-4 length) 1)
+        )
+      )
+    )
+  (when (and arg0 *display-art-control*)
+    (dotimes (s5-1 3)
+      (let ((t9-8 format)
+            (a0-27 *stdcon*)
+            (a1-8 "rec ~d ~S ~D ~f ~A~%")
+            (a2-5 s5-1)
+            (a3-3 (-> this rec s5-1 name))
+            (t0-3 (-> this rec s5-1 parts))
+            (t1-0 (-> this rec s5-1 priority))
+            (v1-121 (handle->process (-> this rec s5-1 owner)))
+            )
+        (t9-8 a0-27 a1-8 a2-5 a3-3 t0-3 t1-0 (if v1-121
+                                                 (-> v1-121 name)
+                                                 )
+              )
+        )
+      )
+    (dotimes (s5-2 2)
+      (let ((t9-9 format)
+            (a0-28 *stdcon*)
+            (a1-9 "buf ~d ~C ~S ~D ~A ~A~%")
+            (a2-6 s5-2)
+            (a3-4 (if (-> this buffer s5-2 locked?)
+                      108
+                      32
+                      )
+                  )
+            (t0-4 (-> this buffer s5-2 pending-load-file))
+            (t1-1 (-> this buffer s5-2 pending-load-file-part))
+            (t2-5 (-> this buffer s5-2 status))
+            (v1-142 (handle->process (-> this buffer s5-2 pending-load-file-owner)))
+            )
+        (t9-9 a0-28 a1-9 a2-6 a3-4 t0-4 t1-1 t2-5 (if v1-142
+                                                      (-> v1-142 name)
+                                                      )
+              )
+        )
+      )
+    (format *stdcon* " a: ~S~%" (-> this active-stream))
+    )
+  0
   )
 
 (defmethod none-reserved? ((this external-art-control))
@@ -1840,6 +2356,77 @@
     (set! (-> this rec v1-0 owner) (the-as handle #f))
     )
   (set! (-> this frame-mask) (the-as uint (-> *setting-control* user-current process-mask)))
+  0
+  )
+
+;; og:preserve-this spool-push (method 11), gui-art pump lane (issues 522/
+;; 550/551): held since the scene chain's own scoped decode on an unresolved
+;; target-nearest-dist (an earlier rung's own landing, target.gc, cleared
+;; that) plus three sllv instructions this rung's own narrowed type_casts.
+;; jsonc window resolves ("(method 11 external-art-control)", [15, 17], s5
+;; to process-drawable, the target-nearest-dist call's own root/trans
+;; receiver). Queues a named anim/part pair into this's own 3-slot rec
+;; array by priority (defaulting priority from the target's own distance
+;; when the caller passes the -99.0 sentinel), replacing an existing queued
+;; entry for the same name/part if a lower (more urgent) priority displaces
+;; it, otherwise inserting sorted and dropping the lowest-priority slot.
+;; This is the same method update (above) calls for the reserve-buffer's
+;; own "reserved" placeholder push, and loader.gc's own header note on
+;; external-art-buffer's update names this as the caller that made update's
+;; own landing load-bearing (issue 551 item 3's landmine, reserve-free).
+(defmethod spool-push ((this external-art-control) (arg0 string) (arg1 int) (arg2 process) (arg3 float))
+  (if (and (= arg3 -99.0) arg2)
+      (set! arg3 (target-nearest-dist (-> (the-as process-drawable arg2) root trans)))
+      )
+  (cond
+    ((and (= arg1 (-> this rec 0 parts)) (name= arg0 (-> this rec 0 name)))
+     (if (>= arg3 (-> this rec 0 priority))
+         (return (the-as int #f))
+         )
+     (mem-copy! (&-> this rec 0 type) (&-> this rec 1 type) 44)
+     (mem-copy! (&-> this rec 1 type) (&-> this rec 2 type) 44)
+     (set! (-> this rec 2 name) #f)
+     (set! (-> this rec 2 owner) (the-as handle #f))
+     )
+    ((and (= arg1 (-> this rec 1 parts)) (name= arg0 (-> this rec 1 name)))
+     (if (>= arg3 (-> this rec 1 priority))
+         (return (the-as int #f))
+         )
+     (mem-copy! (&-> this rec 1 type) (&-> this rec 2 type) 44)
+     (set! (-> this rec 2 name) #f)
+     (set! (-> this rec 2 owner) (the-as handle #f))
+     )
+    ((and (= arg1 (-> this rec 2 parts)) (name= arg0 (-> this rec 2 name)))
+     (if (>= arg3 (-> this rec 2 priority))
+         (return (the-as int #f))
+         )
+     (set! (-> this rec 2 name) #f)
+     (set! (-> this rec 2 owner) (the-as handle #f))
+     )
+    )
+  (cond
+    ((< arg3 (-> this rec 0 priority))
+     (mem-copy! (&-> this rec 2 type) (&-> this rec 1 type) 44)
+     (mem-copy! (&-> this rec 1 type) (&-> this rec 0 type) 44)
+     (set! (-> this rec 0 name) arg0)
+     (set! (-> this rec 0 parts) arg1)
+     (set! (-> this rec 0 priority) arg3)
+     (set! (-> this rec 0 owner) (process->handle arg2))
+     )
+    ((< arg3 (-> this rec 1 priority))
+     (mem-copy! (&-> this rec 2 type) (&-> this rec 1 type) 44)
+     (set! (-> this rec 1 name) arg0)
+     (set! (-> this rec 1 parts) arg1)
+     (set! (-> this rec 1 priority) arg3)
+     (set! (-> this rec 1 owner) (process->handle arg2))
+     )
+    ((< arg3 (-> this rec 2 priority))
+     (set! (-> this rec 2 name) arg0)
+     (set! (-> this rec 2 parts) arg1)
+     (set! (-> this rec 2 priority) arg3)
+     (set! (-> this rec 2 owner) (process->handle arg2))
+     )
+    )
   0
   )
 
