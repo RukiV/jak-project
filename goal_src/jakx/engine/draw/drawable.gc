@@ -4091,6 +4091,14 @@
 ;; *background-work*, and finish-background turns that into bucket DMA). The
 ;; foreground/ocean/sprite/particle legs return here as their subsystems land.
 (defun real-main-draw-hook ()
+  ;; og:preserve-this dma leg: the retail hook calls lobby-dma-reserve-hook first,
+  ;; before the mood pump (the commented original's t9-0/call! at 2134, ahead of
+  ;; every other leg); it shrinks *display*'s current frame's global-buf by the
+  ;; block allocator's running low-water mark and ages every block's alloc-frames
+  ;; counter, the gate level.gc:9494 reads to reclaim a stale car-load buffer.
+  ;; Without this call first, alloc-frames never increments and that 4-frame age
+  ;; gate never clears.
+  (lobby-dma-reserve-hook)
   ;; og:preserve-this mood leg: the retail hook runs the time-of-day pump before
   ;; the background draws (see the commented original's update-time-of-day call);
   ;; it fills each level's mood-context times/itimes and the env color
