@@ -289,24 +289,39 @@
   )
 
 ;; definition for method 15 of type car-info-full
-;; ERROR: function was not converted to expressions. Cannot decompile.
+;; og:preserve-this bring-up stub, issue 571: NOT retail's body. The real
+;; method 15 breaks at op 123: a growable write-cursor pointer (built one
+;; adgif-shader-sized template at a time, the same shape all-types.gc's
+;; own car-info-full deftype comment documents for methods 20/21 below)
+;; is read back at its own offset 0 ("Could not figure out load: (set! a0
+;; (l.h v1))"); the same comment records that typing this cursor as
+;; car-layer-textures was tried and reverted for methods 20/21 because
+;; the identical field is read both as a fixed struct member and as a
+;; raw growable cursor, and no structure type resolves both. The real
+;; landing (the car-texture layout pass, its own lane) stays held on
+;; that write-cursor field ambiguity; the raw decode is preserved in the
+;; REF file for reference.
 ;;
-;; og:preserve-this: (method 15 car-info-full) breaks at op 123: a
-;; growable write-cursor pointer (built one adgif-shader-sized template
-;; at a time, the same shape all-types.gc's own car-info-full deftype
-;; comment documents for methods 20/21 below) is read back at its own
-;; offset 0 ("Could not figure out load: (set! a0 (l.h v1))"); the same
-;; comment records that typing this cursor as car-layer-textures was
-;; tried and reverted for methods 20/21 because the identical field is
-;; read both as a fixed struct member and as a raw growable cursor, and
-;; no structure type resolves both. The fallout collapses this whole
-;; function to a flat, non-SSA local-vars form (physical registers
-;; reused across many logical purposes rather than clean per-use
-;; bindings), and the method-of-type dispatch to texture-pool's own
-;; lay-out-car-tex fails under (mi) as a direct symptom ("The method
-;; lay-out-car-tex of type object could not be found"). Held un-landed
-;; until the write-cursor field ambiguity is resolved; the raw decode
-;; is preserved in the REF file for reference.
+;; This stub exists only to disarm the null-slot dispatch: login-begin's
+;; (= state elts) branch unconditionally runs (car-info-full-method-15
+;; (-> *car-level-array* data (+ (-> this index) -6))) for every level
+;; with index 6 to 11 (level.gc:1490), and with no defmethod anywhere the
+;; slot was 0, so that call jumped straight to GOAL address 0 and killed
+;; every car-level load, falcl included, byte-identically reproduced
+;; (issue 571). Expected consequence: car textures stay un-laid-out (no
+;; adgif-shader templates built) until the real body lands. Retirement
+;; condition: the real method 15 landing.
+;;
+;; Sibling holds for the next car rung: methods 16/20/21 stay
+;; uninstalled (16 has its own separate damage-array indexing defect at
+;; op 254, see below; 20/21 share method 15's write-cursor defect; none
+;; of the three has a live goal_src call site yet, so the e2 discipline
+;; leaves them alone); lay-out-car-tex and lay-out-driver-tex both stay
+;; commented out in texture.gc (texture.gc:904, :1026).
+(defmethod car-info-full-method-15 ((this car-info-full))
+  0
+  (none)
+  )
 
 ;; definition for method 20 of type car-info-full
 ;; ERROR: function was not converted to expressions. Cannot decompile.
