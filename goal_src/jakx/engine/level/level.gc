@@ -7620,6 +7620,44 @@ would close more of those and is deliberately not added here."
         )
       )
     )
+  ;; og:preserve-this boot camera placement (issue 581 follow-through): a default boot
+  ;; leaves the free-fly camera parked at the origin -- probe captures read cam pos
+  ;; 0.0 0.0 0.0, hanging over the skybox -- because R6 (#122) dropped the boot-time
+  ;; (jakx-cam-warp-to-continue boot-cp) call from `play` (see the retired note near
+  ;; *jakx-want-driver-cp*'s boot-cp arm below) on the theory that initialize!'s own
+  ;; continue path (move-camera!, game-info method 11) would place the camera instead;
+  ;; that path is still a placeholder (per the same retired note) and never moves it.
+  ;; The call cannot simply move back into `play`: at boot-cp arming time the
+  ;; continue's own level is still 'loading (want-levels was just issued), and
+  ;; jakx-cam-warp-to-continue refuses to arm against a level that is not resident
+  ;; (cam-start.gc:132-134), the same residency shape jakx-cam-fly-tick's own filter
+  ;; relies on above. So this polls once a tick instead: while
+  ;; *jakx-boot-camera-placed* is still #f and *jakx-boot-continue* names a continue
+  ;; (the REPL can set it #f to disable the boot-continue path entirely, level-h.gc),
+  ;; resolve that continue and check its level's residency the level-status? shape
+  ;; uses (status 'loaded or 'active, level.gc:501) -- not just level-get truthy,
+  ;; since a level object can exist mid-load. Once resident, warp and latch so this
+  ;; never re-arms; a re-arm would fight the pad-fallback camera and the racer chase
+  ;; pin, which write the same math-camera destinations jakx-cam-pin-view! does
+  ;; (cam-start.gc). This block is deliberately NOT gated on *jakx-want-driver*:
+  ;; placement is boot behavior, not exploration behavior, and the call site that
+  ;; reaches this function (level-update, this file) is itself unconditional, so no
+  ;; contortion is needed to run it regardless of the driver flag's value -- with the
+  ;; flag now defaulting on (above), it fires either way. Retire with the real camera
+  ;; start chain (move-camera!'s own landing), same retirement condition as
+  ;; jakx-cam-warp-to-continue itself.
+  (when (and (not *jakx-boot-camera-placed*) *jakx-boot-continue*)
+    (let ((boot-cp (jakx-find-continue-point (the-as string *jakx-boot-continue*))))
+      (when boot-cp
+        (let ((lev (level-get *level* (-> boot-cp level))))
+          (when (and lev (or (= (-> lev status) 'loaded) (= (-> lev status) 'active)))
+            (jakx-cam-warp-to-continue boot-cp)
+            (set! *jakx-boot-camera-placed* #t)
+            )
+          )
+        )
+      )
+    )
   (when (and *jakx-want-driver* *jakx-want-driver-cp* (nonzero? *level-load-list*))
     (+! *jakx-want-driver-frame* 1)
     (when (>= *jakx-want-driver-frame* 30)
