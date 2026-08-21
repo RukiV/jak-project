@@ -2925,6 +2925,48 @@
   (the-as continue-point #f)
   )
 
+(defun jakx-goto-level ((level-name symbol) (continue-name string))
+  "og:preserve-this bring-up lever (the owner's level-switching request): force
+*load-state* to give up every current want, drain the resulting discards, boot
+level-name synchronously through bg, then arm a camera warp at continue-name if
+one was given. Eviction is load-state's own mechanism, not anything special to
+this function: want only reaches target through add-borrow-levels (want-exp
+copies straight into target when update-callback is #f, true throughout bring-up
+boots), and update! discards at most one level per call and returns early after
+any discard (this file), so clearing every want name and draining with a bounded
+loop is what actually frees the banks the destination level needs. bg's own wait
+loop (this file) pumps load-continue while the level's status is 'loading,
+'loading-bt or 'login, so by the time bg returns the level is either resident or,
+on a repeat bank exhaustion, was bailed 'inactive by the load-begin fix above and
+the wait loop never engaged; jakx-cam-warp-to-continue is safe either way, since
+it no-ops with a log line when level-get finds the level not loaded. The driver
+re-arms LAST, once the camera already sits in the destination family:
+*jakx-want-driver-level* is deliberately left holding the stale pre-jump family
+symbol, and jakx-want-driver-tick's family-changed check (this file) treats that
+stale mismatch as an ordinary family entry and bootstraps its window from the new
+position on its next tick. This is the debug menu's stand-in; retire when a real
+level-select UI drives the same clear/drain/bg sequence."
+  (set! *jakx-want-driver* #f)
+  (dotimes (i 18)
+    (set! (-> *load-state* want i name) #f)
+    )
+  (add-borrow-levels *load-state*)
+  (dotimes (i 6)
+    (update! *load-state*)
+    )
+  (bg level-name)
+  (when continue-name
+    (let ((cp (jakx-find-continue-point continue-name)))
+      (if cp
+          (jakx-cam-warp-to-continue cp)
+          )
+      )
+    )
+  (set! *jakx-want-driver* #t)
+  0
+  (none)
+  )
+
 ;; og:preserve-this bring-up camera path recorder: while enabled, level-update's tick
 ;; prints the active camera position a few times a second. A recorded flight bakes
 ;; into a replay probe (scratchpad tooling) so streaming validation laps run without

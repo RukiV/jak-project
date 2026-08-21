@@ -33,7 +33,6 @@ written is read-only by design and not a finding.
 | `*display-level-border*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-scene-control*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*jakx-racer*` | 1 | `goal_src/jakx/engine/level/level.gc` |
-| `*jakx-want-driver*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*last-cash-game-mgr-for-player-0*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
