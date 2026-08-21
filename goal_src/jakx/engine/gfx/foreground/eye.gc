@@ -157,53 +157,47 @@
 ;; REF file for reference.
 
 ;; definition for function convert-eye-data
-;; og:preserve-this function convert-eye-data is deferred, not landed. Its
-;; own decode is otherwise clean (identical, line for line, to jak1's own
-;; landed goal_src/jak1/engine/gfx/foreground/eye.gc convert-eye-data), but
-;; (mi) rejects it: vitof15.xyzw fails with "No method or function named
-;; vitof15.xyzw for type object", the exact class collide-hash.gc's own
-;; collide-list-fill-bg-using-box hits and documents (this file, that
-;; comment above): some vf register in the printed VU macro block is
-;; missing its rlet :class vf declaration for jakx's compile environment
-;; specifically, even though both vf1 and vf2 are declared here; a real
-;; compile-time gap the decompiler does not flag as a decode error.
-;; Declared as a bare extern instead so merc-eye-anim below (itself clean)
-;; can still compile and call it by name; calling it links to zero at
-;; runtime until this is resolved (AGENTS.md rule 5). merc-eye-anim's own
-;; two call sites are already live today with no extern at all reachable
-;; before this rung (generic-obs.gc calls it unguarded, process-drawable.gc
-;; guards on merc-eye-anim itself being nonzero), so this landing does not
-;; newly expose a path that was safe before.
-;;   (defun convert-eye-data ((arg0 eye) (arg1 uint))
-;;     (local-vars
-;;       (v0-0 float)
-;;       (v1-0 uint128)
-;;       (v1-1 uint128)
-;;       (v1-2 uint128)
-;;       (v1-3 uint128)
-;;       (v1-4 uint128)
-;;       (v1-5 uint128)
-;;       )
-;;     (rlet ((vf1 :class vf)
-;;            (vf2 :class vf)
-;;            )
-;;       (.pextlb v1-0 arg1 0)
-;;       (.pextlh v1-1 v1-0 0)
-;;       (.pw.sra v1-2 v1-1 16)
-;;       (.mov vf1 v1-2)
-;;       (.pextlb v1-3 0 arg1)
-;;       (.pextuh v1-4 0 v1-3)
-;;       (.pw.sll v1-5 v1-4 6)
-;;       (.mov vf2 v1-5)
-;;       (vitof15.xyzw vf1 vf1)
-;;       (vitof12.xyzw vf2 vf2)
-;;       (.svf (&-> arg0 data 0 quad) vf1)
-;;       (.svf (&-> arg0 data 1 quad) vf2)
-;;       (.mov v0-0 vf2)
-;;       v0-0
-;;       )
-;;     )
-(define-extern convert-eye-data (function eye uint float))
+;; og:preserve-this landed this rung. The body is the decode verbatim
+;; (identical, line for line, to jak1's own landed goal_src/jak1/engine/gfx/
+;; foreground/eye.gc convert-eye-data). It previously deferred because (mi)
+;; rejected vitof15.xyzw with "No method or function named vitof15.xyzw for
+;; type object"; this file's old comment blamed a missing rlet :class vf
+;; declaration, but both vf1 and vf2 were declared -- the real gap was that
+;; jakx's engine/ps2/vu1-macros.gc carried no vitof trio at all. That trio is
+;; ported verbatim from jak3 in the same change, so the body compiles and the
+;; bare extern this file carried is retired. merc-eye-anim's two call sites
+;; were already live before this rung (generic-obs.gc calls it unguarded,
+;; process-drawable.gc guards on merc-eye-anim itself being nonzero), so this
+;; landing does not newly expose a path that was safe before.
+(defun convert-eye-data ((arg0 eye) (arg1 uint))
+  (local-vars
+    (v0-0 float)
+    (v1-0 uint128)
+    (v1-1 uint128)
+    (v1-2 uint128)
+    (v1-3 uint128)
+    (v1-4 uint128)
+    (v1-5 uint128)
+    )
+  (rlet ((vf1 :class vf)
+         (vf2 :class vf)
+         )
+    (.pextlb v1-0 arg1 0)
+    (.pextlh v1-1 v1-0 0)
+    (.pw.sra v1-2 v1-1 16)
+    (.mov vf1 v1-2)
+    (.pextlb v1-3 0 arg1)
+    (.pextuh v1-4 0 v1-3)
+    (.pw.sll v1-5 v1-4 6)
+    (.mov vf2 v1-5)
+    (vitof15.xyzw vf1 vf1)
+    (vitof12.xyzw vf2 vf2)
+    (.svf (&-> arg0 data 0 quad) vf1)
+    (.svf (&-> arg0 data 1 quad) vf2)
+    (.mov v0-0 vf2)
+    v0-0
+    )
+  )
 
 ;; definition for function merc-eye-anim
 ;; WARN: Return type mismatch int vs none.
