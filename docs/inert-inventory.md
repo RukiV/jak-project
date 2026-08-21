@@ -39,7 +39,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (190)
+### Never written (191)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -187,6 +187,7 @@ written is read-only by design and not a finding.
 | `*music-volume-ducked-by-sound*` | 1 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*music-volume-during-speech*` | 1 | `goal_src/jakx/engine/sound/speech-h.gc` |
 | `*plow-ignore-if-above*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
+| `*preload-spool-anims*` | 1 | `goal_src/jakx/engine/load/loader.gc` |
 | `*previous-angle*` | 1 | `goal_src/jakx/levels/desert/wvehicle/wvehicle-race.gc` |
 | `*profile-h*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*profile-interrupt-start*` | 1 | `goal_src/jakx/engine/util/profile-h.gc` |
