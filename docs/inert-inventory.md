@@ -39,7 +39,7 @@ written is read-only by design and not a finding.
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*teleport-count*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (191)
+### Never written (190)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -51,6 +51,7 @@ written is read-only by design and not a finding.
 | `*display-path-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-vol-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
+| `*lobby-local-players*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*music-lock*` | 2 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*settings-dialog-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
 | `*settings-music-seek-speed*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
@@ -70,7 +71,6 @@ written is read-only by design and not a finding.
 | `*camera-no-mip-correction*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*camera-turbo-free*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*capture-tga-temp*` | 1 | `goal_src/jakx/engine/util/capture.gc` |
-| `*car-appearance-hack*` | 1 | `goal_src/jakx/engine/vehicle/vehicle-manager.gc` |
 | `*city-mode*` | 1 | `goal_src/jakx/engine/level/level-h.gc` |
 | `*col-timer-enable*` | 1 | `goal_src/jakx/engine/collide/collide-shape.gc` |
 | `*collide-hash-fragments*` | 1 | `goal_src/jakx/engine/spatial-hash/collide-hash-h.gc` |
@@ -181,7 +181,6 @@ written is read-only by design and not a finding.
 | `*last-loado-global-usage*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*last-loado-length*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*list-all-scenes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*lobby-local-players*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*manual-sample-point*` | 1 | `goal_src/jakx/engine/camera/cam-update-h.gc` |
 | `*merc-vu1-init-ready*` | 1 | `goal_src/jakx/engine/gfx/foreground/merc/merc.gc` |
 | `*music-volume-ducked-by-sound*` | 1 | `goal_src/jakx/engine/sound/gsound-h.gc` |
