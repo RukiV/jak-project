@@ -878,6 +878,22 @@
     )
   )
 
+;; og:preserve-this issue 562, HOLD not landed: two scoped decodes of this worktree's own
+;; types (joint-mod-h.o here, and the sibling joint-mod.o body file) come back with no code
+;; at all for this type's vtable slot 0, not even a type-prop failure to route around; the
+;; prior joint-mod-h landing (commit 74b1b78a8) independently reports the same object
+;; decoding at 0 ERROR markers with no new body surfacing. A corpus-wide grep of every raw
+;; object this worktree's decompiler_out has extracted (2,476 files) for the literal string
+;; "joint-mod-blend-world" turns up only this type's own home file, no other caller. jak3's
+;; own goal_src (joint-mod-h.gc:524-533) carries the identical bare (new (symbol type)
+;; _type_) declaration with no defmethod new either, relying solely on the separately-landed
+;; init method for setup, exactly the shape this file already implements. Issue 562 counts
+;; one live construction site for this type; this search could not locate it anywhere in
+;; landed goal_src/jakx or the extracted corpus, and is recorded as a discrepancy rather than
+;; assumed away. Retires once a live call site or a compiled constructor body actually
+;; surfaces (a not-yet-decoded DGO, or a jakx-only enemy file landing a non-inline
+;; joint-mod-blend-world field); re-decode and land new then.
+
 (defmethod inspect ((this joint-mod-blend-world))
   (when (not this)
     (set! this this)

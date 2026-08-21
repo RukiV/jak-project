@@ -498,3 +498,25 @@
     (load-state-method-26 (_type_ int symbol symbol) none) ;; 26
     )
   )
+
+;; og:preserve-this issue 559/562: this type declared (new (symbol type) _type_) with no
+;; defmethod new anywhere in goal_src, so slot 0 fell through to basic's C new_basic, which
+;; returns a zeroed object instead of retail's initialized one (update-callback left as
+;; whatever garbage object-new's allocation happened to contain, and none of reset!'s
+;; per-field clearing run). Three live construction sites exist today (load-state.gc:679,
+;; 1313, 1316), including the two module-level *load-state*/*backup-load-state* globals, so
+;; every boot was already running on a zeroed load-state before this landed. Landed verbatim
+;; from a fresh scoped decode of the game-info-h object (the file that declares this type's
+;; own deftype, same as effect-control-h), jak3-parity byte-for-byte (jak3
+;; game-info-h.gc:262-267). Unblocking the decode itself needed a companion fix, landed
+;; alongside this in decompiler/config/jakx/all-types.gc: *lobby-adv-selected-cup* and
+;; *lobby-adv-selected-level* were left unresolvable, which failed game-info-h's
+;; top-level-login and suppressed the whole file's output, this method included.
+
+;; definition for method 0 of type load-state
+(defmethod new load-state ((allocation symbol) (type-to-make type))
+  (let ((a0-1 (object-new allocation type-to-make (the-as int (-> type-to-make size)))))
+    (set! (-> a0-1 update-callback) #f)
+    (reset! a0-1)
+    )
+  )

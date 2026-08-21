@@ -454,6 +454,23 @@
     )
   )
 
+;; og:preserve-this issue 562, HOLD not landed: this type declares (new (symbol type) _type_)
+;; with no defmethod new anywhere in goal_src, so slot 0 falls through to basic's C new_basic
+;; and returns a zeroed object; six live construction sites exist today (editable-h.gc:623,
+;; 658, 709, 762, 805, 843, all (new 'debug 'editable-region)). A fresh scoped decode of the
+;; editable object (the file that actually holds this type's method bodies, not editable-h)
+;; found the constructor byte-clean:
+;;   (defmethod new editable-region ((allocation symbol) (type-to-make type))
+;;     ...
+;;     (set! (-> gp-0 filter) (the-as editable-filter (editable-region-method-12 gp-0)))
+;;     gp-0)
+;; but its last step dispatches editable-region-method-12, which has no defmethod anywhere in
+;; goal_src (only this declared stub), so that vtable slot is unresolved -- landing new here
+;; would call into a null slot. editable-region-method-12 is not itself a landable stand-in:
+;; the same scoped decode fails its type prop at op 6 ("Couldn't figure out logior: (logior s5
+;; v0)"), a genuine decode wall, not a quick unblock. Retires once editable-region-method-12's
+;; logior type-prop wall clears and it lands with a real body; re-decode and land new then.
+
 
 ;; debug leg: forward reference, editable-array's own deftype lands further
 ;; down this file; editable-method-24's corrected signature needs the name

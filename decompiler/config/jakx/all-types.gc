@@ -21582,10 +21582,28 @@
 ;; (define-extern continue-point-copy! function)
 (define-extern *game-info* game-info)
 (define-extern *use-menu2* symbol)
-;; (define-extern *lobby-adv-selected-cup* object)
+;; og:preserve-this type fix, issue 562 (declared-new-without-defmethod lane, load-state):
+;; *lobby-adv-selected-cup* and *lobby-adv-selected-level* were both left unresolvable
+;; (commented out, no other declaration anywhere in this file), which blocked the whole
+;; game-info-h top-level-login from converting to expressions and, with it, every other
+;; function in the file including load-state's own method 0. game-info-h_ir2.asm op 156
+;; stores a raw literal 0 (sw of r0, not of s7/#f) into *lobby-adv-selected-cup*, the same
+;; "int fields cleared via a raw zero store" pattern as *lobby-adv-selected-task*'s own R3a
+;; fix directly below, so it needs int rather than its old guessed "object". op 159 stores s7
+;; (#f) into *lobby-adv-selected-level*, so its old guessed "object" is correct and just
+;; needed uncommenting. *lobby-adv-selected-venue*, *lobby-adv-previous-score* and
+;; *lobby-adv-cup* were also commented out here, but each already has an active
+;; call-site-evidence declaration later in this file (search "provisional: call-site evidence
+;; only"), so they were never actually unresolved and are left as-is rather than duplicated;
+;; a first pass here redeclared all five, which only produced harmless redefinition warnings
+;; for venue (same type, object) but a real conflict for previous-score and cup (guessed int
+;; here from the same raw-store heuristic, overridden by the later block's more authoritative
+;; object), corrected to this narrower two-symbol fix. Retires when the MENU2/lobby-adv
+;; object that owns them lands.
+(define-extern *lobby-adv-selected-cup* int)
 (define-extern *lobby-adv-selected-map* object)
 ;; (define-extern *lobby-adv-selected-venue* object)
-;; (define-extern *lobby-adv-selected-level* object)
+(define-extern *lobby-adv-selected-level* object)
 ;; (define-extern *lobby-adv-previous-score* object)
 ;; (define-extern *lobby-adv-cup* object)
 ;; og:preserve-this type fix, R3a (#122): game-info_ir2.asm op 292 stores a raw literal
