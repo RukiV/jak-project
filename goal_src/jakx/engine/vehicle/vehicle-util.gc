@@ -20,6 +20,15 @@
 ;; standing findings before this rung) are what motivated landing this
 ;; subset; the rest is a future rung's own scoped decode and typing
 ;; pass.
+;;
+;; og:preserve-this issue 571 R11 (the falcon-panels rung): (method 68
+;; vehicle) is the one vehicle-type exception to the paragraph above,
+;; hand-translated rather than surveyed clean -- this same worktree's own
+;; scoped decode of this file still walls it ("failed type prop at 28:
+;; add failed: <integer 1088 + (144 x int)> object", vehicle-util_ir2.asm),
+;; a structural wall from the base declaration's own `object` arg0/arg1
+;; typing, not a config gap. See the method's own header note for the
+;; full per-instruction citation.
 
 ;; definition for method 9 of type vehicle-section
 (defmethod vehicle-section-method-9 ((this vehicle-section) (arg0 vehicle) (arg1 art-group) (arg2 int))
@@ -179,5 +188,81 @@
 
 ;; definition for method 11 of type vehicle-section
 (defmethod vehicle-section-method-11 ((this vehicle-section) (arg0 vehicle))
+  (none)
+  )
+
+;; og:preserve-this issue 571 R11: hand-translated from raw asm
+;; (vehicle-util.asm:4581-4684, ~104 instructions), the twin-less
+;; convention -- this worktree's own scoped decode of this file walls the
+;; function ("failed type prop at 28: add failed: <integer 1088 + (144 x
+;; int)> object", vehicle-util_ir2.asm:7729), a structural wall from the
+;; base declaration's own `object object` arg typing (rigid-body-h.gc),
+;; not a config gap; the decompiler's own partial type-tracking through
+;; op 27 is cited below wherever it resolves a type ahead of the wall.
+;;
+;; [op 3] `(-> this info)` is captured into s3-0 before call-parent-method
+;; runs, because the parent body (rigid-body-object-method-68,
+;; rigid-body-object.gc) overwrites `(-> this info)` with arg0 itself;
+;; every later read of the OLD constants has to come from this captured
+;; value, not a fresh `(-> this info)`.
+;; [ops 4-12] `find-parent-method`/dispatch matches this codebase's own
+;; landed call-parent-method macro (kernel/gcommon.gc) register for
+;; register (t9 = the looked-up function, a0/a1/a2 = this/arg0/arg1
+;; unchanged) -- confirmed against this file's own already-landed
+;; parent-dispatch idiom (vehicle.gc:159-162's method 81 override; also
+;; plow.gc and garage-obs.gc's landed call-parent-method sites).
+;; [ops 14/16/18, guarded by arg1] three plain pointer copies from the OLD
+;; constants (s3-0) into the NEW ones (arg0): hardpoint's own
+;; local-pos-array (raw offset 3136, typed (inline-array vector) by this
+;; scoped decode), rider's attach-point-array (raw 3120, (inline-array
+;; matrix)) and attach-node-array (raw 3124, (pointer int8)) -- all three
+;; raw offsets match their vehicle-h.gc deftype declarations directly (the
+;; :inline base offset of hardpoint/rider plus the field's own internal
+;; offset), no further +4 shift: the +4 convention is a basic-tag
+;; artifact, and rigid-body-vehicle-constants and its own :inline fields
+;; carry no tag of their own once reached through the one +4-corrected
+;; `this info` load at op 3.
+;; [the loop, ops 20-46] a 12-iteration dotimes over `sections` and
+;; `damage section-array`, both :inline arrays per vehicle-h.gc (sections
+;; @1024 stride 64; damage@1056 + section-array@32 = 1088 stride 144,
+;; matching the raw `dsll .. 6` / `144 x int` multipliers exactly, and the
+;; brief's own citation). Per iteration, when arg1 is set, the NEW
+;; constants' section-array[i]'s joint-local matrix (offset 48, 4
+;; quadwords) is seeded from the OLD constants' own section-array[i]
+;; joint-local; unconditionally, this vehicle's own sections[i]'s `info`
+;; pointer is repointed at the NEW constants' section-array[i] -- the
+;; mechanism that wires each vehicle-section's per-section stats to
+;; whichever constants buffer method 68 was last called with (a live
+;; readback of a spawned falcon found all four probed sections' info = 0
+;; before this landing, method 68 the only writer).
+;; [ops 47-53] a third arg1-guarded tail: `(-> this info)` is re-read
+;; fresh (not s3-0, not arg0 directly) because call-parent-method already
+;; repointed it, then dispatched virtually through rigid-body-vehicle-
+;; constants's own method table (declared slot 10, vehicle-h.gc; no
+;; defmethod lands its body this rung, per that type's own comment).
+;;
+;; definition for method 68 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-68 ((this vehicle) (arg0 object) (arg1 object))
+  (let ((s3-0 (-> this info))
+        (a1-6 (the-as rigid-body-vehicle-constants arg0))
+        )
+    (call-parent-method this arg0 arg1)
+    (when arg1
+      (set! (-> a1-6 hardpoint local-pos-array) (-> s3-0 hardpoint local-pos-array))
+      (set! (-> a1-6 rider attach-point-array) (-> s3-0 rider attach-point-array))
+      (set! (-> a1-6 rider attach-node-array) (-> s3-0 rider attach-node-array))
+      )
+    (dotimes (v1-0 12)
+      (when arg1
+        (matrix-copy! (-> a1-6 damage section-array v1-0 joint-local) (-> s3-0 damage section-array v1-0 joint-local))
+        )
+      (set! (-> this sections v1-0 info) (-> a1-6 damage section-array v1-0))
+      )
+    (when arg1
+      ((method-of-type rigid-body-vehicle-constants rigid-body-vehicle-constants-method-10) (-> this info))
+      )
+    )
+  0
   (none)
   )
