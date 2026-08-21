@@ -1433,7 +1433,57 @@
     // offline-test always compiles the decompiler's own fresh, uncast output
     // (test/offline/framework/execution.cpp's compile() uses data.output_with_
     // skips, never goal_src), so it fails this one function regardless.
-    "lobby-dma-reserve-hook"
+    "lobby-dma-reserve-hook",
+    // default-menu, issue 571's UX successor (R3 of the debug-menu scoping
+    // plan): all-texture-tweak-adjust's fresh decompile reads a literal
+    // PLACEHOLDER token off a dynamic-array-field-access call, which is not
+    // valid GOAL; the landed goal_src stubs it to (none) instead, matching
+    // jak3's own precedent for the same function.
+    "all-texture-tweak-adjust",
+    // default-menu: dm-vu1-user-all-pick-func's fresh decompile carries a
+    // bare label reference (L6899, "Failed to guess label use") for a static
+    // 64-bit constant load/store at a raw offset; the landed goal_src
+    // resolves it to a clean named-field idiom (matching the file's own
+    // clean sibling dm-vu1-user-none-pick-func) with the constant read
+    // directly off the object's own static data.
+    "dm-vu1-user-all-pick-func",
+    // default-menu: build-instance-list's fresh decompile carries four bare
+    // label references (L859, L858, L857, L856) for its four (sort ...)
+    // comparators; the landed goal_src hand-writes all four verbatim from
+    // jak3's own landed twin (identical comparator repeated four times).
+    "build-instance-list",
+    // default-menu: debug-menu-make-camera-menu's fresh decompile carries a
+    // bare label reference (L810) for the "Edit" '*cam-layout* toggle
+    // callback; the landed goal_src hand-writes it verbatim from jak3's own
+    // landed twin (cam-layout-start/cam-layout-stop, both already landed in
+    // engine/camera/cam-layout.gc).
+    "debug-menu-make-camera-menu",
+    // default-menu: debug-menu-context-make-default-menus's fresh decompile
+    // still carries eight bare label references after this rung's own
+    // hacks.jsonc pair_functions_by_name fix (which clears the function's
+    // register-pairing errors, not this separate bare-label-lambda defect):
+    // two resolve verbatim from jak3 (Traffic Start/Kill, L389/L387); the
+    // other six are held (Kill Target/Hit Target/Save Continue depend on
+    // *target*, a symbol that does not exist anywhere in jakx; Get All
+    // Vehicles Parts/Get All Tasks/Trick Out Vehicles are jakx-only with no
+    // jak3 twin and zero recovered body). See goal_src for the per-site
+    // og:preserve-this notes.
+    "debug-menu-context-make-default-menus",
+    // default-menu: eight named functions fail decode entirely into
+    // register-soup (hundreds of local-vars, "Failed to guess stack use")
+    // rather than a resolvable bare label; the landed goal_src holds each as
+    // a type-correct trivial stub (see the per-function og:preserve-this
+    // notes in goal_src for the specific error and, for the two
+    // *anim-tester*-dependent ones, the offset mismatch against jak3's own
+    // landed anim-tester type that rules out a same-offset port).
+    "dm-cam-settings-func",
+    "dm-cam-setting-float",
+    "dm-subdiv-int",
+    "dm-current-continue",
+    "build-shader-list",
+    "dm-split-screen-toggle-pick-func",
+    "dm-anim-tester-flag-func",
+    "dm-anim-tester-func"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the

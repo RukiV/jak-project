@@ -7,3 +7,16 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this R2 enabler (issue 571's UX successor): transcribed verbatim
+;; from jakx's own editable-player.o decode (scoped decode of this object,
+;; *editable-menu-context* at disasm.gc:6666-6670; jak3's landed twin carries the
+;; identical pair at its own editable-player.gc:3156,3158). default-menu.gc's real
+;; menu-respond-to-pause body (landed same rung) calls debug-menu-context-send-msg
+;; on *editable-menu-context* on every 'menu-mode branch and in its else arm, so
+;; without this definition set-master-mode's first invocation dereferences an
+;; unbound symbol and crashes goal-0 (the #115 class). This object (498) builds
+;; ahead of default-menu (504), so the definition exists before default-menu needs
+;; it.
+(define *editable-menu-context* (new 'debug 'debug-menu-context))
+(set! (-> *editable-menu-context* joypad-number) 1)
+

@@ -1,174 +1,8 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: default-menu.gc
-;; name in dgo: default-menu
-;; dgos: ENGINE, GAME
-
-;; og:preserve-this landing (issue 571's UX successor, R3 of the debug-menu
-;; scoping plan): transcribed from jakx's own clean scoped decode of this
-;; object (13 decompiler ERROR markers going in; the race-selection rs3 fix
-;; below resolves dm-play-race's enum error and its two data-label loads for
-;; free, leaving 12). Hand-work landed on top of the transcription:
-;;   - all-texture-tweak-adjust is stubbed to (none), matching jak3's own
-;;     precedent (jak3 default-menu.gc:1013-1016) rather than the raw decode,
-;;     which reads a literal PLACEHOLDER token off a dynamic-array-field-access
-;;     that is not valid GOAL.
-;;   - the 17 int shader-tweak fields (l, k, mmin, mmag, lcm, tfx, tbp, tbw,
-;;     tw, th, mxl, wms, wmt, minu, maxu, minv, maxv) plus the float "tweak"
-;;     field decode to bare label references (<lambda at LNNN>, not compiler-
-;;     visible symbols) because the decompiler cannot fold the raw shader-walk
-;;     pointer arithmetic into a lambda body; all 18 are hand-written verbatim
-;;     from jak3's own landed twin (same function, same og:preserve-this shift
-;;     amounts for k/tfx/minv/maxv), since gs-tex0/gs-tex1/gs-clamp carry an
-;;     identical bit layout in this worktree's all-types.gc (hardware GS
-;;     register format, unchanged across games).
-;;   - four more bare-label lambdas resolve the same way: build-instance-list's
-;;     four (sort ...) comparators (identical `(lambda ((arg0 debug-menu)
-;;     (arg1 debug-menu)) (string<=? (-> arg0 name) (-> arg1 name)))` in jak3),
-;;     debug-menu-make-camera-menu's "Edit" '*cam-layout* toggle (identical
-;;     cam-layout-start/cam-layout-stop pair, both already landed in
-;;     engine/camera/cam-layout.gc), and the Actor menu's "Traffic Start"/
-;;     "Traffic Kill" (identical valid?-guarded traffic-start/traffic-kill
-;;     function-var calls, both already carried as provisional call-site-only
-;;     externs in all-types.gc).
-;;   - dm-vu1-user-all-pick-func's raw offset-172 load/store of a static
-;;     64-bit label (L6899, "Failed to guess label use") is resolved the same
-;;     way: jak3's own twin uses the identical `(the-as uint #x...)` compare-
-;;     and-set idiom against *display* vu1-enable-user-menu, but jak3's own
-;;     literal (#x17fffffff8) is wrong for jakx (a different vu1-renderer-mask
-;;     bit count per game); the landed value (#x5fffffff8) is read directly
-;;     off this object's own two static words at L6899 in the fresh ir2.asm
-;;     (.word 0xfffffff8, .word 0x5), not copied from jak3.
-;;   - six bare-label lambdas are HELD rather than reconstructed because their
-;;     one solid anchor, jak3's own twin, depends on *target*, a global symbol
-;;     that does not exist anywhere in jakx (target-pos takes an explicit
-;;     player index instead, "jak3-parity sig" per all-types.gc, a genuine
-;;     split-screen API divergence): the Game menu's "Kill Target" and "Hit
-;;     Target", and the Actor menu's "Save Continue". Three more have no jak3
-;;     twin at all (jakx-only, racing-specific, zero recovered body): "Get All
-;;     Vehicles Parts", "Get All Tasks", and "Trick Out Vehicles". All six
-;;     stay inline no-op stubs with a per-site og:preserve-this note; pressing
-;;     them in-game is a silent no-op rather than the retail behavior.
-;;   - eight named functions fail decode entirely into register-soup
-;;     (hundreds of local-vars, "Failed to guess stack use") rather than a
-;;     resolvable bare label: dm-cam-settings-func, dm-cam-setting-float,
-;;     dm-subdiv-int, dm-current-continue, build-shader-list,
-;;     dm-split-screen-toggle-pick-func, dm-anim-tester-flag-func and
-;;     dm-anim-tester-func. dm-subdiv-int's raw offset (276, off *anim-tester*)
-;;     was checked against jak3's landed anim-tester type and does NOT match
-;;     jak3's own "speed" field offset (232), so the type has grown between
-;;     games and no jakx anim-tester deftype exists to name the field; the
-;;     other seven were not chased further given the same "no landed twin
-;;     offset/symbol to anchor a port" shape. All eight are held as
-;;     type-correct trivial stubs (see each site) with a test/offline/config/
-;;     jakx/config.jsonc skip_compile_functions entry, since the fresh
-;;     re-decompile of each will always reproduce the same uncompilable raw
-;;     form.
-;;   - 32 further callback externs referenced by this file's menu templates
-;;     have no defmethod/defun anywhere in goal_src (declared in all-types.gc
-;;     only); they stay unlanded per the scoping table. The menu resolves them
-;;     at press time, so each is a dead arm only if actually pressed, not a
-;;     compile-time problem. Six of those arms are dead in retail itself, not
-;;     merely unlanded here: bug-report-start/stop, loader-test-command,
-;;     net-race-start/stop and spawn-hostile call into subsystems retail never
-;;     wires live; not chased further.
-;;   - race-selection gains an (rs3 3) entry (decompiler/config/jakx/all-
-;;     types.gc and goal_src/jakx/engine/game/main-h.gc, same commit): the
-;;     name follows this enum's own existing rs1 placeholder convention,
-;;     since dm-play-race switches on this value with no recovered symbolic
-;;     name either.
-;;   - dm-play-task-with-continue is a ninth, distinct hold: the fresh decode
-;;     does not convert it to expressions at all (no partial body of any
-;;     kind), so there is nothing to transcribe; it stays an unlanded extern
-;;     (forward-declared below, next to this file's other unlanded callback
-;;     externs) that dm-play-task and dm-play-race (both landed below, both
-;;     call it by name) resolve at call time.
-;;   - the "Nav Graph" submenu is a discovery beyond the scoping plan's own
-;;     error tally: every item in it decodes clean (no ERROR marker at all),
-;;     but it calls nav-graph-editor-method-N by number and depends on
-;;     get-nav-graph-editor/run-nav-graph-editor/exit-nav-graph-editor, all
-;;     three keyed on a nav-graph-editor type that has no deftype anywhere in
-;;     this worktree's goal_src (all-types.gc carries it as a decompiler-side
-;;     reference only). Landing that type and its ~66+ methods is a whole
-;;     separate subsystem, out of this rung's scope; the entire submenu (was
-;;     roughly 30 items) is held as one inert placeholder rather than landed
-;;     item-by-item, and none of it counts against the 31 bare-label-lambda
-;;     or 8 register-soup-function tallies above, since it was never a
-;;     decompiler error to begin with. This also cost the three
-;;     get-nav-graph-editor/run-nav-graph-editor/exit-nav-graph-editor
-;;     forward externs their reason to exist, so they are not declared below
-;;     either (their sole home was inside this now-held submenu).
-
 ;; this file is debug only
 (declare-file (debug))
-
-;; og:preserve-this forward externs: none of the following symbols have a
-;; landed home anywhere else in goal_src (all-types.gc carries each only as
-;; an extern, no defun/define/defstate, and no jak1/jak2/jak3 twin exists for
-;; any of them to compare against, checked against a full scan of this
-;; worktree's goal_src/jakx tree), so the compiler cannot resolve this file's
-;; own call and value sites to them without a same-file declaration (same
-;; class as debug.gc's own forward extern for draw-string, #174; all-types.gc
-;; alone is not enough, since it feeds the decompiler and the
-;; JakXTypeConsistency gtest, not the real build). All resolve at call or
-;; deref time rather than at compile time. Six are dead in retail itself
-;; (bug-report-start/stop, loader-test-command, net-race-start/stop,
-;; spawn-hostile: their call sites reach subsystems retail never wires
-;; live); traffic-start/traffic-kill back the "Traffic Start"/"Traffic Kill"
-;; menu items landed below; dm-play-task-with-continue backs dm-play-task and
-;; dm-play-race (both landed below); editable-player-init and
-;; nav-mesh-editor-init are the :init behaviors of two processes whose own
-;; files build their -h/data but not yet that behavior; the rest back plain
-;; menu-item callbacks, debug utilities or globals with no further chase
-;; attempted.
-(define-extern set-local-vehicle (function int none))
-(define-extern bug-report-start (function object))
-(define-extern bug-report-stop (function object))
-(define-extern loader-test-command (function object object object))
-(define-extern net-race-start (function object))
-(define-extern net-race-stop (function object))
-(define-extern spawn-hostile (function object))
-;; typed (function none) here, not all-types.gc's own weaker "object" guess:
-;; jak3's own twin declares both this exact way (decompiler/config/jak3/
-;; all-types.gc), the (gp-0) call below needs a function-typed value to
-;; type-check, and the valid?-guarded 0-arg-call usage is identical to jak3's.
-(define-extern traffic-start (function none))
-(define-extern traffic-kill (function none))
-(define-extern *net-start-view-ct* object)
-(define-extern *shader-pick-menu* object)
-(define-extern *stats-blerc* object)
-(define-extern bug-report-display (function symbol int))
-;; debug-actor lives in the unlanded entity.gc (same runtime-link-extern
-;; treatment visvol-edit.gc already carries for this same symbol, matching
-;; cam-interface.gc's own entity-by-name precedent)
-(define-extern debug-actor (function string none))
-(define-extern debug-reset-prim-buffer (function none))
-(define-extern dm-play-task-with-continue (function game-task string object))
-(define-extern dm-set-veh-leco (function int none))
-;; arg1 declared int here, not all-types.gc's own unconfirmed int32 guess:
-;; every call site below passes (the-as int32 N) and goalc's own typecheck
-;; rejects int32 against int32 ("got a 'int' when expecting a 'int32'",
-;; the-as's static result reads back as plain int for a bitfield-sized
-;; target); int accepts the same call sites without narrowing anything this
-;; file's callers rely on.
-(define-extern dm-set-veh-weapon (function symbol int none))
-(define-extern editable-player-init (function symbol none :behavior editable-player))
-(define-extern start-drift (function none))
-(define-extern end-end-credits (function none))
-(define-extern merc-stats (function none))
-(define-extern nav-mesh-editor-init (function symbol object :behavior nav-mesh-editor))
-(define-extern play-clean (function symbol int))
-(define-extern print-prototype-intersection-list (function object object))
-(define-extern print-prototype-list (function none))
-(define-extern prototype-bucket-recalc-fields (function prototype-bucket prototype-bucket))
-(define-extern prototype-bucket-type (function prototype-bucket type))
-(define-extern read-sound-info-tweaks (function none))
-(define-extern spartacus-start (function none))
-(define-extern spartacus-stop (function none))
-(define-extern task-node-close! (function game-task-node symbol int))
-(define-extern task-node-closed? (function game-task-node symbol))
-(define-extern task-node-open? (function game-task-node symbol))
 
 ;; definition for symbol *debug-menu-context*, type debug-menu-context
 (define *debug-menu-context* (new 'debug 'debug-menu-context))
@@ -206,17 +40,566 @@
        )
   )
 
-;; og:preserve-this held (register-soup decode): the fresh decode fails to
-;; convert this function to expressions ("failed type prop at 246: Could not
-;; figure out load: (set! v1 (l.wu (+ v0 156)))", "Failed to guess stack use
-;; for 16"), leaving a 550-line raw register dump (v0-0 through v0-34,
-;; dozens of process/object-typed locals) rather than a resolvable bare
-;; label. No landed jakx twin offset or symbol anchors a port. Held as a
-;; type-correct stub (see test/offline/config/jakx/config.jsonc
-;; skip_compile_functions for the matching raw-decode compile skip); the
-;; camera-settings toggle menu items that call it become no-ops.
-(defun dm-cam-settings-func ((arg0 int) (arg1 debug-menu-msg))
-  #f
+;; definition for function dm-cam-settings-func
+;; ERROR: failed type prop at 246: Could not figure out load: (set! v1 (l.wu (+ v0 156)))
+;; WARN: Return type mismatch none vs symbol.
+;; ERROR: Failed to guess stack use for 16 in dm-cam-settings-func:10
+(defun dm-cam-settings-func ((a0-0 int) (a1-0 debug-menu-msg))
+  (local-vars
+    (v0-0 process)
+    (v0-1 process)
+    (v0-2 object)
+    (v0-3 process)
+    (v0-4 object)
+    (v0-5 process)
+    (v0-6 object)
+    (v0-7 process)
+    (v0-8 object)
+    (v0-9 process)
+    (v0-10 object)
+    (v0-11 none)
+    (v0-12 process)
+    (v0-13 object)
+    (v0-14 process)
+    (v0-15 object)
+    (v0-16 process)
+    (v0-17 object)
+    (v0-18 process)
+    (v0-19 object)
+    (v0-20 process)
+    (v0-21 object)
+    (v0-22 process)
+    (v0-23 process)
+    (v0-24 none)
+    (v0-25 none)
+    (v0-26 none)
+    (v0-27 none)
+    (v0-28 none)
+    (v0-29 none)
+    (v0-30 none)
+    (v0-31 none)
+    (v0-32 none)
+    (v0-33 none)
+    (v0-34 none)
+    (v1-0 debug-menu-msg)
+    (v1-1 process)
+    (v1-4 process)
+    (v1-5 int)
+    (v1-6 symbol)
+    (v1-7 int)
+    (v1-9 int)
+    (v1-11 process)
+    (v1-12 int)
+    (v1-13 symbol)
+    (v1-14 int)
+    (v1-16 int)
+    (v1-18 process)
+    (v1-19 int)
+    (v1-20 symbol)
+    (v1-21 int)
+    (v1-23 int)
+    (v1-25 process)
+    (v1-26 int)
+    (v1-27 symbol)
+    (v1-28 int)
+    (v1-30 int)
+    (v1-32 process)
+    (v1-33 int)
+    (v1-34 symbol)
+    (v1-35 int)
+    (v1-37 int)
+    (v1-39 type)
+    (v1-41 int)
+    (v1-43 process)
+    (v1-44 int)
+    (v1-45 symbol)
+    (v1-46 int)
+    (v1-48 int)
+    (v1-50 process)
+    (v1-51 int)
+    (v1-52 symbol)
+    (v1-53 int)
+    (v1-55 int)
+    (v1-57 process)
+    (v1-58 int)
+    (v1-59 symbol)
+    (v1-60 int)
+    (v1-62 int)
+    (v1-64 process)
+    (v1-65 int)
+    (v1-66 symbol)
+    (v1-67 int)
+    (v1-69 int)
+    (v1-71 process)
+    (v1-72 int)
+    (v1-73 symbol)
+    (v1-74 int)
+    (v1-76 none)
+    (v1-77 none)
+    (v1-78 none)
+    (v1-79 none)
+    (v1-80 none)
+    (v1-81 none)
+    (v1-82 none)
+    (v1-83 none)
+    (v1-84 none)
+    (v1-85 none)
+    (v1-86 none)
+    (v1-87 none)
+    (v1-88 none)
+    (v1-89 none)
+    (v1-90 none)
+    (v1-91 none)
+    (v1-92 none)
+    (v1-93 none)
+    (v1-94 none)
+    (v1-95 none)
+    (v1-96 none)
+    (v1-97 none)
+    (v1-98 none)
+    (v1-99 none)
+    (v1-100 none)
+    (v1-101 none)
+    (v1-102 none)
+    (v1-103 none)
+    (v1-104 none)
+    (v1-105 none)
+    (v1-106 none)
+    (v1-107 none)
+    (a0-1 symbol)
+    (a0-2 (pointer process))
+    (a0-3 process)
+    (a0-4 (pointer process))
+    (a0-5 process)
+    (a0-6 (pointer process))
+    (a0-7 process)
+    (a0-8 (pointer process))
+    (a0-9 process)
+    (a0-10 (pointer process))
+    (a0-11 process)
+    (a0-12 setting-control)
+    (a0-13 (pointer process))
+    (a0-14 process)
+    (a0-15 (pointer process))
+    (a0-16 process)
+    (a0-17 (pointer process))
+    (a0-18 process)
+    (a0-19 (pointer process))
+    (a0-20 process)
+    (a0-21 (pointer process))
+    (a0-22 process)
+    (a0-23 none)
+    (a1-1 none)
+    (a1-2 none)
+    (a1-3 none)
+    (a1-4 none)
+    (a1-5 none)
+    (a1-6 symbol)
+    (a1-7 none)
+    (a1-8 none)
+    (a1-9 none)
+    (a1-10 none)
+    (a1-11 none)
+    (a1-12 none)
+    (a2-0 symbol)
+    (a3-0 int)
+    (t0-0 int)
+    (s4-0 (function process-tree event-message-block object))
+    (s4-1 (function process-tree event-message-block object))
+    (s4-2 (function process-tree event-message-block object))
+    (s4-3 (function process-tree event-message-block object))
+    (s4-4 (function process-tree event-message-block object))
+    (s4-5 (function process-tree event-message-block object))
+    (s4-6 (function process-tree event-message-block object))
+    (s4-7 (function process-tree event-message-block object))
+    (s4-8 (function process-tree event-message-block object))
+    (s4-9 (function process-tree event-message-block object))
+    (s5-0 none)
+    (s5-1 none)
+    (s5-2 none)
+    (s5-3 none)
+    (s5-4 none)
+    (s5-5 none)
+    (s5-6 none)
+    (s5-7 none)
+    (s5-8 none)
+    (s5-9 none)
+    (t9-0 (function process))
+    (t9-1 (function process))
+    (t9-2 (function process-tree event-message-block object))
+    (t9-3 (function process))
+    (t9-4 (function process-tree event-message-block object))
+    (t9-5 (function process))
+    (t9-6 (function process-tree event-message-block object))
+    (t9-7 (function process))
+    (t9-8 (function process-tree event-message-block object))
+    (t9-9 (function process))
+    (t9-10 (function process-tree event-message-block object))
+    (t9-11 (function setting-control object object object object none))
+    (t9-12 (function process))
+    (t9-13 (function process-tree event-message-block object))
+    (t9-14 (function process))
+    (t9-15 (function process-tree event-message-block object))
+    (t9-16 (function process))
+    (t9-17 (function process-tree event-message-block object))
+    (t9-18 (function process))
+    (t9-19 (function process-tree event-message-block object))
+    (t9-20 (function process))
+    (t9-21 (function process-tree event-message-block object))
+    (t9-22 (function process))
+    (t9-23 (function process))
+    (t9-24 none)
+    (t9-25 none)
+    (t9-26 none)
+    (t9-27 none)
+    (t9-28 none)
+    (t9-29 none)
+    (t9-30 none)
+    (t9-31 none)
+    (t9-32 none)
+    (t9-33 none)
+    (gp-1 symbol)
+    (gp-2 none)
+    (gp-3 none)
+    (gp-4 none)
+    (gp-5 none)
+    (gp-6 none)
+    (gp-7 none)
+    (gp-8 none)
+    (gp-9 none)
+    (gp-10 none)
+    (gp-11 none)
+    (sp-0 none)
+    )
+  (with-pp
+    (when (begin
+            (and (begin (set! v1-0 (+ a1-0 -4)) (set! a0-1 (zero? v1-0)) a0-1)
+                 (begin (set! t9-0 view-get-active-camera) (set! v0-0 (call!)) (set! v1-1 v0-0))
+                 )
+            v1-1
+            )
+      (cond
+        ((zero? a0-0)
+         (if (begin (set! s5-0 (the-as none (+ sp-0 16))) (set! v1-4 s6-0) v1-4)
+             (set! a0-2 (-> v1-4 ppointer))
+             )
+         (s.w! (+ s5-0 8) a0-2)
+         (set! v1-5 1)
+         (s.w! (+ s5-0 68) v1-5)
+         (set! v1-6 'toggle-slave-option)
+         (s.w! (+ s5-0 64) v1-6)
+         (set! v1-7 1)
+         (s.d! (+ s5-0 16) v1-7)
+         (set! s4-0 send-event-function)
+         (set! t9-1 view-get-active-camera)
+         (set! v0-1 (call!))
+         (set! a0-3 v0-1)
+         (set! t9-2 s4-0)
+         (set! a1-1 (the-as none s5-0))
+         (call! a0-3 a1-1)
+         (set! v1-8 v0-2)
+         )
+        ((begin (set! v1-9 1) (= a0-0 v1-9))
+         (if (begin (set! s5-1 (the-as none (+ sp-0 16))) (set! v1-11 s6-0) v1-11)
+             (set! a0-4 (-> v1-11 ppointer))
+             )
+         (s.w! (+ s5-1 8) a0-4)
+         (set! v1-12 1)
+         (s.w! (+ s5-1 68) v1-12)
+         (set! v1-13 'toggle-slave-option)
+         (s.w! (+ s5-1 64) v1-13)
+         (set! v1-14 2)
+         (s.d! (+ s5-1 16) v1-14)
+         (set! s4-1 send-event-function)
+         (set! t9-3 view-get-active-camera)
+         (set! v0-3 (call!))
+         (set! a0-5 v0-3)
+         (set! t9-4 s4-1)
+         (set! a1-2 (the-as none s5-1))
+         (call! a0-5 a1-2)
+         (set! v1-15 v0-4)
+         )
+        ((begin (set! v1-16 2) (= a0-0 v1-16))
+         (if (begin (set! s5-2 (the-as none (+ sp-0 16))) (set! v1-18 s6-0) v1-18)
+             (set! a0-6 (-> v1-18 ppointer))
+             )
+         (s.w! (+ s5-2 8) a0-6)
+         (set! v1-19 1)
+         (s.w! (+ s5-2 68) v1-19)
+         (set! v1-20 'toggle-slave-option)
+         (s.w! (+ s5-2 64) v1-20)
+         (set! v1-21 4)
+         (s.d! (+ s5-2 16) v1-21)
+         (set! s4-2 send-event-function)
+         (set! t9-5 view-get-active-camera)
+         (set! v0-5 (call!))
+         (set! a0-7 v0-5)
+         (set! t9-6 s4-2)
+         (set! a1-3 (the-as none s5-2))
+         (call! a0-7 a1-3)
+         (set! v1-22 v0-6)
+         )
+        ((begin (set! v1-23 3) (= a0-0 v1-23))
+         (if (begin (set! s5-3 (the-as none (+ sp-0 16))) (set! v1-25 s6-0) v1-25)
+             (set! a0-8 (-> v1-25 ppointer))
+             )
+         (s.w! (+ s5-3 8) a0-8)
+         (set! v1-26 1)
+         (s.w! (+ s5-3 68) v1-26)
+         (set! v1-27 'toggle-slave-option)
+         (s.w! (+ s5-3 64) v1-27)
+         (set! v1-28 128)
+         (s.d! (+ s5-3 16) v1-28)
+         (set! s4-3 send-event-function)
+         (set! t9-7 view-get-active-camera)
+         (set! v0-7 (call!))
+         (set! a0-9 v0-7)
+         (set! t9-8 s4-3)
+         (set! a1-4 (the-as none s5-3))
+         (call! a0-9 a1-4)
+         (set! v1-29 v0-8)
+         )
+        ((begin (set! v1-30 4) (= a0-0 v1-30))
+         (if (begin (set! s5-4 (the-as none (+ sp-0 16))) (set! v1-32 s6-0) v1-32)
+             (set! a0-10 (-> v1-32 ppointer))
+             )
+         (s.w! (+ s5-4 8) a0-10)
+         (set! v1-33 1)
+         (s.w! (+ s5-4 68) v1-33)
+         (set! v1-34 'toggle-slave-option)
+         (s.w! (+ s5-4 64) v1-34)
+         (set! v1-35 8)
+         (s.d! (+ s5-4 16) v1-35)
+         (set! s4-4 send-event-function)
+         (set! t9-9 view-get-active-camera)
+         (set! v0-9 (call!))
+         (set! a0-11 v0-9)
+         (set! t9-10 s4-4)
+         (set! a1-5 (the-as none s5-4))
+         (call! a0-11 a1-5)
+         (set! v1-36 v0-10)
+         )
+        ((begin (set! v1-37 6) (= a0-0 v1-37))
+         (set! a0-12 *setting-control*)
+         (set! v1-39 (-> a0-12 type))
+         (set! t9-11 (method-of-type v1-39 setting-control-method-22))
+         (set! a1-6 'slave-options)
+         (set! a2-0 'clear)
+         (set! a3-0 0)
+         (set! t0-0 16)
+         (call! a0-12 a1-6 a2-0 a3-0 t0-0)
+         (set! v1-40 v0-11)
+         )
+        ((begin (set! v1-41 7) (= a0-0 v1-41))
+         (if (begin (set! s5-5 (the-as none (+ sp-0 16))) (set! v1-43 s6-0) v1-43)
+             (set! a0-13 (-> v1-43 ppointer))
+             )
+         (s.w! (+ s5-5 8) a0-13)
+         (set! v1-44 1)
+         (s.w! (+ s5-5 68) v1-44)
+         (set! v1-45 'toggle-slave-option)
+         (s.w! (+ s5-5 64) v1-45)
+         (set! v1-46 64)
+         (s.d! (+ s5-5 16) v1-46)
+         (set! s4-5 send-event-function)
+         (set! t9-12 view-get-active-camera)
+         (set! v0-12 (call!))
+         (set! a0-14 v0-12)
+         (set! t9-13 s4-5)
+         (set! a1-7 (the-as none s5-5))
+         (call! a0-14 a1-7)
+         (set! v1-47 v0-13)
+         )
+        ((begin (set! v1-48 8) (= a0-0 v1-48))
+         (if (begin (set! s5-6 (the-as none (+ sp-0 16))) (set! v1-50 s6-0) v1-50)
+             (set! a0-15 (-> v1-50 ppointer))
+             )
+         (s.w! (+ s5-6 8) a0-15)
+         (set! v1-51 1)
+         (s.w! (+ s5-6 68) v1-51)
+         (set! v1-52 'toggle-slave-option)
+         (s.w! (+ s5-6 64) v1-52)
+         (set! v1-53 32)
+         (s.d! (+ s5-6 16) v1-53)
+         (set! s4-6 send-event-function)
+         (set! t9-14 view-get-active-camera)
+         (set! v0-14 (call!))
+         (set! a0-16 v0-14)
+         (set! t9-15 s4-6)
+         (set! a1-8 (the-as none s5-6))
+         (call! a0-16 a1-8)
+         (set! v1-54 v0-15)
+         )
+        ((begin (set! v1-55 9) (= a0-0 v1-55))
+         (if (begin (set! s5-7 (the-as none (+ sp-0 16))) (set! v1-57 s6-0) v1-57)
+             (set! a0-17 (-> v1-57 ppointer))
+             )
+         (s.w! (+ s5-7 8) a0-17)
+         (set! v1-58 1)
+         (s.w! (+ s5-7 68) v1-58)
+         (set! v1-59 'toggle-slave-option)
+         (s.w! (+ s5-7 64) v1-59)
+         (set! v1-60 512)
+         (s.d! (+ s5-7 16) v1-60)
+         (set! s4-7 send-event-function)
+         (set! t9-16 view-get-active-camera)
+         (set! v0-16 (call!))
+         (set! a0-18 v0-16)
+         (set! t9-17 s4-7)
+         (set! a1-9 (the-as none s5-7))
+         (call! a0-18 a1-9)
+         (set! v1-61 v0-17)
+         )
+        ((begin (set! v1-62 10) (= a0-0 v1-62))
+         (if (begin (set! s5-8 (the-as none (+ sp-0 16))) (set! v1-64 s6-0) v1-64)
+             (set! a0-19 (-> v1-64 ppointer))
+             )
+         (s.w! (+ s5-8 8) a0-19)
+         (set! v1-65 1)
+         (s.w! (+ s5-8 68) v1-65)
+         (set! v1-66 'toggle-slave-option)
+         (s.w! (+ s5-8 64) v1-66)
+         (set! v1-67 #x4000)
+         (s.d! (+ s5-8 16) v1-67)
+         (set! s4-8 send-event-function)
+         (set! t9-18 view-get-active-camera)
+         (set! v0-18 (call!))
+         (set! a0-20 v0-18)
+         (set! t9-19 s4-8)
+         (set! a1-10 (the-as none s5-8))
+         (call! a0-20 a1-10)
+         (set! v1-68 v0-19)
+         )
+        ((begin (set! v1-69 11) (= a0-0 v1-69))
+         (if (begin (set! s5-9 (the-as none (+ sp-0 16))) (set! v1-71 s6-0) v1-71)
+             (set! a0-21 (-> v1-71 ppointer))
+             )
+         (s.w! (+ s5-9 8) a0-21)
+         (set! v1-72 1)
+         (s.w! (+ s5-9 68) v1-72)
+         (set! v1-73 'toggle-slave-option)
+         (s.w! (+ s5-9 64) v1-73)
+         (set! v1-74 #x8000)
+         (s.d! (+ s5-9 16) v1-74)
+         (set! s4-9 send-event-function)
+         (set! t9-20 view-get-active-camera)
+         (set! v0-20 (call!))
+         (set! a0-22 v0-20)
+         (set! t9-21 s4-9)
+         (set! a1-11 (the-as none s5-9))
+         (call! a0-22 a1-11)
+         (set! v1-75 v0-21)
+         )
+        )
+      )
+    (cond
+      ((begin (set! t9-22 view-get-active-camera) (set! v0-22 (call!)) v0-22)
+       (cond
+         ((zero? a0-0)
+          (set! gp-1 #t)
+          (set! t9-23 view-get-active-camera)
+          (set! v0-23 (call!))
+          (set! v1-76 (the-as none (l.wu (+ v0-23 156))))
+          (set! v1-77 (the-as none (logand v1-76 1)))
+          (cmove-#f-zero gp-2 v1-77 gp-1)
+          )
+         ((begin (set! v1-78 (the-as none 1)) (= a0-0 v1-78))
+          (set! gp-3 (the-as none #t))
+          (set! t9-24 (the-as none view-get-active-camera))
+          (set! v0-24 (the-as none (call!)))
+          (set! v1-79 (the-as none (l.wu (+ v0-24 156))))
+          (set! v1-80 (the-as none (logand v1-79 2)))
+          (cmove-#f-zero gp-2 v1-80 gp-3)
+          )
+         ((begin (set! v1-81 (the-as none 2)) (= a0-0 v1-81))
+          (set! gp-4 (the-as none #t))
+          (set! t9-25 (the-as none view-get-active-camera))
+          (set! v0-25 (the-as none (call!)))
+          (set! v1-82 (the-as none (l.wu (+ v0-25 156))))
+          (set! v1-83 (the-as none (logand v1-82 4)))
+          (cmove-#f-zero gp-2 v1-83 gp-4)
+          )
+         ((begin (set! v1-84 (the-as none 3)) (= a0-0 v1-84))
+          (set! gp-5 (the-as none #t))
+          (set! t9-26 (the-as none view-get-active-camera))
+          (set! v0-26 (the-as none (call!)))
+          (set! v1-85 (the-as none (l.wu (+ v0-26 156))))
+          (set! v1-86 (the-as none (logand v1-85 128)))
+          (cmove-#f-zero gp-2 v1-86 gp-5)
+          )
+         ((begin (set! v1-87 (the-as none 4)) (= a0-0 v1-87))
+          (set! gp-6 (the-as none #t))
+          (set! t9-27 (the-as none view-get-active-camera))
+          (set! v0-27 (the-as none (call!)))
+          (set! v1-88 (the-as none (l.wu (+ v0-27 156))))
+          (set! v1-89 (the-as none (logand v1-88 8)))
+          (cmove-#f-zero gp-2 v1-89 gp-6)
+          )
+         ((begin (set! v1-90 (the-as none 6)) (= a0-0 v1-90))
+          (set! a0-23 (the-as none *setting-control*))
+          (set! v1-91 (the-as none (l.wu (+ a0-23 -4))))
+          (set! t9-28 (the-as none (l.wu (+ v1-91 96))))
+          (set! a1-12 (the-as none 'slave-options))
+          (set! v0-28 (the-as none (call!)))
+          (set! v1-92 (the-as none v0-28))
+          (set! gp-2 (the-as none (not v1-92)))
+          )
+         (else
+           (cond
+             ((begin (set! v1-93 (the-as none 7)) (= a0-0 v1-93))
+              (set! gp-7 (the-as none #t))
+              (set! t9-29 (the-as none view-get-active-camera))
+              (set! v0-29 (the-as none (call!)))
+              (set! v1-94 (the-as none (l.wu (+ v0-29 156))))
+              (set! v1-95 (the-as none (logand v1-94 64)))
+              (cmove-#f-zero gp-2 v1-95 gp-7)
+              )
+             ((begin (set! v1-96 (the-as none 8)) (= a0-0 v1-96))
+              (set! gp-8 (the-as none #t))
+              (set! t9-30 (the-as none view-get-active-camera))
+              (set! v0-30 (the-as none (call!)))
+              (set! v1-97 (the-as none (l.wu (+ v0-30 156))))
+              (set! v1-98 (the-as none (logand v1-97 32)))
+              (cmove-#f-zero gp-2 v1-98 gp-8)
+              )
+             ((begin (set! v1-99 (the-as none 9)) (= a0-0 v1-99))
+              (set! gp-9 (the-as none #t))
+              (set! t9-31 (the-as none view-get-active-camera))
+              (set! v0-31 (the-as none (call!)))
+              (set! v1-100 (the-as none (l.wu (+ v0-31 156))))
+              (set! v1-101 (the-as none (logand v1-100 512)))
+              (cmove-#f-zero gp-2 v1-101 gp-9)
+              )
+             ((begin (set! v1-102 (the-as none 10)) (= a0-0 v1-102))
+              (set! gp-10 (the-as none #t))
+              (set! t9-32 (the-as none view-get-active-camera))
+              (set! v0-32 (the-as none (call!)))
+              (set! v1-103 (the-as none (l.wu (+ v0-32 156))))
+              (set! v1-104 (the-as none (logand v1-103 #x4000)))
+              (cmove-#f-zero gp-2 v1-104 gp-10)
+              )
+             ((begin (set! v1-105 (the-as none 11)) (= a0-0 v1-105))
+              (set! gp-11 (the-as none #t))
+              (set! t9-33 (the-as none view-get-active-camera))
+              (set! v0-33 (the-as none (call!)))
+              (set! v1-106 (the-as none (l.wu (+ v0-33 156))))
+              (set! v1-107 (the-as none (logand v1-106 #x8000)))
+              (cmove-#f-zero gp-2 v1-107 gp-11)
+              )
+             (else
+               (set! gp-2 (the-as none #f))
+               )
+             )
+           )
+         )
+       )
+      (else
+        (set! gp-2 (the-as none #f))
+        )
+      )
+    (set! v0-34 (the-as none gp-2))
+    (ret-value v0-34)
+    )
   )
 
 ;; definition for function dm-cam-settings-func-int
@@ -279,17 +662,173 @@
       )
   )
 
-;; og:preserve-this held (register-soup decode): the fresh decode fails to
-;; convert this function to expressions ("failed type prop at 51: Could not
-;; figure out load: (set! v1 (l.wu (+ v0 148)))"), leaving a raw register
-;; dump (a "connection"-typed local among others) rather than a resolvable
-;; bare label. No landed jakx twin offset or symbol anchors a port. Held as a
-;; type-correct stub returning the caller's own fallback value (see
-;; test/offline/config/jakx/config.jsonc skip_compile_functions for the
-;; matching raw-decode compile skip); the fov-setting menu item that calls it
-;; reports its fallback rather than the retail behavior.
-(defun dm-cam-setting-float ((arg0 float) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-  arg3
+;; definition for function dm-cam-setting-float
+;; ERROR: failed type prop at 51: Could not figure out load: (set! v1 (l.wu (+ v0 148)))
+;; WARN: Return type mismatch none vs float.
+(defun dm-cam-setting-float ((a0-0 float) (a1-0 debug-menu-msg) (a2-0 float) (a3-0 float))
+  (local-vars
+    (v0-0 none)
+    (v0-1 connection)
+    (v0-2 none)
+    (v0-3 basic)
+    (v0-4 basic)
+    (v0-5 process)
+    (v0-6 process)
+    (v0-7 none)
+    (v0-8 none)
+    (v0-9 none)
+    (v0-10 none)
+    (v0-11 none)
+    (v0-12 none)
+    (v1-0 int)
+    (v1-2 float)
+    (v1-4 type)
+    (v1-5 connection)
+    (v1-8 type)
+    (v1-9 int)
+    (v1-12 int)
+    (v1-14 none)
+    (v1-16 none)
+    (v1-17 none)
+    (v1-18 none)
+    (v1-20 none)
+    (v1-21 none)
+    (v1-22 none)
+    (v1-23 none)
+    (a0-1 int)
+    (a0-2 symbol)
+    (a0-3 setting-control)
+    (a0-4 setting-control)
+    (a0-5 none)
+    (a1-1 symbol)
+    (a1-2 symbol)
+    (a1-3 none)
+    (a2-1 symbol)
+    (a3-1 float)
+    (t0-0 int)
+    (t9-0 (function int none))
+    (t9-1 (function setting-control object connection))
+    (t9-2 (function setting-control object object object object none))
+    (t9-3 (function basic))
+    (t9-4 (function basic))
+    (t9-5 (function process))
+    (t9-6 (function process))
+    (t9-7 none)
+    (t9-8 none)
+    (t9-9 none)
+    (t9-10 none)
+    (t9-11 none)
+    (f0-0 float)
+    (f0-1 float)
+    (f0-2 float)
+    (f0-3 none)
+    (f0-4 none)
+    (f0-5 none)
+    (f1-0 number)
+    (f1-1 none)
+    (f1-2 none)
+    (f30-0 float)
+    (f30-1 none)
+    (f30-2 none)
+    (f30-3 none)
+    )
+  (when (begin (set! t9-0 view-push-context) (set! a0-1 0) (call! a0-1) (set! v1-0 4) (= a1-0 v1-0))
+    (when (begin (set! v1-2 a0-0) (set! a0-2 'fov) (= v1-2 a0-2))
+      (when (begin
+              (when (begin
+                      (set! a0-3 *setting-control*)
+                      (set! v1-4 (-> a0-3 type))
+                      (set! t9-1 (method-of-type v1-4 setting-control-method-20))
+                      (set! a1-1 'fov)
+                      (set! v0-1 (call! a0-3 a1-1))
+                      (set! v1-5 v0-1)
+                      (not v1-5)
+                      )
+                (set! a2-0 (the-as float #x42800000))
+                (set! v1-7 a2-0)
+                )
+              (set! a0-4 *setting-control*)
+              (set! v1-8 (-> a0-4 type))
+              (set! t9-2 (method-of-type v1-8 setting-control-method-22))
+              (set! a1-2 'fov)
+              (set! a2-1 #f)
+              (set! v1-9 #x43360b61)
+              (set! f0-0 (the-as float (gpr->fpr v1-9)))
+              (set! f1-0 (gpr->fpr a2-0))
+              (set! f0-1 (*.s f0-0 f1-0))
+              (set! a3-1 (fpr->gpr f0-1))
+              (set! t0-0 0)
+              (call! a0-4 a1-2 a2-1 a3-1 t0-0)
+              (set! v1-10 v0-2)
+              (set! t9-3 view-get-active-camera-combiner)
+              (set! v0-3 (call!))
+              v0-3
+              )
+        (set! v1-12 #x43360b61)
+        (set! f0-2 (the-as float (gpr->fpr v1-12)))
+        (set! f1-1 (the-as none (gpr->fpr a2-0)))
+        (set! f30-0 (*.s f0-2 f1-1))
+        (set! t9-4 view-get-active-camera-combiner)
+        (set! v0-4 (call!))
+        (s.f! (+ v0-4 220) f30-0)
+        (set! v1-13 (fpr->gpr f30-0))
+        )
+      (when (begin
+              (and (begin (set! t9-5 view-get-active-camera) (set! v0-5 (call!)) v0-5)
+                   (begin (set! t9-6 view-get-active-camera) (set! v0-6 (call!)) (set! v1-14 (the-as none (l.wu (+ v0-6 148)))))
+                   )
+              v1-14
+              )
+        (set! v1-16 (the-as none #x43360b61))
+        (set! f0-3 (the-as none (gpr->fpr v1-16)))
+        (set! f1-2 (the-as none (gpr->fpr a2-0)))
+        (set! f30-1 (the-as none (*.s f0-3 f1-2)))
+        (set! t9-7 (the-as none view-get-active-camera))
+        (set! v0-7 (the-as none (call!)))
+        (set! v1-17 (the-as none (l.wu (+ v0-7 148))))
+        (set! v1-18 (the-as none (l.wu v1-17)))
+        (s.f! (+ v1-18 156) f30-1)
+        (set! v1-19 (the-as none (fpr->gpr f30-1)))
+        )
+      )
+    )
+  (cond
+    ((begin (set! v1-20 (the-as none 'fov)) (= a0-0 v1-20))
+     (cond
+       ((begin
+          (set! a0-5 (the-as none *setting-control*))
+          (set! v1-21 (the-as none (l.wu (+ a0-5 -4))))
+          (set! t9-8 (the-as none (l.wu (+ v1-21 96))))
+          (set! a1-3 (the-as none 'fov))
+          (set! v0-8 (the-as none (call!)))
+          (set! v1-22 (the-as none v0-8))
+          v1-22
+          )
+        (empty)
+        )
+       ((begin (set! t9-9 (the-as none view-get-active-math-camera)) (set! v0-9 (the-as none (call!))) v0-9)
+        (set! v1-23 (the-as none #x3bb40000))
+        (set! f30-2 (the-as none (gpr->fpr v1-23)))
+        (set! t9-10 (the-as none view-get-active-math-camera))
+        (set! v0-10 (the-as none (call!)))
+        (set! f0-4 (the-as none (l.f (+ v0-10 8))))
+        (set! f0-5 (the-as none (*.s f30-2 f0-4)))
+        (set! a2-0 (the-as float (fpr->gpr f0-5)))
+        )
+       (else
+         (set! a2-0 (the-as float a3-0))
+         )
+       )
+     )
+    (else
+      (set! a2-0 (the-as float a3-0))
+      )
+    )
+  (set! f30-3 (the-as none (gpr->fpr a2-0)))
+  (set! t9-11 (the-as none view-pop-context))
+  (call!)
+  (set! v0-12 (the-as none (fpr->gpr f30-3)))
+  (ret-value v0-12)
   )
 
 ;; definition for function dm-cam-render-float
@@ -388,19 +927,52 @@
     )
   )
 
-;; og:preserve-this held (register-soup decode): the fresh decode fails to
-;; convert this function to expressions ("failed type prop at 8: Could not
-;; figure out load: (set! v1 (l.wu v1))"). jak3's own landed twin reads/
-;; writes `(-> *anim-tester* 0 speed)` at offset 232 of its anim-tester type;
-;; jakx's raw decode instead reads/writes offset 276 of the same dereferenced
-;; pointer, so the type has grown between games, and no jakx anim-tester
-;; deftype exists in this worktree to name the field. Held as a type-correct
-;; stub returning the caller's own fallback value (see
-;; test/offline/config/jakx/config.jsonc skip_compile_functions for the
-;; matching raw-decode compile skip); the anim-tester speed menu item that
-;; calls it reports its fallback rather than the retail behavior.
-(defun dm-subdiv-int ((arg0 symbol) (arg1 debug-menu-msg) (arg2 int) (arg3 int))
-  arg3
+;; definition for function dm-subdiv-int
+;; ERROR: failed type prop at 8: Could not figure out load: (set! v1 (l.wu v1))
+;; WARN: Return type mismatch none vs int.
+(defun dm-subdiv-int ((a0-0 symbol) (a1-0 debug-menu-msg) (a2-0 int) (a3-0 int))
+  (local-vars
+    (v0-0 none)
+    (v1-0 int)
+    (v1-2 symbol)
+    (v1-4 object)
+    (v1-6 object)
+    (v1-7 none)
+    (v1-9 none)
+    (v1-10 none)
+    (v1-11 none)
+    (v1-12 none)
+    (a0-1 none)
+    (a1-1 symbol)
+    )
+  (when (begin (set! v1-0 4) (= a1-0 v1-0))
+    (when (begin (set! v1-2 a0-0) (set! a1-1 'anim-speed) (= v1-2 a1-1))
+      (when (begin (set! v1-4 *anim-tester*) v1-4)
+        (set! v1-6 *anim-tester*)
+        (set! v1-7 (the-as none (l.wu v1-6)))
+        (s.w! (+ v1-7 276) a2-0)
+        (set! v1-8 (the-as none a2-0))
+        )
+      )
+    )
+  (cond
+    ((begin (set! v1-9 (the-as none a0-0)) (set! a0-1 (the-as none 'anim-speed)) (= v1-9 a0-1))
+     (cond
+       ((begin (set! v1-10 (the-as none *anim-tester*)) v1-10)
+        (set! v1-11 (the-as none *anim-tester*))
+        (set! v1-12 (the-as none (l.wu v1-11)))
+        (set! v0-0 (the-as none (l.w (+ v1-12 276))))
+        )
+       (else
+         (set! v0-0 (the-as none a3-0))
+         )
+       )
+     )
+    (else
+      (set! v0-0 (the-as none a3-0))
+      )
+    )
+  (ret-value v0-0)
   )
 
 ;; definition for function dm-select-race-path
@@ -545,17 +1117,44 @@
   (= (-> *setting-control* user-default stereo-mode) (/ (the-as int arg0) 8))
   )
 
-;; og:preserve-this held (register-soup decode): the fresh decode fails to
-;; convert this function to expressions ("failed type prop at 14: Could not
-;; figure out load: (set! a0 (l.wu v1))"), leaving a raw register dump
-;; (game-info-method-17 called through method-of-type, a listener-continue
-;; call) rather than a resolvable bare label. No landed jakx twin offset or
-;; symbol anchors a port. Held as a type-correct stub (see
-;; test/offline/config/jakx/config.jsonc skip_compile_functions for the
-;; matching raw-decode compile skip); the current-continue display menu item
-;; that calls it reports nothing rather than the retail behavior.
-(defun dm-current-continue ((arg0 string) (arg1 debug-menu-msg))
-  (the-as string #f)
+;; definition for function dm-current-continue
+;; ERROR: failed type prop at 14: Could not figure out load: (set! a0 (l.wu v1))
+;; WARN: Return type mismatch none vs symbol.
+(defun dm-current-continue ((a0-0 string) (a1-0 debug-menu-msg))
+  (local-vars
+    (v0-0 object)
+    (v0-1 object)
+    (v0-2 none)
+    (v1-0 int)
+    (v1-3 type)
+    (v1-4 object)
+    (a0-1 string)
+    (a0-2 game-info)
+    (a0-3 none)
+    (a1-1 int)
+    (s5-0 (function string string symbol))
+    (t9-0 (function string object))
+    (t9-1 (function game-info int object))
+    (t9-2 none)
+    )
+  (when (begin (set! v1-0 4) (= a1-0 v1-0))
+    (set! t9-0 listener-continue)
+    (set! a0-1 a0-0)
+    (call! a0-1)
+    (set! v1-2 v0-0)
+    )
+  (set! s5-0 string=)
+  (set! a0-2 *game-info*)
+  (set! v1-3 (-> a0-2 type))
+  (set! t9-1 (method-of-type v1-3 game-info-method-17))
+  (set! a1-1 0)
+  (set! v0-1 (call! a0-2 a1-1))
+  (set! v1-4 v0-1)
+  (set! a0-3 (the-as none (l.wu v1-4)))
+  (set! t9-2 (the-as none s5-0))
+  (set! a1-2 (the-as none a0-0))
+  (set! v0-2 (the-as none (call!)))
+  (ret-value v0-2)
   )
 
 ;; definition for function dm-subdiv-draw-func
@@ -1173,22 +1772,24 @@
     )
   )
 
-;; og:preserve-this bare-label data reference (L6899, "Failed to guess label
-;; use"), resolved the same way as the shader-tweak fields above: jak3's own
-;; twin uses the identical `(the-as uint #x...)` compare-and-set idiom against
-;; *display* vu1-enable-user-menu (mirrored by the clean sibling
-;; dm-vu1-user-none-pick-func just below, whose constant is 0), but jak3's own
-;; literal (#x17fffffff8) is wrong for jakx (a different vu1-renderer-mask bit
-;; count per game); the landed value (#x5fffffff8) is read directly off this
-;; object's own two static words at L6899 in the fresh ir2.asm (.word
-;; 0xfffffff8, .word 0x5), not copied from jak3.
-(defun dm-vu1-user-all-pick-func ((arg0 symbol) (arg1 debug-menu-msg))
-  (let ((v1-1 (the-as uint #x5fffffff8)))
-    (if (= arg1 (debug-menu-msg press))
-        (set! (-> *display* vu1-enable-user-menu) (the-as uint v1-1))
-        )
-    (= (-> *display* vu1-enable-user-menu) v1-1)
+;; definition for function dm-vu1-user-all-pick-func
+;; ERROR: Failed to guess label use for L6899 in dm-vu1-user-all-pick-func:0
+(defun dm-vu1-user-all-pick-func ((a0-0 symbol) (a1-0 debug-menu-msg))
+  (local-vars (v0-0 none) (v1-0 none) (v1-1 none) (a0-1 none) (a0-3 none) (a0-5 none) (a0-6 none))
+  (when (begin
+          (set! v1-0 (the-as none L6899))
+          (set! v1-1 (the-as none (l.d v1-0)))
+          (set! a0-1 (the-as none 4))
+          (= a1-0 a0-1)
+          )
+    (set! a0-3 (the-as none *display*))
+    (s.d! (+ a0-3 172) v1-1)
+    (set! a0-4 v1-1)
     )
+  (set! a0-5 (the-as none *display*))
+  (set! a0-6 (the-as none (l.d (+ a0-5 172))))
+  (set! v0-0 (the-as none (= a0-6 v1-1)))
+  (ret-value v0-0)
   )
 
 ;; definition for function dm-vu1-user-none-pick-func
@@ -1252,12 +1853,31 @@
   #f
   )
 
-;; og:preserve-this stubbed per jak3's own precedent (default-menu.gc:1013-
-;; 1016): the fresh decode reads a literal PLACEHOLDER token off a
-;; dynamic-array-field-access call, which is not valid GOAL. jak3 stubs this
-;; same function to (none) rather than hand-fold the raw walk; the "all
-;; tweak+"/"all tweak-" menu buttons that call it become no-ops.
+;; definition for function all-texture-tweak-adjust
+;; WARN: Return type mismatch int vs none.
 (defun all-texture-tweak-adjust ((arg0 texture-page-dir) (arg1 float))
+  (dotimes (s4-0 (-> arg0 length))
+    (let ((s3-0 (-> arg0 entries s4-0 page)))
+      (dotimes (s2-0 (min (-> s3-0 length) (-> arg0 entries s4-0 length)))
+        (when (-> arg0 entries s4-0 link)
+          (let ((v1-12 (+ (the-as uint (-> arg0 entries s4-0 link)) (* s2-0 4)))
+                (s1-0 (-> arg0 entries s4-0 page data s2-0))
+                )
+            (+! (-> s1-0 uv-dist) arg1)
+            (+ v1-12 0)
+            (let ((s0-0 (the-as object (* (-> (dynamic-array-field-access v1-12 next PLACEHOLDER) shader) 16))))
+              (while (nonzero? (the-as uint s0-0))
+                (adgif-shader-update! (the-as adgif-shader s0-0) s1-0)
+                (&-> (the-as adgif-shader s0-0) reg-2)
+                (set! s0-0 (* (-> (the-as adgif-shader s0-0) next shader) 16))
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  0
   (none)
   )
 
@@ -1372,16 +1992,145 @@
 ;; definition for symbol *shader-pick-menu*, type object
 (define *shader-pick-menu* (the-as object #f))
 
-;; og:preserve-this held (register-soup decode): the fresh decode fails to
-;; convert this function to expressions ("failed type prop at 67: Could not
-;; figure out load: (set! a0 (l.wu (+ v1 32)))"), leaving a raw register dump
-;; rather than a resolvable bare label. No landed jakx twin offset or symbol
-;; anchors a port. Held as a no-op stub (see test/offline/config/jakx/
-;; config.jsonc skip_compile_functions for the matching raw-decode compile
-;; skip); the "Refresh" shader-list menu button that calls it becomes a
-;; no-op.
+;; definition for function build-shader-list
+;; ERROR: failed type prop at 67: Could not figure out load: (set! a0 (l.wu (+ v1 32)))
 (defun build-shader-list ()
-  (none)
+  (local-vars
+    (v0-0 debug-menu)
+    (v0-1 debug-menu-item-flag)
+    (v0-2 debug-menu-node)
+    (v0-3 none)
+    (v1-0 texture-page-dir)
+    (v1-2 texture-page-dir)
+    (v1-3 int)
+    (v1-4 texture-page-dir)
+    (v1-5 int)
+    (v1-6 structure)
+    (v1-8 int)
+    (v1-9 int)
+    (v1-10 texture)
+    (v1-11 object)
+    (v1-12 symbol)
+    (v1-14 type)
+    (v1-15 int)
+    (v1-16 int)
+    (v1-17 texture)
+    (v1-18 int)
+    (v1-19 int)
+    (v1-21 int)
+    (v1-24 texture-page-dir)
+    (v1-25 int)
+    (v1-28 object)
+    (v1-29 none)
+    (a0-0 object)
+    (a0-1 int)
+    (a0-2 int)
+    (a0-3 int)
+    (a0-4 int)
+    (a0-5 int)
+    (a0-6 int)
+    (a0-7 shader-ptr)
+    (a0-8 symbol)
+    (a0-9 object)
+    (a0-10 none)
+    (a1-0 type)
+    (a1-1 debug-menu-item-flag)
+    (a1-2 none)
+    (a2-0 string)
+    (a3-0 int)
+    (a3-1 int)
+    (a3-2 int)
+    (t0-0 (function texture-id debug-menu-msg symbol))
+    (s3-0 int)
+    (s4-0 texture-link)
+    (s5-0 texture-page)
+    (t9-0 (function debug-menu debug-menu))
+    (t9-1 (function symbol type string object (function object debug-menu-msg object) debug-menu-item-flag))
+    (t9-2 (function debug-menu debug-menu-node debug-menu-node))
+    (t9-3 (function pair (function object object object) pair))
+    (gp-0 int)
+    )
+  (when (begin
+          (set! t9-0 debug-menu-remove-all-items)
+          (set! a0-0 *shader-pick-menu*)
+          (call! a0-0)
+          (set! v1-0 *texture-page-dir*)
+          v1-0
+          )
+    (set! gp-0 0)
+    (while (begin (set! v1-24 *texture-page-dir*) (set! v1-25 (-> v1-24 length)) (<.si gp-0 v1-25))
+      (when (begin
+              (and (begin
+                     (set! v1-2 *texture-page-dir*)
+                     (set! a0-1 12)
+                     (set! a0-2 (*.si a0-1 gp-0))
+                     (set! v1-3 (+ v1-2 a0-2))
+                     (set! s5-0 (dynamic-array-field-access v1-3 entries PLACEHOLDER page))
+                     (set! v1-4 *texture-page-dir*)
+                     (set! a0-3 12)
+                     (set! a0-4 (*.si a0-3 gp-0))
+                     (set! v1-5 (+ v1-4 a0-4))
+                     (set! s4-0 (dynamic-array-field-access v1-5 entries PLACEHOLDER link))
+                     s5-0
+                     )
+                   (set! v1-6 s4-0)
+                   )
+              v1-6
+              )
+        (set! s3-0 0)
+        (while (begin (set! v1-21 (-> s5-0 length)) (<.si s3-0 v1-21))
+          (when (begin
+                  (and (begin
+                         (set! v1-8 (sll s3-0 2))
+                         (set! v1-9 (+ v1-8 s5-0))
+                         (set! v1-10 (dynamic-array-field-access v1-9 data PLACEHOLDER))
+                         v1-10
+                         )
+                       (begin
+                         (set! v1-12 #t)
+                         (set! a0-5 (sll s3-0 2))
+                         (set! a0-6 (+ a0-5 s4-0))
+                         (set! a0-7 (dynamic-array-field-access a0-6 next PLACEHOLDER))
+                         (cmove-#f-zero v1-11 a0-7 v1-12)
+                         )
+                       )
+                  v1-11
+                  )
+            (set! v1-14 debug-menu-item-flag)
+            (set! t9-1 (method-of-type v1-14 new))
+            (set! a0-8 'debug)
+            (set! a1-0 debug-menu-item-flag)
+            (set! v1-15 (sll s3-0 2))
+            (set! v1-16 (+ v1-15 s5-0))
+            (set! v1-17 (dynamic-array-field-access v1-16 data PLACEHOLDER))
+            (set! a2-0 (-> v1-17 name))
+            (set! v1-18 (sll s3-0 52))
+            (set! v1-19 (srl v1-18 44))
+            (set! a3-0 (sll gp-0 52))
+            (set! a3-1 (srl a3-0 32))
+            (set! a3-2 (logior v1-19 a3-1))
+            (set! t0-0 dm-shader-pick-func)
+            (set! v0-1 (call! a0-8 a1-0 a2-0 a3-2 t0-0))
+            (set! a1-1 v0-1)
+            (set! t9-2 debug-menu-append-item)
+            (set! a0-9 *shader-pick-menu*)
+            (call! a0-9 a1-1)
+            (set! v1-20 v0-2)
+            )
+          (set! s3-0 (+ s3-0 1))
+          )
+        )
+      (set! gp-0 (+ gp-0 1))
+      )
+    )
+  (set! t9-3 sort)
+  (set! v1-28 *shader-pick-menu*)
+  (set! a0-10 (the-as none (l.wu (+ v1-28 32))))
+  (set! a1-2 (the-as none debug-menu-node<?))
+  (set! v0-3 (the-as none (call!)))
+  (set! v1-29 (the-as none *shader-pick-menu*))
+  (s.w! (+ v1-29 32) v0-3)
+  (ret-none)
   )
 
 ;; definition for function dm-instance-pick-func
@@ -1505,33 +2254,10 @@
         )
       )
     )
-  ;; og:preserve-this four bare-label lambdas (L859, L858, L857, L856),
-  ;; hand-written verbatim from jak3's own landed twin (identical sort
-  ;; comparator repeated for all four menus)
-  (set! (-> *instance-shrub-menu* items)
-        (sort
-          (-> *instance-shrub-menu* items)
-          (lambda ((arg0 debug-menu) (arg1 debug-menu)) (string<=? (-> arg0 name) (-> arg1 name)))
-          )
-        )
-  (set! (-> *instance-tie-menu* items)
-        (sort
-          (-> *instance-tie-menu* items)
-          (lambda ((arg0 debug-menu) (arg1 debug-menu)) (string<=? (-> arg0 name) (-> arg1 name)))
-          )
-        )
-  (set! (-> *enable-instance-shrub-menu* items)
-        (sort
-          (-> *enable-instance-shrub-menu* items)
-          (lambda ((arg0 debug-menu) (arg1 debug-menu)) (string<=? (-> arg0 name) (-> arg1 name)))
-          )
-        )
-  (set! (-> *enable-instance-tie-menu* items)
-        (sort
-          (-> *enable-instance-tie-menu* items)
-          (lambda ((arg0 debug-menu) (arg1 debug-menu)) (string<=? (-> arg0 name) (-> arg1 name)))
-          )
-        )
+  (set! (-> *instance-shrub-menu* items) (sort (-> *instance-shrub-menu* items) L859))
+  (set! (-> *instance-tie-menu* items) (sort (-> *instance-tie-menu* items) L858))
+  (set! (-> *enable-instance-shrub-menu* items) (sort (-> *enable-instance-shrub-menu* items) L857))
+  (set! (-> *enable-instance-tie-menu* items) (sort (-> *enable-instance-tie-menu* items) L856))
   0
   (none)
   )
@@ -1638,16 +2364,76 @@
   #f
   )
 
-;; og:preserve-this held (register-soup decode): the fresh decode fails to
-;; convert this function to expressions ("failed type prop at 3: Could not
-;; figure out load: (set! v1 (l.w (+ gp -1)))"), leaving a raw register dump
-;; rather than a resolvable bare label; this function has no jak3 twin at all
-;; (jakx-only, split-screen-specific). Held as a type-correct stub (see
-;; test/offline/config/jakx/config.jsonc skip_compile_functions for the
-;; matching raw-decode compile skip); the split-screen toggle menu item that
-;; calls it becomes a no-op.
-(defun dm-split-screen-toggle-pick-func ((arg0 object) (arg1 debug-menu-msg))
-  #f
+;; definition for function dm-split-screen-toggle-pick-func
+;; ERROR: failed type prop at 3: Could not figure out load: (set! v1 (l.w (+ gp -1)))
+;; WARN: Return type mismatch none vs symbol.
+(defun dm-split-screen-toggle-pick-func ((a0-0 object) (a1-0 debug-menu-msg))
+  (local-vars
+    (v0-0 none)
+    (v0-1 none)
+    (v0-2 none)
+    (v0-3 none)
+    (v0-4 none)
+    (v1-0 int)
+    (v1-2 none)
+    (v1-3 none)
+    (v1-4 none)
+    (v1-5 none)
+    (v1-7 none)
+    (v1-9 none)
+    (a0-1 none)
+    (a0-2 none)
+    (a0-3 none)
+    (a1-1 none)
+    (a1-2 none)
+    (a1-3 none)
+    (s5-0 none)
+    (t9-0 none)
+    (t9-1 none)
+    (t9-2 none)
+    (t9-3 none)
+    )
+  (when (begin (set! v1-0 4) (= a1-0 v1-0))
+    (set! v1-2 (the-as none (l.w (+ a0-0 -1))))
+    (set! v1-3 (the-as none (not v1-2)))
+    (cond
+      ((begin (s.w! (+ a0-0 -1) v1-3) (set! v1-4 (the-as none (l.w (+ a0-0 -1)))) v1-4)
+       (cond
+         ((begin
+            (set! s5-0 (the-as none 'aspect16x9))
+            (set! t9-0 (the-as none get-aspect-ratio))
+            (set! v0-0 (the-as none (call!)))
+            (= v0-0 s5-0)
+            )
+          (set! a0-1 (the-as none *viewport-array*))
+          (set! v1-5 (the-as none viewport-array))
+          (set! t9-1 (the-as none (l.wu (+ v1-5 52))))
+          (set! a1-1 (the-as none 2))
+          (call!)
+          (set! v1-6 (the-as none v0-1))
+          )
+         (else
+           (set! a0-2 (the-as none *viewport-array*))
+           (set! v1-7 (the-as none viewport-array))
+           (set! t9-2 (the-as none (l.wu (+ v1-7 52))))
+           (set! a1-2 (the-as none 1))
+           (call!)
+           (set! v1-8 (the-as none v0-2))
+           )
+         )
+       )
+      (else
+        (set! a0-3 (the-as none *viewport-array*))
+        (set! v1-9 (the-as none viewport-array))
+        (set! t9-3 (the-as none (l.wu (+ v1-9 52))))
+        (set! a1-3 (the-as none 0))
+        (call!)
+        (set! v1-10 (the-as none v0-3))
+        )
+      )
+    )
+  (set! v0-4 (the-as none (l.w (+ a0-0 -1))))
+  (ret-value v0-4)
   )
 
 ;; definition for function debug-create-cam-restore
@@ -1937,27 +2723,7 @@
         (debug-menu-append-item s4-1 a1-87)
         )
       )
-    (let ((a1-89 (new
-                   'debug
-                   'debug-menu-item-flag
-                   "Edit"
-                   '*cam-layout*
-                   ;; og:preserve-this bare-label lambda (L810), hand-written
-                   ;; verbatim from jak3's own landed twin (identical
-                   ;; cam-layout-start/cam-layout-stop pair, both already
-                   ;; landed in engine/camera/cam-layout.gc)
-                   (lambda ((arg0 symbol) (arg1 debug-menu-msg))
-                     (when (= arg1 (debug-menu-msg press))
-                       (if (-> arg0 value)
-                           (cam-layout-stop)
-                           (cam-layout-start)
-                           )
-                       )
-                     (-> arg0 value)
-                     )
-                   )
-                 )
-          )
+    (let ((a1-89 (new 'debug 'debug-menu-item-flag "Edit" '*cam-layout* L810)))
       (debug-menu-append-item gp-0 a1-89)
       )
     (let ((a1-91 (new
@@ -1993,44 +2759,7 @@
     (let ((s4-1 (new 'debug 'debug-menu-item-var "tweak" (the-as int '*edit-shader*) 80)))
       (debug-menu-item-var-make-float
         s4-1
-        ;; og:preserve-this bare-label lambda (L802), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "tweak" field)
-        (the-as
-          (function int debug-menu-msg float float float)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((s4-0 (the-as texture-id (-> arg0 value)))
-                       (gp-0 (lookup-texture-by-id s4-0))
-                       (v1-3 (-> *texture-page-dir* entries (-> s4-0 page) link))
-                       )
-                  (cond
-                    ((and gp-0 v1-3)
-                     (when (= arg1 (debug-menu-msg press))
-                       (set! (-> gp-0 uv-dist) arg2)
-                       (let ((s5-1 (the-as object (* (-> v1-3 next (-> s4-0 index) shader) 16))))
-                         (while (nonzero? (the-as uint s5-1))
-                           (adgif-shader-update! (the-as adgif-shader s5-1) gp-0)
-                           (set! s5-1 (* (-> (the-as adgif-shader s5-1) next shader) 16))
-                           )
-                         )
-                       )
-                     (-> gp-0 uv-dist)
-                     )
-                    (else
-                      (empty)
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                (empty)
-                arg3
-                )
-              )
-            )
-          )
+        (the-as (function int debug-menu-msg float float float) L802)
         0.1
         #t
         0.1
@@ -2062,865 +2791,71 @@
       (debug-menu-append-item gp-0 a1-13)
       )
     (let ((s4-2 (new 'debug 'debug-menu-item-var "l" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-2
-        ;; og:preserve-this bare-label lambda (L790), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "l" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex1 l) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) tex1 l)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        3
-        #f
-        )
+      (debug-menu-item-var-make-int s4-2 (the-as (function int debug-menu-msg int int int) L790) 1 #t 0 3 #f)
       (debug-menu-append-item gp-0 s4-2)
       )
     (let ((s4-3 (new 'debug 'debug-menu-item-var "k" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-3
-        ;; og:preserve-this bare-label lambda (L780), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "k" field); the shift
-        ;; pair matches jak3's own og:preserve-this raw-field read (tex1 k is
-        ;; a signed bitfield the decompiler cannot read cleanly through a
-        ;; the-as adgif-shader cast, same og:preserve-this jak3 carries here)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        ;; og:preserve-this
-                        (let ((a1-8 (the-as object (* (the-as int (-> a0-3 next (-> v1-1 index) shader)) 16))))
-                          (while (nonzero? (the-as int a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex1 k) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (sar (shl (the-as int (the-as adgif-shader (-> (the-as adgif-shader v1-8) tex1))) 20) 52)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        -2048
-        2047
-        #f
-        )
+      (debug-menu-item-var-make-int s4-3 (the-as (function int debug-menu-msg int int int) L780) 1 #t -2048 2047 #f)
       (debug-menu-append-item gp-0 s4-3)
       )
     (let ((s4-4 (new 'debug 'debug-menu-item-var "mmin" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-4
-        ;; og:preserve-this bare-label lambda (L770), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "mmin" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex1 mmin) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) tex1 mmin)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        5
-        #t
-        )
+      (debug-menu-item-var-make-int s4-4 (the-as (function int debug-menu-msg int int int) L770) 1 #t 0 5 #t)
       (debug-menu-append-item gp-0 s4-4)
       )
     (let ((s4-5 (new 'debug 'debug-menu-item-var "mmag" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-5
-        ;; og:preserve-this bare-label lambda (L760), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "mmag" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex1 mmag) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) tex1 mmag)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        1
-        #t
-        )
+      (debug-menu-item-var-make-int s4-5 (the-as (function int debug-menu-msg int int int) L760) 1 #t 0 1 #t)
       (debug-menu-append-item gp-0 s4-5)
       )
     (let ((s4-6 (new 'debug 'debug-menu-item-var "lcm" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-6
-        ;; og:preserve-this bare-label lambda (L750), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "lcm" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex1 lcm) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) tex1 lcm)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        1
-        #t
-        )
+      (debug-menu-item-var-make-int s4-6 (the-as (function int debug-menu-msg int int int) L750) 1 #t 0 1 #t)
       (debug-menu-append-item gp-0 s4-6)
       )
     (let ((s4-7 (new 'debug 'debug-menu-item-var "tfx" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-7
-        ;; og:preserve-this bare-label lambda (L740), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "tfx" field, same
-        ;; og:preserve-this raw-field read shift pair)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        ;; og:preserve-this
-                        (let ((a1-8 (the-as object (* (the-as int (-> a0-3 next (-> v1-1 index) shader)) 16))))
-                          (while (nonzero? (the-as int a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex0 tfx) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (shr (shl (the-as int (the-as adgif-shader (-> (the-as adgif-shader v1-8) tex0))) 27) 62)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        3
-        #t
-        )
+      (debug-menu-item-var-make-int s4-7 (the-as (function int debug-menu-msg int int int) L740) 1 #t 0 3 #t)
       (debug-menu-append-item gp-0 s4-7)
       )
     (let ((s4-8 (new 'debug 'debug-menu-item-var "tbp" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-8
-        ;; og:preserve-this bare-label lambda (L730), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "tbp" field, tex0 tbp0)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex0 tbp0) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) tex0 tbp0)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        #x4000
-        #t
-        )
+      (debug-menu-item-var-make-int s4-8 (the-as (function int debug-menu-msg int int int) L730) 1 #t 0 #x4000 #t)
       (debug-menu-append-item gp-0 s4-8)
       )
     (let ((s4-9 (new 'debug 'debug-menu-item-var "tbw" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-9
-        ;; og:preserve-this bare-label lambda (L720), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "tbw" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex0 tbw) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) tex0 tbw)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        15
-        #t
-        )
+      (debug-menu-item-var-make-int s4-9 (the-as (function int debug-menu-msg int int int) L720) 1 #t 0 15 #t)
       (debug-menu-append-item gp-0 s4-9)
       )
     (let ((s4-10 (new 'debug 'debug-menu-item-var "tw" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-10
-        ;; og:preserve-this bare-label lambda (L710), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "tw" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex0 tw) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) tex0 tw)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        10
-        #t
-        )
+      (debug-menu-item-var-make-int s4-10 (the-as (function int debug-menu-msg int int int) L710) 1 #t 0 10 #t)
       (debug-menu-append-item gp-0 s4-10)
       )
     (let ((s4-11 (new 'debug 'debug-menu-item-var "th" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-11
-        ;; og:preserve-this bare-label lambda (L700), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "th" field, same
-        ;; og:preserve-this raw-field read shift pair)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        ;; og:preserve-this
-                        (let ((a1-8 (the-as object (* (the-as int (-> a0-3 next (-> v1-1 index) shader)) 16))))
-                          (while (nonzero? (the-as int a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex0 th) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (shr (shl (the-as int (the-as adgif-shader (-> (the-as adgif-shader v1-8) tex0))) 30) 60)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        10
-        #t
-        )
+      (debug-menu-item-var-make-int s4-11 (the-as (function int debug-menu-msg int int int) L700) 1 #t 0 10 #t)
       (debug-menu-append-item gp-0 s4-11)
       )
     (let ((s4-12 (new 'debug 'debug-menu-item-var "mxl" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-12
-        ;; og:preserve-this bare-label lambda (L690), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "mxl" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) tex1 mxl) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) tex1 mxl)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        6
-        #t
-        )
+      (debug-menu-item-var-make-int s4-12 (the-as (function int debug-menu-msg int int int) L690) 1 #t 0 6 #t)
       (debug-menu-append-item gp-0 s4-12)
       )
     (let ((s4-13 (new 'debug 'debug-menu-item-var "wms" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-13
-        ;; og:preserve-this bare-label lambda (L680), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "wms" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) clamp wms) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) clamp wms)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        3
-        #t
-        )
+      (debug-menu-item-var-make-int s4-13 (the-as (function int debug-menu-msg int int int) L680) 1 #t 0 3 #t)
       (debug-menu-append-item gp-0 s4-13)
       )
     (let ((s4-14 (new 'debug 'debug-menu-item-var "wmt" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-14
-        ;; og:preserve-this bare-label lambda (L670), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "wmt" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) clamp wmt) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) clamp wmt)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        3
-        #t
-        )
+      (debug-menu-item-var-make-int s4-14 (the-as (function int debug-menu-msg int int int) L670) 1 #t 0 3 #t)
       (debug-menu-append-item gp-0 s4-14)
       )
     (let ((s4-15 (new 'debug 'debug-menu-item-var "minu" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-15
-        ;; og:preserve-this bare-label lambda (L660), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "minu" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) clamp minu) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) clamp minu)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        511
-        #t
-        )
+      (debug-menu-item-var-make-int s4-15 (the-as (function int debug-menu-msg int int int) L660) 1 #t 0 511 #t)
       (debug-menu-append-item gp-0 s4-15)
       )
     (let ((s4-16 (new 'debug 'debug-menu-item-var "maxu" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-16
-        ;; og:preserve-this bare-label lambda (L650), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "maxu" field)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        (let ((a1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                          (while (nonzero? (the-as uint a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) clamp maxu) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (-> (the-as adgif-shader v1-8) clamp maxu)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        511
-        #t
-        )
+      (debug-menu-item-var-make-int s4-16 (the-as (function int debug-menu-msg int int int) L650) 1 #t 0 511 #t)
       (debug-menu-append-item gp-0 s4-16)
       )
     (let ((s4-17 (new 'debug 'debug-menu-item-var "minv" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-17
-        ;; og:preserve-this bare-label lambda (L640), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "minv" field, same
-        ;; og:preserve-this raw-field read shift pair)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        ;; og:preserve-this
-                        (let ((a1-8 (the-as object (* (the-as int (-> a0-3 next (-> v1-1 index) shader)) 16))))
-                          (while (nonzero? (the-as int a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) clamp minv) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (shr (shl (the-as int (the-as adgif-shader (-> (the-as adgif-shader v1-8) clamp))) 30) 54)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        511
-        #t
-        )
+      (debug-menu-item-var-make-int s4-17 (the-as (function int debug-menu-msg int int int) L640) 1 #t 0 511 #t)
       (debug-menu-append-item gp-0 s4-17)
       )
     (let ((s4-18 (new 'debug 'debug-menu-item-var "maxv" (the-as int '*edit-shader*) 80)))
-      (debug-menu-item-var-make-int
-        s4-18
-        ;; og:preserve-this bare-label lambda (L630), hand-written verbatim
-        ;; from jak3's own landed twin (same function, "maxv" field, same
-        ;; og:preserve-this raw-field read shift pair)
-        (the-as
-          (function int debug-menu-msg int int int)
-          (lambda ((arg0 symbol) (arg1 debug-menu-msg) (arg2 float) (arg3 float))
-            (cond
-              (*texture-page-dir*
-                (let* ((v1-1 (the-as texture-id (-> arg0 value)))
-                       (a0-3 (-> *texture-page-dir* entries (-> v1-1 page) link))
-                       )
-                  (cond
-                    (a0-3
-                      (when (= arg1 (debug-menu-msg press))
-                        ;; og:preserve-this
-                        (let ((a1-8 (the-as object (* (the-as int (-> a0-3 next (-> v1-1 index) shader)) 16))))
-                          (while (nonzero? (the-as int a1-8))
-                            (set! (-> (the-as adgif-shader a1-8) clamp maxv) (the-as int arg2))
-                            (set! a1-8 (* (-> (the-as adgif-shader a1-8) next shader) 16))
-                            )
-                          )
-                        )
-                      (let ((v1-8 (the-as object (* (-> a0-3 next (-> v1-1 index) shader) 16))))
-                        (if (nonzero? (the-as uint v1-8))
-                            (shr (shl (the-as int (the-as adgif-shader (-> (the-as adgif-shader v1-8) clamp))) 20) 54)
-                            arg3
-                            )
-                        )
-                      )
-                    (else
-                      arg3
-                      )
-                    )
-                  )
-                )
-              (else
-                arg3
-                )
-              )
-            )
-          )
-        1
-        #t
-        0
-        511
-        #t
-        )
+      (debug-menu-item-var-make-int s4-18 (the-as (function int debug-menu-msg int int int) L630) 1 #t 0 511 #t)
       (debug-menu-append-item gp-0 s4-18)
       )
     s5-0
@@ -3231,15 +3166,8 @@
     )
   )
 
-;; og:preserve-this no body (issue 571's UX successor): the fresh decode does
-;; not convert dm-play-task-with-continue to expressions at all ("function
-;; was not converted to expressions. Cannot decompile."), with no partial
-;; asm dump either, so there is nothing to transcribe or hand-fold. It is
-;; already carried as an extern in all-types.gc (function game-task string
-;; object) and stays unlanded here, same treatment as this file's other
-;; unlanded callback externs: dm-play-task and dm-play-race (both landed
-;; below) call it by name, and it resolves at call time rather than blocking
-;; compilation.
+;; definition for function dm-play-task-with-continue
+;; ERROR: function was not converted to expressions. Cannot decompile.
 
 ;; definition for function dm-play-task
 (defun dm-play-task ((arg0 game-task))
@@ -3344,29 +3272,186 @@
     )
   )
 
-;; og:preserve-this held (register-soup decode): the fresh decode fails to
-;; convert this function to expressions ("failed type prop at 8: Could not
-;; figure out load: (set! v1 (l.wu v1))"), leaving a raw register dump rather
-;; than a resolvable bare label; same *anim-tester* type gap as dm-subdiv-int
-;; above (no jakx anim-tester deftype in this worktree to anchor a port).
-;; Held as a type-correct stub (see test/offline/config/jakx/config.jsonc
-;; skip_compile_functions for the matching raw-decode compile skip); the
-;; anim-tester flag menu item that calls it becomes a no-op.
-(defun dm-anim-tester-flag-func ((arg0 int) (arg1 debug-menu-msg))
-  #f
+;; definition for function dm-anim-tester-flag-func
+;; ERROR: failed type prop at 8: Could not figure out load: (set! v1 (l.wu v1))
+;; WARN: Return type mismatch none vs symbol.
+(defun dm-anim-tester-flag-func ((a0-0 int) (a1-0 debug-menu-msg))
+  (local-vars
+    (v0-0 none)
+    (v1-0 object)
+    (v1-2 int)
+    (v1-3 int)
+    (v1-5 object)
+    (v1-6 none)
+    (v1-7 none)
+    (v1-8 none)
+    (v1-9 none)
+    (v1-10 none)
+    (v1-13 none)
+    (v1-15 none)
+    (v1-16 none)
+    (v1-17 none)
+    (v1-18 none)
+    (v1-19 none)
+    (v1-20 none)
+    (a0-1 symbol)
+    (a0-3 none)
+    (a0-4 none)
+    (a0-5 none)
+    (a0-6 none)
+    (a0-7 none)
+    (a0-8 none)
+    (a0-9 none)
+    (a0-10 none)
+    (a0-11 none)
+    (a0-12 none)
+    (a0-13 none)
+    (a0-14 none)
+    (a0-15 none)
+    )
+  (when (begin (set! v1-0 *anim-tester*) v1-0)
+    (cond
+      ((begin (set! v1-2 a0-0) (set! a0-1 'at-apply-align) (= v1-2 a0-1))
+       (return (begin
+                 (when (begin (set! v1-3 4) (= a1-0 v1-3))
+                   (set! v1-5 *anim-tester*)
+                   (set! v1-6 (the-as none (l.wu v1-5)))
+                   (set! v1-7 (the-as none (l.w (+ v1-6 252))))
+                   (set! v1-8 (the-as none (logxor v1-7 32)))
+                   (set! a0-3 (the-as none *anim-tester*))
+                   (set! a0-4 (the-as none (l.wu a0-3)))
+                   (s.w! (+ a0-4 252) v1-8)
+                   )
+                 (set! v1-9 (the-as none #t))
+                 (set! a0-5 (the-as none *anim-tester*))
+                 (set! a0-6 (the-as none (l.wu a0-5)))
+                 (set! a0-7 (the-as none (l.w (+ a0-6 252))))
+                 (set! a0-8 (the-as none (logand a0-7 32)))
+                 (cmove-#f-zero v1-10 a0-8 v1-9)
+                 (set! v0-0 (the-as none v1-10))
+                 )
+               )
+       )
+      ((begin (set! a0-9 (the-as none 'at-show-joint-info)) (= v1-2 a0-9))
+       (return (begin
+                 (when (begin (set! v1-13 (the-as none 4)) (= a1-0 v1-13))
+                   (set! v1-15 (the-as none *anim-tester*))
+                   (set! v1-16 (the-as none (l.wu v1-15)))
+                   (set! v1-17 (the-as none (l.w (+ v1-16 252))))
+                   (set! v1-18 (the-as none (logxor v1-17 16)))
+                   (set! a0-10 (the-as none *anim-tester*))
+                   (set! a0-11 (the-as none (l.wu a0-10)))
+                   (s.w! (+ a0-11 252) v1-18)
+                   )
+                 (set! v1-19 (the-as none #t))
+                 (set! a0-12 (the-as none *anim-tester*))
+                 (set! a0-13 (the-as none (l.wu a0-12)))
+                 (set! a0-14 (the-as none (l.w (+ a0-13 252))))
+                 (set! a0-15 (the-as none (logand a0-14 16)))
+                 (cmove-#f-zero v1-20 a0-15 v1-19)
+                 (set! v0-0 (the-as none v1-20))
+                 )
+               )
+       )
+      )
+    )
+  (set! v0-0 (the-as none #f))
+  (ret-value v0-0)
   )
 
-;; og:preserve-this held (register-soup decode): the fresh decode fails to
-;; convert this function to expressions ("failed type prop at 21: Could not
-;; figure out load: (set! v1 (l.wu v1))", "Failed to guess stack use for
-;; 16"), leaving a raw register dump rather than a resolvable bare label;
-;; same *anim-tester* type gap as dm-subdiv-int above (no jakx anim-tester
-;; deftype in this worktree to anchor a port). Held as a type-correct stub
-;; (see test/offline/config/jakx/config.jsonc skip_compile_functions for the
-;; matching raw-decode compile skip); the anim-tester menu item that calls it
-;; becomes a no-op.
-(defun dm-anim-tester-func ((arg0 int) (arg1 debug-menu-msg))
-  #f
+;; definition for function dm-anim-tester-func
+;; ERROR: failed type prop at 21: Could not figure out load: (set! v1 (l.wu v1))
+;; ERROR: Failed to guess stack use for 16 in dm-anim-tester-func:10
+(defun dm-anim-tester-func ((a0-0 int) (a1-0 debug-menu-msg))
+  (local-vars
+    (v0-0 symbol)
+    (v0-1 symbol)
+    (v0-2 none)
+    (v0-3 none)
+    (v1-0 object)
+    (v1-3 object)
+    (v1-4 symbol)
+    (v1-6 process)
+    (v1-7 symbol)
+    (v1-8 object)
+    (v1-9 none)
+    (v1-11 none)
+    (v1-12 none)
+    (v1-13 none)
+    (v1-14 none)
+    (v1-15 none)
+    (v1-16 none)
+    (v1-18 none)
+    (a0-1 (pointer process))
+    (a0-3 none)
+    (a0-4 none)
+    (a0-6 none)
+    (a1-1 none)
+    (a1-2 none)
+    (t9-0 (function symbol))
+    (t9-1 (function process-tree event-message-block object))
+    (t9-2 none)
+    (sp-0 none)
+    )
+  (with-pp
+    (when (begin
+            (when (begin (set! v1-0 *anim-tester*) (not v1-0))
+              (set! t9-0 anim-tester-start)
+              (call!)
+              (set! v1-2 v0-0)
+              )
+            (set! v1-3 *anim-tester*)
+            v1-3
+            )
+      (cond
+        ((begin (set! v1-4 'at-pick-object) (= a0-0 v1-4))
+         (when (begin
+                 (if (begin (set! a1-1 (the-as none (+ sp-0 16))) (set! v1-6 s6-0) v1-6)
+                     (set! a0-1 (-> v1-6 ppointer))
+                     )
+                 (s.w! (+ a1-1 8) a0-1)
+                 (s.w! (+ a1-1 68) 0)
+                 (set! v1-7 'pick-object)
+                 (s.w! (+ a1-1 64) v1-7)
+                 (set! t9-1 send-event-function)
+                 (set! v1-8 *anim-tester*)
+                 v1-8
+                 )
+           (set! v1-9 (the-as none (l.wu v1-8)))
+           (set! a0-3 (the-as none (l.wu (+ v1-9 32))))
+           )
+         (call!)
+         (set! v1-10 (the-as none v0-2))
+         (set! v0-1 (the-as symbol #t))
+         (set! v1-11 (the-as none *debug-menu-context*))
+         (s.w! (+ v1-11 56) v0-1)
+         )
+        ((begin (set! v1-12 (the-as none 'at-pick-joint-anim)) (= a0-0 v1-12))
+         (when (begin
+                 (if (begin (set! a1-2 (the-as none (+ sp-0 16))) (set! v1-13 (the-as none s6-0)) v1-13)
+                     (set! a0-4 (the-as none (l.wu (+ v1-13 28))))
+                     )
+                 (s.w! (+ a1-2 8) a0-4)
+                 (s.w! (+ a1-2 68) 0)
+                 (set! v1-14 (the-as none 'pick-joint-anim))
+                 (s.w! (+ a1-2 64) v1-14)
+                 (set! t9-2 (the-as none send-event-function))
+                 (set! v1-15 (the-as none *anim-tester*))
+                 v1-15
+                 )
+           (set! v1-16 (the-as none (l.wu v1-15)))
+           (set! a0-6 (the-as none (l.wu (+ v1-16 32))))
+           )
+         (call!)
+         (set! v1-17 (the-as none v0-3))
+         (set! v0-1 (the-as symbol #t))
+         (set! v1-18 (the-as none *debug-menu-context*))
+         (s.w! (+ v1-18 56) v0-1)
+         )
+        )
+      )
+    (ret-value v0-1)
+    )
   )
 
 ;; definition for function stop-watch-display
@@ -3554,16 +3639,8 @@
                 (initialize! *game-info* 'dead (the-as game-save #f) (the-as string #f) (the-as resetter-spec #f))
                 )
              )
-           ;; og:preserve-this two bare-label lambdas (L525, L519) held rather
-           ;; than reconstructed: jak3's own twin (same two menu entries)
-           ;; depends on *target*, a global symbol that does not exist
-           ;; anywhere in jakx (target-pos takes an explicit player index
-           ;; instead, "jak3-parity sig" per all-types.gc, a genuine
-           ;; split-screen API divergence). No body evidence survives to
-           ;; reconstruct jakx's own replacement mechanism; pressing either
-           ;; item is a silent no-op rather than the retail behavior.
-           (function "Kill Target" #f ,(lambda () (none)))
-           (function "Hit Target" #f ,(lambda () (none)))
+           (function "Kill Target" #f <lambda at L525>)
+           (function "Hit Target" #f <lambda at L519>)
            (function
              "Reset Game"
              #f
@@ -3690,12 +3767,8 @@
                                               #f
                                               )
                      )
-           ;; og:preserve-this two bare-label lambdas (L496, L490) held rather
-           ;; than reconstructed: jakx-only, racing-specific menu entries with
-           ;; no jak3 twin at all and zero recovered body evidence. Pressing
-           ;; either item is a silent no-op rather than the retail behavior.
-           (function "Get All Vehicles Parts" #f ,(lambda () (none)))
-           (function "Get All Tasks" #f ,(lambda () (none)))
+           (function "Get All Vehicles Parts" #f <lambda at L496>)
+           (function "Get All Tasks" #f <lambda at L490>)
            (function "Get All Venues" #f ,(lambda ()
                                             (let* ((v1-1 (-> *task-level-info* length))
                                                    (a0-0 0)
@@ -3724,11 +3797,7 @@
                 (set! (-> *game-info* player-info 1 cash) 1000000.0)
                 )
              )
-           ;; og:preserve-this bare-label lambda (L482) held rather than
-           ;; reconstructed: jakx-only, racing-specific menu entry with no
-           ;; jak3 twin at all and zero recovered body evidence. Pressing this
-           ;; item is a silent no-op rather than the retail behavior.
-           (function "Trick Out Vehicles" #f ,(lambda () (none)))
+           (function "Trick Out Vehicles" #f <lambda at L482>)
            (menu
              "Secrets"
              (flag "hero-mode" 0 dm-game-secret-toggle-pick-func)
@@ -4350,16 +4419,9 @@
                (flag "noproj" 8388608 dm-col-rend-show-only-toggle-func)
                (flag "probe" 2097152 dm-col-rend-show-only-toggle-func)
                (flag "nolineofsight" 8192 dm-col-rend-show-only-toggle-func)
-               ;; og:preserve-this -1 here and at the two other "select
-               ;; all"/header entries below, not the decode's own #xffffffff:
-               ;; GOAL's quoted-pair fixnum encoding cannot hold a raw
-               ;; 0xffffffff literal (goalc: "Cannot store ... because it
-               ;; overflows a signed 32-bit integer"); -1 is the identical
-               ;; all-ones bit pattern for the bitwise logtest?/logand use
-               ;; these pick-funcs make of it, and fits the encoding.
-               (flag "Select All" -1 dm-col-rend-show-only-set-func)
+               (flag "Select All" #xffffffff dm-col-rend-show-only-set-func)
                (flag "Unselect All" 0 dm-col-rend-show-only-set-func)
-               (flag "--Material--" -1 dm-col-rend-show-material-func)
+               (flag "--Material--" #xffffffff dm-col-rend-show-material-func)
                (flag "unknown (wall)" 0 dm-col-rend-show-material-func)
                (flag "invisible" #x1e dm-col-rend-show-material-func)
                (flag "dirt" #xf dm-col-rend-show-material-func)
@@ -4371,7 +4433,7 @@
                (flag "lava" #xc dm-col-rend-show-material-func)
                (flag "ice" #x1 dm-col-rend-show-material-func)
                (flag "forcefield" 4 dm-col-rend-show-material-func)
-               (flag "--Event--" -1 dm-col-rend-show-event-func)
+               (flag "--Event--" #xffffffff dm-col-rend-show-event-func)
                (flag "deadly" #x1 dm-col-rend-show-event-func)
                (flag "nodamage" #x2 dm-col-rend-show-event-func)
                (flag "slippery" #xe dm-col-rend-show-event-func)
@@ -4457,25 +4519,8 @@
            "Actor"
            (flag "Spawn Actors" *spawn-actors* dm-boolean-toggle-pick-func)
            (function "Reset Actors" #f ,(lambda () (reset-actors 'debug)))
-           ;; og:preserve-this two bare-label lambdas (L389, L387), hand-
-           ;; written verbatim from jak3's own landed twin (identical
-           ;; valid?-guarded traffic-start/traffic-kill function-var calls,
-           ;; both already carried as provisional call-site-only externs in
-           ;; all-types.gc)
-           (function "Traffic Start" #f ,(lambda () (let ((gp-0 traffic-start))
-                                                      (if (valid? gp-0 function "" #t 0)
-                                                          (gp-0)
-                                                          )
-                                                      )
-                                                 )
-                     )
-           (function "Traffic Kill" #f ,(lambda () (let ((gp-0 traffic-kill))
-                                                     (if (valid? gp-0 function "" #t 0)
-                                                         (gp-0)
-                                                         )
-                                                     )
-                                                )
-                     )
+           (function "Traffic Start" #f <lambda at L389>)
+           (function "Traffic Kill" #f <lambda at L387>)
            (menu
              "Bot"
              (function
@@ -4630,14 +4675,7 @@
                                        0
                                        )
                      )
-           ;; og:preserve-this bare-label lambda (L351) held rather than
-           ;; reconstructed: jak3's own twin depends on *target*, a global
-           ;; symbol that does not exist anywhere in jakx (target-pos takes an
-           ;; explicit player index instead, "jak3-parity sig" per
-           ;; all-types.gc). No body evidence survives to reconstruct jakx's
-           ;; own replacement mechanism; pressing this item is a silent no-op
-           ;; rather than the retail behavior.
-           (function "Save Continue" #f ,(lambda () (none)))
+           (function "Save Continue" #f <lambda at L351>)
            )
         )
       )
@@ -4676,18 +4714,246 @@
         arg0
         '(menu
            "Nav Graph"
-           ;; og:preserve-this NEW finding beyond the scoping plan's own error
-           ;; tally: every item in this submenu decodes clean (no ERROR marker
-           ;; at all) but calls nav-graph-editor-method-N by number, and
-           ;; get-nav-graph-editor/run-nav-graph-editor/exit-nav-graph-editor
-           ;; return or take a nav-graph-editor, a type with no deftype
-           ;; anywhere in this worktree's goal_src (all-types.gc only, a
-           ;; decompiler-side reference, not a real build type). Landing it is
-           ;; a whole separate subsystem, out of this rung's scope. The whole
-           ;; submenu is held as a single inert placeholder; every real "Start
-           ;; Editor"/toggle/save button in retail is a no-op here rather than
-           ;; the retail behavior.
-           (function "Nav Graph Editor (held, no nav-graph-editor type)" #f ,(lambda () (none)))
+           (function "Start Editor" #f ,(lambda () (if (not (get-nav-graph-editor))
+                                                       (run-nav-graph-editor 'test #f)
+                                                       )
+                                                )
+                     )
+           (function "Exit Editor" #f ,(lambda () (if (get-nav-graph-editor)
+                                                      (exit-nav-graph-editor)
+                                                      )
+                                               )
+                     )
+           (function "Toggle Plane Mode" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                          (if a0-0
+                                                              (nav-graph-editor-method-65 a0-0)
+                                                              )
+                                                          )
+                                                     )
+                     )
+           (function "Toggle Hover Mode" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                          (if a0-0
+                                                              (nav-graph-editor-method-66 a0-0)
+                                                              )
+                                                          )
+                                                     )
+                     )
+           (menu
+             "Load"
+             (function
+               "Hover Foresta"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'hover (the-as string 'foresta))
+                                 )
+                             )
+                        )
+               )
+             (function "Hover Sewc" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                     (if a0-0
+                                                         (nav-graph-editor-method-67 a0-0 'hover (the-as string 'sewc))
+                                                         )
+                                                     )
+                                                )
+                       )
+             (function "Hover Sewg" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                     (if a0-0
+                                                         (nav-graph-editor-method-67 a0-0 'hover (the-as string 'sewg))
+                                                         )
+                                                     )
+                                                )
+                       )
+             (function "Traffic" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                  (if a0-0
+                                                      (nav-graph-editor-method-67 a0-0 'traffic (the-as string #f))
+                                                      )
+                                                  )
+                                             )
+                       )
+             (function "Minimap" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                  (if a0-0
+                                                      (nav-graph-editor-method-67 a0-0 'minimap (the-as string #f))
+                                                      )
+                                                  )
+                                             )
+                       )
+             (function
+               "flyingsaw_2"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'flyingsaw_2 (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "flyingsaw_3"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'flyingsaw_3 (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "forest-plant-1"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'forest-plant-1 (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "forest-plant-2"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'forest-plant-2 (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "forest-plant-3"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'forest-plant-3 (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "forest-plant-4"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'forest-plant-4 (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function "Desert Beast" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                       (if a0-0
+                                                           (nav-graph-editor-method-67 a0-0 'beast (the-as string #f))
+                                                           )
+                                                       )
+                                                  )
+                       )
+             (function
+               "Was Minimap"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'wasminimap (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "Desert Rescue"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'desrescue (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function "Assault" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                  (if a0-0
+                                                      (nav-graph-editor-method-67 a0-0 'assault (the-as string #f))
+                                                      )
+                                                  )
+                                             )
+                       )
+             (function
+               "Timer Chase 1"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'timer-chase-1 (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function "ProtectHQ" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                    (if a0-0
+                                                        (nav-graph-editor-method-67 a0-0 'protect-hq (the-as string #f))
+                                                        )
+                                                    )
+                                               )
+                       )
+             (function "Blow Tower" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                                     (if a0-0
+                                                         (nav-graph-editor-method-67 a0-0 'blow-tower (the-as string #f))
+                                                         )
+                                                     )
+                                                )
+                       )
+             (function
+               "desert-lizard"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'desert-lizard (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "terraformer-walk"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'terraformer-walk (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "terraformer-fly"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'terraformer-fly (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "Desert Beast Battle"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'beast-battle (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             (function
+               "Desert Chase Marauder"
+               #f
+               ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                             (if a0-0
+                                 (nav-graph-editor-method-67 a0-0 'desert-chase-marauder (the-as string #f))
+                                 )
+                             )
+                        )
+               )
+             )
+           (function "Save" #f ,(lambda () (let ((a0-0 (get-nav-graph-editor)))
+                                             (if a0-0
+                                                 (nav-graph-editor-method-68 a0-0)
+                                                 )
+                                             )
+                                        )
+                     )
            )
         )
       )
@@ -6426,4 +6692,3 @@
   (debug-menus-handler *debug-menu-context*)
   (debug-menus-handler *popup-menu-context*)
   )
-
