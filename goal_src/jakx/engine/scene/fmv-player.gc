@@ -128,6 +128,12 @@
 ;; literal (always typed int) as a uint argument with no implicit widening, and the
 ;; whole point of this probe is to be callable from the REPL as (fmv-debug-show-ms
 ;; 7500) per fmv-design.md 5f. Cast to uint only where the record field needs it.
+;;
+;; L3 (issue 569) keeps this standalone rather than folding it into the playing
+;; state: playing computes its own elapsed-ms from the real clock and emits its
+;; own record inline (same shape, different source of truth), so this stays a
+;; general "poke an arbitrary elapsed-ms at the sentinel tbp" REPL lever, useful
+;; for the other 42 movies later or for probing a frame without a live process.
 (defun fmv-debug-show-ms ((elapsed-ms int))
   (let ((tbp (fmv-get-tbp)))
     (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
@@ -148,4 +154,140 @@
       )
     )
   (none)
+  )
+
+;; ============================================================================
+;; L3 fmv-player process (issue 569): init-by-other, the playing/die states, the
+;; playback clock, and the pad-skip check. R7 (fmv-design.md): this must never
+;; set *fmv-player* or touch scene.gc -- both stay reserved for the later
+;; milestone that wires the retail call site at scene.gc:1195.
+;; ============================================================================
+
+;; og:preserve-this
+;; FMV playback duration cap (design R4). THX.MJV's frame rate is ambiguous
+;; between the transcode's own sequence header (25 fps x 450 frames = 18.0s)
+;; and ffmpeg's tbr guess (29.97 fps, 15.015s) -- unresolved at the container
+;; level, so the runtime is made insensitive to it instead: this picks the
+;; longer of the two candidates plus margin, so undershooting (truncating real
+;; content) can't happen. MjvVideoReader::frame_rgba_at_ms clamps an elapsed-ms
+;; past the last frame to the measured-black final frame, so the cost of
+;; guessing high is a few seconds of held black at worst, not lost frames.
+(defconstant FMV-THX-DURATION-MS 18500)
+
+;; og:preserve-this
+;; fmv-player's deftype (fmv-player-h.gc:43-58, mirrored at
+;; decompiler/config/jakx/all-types.gc:41035-41053) declares no (:state-methods)
+;; and its :method-count-assert is exactly 20 -- process's own methods plus
+;; fmv-player-method-15..19, nothing more. Retail never virtualized these two
+;; states: adding (:state-methods playing die) to the deftype would grow the
+;; method count past what all-types.gc asserts and redden JakXTypeConsistency,
+;; and the jakx-behavior-state-typing finding is that jakx ships zero
+;; (:state-methods) declarations tree-wide, so a bare process type is the norm
+;; here, not a gap. playing/die are therefore plain (non-virtual) defstates
+;; entered with (go ...), the same shape camera-combiner (camera-h.gc:478, also
+;; no :state-methods) uses for cam-combiner-active -- not go-virtual, which
+;; would need a virtual method slot this type does not declare.
+;;
+;; Non-virtual (go ...) resolves its target as an ordinary global symbol at
+;; compile time (unlike go-virtual's runtime method-of-object lookup), so
+;; unlike credits-obs' virtual running/die pair, these three definitions
+;; cannot share that pair's file order: die must land before playing (playing
+;; calls (go die)), and playing must land before fmv-player-init-by-other
+;; (which calls (go playing)). Landed in that dependency order below, not in
+;; the init/playing/die reading order the design doc lists them in.
+
+;; og:preserve-this
+;; Emits one stop=1 record so handle_fmv_frame closes the C++ reader, then
+;; falls off the end of :code -- the credits-obs self-termination shape
+;; (credits-obs.gc:668-674, confirmed at design 5d): a :code behavior returning
+;; naturally kills the process with no self-deactivate needed. No draw call
+;; here, so this is also the frame FMV output stops appearing. width/height/
+;; movie-id are set for record symmetry but are moot: handle_fmv_frame checks
+;; stop before it ever reads them (design 3c step 2).
+(defstate die (fmv-player)
+  :code (behavior ()
+    (let ((tbp (fmv-get-tbp)))
+      (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
+                                   (bucket-id tex-lcom-sky-pre)
+                                   )
+        (pc-texture-anim-flag start-anim-array buf)
+        (pc-texture-anim-flag fmv-frame buf :qwc 1)
+        (let ((rec (the texture-anim-pc-fmv-frame (-> buf base))))
+          (set! (-> rec elapsed-ms) 0)
+          (set! (-> rec dest) tbp)
+          (set! (-> rec width) 640)
+          (set! (-> rec height) 448)
+          (set! (-> rec movie-id) 0)
+          (set! (-> rec stop) 1)
+          )
+        (&+! (-> buf base) 16)
+        (pc-texture-anim-flag finish-anim-array buf)
+        )
+      )
+    )
+  )
+
+;; og:preserve-this
+;; elapsed-ms is derived from (current-time), never stored: start-time (set
+;; once, at init-by-other) is the only clock state fmv-player keeps, matching
+;; the retail field's own semantics (fmv-player-h.gc:48). (current-time) reads
+;; -> PP clock frame-counter, which counts real elapsed time in 1/300ths of a
+;; second regardless of achieved framerate (TICKS_PER_SECOND, gkernel-h.gc:109,
+;; and the frame-counter doc comment above it) -- not a 60Hz-assumed frame
+;; count, which is the trap fmv-design.md 5d warns against. ms = ticks *
+;; 1000/300, reduced to ticks * 10/3; recomputed fresh from the exact tick
+;; delta every frame rather than accumulated, so integer-division truncation
+;; can't drift.
+(defstate playing (fmv-player)
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('go-die)
+       (go die)
+       )
+      )
+    )
+  :code (behavior ()
+    (until #f
+      (let* ((elapsed-ticks (- (current-time) (the-as time-frame (-> self start-time))))
+             (elapsed-ms (the int (/ (* elapsed-ticks 10) 3)))
+             )
+        (cond
+          ((or (cpad-pressed? 0 triangle circle x) (> elapsed-ms FMV-THX-DURATION-MS))
+           (go die)
+           )
+          (else
+            (let ((tbp (fmv-get-tbp)))
+              (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
+                                           (bucket-id tex-lcom-sky-pre)
+                                           )
+                (pc-texture-anim-flag start-anim-array buf)
+                (pc-texture-anim-flag fmv-frame buf :qwc 1)
+                (let ((rec (the texture-anim-pc-fmv-frame (-> buf base))))
+                  (set! (-> rec elapsed-ms) (the uint elapsed-ms))
+                  (set! (-> rec dest) tbp)
+                  (set! (-> rec width) 640)
+                  (set! (-> rec height) 448)
+                  (set! (-> rec movie-id) 0)
+                  (set! (-> rec stop) 0)
+                  )
+                (&+! (-> buf base) 16)
+                (pc-texture-anim-flag finish-anim-array buf)
+                )
+              )
+            (fmv-draw-quad)
+            (suspend)
+            )
+          )
+        )
+      )
+    )
+  )
+
+;; definition for function fmv-player-init-by-other
+(defbehavior fmv-player-init-by-other fmv-player ()
+  (set! (-> self texture-base-page) (fmv-get-tbp))
+  (set! (-> self texture-width) 640)
+  (set! (-> self start-time) (the-as uint (current-time)))
+  (set! (-> self fmv-mode) 1)
+  (go playing)
   )
