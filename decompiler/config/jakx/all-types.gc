@@ -67770,7 +67770,12 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-extern set-veh-weapon (function symbol int wvehicle object))
-(define-extern dm-set-veh-weapon (function symbol int32 none))
+;; arg1 corrected int32 -> int: default-menu.gc's own call sites pass
+;; (the-as int32 N) and goalc's typecheck rejects int32 against int32
+;; ("got a 'int' when expecting a 'int32'", the-as's static result reads back
+;; as plain int for a bitfield-sized target); int accepts the same call
+;; sites without narrowing anything those callers rely on
+(define-extern dm-set-veh-weapon (function symbol int none))
 ;; og:preserve-this arg1 was object; the body stores the clamped float at raw
 ;; offset 704, which is vehicle's own unknown-float-704 field once the -4
 ;; basic-tag correction is applied (declared :offset 708, all-types.gc's own
@@ -88158,8 +88163,12 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier time-freeze-med-draw deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier time-freeze-short-draw deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern timetrial-snapshot object) ;; provisional: call-site evidence only
-(define-extern traffic-kill object) ;; provisional: call-site evidence only
-(define-extern traffic-start object) ;; provisional: call-site evidence only
+;; confirmed against jak3 twin at decompiler/config/jak3/all-types.gc (both
+;; declared (function none) there); default-menu.gc's own valid?-guarded
+;; 0-arg call site needs a function-typed value to type-check (was
+;; provisional: call-site evidence only)
+(define-extern traffic-kill (function none))
+(define-extern traffic-start (function none))
 (define-extern training-goal-info object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier turbodash-seeker deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier udp-layer deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
