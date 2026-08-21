@@ -93,6 +93,7 @@ set(RUNTIME_SOURCE
         graphics/texture/jak2_tpage_dir.cpp
         graphics/texture/jak3_tpage_dir.cpp
         graphics/texture/jakx_tpage_dir.cpp
+        graphics/texture/MjvVideoReader.cpp
         graphics/texture/TextureConverter.cpp
         graphics/texture/TexturePool.cpp
         ${OG_ASM_FUNCS_FILE}

@@ -20,3 +20,132 @@
 (defun fmv-player-run-texture ((arg0 int) (arg1 process-tree))
   #f
   )
+
+;; ============================================================================
+;; L2 FMV frame path (issue 569): the TBP allocation, the fullscreen quad, and a
+;; REPL probe that emits one code-87 (fmv-frame) record for a given elapsed-ms.
+;; This is the C++-reader landing; the real fmv-player process (init-by-other,
+;; playing/die states, clock, pad-skip) is L3's. See TextureAnimator.cpp's
+;; handle_fmv_frame and MjvVideoReader.{h,cpp} for the runtime side.
+;; ============================================================================
+
+;; og:preserve-this
+;; The sentinel tbp doubles as the fmv-frame record's dest field and the quad's
+;; tex0.tbp0 -- both sides must name the same value. An early design draft used a
+;; fixed constant (#x10000): wrong and unsafe, since gs-tex0's tbp0 is a 14-bit
+;; field on both sides (gs.gc:634, common/dma/gs.h:270) and truncates #x10000 to 0
+;; the instant it packs into a real adgif, while TexturePool::m_textures is a fixed
+;; 32768-entry array with no bounds check in move_existing_to_vram
+;; (TexturePool.h:376, TexturePool.cpp:94-97) -- 65536 would be an out-of-bounds
+;; write the moment force-to-gpu publishes it. allocate-blocks (the cloud-clut
+;; precedent at texture-anim.gc:3113) gives a real, unique VRAM key instead; the L1
+;; spike measured it deterministic at 896 across two boot sessions (issue 569
+;; comment).
+(define *fmv-tbp* (the-as uint 0))
+
+(defun fmv-get-tbp ()
+  "Lazily allocate the FMV sentinel tbp on first use (needs *level* loaded, so
+   this cannot run at file-load time)."
+  (when (zero? *fmv-tbp*)
+    (set! *fmv-tbp*
+          (the-as uint (allocate-blocks (-> *level* level-default texture-page-dir 9 page) 128))
+          )
+    )
+  *fmv-tbp*
+  )
+
+;; og:preserve-this
+;; Fullscreen quad sampling the FMV sentinel tbp. Copies draw-color-bars'
+;; (blit-displays.gc:809-857) proven DMA shape with two deliberate divergences: a
+;; hand-built tex0 via dma-buffer-add-gs-set instead of adgif-shader<-texture-simple!
+;; (there is no retail texture/adgif for FMV content to hijack -- both ends of this
+;; pipeline are authored), and tcc=0 (JPEG carries no alpha; stb_image writes 255,
+;; and tcc=0 keeps that out of the blender). bucket794 is draw-color-bars' own
+;; bucket; tw/th/tbw are set for GS-register completeness but proven NOT to affect
+;; sampling on this renderer -- DirectRenderer only reads tbp0/psm/tcc/tfx off tex0
+;; and normalizes UV by the bound GL texture's real size, not by tw/th (L1 spike,
+;; issue 569 comment). 640x448 needs no power-of-two padding for the same reason.
+(defun fmv-draw-quad ()
+  (let ((tbp (fmv-get-tbp)))
+    (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
+                                 (bucket-id bucket794)
+                                 )
+      (dma-buffer-add-gs-set buf
+        (test-1 (new 'static 'gs-test :ate #x1 :afail #x3 :zte #x1 :ztst (gs-ztest always)))
+        (alpha-1 (new 'static 'gs-alpha))
+        (tex0-1 (new 'static 'gs-tex0 :tbp0 tbp :tbw 10 :psm (gs-psm ct32) :tw 10 :th 9 :tcc 0))
+        (tex1-1 (new 'static 'gs-tex1 :mmag #x1 :mmin #x1))
+        (clamp-1 (new 'static 'gs-clamp :wms (gs-tex-wrap-mode clamp) :wmt (gs-tex-wrap-mode clamp)))
+        (texflush 0)
+        )
+      (let ((v1-8 (the-as object (-> buf base))))
+        (set! (-> (the-as (pointer uint128) v1-8)) (-> *blit-displays-work* sprite-slow-tmpl dma-vif quad))
+        (set! (-> (the-as (inline-array vector4w) v1-8) 1 quad) (-> *blit-displays-work* sprite-slow-tmpl quad 1))
+        (set! (-> (the-as (inline-array vector4w) v1-8) 2 quad) (-> *blit-displays-work* color quad))
+        (let ((a1-1 (the-as object (&+ (the-as pointer v1-8) 48))))
+          (set! (-> (the-as (pointer int32) a1-1)) 0)
+          (set! (-> (the-as (inline-array vector4w) a1-1) 0 y) 0)
+          (set! (-> (the-as (inline-array vector4w) a1-1) 0 z) 0)
+          (set! (-> (the-as (inline-array vector4w) a1-1) 0 w) 0)
+          )
+        (let ((a0-10 (the-as object (&+ (the-as pointer v1-8) 64))))
+          (set! (-> (the-as (pointer int32) a0-10)) #x7000)
+          (set! (-> (the-as (inline-array vector4w) a0-10) 0 y) #x7300)
+          (set! (-> (the-as (inline-array vector4w) a0-10) 0 z) 0)
+          (set! (-> (the-as (inline-array vector4w) a0-10) 0 w) 0)
+          )
+        (let ((a0-11 (the-as object (&+ (the-as pointer v1-8) 80))))
+          (set! (-> (the-as (pointer int32) a0-11)) (* 640 16))
+          (set! (-> (the-as (inline-array vector4w) a0-11) 0 y) (* 448 16))
+          (set! (-> (the-as (inline-array vector4w) a0-11) 0 z) 0)
+          (set! (-> (the-as (inline-array vector4w) a0-11) 0 w) 0)
+          )
+        (let ((v1-9 (the-as object (&+ (the-as pointer v1-8) 96))))
+          (set! (-> (the-as (pointer int32) v1-9)) #x9800)
+          (set! (-> (the-as (inline-array vector4w) v1-9) 0 y) #x8f00)
+          (set! (-> (the-as (inline-array vector4w) v1-9) 0 z) 0)
+          (set! (-> (the-as (inline-array vector4w) v1-9) 0 w) 0)
+          )
+        )
+      (&+! (-> buf base) 112)
+      )
+    )
+  (none)
+  )
+
+;; og:preserve-this
+;; L2 REPL probe (issue 569): emits one texture-anim-pc-fmv-frame record (code 87)
+;; with the given elapsed-ms, driving C++'s handle_fmv_frame to decode and publish
+;; that frame of THX.MJV at the FMV sentinel tbp. One-shot: the uploaded texture
+;; stays resident in TextureAnimator's VramEntry/TexturePool until the next
+;; upload, so a single call is enough to change what fmv-draw-quad samples -- no
+;; per-frame re-emission needed. Wrapped exactly like the L1 spike's proven upload
+;; shape: tex-lcom-sky-pre is the TextureUploadHandler bucket that consumes
+;; pc-port codes; bucket794 (fmv-draw-quad's bucket) is a plain DirectRenderer
+;; with nothing listening for them.
+;;
+;; Parameter is int, not uint: GOAL's top-level typechecker rejects a bare integer
+;; literal (always typed int) as a uint argument with no implicit widening, and the
+;; whole point of this probe is to be callable from the REPL as (fmv-debug-show-ms
+;; 7500) per fmv-design.md 5f. Cast to uint only where the record field needs it.
+(defun fmv-debug-show-ms ((elapsed-ms int))
+  (let ((tbp (fmv-get-tbp)))
+    (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
+                                 (bucket-id tex-lcom-sky-pre)
+                                 )
+      (pc-texture-anim-flag start-anim-array buf)
+      (pc-texture-anim-flag fmv-frame buf :qwc 1)
+      (let ((rec (the texture-anim-pc-fmv-frame (-> buf base))))
+        (set! (-> rec elapsed-ms) (the uint elapsed-ms))
+        (set! (-> rec dest) tbp)
+        (set! (-> rec width) 640)
+        (set! (-> rec height) 448)
+        (set! (-> rec movie-id) 0)
+        (set! (-> rec stop) 0)
+        )
+      (&+! (-> buf base) 16)
+      (pc-texture-anim-flag finish-anim-array buf)
+      )
+    )
+  (none)
+  )

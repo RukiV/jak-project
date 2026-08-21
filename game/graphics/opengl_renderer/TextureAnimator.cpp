@@ -989,6 +989,9 @@ enum class PcTextureAnimCodesJak3 : u16 {
   JAKX_JUNGLE_LAVA_SPILL_SCROLL_01 = 84,
   JAKX_JUMPPAD_ARROW = 85,
   JAKX_TRAIN_HANGER_ARROW = 86,
+  // Jak X (#569): FMV frame upload, continuing past 86. Mirrors defenum texture-anim-pc's
+  // fmv-frame in goal_src/jakx/engine/gfx/texture/texture-anim.gc -- keep both in step.
+  JAKX_FMV_FRAME = 87,
 };
 
 struct FixedAnimInfoJak3 {
@@ -1264,6 +1267,22 @@ struct TextureAnimPcUpload {
 };
 static_assert(sizeof(TextureAnimPcUpload) == 16);
 
+// Payload of code 87 (JAKX_FMV_FRAME, issue 569). Mirrors GOAL's
+// texture-anim-pc-fmv-frame (goal_src/jakx/engine/gfx/texture/texture-anim.gc) -- keep both
+// in step. format and force_to_gpu are deliberately not here: the handler hardcodes PSMCT32
+// and force_to_gpu, since both are constants for this path and force_to_gpu is the single
+// most dangerous field to get wrong (see handle_fmv_frame).
+struct TextureAnimPcFmvFrame {
+  u32 elapsed_ms;  // ms since play start; the handler maps this to a frame index
+  u32 dest;        // sentinel tbp, must match the quad's tex0.tbp0
+  u16 width;       // 640, asserted against the container header
+  u16 height;      // 448, asserted against the container header
+  u8 movie_id;     // must be 0 in v1 (THX); reserved for the other 42
+  u8 stop;         // 1 = close the reader, upload nothing
+  u16 pad;
+};
+static_assert(sizeof(TextureAnimPcFmvFrame) == 16);
+
 // metadata for an operation that operates on a source/destination texture.
 struct TextureAnimPcTransform {
   u32 src_tbp;
@@ -1403,6 +1422,10 @@ void TextureAnimator::handle_texture_anim_data(DmaFollower& dma,
             case PcTextureAnimCodesJak3::GENERIC_UPLOAD: {
               auto p = scoped_prof("generic-upload");
               handle_generic_upload(tf, ee_mem);
+            } break;
+            case PcTextureAnimCodesJak3::JAKX_FMV_FRAME: {
+              auto p = scoped_prof("jakx-fmv-frame");
+              handle_fmv_frame(tf);
             } break;
             case PcTextureAnimCodesJak3::SET_SHADER: {
               auto p = scoped_prof("set-shader");
@@ -1983,6 +2006,81 @@ void TextureAnimator::handle_generic_upload(const DmaTransfer& tf, const u8* ee_
       lg::print("Unhandled format: {}\n", upload->format);
       ASSERT_NOT_REACHED();
   }
+}
+
+/*!
+ * Handle a Jak X FMV frame upload (code 87, TextureAnimPcFmvFrame, issue 569). Unlike
+ * handle_generic_upload, the pixel source is never EE memory: MjvVideoReader owns its own
+ * RGBA8 decode buffer, decoded straight from out/jakx/fmv/THX.MJV on the render thread (see
+ * MjvVideoReader.h for why that needs no synchronization in v1). A missing or corrupt movie
+ * file, an unsupported movie-id, or an out-of-range dest is never a bug: each produces one
+ * warn line and leaves the quad's texture untouched, never a crash.
+ */
+void TextureAnimator::handle_fmv_frame(const DmaTransfer& tf) {
+  ASSERT(tf.size_bytes == sizeof(TextureAnimPcFmvFrame));
+  auto* rec = (const TextureAnimPcFmvFrame*)(tf.data);
+
+  if (rec->stop) {
+    m_fmv.close();
+    m_fmv_open_attempted = false;  // next play gets a fresh open + warn budget
+    return;
+  }
+
+  if (rec->movie_id != 0) {
+    lg::warn("[fmv] movie-id {} is not supported in v1 (THX only), ignoring frame", rec->movie_id);
+    return;
+  }
+
+  // dest must fit gs-tex0's 14-bit tbp0 field (gs.gc:634, common/dma/gs.h:270) *and* index
+  // TexturePool::m_textures, a fixed 32768-entry array that move_existing_to_vram indexes
+  // with no bounds check (TexturePool.h:376, TexturePool.cpp:97) -- a bad dest here is an
+  // out-of-bounds write once force_to_gpu publishes it, not just a visual glitch, so this
+  // rejects rather than trusting the allocate-blocks caller (issue 569 L1 spike correction).
+  constexpr u32 kTbp0Ceiling = 1u << 14;                        // 16384, 14-bit tbp0
+  constexpr u32 kTexturePoolSlotCount = 1024 * 1024 * 8 / 256;  // 32768, mirrors TexturePool.h
+  if (rec->dest >= kTbp0Ceiling || rec->dest >= kTexturePoolSlotCount) {
+    lg::warn("[fmv] rejecting out-of-range dest 0x{:x}", rec->dest);
+    return;
+  }
+
+  if (!m_fmv.is_open() && !m_fmv_open_attempted) {
+    m_fmv_open_attempted = true;
+    auto path = file_util::get_jak_project_dir() / "out" / "jakx" / "fmv" / "THX.MJV";
+    // MjvVideoReader::open() already lg::warns with the specific reason (missing file,
+    // bad magic, truncated table, ...) on failure -- do not warn again here, or a
+    // missing/corrupt movie produces two lines instead of the one issue 569 acceptance
+    // asks for.
+    m_fmv.open(path);
+  }
+  if (!m_fmv.is_open()) {
+    return;
+  }
+
+  ASSERT(rec->width == m_fmv.width() && rec->height == m_fmv.height());
+  const u8* rgba = m_fmv.frame_rgba_at_ms(rec->elapsed_ms);
+  if (!rgba) {
+    return;
+  }
+
+  // GENERIC_PSM32 arm of handle_generic_upload above, with ee_mem + upload->data swapped for
+  // the reader's own buffer -- everything past this point (force_to_gpu publish, GPU upload)
+  // is that function's existing machinery and needs no change.
+  auto& vram = m_textures[rec->dest];
+  vram.reset();
+  vram.last_write_frame = m_current_frame_idx;
+  vram.kind = VramEntry::Kind::GENERIC_PSM32;
+  vram.data.resize((size_t)rec->width * rec->height * 4);
+  vram.tex_width = rec->width;
+  vram.tex_height = rec->height;
+  memcpy(vram.data.data(), rgba, vram.data.size());
+  if (m_tex_looking_for_clut) {
+    m_tex_looking_for_clut->cbp = rec->dest;
+  }
+  m_tex_looking_for_clut = nullptr;
+  // force_to_gpu is hardcoded, not on the wire: without it the frame decodes correctly and
+  // is then silently dropped at the publish step every frame, a total-black failure with no
+  // error anywhere (fmv-design.md R2).
+  m_force_to_gpu.insert(rec->dest);
 }
 
 /*!

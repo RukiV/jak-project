@@ -102,7 +102,8 @@
 ;; between jak3's 23 and 27. That gap is full now: this-way-arrow-02 (#110) is JakX-only
 ;; too, but jak3 owns 27-78 solid, so it sits at 79, right past jak3's own top code. 80-86
 ;; (#120) continue past it for the jungle water/lava dests and the this-way array's other
-;; two dests.
+;; two dests. fmv-frame (#569) continues past 86 for the FMV frame-upload code, the first
+;; JakX PC code whose payload names a movie and a playback time rather than a fixed dest.
 (defenum texture-anim-pc
   (start-anim-array 12)
   (finish-anim-array 13)
@@ -122,6 +123,8 @@
   (jungle-lava-spill-scroll-01 84) ;; jakx-only: fixed anim for *junglef-alpha-texture-anim-array* slot 1 ("jungle-lava-spill-scroll-01-dest"), #120
   (jumppad-arrow 85) ;; jakx-only: fixed anim for *this-way-water-texture-anim-array* slot 1 ("jumppad-arrow-dest"), #120
   (train-hanger-arrow 86) ;; jakx-only: fixed anim for *this-way-water-texture-anim-array* slot 2 ("train-hanger-arrow-dest"), #120
+  (fmv-frame 87) ;; jakx-only: FMV frame upload for THX.MJV playback, #569; mirrors
+                 ;; PcTextureAnimCodesJak3::JAKX_FMV_FRAME in TextureAnimator.cpp -- keep both in step
   )
 
 ;; og:preserve-this
@@ -133,6 +136,23 @@
    (format     gs-psm)
    (force-to-gpu uint8)
    (pad        uint8 2)
+   )
+  :size-assert 16
+  )
+
+;; og:preserve-this
+;; Payload of fmv-frame (code 87, issue 569). Mirrors struct TextureAnimPcFmvFrame in
+;; TextureAnimator.cpp -- keep both in step. format and force-to-gpu are deliberately not
+;; here: handle_fmv_frame hardcodes PSMCT32 and force-to-gpu, since both are constants for
+;; this path (see that function's comment for why force-to-gpu is the dangerous one to drop).
+(deftype texture-anim-pc-fmv-frame (structure)
+  ((elapsed-ms  uint32) ;; ms since play start; C++ maps this to a frame index
+   (dest        uint32) ;; sentinel tbp, must match the quad's tex0.tbp0
+   (width       uint16) ;; 640, asserted against the container header
+   (height      uint16) ;; 448, asserted against the container header
+   (movie-id    uint8)  ;; must be 0 in v1 (THX); reserved for the other 42
+   (stop        uint8)  ;; 1 = close the reader, upload nothing
+   (pad         uint16)
    )
   :size-assert 16
   )

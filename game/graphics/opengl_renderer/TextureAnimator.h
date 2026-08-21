@@ -14,6 +14,7 @@
 #include "game/graphics/opengl_renderer/Shader.h"
 #include "game/graphics/opengl_renderer/opengl_utils.h"
 #include "game/graphics/pipelines/opengl.h"
+#include "game/graphics/texture/MjvVideoReader.h"
 #include "game/graphics/texture/TextureConverter.h"
 #include "game/graphics/texture/TextureID.h"
 
@@ -330,6 +331,7 @@ class TextureAnimator {
   void setup_sky();
   void handle_upload_clut_16_16(const DmaTransfer& tf, const u8* ee_mem);
   void handle_generic_upload(const DmaTransfer& tf, const u8* ee_mem);
+  void handle_fmv_frame(const DmaTransfer& tf);
   void handle_clouds_and_fog(const DmaTransfer& tf, TexturePool* texture_pool, bool hires);
   void handle_jakx_clut_index_texture(const DmaTransfer& tf, TexturePool* texture_pool);
   void handle_slime(const DmaTransfer& tf, TexturePool* texture_pool);
@@ -382,6 +384,13 @@ class TextureAnimator {
   std::unordered_map<u64, PcTextureId> m_ids_by_vram;
 
   std::set<u32> m_force_to_gpu;  // rename? or rework to not need?
+
+  // FMV playback (code 87, issue 569). The reader is lazily opened by the first
+  // handle_fmv_frame call and stays open across frames; m_fmv_open_attempted latches
+  // after that first attempt (success or failure) so a missing/corrupt movie file
+  // produces one warn line per play session instead of one every frame.
+  MjvVideoReader m_fmv;
+  bool m_fmv_open_attempted = false;
 
   struct TempTexture {
     GLuint tex;
