@@ -1268,7 +1268,27 @@
                  )
                )
              #t
-             (break!)
+             ;; og:preserve-this bail, issue 571: retail asserts here, and jak3 keeps
+             ;; the identical (break!) at the identical structural position (jak3
+             ;; level.gc:1624, same ERROR format string and 19-slot status dump
+             ;; immediately above). Bring-up reaches this path on a forced level
+             ;; switch that exhausts every bank in the level-group heap (reproduced
+             ;; via (bg 'havjungw) with the ice ring resident): the crash was this
+             ;; (/ 0 0) (break!'s expansion, goal-lib.gc:206-209) firing as SIGFPE,
+             ;; exception 0xc0000094, rip attributed to this exact line. Falling
+             ;; through instead of asserting or bailing would be WORSE than either:
+             ;; the caller hands an uninitialized heap to dgo-load-begin (the calls
+             ;; at 1332/1337/1355/1382 in this method). Bailing with (return this)
+             ;; instead leaves the slot 'inactive (status only flips to 'loading at
+             ;; line 1323, well below this whole cond) with the ERROR print above as
+             ;; the only record; level-get-for-use's status dispatch no-ops on
+             ;; 'inactive, so a later attempt just reprints the same ERROR instead of
+             ;; re-asserting. Retire this bail once bank allocation itself no longer
+             ;; exhausts under a forced switch. The other three break!s in this
+             ;; function are each reasoned separately and untouched here: 1143 and
+             ;; 1239 are unreached by jakx's actual level-memory-mode data, and 1363
+             ;; sits before a real recovery attempt and is its own follow-up rung.
+             (return this)
              0
              )
             (else
