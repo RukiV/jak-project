@@ -21583,7 +21583,7 @@
 (define-extern *game-info* game-info)
 (define-extern *use-menu2* symbol)
 ;; (define-extern *lobby-adv-selected-cup* object)
-;; (define-extern *lobby-adv-selected-map* object)
+(define-extern *lobby-adv-selected-map* object)
 ;; (define-extern *lobby-adv-selected-venue* object)
 ;; (define-extern *lobby-adv-selected-level* object)
 ;; (define-extern *lobby-adv-previous-score* object)
@@ -52369,7 +52369,7 @@
 ;; (define-extern *medius-recent-players* object)
 ;; (define-extern *medius-in-game-players* object)
 ;; (define-extern *medius-local-game-players* object)
-;; (define-extern *medius-outstanding-clan-invites* object)
+(define-extern *medius-outstanding-clan-invites* object)
 ;; (define-extern *medius-mute-list* object)
 ;; (define-extern *medius-clan-members-online* object)
 ;; (define-extern *medius-my-player* medius-cached-info-player)
@@ -52505,7 +52505,7 @@
 ;; (define-extern *clan-msg-text* object)
 ;; (define-extern *clan-msg-id* object)
 ;; (define-extern *medius-clan-cache* medius-cache)
-;; (define-extern *medius-recent-clans* object)
+(define-extern *medius-recent-clans* object)
 ;; (define-extern *medius-clan-members-31* object)
 ;; (define-extern *medius-clan-members-30* object)
 ;; (define-extern *medius-clan-members-29* object)
@@ -52540,7 +52540,7 @@
 ;; (define-extern *medius-clan-members-0* object)
 ;; (define-extern *medius-incoming-clan-invites* array)
 ;; (define-extern *medius-clan-challenges* array)
-;; (define-extern *medius-visible-clan-challenges* array)
+(define-extern *medius-visible-clan-challenges* array)
 ;; (define-extern *medius-my-clan* medius-cached-info-clan)
 ;; (define-extern *medius-my-clan-members* object)
 ;; (define-extern *medius-enemy-clan* medius-cached-info-clan)
@@ -58670,7 +58670,7 @@
     (base-menu-method-60 (_type_) none) ;; 60
     (base-menu-method-61 (_type_ process int symbol event-message-block) object) ;; 61
     (base-menu-method-62 (_type_ int) none) ;; 62
-    (base-menu-method-63 (_type_ object) none) ;; 63
+    (base-menu-method-63 (_type_ object) process) ;; 63
     (base-menu-method-64 (_type_) none) ;; 64
     )
   )
@@ -59770,10 +59770,17 @@
 ;; (define-extern char-allowed function)
 ;; (define-extern set-keyboard-jmod function)
 ;; (define-extern render-entered-text function)
-;; (define-extern keyboard-control-init-by-other function)
-;; (define-extern keyboard-control-spawn function)
+;; lobby-profile rung: passed to run-function-in-process with a2/a3 12 and 55
+;; (int literals) and t0 #f forwarded as its own args; a bare "function" here
+;; made run-function-in-process's own special-casing fail with "invalid
+;; function type: function", the same class net-player-init-remote and
+;; hirez-viewer-init-by-other document above.
+(define-extern keyboard-control-init-by-other (function int int object object :behavior keyboard-control))
+(define-extern keyboard-control-spawn function)
 ;; (define-extern kill-keyboard-control function)
-;; (define-extern get-keyboard-control function)
+;; lobby rung: called with zero args, return is truthy-tested and matches
+;; the running keyboard-control process the sibling functions spawn and poll.
+(define-extern get-keyboard-control (function keyboard-control))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-menu-manager-h           ;;
@@ -60043,8 +60050,8 @@
     (lobby-menu-manager-method-181 (_type_) none) ;; 181
     (lobby-menu-manager-method-182 (_type_ object object) none) ;; 182
     (lobby-menu-manager-method-183 (_type_ object object) none) ;; 183
-    (lobby-menu-manager-method-184 (_type_) none) ;; 184
-    (lobby-menu-manager-method-185 (_type_ object) none) ;; 185
+    (lobby-menu-manager-method-184 (_type_) base-menu) ;; 184
+    (lobby-menu-manager-method-185 (_type_ object) process) ;; 185
     (lobby-menu-manager-method-186 (_type_) none) ;; 186
     (lobby-menu-manager-method-187 () none) ;; 187
     (lobby-menu-manager-method-188 (_type_ int32 int32) none) ;; 188
@@ -60081,7 +60088,8 @@
 ;; expression, so the ambiguity does not need resolving here.
 (define-extern *lobby-menu-manager* basic)
 ;; (define-extern get-selected-local-player-count function)
-;; (define-extern kiosk-code? function)
+;; lobby rung: called with zero args, return is truthy-tested.
+(define-extern kiosk-code? (function symbol))
 ;; (define-extern min-max-wrap-around function) ;; (function int int int int)
 ;; (define-extern *lobby-last-selected-task-index* object)
 ;; (define-extern *last-selected-human-ct* object)
@@ -60098,7 +60106,9 @@
 (define-extern real-camera-seek-time float)
 ;; (define-extern set-lobby-camera-seek-time! function)
 ;; (define-extern *class-mode* object)
-;; (define-extern restore-selection-index function)
+;; lobby rung: called with zero explicit arg setup and its return value kept;
+;; a bare "function" here left the call site's own type prop unresolved.
+(define-extern restore-selection-index (function object))
 ;; (define-extern *lobby-timetrial-lock-mode* object)
 ;; (define-extern *vehicle-class-data* (array menu-option-info))
 ;; (define-extern *vehicle-class* object)
@@ -60106,7 +60116,8 @@
 ;; (define-extern *time-of-day-array* object)
 ;; (define-extern *ready-room-host-id* object)
 ;; (define-extern *keyboard-buf* object)
-;; (define-extern kbd-auto-activate function)
+;; lobby rung: called with zero args, return is truthy-tested.
+(define-extern kbd-auto-activate (function symbol))
 ;; (define-extern *return-to-secrets* object)
 ;; (define-extern *this-create-menu-state-name* object)
 ;; (define-extern *prev-create-menu-state-name* object)
@@ -60320,7 +60331,9 @@
 ;; (define-extern *magic-chat* array)
 ;; (define-extern handle-chat-msg function)
 ;; (define-extern fake-chat-msg function)
-;; (define-extern send-chat-with-clan-id function)
+;; lobby rung: called with three args (a message string, an object, and #t)
+;; at its one lobby-buddies call site; return discarded.
+(define-extern send-chat-with-clan-id (function string object symbol object))
 ;; (define-extern send-chat-with-game-id function)
 ;; (define-extern *chat-msg-box* object)
 ;; (define-extern *chat-popup-sx* object)
@@ -60497,7 +60510,7 @@
 ;; (define-extern *aux-voice-connect-info* object)
 ;; (define-extern *aux-voice-got-callback* object)
 ;; (define-extern *aux-voice-world-report* object)
-;; (define-extern *aux-voice-enabled* object)
+(define-extern *aux-voice-enabled* object)
 ;; (define-extern *aux-voice-last-startup* object)
 ;; (define-extern *aux-voice-acct-ids* object)
 ;; (define-extern aux-voice-mgr-init-by-other function)
@@ -61173,14 +61186,16 @@
 
 ;; (define-extern *net-start-view-ct* object)
 ;; (define-extern *listener-cpt* object)
-;; (define-extern *net-hw-initted* object)
+(define-extern *net-hw-initted* object)
 ;; (define-extern *net-hw-config-id* object)
 ;; (define-extern *net-hw-last-error* object)
 ;; (define-extern net-hw-stop function)
 ;; (define-extern net-hw-start-part1 function)
 ;; (define-extern net-hw-start-part2 function)
-;; (define-extern hack-reset-state function)
-;; (define-extern net-mgr-start-hardware-already-done function)
+;; lobby rung: called with one arg (#f at this site), return discarded.
+(define-extern hack-reset-state (function object object))
+;; lobby rung: called with one arg (#t at this site), return discarded.
+(define-extern net-mgr-start-hardware-already-done (function symbol object))
 ;; (define-extern hack-start-local-game function)
 ;; (define-extern artist-clean-up-net-mgr function)
 ;; (define-extern *artist-continue-busy* object)
@@ -82983,7 +82998,7 @@
 ;; (define-extern *psp-secrets-menu-info* object)
 ;; (define-extern *center-screen-menu-info* object)
 ;; (define-extern *sound-options-menu-info* object)
-;; (define-extern *game-options-menu-info* object)
+(define-extern *game-options-menu-info* object)
 ;; (define-extern *internet-connection* object)
 ;; (define-extern *join-create-menu* object)
 ;; (define-extern *num-local-players-menu* object)
@@ -83023,7 +83038,11 @@
 ;; (define-extern *lan-crap-last-time* object)
 ;; (define-extern check-lan-crap function)
 ;; (define-extern lobby-default-post function)
-;; (define-extern lobby-menu-manager-default-handler function)
+;; lobby rung: tail-called from (method 71 lobby-menu-manager)'s own event
+;; handler body with zero explicit arg setup, forwarding a0-a3 straight
+;; through; same default-handler-behind-an-event-handler idiom
+;; net-enemy-default-handler already documents above.
+(define-extern lobby-menu-manager-default-handler (function process int symbol event-message-block object :behavior lobby-menu-manager))
 ;; (define-extern filter-events-for-readyroom function)
 ;; (define-extern lmm-make-background-menu function)
 ;; (define-extern lmm-make-logo-menu function)
@@ -83045,7 +83064,7 @@
 ;; (define-extern set-driver-license-info function)
 ;; (define-extern jak-selection-clear? function)
 ;; (define-extern jak-owner function)
-;; (define-extern *timetrial-ghost-time-string* string)
+(define-extern *timetrial-ghost-time-string* string)
 ;; (define-extern lobby-menu-manager-init-by-other function)
 ;; title-obs (anon-function 11) calls this directly.
 (define-extern lobby-start function)
@@ -83398,22 +83417,22 @@
 
 ;; (define-extern *profile-errors-continue* array)
 ;; (define-extern *profile-yes-no* array)
-;; (define-extern *profile-not-remove* array)
-;; (define-extern *profile-load-save-ids* array)
-;; (define-extern *menu-new-load-profile* object)
-;; (define-extern *menu-new-load-save-profile* object)
-;; (define-extern *dropdown-profile-load-save* object)
-;; (define-extern *menu-load-profile* object)
+(define-extern *profile-not-remove* array)
+(define-extern *profile-load-save-ids* array)
+(define-extern *menu-new-load-profile* object)
+(define-extern *menu-new-load-save-profile* object)
+(define-extern *dropdown-profile-load-save* object)
+(define-extern *menu-load-profile* object)
 ;; (define-extern go-profile-state function)
-;; (define-extern *menu-loading-profile* object)
-;; (define-extern *menu-save-profile* object)
-;; (define-extern *menu-profile-error* object)
+(define-extern *menu-loading-profile* object)
+(define-extern *menu-save-profile* object)
+(define-extern *menu-profile-error* object)
 ;; (define-extern memcard-continue function)
-;; (define-extern *menu-want-format-profile* object)
-;; (define-extern *menu-formating-card-profile* object)
-;; (define-extern *create-hero-mode-profile* object)
-;; (define-extern *menu-profile-auto-save* object)
-;; (define-extern *menu-boot-memorycard* object)
+(define-extern *menu-want-format-profile* object)
+(define-extern *menu-formating-card-profile* object)
+(define-extern *create-hero-mode-profile* object)
+(define-extern *menu-profile-auto-save* object)
+(define-extern *menu-boot-memorycard* object)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; menumap-effects                ;;
@@ -83824,26 +83843,26 @@
 
 ;; (define-extern *lobby-maps-y-delta* object)
 ;; (define-extern spt-func-set-delta-y function)
-;; (define-extern *world-map-shadow-control* shadow-control)
+(define-extern *world-map-shadow-control* shadow-control)
 ;; (define-extern align-to-interface-world-map function)
 ;; (define-extern hidden state)
 ;; (define-extern interface-world-map-local-space function)
 ;; (define-extern *world-map-kras-mesh-proc* object)
-;; (define-extern *world-map-docks-mesh-proc* object)
-;; (define-extern *world-map-drome-mesh-proc* object)
-;; (define-extern *world-map-dockkra-mesh-proc* object)
-;; (define-extern *world-map-dromedoc-mesh-proc* object)
-;; (define-extern *world-map-kras-tour-mesh-proc* object)
-;; (define-extern *world-map-coliseum-mesh-proc* object)
-;; (define-extern *world-map-kcross-mesh-proc* object)
-;; (define-extern *world-map-jungle-mesh-proc* object)
-;; (define-extern *world-map-haven-mesh-proc* object)
-;; (define-extern *world-map-sewer-mesh-proc* object)
-;; (define-extern *world-map-havjung-mesh-proc* object)
-;; (define-extern *world-map-havsew-mesh-proc* object)
-;; (define-extern *world-map-hav-tour-mesh-proc* object)
-;; (define-extern *world-map-atoll-mesh-proc* object)
-;; (define-extern *world-map-cliffs-mesh-proc* object)
+(define-extern *world-map-docks-mesh-proc* world-map-docks-mesh)
+(define-extern *world-map-drome-mesh-proc* world-map-drome-mesh)
+(define-extern *world-map-dockkra-mesh-proc* world-map-dockkra-mesh)
+(define-extern *world-map-dromedoc-mesh-proc* world-map-dromedoc-mesh)
+(define-extern *world-map-kras-tour-mesh-proc* world-map-kras-tour-mesh)
+(define-extern *world-map-coliseum-mesh-proc* world-map-coliseum-mesh)
+(define-extern *world-map-kcross-mesh-proc* world-map-kcross-mesh)
+(define-extern *world-map-jungle-mesh-proc* world-map-jungle-mesh)
+(define-extern *world-map-haven-mesh-proc* world-map-haven-mesh)
+(define-extern *world-map-sewer-mesh-proc* world-map-sewer-mesh)
+(define-extern *world-map-havjung-mesh-proc* world-map-havjung-mesh)
+(define-extern *world-map-havsew-mesh-proc* world-map-havsew-mesh)
+(define-extern *world-map-hav-tour-mesh-proc* world-map-hav-tour-mesh)
+(define-extern *world-map-atoll-mesh-proc* world-map-atoll-mesh)
+(define-extern *world-map-cliffs-mesh-proc* world-map-cliffs-mesh)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-adventure-maps-2         ;;
@@ -84105,20 +84124,20 @@
 
 
 ;; (define-extern *world-map-spargus-mesh-proc* object)
-;; (define-extern *world-map-canyon-mesh-proc* object)
-;; (define-extern *world-map-temple-mesh-proc* object)
-;; (define-extern *world-map-canspar-mesh-proc* object)
-;; (define-extern *world-map-spartem-mesh-proc* object)
-;; (define-extern *world-map-spar-tour-mesh-proc* object)
-;; (define-extern *world-map-desarena-mesh-proc* object)
-;; (define-extern *world-map-desisle-mesh-proc* object)
-;; (define-extern *world-map-snow-mesh-proc* object)
-;; (define-extern *world-map-peak-mesh-proc* object)
-;; (define-extern *world-map-ice-mesh-proc* object)
-;; (define-extern *world-map-iceberg-mesh-proc* object)
-;; (define-extern *world-map-icepass-mesh-proc* object)
-;; (define-extern *world-map-ice-tour-mesh-proc* object)
-;; (define-extern *world-map-snowbowl-mesh-proc* object)
+(define-extern *world-map-canyon-mesh-proc* world-map-canyon-mesh)
+(define-extern *world-map-temple-mesh-proc* world-map-temple-mesh)
+(define-extern *world-map-canspar-mesh-proc* world-map-canspar-mesh)
+(define-extern *world-map-spartem-mesh-proc* world-map-spartem-mesh)
+(define-extern *world-map-spar-tour-mesh-proc* world-map-spar-tour-mesh)
+(define-extern *world-map-desarena-mesh-proc* world-map-desarena-mesh)
+(define-extern *world-map-desisle-mesh-proc* world-map-desisle-mesh)
+(define-extern *world-map-snow-mesh-proc* world-map-snow-mesh)
+(define-extern *world-map-peak-mesh-proc* world-map-peak-mesh)
+(define-extern *world-map-ice-mesh-proc* world-map-ice-mesh)
+(define-extern *world-map-iceberg-mesh-proc* world-map-iceberg-mesh)
+(define-extern *world-map-icepass-mesh-proc* world-map-icepass-mesh)
+(define-extern *world-map-ice-tour-mesh-proc* world-map-ice-tour-mesh)
+(define-extern *world-map-snowbowl-mesh-proc* world-map-snowbowl-mesh)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-adventure                ;;
@@ -84291,15 +84310,15 @@
 ;; (define-extern *lobby-adv-grand-prix* object)
 ;; (define-extern *adv-coming-back-from-game* object)
 ;; (define-extern *open-new-cup* object)
-;; (define-extern *adventure-map-city* array)
-;; (define-extern *adventure-map-stats* array)
-;; (define-extern *adventure-map-new* array)
+(define-extern *adventure-map-city* array)
+(define-extern *adventure-map-stats* array)
+(define-extern *adventure-map-new* array)
 ;; (define-extern *adventure-venue-name* array)
 ;; (define-extern *adventure-venue-new* array)
 ;; (define-extern *adventure-venue-stats* array)
-;; (define-extern *adventure-task-stats* array)
+(define-extern *adventure-task-stats* array)
 ;; (define-extern pulse-new-font-color function)
-;; (define-extern *cup1-extra* array)
+(define-extern *cup1-extra* array)
 ;; (define-extern *cup2-extra* array)
 ;; (define-extern *cup3-extra* array)
 ;; (define-extern *cup4-extra* array)
@@ -84312,17 +84331,17 @@
 ;; (define-extern adventure-map-update function)
 ;; (define-extern update-adventure-map-data function)
 ;; (define-extern *list-task-medals* array)
-;; (define-extern *adventure-venue-info-array* array)
-;; (define-extern *adventure-venue* object)
+(define-extern *adventure-venue-info-array* array)
+(define-extern *adventure-venue* object)
 ;; (define-extern adventure-venue-init function)
 ;; (define-extern *adventure-task-sprite-info-array* array)
-;; (define-extern *adventure-task-info-array* array)
+(define-extern *adventure-task-info-array* array)
 ;; (define-extern *task-medals* array)
 ;; (define-extern *grand-prix-locked* object)
-;; (define-extern *adventure-task* object)
-;; (define-extern *map-screen* object)
+(define-extern *adventure-task* object)
+(define-extern *map-screen* object)
 ;; (define-extern adventure-task-init function)
-;; (define-extern *adventure-vehicle-select* object)
+(define-extern *adventure-vehicle-select* object)
 ;; (define-extern wait-for-fmvlev function)
 ;; (define-extern get-new-qualifier function)
 
@@ -84500,10 +84519,10 @@
 
 
 ;; (define-extern *customize-menu-text-ids* array)
-;; (define-extern *tune-performance-text-ids* array)
-;; (define-extern *body-parts-text-ids* array)
+(define-extern *tune-performance-text-ids* array)
+(define-extern *body-parts-text-ids* array)
 ;; (define-extern *respray-paintjob-text-ids* array)
-;; (define-extern *paintjob-menu* object)
+(define-extern *paintjob-menu* object)
 ;; (define-extern *customize-menu-info* object)
 ;; (define-extern *vehicle-selection-menu-info* object)
 ;; (define-extern *cash-bar-extra* array)
@@ -84512,14 +84531,14 @@
 ;; (define-extern *armor-extra* array)
 ;; (define-extern *turbo-extra* array)
 ;; (define-extern *engine-sprite-list* array)
-;; (define-extern *gearbox-sprite-list* array)
-;; (define-extern *armor-sprite-list* array)
+(define-extern *gearbox-sprite-list* array)
+(define-extern *armor-sprite-list* array)
 ;; (define-extern *turbo-sprite-list* array)
 ;; (define-extern *tune-performance-menu-info* object)
 ;; (define-extern *confirm-upgrade-text-ids* array)
 ;; (define-extern *confirm-price-extra* array)
-;; (define-extern *confirm-purchase-popup* object)
-;; (define-extern *not-enough-orbs-popup* object)
+(define-extern *confirm-purchase-popup* object)
+(define-extern *not-enough-orbs-popup* object)
 ;; (define-extern *customize-body-parts-text-ids* array)
 ;; (define-extern *f-fender-extra* array)
 ;; (define-extern *r-fender-extra* array)
@@ -84531,10 +84550,10 @@
 ;; (define-extern *roof-extra* array)
 ;; (define-extern *wheel-extra* array)
 ;; (define-extern *body-parts-menu-info* object)
-;; (define-extern *body-parts-selection-menu-info* object)
+(define-extern *body-parts-selection-menu-info* object)
 ;; (define-extern *customize-paintjob-text-ids* array)
-;; (define-extern *customize-paintjob-control-text-ids* array)
-;; (define-extern *customize-paintjob-menu-info* object)
+(define-extern *customize-paintjob-control-text-ids* array)
+(define-extern *customize-paintjob-menu-info* object)
 ;; (define-extern *antenna-extra* array)
 ;; (define-extern *helmet-extra* array)
 ;; (define-extern *accessorize-menu-info* object)
@@ -84687,33 +84706,41 @@
 
 ;; (define-extern *dnas-mode* object)
 ;; (define-extern *dnas-on-success* object)
-;; (define-extern *dnas-on-failure* object)
+(define-extern *dnas-on-failure* object)
 ;; (define-extern *last-player-id-of-interest* object)
 ;; (define-extern *last-room-id-of-interest* object)
 ;; (define-extern *last-game-id-of-interest* object)
 ;; (define-extern *clan-info-id* object)
-;; (define-extern *eznet-list* object)
+(define-extern *eznet-list* object)
 ;; (define-extern *tmp-netconf-string* object)
+(define-extern *lobby-universe-selection* object)
+(define-extern scrolling-netconfig-menu scrolling-menu)
+(define-extern knet-dev9-present (function int))
+(define-extern psplink-poll (function int))
 ;; (define-extern *ladder-stat-idx-current* object)
-;; (define-extern *ladder-stat-idx-of-interest* object)
+(define-extern *ladder-stat-idx-of-interest* object)
 ;; (define-extern *medius-policy-buffer* object)
 ;; (define-extern *medius-policy-formatted-buffer* object)
 ;; (define-extern *medius-policy-string* object)
 ;; (define-extern *medius-policy-formatted-buffer2* object)
 ;; (define-extern *medius-policy-string2* object)
 ;; (define-extern *medius-policy-string-data* object)
-;; (define-extern do-pending-operation function)
+;; lobby rung: called with zero args and its return discarded.
+(define-extern do-pending-operation (function none))
 ;; (define-extern fixup-netstring function)
 ;; (define-extern *player-menu-array-to-use* object)
 ;; (define-extern *player-info-player* object)
 ;; (define-extern *game-menu-array-to-use* object)
-;; (define-extern *medius-game-info-id* object)
+(define-extern *medius-game-info-id* object)
 ;; (define-extern *medius-game-info-game* object)
 ;; (define-extern get-ping-crapness function)
 ;; (define-extern construct-game-name function)
 ;; (define-extern lobby-refresh-game-list function)
 ;; (define-extern bm-equal function)
-;; (define-extern lobby-check-buttons function)
+;; lobby rung: called with five args at its one lobby-buddies call site (a
+;; button-setup callback, two fields off *player-info-button-manager*, and
+;; the 'manager/'root symbols); return discarded.
+(define-extern lobby-check-buttons (function (function object none) object object symbol symbol object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-stats                    ;;
@@ -84993,24 +85020,24 @@
 ;; (define-extern get-mc-error-text-id function)
 ;; (define-extern *choose-network-config* object)
 ;; (define-extern *user-accounts-valid* object)
-;; (define-extern *waiting-network-hardware* object)
-;; (define-extern *waiting-mc* object)
-;; (define-extern *waiting-network-hardware-shutdown* object)
+(define-extern *waiting-network-hardware* object)
+(define-extern *waiting-mc* object)
+(define-extern *waiting-network-hardware-shutdown* object)
 ;; (define-extern *edit-stored-network-account-idx* object)
 ;; (define-extern *edit-stored-network-account* object)
 ;; (define-extern update-stored-network-account function)
-;; (define-extern *edit-account-ids* array)
-;; (define-extern *delete-account-ids* array)
+(define-extern *edit-account-ids* array)
+(define-extern *delete-account-ids* array)
 ;; (define-extern *choose-account* object)
 ;; (define-extern start-logging-on function)
-;; (define-extern *menu-yes-no-array-data* array)
+(define-extern *menu-yes-no-array-data* array)
 ;; (define-extern *menu-yes-no-array* object)
 ;; (define-extern *edit-account* object)
 ;; (define-extern *fake-mc-stream* file-stream)
 ;; (define-extern *fake-mc-filename* string)
 ;; (define-extern fake-mc-cmd function)
-;; (define-extern *lobby-mc-ok-function* object)
-;; (define-extern *lobby-mc-error-function* object)
+(define-extern *lobby-mc-ok-function* object)
+(define-extern *lobby-mc-error-function* object)
 ;; (define-extern *enter-pw-acct-name* object)
 ;; (define-extern *entering-password* object)
 ;; (define-extern *showing-policy* object)
@@ -85070,7 +85097,8 @@
 ;; (define-extern *dnas-unique-id* object)
 ;; (define-extern *dnas-unique-id-req* object)
 ;; (define-extern *dnas-error-screen* object)
-;; (define-extern dnas-do-shutdown function)
+;; lobby rung: called with one arg (#f at this site), return discarded.
+(define-extern dnas-do-shutdown (function object object))
 ;; (define-extern *dnas-running-screen* object)
 ;; (define-extern medius-post-dnas-signature function)
 ;; (define-extern *patch-total-bytes* object)
@@ -85114,16 +85142,16 @@
 ;; (define-extern *buddy-list-type* object)
 ;; (define-extern construct-buddy-confirmation-string function)
 ;; (define-extern player-in-game function)
-;; (define-extern *lobby-main-screen* object)
-;; (define-extern *lobby-main-screen-no-clan* object)
-;; (define-extern *buddy-list-management-buddy* object)
-;; (define-extern *buddy-list-management-ignore* object)
+(define-extern *lobby-main-screen* object)
+(define-extern *lobby-main-screen-no-clan* object)
+(define-extern *buddy-list-management-buddy* object)
+(define-extern *buddy-list-management-ignore* object)
 ;; (define-extern *buddy-list-management-recent* object)
-;; (define-extern *player-info-button-manager* array)
+(define-extern *player-info-button-manager* array)
 ;; (define-extern setup-player-info-buttons function)
 ;; (define-extern player-info-screen-check-buttons function)
 ;; (define-extern *player-info-screen* object)
-;; (define-extern *inviting-buddies* object)
+(define-extern *inviting-buddies* object)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-games                    ;;
@@ -85331,14 +85359,14 @@
 
 
 ;; (define-extern *prev-room-before-clan* object)
-;; (define-extern *in-special-room* object)
-;; (define-extern *clan-challenge-id* object)
+(define-extern *in-special-room* object)
+(define-extern *clan-challenge-id* object)
 ;; (define-extern *my-clan-or-create-clan-text-ids* array)
 ;; (define-extern *clan-voice-text-ids* array)
 ;; (define-extern *clan-challenge-status-text-ids* object)
 ;; (define-extern get-other-clan-id function)
 ;; (define-extern *clan-incoming-invites-screen* object)
-;; (define-extern *clan-info-button-manager* array)
+(define-extern *clan-info-button-manager* array)
 ;; (define-extern setup-clan-info-buttons function)
 ;; (define-extern *clan-info-screen* object)
 ;; (define-extern *create-clan-screen* object)
@@ -86930,12 +86958,12 @@
 ;; own declared signature is fully generic object args; kept the original
 ;; guess since enter-state's own typing gives no narrower evidence.
 (define-extern *lobby-generic-confirmation* object) ;; provisional: call-site evidence only
-(define-extern *lobby-generic-error-bottom-text-ids* object) ;; provisional: call-site evidence only
-(define-extern *lobby-generic-error-bottom-text-ids2* object) ;; provisional: call-site evidence only
-(define-extern *lobby-generic-error-bottom-text-ids3* object) ;; provisional: call-site evidence only
-(define-extern *lobby-generic-error-bottom-text-ids4* object) ;; provisional: call-site evidence only
-(define-extern *lobby-generic-error-bottom-text-ids5* object) ;; provisional: call-site evidence only
-(define-extern *lobby-generic-error-text-ids* object) ;; provisional: call-site evidence only
+(define-extern *lobby-generic-error-bottom-text-ids* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
+(define-extern *lobby-generic-error-bottom-text-ids2* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
+(define-extern *lobby-generic-error-bottom-text-ids3* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
+(define-extern *lobby-generic-error-bottom-text-ids4* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
+(define-extern *lobby-generic-error-bottom-text-ids5* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
+(define-extern *lobby-generic-error-text-ids* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
 (define-extern *lobby-handling-db-error* object) ;; provisional: call-site evidence only
 (define-extern *lobby-maps-y-delta* object) ;; provisional: call-site evidence only
 (define-extern *lobby-results-enabled* object) ;; provisional: call-site evidence only
