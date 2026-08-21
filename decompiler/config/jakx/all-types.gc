@@ -21696,6 +21696,11 @@
   )
 ;; ---gui-h:gui-channel
 
+;; og:preserve-this bit 6 (0x40, gcf6), gui-control completion lane (issue
+;; 531): gui-control-method-20's own 7th-arg false branch sets this bit
+;; unconditionally, a jakx-original bit no jak3 twin carries; named on the
+;; same gcf0/gcf1 unknown-purpose placeholder pattern. See gui-h.gc's own
+;; copy of this note for the full evidence.
 ;; +++gui-h:gui-connection-flags
 (defenum gui-connection-flags
   :type uint8
@@ -21706,6 +21711,7 @@
   (fo-min 3)
   (fo-max 4)
   (volume 5)
+  (gcf6 6)
   )
 ;; ---gui-h:gui-connection-flags
 
@@ -38481,10 +38487,10 @@
   (:methods
     (new (symbol type int) _type_) ;; 0
     (gui-control-method-9 (_type_ process int int string float int) uint) ;; 9 ;; (add-process (_type_ process gui-channel gui-action string float time-frame) sound-id)
-    (gui-control-method-10 () none) ;; 10 ;; (remove-process (_type_ process gui-channel) int)
+    (gui-control-method-10 (_type_ process gui-channel) int) ;; 10 ;; (remove-process (_type_ process gui-channel) int)
     (gui-control-method-11 (_type_ gui-connection) none) ;; 11 ;; (stop-str (_type_ gui-connection) int)
     (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id) ;; 12
-    (gui-control-method-13 () none) ;; 13 ;; (update (_type_ symbol) int)
+    (gui-control-method-13 (_type_ symbol vector) int) ;; 13 ;; (update (_type_ symbol) int), arg count widened 1 -> 2 (gui-art pump lane, issue 522/550/551): jak3's own twin computes (target-pos 0) internally as a local; jakx's own scoped decode shows the identical value passed straight into gui-control-method-22 as a vector ((the-as vector arg1) at both call sites), not the investigation's own provisional symbol guess, which it flagged itself as unverified
     (gui-control-method-14 (_type_ string object object) sound-id) ;; 14 ;; (lookup-gui-connection-id (_type_ string gui-channel gui-action) sound-id)
     (gui-control-method-15 (_type_ object object string sound-id) gui-connection) ;; 15 ;; (lookup-gui-connection (_type_ process gui-channel string sound-id) gui-connection)
     (gui-control-method-16 (_type_ int uint int int string (function gui-connection symbol) process) int) ;; 16 ;; (set-action! (_type_ gui-action sound-id gui-channel gui-action string (function gui-connection symbol) process) int)
@@ -38493,7 +38499,7 @@
     (gui-control-method-19 (_type_ gui-channel gui-connection) symbol) ;; 19
     (gui-control-method-20 (_type_ uint symbol int int int float symbol) object) ;; 20 ;; (sound-params-set! (_type_ sound-id symbol int int int float) gui-connection), arg count widened 6 -> 7 (issue 531): the jak3-twin hint comment above is the copied-from-twin trap this issue names, jakx's own three call sites plus the callee's own "Bad register dependency on t3" carry a genuine 7th arg jak3 has no twin for
     (gui-control-method-21 () none) ;; 21 ;; (gui-control-method-21 (_type_ gui-connection) int)
-    (gui-control-method-22 () none) ;; 22 ;; (gui-control-method-22 (_type_ gui-connection vector) int)
+    (gui-control-method-22 (_type_ gui-connection vector) int) ;; 22, arg count and return type widened (gui-art pump lane, issue 522/550/551): dispatched from gui-control-method-13's own alive-list and connections walks with two args (a gui-connection cursor and a vector); the old zero-arg declaration made those dispatches print with no args and the callee itself fails type prop at op 2 without the widened shape. jak3's own twin call site (level.gc, this file's own hint comment) matches.
     (gui-control-method-23 () none) ;; 23 ;; (update-connection (_type_ gui-connection process symbol) none)
     (gui-control-method-24 (_type_ gui-channel gui-channel symbol gui-connection) symbol) ;; 24, arg count and return type widened (issue 531): method 19's own compile needs it (none-typed callee in a condition), the raw asm's own four dispatch sites and jak3's own twin hint agree
     (gui-control-method-25 (_type_ gui-connection object) none) ;; 25 ;; (channel-id-set! (_type_ gui-connection sound-id) int)

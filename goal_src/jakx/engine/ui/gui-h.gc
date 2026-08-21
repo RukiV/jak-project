@@ -103,6 +103,15 @@
   )
 ;; ---gui-channel
 
+;; og:preserve-this bit 6 (0x40, gcf6), gui-control completion lane (issue
+;; 531): gui-control-method-20's own arg-count widening (6 -> 7, this file's
+;; own og:preserve-this note on that method below) surfaced an unconditional
+;; (logior! flags (gui-connection-flags gcf6)) on the false arm of the new
+;; 7th-arg branch, a bit no jak3 twin sets. Named on the same placeholder
+;; pattern as gcf0/gcf1 (an unknown-purpose bit, not a guessed meaning); the
+;; method's own body stays unlanded, so this bit is currently set from no
+;; landed caller, but the enum member itself is needed for the type to be
+;; honest about what the machine actually carries.
 ;; +++gui-connection-flags
 (defenum gui-connection-flags
   :type uint8
@@ -113,6 +122,7 @@
   (fo-min 3)
   (fo-max 4)
   (volume 5)
+  (gcf6 6)
   )
 ;; ---gui-connection-flags
 
@@ -181,10 +191,29 @@
   (:methods
     (new (symbol type int) _type_)
     (gui-control-method-9 (_type_ process int int string float int) uint) ;; add-request
-    (gui-control-method-10 () none)
+    ;; og:preserve-this arg count and return type widened () none -> (process
+    ;; gui-channel) int (gui-art pump lane, issue 550/551): jak3's own twin,
+    ;; remove-process, carries this exact shape (this file's own all-types.gc
+    ;; hint comment); PROVISIONAL, held unlanded this rung (a fresh scoped
+    ;; decode with this declaration decodes clean but the body is not landed
+    ;; here, out of the pump lane's own critical path).
+    (gui-control-method-10 (_type_ process gui-channel) int)
     (gui-control-method-11 (_type_ gui-connection) none) ;; stop-str
     (gui-control-method-12 (_type_ process gui-channel gui-action string int float sound-id) sound-id)
-    (gui-control-method-13 () none)
+    ;; og:preserve-this arg count widened () -> (symbol vector), return type
+    ;; widened none -> int (gui-art pump lane, issue 522/550/551): jak3's own
+    ;; twin, update, is a 2-arg (_type_ symbol) call (level.gc:3573, (update
+    ;; *gui-control* #t)) that computes (target-pos 0) internally as a local
+    ;; and passes it to gui-control-method-22. jakx's own scoped decode
+    ;; shows the identical value hoisted out to a caller-supplied second
+    ;; argument instead: both of this method's own gui-control-method-22
+    ;; dispatches pass it straight through as (the-as vector arg1). The
+    ;; investigation that staged this lane's config deltas guessed symbol
+    ;; for this arg and flagged that guess itself as unverified; the raw
+    ;; decode settles it as vector, not symbol, the copied-from-twin trap
+    ;; issue 522 names. See the defmethod's own og:preserve-this note,
+    ;; loader.gc, for the full call-site evidence.
+    (gui-control-method-13 (_type_ symbol vector) int)
     ;; og:preserve-this return type retyped sound-id (was none): scene
     ;; lane (issue 502), (code wait scene-player)'s own call site feeds
     ;; the result straight into gui-control-method-17's own uint arg
@@ -293,7 +322,18 @@
     ;; stop dropping the argument.
     (gui-control-method-20 (_type_ uint symbol int int int float symbol) object) ;; sound-params-set!
     (gui-control-method-21 () none)
-    (gui-control-method-22 () none)
+    ;; og:preserve-this arg count and return type widened () none -> (gui-
+    ;; connection vector) int (gui-art pump lane, issue 522/550/551):
+    ;; gui-control-method-13's own body (the pump target, this file's own
+    ;; defmethod, loader.gc) dispatches this method twice via method-of-
+    ;; object with a gui-connection cursor and a vector, and the old zero-
+    ;; arg declaration made both dispatches print with no args at all, the
+    ;; dropped-argument tell AGENTS.md names as the most repeated defect
+    ;; class here; the callee itself also fails type prop outright at op 2
+    ;; ("Could not figure out load") under the old shape. jak3's own twin
+    ;; call site (level.gc's update) matches this file's own all-types.gc
+    ;; hint comment.
+    (gui-control-method-22 (_type_ gui-connection vector) int)
     (gui-control-method-23 () none)
     ;; og:preserve-this arg count and return type widened () none ->
     ;; (gui-channel gui-channel symbol gui-connection) symbol (gui-control

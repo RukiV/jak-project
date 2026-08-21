@@ -7879,6 +7879,27 @@
     [[204, 206], "v1", "gui-connection"],
     [[206, 208], "v1", "gui-connection"]
   ],
+  // gui-art pump lane (issues 522/550/551): the spooler investigation (issue
+  // 522's long investigation comment) staged these five windows with a
+  // generous scan, e.g. (method 13 gui-control) at [50, 130] and
+  // (method 9 external-art-control) at [170, 200]; each is re-narrowed here
+  // by direct bisection against this rung's own fresh scoped decode of
+  // loader.o (empirically shrink, re-decode, and read the exact failing op
+  // back from the decompiler's own error when a bound is too tight), not
+  // guessed. (method 13 gui-control)'s own s4 is the alive-list cursor
+  // inside gui-control-method-13's first walk, live only across that loop's
+  // own body (55-75); (method 9 external-art-control)'s own s4 is the
+  // candidate external-art-buffer read continuously across ops 173-191
+  // (narrowing the tail below 191 reopens a real failure at op 190, not an
+  // artifact of the bisection); (method 11 external-art-control)'s own s5
+  // (spool-push) and (method 10 gui-control)'s own s3 each collapse to a
+  // two-op window; (method 22 gui-control)'s own v1 collapses to the single
+  // op that reads it.
+  "(method 13 gui-control)": [[[55, 75], "s4", "gui-connection"]],
+  "(method 9 external-art-control)": [[[173, 191], "s4", "external-art-buffer"]],
+  "(method 11 external-art-control)": [[[15, 17], "s5", "process-drawable"]],
+  "(method 10 gui-control)": [[[9, 11], "s3", "gui-connection"]],
+  "(method 22 gui-control)": [[53, "v1", "process-drawable"]],
   // hud-widgets-tier rung: spawn-hud-side-split-bar, spawn-hud-top-split-bar
   // and spawn-hud-slowmo each store 0 at machine offset 6372 of the newly
   // spawned child process (clearing the manager field before the caller
