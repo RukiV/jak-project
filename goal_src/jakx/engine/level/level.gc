@@ -2856,11 +2856,33 @@
 ;; call to the next without re-deriving it from *jakx-want-driver-cp*.
 ;; *jakx-want-driver-tiny* is the two-tiny rotation's own persisted state (the swap rule
 ;; needs to remember which two levels are currently held to know which one is farther).
-(define *jakx-want-driver* #f)
+;;
+;; og:preserve-this default flip #2, owner direction 2026-08-21 (issue 581 follow-
+;; through): supersedes the "default stays #f here, untouched" line at the end of the
+;; "Re-measured" paragraph above. Issue 581 closed with the family-scored selection
+;; (the SELECTION INDEX CHANGE paragraph above, R6) proven by matched before/after
+;; cam-fly captures: the window now holds real streaming territory instead of
+;; stalling on the dead bootstrap the old tiny-center-row scoring hit. With that
+;; acceptance gate green the owner directed default-on for every boot, not an opt-in
+;; dev lever. The family-keyed skeleton guard the first paragraph above named as the
+;; blocking condition never had to land: the "Re-measured" paragraph already found
+;; the #193 path double-gated behind *jakx-racer* (itself still #f by default,
+;; untouched by this flip), so arming *jakx-want-driver* alone still does not reach
+;; jakx-racer-spawn. The REPL lever now runs the opposite direction from the first
+;; paragraph's framing: (set! *jakx-want-driver* #f) from the REPL is the off-switch
+;; for a session that wants the camera parked instead of exploring.
+;;
+;; *jakx-boot-camera-placed* (added this rung) is unrelated bring-up state kept here
+;; only for proximity to the other driver symbols: a one-shot latch guarding the
+;; boot-time camera placement in jakx-want-driver-tick below. That placement is boot
+;; behavior, not exploration behavior, so it runs independently of this flag's value;
+;; see the placement block itself for why.
+(define *jakx-want-driver* #t)
 (define *jakx-want-driver-frame* 0)
 (define *jakx-want-driver-cp* (the continue-point #f))
 (define *jakx-want-driver-level* (the symbol #f))
 (define *jakx-want-driver-tiny* (new 'static 'array symbol 2 #f #f))
+(define *jakx-boot-camera-placed* #f)
 
 (defun jakx-find-continue-point ((arg0 string))
   (let ((v1-0 *level-load-list*))
