@@ -330,6 +330,36 @@
 ;; from here on.
 (define *gui-control* (new 'global 'gui-control 64))
 
+;; og:preserve-this bind *art-control* (issue 522): mirrors jak3 loader.gc:
+;; 2726-2728's shape exactly (a zero-guarded set!, not a bare define), the
+;; deferred half of this file's own prior note above (the *gui-control*
+;; landing explicitly scoped this init out as "a separate, unrelated
+;; zero-guard init... not part of this lane's own chain"). The constructor
+;; is landed at loader-h.gc:166: it wires the two external-art-buffers to
+;; each other (buffer 0's other is buffer 1 and vice versa), clears all
+;; three spool-anim rec slots (name #f, priority 1e8, owner handle #f),
+;; zeros spool-lock and reserve-buffer/active-stream, and allocates a
+;; fresh 4-slot spool-anim boxed-array for queue-stream with length 0.
+;; dma-reserve-buffer-count, frame-mask and dma-reserve-heap are left at
+;; object-new's zero fill, matching jak3's own constructor.
+;;
+;; This unblocks three sites that dereference *art-control* unguarded or
+;; under a bring-up stopgap: level.gc:2290's own og:preserve-this guard
+;; ("*art-control* is defined by the unlanded jakx car-art/loader object;
+;; unbound it reads 0") can retire once this define is proven live; play-
+;; anim's status dotimes at scene.gc:1626-1631 dereferences (-> *art-
+;; control* buffer gp-0 status) with no guard at all; and the wait state's
+;; G7 file-status dispatch at scene.gc:1251 calls (file-status *art-
+;; control* ...) the same way. All three read goal 0 and fault on a zero
+;; *art-control* the moment G3 (the process-grab? wall, issue 522, held
+;; separately) clears.
+;;
+;; external-art-control stays single-homed: its only deftype is loader-
+;; h.gc:138, so check_type_singlehome is unaffected by this rung.
+(if (zero? *art-control*)
+    (set! *art-control* (new 'global 'external-art-control))
+    )
+
 ;; og:preserve-this add-process: clean decode, no config edits needed on the
 ;; body itself (the connectable-list-walk-as-connection idiom needed
 ;; type_casts.jsonc entries to resolve, not a source-level change). Searches
