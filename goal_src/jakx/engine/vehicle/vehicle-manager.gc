@@ -7,18 +7,6 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this forward declaration for vehicle-manager-init-by-other,
-;; this file's own function held below: rigid-body-queue.gc now lands
-;; rigid-body-queue's own deftype and most methods plus rigid-body-queue-
-;; manager-spawn, but rigid-body-queue-manager's own init-by-other/idle-
-;; state/post cluster stays held there (method 10, its idle:post reaches on
-;; the first frame, diverges from jak3's twin in ways that rung could not
-;; verify). process-spawn's own run-now-in-process expansion embeds this
-;; symbol by name at compile time, so vehicle-manager-start needs the
-;; declaration even though nothing calls it directly. Drop this line and
-;; land the real body once rigid-body-queue.gc's held cluster is verified.
-(define-extern vehicle-manager-init-by-other (function object :behavior vehicle-manager))
-
 ;; definition of type vehicle-manager
 (deftype vehicle-manager (process)
   ()
@@ -227,24 +215,30 @@
     )
   )
 
-;; og:preserve-this vehicle-manager-init-by-other is omitted rather than
-;; landed. Its own body is otherwise clean (stack-size-set!, the
-;; vehicle-manager-method-17/setting-control-method-13 setup, the
-;; event-hook assignment, go-virtual idle all decode without error), but it
-;; calls rigid-body-queue-manager-spawn, which process-spawns rigid-body-
-;; queue-manager. rigid-body-queue.gc (rigid-body-queue rung) now lands
-;; rigid-body-queue's own deftype and most methods plus rigid-body-queue-
-;; manager-spawn itself, but rigid-body-queue-manager's own init-by-other/
-;; idle-state/post cluster stays held there: that cluster's idle:post
-;; reaches rigid-body-queue's method 10 (the physics tick) on the first
-;; frame, and that method's own raw decode diverges from jak3's twin in
-;; ways that rung could not verify (see rigid-body-queue.gc's own notes).
-;; Landing vehicle-manager-init-by-other here would activate that unverified
-;; chain via rigid-body-queue-manager-spawn's process-spawn. process-spawn
-;; resolves init-by-other by naming convention at the kernel level, not a
-;; compile-time symbol reference, so nothing else in this file needs this
-;; defined. Re-derive from the framework's own dump (offline-test -f
-;; vehicle-manager -d) once rigid-body-queue.gc's held cluster is verified.
+;; definition for function vehicle-manager-init-by-other
+;; og:preserve-this vehicle-manager-arming rung (issues 532, 208): lands
+;; from the framework's own dump (offline-test -f vehicle-manager -d),
+;; unchanged from the decode this file's own prior note already described
+;; clean. rigid-body-queue.gc's own rung landed rigid-body-queue-manager's
+;; init-by-other/idle-state/post cluster and verified method 10's tick body
+;; against jak3's twin, the condition this note used to name as unmet. The
+;; rigid-body-queue-manager-spawn call below passes *rigid-body-queue* as
+;; arg0 (rigid-body-queue) and self as arg1 (process-tree), matching that
+;; function's own landed signature exactly. The forward-declare this file
+;; used to carry for init-by-other is dropped: the real body now lands
+;; ahead of vehicle-manager-start's own process-spawn call below, the only
+;; place in this file that needs the symbol at compile time.
+(defbehavior vehicle-manager-init-by-other vehicle-manager ()
+  (stack-size-set! (-> self main-thread) 128)
+  (set! *vehicle-manager* self)
+  (vehicle-manager-method-17 self)
+  (setting-control-method-13 *setting-control* (the-as engine-pers self) 'task-mask 'clear 0 2048)
+  (set! (-> self event-hook) vehicle-manager-event-handler)
+  (set! *rigid-body-queue-manager*
+        (the-as rigid-body-queue-manager (rigid-body-queue-manager-spawn *rigid-body-queue* self))
+        )
+  (go-virtual idle)
+  )
 
 ;; failed to figure out what this is:
 (defstate idle (vehicle-manager)
@@ -269,26 +263,21 @@
 
 ;; definition for function vehicle-manager-start
 ;; WARN: Return type mismatch int vs none.
-;; og:preserve-this vehicle-manager-start is omitted rather than landed,
-;; for the same reason vehicle-manager-init-by-other below is omitted:
-;; jakx-init calls vehicle-manager-start behind a runtime (nonzero?)
-;; guard, and its process-spawn resolves vehicle-manager-init-by-other by
-;; name at the kernel level, so with the init function omitted the very
-;; first boot after landing this function died at jakx-init with
-;; "attempting to run nullptr function!" (vehicle-manager+0xff7 on the
-;; stack). Leaving the symbol undefined keeps the guard skipping as it
-;; did while this file was a stub. Retires together with the init-by-other
-;; note once rigid-body-queue.gc's held init-by-other/idle/post cluster is
-;; verified; the body is:
-;; (defun vehicle-manager-start ((arg0 process))
-;;   (vehicle-particle-common-info-method-9 *vehicle-particle-common-info*)
-;;   (if *vehicle-manager*
-;;       (change-parent *vehicle-manager* arg0)
-;;       (process-spawn vehicle-manager :name "vehicle-manager" :to arg0)
-;;       )
-;;   0
-;;   (none)
-;;   )
+;; og:preserve-this vehicle-manager-arming rung (issues 532, 208): goes
+;; live now that vehicle-manager-init-by-other lands above it in this same
+;; file, the condition this note used to name as unmet. jakx-init.gc's own
+;; runtime (nonzero? vehicle-manager-start) guard (forge #219) stays in
+;; place as defense in depth; retiring that guard is outside this rung's
+;; scope.
+(defun vehicle-manager-start ((arg0 process))
+  (vehicle-particle-common-info-method-9 *vehicle-particle-common-info*)
+  (if *vehicle-manager*
+      (change-parent *vehicle-manager* arg0)
+      (process-spawn vehicle-manager :name "vehicle-manager" :to arg0)
+      )
+  0
+  (none)
+  )
 
 ;; definition for function vehicle-manager-kill
 ;; WARN: Return type mismatch symbol vs none.
