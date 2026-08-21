@@ -105,7 +105,10 @@
     ;; literal 19.
     (vehicle-section-method-9 (_type_ vehicle art-group int) none) ;; 9
     ;; og:preserve-this vehicle rung: method 10's own a1 arg reads offsets
-    ;; 188/192 (process-drawable's inherited root/node-list, no shift) and
+    ;; 188/192 (process-drawable's inherited node-list/draw, corrected by
+    ;; issue 571 R11 from the original "root/node-list, no shift" claim --
+    ;; the +4 convention applies here exactly like everywhere else in this
+    ;; file, not exempt for process-drawable's own inherited fields) and
     ;; 284 raw / 288 landed (car-info, the vehicle-own +4-corrected region) -
     ;; only vehicle carries all three at once (vehicle-util_disasm.gc:93-139).
     (vehicle-section-method-10 (_type_ vehicle) none) ;; 10
@@ -114,12 +117,14 @@
     ;; vehicle-spawn externs unblock that function's decode.
     (vehicle-section-method-11 (_type_ vehicle) none) ;; 11
     ;; og:preserve-this vehicle rung: method 12's own a1 arg reads offset 228
-    ;; raw/landed (vehicle-util_disasm.gc:322-327+), an ancestor-region
-    ;; process-drawable field (no +4 shift applies below the rigid-body-
-    ;; object boundary); the field at that offset resolves as process-
-    ;; drawable's own `sound`, not `rbody` as originally suspected, but
-    ;; either way only vehicle (a process-drawable descendant) carries it,
-    ;; so the arg is typed vehicle.
+    ;; raw (vehicle-util_disasm.gc:322-327+), an ancestor-region
+    ;; process-drawable field; corrected by issue 571 R11: the +4
+    ;; convention applies here too (no exemption below the rigid-body-
+    ;; object boundary, reversing the original claim), so the load at raw
+    ;; 228 binds to the field placed at 232, process-drawable's own
+    ;; `rbody`, as originally suspected rather than `sound`. Either way
+    ;; only vehicle (a process-drawable descendant) carries it, so the arg
+    ;; is typed vehicle.
     (vehicle-section-method-12 (_type_ vehicle) none) ;; 12
     ;; og:preserve-this vehicle rung: method 13's arg0 is converted gpr->fpr
     ;; directly (vehicle-util_disasm.gc:238, the mtc1 idiom) before being
