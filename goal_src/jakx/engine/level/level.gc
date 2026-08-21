@@ -49,9 +49,6 @@
 (define-extern sound-bank-unload (function sound-name int))
 (define-extern unlink-lightning-spec-by-heap (function kheap none))
 (define-extern update-task-masks (function symbol int))
-(define-extern dma-get-named-buffer (function symbol int int pointer))
-(define-extern dma-release (function symbol int))
-(define-extern dma-try-alloc (function uint uint symbol int pointer pointer))
 (define-extern view-get-camera (function int process))
 (define-extern view-get-target (function int process))
 (define-extern unlink-textures-by-level (function level int))
@@ -9472,17 +9469,9 @@ drive/camera logic below ever runs."
                      ((-> this target s1-0 name)
                       (cond
                         ((not (dma-get-named-buffer 'car-load 0 0))
-                         (let* ((v1-65 (new 'stack-no-clear 'array 'pointer 2))
-                                (t9-10 dma-try-alloc)
-                                (a0-68 #x28000)
-                                (a1-33 #x28000)
-                                (a2-16 'car-load)
-                                (a3-12 1)
-                                (t0-5 (&-> v1-65 0))
-                                )
-                           (&-> v1-65 1)
+                         (let ((v1-65 (new 'stack-no-clear 'array 'pointer 2)))
                            (cond
-                             ((t9-10 (the-as uint a0-68) (the-as uint a1-33) a2-16 a3-12 t0-5)
+                             ((dma-try-alloc #x28000 #x28000 'car-load 1 (&-> v1-65 0) (&-> v1-65 1) #f)
                               #t
                               )
                              (else

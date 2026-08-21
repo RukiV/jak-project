@@ -1413,7 +1413,19 @@
     // rejects the raw decompile's own "(the-as int #f)" once it is later
     // assigned a handle value. The landed goal_src hand-corrects both
     // bindings to (the-as handle #f), the correct sentinel form.
-    "(method 90 powercell-footie)"
+    "(method 90 powercell-footie)",
+    // lobby-dma (issue 571 car-load path): lobby-dma-reserve-hook's raw decompile
+    // assigns dma-buffer's pointer-typed end field from a bare (&- pointer uint)
+    // subtraction; &- has no special-cased compiler form (unlike &+'s
+    // compile_pointer_add in goalc/compiler/compilation/Atoms.cpp) so it returns
+    // int, and every other &- callsite in the tree (gkernel.gc, gstring.gc) wraps
+    // the result in an explicit (the pointer ...) / (the-as pointer ...) cast at
+    // the assignment site; the landed goal_src carries that same cast and
+    // compiles clean under (mi) (Successfully built all 683 targets), but
+    // offline-test always compiles the decompiler's own fresh, uncast output
+    // (test/offline/framework/execution.cpp's compile() uses data.output_with_
+    // skips, never goal_src), so it fails this one function regardless.
+    "lobby-dma-reserve-hook"
   ],
   "skip_compile_states": {
     // bad handle->process folds (jak3 carries the same class of entries); the
