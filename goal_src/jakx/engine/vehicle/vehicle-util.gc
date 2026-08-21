@@ -22,7 +22,7 @@
 ;; pass.
 
 ;; definition for method 9 of type vehicle-section
-(defmethod vehicle-section-method-9 ((this vehicle-section) (arg0 object) (arg1 object) (arg2 object))
+(defmethod vehicle-section-method-9 ((this vehicle-section) (arg0 vehicle) (arg1 art-group) (arg2 int))
   (set! (-> this node-index) (the-as int arg2))
   (let ((v1-0 (skeleton-group->draw-control
                 (the-as process-drawable arg0)
@@ -119,16 +119,42 @@
   (none)
   )
 
-;; og:preserve-this vehicle-util rung (held): vehicle-section methods 10,
-;; 11, 12 and 13 are held. Method 10 (this rung's own decode) reads a
-;; second object argument at offsets 188/192/284, cascading into a
-;; matrix-identity! setup and this.draw's own status/mgeo fields, with no
-;; call-site or type evidence in this rung's corpus for what that argument
-;; actually is (looks like a construction/spawn-params struct, not proven).
-;; Method 11 is a CFG building failure (no expression tree). Method 12
-;; still fails type prop at a raw offset load (228) after the sllv
-;; handle-style idiom, the same inlined-macro class rigid-body-queue.gc's
-;; own held methods hit. Method 13 fails on a float-math op against an
-;; untyped operand. None of the four isolate to a quick, evidence-backed
-;; fix within this rung's remaining budget. Re-derive from the framework's
+;; og:preserve-this vehicle-util rung (method 13 landed below, 10/11/12
+;; bodies still held, all four signatures now landed): vehicle-section
+;; methods 10, 11, 12 and 13 all have evidence-backed argument types in
+;; all-types.gc as of the vehicle structural rung (R3) -- method 10's
+;; second argument reads offsets 188/192 (process-drawable's inherited
+;; root/node-list, unshifted) and 284 raw / 288 landed (car-info, the
+;; vehicle-own +4-corrected region); only vehicle carries all three, so it
+;; is typed vehicle, not the previously-claimed unproven construction/
+;; spawn-params struct. Method 11 takes the spawning vehicle (its call site
+;; only resolves once R2's vehicle-spawn externs are landed). Method 12's
+;; second argument reads offset 228 (also unshifted, a process-drawable-
+;; region field: `sound`, not `rbody` as originally suspected), so it is
+;; typed vehicle too. Method 13's first argument is a raw float bit-pattern
+;; passed in a gpr (the gpr->fpr mtc1 idiom), typed float -- with that one
+;; retype method 13 decodes completely cleanly (a scoped decode after
+;; landing the signature, zero error markers) and lands below. The other
+;; three bodies do not land this rung: method 10's own scoped decode is now
+;; clean through its first (if) branch but its (else) branch still carries
+;; unresolved raw pointer arithmetic (a matrix-identity!/matrix-4x4-
+;; inverse! cascade this rung did not fully trace); method 11 is still a
+;; CFG building failure (no expression tree, unaffected by the retype);
+;; method 12 still fails type prop, now at a different op (157, "add
+;; failed: <uninitialized> <integer 0>") past an sllv handle-style idiom
+;; (the same inlined-macro class rigid-body-queue.gc's own held methods
+;; hit), with the originally-cited offset-228 failure itself resolved by
+;; the retype. Re-derive the remaining three bodies from the framework's
 ;; own dump (offline-test -f vehicle-util -d) in a future rung.
+
+;; definition for method 13 of type vehicle-section
+;; WARN: Return type mismatch float vs none.
+(defmethod vehicle-section-method-13 ((this vehicle-section) (arg0 float))
+  (logior! (-> this flags) 1)
+  (+! (-> this damage) (* arg0 (-> this info inv-hit-points)))
+  (if (< 0.25 (-> this damage))
+      (car-info-full-method-14 (-> this car-info) (-> this car-part))
+      )
+  (-> this damage)
+  (none)
+  )

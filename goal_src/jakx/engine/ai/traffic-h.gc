@@ -6,6 +6,15 @@
 ;; dgos: ENGINE, GAME
 
 (declare-type vehicle-manager process)
+;; og:preserve-this vehicle rung: forward declarations so vehicle-spawn-
+;; params' retyped impact-callback (basic -> function) can name vehicle and
+;; rigid-body-impact as argument types; traffic-h.gc builds ahead of both
+;; vehicle-h.gc and rigid-body-h.gc in dgo order. Matches gsound.gc's own
+;; pre-existing (declare-type vehicle process-drawable) rather than
+;; introducing a second, more specific forward declaration that the
+;; compiler cannot reconcile against it.
+(declare-type vehicle process-drawable)
+(declare-type rigid-body-impact structure)
 
 ;; +++driver-type
 (defenum driver-type
@@ -413,7 +422,11 @@
    (level-slot       int8)
    (driver-type      driver-type)
    (driver-slot      int8)
-   (impact-callback  basic)
+   ;; og:preserve-this retyped basic -> function alongside vehicle's own
+   ;; impact-callback field in the same commit (vehicle rung): vehicle-init-
+   ;; by-other copies this field straight into vehicle's impact-callback
+   ;; without any cast, so both sides must carry the same typespec.
+   (impact-callback  (function vehicle rigid-body-impact object))
    (proc             basic)
    )
   )

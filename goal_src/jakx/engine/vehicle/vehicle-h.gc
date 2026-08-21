@@ -99,11 +99,33 @@
   :size-assert         #x38
   :flag-assert         #x1400000038
   (:methods
-    (vehicle-section-method-9 (_type_ object object object) none) ;; 9
-    (vehicle-section-method-10 (_type_ object) none) ;; 10
-    (vehicle-section-method-11 () none) ;; 11
-    (vehicle-section-method-12 (_type_ object) none) ;; 12
-    (vehicle-section-method-13 (_type_ object) none) ;; 13
+    ;; og:preserve-this vehicle rung: method 9 args proven by wcar-cheetah's
+    ;; own call site (wcar-cheetah_disasm.gc:95-100), passing this
+    ;; (v-cheetah, a vehicle), an art-group-get-by-name result, and the
+    ;; literal 19.
+    (vehicle-section-method-9 (_type_ vehicle art-group int) none) ;; 9
+    ;; og:preserve-this vehicle rung: method 10's own a1 arg reads offsets
+    ;; 188/192 (process-drawable's inherited root/node-list, no shift) and
+    ;; 284 raw / 288 landed (car-info, the vehicle-own +4-corrected region) -
+    ;; only vehicle carries all three at once (vehicle-util_disasm.gc:93-139).
+    (vehicle-section-method-10 (_type_ vehicle) none) ;; 10
+    ;; og:preserve-this vehicle rung: method 11 promoted from zero explicit
+    ;; args; the spawning vehicle is passed at its call site once R2's
+    ;; vehicle-spawn externs unblock that function's decode.
+    (vehicle-section-method-11 (_type_ vehicle) none) ;; 11
+    ;; og:preserve-this vehicle rung: method 12's own a1 arg reads offset 228
+    ;; raw/landed (vehicle-util_disasm.gc:322-327+), an ancestor-region
+    ;; process-drawable field (no +4 shift applies below the rigid-body-
+    ;; object boundary); the field at that offset resolves as process-
+    ;; drawable's own `sound`, not `rbody` as originally suspected, but
+    ;; either way only vehicle (a process-drawable descendant) carries it,
+    ;; so the arg is typed vehicle.
+    (vehicle-section-method-12 (_type_ vehicle) none) ;; 12
+    ;; og:preserve-this vehicle rung: method 13's arg0 is converted gpr->fpr
+    ;; directly (vehicle-util_disasm.gc:238, the mtc1 idiom) before being
+    ;; multiplied against a float field, so it is a raw float bit-pattern
+    ;; passed in a gpr.
+    (vehicle-section-method-13 (_type_ float) none) ;; 13
     (vehicle-section-method-14 (_type_) none) ;; 14
     (vehicle-section-method-15 (_type_) none) ;; 15
     ;; og:preserve-this vehicle-util rung: promoted object -> draw-control-
@@ -669,6 +691,28 @@
 ;; under-declared base type. See the comment above vehicle-section-info for
 ;; why this whole chain, rigid-body-vehicle-constants included, now sits
 ;; ahead of this deftype instead of below it.
+;; og:preserve-this vehicle rung: birth-accum retyped uint32 2 -> float 2:
+;; (method 99 vehicle)'s own decode stores to both 4-byte sub-fields with
+;; swc1 (s.f!), not sw, so the raw capture's "uint32" guess does not match
+;; the actual store width; launcher stays basic, stored via s.w! from a
+;; *part-id-table* entry immediately after each birth-accum pair. :pack-me
+;; added: method 99's six writes land 12 bytes apart (908/920/932/944/956/
+;; 968 raw), a tight stride with no padding; without :pack-me an :inline
+;; array of this type compiles to a 16-byte per-element stride (compiler-
+;; inserted, the same unpacked-structure mechanism documented on vehicle-
+;; controls and vehicle-section), which does not match the retail layout
+;; here (unlike vehicle-section, nothing in this type needs 16-byte
+;; alignment).
+(deftype vehicle-particle (structure)
+  ((birth-accum float 2 :offset-assert 0)
+   (launcher    basic     :offset-assert 8)
+   )
+  :pack-me
+  :method-count-assert 9
+  :size-assert         #xc
+  :flag-assert         #x90000000c
+  )
+
 (deftype vehicle (rigid-body-object)
   ((info                             rigid-body-vehicle-constants                :override)
    (car-info                        car-info-full                               :offset-assert 288)
@@ -688,11 +732,26 @@
    (damage-matrix                   uint8                                128   :offset-assert 304)
    (damage-direction                vector                              :inline :offset-assert 432)
    (camera-pos                      vector                              :inline :offset-assert 448)
-   ;; og:preserve-this 8 bytes unaccounted (464-472).
-   (pad-post-camera-pos             uint8                                8     :offset-assert 464)
+   ;; og:preserve-this v-flags-2: a second 64-bit flag word, proven by three
+   ;; ld/and/sd sites all against this same offset -- vehicle-states_ir2.asm:
+   ;; 1426-1434 (mask ~0x40000), vehicle_ir2.asm:7793 and :7832 (masks
+   ;; 0x100000 and 0x200000), and vehicle-util_disasm.gc:1683's failed
+   ;; `(s.d! (+ this 460) v1-2)` (method 110 mirroring the primary `flags`
+   ;; word into this one). Landed bare (no bitfield enum): the individual
+   ;; bit semantics beyond these three masks are support-grade only.
+   (v-flags-2                       uint64                                      :offset-assert 464)
    (control-hook                    (function vehicle vehicle-controls)         :offset-assert 472) ;; guessed by decompiler
    (control-mask                    vehicle-controls                            :offset-assert 476)
-   (impact-callback                 basic                                       :offset-assert 480)
+   ;; og:preserve-this impact-callback retyped basic -> function: method 80
+   ;; CALLS it directly (vehicle_disasm.gc:48, "Called something that was
+   ;; not a function: basic"), only ever setting a0 (self) and a1 (the
+   ;; rigid-body-impact arg of method 80 itself) before the call; return
+   ;; value is unpinned by this rung's evidence, typed object. Retyped
+   ;; identically on vehicle-spawn-params (traffic-h.gc) in the same commit
+   ;; -- vehicle-init-by-other copies the field straight across
+   ;; (vehicle-manager_ir2.asm, `lwu v1, 96(gp)` / `sw v1, 476(s6)`, the
+   ;; usual +4-corrected landing at this field's own offset).
+   (impact-callback                 (function vehicle rigid-body-impact object) :offset-assert 480)
    ;; og:preserve-this controls through lin-acceleration are :inline
    ;; structures/vectors needing 16-byte alignment (STRUCTURE_ALIGNMENT); the
    ;; captured (+4-corrected) offsets previously did not land on it because
@@ -801,18 +860,35 @@
    ;; shake decay); no inspect method in this rung's scope names it, so kept
    ;; as a placeholder inside the still-unaccounted net-payload gap.
    (unknown-float-904               float                                :offset-assert 908)
-   ;; og:preserve-this kept as pad-net-payload-gap (not renamed to a
-   ;; pad-post-* form) even though it now starts 52 bytes later than its
-   ;; original 860: the wcar-* family (wcar-bear, wcar-bobcat, wcar-cheetah,
+   ;; og:preserve-this vehicle rung: 72 bytes carved off this field's front
+   ;; for the resurrected `particles` array (6 x vehicle-particle, proven by
+   ;; method 99's own six 12-byte swc1/s.w! groups at placements 912/924/936/
+   ;; 948/960/972). The wcar-* family (wcar-bear, wcar-bobcat, wcar-cheetah,
    ;; wcar-cougar, wcar-daxtermobile, wcar-falcon, wcar-gila, wcar-leopard,
    ;; wcar-mongoose, wcar-panther, wcar-possum, wcar-tiger, wcar-wolf,
-   ;; wcar-wombat, wcar-snake) all index into it by name for their own
-   ;; vehicle-section array (12 elements, 64 bytes apart, absolute placed
-   ;; offsets 1024-1792); every one of those indices was shifted down by 52
-   ;; in the same commit that carved unknown-sound-id-884/892 and
-   ;; unknown-float-904 out of this field's front, so the name stays put and
-   ;; only the base offset and remaining size move.
-   (pad-net-payload-gap             uint8                                896   :offset-assert 912)
+   ;; wcar-wombat, wcar-snake) own raw byte-indices into pad-net-payload-gap
+   ;; (their vehicle-section array access) all re-index onto the new named
+   ;; `sections` field below in this same commit.
+   (particles                       vehicle-particle                    6     :inline :offset-assert 912)
+   ;; og:preserve-this kept as pad-net-payload-gap (not renamed to a
+   ;; pad-post-* form) even though it now starts 124 bytes later than its
+   ;; original 860: 40 bytes remain unaccounted between particles and the
+   ;; newly-landed sections array below.
+   (pad-net-payload-gap             uint8                                40    :offset-assert 984)
+   ;; og:preserve-this sections: 12 x vehicle-section :inline, proven by two
+   ;; independent sites -- vehicle-init-by-other's own loop
+   ;; (vehicle-manager_ir2.asm:3045+, `dsll v1, s5, 6` / `daddiu v1, v1, 1020`,
+   ;; a 64-byte stride from raw 1020 = landed 1024, 12 iterations) and
+   ;; wcar-cheetah's own (method 66 v-cheetah) indexing element 11 directly
+   ;; via (&-> this pad-net-payload-gap 816) pre-rung (816 + the old pad-
+   ;; net-payload-gap base of 912 = 1728 = 1024 + 11*64). vehicle-section's
+   ;; own :size-assert is #x38 (56, tightly packed, no :pack-me); the
+   ;; observed 64-byte per-element stride is the compiler's own inter-
+   ;; element alignment padding for a structure that opens with an :inline
+   ;; vector and lacks :pack-me, the same mechanism already documented on
+   ;; vehicle-controls above.
+   (sections                        vehicle-section                     12    :inline :offset-assert 1024)
+   (pad-pre-pred                    uint8                                16    :offset-assert 1792)
    (pred                            net-predictor-sphcol                :inline :offset-assert 1808)
    (next-reliable-send-time         int32                                       :offset-assert 2116)
    (player-id                       int8                                        :offset-assert 2120)
