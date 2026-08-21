@@ -60,7 +60,21 @@
 ;; but still fails type prop at op 167 ("add failed: object <integer 12>"), deep past
 ;; allow-pause/allow-progress setting-control calls and a game-info continue-point
 ;; lookup. Retirement condition: a future rung resolves that load.
+;;
+;; og:preserve-this partial arming (scene chain, issue 522): the stub now
+;; carries ONE of the real body's 91 field initializations, current-level to
+;; #f, mirroring jak3's target-init! (jak3 logic-target.gc:3035). Without it
+;; the field stays raw zero (EE RAM zeroes at startup, and 0 is truthy in
+;; GOAL), and scene-player's wait state faults at scene.gc's
+;; current-level name read, disassembly-proven as the intro-missile probe's
+;; scene+0x53f9 crash: the (and ...) guard there tests only #f, retail's own
+;; correct shape given an initialized field. The class recurs for any other
+;; of the real body's fields that landed code reads (next-state is the
+;; nearest known candidate, scene.gc's wait state reads it two lines
+;; further); those get armed the same way as probes surface them, until the
+;; op-167 wall above falls and the real body lands.
 (defmethod target-method-59 ((this target) (arg0 basic) (arg1 symbol))
+  (set! (-> this current-level) #f)
   (none)
   )
 
