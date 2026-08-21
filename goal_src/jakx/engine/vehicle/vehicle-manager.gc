@@ -309,23 +309,40 @@
     )
   )
 
-;; og:preserve-this the rest of this object is omitted rather than
-;; landed. *car-info-default* is a raw <static-data L78> blob (a
-;; (pointer uint32) with no confirmed element count or reader anywhere
-;; in this file). vehicle-init-by-other, vehicle-in-level? and
-;; vehicle-spawn still have no type analysis at all; this is an
-;; already-documented cross-band blocker (see the commented-out
-;; vehicle-spawn extern's own note in all-types.gc): their real
-;; signatures need traffic-object-spawn-params, an entirely undeclared
-;; struct whose fields cascade into traffic-type/nav-mesh/nav-branch/
-;; entity/traffic-spawn-flags, the race/vehicle band's own typing
-;; territory. find-vehicle (above) was in the same cluster but decoded
-;; clean once the jakx-menu-pair band gave it a real extern signature
-;; (default-menu rung, evidenced from that file's own call site: a
-;; single int arg, return read at offset 184 by trsq->continue-point).
-;; vehicle-idx-from-level-name (already active, given a real
-;; signature) is omitted too: its own dynamic net-vehicle array indexing
-;; decodes to an unresolved (dynamic-array-field-access v1-1 PLACEHOLDER)
-;; token, a decompiler-side gap in dynamic field access, not a config
-;; gap. Re-derive from the framework's own dump (offline-test -f
-;; vehicle-manager -d) once either blocker closes.
+;; og:preserve-this vehicle rung (R2): the traffic-object-spawn-params
+;; blocker this note used to name is retired -- it never existed in jakx;
+;; the real second argument for vehicle-init-by-other and vehicle-spawn is
+;; vehicle-spawn-params (all-types.gc, traffic-h.gc, already landed).
+;; vehicle-init-by-other and vehicle-in-level? both now have real extern
+;; signatures (all-types.gc, this rung) and both decode completely cleanly
+;; with them (a scoped decode of this worktree's own state): vehicle-init-
+;; by-other's own dotimes loop over `(-> self sections N)` is the direct
+;; confirmation of vehicle-section-method-11's (_type_ vehicle) none
+;; retype (R3), passing the owning vehicle as the second argument at each
+;; of the 12 sections. Neither body lands this rung despite decoding
+;; clean, though, because each calls something with no landed
+;; implementation anywhere in goal_src: vehicle-init-by-other's own loop
+;; calls vehicle-section-method-11, still a CFG-building failure with no
+;; defmethod; vehicle-in-level? calls vehicle-idx-from-level-name (see
+;; below), also unlanded. Landing either body now would arm exactly the
+;; e2 hazard AGENTS.md section 5 warns about (a call with no landed target
+;; links to 0) the moment something actually invokes them at runtime, so
+;; both stay held pending their respective callees. vehicle-spawn itself
+;; is also not landed this rung: with both externs active it now decodes
+;; to op 179 (up from op 113 pre-rung) before failing on "Unknown symbol:
+;; driver-spawn", an undeclared extern outside this rung's scope -- the
+;; new frontier for a future rung. *car-info-default* is still a raw
+;; <static-data L78> blob (a (pointer uint32) with no confirmed element
+;; count or reader anywhere in this file), still omitted. find-vehicle
+;; (above) was in the same cluster but decoded clean once the jakx-menu-
+;; pair band gave it a real extern signature (default-menu rung,
+;; evidenced from that file's own call site: a single int arg, return
+;; read at offset 184 by trsq->continue-point). vehicle-idx-from-level-
+;; name (already active, given a real signature) is still omitted: its
+;; own dynamic net-vehicle array indexing decodes to an unresolved
+;; (dynamic-array-field-access v1-1 PLACEHOLDER) token, a decompiler-side
+;; gap in dynamic field access, not a config gap, unaffected by this
+;; rung. Re-derive vehicle-init-by-other, vehicle-in-level?, vehicle-spawn
+;; and vehicle-idx-from-level-name from the framework's own dump
+;; (offline-test -f vehicle-manager -d) once their respective blockers
+;; close.

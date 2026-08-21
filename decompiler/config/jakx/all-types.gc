@@ -54459,10 +54459,17 @@
   :flag-assert         #x900000080
   )
 
-;; (define-extern vehicle-init-remote function)
+;; og:preserve-this vehicle rung (R9): activated per the e2 grep discipline
+;; -- zero call sites and zero defuns for either symbol anywhere in jakx
+;; goal_src, so declaring them arms no existing caller onto a zero link.
+;; Landed exactly as previously drafted (bare `function`, no specific
+;; typespec): no call site or defun exists in this corpus to derive
+;; argument/return types from, so a specific signature would be invented,
+;; not evidenced.
+(define-extern vehicle-init-remote function)
 ;; (define-extern *msg-map-vehicle* array)
 ;; (define-extern *net-process-class-info-vehicle* object)
-;; (define-extern vehicle-get-flag-attach-point function)
+(define-extern vehicle-get-flag-attach-point function)
 ;; wvehicle-core rung: its real signature is proven (float float, by the
 ;; jak3 twin's own body, goal_src/jak3/levels/city/traffic/vehicle/
 ;; vehicle-h.gc, and (method 157 wvehicle)'s own call site passing a single
@@ -64066,7 +64073,17 @@
 (define-extern vehicle-manager-kill (function none))
 (define-extern *car-appearance-hack* int)
 (define-extern *car-info-default* (pointer uint32))
-;; (define-extern vehicle-init-by-other function) ;; (function int traffic-object-spawn-params object :behavior vehicle)
+;; og:preserve-this activated (vehicle rung, R2): the earlier draft's guessed
+;; second arg (traffic-object-spawn-params) does not exist in jakx; arg1
+;; (gp) reads and writes bytes at offsets 92/93/95 and a vector at offset
+;; 16, an exact field-for-field match to vehicle-spawn-params (all-types.gc,
+;; traffic-h.gc, already landed): player-id, level-slot, driver-slot,
+;; position. arg0 is never read from within the body (the same unused-
+;; trailing-arg class as rigid-body-object-method-62/68/79), typed
+;; vehicle-type on naming and call-site-shape grounds; return unpinned,
+;; typed object. This is a :behavior vehicle function (self/s6 writes
+;; directly into vehicle's own fields throughout, e.g. car-info at raw 284).
+(define-extern vehicle-init-by-other (function vehicle-type vehicle-spawn-params object :behavior vehicle))
 ;; credits-obs's only call site passes a single symbol (a level name) and
 ;; discards no further use of the result within that scope; "idx" in the
 ;; name and the sibling car-type-from-level-name (function symbol
@@ -64074,7 +64091,13 @@
 ;; proven by the call site, return type inferred from naming, not from a
 ;; body decode since this function is not defined in this object).
 (define-extern vehicle-idx-from-level-name (function symbol int))
-;; (define-extern vehicle-in-level? function)
+;; og:preserve-this activated (vehicle rung, R2): own scoped decode of
+;; vehicle-manager_ir2.asm's vehicle-in-level? confirms arg0 (gp) passed
+;; straight to level-name-from-vehicle-type (a vehicle-type consumer), arg1
+;; (s5) dereferenced as a level (`l.wu s5`, compared against the level-name
+;; result and passed to vehicle-idx-from-level-name), and the return is a
+;; direct equality test (`(set! v0 (= v1 gp))`), a boolean/symbol.
+(define-extern vehicle-in-level? (function vehicle-type level symbol))
 ;; og:preserve-this activated (vehicle band): the earlier comment's guessed
 ;; second arg, traffic-object-spawn-params, does not exist in jakx and was
 ;; never the real blocker; vehicle-spawn is defined in this band's own
