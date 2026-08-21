@@ -12,6 +12,21 @@
 ;; function externs for functions still commented out below (decomp failures)
 (define-extern add-want-level (function (inline-array level-buffer-state) (pointer int64) symbol symbol symbol symbol int object)) ;; 7th arg = slot
 
+;; og:preserve-this rung 2 (issue 522): *backup-load-state* is defined later
+;; in this same file (methods 19 and 20, landed this rung, both reference it
+;; ahead of that define). jak3's own load-state.gc carries the identical
+;; forward declaration at the same spot (jak3 load-state.gc:12) for the same
+;; reason; *load-state* itself needs no matching extern here because
+;; script-h.gc:14 already declares it and compiles first.
+(define-extern *backup-load-state* load-state)
+
+;; og:preserve-this rung 2 (issue 522): lobby-level-set! (landed method 25's
+;; own body) is a real, already-defined jakx function (net-world.gc:193,
+;; already called live from credits-obs.gc), but net-world.gc compiles
+;; after this file in build order, so its definition is not yet visible
+;; here. Same forward-reference class as the extern above.
+(define-extern lobby-level-set! (function int symbol symbol int))
+
 ;; DECOMP BEGINS
 
 
@@ -50,6 +65,14 @@
 
 ;; definition for method 2 of type sound-bank-state
 ;; ERROR: Expression building failed: In (method 2 sound-bank-state): Failed to decompile integer enum. Value 17 (0x11) wasn't found in enum sound-bank-mode
+;; og:preserve-this held, re-measured rung 2 (issue 522): still fails on this
+;; worktree's own fresh scoped decode, unchanged. The cond chain below checks
+;; the raw integer literals 0/1/2/3/7/9/10/11/12/13/14/15/16/17 against v1-0
+;; (only four route through named sound-bank-mode constants: halfa, halfc,
+;; half, full); gsound-h.gc's own enum tops out at unk-10 (10), so the
+;; decompiler cannot fold value 17 back into a named member and refuses to
+;; emit an enum-based cond. Retires once sound-bank-mode gains the missing
+;; high members (11-17+), a config/type change outside this rung's scope.
 ;; NOTE: decomp still fails; commented out until fixed
 ;; (defmethod print ((this sound-bank-state))
 ;;   (local-vars
@@ -462,6 +485,14 @@
   )
 
 ;; definition for method 14 of type load-state
+;; og:preserve-this held, re-measured rung 2 (issue 522): still fails on this
+;; worktree's own fresh scoped decode. The console-level summary for this
+;; run only surfaces a cosmetic "return type of none but found a return
+;; statement" WARN for this method, the same class the eight landed methods
+;; above carry, but the file-level dump has a real ERROR the console summary
+;; does not print: "Failed store: (s.w! (+ v1-6 1156) arg1) at op 15", a raw
+;; store that never resolved to a named field, inside the dotimes 18 loop
+;; keyed on want-split's name. Not clean; stays held.
 ;; ERROR: failed type prop at 7: add failed: <uninitialized> <value x 12>
 
 ;; ERROR: Function may read a register that is not set: a0
@@ -571,143 +602,103 @@
   0
   )
 
-;; definition for method 17 of type load-state
-;; ERROR: failed type prop at 3: add failed: <uninitialized> <value x 32>
+;; og:preserve-this landing (issue 522, rung 2): the held block below this
+;; comment used to carry all ten never-decoding load-state/sound-bank-state
+;; methods behind a single stale "decomp still fails" note. A fresh scoped
+;; decode against this worktree's own config (allowed_objects: ["load-
+;; state"], ntsc_v1) re-measured all ten: eight decode clean today, methods
+;; 17, 18, 19, 20, 23, 24, 25, 26, transcribed verbatim below (each only
+;; carries a cosmetic return-type-mismatch WARN, no ERROR, no raw op). The
+;; old held errors on these eight are gone; whatever cleared the failed-
+;; type-prop class elsewhere in the tree cleared them too. Methods 2 (of
+;; sound-bank-state) and 21 still fail for real and stay held, each with
+;; its own updated note naming the live wall. Method 14 also still fails
+;; for real (a raw (s.w! ...) store survives type prop at op 15) and stays
+;; held alongside them.
+;;
+;; Landing method 23 closes the e2-class hazard this issue flagged live at
+;; scene.gc:1045: the wait state's :enter dispatches load-state-method-23
+;; through what was a permanently-zero vtable slot for any scene whose
+;; vehicles array is nonzero, since nothing defined the method. That call
+;; site needs no source change; it starts reaching real code the moment
+;; this defmethod exists.
 
-;; WARN: Return type mismatch int vs none.
-;; ERROR: Function may read a register that is not set: a0
-;; ERROR: Function may read a register that is not set: a1
-;; ERROR: Function may read a register that is not set: a2
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod load-state-method-17 () (local-vars
-;;                                    (v0-0 none)
-;;                                    (v0-1 none)
-;;                                    (v0-2 object)
-;;                                    (v0-3 int)
-;;                                    (v1-0 int)
-;;                                    (v1-1 none)
-;;                                    (v1-2 none)
-;;                                    (v1-3 none)
-;;                                    (v1-7 string)
-;;                                    (a0-0 none)
-;;                                    (a0-1 int)
-;;                                    (a1-0 none)
-;;                                    (a1-1 string)
-;;                                    (a2-0 none)
-;;                                    (a2-1 none)
-;;                                    (a3-0 int)
-;;                                    (a3-1 none)
-;;                                    (a3-2 none)
-;;                                    (t9-0 none)
-;;                                    (t9-1 (function _varargs_ object))
-;;                                    )
-;;   (set! v1-0 0)
-;;   (while (<.si v1-0 18)
-;;     (if (begin
-;;           (set! a3-0 (sll v1-0 5))
-;;           (set! a3-1 (the-as none (+ a0-0 a3-0)))
-;;           (set! a3-2 (the-as none (l.wu a3-1)))
-;;           (= a3-2 a1-0)
-;;           )
-;;         (return (begin
-;;                   (set! v1-1 (the-as none (sll v1-0 5)))
-;;                   (set! v1-2 (the-as none (+ a0-0 v1-1)))
-;;                   (s.w! (+ v1-2 12) a2-0)
-;;                   (set! v1-3 (the-as none (l.wu (+ a0-0 -4))))
-;;                   (set! t9-0 (the-as none (l.wu (+ v1-3 104))))
-;;                   (call!)
-;;                   (set! v1-4 (the-as none v0-0))
-;;                   (set! v0-1 (the-as none 0))
-;;                   )
-;;                 )
-;;         )
-;;     (set! v1-0 (the-as int (+ v1-0 1)))
-;;     )
-;;   (set! t9-1 format)
-;;   (set! a0-1 0)
-;;   (set! v1-7 L182)
-;;   (set! a2-1 a1-0)
-;;   (set! a1-1 v1-7)
-;;   (call! a0-1 a1-1 a2-1)
-;;   (set! v0-3 0)
-;;   (ret-none)
-;;   )
+;; definition for method 17 of type load-state
+(defmethod want-force-inside ((this load-state) (arg0 symbol) (arg1 symbol))
+  (dotimes (v1-0 18)
+    (when (= (-> this want v1-0 name) arg0)
+      (set! (-> this want v1-0 force-inside?) arg1)
+      (add-borrow-levels this)
+      (return 0)
+      )
+    )
+  (format 0 "ERROR: can't force inside on ~A because it isn't loaded~%" arg0)
+  0
+  (none)
+  )
 
 ;; definition for symbol *display-load-commands*, type symbol
 (define *display-load-commands* #f)
 
 ;; definition for method 19 of type load-state
-;; ERROR: failed type prop at 26: add failed: <uninitialized> <integer -4>
-
-;; ERROR: Function may read a register that is not set: a0
-;; ERROR: Function may read a register that is not set: a1
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod load-state-method-19 () (local-vars
-;;                                    (v0-0 none)
-;;                                    (v0-1 none)
-;;                                    (v0-2 none)
-;;                                    (v1-0 none)
-;;                                    (v1-1 none)
-;;                                    (v1-2 none)
-;;                                    (v1-4 none)
-;;                                    (v1-5 none)
-;;                                    (v1-6 none)
-;;                                    (v1-7 none)
-;;                                    (v1-11 load-state)
-;;                                    (v1-12 none)
-;;                                    (a0-0 none)
-;;                                    (a0-1 none)
-;;                                    (a0-2 (pointer type))
-;;                                    (a0-3 none)
-;;                                    (a1-0 none)
-;;                                    (a1-1 none)
-;;                                    (a1-2 none)
-;;                                    (a2-0 none)
-;;                                    (a2-1 none)
-;;                                    (s4-0 int)
-;;                                    (t9-0 none)
-;;                                    (t9-1 (function pointer pointer int pointer))
-;;                                    )
-;;   (set! s4-0 0)
-;;   (while (<.si s4-0 256)
-;;     (when (begin
-;;             (set! v1-0 (the-as none (sll s4-0 2)))
-;;             (set! v1-1 (the-as none (+ v1-0 a0-0)))
-;;             (set! v1-2 (the-as none (l.wu (+ v1-1 2176))))
-;;             v1-2
-;;             )
-;;       (set! t9-0 (the-as none format))
-;;       (set! a0-1 (the-as none 0))
-;;       (set! a1-1 (the-as none L181))
-;;       (set! v1-4 (the-as none (sll s4-0 2)))
-;;       (set! v1-5 (the-as none (+ v1-4 a0-0)))
-;;       (set! a2-0 (the-as none (l.wu (+ v1-5 2176))))
-;;       (call!)
-;;       (set! v1-6 (the-as none (sll s4-0 2)))
-;;       (set! v1-7 (the-as none (+ v1-6 a0-0)))
-;;       (s.w! (+ v1-7 2176) #f)
-;;       )
-;;     (set! s4-0 (the-as int (+ s4-0 1)))
-;;     )
-;;   (set! t9-1 mem-copy!)
-;;   (set! v1-11 *backup-load-state*)
-;;   (set! a0-2 (&-> v1-11 type))
-;;   (set! a1-2 (the-as none (+ a0-0 -4)))
-;;   (set! a2-1 (the-as none 4232))
-;;   (call!)
-;;   (set! v1-12 (the-as none '()))
-;;   (set! a0-3 (the-as none *backup-load-state*))
-;;   (s.w! (+ a0-3 2172) v1-12)
-;;   (s.w! (+ a0-0 2172) a1-0)
-;;   (set! v0-2 (the-as none 0))
-;;   (ret-none)
-;;   )
+(defmethod backup-load-state-and-set-cmds ((this load-state) (arg0 pair))
+  (dotimes (s4-0 256)
+    (when (-> this object-name s4-0)
+      (format 0 "WARNING: load state somehow aquired object command ~A~%" (-> this object-name s4-0))
+      (set! (-> this object-name s4-0) #f)
+      )
+    )
+  (mem-copy! (&-> *backup-load-state* type) (&-> this type) 4232)
+  (set! (-> *backup-load-state* command-list) '())
+  (set! (-> this command-list) arg0)
+  0
+  )
 
 ;; definition for method 20 of type load-state
-;; ERROR: failed type prop at 2: Could not figure out load: (set! v1 (l.wu (+ a0 -4)))
-;; ERROR: Function may read a register that is not set: a0
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod load-state-method-20 () (local-vars
+(defmethod load-state-method-20 ((this load-state))
+  (with-pp
+    (execute-commands-up-to this 100000.0)
+    (dotimes (gp-0 256)
+      (when (-> this object-name gp-0)
+        (let ((a0-3 (entity-by-name (-> this object-name gp-0))))
+          (when a0-3
+            (set! (-> a0-3 extra perm status) (the-as entity-perm-status (-> this object-status gp-0)))
+            (if (-> a0-3 extra process)
+                (kill! a0-3)
+                )
+            )
+          )
+        (set! (-> this object-name gp-0) #f)
+        )
+      )
+    (let ((s5-0 (new 'stack 'load-state))
+          (gp-1 (-> *load-state* update-callback))
+          )
+      (mem-copy! (&-> s5-0 type) (&-> *load-state* type) 4232)
+      (mem-copy! (&-> this type) (&-> *backup-load-state* type) 4232)
+      (when (!= (-> pp type) scene-player)
+        (dotimes (s4-1 18)
+          (mem-copy! (the-as pointer (-> *load-state* want s4-1)) (the-as pointer (-> s5-0 want s4-1)) 24)
+          )
+        (dotimes (v1-34 1)
+          (set! (-> *load-state* want-sound v1-34 name) (-> s5-0 want-sound v1-34 name))
+          (set! (-> *load-state* want-sound v1-34 mode) (-> s5-0 want-sound v1-34 mode))
+          )
+        )
+      (dotimes (s4-2 18)
+        (mem-copy! (the-as pointer (-> *load-state* want-exp s4-2)) (the-as pointer (-> s5-0 want-exp s4-2)) 24)
+        (mem-copy! (the-as pointer (-> *load-state* target s4-2)) (the-as pointer (-> s5-0 target s4-2)) 24)
+        )
+      (dotimes (v1-47 7)
+        (set! (-> *load-state* target-sound v1-47 name) (-> s5-0 target-sound v1-47 name))
+        (set! (-> *load-state* target-sound v1-47 mode) (-> s5-0 target-sound v1-47 mode))
+        )
+      (set! (-> *load-state* update-callback) gp-1)
+      )
+    (add-borrow-levels *load-state*)
+    0
+    )
+  )
 ;;                                    (v0-0 none)
 ;;                                    (v0-1 none)
 ;;                                    (v0-2 none)
@@ -982,6 +973,21 @@
 ;;   )
 
 ;; definition for method 21 of type load-state
+;; og:preserve-this held, re-measured rung 2 (issue 522): still fails on this
+;; worktree's own fresh scoped decode. The two live errors moved but did not
+;; clear: "failed type prop at 81: add failed: <uninitialized> <value x 32>"
+;; and "Failed to guess stack use for 16 in (method 21 load-state):15" (op
+;; indices shifted from the stale 68/"integer -4" text below since this note
+;; was last written, and the old "may read register a0" error is gone, but
+;; the method as a whole still does not decompile). restore-load-state is
+;; the mirror of method 20's landed save path (two 18-entry 'stack level-
+;; buffer-state arrays, this vs *backup-load-state* vs *load-state*), and
+;; the fresh dump still resolves entirely to raw ops (l.wu/s.w!/call!,
+;; dynamic-array-field-access PLACEHOLDER) with a return type of pointer
+;; where the caller expects a normal method return; op 81's uninitialized
+;; 32-byte value and the stack-slot-16 guess failure are both inside that
+;; raw tail. The block below is the prior dump, kept for reference; a fresh
+;; run differs in exact op numbers but not in outcome.
 ;; ERROR: failed type prop at 68: add failed: <uninitialized> <integer -4>
 
 ;; ERROR: Failed to guess stack use for 16 in (method 21 load-state):15
@@ -1165,503 +1171,135 @@
 ;;   )
 
 ;; definition for method 18 of type load-state
-;; ERROR: failed type prop at 68: Could not figure out load: (set! a0 (l.wu (+ gp 2172)))
-;; ERROR: Failed to guess stack use for 16 in (method 18 load-state):4
-;; ERROR: Function may read a register that is not set: a0
-;; ERROR: Function may read a register that is not set: a1
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod load-state-method-18 () (local-vars
-;;                                    (v0-0 script-context)
-;;                                    (v0-1 none)
-;;                                    (v0-3 none)
-;;                                    (v0-4 none)
-;;                                    (v0-5 none)
-;;                                    (v0-6 none)
-;;                                    (v1-0 type)
-;;                                    (v1-1 process)
-;;                                    (v1-2 none)
-;;                                    (v1-3 none)
-;;                                    (v1-4 none)
-;;                                    (v1-5 none)
-;;                                    (v1-8 none)
-;;                                    (v1-10 none)
-;;                                    (v1-12 none)
-;;                                    (v1-13 none)
-;;                                    (v1-15 none)
-;;                                    (v1-16 none)
-;;                                    (v1-19 none)
-;;                                    (v1-21 none)
-;;                                    (v1-22 none)
-;;                                    (v1-23 pair)
-;;                                    (a0-0 none)
-;;                                    (a0-1 none)
-;;                                    (a0-2 none)
-;;                                    (a0-3 none)
-;;                                    (a0-6 none)
-;;                                    (a1-0 none)
-;;                                    (a1-1 type)
-;;                                    (a1-2 none)
-;;                                    (a1-3 none)
-;;                                    (a1-4 none)
-;;                                    (a2-0 (pointer process))
-;;                                    (a2-1 none)
-;;                                    (a3-0 process)
-;;                                    (t0-0 symbol)
-;;                                    (s3-0 none)
-;;                                    (s4-0 script-context)
-;;                                    (t9-0 (function symbol type object process vector script-context))
-;;                                    (t9-1 none)
-;;                                    (t9-2 none)
-;;                                    (t9-3 none)
-;;                                    (t9-4 none)
-;;                                    (sp-0 none)
-;;                                    (f0-0 none)
-;;                                    (f1-0 none)
-;;                                    )
-;;   (with-pp
-;;     (if (begin
-;;           (set! v1-0 script-context)
-;;           (set! t9-0 (method-of-type v1-0 new))
-;;           (set! a0-1 (the-as none (+ sp-0 16)))
-;;           (set! a1-1 script-context)
-;;           (set! v1-1 s6-0)
-;;           v1-1
-;;           )
-;;         (set! a2-0 (-> v1-1 ppointer))
-;;         )
-;;     (set! a3-0 s6-0)
-;;     (set! t0-0 #f)
-;;     (set! v0-0 (call! a0-1 a1-1 a2-0 a3-0 t0-0))
-;;     (set! s4-0 v0-0)
-;;     (set! (-> s4-0 load-state) (the-as load-state a0-0))
-;;     (while (begin (set! v1-23 '()) (set! a0-6 (the-as none (l.wu (+ a0-0 2172)))) (!= a0-6 v1-23))
-;;       (if (begin
-;;             (set! t9-1 (the-as none command-get-float))
-;;             (set! v1-2 (the-as none (l.wu (+ a0-0 2172))))
-;;             (set! v1-3 (the-as none (l.w (+ v1-2 -2))))
-;;             (set! a0-2 (the-as none (l.w (+ v1-3 -2))))
-;;             (set! a1-2 (the-as none 0))
-;;             (set! v0-1 (the-as none (call!)))
-;;             (set! f0-0 (the-as none (gpr->fpr v0-1)))
-;;             (set! v1-4 (the-as none (l.wu (+ a0-0 2172))))
-;;             (set! v1-5 (the-as none (l.w (+ v1-4 -2))))
-;;             (set! s3-0 (the-as none (l.w (+ v1-5 2))))
-;;             (set! f1-0 (the-as none (gpr->fpr a1-0)))
-;;             (<.s f1-0 f0-0)
-;;             )
-;;           (return (empty-form))
-;;           )
-;;       (when (begin (set! v1-8 (the-as none *display-load-commands*)) v1-8)
-;;         (set! t9-2 (the-as none format))
-;;         (set! a0-3 (the-as none 0))
-;;         (set! a1-3 (the-as none L180))
-;;         (set! v1-10 (the-as none (l.wu (+ s6-0 8))))
-;;         (set! a2-1 (the-as none (l.d (+ v1-10 20))))
-;;         (set! a3-1 (the-as none (fpr->gpr f0-0)))
-;;         (set! t0-1 (the-as none s3-0))
-;;         (call!)
-;;         (set! v1-11 (the-as none v0-3))
-;;         )
-;;       (cond
-;;         ((begin (set! v1-12 (the-as none (l.w (+ s3-0 -2)))) (pair? v1-12))
-;;          (set! a1-4 (the-as none (l.w (+ s3-0 -2))))
-;;          (while (begin (set! v1-16 (the-as none '())) (!= s3-0 v1-16))
-;;            (set! a0-4 (the-as none s4-0))
-;;            (set! v1-13 (the-as none script-context))
-;;            (set! t9-3 (the-as none (l.wu (+ v1-13 52))))
-;;            (call!)
-;;            (set! v1-14 (the-as none v0-4))
-;;            (set! s3-0 (the-as none (l.w (+ s3-0 2))))
-;;            (set! v1-15 (the-as none (l.w (+ s3-0 -2))))
-;;            (set! a1-5 (the-as none v1-15))
-;;            )
-;;          )
-;;         (else
-;;           (set! a0-5 (the-as none s4-0))
-;;           (set! v1-19 (the-as none script-context))
-;;           (set! t9-4 (the-as none (l.wu (+ v1-19 52))))
-;;           (set! a1-6 (the-as none s3-0))
-;;           (call!)
-;;           (set! v1-20 (the-as none v0-5))
-;;           )
-;;         )
-;;       (set! v1-21 (the-as none (l.wu (+ a0-0 2172))))
-;;       (set! v1-22 (the-as none (l.w (+ v1-21 2))))
-;;       (s.w! (+ a0-0 2172) v1-22)
-;;       )
-;;     (set! v0-6 (the-as none 0))
-;;     (ret-none)
-;;     )
-;;   )
+(defmethod execute-commands-up-to ((this load-state) (arg0 float))
+  (with-pp
+    (let ((s4-0 (new 'stack 'script-context (process->ppointer pp) pp (the-as vector #f))))
+      (set! (-> s4-0 load-state) this)
+      (while (not (null? (-> this command-list)))
+        (let ((f0-0 (command-get-float (car (car (-> this command-list))) 0.0))
+              (s3-0 (cdr (car (-> this command-list))))
+              )
+          (if (< arg0 f0-0)
+              (return #f)
+              )
+          (if *display-load-commands*
+              (format 0 "NOTICE: ~D: ~f: execute command ~A~%" (current-time) f0-0 s3-0)
+              )
+          (cond
+            ((pair? (car s3-0))
+             (let ((a1-4 (car s3-0)))
+               (while (not (null? s3-0))
+                 (eval! s4-0 (the-as pair a1-4))
+                 (set! s3-0 (cdr s3-0))
+                 (set! a1-4 (car s3-0))
+                 )
+               )
+             )
+            (else
+              (eval! s4-0 s3-0)
+              )
+            )
+          )
+        (set! (-> this command-list) (cdr (-> this command-list)))
+        )
+      )
+    0
+    (none)
+    )
+  )
 
 ;; definition for method 25 of type load-state
-;; ERROR: failed type prop at 3: Could not figure out load: (set! v1 (l.wu (+ a0 -4)))
-;; ERROR: Function may read a register that is not set: a0
-;; ERROR: Function may read a register that is not set: a1
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod load-state-method-25 () (local-vars
-;;                                    (v0-0 none)
-;;                                    (v0-1 none)
-;;                                    (v0-2 none)
-;;                                    (v0-3 none)
-;;                                    (v1-0 none)
-;;                                    (v1-2 none)
-;;                                    (a0-0 none)
-;;                                    (a0-1 none)
-;;                                    (a0-2 none)
-;;                                    (a1-0 none)
-;;                                    (a2-0 none)
-;;                                    (t9-0 none)
-;;                                    (t9-1 none)
-;;                                    (t9-2 none)
-;;                                    )
-;;   (set! a0-1 a0-0)
-;;   (set! v1-0 (the-as none (l.wu (+ a0-1 -4))))
-;;   (set! t9-0 (the-as none (l.wu (+ v1-0 104))))
-;;   (call!)
-;;   (set! v1-1 (the-as none v0-0))
-;;   (set! t9-1 (the-as none lobby-level-set!))
-;;   (set! a0-2 (the-as none 1))
-;;   (set! a2-0 (the-as none 'cache))
-;;   (set! a1-1 (the-as none a1-0))
-;;   (call!)
-;;   (set! v1-2 (the-as none (l.wu (+ a0-0 -4))))
-;;   (set! t9-2 (the-as none (l.wu (+ v1-2 104))))
-;;   (set! a0-3 (the-as none a0-0))
-;;   (call!)
-;;   (set! v1-3 (the-as none v0-2))
-;;   (set! v0-3 (the-as none 0))
-;;   (ret-none)
-;;   )
+(defmethod load-state-method-25 ((this load-state) (arg0 symbol))
+  (add-borrow-levels this)
+  (lobby-level-set! 1 arg0 'cache)
+  (add-borrow-levels this)
+  0
+  (none)
+  )
 
 ;; definition for method 23 of type load-state
-;; ERROR: failed type prop at 108: add failed: <uninitialized> <integer 6>
-
-;; WARN: Return type mismatch symbol vs none.
-;; ERROR: Function may read a register that is not set: a0
-;; ERROR: Function may read a register that is not set: a1
-;; ERROR: Function may read a register that is not set: a2
-;; ERROR: Function may read a register that is not set: a3
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod load-state-method-23 () (local-vars
-;;                                    (v0-1 vehicle-type)
-;;                                    (v0-3 none)
-;;                                    (v0-4 none)
-;;                                    (v1-0 none)
-;;                                    (v1-1 none)
-;;                                    (v1-5 vehicle-type)
-;;                                    (v1-6 uint)
-;;                                    (v1-7 int)
-;;                                    (v1-8 string)
-;;                                    (v1-11 int)
-;;                                    (v1-14 none)
-;;                                    (v1-17 none)
-;;                                    (v1-18 none)
-;;                                    (v1-19 none)
-;;                                    (v1-20 none)
-;;                                    (v1-21 none)
-;;                                    (v1-22 none)
-;;                                    (a0-0 none)
-;;                                    (a0-1 int)
-;;                                    (a0-2 none)
-;;                                    (a0-3 none)
-;;                                    (a0-4 none)
-;;                                    (a0-5 none)
-;;                                    (a0-6 symbol)
-;;                                    (a0-11 none)
-;;                                    (a0-12 none)
-;;                                    (a0-13 none)
-;;                                    (a0-14 none)
-;;                                    (a0-15 none)
-;;                                    (a0-16 none)
-;;                                    (a0-17 none)
-;;                                    (a0-20 none)
-;;                                    (a0-22 (array string))
-;;                                    (a0-23 none)
-;;                                    (a0-24 none)
-;;                                    (a0-25 none)
-;;                                    (a0-26 none)
-;;                                    (a0-27 none)
-;;                                    (a0-28 none)
-;;                                    (a0-29 none)
-;;                                    (a0-30 none)
-;;                                    (a0-31 none)
-;;                                    (a0-32 none)
-;;                                    (a0-33 none)
-;;                                    (a0-34 none)
-;;                                    (a0-35 none)
-;;                                    (a0-36 none)
-;;                                    (a1-0 none)
-;;                                    (a1-1 none)
-;;                                    (a1-2 none)
-;;                                    (a1-3 none)
-;;                                    (a1-4 none)
-;;                                    (a1-5 none)
-;;                                    (a1-7 none)
-;;                                    (a1-8 none)
-;;                                    (a1-9 none)
-;;                                    (a1-10 none)
-;;                                    (a1-11 none)
-;;                                    (a1-12 none)
-;;                                    (a1-13 none)
-;;                                    (a1-14 none)
-;;                                    (a1-15 none)
-;;                                    (a1-16 none)
-;;                                    (a1-17 none)
-;;                                    (a1-18 none)
-;;                                    (a1-19 none)
-;;                                    (a2-0 none)
-;;                                    (a2-1 none)
-;;                                    (a2-2 none)
-;;                                    (a2-3 none)
-;;                                    (a2-4 none)
-;;                                    (a2-5 none)
-;;                                    (a2-6 none)
-;;                                    (a2-7 none)
-;;                                    (a2-8 none)
-;;                                    (a2-9 none)
-;;                                    (a2-10 none)
-;;                                    (a3-0 none)
-;;                                    (a3-1 none)
-;;                                    (t9-0 (function symbol vehicle-type))
-;;                                    (t9-1 none)
-;;                                    )
-;;   (cond
-;;     ((begin a2-0)
-;;      (set! v1-0 a3-0)
-;;      (set! a0-1 0)
-;;      (while (<.si a0-1 11)
-;;        (if (begin
-;;              (set! a1-1 (the-as none 1440))
-;;              (set! a2-1 (the-as none (+ a1-0 6)))
-;;              (set! a1-2 (the-as none (*.si a1-1 a2-1)))
-;;              (set! a1-3 (the-as none (+ a0-1 a1-2)))
-;;              (set! a2-2 (the-as none *level*))
-;;              (set! a1-4 (the-as none (+ a1-3 a2-2)))
-;;              (set! a1-5 (the-as none (l.b (+ a1-4 1948))))
-;;              (set! a2-3 (the-as none (sll a1-0 9)))
-;;              (set! a2-4 (the-as none (+ a0-1 a2-3)))
-;;              (set! a3-1 (the-as none *car-level-array*))
-;;              (set! a2-5 (the-as none (+ a2-4 a3-1)))
-;;              (set! a2-6 (the-as none (l.b (+ a2-5 45))))
-;;              (!= a2-6 a1-5)
-;;              )
-;;            (begin
-;;              (set! v1-1 (the-as none #t))
-;;              (set! a0-2 (the-as none (+ a1-0 6)))
-;;              (set! a0-3 (the-as none (sll a0-2 5)))
-;;              (set! a0-4 (the-as none (+ a0-0 a0-3)))
-;;              (s.w! (+ a0-4 20) v1-1)
-;;              (set! v1-0 (the-as none #t))
-;;              (set! a0-5 (the-as none #t))
-;;              (set! a0-6 (the-as symbol a0-5))
-;;              (goto cfg-8)
-;;              )
-;;            )
-;;        (set! a0-1 (the-as int (+ a0-1 1)))
-;;        )
-;;      (set! a0-6 #f)
-;;      (when (begin
-;;              (if (begin
-;;                    (cond
-;;                      ((begin (label cfg-8) a0-6)
-;;                       )
-;;                      ((begin
-;;                         (or (begin
-;;                               (set! a0-11 (the-as none *level*))
-;;                               (set! a1-7 (the-as none 1440))
-;;                               (set! a2-7 (the-as none (+ a1-0 6)))
-;;                               (set! a1-8 (the-as none (*.si a1-7 a2-7)))
-;;                               (set! a0-12 (the-as none (+ a0-11 a1-8)))
-;;                               (set! a0-13 (the-as none (l.wu (+ a0-12 544))))
-;;                               (set! a1-9 (the-as none (!= a0-13 a2-0)))
-;;                               a1-9
-;;                               )
-;;                             (begin
-;;                               (set! a0-15 (the-as none *level*))
-;;                               (set! a1-10 (the-as none 1440))
-;;                               (set! a2-8 (the-as none (+ a1-0 6)))
-;;                               (set! a1-11 (the-as none (*.si a1-10 a2-8)))
-;;                               (set! a0-16 (the-as none (+ a0-15 a1-11)))
-;;                               (set! a0-17 (the-as none (l.wu (+ a0-16 560))))
-;;                               (set! a1-12 (the-as none 'active))
-;;                               (set! a0-14 (the-as none (!= a0-17 a1-12)))
-;;                               )
-;;                             )
-;;                         a0-14
-;;                         )
-;;                       (set! v1-0 (the-as none #t))
-;;                       (set! a0-19 (the-as none v1-0))
-;;                       )
-;;                      )
-;;                    (not v1-0)
-;;                    )
-;;                  (return (empty-form))
-;;                  )
-;;              (set! t9-0 car-type-from-level-name)
-;;              (set! a0-20 a2-0)
-;;              (set! v0-1 (call! a0-20))
-;;              (set! v1-5 v0-1)
-;;              (>=0.si v1-5)
-;;              )
-;;        (if (begin
-;;              (set! v1-6 (sll v1-5 2))
-;;              (set! a0-22 *car-type-names*)
-;;              (set! v1-7 (+ v1-6 a0-22))
-;;              (set! v1-8 (dynamic-array-field-access v1-7 PLACEHOLDER))
-;;              (not v1-8)
-;;              )
-;;            (return (empty-form))
-;;            )
-;;        )
-;;      (set! v1-11 0)
-;;      (while (<.si v1-11 11)
-;;        (set! a0-23 (the-as none (sll a1-0 9)))
-;;        (set! a0-24 (the-as none (+ v1-11 a0-23)))
-;;        (set! a1-13 (the-as none *car-level-array*))
-;;        (set! a0-25 (the-as none (+ a0-24 a1-13)))
-;;        (set! a0-26 (the-as none (l.b (+ a0-25 45))))
-;;        (set! a1-14 (the-as none 1440))
-;;        (set! a2-9 (the-as none (+ a1-0 6)))
-;;        (set! a1-15 (the-as none (*.si a1-14 a2-9)))
-;;        (set! a1-16 (the-as none (+ v1-11 a1-15)))
-;;        (set! a2-10 (the-as none *level*))
-;;        (set! a1-17 (the-as none (+ a1-16 a2-10)))
-;;        (s.b! (+ a1-17 1948) a0-26)
-;;        (set! v1-11 (the-as int (+ v1-11 1)))
-;;        )
-;;      )
-;;     (else
-;;       (set! v1-14 (the-as none 0))
-;;       (while (<.si v1-14 11)
-;;         (set! a0-27 (the-as none 1440))
-;;         (set! a1-18 (the-as none (+ a1-0 6)))
-;;         (set! a0-28 (the-as none (*.si a0-27 a1-18)))
-;;         (set! a0-29 (the-as none (+ v1-14 a0-28)))
-;;         (set! a1-19 (the-as none *level*))
-;;         (set! a0-30 (the-as none (+ a0-29 a1-19)))
-;;         (s.b! (+ a0-30 1948) 0)
-;;         (set! v1-14 (the-as none (+ v1-14 1)))
-;;         )
-;;       )
-;;     )
-;;   (if (begin
-;;         (set! v1-17 (the-as none (+ a1-0 6)))
-;;         (set! v1-18 (the-as none (sll v1-17 5)))
-;;         (set! v1-19 (the-as none (+ a0-0 v1-18)))
-;;         (s.w! v1-19 a2-0)
-;;         a2-0
-;;         )
-;;       (set! v1-20 (the-as none 'special))
-;;       (set! v1-20 (the-as none #f))
-;;       )
-;;   (set! a0-31 (the-as none (+ a1-0 6)))
-;;   (set! a0-32 (the-as none (sll a0-31 5)))
-;;   (set! a0-33 (the-as none (+ a0-0 a0-32)))
-;;   (s.w! (+ a0-33 4) v1-20)
-;;   (set! v1-21 (the-as none (+ a1-0 6)))
-;;   (set! a0-34 (the-as none (+ a1-0 6)))
-;;   (set! a0-35 (the-as none (sll a0-34 5)))
-;;   (set! a0-36 (the-as none (+ a0-0 a0-35)))
-;;   (s.w! (+ a0-36 16) v1-21)
-;;   (set! v1-22 (the-as none (l.wu (+ a0-0 -4))))
-;;   (set! t9-1 (the-as none (l.wu (+ v1-22 104))))
-;;   (set! a0-37 (the-as none a0-0))
-;;   (call!)
-;;   (set! v1-23 (the-as none v0-3))
-;;   (set! v0-4 (the-as none 0))
-;;   (ret-none)
-;;   )
+(defmethod load-state-method-23 ((this load-state) (arg0 int) (arg1 symbol) (arg2 symbol))
+  (local-vars (a0-6 symbol))
+  (cond
+    (arg1
+      (let ((v1-0 arg2))
+        (dotimes (a0-1 11)
+          (when (!= (-> *car-level-array* data 0 current-parts (+ a0-1 (* arg0 512)))
+                    (-> *level* level0 filter-look (+ a0-1 (* 1440 (+ arg0 6))))
+                    )
+            (set! (-> this want (+ arg0 6) force-reload) (the-as basic #t))
+            (set! v1-0 #t)
+            (set! a0-6 #t)
+            (goto cfg-8)
+            )
+          )
+        (set! a0-6 #f)
+        (label cfg-8)
+        (cond
+          (a0-6
+            )
+          ((or (!= (-> *level* level (+ arg0 6) name) arg1) (!= (-> *level* level (+ arg0 6) status) 'active))
+           (set! v1-0 #t)
+           )
+          )
+        (if (not v1-0)
+            (return #f)
+            )
+        )
+      (let ((v1-5 (car-type-from-level-name arg1)))
+        (when (>= (the-as int v1-5) 0)
+          (if (not (-> *car-type-names* v1-5))
+              (return #f)
+              )
+          )
+        )
+      (dotimes (v1-11 11)
+        (set! (-> *level* level0 filter-look (+ v1-11 (* 1440 (+ arg0 6))))
+              (-> *car-level-array* data 0 current-parts (+ v1-11 (* arg0 512)))
+              )
+        )
+      )
+    (else
+      (dotimes (v1-14 11)
+        (set! (-> *level* level0 filter-look (+ v1-14 (* 1440 (+ arg0 6)))) 0)
+        )
+      )
+    )
+  (set! (-> this want (+ arg0 6) name) arg1)
+  (set! (-> this want (+ arg0 6) display?) (if arg1
+                                               'special
+                                               #f
+                                               )
+        )
+  (set! (-> this want (+ arg0 6) slot) (+ arg0 6))
+  (add-borrow-levels this)
+  0
+  (none)
+  )
 
 ;; definition for method 26 of type load-state
-;; ERROR: failed type prop at 1: add failed: <uninitialized> <integer 1>
-
-;; ERROR: Function may read a register that is not set: a0
-;; ERROR: Function may read a register that is not set: a1
-;; ERROR: Function may read a register that is not set: a2
-;; ERROR: Function may read a register that is not set: a3
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod load-state-method-26 () (local-vars
-;;                                    (v0-0 none)
-;;                                    (v1-1 none)
-;;                                    (v1-2 none)
-;;                                    (v1-3 none)
-;;                                    (v1-4 none)
-;;                                    (v1-5 none)
-;;                                    (v1-6 none)
-;;                                    (a0-0 none)
-;;                                    (a1-0 none)
-;;                                    (a2-0 none)
-;;                                    (a3-0 none)
-;;                                    )
-;;   (when a2-0
-;;     (set! v1-1 (the-as none (+ a1-0 1)))
-;;     (set! v1-2 (the-as none (sll v1-1 4)))
-;;     (set! v1-3 (the-as none (+ a0-0 v1-2)))
-;;     (s.w! (+ v1-3 1944) a2-0)
-;;     (set! v1-4 (the-as none (+ a1-0 1)))
-;;     (set! v1-5 (the-as none (sll v1-4 4)))
-;;     (set! v1-6 (the-as none (+ a0-0 v1-5)))
-;;     (s.w! (+ v1-6 1952) a3-0)
-;;     (set! v1-7 (the-as none a3-0))
-;;     )
-;;   (set! v0-0 (the-as none 0))
-;;   (ret-none)
-;;   )
+(defmethod load-state-method-26 ((this load-state) (arg0 int) (arg1 symbol) (arg2 symbol))
+  (when arg1
+    (set! (-> this want-sound (+ arg0 1) name) arg1)
+    (set! (-> this want-sound (+ arg0 1) high) (the-as basic arg2))
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 24 of type load-state
-;; ERROR: failed type prop at 0: add failed: <uninitialized> <integer 12>
-
-;; ERROR: Function may read a register that is not set: a0
-;; ERROR: Function may read a register that is not set: a1
-;; ERROR: Function may read a register that is not set: a2
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod load-state-method-24 () (local-vars
-;;                                    (v0-0 none)
-;;                                    (v0-1 none)
-;;                                    (v1-0 none)
-;;                                    (v1-1 none)
-;;                                    (v1-2 none)
-;;                                    (v1-3 none)
-;;                                    (v1-4 none)
-;;                                    (v1-5 none)
-;;                                    (a0-0 none)
-;;                                    (a1-0 none)
-;;                                    (a1-1 none)
-;;                                    (a1-2 none)
-;;                                    (a1-3 none)
-;;                                    (a2-0 none)
-;;                                    (a2-1 none)
-;;                                    (a2-2 none)
-;;                                    (a2-3 none)
-;;                                    (t9-0 none)
-;;                                    )
-;;   (if (begin
-;;         (set! v1-0 (the-as none (+ a1-0 12)))
-;;         (set! v1-1 (the-as none (sll v1-0 5)))
-;;         (set! v1-2 (the-as none (+ a0-0 v1-1)))
-;;         (s.w! v1-2 a2-0)
-;;         a2-0
-;;         )
-;;       (set! v1-3 (the-as none 'special))
-;;       (set! v1-3 (the-as none #f))
-;;       )
-;;   (set! a2-1 (the-as none (+ a1-0 12)))
-;;   (set! a2-2 (the-as none (sll a2-1 5)))
-;;   (set! a2-3 (the-as none (+ a0-0 a2-2)))
-;;   (s.w! (+ a2-3 4) v1-3)
-;;   (set! v1-4 (the-as none (+ a1-0 12)))
-;;   (set! a1-1 (the-as none (+ a1-0 12)))
-;;   (set! a1-2 (the-as none (sll a1-1 5)))
-;;   (set! a1-3 (the-as none (+ a0-0 a1-2)))
-;;   (s.w! (+ a1-3 16) v1-4)
-;;   (set! v1-5 (the-as none (l.wu (+ a0-0 -4))))
-;;   (set! t9-0 (the-as none (l.wu (+ v1-5 104))))
-;;   (call!)
-;;   (set! v1-6 (the-as none v0-0))
-;;   (set! v0-1 (the-as none 0))
-;;   (ret-none)
-;;   )
+(defmethod load-state-method-24 ((this load-state) (arg0 int) (arg1 symbol))
+  (set! (-> this want (+ arg0 12) name) arg1)
+  (set! (-> this want (+ arg0 12) display?) (if arg1
+                                                'special
+                                                #f
+                                                )
+        )
+  (set! (-> this want (+ arg0 12) slot) (+ arg0 12))
+  (add-borrow-levels this)
+  0
+  (none)
+  )
 
 ;; failed to figure out what this is:
 (kmemopen global "load-state-struct")
