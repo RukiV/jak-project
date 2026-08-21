@@ -145,7 +145,19 @@
 ;; (cgo-file "desisles.gd" common-dep)
 ;; (cgo-file "razcred.gd" common-dep)
 ;; (cgo-file "tpa.gd" common-dep)
-;; (cgo-file "falcl.gd" common-dep)
+;; og:preserve-this armed as the falcon's designated level (issue #571): the runtime
+;; probe found vehicle-in-level? compares the boot's level name against 'falcl, so the
+;; jakvl dev-lever alias (rung 2, e76eaa04e) can never satisfy it and falcl itself has
+;; to become buildable. falcl.gd carried the identical two-typo shape jakvl.gd had
+;; before its own fix (falcon-chassis-ag.o, falcl.o both routed through the GOAL-source
+;; compile path instead of the raw-copy path every sibling panel uses); fixed both to
+;; ".go" alongside this commit. All 49 entries resolved clean on the first (mi): every
+;; raw .go copy already sat in decompiler_out/jakx/raw_obj from the game-wide raw
+;; extraction pass (not gated by levels_to_extract, unlike the fr3/decompile pass), so
+;; the dgo build step copied each straight into out/jakx/obj. FALCL.DGO built at
+;; 3,248,832 B, larger than the retail 1,835,008 B (PC-port reformatting inflation,
+;; same shape noted for other armed levels; not a parity target).
+(cgo-file "falcl.gd" common-dep)
 ;; (cgo-file "cheel.gd" common-dep)
 ;; (cgo-file "krattbox.gd" common-dep)
 ;; (cgo-file "jungtbox.gd" common-dep)

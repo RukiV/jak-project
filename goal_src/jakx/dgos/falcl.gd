@@ -1,5 +1,9 @@
+;; og:preserve-this bring-up: falcon-chassis-ag and the falcl bsp converted to .go raw
+;; copies, the same two-typo class jakvl.gd carried (falcon-chassis-ag.o, jakvl.o) before
+;; its own arming fix; every sibling panel and wheel entry here was already .go. falcl is
+;; the falcon's designated level, not the jakvl dev-lever alias (issue #571).
 ("FALCL.DGO"
- ("falcon-chassis-ag.o"
+ ("falcon-chassis-ag.go"
   "falcon-door-a-ag.go"
   "falcon-door-b-ag.go"
   "falcon-door-c-ag.go"
@@ -47,5 +51,5 @@
   "wheel-t-ag.go"
   "wheel-u-ag.go"
   "wheel-v-ag.go"
-  "falcl.o"
+  "falcl.go"
  ))
