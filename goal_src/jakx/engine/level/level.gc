@@ -10037,17 +10037,18 @@ drive/camera logic below ever runs."
   ;; Gated on *jakx-racer* inside the tick itself, like its neighbors above.
   (jakx-racer-tick)
   (update-level-inside-boxes this)
-  ;; og:preserve-this gui/art pump, gui-art pump lane (issues 522/550/551):
-  ;; jak3's own level-update runs a four-call pump block here (level.gc:
-  ;; 3572-3576, (update *setting-control*) (update *gui-control* #t)
-  ;; (update *art-control* #t) (clear-rec *art-control*)); jakx's landed
-  ;; level-update omitted it entirely, so nothing pumped the gui or art
-  ;; state machines and any queued gui connection (the scene-player's
-  ;; art-load requests among them) sat at birth status forever. This
-  ;; rung's own scoped decode of jakx's own retail level-update (level.o's
-  ;; ir2, ops 8-28) confirms three of jak3's own four calls at the
-  ;; identical relative position and settles their real jakx argument
-  ;; shapes directly from the machine code, not copied from jak3's twin:
+  ;; og:preserve-this gui/art pump, gui-control update-connection completion
+  ;; lane (issues 522/550/551): jak3's own level-update runs a four-call
+  ;; pump block here (level.gc:3572-3576, (update *setting-control*)
+  ;; (update *gui-control* #t) (update *art-control* #t) (clear-rec
+  ;; *art-control*)); jakx's landed level-update originally omitted it
+  ;; entirely, so nothing pumped the gui or art state machines and any
+  ;; queued gui connection (the scene-player's art-load requests among
+  ;; them) sat at birth status forever. A prior rung's own scoped decode of
+  ;; jakx's own retail level-update (level.o's ir2, ops 8-28) confirmed all
+  ;; four of jak3's own calls at the identical relative position and
+  ;; settled their real jakx argument shapes directly from the machine
+  ;; code, not copied from jak3's twin:
   ;;
   ;; - setting-control-method-24 (ops 8-11, vtable offset 112, zero args
   ;;   beyond this): jakx has not aliased this method "update" the way
@@ -10055,22 +10056,30 @@ drive/camera logic below ever runs."
   ;;   own existing landed caller (main.gc's display-loop init, issue
   ;;   550/551's own grep found no other jakx caller before this one).
   ;;   Already landed (settings.gc), safe to wire.
+  ;; - gui-control-method-13 (ops 13-17, vtable offset 68, one explicit
+  ;;   arg, #t): landed this rung (loader.gc), wired here for the first
+  ;;   time. The prior hold on this call site cited two blockers, both
+  ;;   retired this rung: gui-control-method-13's own body unconditionally
+  ;;   dispatched the then-walled gui-control-method-23, now landed clean
+  ;;   (its own og:preserve-this note, loader.gc, has the CFG-wall fix);
+  ;;   and this exact call site's own second argument register (a2) read
+  ;;   "uninitialized" under method 13's then-declared 2-arg vector shape,
+  ;;   which this rung's own corpus-wide settling check (a full decode
+  ;;   grepped for "not set: a2" and any new gui-control method 13/21/22/23
+  ;;   diagnostic) found no other caller ever supplying either; the vector
+  ;;   arg was manufactured, and the corrected 1-arg declaration (gui-h.gc)
+  ;;   drops the register entirely, so there is no uninitialized value left
+  ;;   to worry about.
   ;; - external-art-control's own update (ops 19-23, vtable offset 52, one
-  ;;   explicit arg, #t): landed this same rung (loader.gc).
+  ;;   explicit arg, #t): landed a prior rung (loader.gc).
   ;; - clear-rec (ops 25-28, vtable offset 56, zero explicit args): already
   ;;   landed.
   ;;
-  ;; gui-control-method-13 (ops 13-17, vtable offset 68) is NOT wired: its
-  ;; own body stays held (loader.gc's own og:preserve-this note on that
-  ;; method has the full evidence) because it unconditionally dispatches
-  ;; the walled gui-control-method-23, and independently, this exact call
-  ;; site's own second argument register (a2) is never set before the
-  ;; jalr ("a2: <uninitialized>" per the decompiler's own dataflow),
-  ;; leaving no settled value to pass even if the callee were safe.
   ;; *gui-control* and *art-control* are both bound at link (loader.gc's
   ;; own og:preserve-this notes on their global instances); no nonzero?
   ;; guard here, matching retail, which has none either.
   (setting-control-method-24 *setting-control*)
+  (gui-control-method-13 *gui-control* #t)
   (update *art-control* #t)
   (clear-rec *art-control*)
   (update! *load-state*)
