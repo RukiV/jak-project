@@ -1561,35 +1561,152 @@
   (none)
   )
 
-;; og:preserve-this gui-control-method-21, HELD (gui-control update-
-;; connection completion lane, issues 522/550/551): the prior held note on
-;; this method (gui-art pump lane) reasoned it could not be reached
-;; because both of its own dispatch sites (in gui-control-method-23,
-;; landed below) were behind a CFG wall the caller could not clear. That
-;; premise is gone: method 23 decodes clean this rung (the wall was a
-;; missing hacks.jsonc block-list entry, not a signature or reachability
-;; problem, see method 23's own og:preserve-this note below), so method 21
-;; is genuinely reachable the moment either of method 23's own flags-bit
-;; guards is satisfied. It still fails on its own merits: a fresh scoped
-;; decode of this method's own body fails type prop at op 40 ("Could not
-;; figure out load: (set! a1 (l.wu (+ v1 184)))") and cannot guess stack
-;; use for a 16-byte stack allocation. This is the same wall the
-;; investigation that staged this rung's other config deltas hit and left
-;; unresolved; no stack_structures.jsonc entry from that investigation
-;; exists to retire this note, and this rung did not derive one either.
-;; Retirement condition: a verified stack_structures.jsonc entry (plus at
-;; most one type_casts.jsonc cast) that takes a fresh scoped decode of this
-;; method's own body fully clean.
+;; og:preserve-this gui-control-method-21, LANDED (gui-control update-
+;; connection completion lane, issues 522/550/551): the prior held note
+;; argued this method's null slot was safe rather than unreachable while
+;; method 23's own two flags-bit-guarded dispatch sites stayed live; probe 7
+;; proved that argument wrong in practice, crashing through the null slot
+;; the moment a scene-player exists (the e2-class hazard the note tracked
+;; open), so this method comes off hold as a forcing event rather than a
+;; routine sweep.
 ;;
-;; Its call sites while unlanded are argued safe rather than unreachable:
-;; method 9's own body sets flags to gcf0 alone (flags == 1) on the null
-;; slot, and both of method 23's own guards require a masked bit in
-;; addition to gcf0, so a scene connection's null slot never dispatches
-;; method 21. Sound and speech connections that method 20 (sound-params-
-;; set!) enriches with the wider flag set CAN reach it; that path is a real,
-;; not merely theoretical, hazard while this method stays unlanded (issue
-;; 551's e2-class concern), tracked open by this note rather than argued
-;; away.
+;; The wall was exactly the retirement condition the held note already
+;; named. Op 40 ("Could not figure out load: (set! a1 (l.wu (+ v1 184)))")
+;; reads v1 at the type?-narrowed process-drawable candidate this method's
+;; own body confirms two ops earlier (op 34's type? call) but the
+;; decompiler still holds at the generic process the vtable call returned;
+;; raw 184 is process-drawable's own root field, offset-assert 188
+;; (all-types.gc, the +4 basic-offset convention), the same (-> (the-as
+;; process-drawable v1-8) root) read jak3's own twin performs under its own
+;; gcf1 guard. One type_casts.jsonc window, ntsc_v1's "(method 21
+;; gui-control)" covering ops 40-44 (both raw-184 reads plus the +12 trans
+;; offset the second feeds), resolves it. The stack failure was a real
+;; second wall, not a symptom of the first: sp+32 spills a single fo-min
+;; float into calculate-falloff-volume's own a3 slot via an mfc1/mtc1
+;; round-trip then a full 128-bit EE GPR load (lq), which the auto-guesser
+;; mistypes as the plain 4-byte float its lone swc1 store implies ("Stack
+;; slot load at 32 mismatch: defined as size 4, got size 16"); one
+;; stack_structures.jsonc entry declaring it a vector resolves this too.
+;; Both entries are this rung's own (ntsc_v1/type_casts.jsonc and
+;; ntsc_v1/stack_structures.jsonc, "(method 21 gui-control)"); no entry
+;; from an earlier investigation existed to retire this note.
+;;
+;; jakx's own body diverges substantially from jak3's twin here, a real
+;; divergence rather than a decode artifact, the same class the andi-46
+;; precedent names for method 23 below: jak3's method 21 builds its
+;; sound-rpc-set-param command through sound-trans-convert and a mask of
+;; individually-set fo-curve/fo-min/fo-max/volume fields, with no local
+;; falloff or pan-angle math at all. jakx's body instead computes a real
+;; positional-audio pipeline, sound-trans-copy into a stack vector, then
+;; calculate-falloff-volume and calculate-pan-angle (both jakx-only,
+;; goal_src/jakx/engine/sound/gsound.gc, absent from every jak1/2/3 tree),
+;; gated behind a gcf6 flag that picks a simple direct-volume path instead
+;; when set. This is jakx's own expanded sound engine, not a simplification
+;; or an improvement made in landing. get-sound-buffer-entry, get-process
+;; (connect.gc), sound-trans-copy, calculate-falloff-volume, calculate-pan-
+;; angle and ear-trans are this method's only callees, all already landed
+;; with real bodies (gsound.gc, connect.gc); this method dispatches no
+;; unlanded slot.
+;;
+;; One post-decompile fix was needed to compile, not to decompile, and it is
+;; a real cast, not a syntax-only one: get-sound-buffer-entry's own declared
+;; return is plain pointer, so the decompiler leaves gp-0 untyped and prints
+;; every write through it as raw s.h!/s.b!/s.w! address arithmetic
+;; ("Cannot do math on a pointer" on the decode's own (+ gp-0 N), and
+;; s.h!/s.b!/s.w! have no overload for pointer OR int once an address cast
+;; papers over that, confirmed by a standalone goalc probe against every
+;; candidate address type). This is the same raw-pointer-arithmetic class
+;; this file's own ja-play-spooled-anim held note names as one reason that
+;; function stays uncompiled; every other s.h!/s.w!/s.d!/s.q! call site
+;; found anywhere in jak1/2/3/x is either inside a #| |# hold or an
+;; (#unless PC_PORT ...) block that never compiles for this port, so this
+;; is a structural class, not a one-off. It resolves here because the raw
+;; offsets this method's own body writes (2, 4, 16, 17, 18, 24) line up
+;; exactly, byte for byte, with sound-rpc-set-param's own already-declared
+;; fields (all-types.gc: command 2, id 4, params 16, params.mask 16,
+;; params.group 17, params.volume 18, params.pan 24); (the-as
+;; sound-rpc-set-param (get-sound-buffer-entry)) at the binding and real
+;; (-> gp-0 ...) field writes in place of the raw stores is the same
+;; command buffer at the same addresses, not an invented struct, and
+;; matches jak3's own twin idiom for this exact call (casting
+;; get-sound-buffer-entry's result before writing it) despite the two
+;; bodies otherwise diverging. jakx's own sound-command enum is not landed
+;; anywhere in this tree yet, so the command field keeps its raw decoded
+;; value, 8, rather than a guessed (sound-command ...) symbol; jak3's own
+;; enum value 8 is pause-sound, not set-param, so the two games' command
+;; numbering does not obviously match and translating it here would be
+;; inventing, not transcribing.
+;;
+;; Provenance: scoped decode of loader against this rung's own worktree
+;; config, allowed_objects ["loader"], zero errors for (method 21
+;; gui-control) after both config entries above; the sound-rpc-set-param
+;; cast above is goalc's own (mi) verdict, not a decompiler-reported error.
+(defmethod gui-control-method-21 ((this gui-control) (arg0 gui-connection))
+  (when *sound-player-enable*
+    (let ((gp-0 (the-as sound-rpc-set-param (get-sound-buffer-entry))))
+      (let ((v1-2 8))
+        (set! (-> gp-0 command) v1-2)
+        )
+      (let ((v1-3 (-> arg0 id)))
+        (set! (-> gp-0 id) v1-3)
+        )
+      (set! (-> gp-0 params mask) 0)
+      (let ((v1-6 (if (-> *setting-control* user-current unknown-usd-752)
+                      7
+                      2
+                      )
+                  )
+            )
+        (set! (-> gp-0 params group) v1-6)
+        )
+      (cond
+        ((not (logtest? (-> arg0 flags) (gui-connection-flags gcf6)))
+         (let ((s4-0 (new 'stack-no-clear 'vector)))
+           (let ((s3-0 (the-as vector #f)))
+             (when (logtest? (-> arg0 flags) (gui-connection-flags gcf1))
+               (let ((v1-13 (as-type (get-process arg0) process-drawable)))
+                 (if (and v1-13 (nonzero? (-> (the-as process-drawable v1-13) root)))
+                     (set! s3-0 (-> (the-as process-drawable v1-13) root trans))
+                     )
+                 )
+               )
+             (sound-trans-copy s4-0 s3-0)
+             )
+           (let ((v1-17 (the int (* 1024.0 (calculate-falloff-volume
+                                             (-> arg0 volume)
+                                             s4-0
+                                             (-> arg0 fo-power)
+                                             (-> arg0 fo-min)
+                                             (-> arg0 fo-max)
+                                             (ear-trans 0 0)
+                                             (the-as sound-instance #f)
+                                             )
+                                    )
+                             )
+                        )
+                 )
+             (set! (-> gp-0 params volume) v1-17)
+             )
+           (let ((v1-19 (the int (* 0.005493164 (calculate-pan-angle s4-0 #f #f #f 0)))))
+             (set! (-> gp-0 params pan) v1-19)
+             )
+           )
+         )
+        (else
+          (let ((v1-21 (logior (-> gp-0 params mask) 16)))
+            (set! (-> gp-0 params mask) v1-21)
+            )
+          (let ((v1-23 (the int (* 1024.0 (-> arg0 volume)))))
+            (set! (-> gp-0 params volume) v1-23)
+            )
+          (set! (-> gp-0 params pan) 0)
+          0
+          )
+        )
+      )
+    )
+  0
+  )
 
 ;; og:preserve-this gui-control-method-23, update-connection (gui-control
 ;; update-connection completion lane, issues 522/550/551): landed this

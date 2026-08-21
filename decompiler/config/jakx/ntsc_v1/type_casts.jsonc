@@ -7900,6 +7900,23 @@
   "(method 11 external-art-control)": [[[15, 17], "s5", "process-drawable"]],
   "(method 10 gui-control)": [[[9, 11], "s3", "gui-connection"]],
   "(method 22 gui-control)": [[53, "v1", "process-drawable"]],
+  // (method 21 gui-control), gui-control update-connection completion lane
+  // (issues 522/550/551): op 40 fails type prop on the same idiom method 22's
+  // own cast above resolves, a raw load off v1 at machine offset 184
+  // ("Could not figure out load: (set! a1 (l.wu (+ v1 184)))"). v1 at that
+  // point is this method's own type?-checked candidate (op 34's type? call
+  // against process-drawable, op 36's v1 = s2-0 on the pass branch), so the
+  // decompiler holds it at the generic process type the vtable call
+  // returned rather than the narrowed type the runtime check already
+  // proved. Raw 184 is 4 mod 4-aligned and 4 below process-drawable's own
+  // root field, offset-assert 188 (all-types.gc; the +4 basic-offset
+  // convention docs/jakx-bringup-quickstart.md names), so this is the same
+  // (-> (the-as process-drawable v1-8) root) read jak3's twin body performs
+  // under its own logtest? gcf1 guard, not a new field. Op 43 re-reads the
+  // identical raw 184 load (the compiler re-fetches root rather than
+  // caching it) to compute root's own trans field address (+12 raw, +16
+  // declared, trsq's offset-assert 16), so the window covers both reads.
+  "(method 21 gui-control)": [[[40, 44], "v1", "process-drawable"]],
   // hud-widgets-tier rung: spawn-hud-side-split-bar, spawn-hud-top-split-bar
   // and spawn-hud-slowmo each store 0 at machine offset 6372 of the newly
   // spawned child process (clearing the manager field before the caller

@@ -326,17 +326,11 @@
     ;; 522/550/551): both of gui-control-method-23's own dispatch sites
     ;; (loader.gc) pass a single gui-connection to this method under a
     ;; flags-bit guard; the old zero-arg declaration was a placeholder.
-    ;; STILL UNLANDED: a fresh scoped decode of this method's own body still
-    ;; fails type prop at op 40 ("Could not figure out load: (set! a1 (l.wu
-    ;; (+ v1 184)))") and cannot guess stack use for a 16-byte stack
-    ;; allocation, the same wall the investigation that staged this rung's
-    ;; other config deltas hit and did not resolve; no stack_structures.jsonc
-    ;; entry from that investigation exists to retire this note. Retirement
-    ;; condition: a verified stack_structures.jsonc entry (plus at most one
-    ;; type_casts.jsonc cast) that takes a fresh scoped decode of this
-    ;; method's own body fully clean. Its own safety while unlanded is
-    ;; argued on the caller side, gui-control-method-23's own defmethod,
-    ;; loader.gc.
+    ;; LANDED this rung: probe 7 (issues 522/551) proved the hazard the prior
+    ;; held note only argued away in practice, forcing this method off hold.
+    ;; The wall was exactly the retirement condition already on file, one
+    ;; type_casts.jsonc cast and one stack_structures.jsonc entry (both
+    ;; ntsc_v1, "(method 21 gui-control)"), see loader.gc's own landing note.
     (gui-control-method-21 (_type_ gui-connection) int)
     ;; og:preserve-this arg count corrected back to a 1-arg shape, (_type_
     ;; gui-connection) int (gui-control update-connection completion lane,

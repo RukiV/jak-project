@@ -1578,5 +1578,16 @@
   // untyped ("the-as uint sp-0"), which decodes syntactically but fails
   // GOAL compilation outright ("Cannot access array of type uint") the
   // first time the compiler, not the decompiler, checks the array access.
-  "(method 13 gui-control)": [[16, ["array", "sound-id", 4]]]
+  "(method 13 gui-control)": [[16, ["array", "sound-id", 4]]],
+  // (method 21 gui-control), gui-control update-connection completion lane
+  // (issues 522/550/551): sp+32 spills a single fo-min float into calculate-
+  // falloff-volume's own a3 slot via an mfc1/mtc1 round-trip then an lq (a
+  // full 128-bit EE GPR load), not the plain 4-byte float the auto-guesser
+  // infers from the lone swc1 store that fills it ("Stack slot load at 32
+  // mismatch: defined as size 4, got size 16"). sp+16, the sound-trans-copy
+  // dest buffer this method's own type?-narrowed root/trans read (this
+  // file's type_casts.jsonc, "(method 21 gui-control)") feeds, resolves on
+  // its own from that call's own (dest vector) parameter type and needs no
+  // entry here.
+  "(method 21 gui-control)": [[32, "vector"]]
 }
