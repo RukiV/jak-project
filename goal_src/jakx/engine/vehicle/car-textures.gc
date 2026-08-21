@@ -13,6 +13,12 @@
 ;; interface.gc's own entity-by-name precedent.
 (define-extern vu-lights<-light-group! (function vu-lights light-group none))
 
+;; og:preserve-this runtime-link extern, issue 571: lookup-level-texture-by-name
+;; is already declared in the landed texture.gc, but that file compiles after
+;; car-textures.gc in the real build order, same precedent as
+;; vu-lights<-light-group! above.
+(define-extern lookup-level-texture-by-name (function string level (pointer texture-page) texture))
+
 ;; definition of type car-texture-work
 (deftype car-texture-work (structure)
   ((adgif-tmpl   dma-gif-packet  :inline)
@@ -289,76 +295,457 @@
   )
 
 ;; definition for method 15 of type car-info-full
-;; og:preserve-this bring-up stub, issue 571: NOT retail's body. The real
-;; method 15 breaks at op 123: a growable write-cursor pointer (built one
-;; adgif-shader-sized template at a time, the same shape all-types.gc's
-;; own car-info-full deftype comment documents for methods 20/21 below)
-;; is read back at its own offset 0 ("Could not figure out load: (set! a0
-;; (l.h v1))"); the same comment records that typing this cursor as
-;; car-layer-textures was tried and reverted for methods 20/21 because
-;; the identical field is read both as a fixed struct member and as a
-;; raw growable cursor, and no structure type resolves both. The real
-;; landing (the car-texture layout pass, its own lane) stays held on
-;; that write-cursor field ambiguity; the raw decode is preserved in the
-;; REF file for reference.
-;;
-;; This stub exists only to disarm the null-slot dispatch: login-begin's
-;; (= state elts) branch unconditionally runs (car-info-full-method-15
-;; (-> *car-level-array* data (+ (-> this index) -6))) for every level
-;; with index 6 to 11 (level.gc:1490), and with no defmethod anywhere the
-;; slot was 0, so that call jumped straight to GOAL address 0 and killed
-;; every car-level load, falcl included, byte-identically reproduced
-;; (issue 571). Expected consequence: car textures stay un-laid-out (no
-;; adgif-shader templates built) until the real body lands. Retirement
-;; condition: the real method 15 landing.
-;;
-;; Sibling holds for the next car rung: methods 16/20/21 stay
-;; uninstalled (16 has its own separate damage-array indexing defect at
-;; op 254, see below; 20/21 share method 15's write-cursor defect; none
-;; of the three has a live goal_src call site yet, so the e2 discipline
-;; leaves them alone); lay-out-car-tex and lay-out-driver-tex both stay
-;; commented out in texture.gc (texture.gc:904, :1026).
+;; WARN: Return type mismatch int vs none.
 (defmethod car-info-full-method-15 ((this car-info-full))
+  (let* ((s5-0 (-> this textures))
+         (s4-0 (-> this level))
+         (s3-0 (lay-out-car-tex *texture-pool* s4-0))
+         )
+    (let ((sv-48 (new 'stack 'car-name-info)))
+      (set! (-> this first-tbp) (the-as uint s3-0))
+      (set! (-> sv-48 name) (-> *car-type-names* (-> this car-type)))
+      (dotimes (s2-0 14)
+        (let ((v1-10 (-> this current-parts (-> *car-part-translate-array* s2-0))))
+          (cond
+            ((= v1-10 -1)
+             (countdown (v1-11 6)
+               (set! (-> (the-as (pointer symbol) (+ (+ (* 24 s2-0) (* v1-11 4)) (the-as int s5-0)))) #f)
+               )
+             )
+            ((= s2-0 11)
+             (let ((s1-0 (-> *car-look-names* v1-10)))
+               (format (clear *car-string-name*) "wheel-~s-wheel-dest" s1-0)
+               (set! (-> s5-0 data s2-0 dest)
+                     (lookup-level-texture-by-name *car-string-name* s4-0 (the-as (pointer texture-page) #f))
+                     )
+               (format (clear *car-string-name*) "wheel-~s-wheel-base" s1-0)
+               (set! (-> s5-0 data s2-0 base)
+                     (lookup-level-texture-by-name *car-string-name* s4-0 (the-as (pointer texture-page) #f))
+                     )
+               (format (clear *car-string-name*) "wheel-~s-wheel-blur" s1-0)
+               (set! (-> s5-0 data s2-0 stripe)
+                     (lookup-level-texture-by-name *car-string-name* s4-0 (the-as (pointer texture-page) #f))
+                     )
+               (let ((v1-28 (-> s5-0 data s2-0 dest))
+                     (a0-24 (-> s5-0 data s2-0 base))
+                     )
+                 (when (and v1-28 a0-24)
+                   (set! (-> v1-28 w) (-> a0-24 w))
+                   (set! (-> v1-28 h) (-> a0-24 h))
+                   (set! (-> v1-28 dest 0) (the-as uint s3-0))
+                   (set! (-> v1-28 psm) (gs-psm ct32))
+                   (set! (-> v1-28 width 0) (the-as uint (/ (+ (-> v1-28 w) 63) 64)))
+                   (set! (-> v1-28 num-mips) (the-as uint 1))
+                   (set! s3-0 (* (/ (+ (/ (* (* (-> v1-28 h) (-> v1-28 w)) 4) 256) 31 s3-0) 32) 32))
+                   )
+                 )
+               (format (clear *car-string-name*) "wheel-~s-tread-dest" s1-0)
+               (set! (-> s5-0 data s2-0 detail)
+                     (lookup-level-texture-by-name *car-string-name* s4-0 (the-as (pointer texture-page) #f))
+                     )
+               (format (clear *car-string-name*) "wheel-~s-tread-base" s1-0)
+               (set! (-> s5-0 data s2-0 damage)
+                     (lookup-level-texture-by-name *car-string-name* s4-0 (the-as (pointer texture-page) #f))
+                     )
+               (format (clear *car-string-name*) "wheel-~s-tread-blur" s1-0)
+               (set! (-> s5-0 data s2-0 tread-blur)
+                     (lookup-level-texture-by-name *car-string-name* s4-0 (the-as (pointer texture-page) #f))
+                     )
+               (let ((v1-48 (-> s5-0 data s2-0 detail))
+                     (a0-43 (-> s5-0 data s2-0 damage))
+                     )
+                 (when (and v1-48 a0-43)
+                   (set! (-> v1-48 w) (-> a0-43 w))
+                   (set! (-> v1-48 h) (-> a0-43 h))
+                   (set! (-> v1-48 dest 0) (the-as uint s3-0))
+                   (set! (-> v1-48 psm) (gs-psm ct32))
+                   (set! (-> v1-48 width 0) (the-as uint (/ (+ (-> v1-48 w) 63) 64)))
+                   (set! (-> v1-48 num-mips) (the-as uint 1))
+                   (set! s3-0 (* (/ (+ (/ (* (* (-> v1-48 h) (-> v1-48 w)) 4) 256) 31 s3-0) 32) 32))
+                   )
+                 )
+               (format (clear *car-string-name*) "tread-~s" s1-0)
+               )
+             (set! (-> this tread-texture)
+                   (lookup-level-texture-by-name *car-string-name* s4-0 (the-as (pointer texture-page) #f))
+                   )
+             )
+            (else
+              (set! (-> sv-48 part-dest-name) (-> *car-part-names* s2-0))
+              (set! (-> sv-48 part-source-name) (-> *car-part-translate-names* (-> *car-part-translate-array* s2-0)))
+              (set! (-> sv-48 look-name) (-> *car-look-names* v1-10))
+              (set! (-> sv-48 damage) (the-as int (-> this damage s2-0)))
+              (countdown (s1-1 5)
+                (set! (-> sv-48 layer-name) (-> *car-layer-names* s1-1))
+                (if (zero? s1-1)
+                    (format
+                      (clear *car-string-name*)
+                      "~s-~s-~s-~s"
+                      (-> sv-48 name)
+                      (-> sv-48 part-dest-name)
+                      (-> sv-48 look-name)
+                      (-> sv-48 layer-name)
+                      )
+                    (format
+                      (clear *car-string-name*)
+                      "~s-~s-~s-~s"
+                      (-> sv-48 name)
+                      (-> sv-48 part-source-name)
+                      (-> sv-48 look-name)
+                      (-> sv-48 layer-name)
+                      )
+                    )
+                (let ((v1-75 (lookup-level-texture-by-name *car-string-name* s4-0 (the-as (pointer texture-page) #f))))
+                  (set! (-> (the-as (pointer texture) (+ (+ (* 24 s2-0) (* s1-1 4)) (the-as int s5-0)))) v1-75)
+                  (when (and v1-75 (and (-> s5-0 data s2-0 base) (zero? s1-1)))
+                    (let ((a0-85 (-> s5-0 data s2-0 base)))
+                      (set! (-> v1-75 w) (-> a0-85 w))
+                      (set! (-> v1-75 h) (-> a0-85 h))
+                      )
+                    (set! (-> v1-75 dest 0) (the-as uint s3-0))
+                    (set! (-> v1-75 psm) (gs-psm ct32))
+                    (set! (-> v1-75 width 0) (the-as uint (/ (+ (-> v1-75 w) 63) 64)))
+                    (set! (-> v1-75 num-mips) (the-as uint 1))
+                    (set! s3-0 (* (/ (+ (/ (* (* (-> v1-75 h) (-> v1-75 w)) 4) 256) 31 s3-0) 32) 32))
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    (set! (-> this last-tbp) (the-as uint s3-0))
+    )
   0
   (none)
   )
 
 ;; definition for method 20 of type car-info-full
-;; ERROR: function was not converted to expressions. Cannot decompile.
-;;
-;; og:preserve-this: (method 20 car-info-full) and (method 21
-;; car-info-full) (jak3 twin shape: both build one adgif-shader-sized,
-;; 112-byte texture-layer template into a growing pointer read from
-;; arg1's own offset 4) share the exact defect all-types.gc's own
-;; car-info-full deftype comment documents in full: arg1 looks like a
-;; car-layer-textures element by its offset-4 field read, but typing it
-;; that way was tried and reverted because the SAME field is read here
-;; as a raw, growable write cursor, and no structure type both resolves
-;; the field lookup and survives the subsequent pointer math. The
-;; offset-4 load itself stays an open "could not figure out load"
-;; defect on arg1 pending disambiguation. Held un-landed; the raw
-;; decode is preserved in the REF file for reference.
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-20 ((this car-info-full) (arg0 dma-buffer) (arg1 texture) (arg2 int) (arg3 int) (arg4 int))
+  (let ((v1-0 *display*)
+        (a0-1 224)
+        )
+    (+! (-> v1-0 mem-reserve-size) a0-1)
+    (when (not (-> v1-0 dma-buffer-overflow))
+      (let ((a3-1 (-> v1-0 frames (-> v1-0 on-screen) global-buf)))
+        (if (< (-> a3-1 real-buffer-end) (the-as int (&+ (-> a3-1 base) a0-1)))
+            (set! (-> v1-0 dma-buffer-overflow) #t)
+            )
+        )
+      (when (not (-> v1-0 dma-buffer-overflow))
+        (let ((s1-0 *car-texture-work*))
+          (let ((v1-2 (-> arg0 base)))
+            (set! (-> (the-as (pointer uint128) v1-2) 0) (-> s1-0 adgif-tmpl dma-vif quad))
+            (set! (-> (the-as (pointer uint128) v1-2) 1) (-> s1-0 adgif-tmpl quad 1))
+            (let ((s0-0 (&+ v1-2 32)))
+              (adgif-shader<-texture-simple! (the-as adgif-shader s0-0) arg1)
+              (set! (-> (the-as (pointer uint64) s0-0) 5) (the-as uint 71))
+              (case arg2
+                ((1)
+                 (set! (-> (the-as (pointer uint64) s0-0) 8) (the-as uint 0))
+                 (set! (-> (the-as (pointer uint64) s0-0) 4) (the-as uint #x31001))
+                 )
+                (else
+                  (set! (-> (the-as (pointer uint64) s0-0) 4) (the-as uint #x33001))
+                  )
+                )
+              )
+            )
+          (&+! (-> arg0 base) 112)
+          (let ((v1-9 (-> arg0 base)))
+            (set! (-> (the-as (pointer uint128) v1-9) 0) (-> s1-0 sprite-tmpl dma-vif quad))
+            (set! (-> (the-as (pointer uint128) v1-9) 1) (-> s1-0 sprite-tmpl quad 1))
+            (cond
+              ((= arg2 1)
+               (set! (-> (the-as (pointer uint128) v1-9) 2) (-> this base-color quad))
+               )
+              ((= arg2 2)
+               (set! (-> (the-as (pointer uint128) v1-9) 2) (-> this stripe-color quad))
+               )
+              (else
+                (set! (-> (the-as (pointer uint128) v1-9) 2) (-> s1-0 white quad))
+                )
+              )
+            (let ((a0-16 (&+ v1-9 48)))
+              (set! (-> (the-as (pointer float) a0-16)) 0.0)
+              (set! (-> (the-as (pointer float) a0-16) 1) 0.0)
+              (set! (-> (the-as (pointer float) a0-16) 2) 1.0)
+              (set! (-> (the-as (pointer float) a0-16) 3) 0.0)
+              )
+            (let ((a0-17 (the-as (pointer int32) (&+ v1-9 64))))
+              (set! (-> a0-17 0) 0)
+              (set! (-> a0-17 1) 0)
+              (set! (-> a0-17 2) #xffffff)
+              (set! (-> a0-17 3) 0)
+              )
+            (let ((a0-18 (&+ v1-9 80)))
+              (set! (-> (the-as (pointer float) a0-18)) 1.0)
+              (set! (-> (the-as (pointer float) a0-18) 1) 1.0)
+              (set! (-> (the-as (pointer float) a0-18) 2) 1.0)
+              (set! (-> (the-as (pointer float) a0-18) 3) 0.0)
+              )
+            (let ((v1-10 (&+ v1-9 96)))
+              (set! (-> (the-as (pointer int32) v1-10) 0) (* arg3 16))
+              (set! (-> (the-as (pointer int32) v1-10) 1) (* arg4 16))
+              (set! (-> (the-as (pointer int32) v1-10) 2) #xffffff)
+              (set! (-> (the-as (pointer int32) v1-10) 3) 0)
+              )
+            )
+          )
+        (&+! (-> arg0 base) 112)
+        )
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 21 of type car-info-full
-;; ERROR: function was not converted to expressions. Cannot decompile.
-;; og:preserve-this: see (method 20 car-info-full) above, identical
-;; defect and identical shape.
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-21 ((this car-info-full) (arg0 dma-buffer) (arg1 texture) (arg2 int) (arg3 int) (arg4 int))
+  (let ((v1-0 *display*)
+        (a0-1 224)
+        )
+    (+! (-> v1-0 mem-reserve-size) a0-1)
+    (when (not (-> v1-0 dma-buffer-overflow))
+      (let ((a3-1 (-> v1-0 frames (-> v1-0 on-screen) global-buf)))
+        (if (< (-> a3-1 real-buffer-end) (the-as int (&+ (-> a3-1 base) a0-1)))
+            (set! (-> v1-0 dma-buffer-overflow) #t)
+            )
+        )
+      (when (not (-> v1-0 dma-buffer-overflow))
+        (let ((s2-0 *car-texture-work*))
+          (let ((v1-2 (-> arg0 base)))
+            (set! (-> (the-as (pointer uint128) v1-2) 0) (-> s2-0 adgif-tmpl dma-vif quad))
+            (set! (-> (the-as (pointer uint128) v1-2) 1) (-> s2-0 adgif-tmpl quad 1))
+            (let ((s1-0 (&+ v1-2 32)))
+              (adgif-shader<-texture-simple! (the-as adgif-shader s1-0) arg1)
+              (set! (-> (the-as (pointer uint64) s1-0) 5) (the-as uint 71))
+              (cond
+                ((or (= arg2 1) (= arg2 4))
+                 (set! (-> (the-as (pointer uint64) s1-0) 8) (the-as uint 0))
+                 (set! (-> (the-as (pointer uint64) s1-0) 4) (the-as uint #x31001))
+                 )
+                (else
+                  (set! (-> (the-as (pointer uint64) s1-0) 4) (the-as uint #x33001))
+                  )
+                )
+              )
+            )
+          (&+! (-> arg0 base) 112)
+          (let ((v1-10 (-> arg0 base)))
+            (set! (-> (the-as (pointer uint128) v1-10) 0) (-> s2-0 sprite-tmpl dma-vif quad))
+            (set! (-> (the-as (pointer uint128) v1-10) 1) (-> s2-0 sprite-tmpl quad 1))
+            (if (or (= arg2 1) (= arg2 4))
+                (set! (-> (the-as (pointer uint128) v1-10) 2) (-> s2-0 white quad))
+                (set! (-> (the-as (pointer uint128) v1-10) 2) (-> s2-0 blur quad))
+                )
+            (let ((a0-16 (&+ v1-10 48)))
+              (set! (-> (the-as (pointer float) a0-16)) 0.0)
+              (set! (-> (the-as (pointer float) a0-16) 1) 0.0)
+              (set! (-> (the-as (pointer float) a0-16) 2) 1.0)
+              (set! (-> (the-as (pointer float) a0-16) 3) 0.0)
+              )
+            (let ((a0-17 (the-as (pointer int32) (&+ v1-10 64))))
+              (set! (-> a0-17 0) 0)
+              (set! (-> a0-17 1) 0)
+              (set! (-> a0-17 2) #xffffff)
+              (set! (-> a0-17 3) 0)
+              )
+            (let ((a0-18 (&+ v1-10 80)))
+              (set! (-> (the-as (pointer float) a0-18)) 1.0)
+              (set! (-> (the-as (pointer float) a0-18) 1) 1.0)
+              (set! (-> (the-as (pointer float) a0-18) 2) 1.0)
+              (set! (-> (the-as (pointer float) a0-18) 3) 0.0)
+              )
+            (let ((v1-11 (&+ v1-10 96)))
+              (set! (-> (the-as (pointer int32) v1-11) 0) (* arg3 16))
+              (set! (-> (the-as (pointer int32) v1-11) 1) (* arg4 16))
+              (set! (-> (the-as (pointer int32) v1-11) 2) #xffffff)
+              (set! (-> (the-as (pointer int32) v1-11) 3) 0)
+              )
+            )
+          )
+        (&+! (-> arg0 base) 112)
+        )
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 16 of type car-info-full
-;; ERROR: function was not converted to expressions. Cannot decompile.
-;;
-;; og:preserve-this: (method 16 car-info-full) is the source-side twin
-;; of the write-cursor pattern held above (method 15 and methods 20/21):
-;; every read of this, indexed s2, into its own damage array (offset-
-;; assert 76, int8 x14) fails at op 254 ("Could not figure out load:
-;; (set! a0 (l.bu (+ a0 76)))"); casting the add result to car-info-
-;; full itself, and separately to a raw (pointer int8), both leave the
-;; same op erroring. The fallout collapses the rest of this large
-;; function (roughly 600 lines) to raw MIPS fallback forms (sll on a
-;; plain int, first hit at op 356 of the fresh decode) that are not
-;; valid GOAL and will not compile. Held un-landed until the damage-
-;; array indexing defect is resolved; the raw decode is preserved in
-;; the REF file for reference.
+;; WARN: Return type mismatch int vs none.
+(defmethod car-info-full-method-16 ((this car-info-full) (arg0 bucket-id))
+  (with-dma-buffer-add-bucket ((s3-0 (-> *display* frames (-> *display* on-screen) global-buf))
+                               arg0
+                               )
+    (let ((sv-16 (-> this textures))
+          (sv-20 (the-as texture #f))
+          )
+      (set! (-> *car-texture-work* blur w) (the int (* 128.0 (-> this wheel-blur))))
+      (dotimes (s2-0 14)
+        (cond
+          ((= s2-0 11)
+           (set! sv-20 (-> sv-16 data s2-0 dest))
+           (when (and (nonzero? (the-as texture sv-20)) (the-as texture (the-as texture sv-20)))
+             (when (and (nonzero? (-> (the-as texture (the-as texture sv-20)) w))
+                        (nonzero? (-> (the-as texture (the-as texture sv-20)) h))
+                        )
+               (let ((v1-21 *display*)
+                     (a0-5 144)
+                     )
+                 (+! (-> v1-21 mem-reserve-size) a0-5)
+                 (when (not (-> v1-21 dma-buffer-overflow))
+                   (let ((a2-0 (-> v1-21 frames (-> v1-21 on-screen) global-buf)))
+                     (if (< (-> a2-0 real-buffer-end) (the-as int (&+ (-> a2-0 base) a0-5)))
+                         (set! (-> v1-21 dma-buffer-overflow) #t)
+                         )
+                     )
+                   (if (not (-> v1-21 dma-buffer-overflow))
+                       (set-display-gs-state
+                         s3-0
+                         (the-as int (shr (-> (the-as texture (the-as texture sv-20)) dest 0) 5))
+                         (-> (the-as texture (the-as texture sv-20)) w)
+                         (-> (the-as texture (the-as texture sv-20)) h)
+                         0
+                         0
+                         )
+                       )
+                   )
+                 )
+               (let ((s1-0 1)
+                     (s0-0 2)
+                     )
+                 (while (>= s0-0 s1-0)
+                   (set! sv-20 (-> (the-as (pointer texture) (+ (+ (* s1-0 4) (* 24 s2-0)) (the-as int sv-16)))))
+                   (if (the-as uint sv-20)
+                       (car-info-full-method-21
+                         this
+                         s3-0
+                         (the-as texture (the-as uint sv-20))
+                         s1-0
+                         (-> (the-as texture (the-as uint sv-20)) w)
+                         (-> (the-as texture (the-as uint sv-20)) h)
+                         )
+                       )
+                   (+! s1-0 1)
+                   )
+                 )
+               )
+             )
+           (set! sv-20 (-> sv-16 data s2-0 detail))
+           (when (and (nonzero? (the-as texture sv-20)) (the-as texture (the-as texture sv-20)))
+             (when (and (nonzero? (-> (the-as texture (the-as texture sv-20)) w))
+                        (nonzero? (-> (the-as texture (the-as texture sv-20)) h))
+                        )
+               (let ((v1-52 *display*)
+                     (a0-17 144)
+                     )
+                 (+! (-> v1-52 mem-reserve-size) a0-17)
+                 (when (not (-> v1-52 dma-buffer-overflow))
+                   (let ((a2-4 (-> v1-52 frames (-> v1-52 on-screen) global-buf)))
+                     (if (< (-> a2-4 real-buffer-end) (the-as int (&+ (-> a2-4 base) a0-17)))
+                         (set! (-> v1-52 dma-buffer-overflow) #t)
+                         )
+                     )
+                   (if (not (-> v1-52 dma-buffer-overflow))
+                       (set-display-gs-state
+                         s3-0
+                         (the-as int (shr (-> (the-as texture (the-as texture sv-20)) dest 0) 5))
+                         (-> (the-as texture (the-as texture sv-20)) w)
+                         (-> (the-as texture (the-as texture sv-20)) h)
+                         0
+                         0
+                         )
+                       )
+                   )
+                 )
+               (let ((s1-1 4)
+                     (s0-1 5)
+                     )
+                 (while (>= s0-1 s1-1)
+                   (set! sv-20 (-> (the-as (pointer texture) (+ (+ (* s1-1 4) (* 24 s2-0)) (the-as int sv-16)))))
+                   (if (the-as uint sv-20)
+                       (car-info-full-method-21
+                         this
+                         s3-0
+                         (the-as texture (the-as uint sv-20))
+                         s1-1
+                         (-> (the-as texture (the-as uint sv-20)) w)
+                         (-> (the-as texture (the-as uint sv-20)) h)
+                         )
+                       )
+                   (+! s1-1 1)
+                   )
+                 )
+               )
+             )
+           )
+          (else
+            (set! sv-20 (-> sv-16 data s2-0 dest))
+            (when (and (nonzero? (the-as texture sv-20)) (the-as texture (the-as texture sv-20)))
+              (when (and (nonzero? (-> (the-as texture (the-as texture sv-20)) w))
+                         (nonzero? (-> (the-as texture (the-as texture sv-20)) h))
+                         )
+                (let ((v1-83 *display*)
+                      (a0-29 144)
+                      )
+                  (+! (-> v1-83 mem-reserve-size) a0-29)
+                  (when (not (-> v1-83 dma-buffer-overflow))
+                    (let ((a2-8 (-> v1-83 frames (-> v1-83 on-screen) global-buf)))
+                      (if (< (-> a2-8 real-buffer-end) (the-as int (&+ (-> a2-8 base) a0-29)))
+                          (set! (-> v1-83 dma-buffer-overflow) #t)
+                          )
+                      )
+                    (if (not (-> v1-83 dma-buffer-overflow))
+                        (set-display-gs-state
+                          s3-0
+                          (the-as int (shr (-> (the-as texture (the-as texture sv-20)) dest 0) 5))
+                          (-> (the-as texture (the-as texture sv-20)) w)
+                          (-> (the-as texture (the-as texture sv-20)) h)
+                          0
+                          0
+                          )
+                        )
+                    )
+                  )
+                (let ((s1-2 1)
+                      (s0-2 4)
+                      )
+                  (while (>= s0-2 s1-2)
+                    (if (and (= s1-2 4) (zero? (-> this damage s2-0)))
+                        (set! sv-20 #f)
+                        (set! sv-20 (-> (the-as (pointer texture) (+ (+ (* s1-2 4) (* 24 s2-0)) (the-as int sv-16)))))
+                        )
+                    (if (the-as uint sv-20)
+                        (car-info-full-method-20
+                          this
+                          s3-0
+                          (the-as texture (the-as uint sv-20))
+                          s1-2
+                          (-> (the-as texture (the-as uint sv-20)) w)
+                          (-> (the-as texture (the-as uint sv-20)) h)
+                          )
+                        )
+                    (+! s1-2 1)
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    (reset-display-gs-state *display* s3-0)
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 17 of type car-info-full
 ;; WARN: Return type mismatch int vs none.

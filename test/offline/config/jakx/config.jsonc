@@ -909,15 +909,28 @@
     // comment documents (offline-test does not exercise the full game.gp
     // rlet/macro environment).
     "(method 10 prim-strip)",
-    // car-textures: (method 15 car-info-full), (method 20 car-info-full),
-    // (method 21 car-info-full), and (method 16 car-info-full) all hold a
-    // growable write-cursor / damage-array indexing defect the deftype
-    // comment for car-info-full (all-types.gc) documents in full; none has
-    // a landed body (see goal_src/jakx/engine/vehicle/car-textures.gc's
-    // own comments at each method).
+    // car-textures, issue 571: (method 15 car-info-full) and (method 16
+    // car-info-full) are landed with real bodies and compile clean under
+    // (mi), but their own fresh decode still resolves two raw pointer-math
+    // write sites (the damage-array #f clear in method 15, the part-texture
+    // store in method 15's else branch) to a bare `(pointer int32)` cast
+    // that goalc's typecheck rejects for a symbol/texture value ("For set!
+    // memory, got a 'symbol'/'texture' when expecting an 'int'"); the
+    // landed source overrides these two casts by hand to `(pointer
+    // symbol)`/`(pointer texture)` (same idiom as goal_src/jakx/engine/
+    // game/settings.gc:2522 and goal_src/jakx/engine/anim/joint.gc:1477),
+    // but the decompiler's own default write-side inference (Env.cpp
+    // deliberately skips auto-casting on SET!, only on read) has no
+    // config-level lever this rung could safely derive: type_casts.jsonc
+    // needs a precise atomic-op index that is not recoverable from the
+    // asm_functions_by_name debug dump (asm-forced functions skip the
+    // atomic-op pass entirely) and would need decompiler instrumentation
+    // outside this lane's scope to get right. Sibling to (method 10
+    // prim-strip) above: same environment-gap shape, different cause.
+    // Methods 20/21 (car-info-full) do NOT share this defect: their raw
+    // decompile compiles clean via the type_casts.jsonc entries already in
+    // this worktree's config, verified by removing them from this list.
     "(method 15 car-info-full)",
-    "(method 20 car-info-full)",
-    "(method 21 car-info-full)",
     "(method 16 car-info-full)",
     // car-textures: (method 11 car-rgb-color)'s own fresh decode emits a
     // plain 32-bit srl the compiler does not recognize as a callable form
