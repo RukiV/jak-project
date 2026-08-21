@@ -157,7 +157,8 @@
 ;; live instance per findings.md) so the JakXTypeConsistency gate agrees.
 ;; cam-states.gc calls only m9 and m16 on this type; loader.gc still hosts
 ;; the defmethod bodies for the constructor and methods 9, 11, 12, 14, 15,
-;; 16, 17, 19 and 25; generic-obs's sound-on-path needs m9/m17/m20 here.
+;; 16, 17, 18, 19, 24 and 25; generic-obs's sound-on-path needs m9/m17/m20
+;; here.
 ;;
 ;; og:preserve-this gui-control keystone lane (issue 522): method 0's own raw decode
 ;; reads a2 (an int) and passes it straight through to (method-of-type engine new)'s
@@ -233,9 +234,18 @@
     ;; ("or a1, s4, r0"), setting a1 to arg0 (the gui-channel) before the
     ;; jalr, not a no-arg call; jak3's own twin (gui-control-method-18,
     ;; still unnamed in jakx) carries the identical one-arg, symbol-return
-    ;; shape per this file's own all-types.gc hint comment. The method's own
-    ;; body stays unlanded; only the declaration widens so method 19
-    ;; compiles honestly.
+    ;; shape per this file's own all-types.gc hint comment.
+    ;;
+    ;; og:preserve-this body landed (probe-5 lane, issues 522/551): a fresh
+    ;; scoped decode of loader.o goes clean with one type_casts.jsonc window
+    ;; (ntsc_v1/type_casts.jsonc, "(method 18 gui-control)") casting the raw
+    ;; asm's second view-get-active-target result to process-focusable so its
+    ;; focus-status field resolves; jak3's own twin body reads the global
+    ;; *target*, absent from this tree, so the landed body uses jakx's own
+    ;; view-get-active-target idiom instead (already cast the identical way
+    ;; at scene.gc:1108), not a transplant of jak3's construct. Full
+    ;; provenance and the raw-offset reconciliation live on the defmethod
+    ;; itself, loader.gc.
     (gui-control-method-18 (_type_ gui-channel) symbol)
     ;; og:preserve-this arg count widened () -> (gui-channel gui-connection),
     ;; return type widened none -> symbol (gui-control keystone lane, issue
@@ -305,9 +315,19 @@
     ;; the widened declaration in place, a fresh scoped decode of this
     ;; method's own body now goes fully clean with no further config
     ;; needed, matching jak3's own handle-command structurally and calling
-    ;; only already-landed methods (11, 15, 16, 17). Flagged for a
-    ;; follow-up rung to land: only the declaration widens here, method
-    ;; 24's own body is not landed by this note.
+    ;; only already-landed methods (11, 15, 16, 17).
+    ;;
+    ;; og:preserve-this body landed (probe-5 lane, issues 522/551): the
+    ;; follow-up rung flagged above. A fresh scoped decode reconfirmed the
+    ;; zero-error, zero-config claim above bit for bit; the landed body
+    ;; keeps jakx's own name (gui-control-method-24, not jak3's
+    ;; handle-command) since that is what this deftype and all-types.gc
+    ;; already declare. One structural difference from jak3 transcribed
+    ;; verbatim rather than normalized away: the priority-stop hide-time
+    ;; guard tests the shifted channel against the range [5, 6], not jak3's
+    ;; single value 5, matching jakx's own extra hud-mp-* channel block
+    ;; (96-111) that shares jak3's 80-95 group's hide-time behavior. Full
+    ;; provenance on the defmethod itself, loader.gc.
     (gui-control-method-24 (_type_ gui-channel gui-channel symbol gui-connection) symbol)
     (gui-control-method-25 (_type_ gui-connection object) none) ;; channel-id-set!
     )

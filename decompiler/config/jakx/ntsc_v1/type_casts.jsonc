@@ -7762,6 +7762,20 @@
     [13, "v1", "gui-connection"],
     [[43, 269], "gp", "gui-connection"]
   ],
+  // (method 18 gui-control), the probe-5 lane (issues 522/551): op 41 calls
+  // view-get-active-target a second time, whose declared return is plain
+  // process, then op 42 loads a 64-bit field at raw offset 244 off that
+  // result ("Could not figure out load: (set! v1 (l.d (+ v0 244)))"). 244 is
+  // 4 mod 8, the same basic-offset artifact target-h.gc's own vehicle field
+  // note names (+4 lands on the declared offset); process-focusable's own
+  // focus-status field is offset-assert 248 (process-focusable.gc), 244+4,
+  // and the mask right after (andi v1, v1, 66) is exactly (focus-status dead
+  // hit) (dead bit 1 = 2, hit bit 6 = 64, 2+64 = 66), matching jak3's twin
+  // read (-> *target* focus-status) bit-for-bit. scene.gc's own wait state
+  // (scene.gc:1108) casts this exact call's result the same way, (the-as
+  // process-focusable (view-get-active-target)), so this cast reuses the
+  // jakx idiom already landed there rather than inventing a new one.
+  "(method 18 gui-control)": [[42, "v0", "process-focusable"]],
   // (method 19 gui-control), handle-command-list (scene chain, issue 522):
   // this's own cmd field is (pair 112), a fixed array whose each slot is the
   // head of a nested (event . action) list; op 29 (and op 119, the loop's own

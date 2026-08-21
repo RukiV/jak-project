@@ -588,6 +588,136 @@
   (the-as gui-connection #f)
   )
 
+;; og:preserve-this gui-control-method-18: probe-5 lane (issues 522/551).
+;; Root-caused on issue 522: the wait state's status loop (scene.gc:1135)
+;; calls gui-control-method-17, whose movie arm dispatches gui-control-
+;; method-19, whose first act dispatches this method through a zero vtable
+;; slot (declared PR 539, gui-h.gc:239, never implemented); probe 5 died on
+;; the resulting null jump. This rung's own scoped decode of loader.o
+;; (allowed_objects ["loader"], decompile_code true) goes clean with one
+;; new type_casts.jsonc window (ntsc_v1/type_casts.jsonc, "(method 18
+;; gui-control)"): op 41's second view-get-active-target call returns plain
+;; process, and op 42 loads a 64-bit field at raw offset 244 off it, 4 mod
+;; 8, the same basic-offset artifact target-h.gc's own vehicle-field note
+;; names; +4 lands on process-focusable's own focus-status field
+;; (offset-assert 248), masked against 66 (dead 1 | hit 6, 2+64), matching
+;; jak3's twin read (-> *target* focus-status) bit-for-bit once cast. jak3's
+;; own twin body (loader.gc:1521) reads the global *target*, which does not
+;; exist in this tree; jakx's own idiom is view-get-active-target, already
+;; cast the identical way at scene.gc:1108, (the-as process-focusable
+;; (view-get-active-target)), so this rung reuses that idiom rather than
+;; inventing one. Transcribed verbatim from the clean decode.
+(defmethod gui-control-method-18 ((this gui-control) (arg0 gui-channel))
+  (let ((v1-0 arg0))
+    (the-as
+      symbol
+      (cond
+        ((or (= v1-0 (gui-channel message)) (= v1-0 (gui-channel notice)) (= v1-0 (gui-channel notice-low)))
+         (not (or (logtest? (-> *art-control* frame-mask) 28) (!= *master-mode* 'game)))
+         )
+        ((= v1-0 (gui-channel query))
+         (and (not (or (logtest? (-> *art-control* frame-mask) 28) (!= *master-mode* 'game)))
+              (and (view-get-active-target)
+                   (not (logtest? (-> (the-as process-focusable (view-get-active-target)) focus-status) (focus-status dead hit)))
+                   )
+              )
+         )
+        (else
+          #t
+          )
+        )
+      )
+    )
+  )
+
+;; og:preserve-this gui-control-method-24: probe-5 lane (issues 522/551).
+;; Named handle-command in jak3 (loader.gc:1542), still unrenamed in this
+;; tree per gui-h.gc's own declaration. gui-control-method-19's own body
+;; dispatches this method at four sites over its cmd-list walk (loader.gc,
+;; the method-19 note below); probe 5's root cause names this method as the
+;; next wall once method 18 lands, since the movie channel's cmd list is
+;; provably non-empty and the times guard is false by construction. This
+;; rung's own scoped decode confirms gui-h.gc:305-308's own claim ahead of
+;; landing: fully clean with no further config, calling only already-landed
+;; methods 11 (stop-str), 15 (lookup-gui-connection), 16 (set-action!) and
+;; 17 (get-status). One structural difference from jak3's own twin,
+;; transcribed as decoded rather than normalized to match: the priority-stop
+;; hide-time guard tests (shr arg1 4) against the range [5, 6], not jak3's
+;; single value 5, matching jakx's own extra HUD channel block (96-111,
+;; hud-mp-vehicle-main and friends) that shares the shifted-hide-time
+;; behavior with jak3's narrower 80-95 group.
+(defmethod gui-control-method-24 ((this gui-control) (arg0 gui-channel) (arg1 gui-channel) (arg2 symbol) (arg3 gui-connection))
+  (let ((s5-0 (-> this ids arg1)))
+    (cond
+      ((nonzero? s5-0)
+       (case arg2
+         (('wait)
+          (if (nonzero? (gui-control-method-17 this (the-as uint s5-0)))
+              (return #f)
+              )
+          )
+         (('stop 'priority-stop)
+          (when (nonzero? (-> this ids arg1))
+            (let ((s3-0 (gui-control-method-15 this #f arg1 (the-as string #f) s5-0)))
+              (when (and s3-0 (or (= arg2 'priority) (= s3-0 arg3) (and arg3 (< (-> arg3 priority) (-> s3-0 priority)))))
+                (gui-control-method-11 this s3-0)
+                (let ((v1-18 (shr (the-as int arg1) 4)))
+                  (cond
+                    ((and (>= v1-18 (the-as uint 5)) (>= (the-as uint 6) v1-18))
+                     (set! (-> this times arg1)
+                           (the-as time-frame (max (-> this times arg1) (+ (-> *display* base-clock frame-counter) (seconds 0.1))))
+                           )
+                     (set! (-> s3-0 action) (gui-action hidden))
+                     )
+                    ((= arg1 (gui-channel query))
+                     (set! (-> s3-0 action) (gui-action play))
+                     )
+                    (else
+                      (set! (-> s3-0 action) (gui-action hidden))
+                      )
+                    )
+                  )
+                )
+              )
+            )
+          (if (nonzero? (gui-control-method-17 this (the-as uint s5-0)))
+              (return #f)
+              )
+          )
+         (('hide)
+          (let ((v1-34 (gui-control-method-15 this #f arg1 (the-as string #f) s5-0)))
+            (when (and v1-34 (!= (-> v1-34 action) 8))
+              (gui-control-method-16
+                this
+                7
+                (the-as uint s5-0)
+                0
+                0
+                (the-as string #f)
+                (the-as (function gui-connection symbol) #f)
+                (the-as process #f)
+                )
+              (set! (-> this times arg1)
+                    (the-as time-frame (max (-> this times arg1) (+ (-> *display* base-clock frame-counter) (seconds 0.1))))
+                    )
+              )
+            )
+          (if (nonzero? (gui-control-method-17 this (the-as uint s5-0)))
+              (return #f)
+              )
+          )
+         )
+       )
+      ((< (-> *display* base-clock frame-counter) (-> this times arg1))
+       (if (= arg2 'wait)
+           (return #f)
+           )
+       )
+      )
+    )
+  #t
+  )
+
 ;; og:preserve-this handle-command-list (method 19): gui-control completion
 ;; lane (issue 531), clean decode with two new type_casts.jsonc windows
 ;; (ntsc_v1/type_casts.jsonc, "(method 19 gui-control)"). this's own cmd
@@ -619,9 +749,10 @@
 ;; arg0; method 24 gets arg0, the loop's own per-branch channel value or,
 ;; in the else arm, the raw event code itself per jak3's identical twin
 ;; shape, the cmd-list entry's own cdr, and arg1), matching jak3's own
-;; handle-command-list body structurally case for case. Neither method's
-;; own body lands here (both stay unlanded per the note above); only their
-;; declarations widen, matching this rung's own method-20 fix.
+;; handle-command-list body structurally case for case. Both methods' own
+;; bodies now land too (probe-5 lane, issues 522/551, see their own
+;; og:preserve-this notes above): this file's declaration-only note above
+;; described the state as of the widening rung, not the current one.
 (defmethod gui-control-method-19 ((this gui-control) (arg0 gui-channel) (arg1 gui-connection))
   (let ((gp-0 #t))
     (cond
