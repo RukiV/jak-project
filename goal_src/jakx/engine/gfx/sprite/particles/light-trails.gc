@@ -566,6 +566,28 @@
 ;; real slots 15/16/22) are held for the same reason: tracking's and die's
 ;; own :event/:trans handlers hit the identical wall, and all three states'
 ;; :post hook is the held common-post.
+;;
+;; og:preserve-this trailfinal rung: re-derived fresh against PR645's
+;; tracked-object retype (light-trails-h.gc), per that PR's own retirement
+;; note. light-trail-tracker-init-by-other DOES fold now and lands (this
+;; rung, light-trails-h.gc, matching jak3's own object placement for it);
+;; the note below that used to hold it is retired. should-draw? and
+;; common-post do NOT retire: should-draw?'s remaining wall evolved rather
+;; than resolved (still an unresolved sllv, now inside a nested and/or
+;; chain the fold's pattern match does not reach, plus a distinct new
+;; "Could not figure out load: (l.wu (+ a1 192))" on the tracked process
+;; itself; full citation in light-trails-h.gc's own trailfinal-rung note),
+;; so common-post's call into it stays the same unlanded-callee case this
+;; file's own common-trans! note above documents. tracking (light-trail-
+;; tracker)'s own :trans folds clean now but its :event fails on an
+;; unrelated float-to-int wall (f2i on a uint, nothing to do with sllv);
+;; die decodes clean standalone but posts to the still-held common-post.
+;; weapon-trail-tracker's and tread-trail-tracker's own tracking states
+;; (below) show the identical two-part shape: :event resolves clean, :trans
+;; still fails on the same l.wu-at-~188/192-on-the-tracked-process class as
+;; should-draw?, and :post is the held common-post regardless. All state
+;; bodies stay held this rung; only the one self-contained function
+;; (init-by-other) was clean enough to land.
 
 (defmethod get-tracked-object-pos ((this light-trail-tracker) (arg0 process-focusable) (arg1 vector))
   (let ((a0-2 (as-type arg0 process-focusable)))
@@ -635,13 +657,9 @@
   (go-virtual tracking)
   )
 
-;; og:preserve-this tracker rung: light-trail-tracker-init-by-other stays
-;; blocked on the same sllv/handle->process decompiler wall documented in
-;; decompiler/config/jakx/ntsc_v1/stack_structures.jsonc ("light-trail-
-;; tracker-init-by-other's own error (Unsupported inline assembly
-;; instruction kind - sllv, the handle->process idiom)"). Its two siblings
-;; above decode clean because they never touch the tracked-obj handle
-;; through that idiom in their own init path; light-trail-tracker's own
-;; init-by-other does, at the same op the type's `tracking`/`die` state
-;; handlers and should-draw? also fail on. Not forced; retire this note once
-;; that wall is resolved.
+;; og:preserve-this trailfinal rung: light-trail-tracker-init-by-other's own
+;; hold note (this spot, prior rung) is retired: it now lands clean in
+;; light-trails-h.gc, matching jak3's own object placement for it, right
+;; after tread-trail-tracker's deftype. See that file's own trailfinal-rung
+;; note for the fresh fold evidence and the arming check against
+;; wvehicle-weapons-proj's mine-trail spawn path.

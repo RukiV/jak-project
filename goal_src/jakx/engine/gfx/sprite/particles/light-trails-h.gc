@@ -237,6 +237,30 @@
 ;; the "same handle-dereference wall" the note above and light-trail-
 ;; tracker-init-by-other's own note below both cite; retire those two once
 ;; tracking/die and init-by-other are re-tried against this fix.
+;;
+;; og:preserve-this trailfinal rung: re-tried per the retirement note above.
+;; light-trail-tracker-init-by-other retires clean (landed below, right
+;; after tread-trail-tracker's own deftype). should-draw? and tracking/die do
+;; NOT: their own re-derivation shows the retype fixed the SIMPLE fold shape
+;; (a plain let-binding) but not this harder one. should-draw?'s fresh scoped
+;; decode still carries an unresolved `.sllv a0, v1, r0` (this same op 5/6/8
+;; triple, now embedded inside a nested and/or short-circuit chain the
+;; decompiler's push_asm_sllv_to_stack pattern match does not reach), PLUS a
+;; distinct new failure the retype does not touch: "failed type prop at 17:
+;; Could not figure out load: (set! a2 (l.wu (+ a1 192)))", a field read on
+;; the tracked PROCESS itself (a1 = the handle-derived pointer, not self)
+;; that has no declared type at that offset. tracking's own :trans folds
+;; clean now (same plain-let shape as init-by-other) but its :event does not:
+;; a distinct, unrelated wall, "Expression building failed: In (event
+;; tracking light-trail-tracker): Used float to int on a uint: (f2i f0-0)",
+;; nothing to do with sllv or tracked-object. die decodes clean standalone
+;; but posts to light-trail-tracker-common-post (light-trails.gc), itself
+;; still held on should-draw?; landing die now would create the declared-
+;; but-never-defined-symbol landmine this campaign's e2 class names. All
+;; three (should-draw?, tracking, die) stay held; see light-trails.gc's own
+;; trailfinal-rung note for weapon-trail-tracker/tread-trail-tracker's
+;; tracking (same class, different offsets: 188 and 192) and the full
+;; common-post chain.
 (deftype light-trail-tracker (process)
   ((trail                light-trail  :offset-assert 144) ;; guessed by decompiler
    (tracked-object       handle       :offset-assert 152)
@@ -287,6 +311,58 @@
   :method-count-assert 22
   :size-assert         #xbc
   :flag-assert         #x16003000bc
+  )
+
+;; og:preserve-this trailfinal rung: light-trail-tracker-init-by-other lands
+;; from a fresh scoped decode against this worktree's own PR645 retype
+;; (tracked-object: uint64 -> handle, on light-trail-tracker above). 0 ir2
+;; markers, no ERROR banner: its own tracked-object read sits in a plain
+;; (let ((gp-1 (handle->process ...)))) binding rather than a nested and/or
+;; boolean chain, so the sllv/lwu/dsra32 fold fires cleanly here, unlike
+;; should-draw? below (still held; its own fold still fails inside a deeper
+;; boolean chain, see that note). Byte-identical in shape to jak3's own
+;; landed twin (goal_src/jak3/engine/gfx/sprite/particles/light-trails-h.gc:
+;; 217; only a cosmetic 0 vs (the-as uint 0) differs) and, per that same
+;; twin, hosted in light-trails-h (this file), not light-trails.gc, matching
+;; its two already-landed siblings weapon-trail-tracker-init-by-other and
+;; tread-trail-tracker-init-by-other there. go-virtual tracking targets an
+;; unfilled state slot, the same accepted shape those two siblings already
+;; carry (tracking is still unlanded family-wide, held below and in
+;; light-trails.gc). Every callee here (stack-size-set!, handle->process,
+;; should-track?, add-crumb!, get-tracked-object-pos, setup!) is a real
+;; already-landed definition or a compile-time macro, never a virtual-slot
+;; or extern-only reference, so landing this carries no e2 risk.
+;;
+;; ARMING CHECK: this function's only caller anywhere in the corpus is
+;; wvehicle-weapons-proj's mine-a/mine-b trail spawn, "(anon-function 59
+;; wvehicle-weapons-proj)"/"(anon-function 99 wvehicle-weapons-proj)" per
+;; decompiler/config/jakx/ntsc_v1/stack_structures.jsonc's own note on the
+;; light-trail-tracker-spawn-params stack struct. Both anon-functions live
+;; inside mine-a's and mine-b's own idle/falling state bodies, which stay
+;; unlanded (goal_src/jakx/levels/common/wvehicle-weapons-proj.gc's own
+;; rung-5 note: only mine-a-method-62/mine-b-method-65 are landed there).
+;; Landing light-trail-tracker-init-by-other here does NOT arm the mine-trail
+;; spawn path this rung; no landed caller reaches it yet.
+(defbehavior light-trail-tracker-init-by-other light-trail-tracker ((arg0 light-trail-tracker-spawn-params))
+  (stack-size-set! (-> self main-thread) 32)
+  (set! (-> self tracked-object) (-> arg0 tracked-obj))
+  (set! (-> self trail) (new 'process 'light-trail))
+  (set! (-> self next-line-check-time) (the-as uint 0))
+  (set! (-> self last-add-frame-val) (the-as uint 0))
+  (set! (-> self offscreen?) #f)
+  (setup! (-> self trail) (-> arg0 appearance) (-> arg0 max-num-crumbs))
+  (when (-> arg0 track-immediately?)
+    (let ((gp-1 (handle->process (-> self tracked-object))))
+      (if (should-track? self (the-as process-focusable gp-1))
+          (add-crumb!
+            (-> self trail)
+            (get-tracked-object-pos self (the-as process-focusable gp-1) (new 'stack-no-clear 'vector))
+            (seconds 10000)
+            )
+          )
+      )
+    )
+  (go-virtual tracking)
   )
 
 ;; og:preserve-this tracker rung: light-trail-tracker-water adds no new
