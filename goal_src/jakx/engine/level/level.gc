@@ -8392,11 +8392,38 @@ window~%" cand-tiny0-name)
                           ;; wanted section actually draw instead of waiting for a later
                           ;; flip point this driver never reaches).
                           (want-display-level *load-state* (-> best-center name) 'display)
+                          ;; og:preserve-this issue 595 / trigvol dossier R2: retail only ever
+                          ;; flips a section's display? through a region volume the camera has
+                          ;; physically crossed (section 1/5 of the dossier); the blanket
+                          ;; promotion this replaced skipped that gate, so a freshly wanted
+                          ;; tiny section rendered its detail geometry unoccluded on top of the
+                          ;; still-displayed wide level's coarse geometry the moment it was
+                          ;; wanted, not once the camera reached it (issue 595's root cause:
+                          ;; all-visible? pinned at 'loading, invalid PC vis packet, tie/tfrag/
+                          ;; hfrag all draw). want-levels already initialises every new entry
+                          ;; hidden (comment above, still true), so gating this promotion on
+                          ;; inside-boxes? is a deletion of that bug, not new logic: a tiny
+                          ;; member outside the camera's boxes simply keeps the hidden default
+                          ;; until inside-boxes? goes true on a later tick (update-level-inside-
+                          ;; boxes sets it every frame, level.gc:10616-10623, called from
+                          ;; level-update at level.gc:10731) or a region volume promotes it
+                          ;; once R1 lands with its lever armed. This is the demotion the
+                          ;; dossier costs as R2; the want driver's own residency behavior
+                          ;; (which levels are wanted/loaded, want-levels above) is untouched,
+                          ;; only display? routing changes.
                           (when cand-tiny0-name
-                            (want-display-level *load-state* cand-tiny0-name 'display)
+                            (let ((lev (level-get *level* cand-tiny0-name)))
+                              (when (and lev (-> lev inside-boxes?))
+                                (want-display-level *load-state* cand-tiny0-name 'display)
+                                )
+                              )
                             )
                           (when cand-tiny1-name
-                            (want-display-level *load-state* cand-tiny1-name 'display)
+                            (let ((lev (level-get *level* cand-tiny1-name)))
+                              (when (and lev (-> lev inside-boxes?))
+                                (want-display-level *load-state* cand-tiny1-name 'display)
+                                )
+                              )
                             )
                           (want-vis-level *load-state* (-> best-center name))
                           (let ((snd (new 'stack-no-clear 'array 'symbol 4)))
