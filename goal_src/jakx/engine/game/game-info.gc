@@ -89,6 +89,40 @@
         )
       )
   )
+;; og:preserve-this landed for real, net-start rung (issue 571): a scoped decode of
+;; this object with method 19's signature fixed (game-info-h.gc, this rung) resolves
+;; cleanly except for the pair-car read below, matching (method 18 game-info)'s own
+;; precedent immediately above (car is declared generic object; the true value is a
+;; continue-point pointer, so it is cast explicitly rather than left raw). Walks
+;; *level*'s own level array (level-group's declared "level" field), each entry's
+;; info->continues pair list, string-comparing every continue-point's name field
+;; against the caller's argument; matches level.gc's own jakx-find-continue-point
+;; bring-up shim structurally (level.gc:2831-2833, "jak3 get-continue-by-name's walk
+;; without the *game-info* half. Retires when game-info.gc lands.") and start-1's
+;; own call shape (all-types.gc:48309-48317, the R5a blocker this retires).
+(defmethod get-continue-by-name ((this game-info) (name string))
+  (when (not name)
+    (return (the-as continue-point #f))
+    )
+  (dotimes (level-idx 19)
+    (let ((lev (-> *level* level level-idx)))
+      (when lev
+        (let ((conts (-> lev info continues)))
+          (while (not (null? conts))
+            (let ((cp (the-as continue-point (car conts))))
+              (if (string= name (-> cp name))
+                  (return cp)
+                  )
+              )
+            (set! conts (cdr conts))
+            )
+          )
+        )
+      )
+    )
+  (the-as continue-point #f)
+  )
+
 (defmethod set-continue! ((this game-info) (arg0 basic) (arg1 int))
   (the-as continue-point #f)
   )
@@ -202,7 +236,11 @@
   (send-event (handle->process (-> *game-info* auto-save-proc)) 'done)
   (suspend)
   (let ((target-continue continue-arg))
-    (when (and (= mode-field 'game) (nonzero? select-continue-point))
+    ;; og:preserve-this runtime-link guard retired, net-start rung (issue 571):
+    ;; select-continue-point landed for real in net-start.gc this rung, so the
+    ;; nonzero? guard this select's own extern comment (all-types.gc) used to cite
+    ;; is gone; this now calls unconditionally, matching the retail machine code.
+    (when (= mode-field 'game)
       (set! target-continue (select-continue-point (view-get-active-index)))
       )
     (if (nonzero? start)

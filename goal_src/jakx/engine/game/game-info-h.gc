@@ -366,7 +366,16 @@
     ;; "get-current-continue-forced ()" guess does not match the arg count; fixed the
     ;; same way R2 fixed method 27.
     (game-info-method-18 (_type_ string) string) ;; 18
-    (game-info-method-19 () none) ;; 19 ;; (get-continue-by-name (_type_ string) continue-point)
+    ;; og:preserve-this signature fix, net-start rung (issue 571): landed for real in
+    ;; game-info.gc this rung. R5a's own decode of net-start.gc's listener-continue
+    ;; (net-start_ir2.asm) proves the call shape directly: it dispatches this slot
+    ;; (vtable offset 92 = 16 + 4*19) with a single string argument (the continue
+    ;; name) and casts the return to string for its own "can't find continue ~A~%"
+    ;; error path, while the true match value threaded through is a continue-point
+    ;; pointer (matching the retained comment below and start-1's own call shape per
+    ;; all-types.gc's R5a note). Replaces the reduced () none placeholder that
+    ;; blocked start-1's own transcription (all-types.gc:48309-48317).
+    (get-continue-by-name (_type_ string) continue-point) ;; 19
     (set-continue! (_type_ basic int) continue-point) ;; 20 ;; jakx: third arg is player index, jak3 had symbol
     (game-info-method-21 () none) ;; 21 ;; (game-info-method-21 (_type_) none)
     (game-info-method-22 (_type_ object object object) none) ;; 22 ;; (save-game (_type_ game-save string) game-save)
