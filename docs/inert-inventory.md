@@ -36,7 +36,7 @@ written is read-only by design and not a finding.
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (177)
+### Never written (178)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -212,6 +212,7 @@ written is read-only by design and not a finding.
 | `*target-rc-board-controls*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*tfrag-display-stats*` | 1 | `goal_src/jakx/engine/gfx/background/tfrag/tfrag.gc` |
 | `*tmp-was-allocated*` | 1 | `goal_src/jakx/levels/common/net-simple-destruct.gc` |
+| `*total-length*` | 1 | `goal_src/jakx/engine/gfx/sprite/particles/light-trails.gc` |
 | `*update-leaf-when-outside-bsp*` | 1 | `goal_src/jakx/engine/camera/cam-update.gc` |
 | `*use-old-listener-print*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*view-assert*` | 1 | `goal_src/jakx/engine/gfx/view-h.gc` |
