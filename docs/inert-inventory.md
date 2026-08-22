@@ -36,7 +36,7 @@ written is read-only by design and not a finding.
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (178)
+### Never written (177)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -63,7 +63,6 @@ written is read-only by design and not a finding.
 | `*display-cam-los-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-cam-master-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-cam-other*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-camera-info*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-last-attacker*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-collision-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-color-bars*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
