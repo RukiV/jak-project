@@ -74599,13 +74599,12 @@
     )
   )
 
-;; (define-extern *vehicle-wheel-constants* object) ;; rigid-body-object-constants
 ;; og:preserve-this vehicle rung: activated, unblocking wvehicle-method-213's
 ;; own call site (wvehicle-util.gc). Both decode clean once landed together
 ;; (vehicle-wheel-spawn's own run-now-in-process call needs its callee);
-;; neither references *vehicle-wheel-constants* (left commented, an
-;; unrelated already-active duplicate exists later in this file with the
-;; same "object" type, so no shadowing conflict either way).
+;; neither references *vehicle-wheel-constants* directly (its own real
+;; type and static now landed separately, this file's own later entry and
+;; wvehicle-wheel.gc).
 (define-extern vehicle-wheel-init-by-other (function vehicle-wheel-init-params object :behavior vehicle-wheel))
 (define-extern vehicle-wheel-spawn (function process vehicle-wheel-init-params vehicle-wheel))
 
@@ -75751,6 +75750,23 @@
   :method-count-assert 9
   :size-assert         #xe4
   :flag-assert         #x9000000e4
+  )
+
+;; wvehicle-core rung: NOT a resurrected census entry, this rung's own
+;; derivation. (method 220 wvehicle)'s own local sp+16 scratch ("Failed to
+;; guess stack use for 16") is set up once before its own per-wheel loop
+;; (offset 0 from the process clock's own sparticle-data.w, offset 4
+;; initialized to +Infinity, offset 8 to 0.0) and only ever touched again
+;; inside the loop as a running min/max pair (offset 4 narrowed by min.s,
+;; offset 8 widened by max.s), offset 0 read but never rewritten.
+(deftype wvehicle-method-220-work (structure)
+  ((val0 float :offset-assert 0)
+   (val1 float :offset-assert 4)
+   (val2 float :offset-assert 8)
+   )
+  :method-count-assert 9
+  :size-assert         #xc
+  :flag-assert         #x90000000c
   )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -88028,7 +88044,15 @@
 (define-extern *vehicle-particle-common-info* vehicle-particle-common-info)
 (define-extern *vehicle-remote-spawn-data* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-selection-menu-info* object) ;; provisional: call-site evidence only
-(define-extern *vehicle-wheel-constants* object) ;; provisional: call-site evidence only
+;; falcon-wheels rung (wheel-constants leg): retyped from the provisional
+;; "object" guess to rigid-body-object-constants, the same type jak3's own
+;; homologous *vehicle-wheel-constants* static uses (goal_src/jak3/levels/
+;; desert/wvehicle/wvehicle-wheel.gc). wvehicle-wheel's own L53 static
+;; decodes clean under it with no label_types.jsonc entry needed, the same
+;; as every other landed rigid-body-object-constants global in this corpus
+;; (construction-obs.gc's *construction-cone-constants*/*construction-
+;; barricade-constants*, kcross-obs.gc, haven-obs.gc).
+(define-extern *vehicle-wheel-constants* rigid-body-object-constants)
 ;; *verts-buf-1* moved: real extern now declared with its own triangulation
 ;; scratch-global siblings (nav rung), fixing the later-weaker duplicate here.
 ;; *vibration-menu-info* stays declared selection-cache (menu2-lists rung,

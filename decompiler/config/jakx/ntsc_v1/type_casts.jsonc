@@ -10456,6 +10456,21 @@
   "(method 213 wvehicle)": [
     [64, "v1", "int"] // issue 571 R10b: logior, see the note above
   ],
+  // (method 220 wvehicle): op 108's sllv a0, v1, r0 already folds through the
+  // decompiler's own handle->(pointer process) matcher (v1 the wheel-state's
+  // own handle field), and the following pid-check verifies it into a plain
+  // "process" by op 113/114. Every field this rung's own body then reads off
+  // that process (192 = draw, matching self's own identical gp+192 read a
+  // few ops later at 116/133; 184 = the next process-drawable-inherited
+  // field this rung's own body reads) is process-drawable's own, not
+  // process's, so type prop stalls the moment it hits the first one (op
+  // 118, "Could not figure out load"). Cast to process-drawable, the same
+  // target type this file's own existing precedent uses for every other
+  // handle-verified process a caller then treats as its own subtype (e.g.
+  // the [[97, 250], "s1", "process-drawable"] entry above).
+  "(method 220 wvehicle)": [
+    [[118, 145], "s2", "process-drawable"]
+  ],
   "(method 201 wvehicle)": [
     [70, "v1", "int"], // issue 571 R10b: logior, see the note above
     [106, "v1", "int"] // issue 571 R10b: logior, same shape as op 70 above

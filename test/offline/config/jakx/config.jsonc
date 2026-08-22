@@ -630,22 +630,26 @@
     // clean functions and the five clean top-level statics; whole-file skip
     // is used because the held content is roughly half the file.
     "vehicle",
-    // wvehicle-wheel (vehicle band): *vehicle-wheel-constants* is a raw
-    // <static-data L53> blob, a top-level define with no skip mechanism of
-    // its own (credits-obs precedent); its likely type,
-    // rigid-body-vehicle-constants, is a huge nested structure, not a quick
-    // label_types.jsonc win. goal_src also omits methods 92, 65, 87 and 88
-    // (same defect class as vehicle-debris's own methods 65/87/88 in this
-    // band: mostly the-as-none raw-offset fallback, one unset-register
-    // read each, one references the same unactivated
-    // find-nearest-camera-distance vehicle-debris hit) and method 66 (its
-    // only caller, via *vehicle-wheel-constants*). goal_src keeps the rest
-    // (both types, method 3 x2, methods 61/71/80, vehicle-wheel-init-by-
-    // other and vehicle-wheel-spawn (vehicle rung, landed together), and
-    // the idle/explode/fade-out/die state family, explode's own raw-label
-    // :enter handler omitted the credits-obs way); whole-file skip is used
-    // rather than per-function entries because the omitted symbol has none
-    // available.
+    // wvehicle-wheel (vehicle band, updated falcon-wheels rung /
+    // wheel-constants leg): the *vehicle-wheel-constants* raw <static-data
+    // L53> blob is landed now (rigid-body-object-constants, not the
+    // rigid-body-vehicle-constants this note used to guess; see
+    // wvehicle-wheel.gc), and methods 92/65/66/87/88 are all landed too
+    // (a later PR than this note's own original writing; it never got
+    // updated). The whole-file skip stays regardless: the fresh decode's
+    // own compile attempt still fails independently of any of that, on
+    // landed goal_src's own hand-fixes the raw decode does not carry.
+    // Method 87's own landed body resolves seven raw offsets (268, 100,
+    // 88, 92, 96, 352, 116 off a rigid-body-object-derived pointer) by
+    // name; the fresh decode still prints them as raw "(s.f!/s.w! (+ a0-4
+    // N) ...)" stores ("Cannot do math on..." class), no skip mechanism
+    // of its own since it is one method among several landed ones. The
+    // explode/fade-out/die state family's own :enter handlers are landed
+    // by name too, but the fresh decode still hits "failed to figure out
+    // what this is" on each of their own raw labels (credits-obs
+    // precedent, no skip mechanism of its own either). No per-function
+    // skip covers a raw label the decompiler cannot even see as a
+    // function, so whole-file skip remains the only option.
     "wvehicle-wheel",
     // wvehicle-ai (vehicle rung): most of this file is the wvehicle debug/
     // network telemetry cluster and AI steering methods hacks.jsonc already
@@ -1434,6 +1438,17 @@
     // (test/offline/framework/execution.cpp's compile() uses data.output_with_
     // skips, never goal_src), so it fails this one function regardless.
     "lobby-dma-reserve-hook",
+    // wvehicle (falcon-wheels rung, wheel-constants leg): (method 220
+    // wvehicle)'s own fresh decompile prints one raw store address as
+    // plain pointer arithmetic on a value typed vector ("(+ s5-1 28)"),
+    // which goalc rejects ("Cannot do math on a vector"); every other
+    // offset off the same local in this method's own body already goes
+    // through "&+" (the compiler's own special-cased pointer-add form,
+    // same class as lobby-dma-reserve-hook's &- case above), so the
+    // landed goal_src spells this one op the same way. offline-test always
+    // compiles the decompiler's own fresh, uncast output, so it fails this
+    // one function regardless.
+    "(method 220 wvehicle)",
     // default-menu, issue 571's UX successor (R3 of the debug-menu scoping
     // plan): all-texture-tweak-adjust's fresh decompile reads a literal
     // PLACEHOLDER token off a dynamic-array-field-access call, which is not

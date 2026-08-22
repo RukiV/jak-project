@@ -173,13 +173,115 @@
 ;; definition for symbol *freeze-hangtime*, type object
 (define *freeze-hangtime* (the-as object #f))
 
-;; og:preserve-this wvehicle-core rung (held): (method 220 wvehicle) reads
-;; a field at s2+192 this rung cannot attribute, plus a stack-use failure
-;; and one sllv ppointer-chase-to-handle fold (the same decoder gap already
-;; hand-folded elsewhere in this tree, see generic-obs.gc's 'mirror case).
-;; It overrides an inherited slot rather than declaring a new one, so an
-;; unlanded override just leaves the ancestor's own default running, not a
-;; jump to zero. Parked in hacks.jsonc's no_type_analysis_functions_by_name.
+;; og:preserve-this falcon-wheels rung (wheel-constants leg): (method 220
+;; wvehicle) un-held. Its own s2+192 field-offset wall was s2 (a handle-
+;; verified process, per the standard handle->process-macro idiom) typed
+;; only to the base "process" class; every field this method's own body
+;; reads off it (192, 184) is process-drawable's, not process's, so type
+;; prop stalled the moment it hit the first one. type_casts.jsonc casts s2
+;; to process-drawable at both op ranges; stack_structures.jsonc's own new
+;; wvehicle-method-220-work entry (below) covers the one local scratch
+;; that never resolved on its own ("Failed to guess stack use for 16");
+;; the second local scratch (sp+32/+48) is a plain vector pair, the same
+;; shape (post explode wvehicle) already uses. Removed from hacks.jsonc's
+;; no_type_analysis_functions_by_name.
+;; wvehicle-core rung: NOT a resurrected census entry, this rung's own
+;; derivation. (method 220 wvehicle)'s own local sp+16 scratch ("Failed to
+;; guess stack use for 16") is set up once before its own per-wheel loop
+;; (offset 0 from the process clock's own sparticle-data.w, offset 4
+;; initialized to +Infinity, offset 8 to 0.0) and only ever touched again
+;; inside the loop as a running min/max pair (offset 4 narrowed by min.s,
+;; offset 8 widened by max.s), offset 0 read but never rewritten.
+(deftype wvehicle-method-220-work (structure)
+  ((val0 float :offset-assert 0)
+   (val1 float :offset-assert 4)
+   (val2 float :offset-assert 8)
+   )
+  :method-count-assert 9
+  :size-assert         #xc
+  :flag-assert         #x90000000c
+  )
+
+;; definition for method 220 of type wvehicle
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+;; ERROR: Failed store: (s.f! (+ s5-1 28) f0-17) at op 139
+;; og:preserve-this compile-only substitution: the decoder's own printed
+;; address for this raw store is plain "(+ s5-1 28)", but s5-1 is a
+;; vector and goalc refuses math directly on one ("Cannot do math on a
+;; vector"); every other offset off this same s5-1 in this method's own
+;; body already goes through "&+" (op 126's vector-! destination two
+;; lines above, same local), so this one op is the only one still needing
+;; it spelled out.
+(defmethod wvehicle-method-220 ((this wvehicle))
+  (let ((s5-0 (new 'stack-no-clear 'wvehicle-method-220-work)))
+    (set! (-> s5-0 val0) (seconds-per-frame))
+    (set! (-> s5-0 val2) 0.0)
+    (set! (-> s5-0 val1) (the-as float #x7f800000))
+    (dotimes (s4-0 4)
+      (let* ((a1-0 (-> this wheel s4-0))
+             (a2-0 (-> a1-0 info))
+             )
+        (let ((f1-2 (* 0.00091552734 (fmin 65536.0 (+ (fabs (-> a1-0 forward-vel)) (fabs (-> a1-0 up-vel)))))))
+          (+! (-> a1-0 pos2) (* (- (-> a1-0 pos) (-> a1-0 pos2)) (fmin 1.0 (* (-> s5-0 val0) f1-2))))
+          )
+        (when (not (logtest? (-> a1-0 flags) 8))
+          (let ((f0-7 (fabs (-> a1-0 rev))))
+            (set! (-> s5-0 val1) (fmin (-> s5-0 val1) f0-7))
+            (set! (-> s5-0 val2) (fmax (-> s5-0 val2) f0-7))
+            )
+          )
+        (set! (-> a1-0 angle)
+              (the float (sar (shl (the int (+ (-> a1-0 angle) (* 10430.379 (-> a1-0 rev) (-> s5-0 val0)))) 48) 48))
+              )
+        ((-> a2-0 callback) this a1-0 a2-0)
+        )
+      )
+    (set! (-> this car-info wheel-blur) (fmin 1.0 (/ (-> s5-0 val1) 16)))
+    )
+  (let ((s5-1 (new 'stack-no-clear 'vector)))
+    (let ((a0-2 (-> this draw shadow-ctrl settings)))
+      (vector+float*!
+        (the-as vector (-> s5-1 data))
+        (-> this rbody position)
+        (-> a0-2 shadow-dir)
+        (-> a0-2 shadow-dir w)
+        )
+      )
+    0
+    (dotimes (s4-1 4)
+      (let ((s3-0 (-> this wheel s4-1)))
+        (-> s3-0 info)
+        (let ((s2-0 (handle->process (-> s3-0 handle))))
+          (cond
+            (s2-0
+              (set! (-> (the-as process-drawable s2-0) draw global-effect) (-> this draw global-effect))
+              (let ((s1-0 (-> (the-as process-drawable s2-0) draw shadow-ctrl settings)))
+                (vector-! (&+ s5-1 16) (the-as vector (-> s5-1 data)) (-> s3-0 trans))
+                (vector-normalize! (&+ s5-1 16) 1.0)
+                (mem-copy! (the-as pointer s1-0) (the-as pointer (-> this draw shadow-ctrl settings)) 80)
+                (let ((f0-17 (-> s1-0 shadow-dir w)))
+                  (s.f! (&+ s5-1 28) f0-17)
+                  )
+                (set! (-> s1-0 shadow-dir quad) (-> (&+ s5-1 16) quad))
+                )
+              (let ((v1-44 (-> (the-as process-drawable s2-0) root)))
+                (set! (-> v1-44 trans quad) (-> s3-0 trans quad))
+                (quaternion-copy! (the-as quaternion (-> v1-44 rot)) (-> s3-0 quat))
+                )
+              (logand! (-> s3-0 flags) -9)
+              )
+            (else
+              (logior! (-> s3-0 flags) 8)
+              )
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
 
 ;; og:preserve-this wvehicle-core rung (held): wv-player-post-move-update
 ;; and (method 112 wvehicle), its only caller, held together.

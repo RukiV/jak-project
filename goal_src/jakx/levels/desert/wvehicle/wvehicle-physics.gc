@@ -196,23 +196,56 @@
   (none)
   )
 
-;; og:preserve-this bring-up stub for wvehicle-method-213, pattern
-;; f5afc742b: NOT retail's body. All 15 wcar rigid-body-object-method-66
-;; overrides (wcar-bear, -bobcat, -cheetah, -cougar, -daxtermobile,
-;; -falcon, -gila, -leopard, -mongoose, -panther, -possum, -tiger, -wolf,
-;; -wombat, -snake) tail-dispatch it identically under a wheel art-group
-;; guard: "(when s5-24 (let ((t9 (method-of-object this
-;; wvehicle-method-213))) (t9 this s5-24)))" (e.g.
-;; levels/common/wcar-bear.gc:359-363). The art-group lookup is guarded
-;; but the method-table slot itself is not, so every wheel art-group that
-;; resolved jumped straight to GOAL address 0 with no defmethod installed.
-;; Declared return is none and every call site discards it, so a no-op
-;; stub disarms the dispatch safely and keeps a future wheel landing from
-;; crashing the spawn. Retirement condition: the real method 213 landing
-;; (its own decode/adaptation lane, likely the wheel-spawn wiring the
-;; all-types.gc note near wvehicle-method-213's own declaration
-;; references).
+;; og:preserve-this bring-up stub f5afc742b retired, falcon-wheels rung
+;; (wheel-constants leg): the real body decodes clean from wvehicle-util
+;; (its own home object) once its real blocker, wvehicle-method-220
+;; (wvehicle.gc), is landed; stack_structures.jsonc's own new entry
+;; declares its sp+16 as vehicle-wheel-init-params (the recipe recovered
+;; from the PR 604 lane's own record). One compile-only substitution: the
+;; decoder prints its own pseudo-op (.asm.sllv.r0) for the raw sllv
+;; reinterpretation building a handle from vehicle-wheel-spawn's own
+;; returned ppointer, which is not valid GOAL (v-wpn-base-common-trans
+;; precedent, wvehicle-weapons-h.gc, same defect class); substituted with
+;; ppointer->handle (gkernel-h.gc), its own exact expansion.
+;; definition for method 213 of type wvehicle
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
 (defmethod wvehicle-method-213 ((this wvehicle) (arg0 object))
+  (let ((s5-0 (new 'stack-no-clear 'vehicle-wheel-init-params)))
+    (set! (-> s5-0 vehicle) this)
+    (set! (-> s5-0 position quad) (-> this root trans quad))
+    (quaternion-identity! (-> s5-0 rotation))
+    (vector-identity! (-> s5-0 scale))
+    (set! (-> s5-0 skel) (the-as skeleton-group arg0))
+    (set! (-> s5-0 level) (the-as symbol (-> this level)))
+    (set! (-> s5-0 radius) 4096.0)
+    (&-> s5-0 vehicle)
+    (dotimes (s4-1 4)
+      (let ((s3-0 (-> this wheel s4-1)))
+        (set! (-> s5-0 radius) (* 1.3 (-> s3-0 info scale) (-> s3-0 info radius)))
+        (vector-identity! (-> s5-0 scale))
+        (set! (-> s5-0 scale x) (* (-> s3-0 x-scale) (-> s3-0 info x-scale)))
+        (vector-float*! (-> s5-0 scale) (-> s5-0 scale) (-> s3-0 info scale))
+        (let ((v1-13 (process->ppointer (vehicle-wheel-spawn this (the-as vehicle-wheel-init-params (&-> s5-0 vehicle))))))
+          (set! (-> s3-0 handle) (ppointer->handle v1-13))
+          )
+        (set! (-> s3-0 pos) (-> s3-0 info settle-pos))
+        (set! (-> s3-0 pos2) (-> s3-0 pos))
+        )
+      )
+    )
+  (when (nonzero? (-> this behavior))
+    (rigid-body-object-method-86 this)
+    (wvehicle-method-220 this)
+    (wvehicle-method-212 this)
+    (dotimes (v1-28 4)
+      (let ((a0-19 (-> this wheel v1-28)))
+        (set! (-> a0-19 pos2) (-> a0-19 pos))
+        )
+      )
+    )
+  (wvehicle-method-220 this)
+  (vehicle-method-115 this)
   0
   (none)
   )

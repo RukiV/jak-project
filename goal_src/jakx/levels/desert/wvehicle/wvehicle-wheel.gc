@@ -12,12 +12,6 @@
 
 (define-extern find-nearest-camera-distance (function vector float))
 
-;; og:preserve-this falcon-wheels rung, provisional: decompiler config
-;; (decompiler/config/jakx/all-types.gc) only feeds the decompiler's own
-;; type inference, not goalc's real compile-time symbol table, so method
-;; 66's reference below needs its own local redeclaration to build.
-(define-extern *vehicle-wheel-constants* object)
-
 ;; DECOMP BEGINS
 
 ;; og:preserve-this vehicle rung: retyped vehicle field basic -> vehicle.
@@ -57,20 +51,35 @@
   this
   )
 
-;; og:preserve-this *vehicle-wheel-constants* is omitted rather than
-;; landed. Its own static (L53) fails static-ref the same way as the
-;; other unparseable <static-data LNN> placeholders this band keeps
-;; hitting; its likely type, rigid-body-vehicle-constants, is a huge
-;; nested structure (12 sub-types, 3,200+ bytes), not a quick
-;; label_types.jsonc win like vehicle-effects's glow templates.
-;; falcon-wheels rung: method 66 (its only reader) lands below despite
-;; this. Its body passes the symbol straight through to
-;; rigid-body-object-method-64 as an opaque argument and never
-;; dereferences a field, so it only needs *vehicle-wheel-constants* to
-;; exist as a symbol, which the corpus's own already-active extern
-;; (decompiler/config/jakx/all-types.gc, "provisional: call-site
-;; evidence only") already provides; the struct's own contents stay
-;; unresolved.
+;; falcon-wheels rung (wheel-constants leg): *vehicle-wheel-constants*'s
+;; own static (L53) landed. The prior hold's "likely type, rigid-body-
+;; vehicle-constants" guess was never checked against the label's own raw
+;; bytes; it measures 200 bytes (0xc8), not 3,200+, exactly
+;; rigid-body-object-constants's own size (all-types.gc), the same type
+;; jak3's own homologous static uses (goal_src/jak3/levels/desert/wvehicle/
+;; wvehicle-wheel.gc), and every field below is cited from L53's own hex
+;; (decompiler/config/jakx/all-types.gc's own extern retype resolves it
+;; with no label_types.jsonc entry needed, the same as every other landed
+;; rigid-body-object-constants global in this corpus).
+;; definition for symbol *vehicle-wheel-constants*, type rigid-body-object-constants
+(define *vehicle-wheel-constants*
+  (new 'static 'rigid-body-object-constants
+    :info (new 'static 'rigid-body-info
+      :max-time-step 0.033333335
+      :mass 1.0
+      :inv-mass 1.0
+      :linear-damping 0.01
+      :angular-damping 0.01
+      :bounce-factor 0.5
+      :friction-factor 0.5
+      :bounce-mult-factor 1.22
+      :cm-offset-joint (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+      :inertial-tensor-box (new 'static 'array meters 3 (meters 2) (meters 3) (meters 3))
+      :gravity 204800.0
+      )
+    :name '*vehicle-wheel-constants*
+    )
+  )
 
 ;; definition of type vehicle-wheel
 (deftype vehicle-wheel (rigid-body-object)
@@ -479,18 +488,12 @@
   ;; this handler). Once cast, the label resolved into a normal behavior
   ;; body. This handler adds self to *rigid-body-queue* via method 11, the
   ;; queue feeder PR 526 left starved; it has no landed caller (the message
-  ;; send lives in gameplay code this rung does not touch, and no landed
-  ;; code spawns a vehicle-wheel process yet: vehicle-wheel-spawn's only
-  ;; caller, wvehicle-method-213, is a declared but unfilled method slot
-  ;; across every wcar-* file), so this rung adds no new boot-path exposure.
-  ;; falcon-wheels rung: method 213's own real body decodes clean (a
-  ;; scoped decode of wvehicle-util, this rung) but was held rather than
-  ;; landed: every path through it dispatches wvehicle-method-220, itself
-  ;; a declared-but-unfilled slot with zero landed defmethod anywhere in
-  ;; the corpus (check_method_slots.py, this rung's own gate run), the
-  ;; same GOAL-address-0 crash class the stub exists to prevent. Landing
-  ;; 213 for real needs wvehicle-method-220 landed first, or its own call
-  ;; sites held with a documented reason; out of scope for this rung.
+  ;; send lives in gameplay code this rung does not touch), so this rung
+  ;; adds no new boot-path exposure.
+  ;; falcon-wheels rung (wheel-constants leg): vehicle-wheel-spawn's only
+  ;; caller, wvehicle-method-213, is landed (wvehicle-physics.gc, retiring
+  ;; the bring-up stub there), unblocked by landing its own real blocker,
+  ;; wvehicle-method-220 (wvehicle.gc), first.
   :enter (behavior ()
     (set-time! (-> self state-time))
     (let* ((f30-0 0.5)

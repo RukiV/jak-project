@@ -75,7 +75,78 @@
 (define *freeze-hangtime* (the-as object #f))
 
 ;; definition for method 220 of type wvehicle
-;; ERROR: function has no type analysis. Cannot decompile.
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+;; ERROR: Failed store: (s.f! (+ s5-1 28) f0-17) at op 139
+(defmethod wvehicle-method-220 ((this wvehicle))
+  (let ((s5-0 (new 'stack-no-clear 'wvehicle-method-220-work)))
+    (set! (-> s5-0 val0) (seconds-per-frame))
+    (set! (-> s5-0 val2) 0.0)
+    (set! (-> s5-0 val1) (the-as float #x7f800000))
+    (dotimes (s4-0 4)
+      (let* ((a1-0 (-> this wheel s4-0))
+             (a2-0 (-> a1-0 info))
+             )
+        (let ((f1-2 (* 0.00091552734 (fmin 65536.0 (+ (fabs (-> a1-0 forward-vel)) (fabs (-> a1-0 up-vel)))))))
+          (+! (-> a1-0 pos2) (* (- (-> a1-0 pos) (-> a1-0 pos2)) (fmin 1.0 (* (-> s5-0 val0) f1-2))))
+          )
+        (when (not (logtest? (-> a1-0 flags) 8))
+          (let ((f0-7 (fabs (-> a1-0 rev))))
+            (set! (-> s5-0 val1) (fmin (-> s5-0 val1) f0-7))
+            (set! (-> s5-0 val2) (fmax (-> s5-0 val2) f0-7))
+            )
+          )
+        (set! (-> a1-0 angle)
+              (the float (sar (shl (the int (+ (-> a1-0 angle) (* 10430.379 (-> a1-0 rev) (-> s5-0 val0)))) 48) 48))
+              )
+        ((-> a2-0 callback) this a1-0 a2-0)
+        )
+      )
+    (set! (-> this car-info wheel-blur) (fmin 1.0 (/ (-> s5-0 val1) 16)))
+    )
+  (let ((s5-1 (new 'stack-no-clear 'vector)))
+    (let ((a0-2 (-> this draw shadow-ctrl settings)))
+      (vector+float*!
+        (the-as vector (-> s5-1 data))
+        (-> this rbody position)
+        (-> a0-2 shadow-dir)
+        (-> a0-2 shadow-dir w)
+        )
+      )
+    0
+    (dotimes (s4-1 4)
+      (let ((s3-0 (-> this wheel s4-1)))
+        (-> s3-0 info)
+        (let ((s2-0 (handle->process (-> s3-0 handle))))
+          (cond
+            (s2-0
+              (set! (-> (the-as process-drawable s2-0) draw global-effect) (-> this draw global-effect))
+              (let ((s1-0 (-> (the-as process-drawable s2-0) draw shadow-ctrl settings)))
+                (vector-! (&+ s5-1 16) (the-as vector (-> s5-1 data)) (-> s3-0 trans))
+                (vector-normalize! (&+ s5-1 16) 1.0)
+                (mem-copy! (the-as pointer s1-0) (the-as pointer (-> this draw shadow-ctrl settings)) 80)
+                (let ((f0-17 (-> s1-0 shadow-dir w)))
+                  (s.f! (+ s5-1 28) f0-17)
+                  )
+                (set! (-> s1-0 shadow-dir quad) (-> (&+ s5-1 16) quad))
+                )
+              (let ((v1-44 (-> (the-as process-drawable s2-0) root)))
+                (set! (-> v1-44 trans quad) (-> s3-0 trans quad))
+                (quaternion-copy! (the-as quaternion (-> v1-44 rot)) (-> s3-0 quat))
+                )
+              (logand! (-> s3-0 flags) -9)
+              )
+            (else
+              (logior! (-> s3-0 flags) 8)
+              )
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition for function wv-player-post-move-update
 ;; ERROR: function has no type analysis. Cannot decompile.
