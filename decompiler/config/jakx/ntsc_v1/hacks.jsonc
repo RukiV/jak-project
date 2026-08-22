@@ -127,10 +127,20 @@
   // read plus a sllv fold; s5+832 buried at op 270 of a 1500-line body
   // behind an 80-byte unresolved stack struct). (method 217 wvehicle): a
   // 264-byte arg2 struct with fields at 16/32/36/40/44/48/52/56/80 this
-  // rung's own evidence does not cover. None of these four are new-to-
-  // wvehicle methods (each overrides an ancestor slot), so an unlanded
-  // override just leaves the ancestor's own default running, not a jump to
-  // zero. (method 220 wvehicle) un-held, falcon-wheels rung (wheel-
+  // rung's own evidence does not cover. (method 64 wvehicle), (method 134
+  // wvehicle) and (method 129 wvehicle) each override an ancestor slot
+  // (vehicle's own :method-count-assert is 204, vehicle-h.gc:937), so an
+  // unlanded override there leaves the ancestor's own default running, not
+  // a jump to zero. (method 217 wvehicle) does not: at slot 217, past
+  // vehicle's 204, it is new to wvehicle, so kscheme zero-fills the
+  // unlanded slot instead. The wheelcb rung's own falcon post-spawn crash
+  // (wvehicle+0x828, wvehicle-method-220 calling a zero callback through
+  // vehicle-wheel-info) is exactly this class; (method 218 wvehicle), held
+  // below, is the same new-to-wvehicle slot for the same reason and
+  // carries the same risk. Correcting this rung's own prior "none of these
+  // four are new-to-wvehicle" claim, which was false for 217 (and, by the
+  // same method-count math, for 218). (method 220 wvehicle) un-held,
+  // falcon-wheels rung (wheel-
   // constants leg): its own s2+192 wall was a handle-verified process
   // typed only to the base "process" class rather than process-drawable;
   // type_casts.jsonc casts it, stack_structures.jsonc covers its own two

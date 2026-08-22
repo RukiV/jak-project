@@ -113,8 +113,14 @@
 ;;48/52/56/80 on its own arg2 confirming vehicle-wheel-info (the same
 ;; retype (method 219 wvehicle) proves), but this rung's own evidence does
 ;; not cover the rest of its own 264-byte local struct. Parked in
-;; hacks.jsonc's no_type_analysis_functions_by_name; not reached by
-;; anything landed this rung.
+;; hacks.jsonc's no_type_analysis_functions_by_name; reachable, not
+;; unreached: 6e8cc3f21 wired wheel[i].info to physics-model.front-wheel/
+;; rear-wheel ahead of (method 213 wvehicle)'s own spawn loop, and (method
+;; 69 wvehicle) (wvehicle-util.gc, this rung) installs this method into
+;; both wheel-info structs' own callback field (offset 24); (method 220
+;; wvehicle)'s own naked call through that field is what actually reaches
+;; it on falcon spawn. Wheelcb rung's own bring-up stub below covers the
+;; gap until the real body lands.
 
 ;; og:preserve-this wvehicle-core rung (held): (method 218 wvehicle) is one
 ;; of this rung's own named targets but stays held. Its own local sp+16
@@ -128,6 +134,40 @@
 ;; there would be presenting a guess as a finding; held pending a second
 ;; rung's own evidence. Parked in hacks.jsonc's
 ;; no_type_analysis_functions_by_name.
+
+;; og:preserve-this bring-up stub for (method 217 wvehicle), pattern
+;; f5afc742b: NOT retail's body (see the hold note above). A slot new to
+;; wvehicle (vehicle's own :method-count-assert is 204, vehicle-h.gc:937),
+;; so an unlanded override here is kscheme zero-filled rather than falling
+;; back to an ancestor default. (method 69 wvehicle) installs this method
+;; into vehicle-wheel-info's own callback field (offset 24) on both
+;; front-wheel and rear-wheel; (method 220 wvehicle)'s own naked call
+;; through that field crashed on falcon spawn once 6e8cc3f21's wheel-info
+;; wiring made the field reachable. A no-op stub disarms that call safely;
+;; wheels will not receive their per-frame transform update from this
+;; callback until the real body lands. Retirement condition: the real
+;; method 217 landing (its own decode/adaptation lane).
+(defmethod wvehicle-method-217 ((this wvehicle) (arg0 vehicle-wheel-state) (arg1 vehicle-wheel-info))
+  0
+  (none)
+  )
+
+;; og:preserve-this bring-up stub for (method 218 wvehicle), pattern
+;; f5afc742b: NOT retail's body (see the hold note above). Also a slot new
+;; to wvehicle (vehicle's own :method-count-assert is 204, vehicle-h.gc:937),
+;; so an unlanded override here is kscheme zero-filled rather than falling
+;; back to an ancestor default. (method 69 v-mongoose), already landed
+;; (wcar-mongoose.gc), installs this method into its own rear-wheel
+;; vehicle-wheel-info callback field after calling its parent method;
+;; any v-mongoose spawn reaching that call site would hit the same
+;; zero-slot crash class as falcon's (method 217 wvehicle) without this
+;; stub. Wheels will not receive their per-frame transform update from
+;; this callback until the real body lands. Retirement condition: the real
+;; method 218 landing (its own decode/adaptation lane).
+(defmethod wvehicle-method-218 ((this wvehicle) (arg0 vehicle-wheel-state) (arg1 vehicle-wheel-info))
+  0
+  (none)
+  )
 
 ;; definition for method 219 of type wvehicle
 ;; WARN: Return type mismatch int vs none.
