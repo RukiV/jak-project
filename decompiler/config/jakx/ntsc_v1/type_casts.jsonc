@@ -9650,14 +9650,65 @@
   // consuming -4(reg) read, same idiom as the lobby-buddies self-casts
   // above; (anon-function 24)'s first site is self (s6) losing its type
   // across a branch merge rather than the global itself.
+  // lobby rung 3: resolving method-185 itself (above) exposed the next
+  // wall rung 2 flagged and held: method-185's own declared return stays
+  // generic process (proven by its body: the true branch returns
+  // base-menu-method-63's own declared process return, the false branch
+  // explicitly (the-as process #f) to match), so each caller's own
+  // further dispatch on that return needs a per-site cast to the real
+  // child type. Both functions call method-185 with the 'manager tag
+  // twice each, then dispatch id 65 (offset 276 = 16 + 65*4) on the
+  // result with a second symbol arg (gp/'task0/'start-shaped);
+  // selection-menu-manager is the only base-menu descendant declaring
+  // method 65 ((_type_ object) none), an exact signature match. Cast at
+  // the consuming -4(reg) read, same idiom as the casts above.
   "(anon-function 18 lobby-adventure)": [
     [95, "a0", "lobby-menu-manager"],
-    [116, "a0", "lobby-menu-manager"]
+    [100, "a0", "selection-menu-manager"],
+    [116, "a0", "lobby-menu-manager"],
+    [121, "a0", "selection-menu-manager"]
   ],
   "(anon-function 24 lobby-adventure)": [
     [102, "s6", "lobby-menu-manager"],
     [114, "a0", "lobby-menu-manager"],
-    [135, "a0", "lobby-menu-manager"]
+    [119, "a0", "selection-menu-manager"],
+    [135, "a0", "lobby-menu-manager"],
+    [140, "a0", "selection-menu-manager"]
+  ],
+  // lobby rung 3: process-tree single-site hunt (issue: dropdown-cup-
+  // strings' method 67 resolving process-tree's own ppointer field into
+  // an "impossible" offset-556 read, rung 1's original flag, held at one
+  // site). A second, fully independent site found this rung: (method 67
+  // scrolling-item-player), same field-16/ppointer chain, reads offset
+  // 620 of the result then offset 0 of THAT (the standard GOAL boxed-
+  // array length slot), comparing it as an upper bound. 620 (raw) + 4
+  // lands exactly on scrolling-menu-player's own declared "players"
+  // field (offset 624, medius-cache-index-array) -- semantically exact
+  // for a scrolling player-list ITEM reading its parent MENU's shared
+  // players array length. This is not evidence that process-tree's own
+  // ppointer field is mistyped (it stays (pointer process) here,
+  // untouched, since both sites are ordinary process-tree back-
+  // references that happen to target large process-drawable-family
+  // instances, not a struct-shape bug); it is evidence that each site's
+  // own concrete target needs the same per-site cast idiom as every
+  // other process-return wall this rung, so process-tree keeps rung 1's
+  // caution and stays undeclared.
+  //
+  // dropdown-cup-strings' own site stays held despite the same evidence
+  // shape (its own offset-556 read matches string-menu/games-list-
+  // selection's own text-ids/selection-index region exactly): the read
+  // sits as the very first op of a two-predecessor merge block (the
+  // null-ppointer-check's delay slot and the success path both land on
+  // this op), and a cast at that op does not survive to the deref
+  // resolution the way it does for scrolling-item-player's own cast 24
+  // ops downstream of its merge -- tried string-menu, dynamic-string-
+  // menu and games-list-selection as the cast target, all show the
+  // correct type annotation at the op itself and all still fail the
+  // same "Could not figure out load" with no field found. Left for a
+  // rung that can chase the merge-block cast limitation itself rather
+  // than guess further at this site.
+  "(method 67 scrolling-item-player)": [
+    [32, "gp", "scrolling-menu-player"]
   ],
   "(anon-function 0 lobby-clans)": [
     [3, "a3", "event-message-block"]
@@ -9761,6 +9812,27 @@
   "(anon-function 156 lobby-menu-manager)": [
     [15, "v1", "(array int32)"],
     [19, "v1", "(array int32)"]
+  ],
+  // lobby rung 3: same method-185-return wall as the lobby-adventure
+  // anon-functions above, reached here through a menu-handles lookup
+  // instead of method-185 directly (handle->process on a menu-handles
+  // slot, then dispatch id 63 with a symbol tag, then id 65 on that
+  // result with a second symbol arg for the 'options-manager occurrence).
+  // op 197/225/244's a0 is a bare base-menu child (base-menu-method-63
+  // is the only type in the family declaring id 63, (_type_ object)
+  // process, matching each tag arg and each op's own -4(reg) read);
+  // op 203's a0 is the 'options-manager call's own process return,
+  // narrowed to selection-menu-manager for id 65 by the same evidence as
+  // the lobby-adventure sites (method 65 declared there only,
+  // (_type_ object) none, matching the 'start arg). op 225 and op 244's
+  // own results ('event-selection and 'level-selection tags) are stored
+  // to gp / a field of gp without an immediate further dispatch in this
+  // state, so they stay at the base-menu level here.
+  "(enter ready-room-state lobby-menu-manager)": [
+    [197, "a0", "base-menu"],
+    [203, "a0", "selection-menu-manager"],
+    [225, "a0", "base-menu"],
+    [244, "a0", "base-menu"]
   ],
   // lobby rung: lobby-check-buttons rung: same self-bound-to-owning-lobby-
   // menu-manager idiom as the anon-function callback batch above, reached

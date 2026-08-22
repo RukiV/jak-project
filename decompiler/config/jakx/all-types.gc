@@ -59669,10 +59669,26 @@
   :flag-assert         #x900000050
   )
 
+;; lobby rung 3: string-menu's own "text-ids" field, held by rung 2 (no
+;; site in lobby-adventure/lobby-menu-manager). Two independent dropdown-
+;; family types outside that pair, in the same scoped decode (allowed_
+;; objects including menu2, this worktree): dynamic-string-menu's and
+;; string-list-selection's own method-67 overrides, both calling their
+;; parent string-menu-method-67 then running an identical per-slot
+;; refresh loop. Each iteration i clears strings[i].str (the already-
+;; evidenced offset-12 field, +80*i stride) then reads
+;; (-> text-ids data i) -- text-ids treated as its own array object,
+;; indexed by 4*i and read at its own offset 12 (the standard GOAL
+;; boxed-array data start, identical to how *lobby-generic-error-
+;; text-ids* and its siblings are indexed elsewhere in this vein) -- and
+;; formats that int32 into strings[i].str with the "~G" localized-text
+;; format directive. The loop bound is (-> text-ids 0), the standard
+;; boxed-array length slot. (array int32) matches every sibling text-ids
+;; global already landed on this vein exactly.
 ;; all-types.gc:50482 (dead)
 (deftype string-menu (prim-strip-menu)
   ((strings  (inline-array dropdown-string-slot)  :offset-assert 552)
-   (text-ids basic  :offset-assert 556) ;; held: no read/write site for text-ids in this rung's two objects
+   (text-ids (array int32)  :offset-assert 556)
    )
   :method-count-assert 69
   :size-assert         #x230
@@ -84145,7 +84161,17 @@
 ;; globals and self/s6 touched); tail-calls enter-state and returns its
 ;; result directly ((set! v0 v0) off the call, then ret-value), so the
 ;; return type mirrors enter-state's own generic object return.
-(define-extern go-confirm-net-quit (function object))
+;; lobby rung 3: self/s6 was still generic process (no :behavior tag),
+;; which stranded op 36's (-> self prev-state) store: a raw vtable-31
+;; read off self's own type ("Type Error: The method with id 31 of type
+;; process could not be found", scoped decode this worktree). Slot 31 is
+;; a :state-methods entry, not a real method (process itself only
+;; declares 15 real methods); with self typed lobby-menu-manager the
+;; slot resolves to lobby-generic-error-menu, already named by rung 1's
+;; own 32-name recovery and semantically exact for a "confirm quit"
+;; dialog that populates *lobby-generic-error-*text-ids* arrays right
+;; before this same enter-state call.
+(define-extern go-confirm-net-quit (function object :behavior lobby-menu-manager))
 ;; (define-extern filter-highscore-venues function)
 ;; (define-extern set-driver-license-info function)
 ;; lobby rung 2: two explicit int args (a0 compared against 15/16/17, a1
@@ -85468,7 +85494,15 @@
 ;; lobby rung 2: same literal-array-store idiom as *adventure-cup* (op 260);
 ;; multiple read sites elsewhere load it into a0/a1 without narrowing the
 ;; element type further within this rung's scope.
-(define-extern *list-task-medals* array)
+;; lobby rung 3: reset-adventure-tasks-init-by-other (this worktree's own
+;; scoped decode) inits all 64 entries with an unscaled daddu (index
+;; register added directly to the array pointer, no *4/*8 shift) then a
+;; single (s.b! (+ ptr 12) -2) byte store per entry -- the standard GOAL
+;; array data-at-+12 idiom with a 1-byte element stride, matching
+;; *task-medals*'s own identical shape below exactly. (array int8): -2
+;; here is a distinct "not yet touched" sentinel from *task-medals*'s own
+;; -1 "no medal" sentinel, both fitting the signed range.
+(define-extern *list-task-medals* (array int8))
 (define-extern *adventure-venue-info-array* array)
 (define-extern *adventure-venue* object)
 ;; (define-extern adventure-venue-init function)
@@ -85495,7 +85529,17 @@
 ;; single byte at +12 from the result, an addressing shape this rung's
 ;; scope does not resolve to a specific packed struct, so left at the
 ;; cup1-4 precedent's bare array rather than guessed.
-(define-extern *task-medals* array)
+;; lobby rung 3: adventure-task-init's own clean decode (this worktree,
+;; after fixing its missing :behavior tag) writes it directly as
+;; (-> *task-medals* data s5-0), the medal tier 0-3 from (-> sub-task
+;; medals 0) or a -1 "no medal" sentinel, cast (the-as uint ...) only
+;; because the source expression's static type is int -- and two
+;; adjacent read sites in the same object index it with the identical
+;; unscaled-daddu-plus-offset-12-byte-store/load shape rung 2 already
+;; flagged (op 138-144, comparing the loaded byte against the literal 3,
+;; the same medal-tier range), confirming the element is one signed byte
+;; per slot rather than a wider packed struct.
+(define-extern *task-medals* (array int8))
 ;; (define-extern *grand-prix-locked* object)
 (define-extern *adventure-task* object)
 (define-extern *map-screen* object)
@@ -88867,7 +88911,15 @@
 ;; sibling, not machine-verified per-arg).
 (define-extern adventure-map-fade-in (function object object))
 (define-extern keybd-read-ascii (function object)) ;; mechanical-arity fixpoint
-(define-extern adventure-task-init (function none)) ;; mechanical-arity fixpoint
+;; lobby rung 3: same class as go-confirm-net-quit above: self/s6 was
+;; generic process, stranding a (-> self prev-state) store at a raw
+;; vtable-111 read ("Type Error: The method with id 111 of type process
+;; could not be found", scoped decode this worktree). Slot 111 is a
+;; :state-methods entry on lobby-menu-manager (still the placeholder
+;; name lobby-menu-manager-state-111, not one of rung 1's 32 recovered
+;; names); :behavior lobby-menu-manager resolves the read without
+;; inventing a name for the state itself.
+(define-extern adventure-task-init (function none :behavior lobby-menu-manager)) ;; mechanical-arity fixpoint
 (define-extern ctf-base-b-spawn (function object object object)) ;; mechanical-arity fixpoint
 (define-extern filter-highscore-venues (function none)) ;; mechanical-arity fixpoint
 (define-extern get-max-password-chars (function object)) ;; mechanical-arity fixpoint
