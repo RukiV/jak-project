@@ -9985,6 +9985,17 @@
     [45, "s2", "process-focusable"],
     [74, "s3", "process-focusable"]
   ],
+  // og:preserve-this wvehicle-weapons-vein rung 4: op 5's raw l.q reads the
+  // 16-byte arg2 value the two call sites in
+  // rapid-fire-control-initialize-from-vehicle both pass as (-> s4-0
+  // orient), a plain vector (rapid-fire-control-init-scratch, declared
+  // offset 64); op 6's sq store side already resolves via the existing
+  // (pointer int128) raw-copy idiom, so this cast mirrors the same neutral
+  // 128-bit-copy reading rather than inventing a type for the emitters
+  // array element itself.
+  "(method 9 rapid-fire-control)": [
+    [5, "v1", "(pointer uint128)"]
+  ],
   // og:preserve-this wvehicle-weapons-vein rung 3: op 2's type-tag deref
   // resolves method id 151 (raw offset 620) against arg1; vehicle-method-
   // 151's own declared shape ((_type_ vector int) none, all-types.gc) is an
@@ -10113,10 +10124,21 @@
     [85, "a0", "(pointer process)"],
     [98, "a0", "(pointer process)"]
   ],
+  // og:preserve-this wvehicle-weapons-vein rung 4: ops 42-43 and 82-83 are
+  // the same pid<<32|pointer handle idiom op 31-32 already resolves (there
+  // the sllv's own output naturally types as uint); rung 3's own casts at
+  // these two ops used (pointer process) instead, which is what left
+  // "Couldn't figure out logior" standing once this rung's own
+  // muzzle-flash-init-by-other extern fix (all-types.gc) cleared the
+  // earlier run-function-in-process wall and let the analyzer reach them.
   "(method 51 gunmount-generic-drawable)": [
     [32, "v1", "uint"],
-    [43, "v1", "(pointer process)"],
-    [83, "v1", "(pointer process)"]
+    [42, "v1", "uint"],
+    [82, "v1", "uint"],
+    [85, "s3", "(pointer uint64)"],
+    [87, "s3", "(pointer uint8)"],
+    [90, "s3", "(pointer uint8)"],
+    [92, "s3", "(pointer int32)"]
   ],
   "(anon-function 73 wvehicle-weapons)": [
     [2, "v1", "(pointer process)"]
@@ -10206,12 +10228,25 @@
   // own get-trans ((_type_ int) vector, all-types.gc) matches exactly: the
   // call's single explicit arg is the constant 3 (an index), and its
   // result is quad-read (a 16-byte vector) straight into the sp+16 scratch.
+  // og:preserve-this wvehicle-weapons-vein rung 4: op 208's raw offset-144
+  // read off op 207's own root (trsqv, raw offset 184/declared 188) does
+  // not resolve against trsqv's own 19-method shape. collide-shape's own
+  // declared layout (all-types.gc) packs four consecutive uint8 fields
+  // starting at exactly this offset: max-iteration-count (144), nav-flags
+  // (145), total-prims (146) and num-riders (147), filling one machine word
+  // exactly; the raw lwu reads all four at once rather than any single
+  // named field, the same packed-byte-word idiom as elsewhere in this
+  // corpus, so this cast reads it as a neutral word rather than inventing
+  // a field name for the combination. root is already collide-shape-moving
+  // by this rung's own precedent ((method 60 v-yellow-guided-missile)
+  // above), so no separate concrete-type cast is needed first.
   "(method 78 v-yellow-guided-missile)": [
     [29, "a0", "(pointer process)"],
     [44, "a0", "process-focusable"],
     [93, "s4", "process-focusable"],
     [195, "a0", "wvehicle"],
     [200, "a0", "(pointer process)"],
+    [208, "v1", "(pointer uint32)"],
     [419, "a0", "(pointer process)"]
   ],
   "(method 62 v-yellow-guided-missile)": [

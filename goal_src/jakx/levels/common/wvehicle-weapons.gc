@@ -7,3 +7,104 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this wvehicle-weapons-vein rung 4: only this one method is
+;; landed from this object so far. It decoded clean once
+;; decompiler/config/jakx/all-types.gc gave muzzle-flash-init-by-other a
+;; real (function handle int object :behavior muzzle-flash) type (the run-
+;; function-in-process "invalid function type: function" wall, same class
+;; as net-player-init-remote above it in that file) and
+;; decompiler/config/jakx/ntsc_v1/type_casts.jsonc picked up four more
+;; casts: two logior operands at ops 42/82 (the same pid<<32|pointer handle
+;; idiom op 31/32 already resolved; rung 3's own casts at these two ops used
+;; (pointer process) instead of uint, which is what was still blocking once
+;; the function-type wall cleared) and s3 at ops 85/87/90/92 (a connection
+;; returned by add-connection, written past its own 32-byte declared size
+;; with two inline matrices and a handle by an engine-specific caller that
+;; knows the concrete allocation is bigger; cast per touch point to match
+;; each raw access's own width rather than inventing a name for the
+;; concrete connection subtype). muzzle-flash-init-by-other's own body is
+;; not landed (wvehicle-weapons-h.gc's own og:preserve-this note on its
+;; forward declaration has the dormancy argument); neither is anything else
+;; in this object. Retire this note once the object grows past this method.
+;;
+;; og:preserve-this build-time deviation from the raw decode: goalc rejects
+;; (method-of-type muzzle-flash activate) with "The method form is ambiguous
+;; when used on a forward declared type" because muzzle-flash itself is only
+;; forward-declared here (wvehicle-weapons-h.gc), not landed. Substituted
+;; process-drawable, muzzle-flash's own immediate parent and the type that
+;; actually declares activate; muzzle-flash's deftype (all-types.gc:77049)
+;; adds no (:methods) block, so it does not override activate and the two
+;; lookups resolve to the identical method-table slot. Revert to
+;; muzzle-flash once its own deftype lands.
+;;
+;; og:preserve-this second build-time deviation: all three raw decode sites
+;; that build a handle from a ppointer (the run-function-in-process arg, the
+;; flash field set!, and the local-space connection's own handle field)
+;; print the pid<<32|pointer construction as a raw
+;; (logior (shl (-> v1 0 pid) 32) (.asm.sllv.r0 (the-as uint v1))) triple.
+;; .asm.sllv.r0 is the decoder's own pseudo-op for the raw sllv
+;; reinterpretation and is not valid GOAL (rigid-body-debug precedent, same
+;; defect class; wvehicle-weapons-h.gc's v-wpn-base-common-trans documents
+;; the mirror case, handle->process, in this same file family). Substituted
+;; the real macro's own expansion, ppointer->handle (gkernel-h.gc), which
+;; builds the identical handle from a ppointer without the raw arithmetic.
+(defmethod gunmount-drawable-method-51 ((this gunmount-generic-drawable))
+  (set! (-> this config) (the-as uint 0))
+  (set! (-> this changeover-anim) (the-as int #f))
+  (let* ((s5-0 (get-process *default-dead-pool* muzzle-flash #x4000 1))
+         (v1-1 (when s5-0
+                 (let ((t9-1 (method-of-type process-drawable activate)))
+                   (t9-1 (the-as muzzle-flash s5-0) this "muzzle-flash" (the-as pointer #x70004000))
+                   )
+                 (let ((t9-2 run-function-in-process)
+                       (a0-3 s5-0)
+                       (a1-2 muzzle-flash-init-by-other)
+                       (v1-3 (process->ppointer this))
+                       )
+                   ((the-as (function object object object object none) t9-2)
+                    a0-3
+                    a1-2
+                    (the-as uint (ppointer->handle v1-3))
+                    4
+                    )
+                   )
+                 (-> s5-0 ppointer)
+                 )
+               )
+         )
+    (set! (-> this flash) (the-as uint (ppointer->handle v1-1)))
+    )
+  (logior! (-> this skel status) (joint-control-status sync-math))
+  (set! (-> this part) (create-launch-control (-> *part-group-id-table* 271) this))
+  (let* ((s5-1 (-> this part))
+         (s4-0 (method-of-object s5-1 set-local-space-info))
+         (s3-0 (the-as object (add-connection *part-local-space-engine* this local-space-proc-joint 0 0 0)))
+         (v1-15 (the-as int #f))
+         )
+    (s4-0 s5-1 (the-as
+                 particle-local-space-info
+                 (cond
+                   ((the-as connection s3-0)
+                    (when (= (the-as symbol v1-15) #f)
+                      (let ((v1-16 (process->ppointer this)))
+                        (set! v1-15 (the-as int (ppointer->handle v1-16)))
+                        )
+                      )
+                    (set! (-> (the-as (pointer uint64) s3-0) 20) (the-as uint v1-15))
+                    (matrix-identity! (the-as matrix (&-> (the-as (pointer uint8) s3-0) 96)))
+                    (matrix-identity! (the-as matrix (&-> (the-as (pointer uint8) s3-0) 32)))
+                    (set! (-> (the-as (pointer int32) s3-0) 42) 0)
+                    s3-0
+                    )
+                   (else
+                     (format 0 "out of local-space connections. ~A~%" this)
+                     (format *stdebug* "out of local-space connections. ~A~%" this)
+                     #f
+                     )
+                   )
+                 )
+          )
+    )
+  (none)
+  )
+

@@ -1853,4 +1853,26 @@
   // single compound type resolves the whole region; see
   // rapid-fire-control-init-scratch (all-types.gc) for the field-by-field
   // evidence.
-  "rapid-fire-control-initialize-from-vehicle": [[16, "rapid-fire-control-init-scratch"]]}
+  "rapid-fire-control-initialize-from-vehicle": [[16, "rapid-fire-control-init-scratch"]],
+  // og:preserve-this wvehicle-weapons-vein rung 4: (method 58 vehicle-
+  // weapon-slot)'s own "Failed to guess stack use for 16" at op 22 (daddiu
+  // a1, sp, 16). Writes at +8 (a process pointer, from-handle), +16 (this
+  // method's own raw arg1, param 0), +64 (a 'countermeasure-retarget or
+  // 'countermeasure-drop-target symbol, message) and +68 (the constant 1,
+  // num-params) match event-message-block's own declared offsets exactly
+  // (all-types.gc:853), then the block is passed straight to
+  // send-event-function; same shape as (method 10 race-state) and (event
+  // active movie-path) above. This alone clears two of the method's three
+  // original error classes (this stack-use failure and the downstream
+  // "Unsupported inline assembly instruction kind - [sllv a0, v1, r0]",
+  // which never reaches the analyzer once the earlier failure is fixed).
+  // Still held: op 59's own "(l.wu (+ s5 252))" on the process resolved
+  // from the *locker-pool* handle chase (ops 0-12) does not resolve to any
+  // type_casts.jsonc cast tried so far (target's own vehicle field sits at
+  // the identical raw offset 252/declared 256 per target-h.gc's own
+  // og:preserve-this note, but that field is a 64-bit handle and this read
+  // is a 32-bit l.wu, a size mismatch the cast could not paper over;
+  // (pointer int32) at the same op also failed to resolve the nonzero-
+  // offset load). Left for a future rung: see rung 4's own report for the
+  // full negative-result trail.
+  "(method 58 vehicle-weapon-slot)": [[16, "event-message-block"]]}

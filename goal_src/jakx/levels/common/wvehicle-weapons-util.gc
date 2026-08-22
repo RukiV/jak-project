@@ -7,3 +7,99 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this rapid-fire-control-init-scratch was declared in
+;; decompiler/config/jakx/all-types.gc by rung 3 (its own field-by-field
+;; evidence lives in that file's comment) but never landed in goal_src,
+;; since nothing there consumed it until this rung's own
+;; rapid-fire-control-initialize-from-vehicle landing below, its sole
+;; consumer; matches the sole-consumer-deftype-after-DECOMP-BEGINS
+;; precedent (wvehicle-weapons-oil.gc's own lightning-sphere).
+(deftype rapid-fire-control-init-scratch (structure)
+  ((mat    matrix     :inline :offset 0)
+   (orient vector      :inline :offset 64)
+   (quat   quaternion  :inline :offset 80)
+   )
+  )
+
+;; og:preserve-this wvehicle-weapons-vein rung 4: only these two are landed
+;; from this object so far. rapid-fire-control-method-9 decodes clean once
+;; decompiler/config/jakx/ntsc_v1/type_casts.jsonc casts its raw l.q read at
+;; op 5 to (pointer uint128) (the emitters-array quad write it feeds already
+;; used the matching (pointer int128) idiom on the store side).
+;; rapid-fire-control-initialize-from-vehicle itself already decoded
+;; zero-error in rung 3 and was held only on this method-9 defmethod being
+;; missing (the e2 class: extern activated with no defun to link against).
+;; The rest of the object (rapid-fire-control-emitter-from-world, methods 7
+;; and 10 of rapid-fire-control, and everything past them) stays held for a
+;; future rung. Retire this note once the object grows past these two.
+;; og:preserve-this build-time deviation: the raw decode's own (* arg0 16)
+;; and (-> arg1 0) read arg0/arg1 through the int and (pointer uint128)
+;; types the decompiler's own analysis narrows them to internally (op 0's
+;; sll and op 5's type_casts.jsonc cast respectively), but neither cast is
+;; visible in the declared signature (both stay object, matching the type's
+;; own declared method shape). Added the same the-as casts here that the
+;; declared signature does not otherwise carry.
+(defmethod rapid-fire-control-method-9 ((this rapid-fire-control) (arg0 object) (arg1 object))
+  (set! (-> (the-as (pointer uint128) (+ (+ (* (the-as int arg0) 16) 12) (the-as int (-> this emitters))))) (-> (the-as (pointer uint128) arg1) 0))
+  (none)
+  )
+
+(defun rapid-fire-control-initialize-from-vehicle ((arg0 rapid-fire-control) (arg1 wvehicle))
+  (when (!= (-> (the-as (pointer int32) (-> arg0 emitters)) 0) 2)
+    (format 0 "ERROR: rapid-fire-control-initialize-from-vehicle called on an rfc without two emitters!~%")
+    0
+    )
+  ;; og:preserve-this compile-only substitution: the raw decode prints its
+  ;; own pseudo-ops (l32-false-check, .asm.sllv.r0, sar) for the
+  ;; nonzero?/sllv-deref/pid-compare handle-to-process idiom, which are not
+  ;; valid GOAL (rigid-body-debug precedent, same defect class); s2-0 and
+  ;; s3-0 below are the real macro's own expansion (handle->process,
+  ;; gkernel-h.gc) verbatim. wpn-drawable-left/right are read as handles
+  ;; here even though their own fields are declared uint64. handle->process
+  ;; itself declares process; the two process-focusable-method-52 call
+  ;; sites below add an explicit the-as to process-focusable (matching the
+  ;; existing type_casts.jsonc casts at ops 45/74, invisible in source the
+  ;; same way arg0/arg1's own narrower types are in method 9 above).
+  (let* ((s4-0 (new 'stack-no-clear 'rapid-fire-control-init-scratch))
+         (v1-3 (-> arg1 wpn-drawable-left))
+         (s2-0 (handle->process (the-as handle v1-3)))
+         (v1-6 (-> arg1 wpn-drawable-right))
+         (s3-0 (handle->process (the-as handle v1-6)))
+         (t9-1 quaternion-conjugate!)
+         (a0-10 (-> s4-0 quat))
+         (a1-4 (-> arg1 root rot))
+         )
+    (t9-1 a0-10 (the-as quaternion a1-4))
+    (cond
+      ((and s2-0 s3-0)
+       (matrix-remove-scale!
+         (-> s4-0 mat)
+         (the-as matrix (&-> (process-focusable-method-52 (the-as process-focusable s2-0) (the-as int a1-4)) x))
+         (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 0.0))
+         )
+       (vector-! (-> s4-0 orient) (-> s4-0 mat trans) (-> arg1 root trans))
+       (vector-orient-by-quat! (-> s4-0 orient) (-> s4-0 orient) (-> s4-0 quat))
+       (let* ((a0-16 arg0)
+              (t9-5 (method-of-object a0-16 rapid-fire-control-method-9))
+              (a1-9 0)
+              )
+         (t9-5 a0-16 a1-9 (-> s4-0 orient))
+         (matrix-remove-scale!
+           (-> s4-0 mat)
+           (the-as matrix (&-> (process-focusable-method-52 (the-as process-focusable s3-0) a1-9) x))
+           (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 0.0))
+           )
+         )
+       (vector-! (-> s4-0 orient) (-> s4-0 mat trans) (-> arg1 root trans))
+       (vector-orient-by-quat! (-> s4-0 orient) (-> s4-0 orient) (-> s4-0 quat))
+       (rapid-fire-control-method-9 arg0 1 (-> s4-0 orient))
+       #t
+       )
+      (else
+        (format #t "Failed to instance rapid fire control ~A~%~ton ~A~%" arg0 arg1)
+        #f
+        )
+      )
+    )
+  )
+

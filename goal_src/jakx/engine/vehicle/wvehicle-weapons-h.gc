@@ -7,17 +7,34 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this two forward declarations for functions this file calls
-;; but does not define. Both targets are still stubs; build-first needs the
-;; declarations here regardless of which file eventually lands them, since
-;; engine/vehicle compiles ahead of both engine/vehicle/vehicle.gc's own body
-;; pass and levels/common in this tree's link order. Signatures copied from
-;; decompiler/config/jakx/all-types.gc. Drop each line when its real object
-;; lands.
+;; og:preserve-this three forward declarations for functions this file calls
+;; but does not define. All three targets are still stubs; build-first needs
+;; the declarations here regardless of which file eventually lands them,
+;; since engine/vehicle compiles ahead of both engine/vehicle/vehicle.gc's
+;; own body pass and levels/common in this tree's link order. Signatures
+;; copied from decompiler/config/jakx/all-types.gc. Drop each line when its
+;; real object lands.
 ;; vehicle-get-weapon-level: defined by vehicle.gc (this band's own object).
 (define-extern vehicle-get-weapon-level (function vehicle int int))
 ;; v-wpn-type->color: defined by wvehicle-weapons-util.gc (not in this band).
 (define-extern v-wpn-type->color (function int int))
+;; muzzle-flash-init-by-other: defined by wvehicle-weapons.gc (levels/common,
+;; not in this band); wvehicle-weapons-vein rung 4 lands (method 51
+;; gunmount-generic-drawable) below, which reads this symbol as a bare value
+;; to forward into run-function-in-process rather than calling it directly,
+;; so it still needs a real type here to compile. Nothing landed so far
+;; calls gunmount-drawable-method-51 (its own dispatch, gunmount-generic-
+;; drawable-state-55, is unlanded too), so this stays dormant rather than
+;; live until a caller and this symbol's own defun both land.
+;; muzzle-flash itself is only declared here, not landed: the :behavior tag
+;; above needs the type to exist at compile time, and this band compiles
+;; ahead of muzzle-flash's own deftype (levels/common, all-types.gc:77049,
+;; process-drawable). Same two-line shape as target's own forward
+;; declaration (all-types.gc): declare-type for the type, define-extern for
+;; the symbol lookup (declare-type alone leaves that empty).
+(declare-type muzzle-flash process-drawable)
+(define-extern muzzle-flash type)
+(define-extern muzzle-flash-init-by-other (function handle int object :behavior muzzle-flash))
 
 ;; definition for symbol V_R_MINE1_ARMED?, type object
 (define V_R_MINE1_ARMED? (the-as object #t))

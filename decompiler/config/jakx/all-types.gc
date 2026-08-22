@@ -77423,7 +77423,19 @@
 ;; (define-extern gunmount-drawable-init-by-other function)
 ;; (define-extern gunmount-event-handler function)
 ;; (define-extern muzzle-flash-event-handler function)
-;; (define-extern muzzle-flash-init-by-other function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 4): (method 51
+;; gunmount-generic-drawable) passes this to run-function-in-process with a2
+;; a pid<<32|pointer handle (the sllv/logior construction at its own ops
+;; 31-32) and a3 the int literal 4; a bare "function" here made
+;; run-function-in-process's own special-casing fail with "invalid function
+;; type: function", the same class net-player-init-remote and
+;; coli-statue-init-remote document above. muzzle-flash-init-by-other's own
+;; body (this object) reads exactly two incoming registers before touching
+;; s6/self (a muzzle-flash): a0 is stored back whole with sd (a 64-bit
+;; store, s6+244), confirming the handle shape survives the call; a1 is
+;; stored with sw (a 32-bit store, s6+252), an int. Matches the common
+;; init-by-other convention (function <fwd-args> object :behavior <type>).
+(define-extern muzzle-flash-init-by-other (function handle int object :behavior muzzle-flash))
 ;; (define-extern gunmount-get-change-anim function)
 ;; (define-extern gunmount-generic-event-handler function)
 ;; (define-extern v-wpn-yellow-chain-gun-I-rapid-fire-control-params object)
