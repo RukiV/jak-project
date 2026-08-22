@@ -10215,8 +10215,31 @@
   "(anon-function 73 wvehicle-weapons)": [
     [2, "v1", "(pointer process)"]
   ],
+  // wvehicle-weapons-vein rung 5: five casts, discovered iteratively
+  // (scoped decode of wvehicle-weapons, --proj-path a scratch dir
+  // junctioned to this worktree's own decompiler/config), once
+  // gunmount-drawable-init-by-other got a real type in all-types.gc.
+  // Op 20's (pointer (pointer process)) reads arg0's ppointer field
+  // (process-tree's own, machine offset 28 = declared 32) then
+  // dereferences it a second time to reach the live process, the same
+  // double-indirection ppointer->handle's own macro expansion performs
+  // (gkernel-h.gc) when given a raw ppointer rather than a process; op 26
+  // is the tail of that same pid<<32|pointer construction, needing uint
+  // like every other logior in this family. Ops 46/50/52 are draw-control
+  // field copies (a template gunmount-drawable's own draw fields, s5,
+  // copied onto self's, s6) that read through the same "draw" field
+  // gunmount-drawable-method-51 already resolves elsewhere in this file.
+  // Even with all five, the function does NOT fully decode: op 83 hits
+  // the gunmount-drawable-method-50 :methods-vs-:state-methods
+  // misclassification documented on (method 64 wvehicle)'s own entry
+  // above. Left unlanded; casts kept since each is independently verified
+  // against its own op and a future rung does not need to re-derive them.
   "gunmount-drawable-init-by-other": [
-    [26, "v1", "(pointer process)"]
+    [20, "v1", "(pointer (pointer process))"],
+    [26, "v1", "uint"],
+    [46, "v1", "draw-control"],
+    [50, "v1", "draw-control"],
+    [52, "v1", "draw-control"]
   ],
   "gunmount-common-post": [
     [10, "a0", "(pointer process)"]
@@ -10224,8 +10247,27 @@
   "gunmount-common-trans": [
     [5, "a0", "(pointer process)"]
   ],
+  // wvehicle-weapons-vein rung 5: op 59's l.wu (+ s5 252) was rejected in
+  // rung 3 as a 64-bit handle vs 32-bit lwu size mismatch. s5 is not a
+  // *locker-pool* member (that walk uses its own s1/v1 registers, typed
+  // process-tree already); it is handle->process's own result on self's
+  // owning-vehicle field (ops 2-12, the same raw expansion method-51's own
+  // build-time note documents), generically typed process by that macro.
+  // Offset 252 machine (+4 = 256 declared) is rigid-body-object's own
+  // "info" field (rigid-body-h.gc), which vehicle overrides to rigid-
+  // body-vehicle-constants at the same offset; casting s5 to vehicle here
+  // resolves the whole downstream chain through the type system alone (no
+  // further casts needed): op 60's +3136 lands on rigid-body-vehicle-
+  // constants's own "hardpoint" field (vehicle-h.gc, vehicle-hardpoint-info,
+  // no +4 correction since these are structure fields off a raw info
+  // pointer, not basic-tagged), op 61's +32 lands on vehicle-hardpoint-
+  // info's own "antenna-attach" field (vector, offset-assert 32), and op
+  // 62's lq is that vector's own whole-struct quad copy into the spawned
+  // part-tracker's local-space scratch (a countermeasure flare/chaff
+  // effect attached at the vehicle's antenna hardpoint).
   "(method 58 vehicle-weapon-slot)": [
-    [7, "a0", "(pointer process)"]
+    [7, "a0", "(pointer process)"],
+    [59, "s5", "vehicle"]
   ],
   "vws-focus-search-base": [
     [9, "a1", "(pointer process)"],
@@ -10289,11 +10331,18 @@
     [17, "a0", "(pointer process)"],
     [[28, 50], "a0", "vehicle"]
   ],
+  // wvehicle-weapons-vein rung 5, item 4: ops 129 and 196's own logior
+  // operands were cast (pointer process) by an earlier rung, the same
+  // wrong-type class gunmount-drawable-init-by-other's own note documents
+  // (the low-word half of a pid<<32|pointer handle build needs uint, not
+  // a pointer type); both retyped, the same idiom folded twice in this
+  // function (same shape as muzzle-flash-init-by-other's own two-fold
+  // ops 42/82).
   "(method 61 v-yellow-guided-missile)": [
     [6, "a0", "(pointer process)"],
     [63, "a0", "(pointer process)"],
-    [129, "v1", "(pointer process)"],
-    [196, "v1", "(pointer process)"]
+    [129, "v1", "uint"],
+    [196, "v1", "uint"]
   ],
   // og:preserve-this wvehicle-weapons-vein rung 3: op 44's type-tag deref
   // resolves method id 51 (raw offset 220) against s4; process-focusable's
@@ -10312,6 +10361,21 @@
   // a field name for the combination. root is already collide-shape-moving
   // by this rung's own precedent ((method 60 v-yellow-guided-missile)
   // above), so no separate concrete-type cast is needed first.
+  // wvehicle-weapons-vein rung 5: op 236's own "Could not figure out load:
+  // (set! v1 (l.wu v1))" is the same type-tag-dereference-then-vtable-
+  // dispatch idiom op 44's own note above documents, just past this
+  // rung's own landed offset-144 fix. v1 is s4 (checked type? collide-
+  // shape-prim at ops 229-233, else #f) merged back through the branch at
+  // L258; the merge loses collide-shape-prim's own type, so op 236's own
+  // type-tag read and op 237's own offset-136 (16 + 4*30) vtable read both
+  // fail to resolve. Casting v1 at op 236 clears both through the type
+  // system alone and runs 200 ops further before a NEW wall at op 439:
+  // "(l.b (+ s5 2116))", the identical process+2116 byte field hacks.jsonc's
+  // own vehicle-handle->net-player note documents (no ancestor this vein
+  // can edit declares it; vehicle.gc is out of scope). Held here on that
+  // same pre-existing, cross-vein wall rather than this rung's own; not a
+  // regression, the function simply advances to meet a wall already known
+  // from elsewhere in the corpus.
   "(method 78 v-yellow-guided-missile)": [
     [29, "a0", "(pointer process)"],
     [44, "a0", "process-focusable"],
@@ -10319,13 +10383,17 @@
     [195, "a0", "wvehicle"],
     [200, "a0", "(pointer process)"],
     [208, "v1", "(pointer uint32)"],
+    [236, "v1", "collide-shape-prim"],
     [419, "a0", "(pointer process)"]
   ],
   "(method 62 v-yellow-guided-missile)": [
     [33, "a0", "(pointer process)"]
   ],
+  // wvehicle-weapons-vein rung 5, item 4: same wrong-type class as (method
+  // 61 v-yellow-guided-missile)'s own note above (pid<<32|pointer low-word
+  // needs uint).
   "(method 65 mine-b)": [
-    [117, "v1", "(pointer process)"]
+    [117, "v1", "uint"]
   ],
   "mine-b-init-by-other": [
     [36, "v1", "(pointer process)"]
@@ -10399,8 +10467,11 @@
   "(method 15 mine-a)": [
     [26, "a0", "(pointer process)"]
   ],
+  // wvehicle-weapons-vein rung 5, item 4: same wrong-type class as (method
+  // 61 v-yellow-guided-missile)'s own note above (pid<<32|pointer low-word
+  // needs uint).
   "(method 62 mine-a)": [
-    [108, "v1", "(pointer process)"]
+    [108, "v1", "uint"]
   ],
   "mine-a-init-by-other": [
     [33, "v1", "(pointer process)"]
@@ -10943,10 +11014,8 @@
     [318, "a0", "(pointer process)"],
     [468, "a0", "(pointer process)"]
   ],
-  // (method 64 wvehicle), winit rung: this cast is verified-correct but
-  // the function stays muted below (no_type_analysis_functions_by_name)
-  // because a second, unrelated wall sits right behind it. arg0 (s5,
-  // register-allocated off a1 at op 1, never reassigned until op 506
+  // (method 64 wvehicle), winit rung: this cast is verified-correct. arg0
+  // (s5, register-allocated off a1 at op 1, never reassigned until op 506
   // repurposes s5 for an unrelated load) was the hold note's original
   // "s5+312" wall: op 191's l.b (+ s5 312) and op 194's l.f (+ s5 220)
   // are rigid-body-vehicle-constants's own gear-count (transmission+48,
@@ -10956,16 +11025,42 @@
   // With this cast applied, type prop clears op 191 and runs 210 ops
   // further before failing at op 401 on "Unknown symbol:
   // gunmount-drawable-init-by-other", a run-function-in-process init
-  // callback with no defun anywhere in the corpus (gunmount-drawable and
-  // gunmount-generic-drawable are declared, wvehicle-weapons-h.gc, but
-  // never given this function; op 439 repeats the same call). That is a
-  // missing-callee wall, not a config gap, and inventing a define-extern
-  // for it would be the issue-376 extern-no-defun bomb class. Left here
-  // so the arg0 fix does not need re-deriving once gunmount-drawable
-  // lands.
-  // "(method 64 wvehicle)": [
-  //   [[2, 461], "s5", "rigid-body-vehicle-constants"]
-  // ],
+  // callback with no defun anywhere in the corpus.
+  //
+  // og:preserve-this wvehicle-weapons-vein rung 5: uncommented once
+  // gunmount-drawable-init-by-other got a real (function pointer int
+  // object object :behavior gunmount-drawable) type (all-types.gc) and its
+  // own scoped-decode casts (see that function's own entry below). Method
+  // 64 now clears op 401 and runs 60 ops further before a NEW, unrelated
+  // wall at op 461: "add failed: object <integer 3168>", (+ s5 3168) with
+  // s5 still typed rigid-body-vehicle-constants everywhere else in its
+  // lifetime. 3168 is far past that type's own size-assert, so the
+  // decompiler's own bounds check silently declines the cast at this one
+  // op and falls back to the pre-cast "object" inference rather than
+  // reporting an out-of-bounds error directly; s5 is either a different
+  // type by this point in the body (without a visible reassignment this
+  // rung could find) or rigid-body-vehicle-constants's own declared size
+  // is wrong. Still muted in no_type_analysis_functions_by_other below
+  // pending that derivation; a future rung can start from op 461 rather
+  // than op 191 or op 401.
+  //
+  // gunmount-drawable-init-by-other's own body does NOT fully decode
+  // either even with a real type: five more scoped-decode casts (see its
+  // entry below) clear it to op 83, where it calls enter-state on a value
+  // read from gunmount-drawable's own method-50 vtable slot (offset 216 =
+  // 16 + 4*50); gunmount-drawable-method-50 is declared under (:methods)
+  // in wvehicle-weapons-h.gc as a plain (function none), but the same
+  // slot is fed to inherit-state elsewhere in this object's own top-level
+  // (disasm.gc, gunmount-generic-drawable's own state-50 override), proof
+  // it is actually a state, not a function-returning-none method. That is
+  // the jakx-behavior-state-typing defect class (zero (:state-methods)
+  // declarations), not something this rung's landing touches (gunmount-
+  // drawable-method-50 already has a landed :methods declaration and no
+  // landed body to conflict with a reclassification, but renaming it into
+  // :state-methods and re-deriving its real retail name is its own rung).
+  "(method 64 wvehicle)": [
+    [[2, 461], "s5", "rigid-body-vehicle-constants"]
+  ],
   // (method 71 turbodash-seeker): the same downstream cascade as the
   // wvehicle-weapons-family lane's other handle->process fold sites (no
   // sllv of its own in this rung's scoped decode, but a raw process-typed

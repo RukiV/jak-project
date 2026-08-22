@@ -77464,9 +77464,31 @@
 ;; raw float immediates (a1/a2/a3), a static address (t0, label L835,
 ;; label_types.jsonc), a fourth float (t1) and #f (t2, symbol).
 (define-extern vws-focus-search-base (function float float float vector float symbol object))
-;; (define-extern gunmount-common-trans function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 5): gunmount-
+;; drawable-init-by-other calls this directly (t9 set then jalr, not merely
+;; stored into a state's trans field like gunmount-generic-drawable-state-
+;; 55's own reference below) to run the trans logic once at spawn time,
+;; hitting "Called a function, but we do not know its type" with a bare
+;; "function" placeholder. Typed to match the state struct's own trans
+;; field shape ((function object)), the same convention v-wpn-base-common-
+;; trans documents in wvehicle-weapons-h.gc.
+(define-extern gunmount-common-trans (function object :behavior gunmount-drawable))
 ;; (define-extern gunmount-common-post function)
-;; (define-extern gunmount-drawable-init-by-other function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 5): (method 64
+;; wvehicle) passes this to run-function-in-process with a2 a raw ppointer
+;; (not yet handle-converted, unlike muzzle-flash-init-by-other's own a2
+;; above) and a3 an int flag; a bare "function" here hit the same
+;; run-function-in-process "invalid function type: function" wall.
+;; gunmount-drawable-init-by-other's own body (this object) reads three
+;; incoming registers before touching s6/self (a gunmount-drawable): a0 is
+;; the ppointer, converted to a handle in-body via the raw ppointer->handle
+;; expansion (same defect class as gunmount-drawable-method-51's own build-
+;; time substitution) and stored whole with sd (s6+244, mounted-on, a
+;; handle field); a1 is stored with sb (s6+252, hardpoint, an int8 field);
+;; a2 is only ever tested nonzero? (a float-sign flag, untyped further).
+;; Matches the init-by-other convention (function <fwd-args> object
+;; :behavior <type>).
+(define-extern gunmount-drawable-init-by-other (function pointer int object object :behavior gunmount-drawable))
 ;; (define-extern gunmount-event-handler function)
 ;; (define-extern muzzle-flash-event-handler function)
 ;; og:preserve-this activated (wvehicle-weapons-vein rung 4): (method 51

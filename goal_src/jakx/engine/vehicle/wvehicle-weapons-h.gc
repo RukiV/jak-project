@@ -19,21 +19,36 @@
 ;; v-wpn-type->color: defined by wvehicle-weapons-util.gc (not in this band).
 (define-extern v-wpn-type->color (function int int))
 ;; muzzle-flash-init-by-other: defined by wvehicle-weapons.gc (levels/common,
-;; not in this band); wvehicle-weapons-vein rung 4 lands (method 51
-;; gunmount-generic-drawable) below, which reads this symbol as a bare value
-;; to forward into run-function-in-process rather than calling it directly,
-;; so it still needs a real type here to compile. Nothing landed so far
-;; calls gunmount-drawable-method-51 (its own dispatch, gunmount-generic-
-;; drawable-state-55, is unlanded too), so this stays dormant rather than
-;; live until a caller and this symbol's own defun both land.
-;; muzzle-flash itself is only declared here, not landed: the :behavior tag
-;; above needs the type to exist at compile time, and this band compiles
-;; ahead of muzzle-flash's own deftype (levels/common, all-types.gc:77049,
-;; process-drawable). Same two-line shape as target's own forward
-;; declaration (all-types.gc): declare-type for the type, define-extern for
-;; the symbol lookup (declare-type alone leaves that empty).
-(declare-type muzzle-flash process-drawable)
-(define-extern muzzle-flash type)
+;; not in this band); (method 51 gunmount-generic-drawable), landed
+;; wvehicle-weapons-vein rung 4, reads this symbol as a bare value to
+;; forward into run-function-in-process rather than calling it directly, so
+;; it still needs a real type here to compile. og:preserve-this
+;; wvehicle-weapons-vein rung 5: muzzle-flash-init-by-other's own body and
+;; gunmount-generic-drawable-state-55 both landed in wvehicle-weapons.gc.
+;; Still nothing landed calls gunmount-drawable-method-51 itself, so the
+;; whole chain (method-51 -> muzzle-flash-init-by-other -> muzzle-flash's
+;; idle/lit states, and separately state-55's own event/trans dispatch)
+;; stays dormant rather than live until a caller lands; (method 64
+;; wvehicle) was the candidate caller this rung checked, and it holds on a
+;; fresh wall of its own (type_casts.jsonc's own note on that method).
+;; The forward declaration below stays: this file compiles ahead of
+;; wvehicle-weapons.gc in link order and (method 51 gunmount-generic-
+;; drawable) needs the type before muzzle-flash-init-by-other's own real
+;; body appears later in that same file (same shape as sleep-code/ja-post,
+;; process-drawable-h.gc: extern here, real defbehavior in the .gc file).
+(deftype muzzle-flash (process-drawable)
+  ((glued-to       uint64             :offset-assert 248)
+   (glued-joint    int32              :offset-assert 256)
+   (local-rotation quaternion :inline :offset-assert 272)
+   )
+  :method-count-assert 52
+  :size-assert         #x120
+  :flag-assert         #x3400900120
+  (:state-methods
+    lit ;; 50
+    idle ;; 51
+    )
+  )
 (define-extern muzzle-flash-init-by-other (function handle int object :behavior muzzle-flash))
 
 ;; definition for symbol V_R_MINE1_ARMED?, type object
@@ -237,6 +252,19 @@
     gunmount-generic-drawable-state-55
     )
   )
+
+;; gunmount-common-trans and gunmount-generic-event-handler: defined by
+;; wvehicle-weapons.gc (levels/common, not in this band); gunmount-generic-
+;; drawable-state-55, landed wvehicle-weapons-vein rung 5, stores both as
+;; bare values into its own :trans and :event slots. Neither function's own
+;; body is landed (each is its own further wall, unrelated to state-55's
+;; own wiring), so both stay forward-declared only. Typed :behavior
+;; gunmount-drawable, matching the state struct's own :trans/:event field
+;; shapes (gkernel-h.gc) plus the implicit self every other behavior
+;; stored bare into a state slot in this file keeps (v-wpn-base-common-
+;; trans above, sleep-code from process-drawable-h.gc).
+(define-extern gunmount-common-trans (function object :behavior gunmount-drawable))
+(define-extern gunmount-generic-event-handler (function process int symbol event-message-block object :behavior gunmount-drawable))
 
 ;; definition for method 3 of type gunmount-generic-drawable
 (defmethod inspect ((this gunmount-generic-drawable))

@@ -7,3 +7,312 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this wvehicle-weapons-vein rung 5, item 4: net-projectile,
+;; mine-a, mine-b and v-yellow-guided-missile all land their deftype plus
+;; one clean method each (net-projectile-method-72's own override on
+;; v-yellow-guided-missile, mine-a-method-62, mine-b-method-65), verbatim
+;; from decompiler/config/jakx/all-types.gc's own already-derived offsets
+;; (mechanical/oracle-verified provenance per that file's own notes on
+;; each type, not re-derived here). None of the three needed method arity
+;; had to change: net-projectile-method-72 decoded clean once
+;; type_casts.jsonc's own "(method 72 v-yellow-guided-missile)" -- sic,
+;; the decompiler names the override by the concrete type -- picked up a
+;; two-slot vector stack hint (stack_structures.jsonc); mine-a-method-62
+;; and mine-b-method-65 decoded clean with zero config changes beyond the
+;; existing (pointer process) -> uint logior retype this rung's own note
+;; on (method 62 mine-a) documents. Two build-time deviations from the raw
+;; decode, both matching precedent already established elsewhere in this
+;; file family: process->ppointer/ppointer->handle's own macro calls
+;; replace the decoder's raw nonzero?/l32-false-check/pid-shift expansion
+;; in both mine-a-method-62 and mine-b-method-65 (v-wpn-base-common-trans's
+;; own note, wvehicle-weapons-h.gc, documents the identical class), and
+;; net-projectile-method-72's own dead sp+16/sp+32 vector scratches print
+;; as ordinary vector locals with no further deviation needed. Every other
+;; method on all four types (61/62/67/70/78/79/80 on v-yellow-guided-
+;; missile; 15/17/35 on mine-a/mine-b) stays unlanded; each has its own
+;; further wall, not chased this rung (item 4 is "as time allows").
+(deftype net-projectile (projectile)
+  ()
+  :method-count-assert 75
+  :size-assert         #x231
+  :flag-assert         #x4b01b00231
+  (:methods
+    (net-projectile-method-72 (_type_ vector vector vector vector object) vector) ;; 72
+    (net-projectile-method-73 () none) ;; 73
+    (net-projectile-method-74 (_type_) none) ;; 74
+    )
+  )
+
+;; definition of type mine-a
+(deftype mine-a (process-focusable)
+  ((shooter           uint64             :offset-assert 256)
+   (destination-point vector     :inline :offset-assert 272)
+   (destination-rot   quaternion :inline :offset-assert 288)
+   (traj              trajectory :inline :offset-assert 304)
+   (beepy             uint32             :offset-assert 344)
+   (trail-tracker     uint64             :offset-assert 352)
+   (warning           basic              :offset-assert 360)
+   )
+  :method-count-assert 64
+  :size-assert         #x16c
+  :flag-assert         #x4000e0016c
+  (:state-methods
+    idle ;; 59
+    falling ;; 60
+    die ;; 61
+    )
+  (:methods
+    (mine-a-method-62 (_type_) none) ;; 62
+    (mine-a-method-63 (_type_ object) none) ;; 63
+    )
+  )
+
+;; definition for method 3 of type mine-a
+(defmethod inspect ((this mine-a))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type process-focusable inspect)))
+    (t9-0 this)
+    )
+  (format #t "~2Tshooter: ~D~%" (-> this shooter))
+  (format #t "~2Tdestination-point: #<vector @ #x~X>~%" (-> this destination-point))
+  (format #t "~2Tdestination-rot: #<quaternion @ #x~X>~%" (-> this destination-rot))
+  (format #t "~2Ttraj: #<trajectory @ #x~X>~%" (-> this traj))
+  (format #t "~2Tbeepy: ~D~%" (-> this beepy))
+  (format #t "~2Ttrail-tracker: ~D~%" (-> this trail-tracker))
+  (format #t "~2Twarning: ~A~%" (-> this warning))
+  (label cfg-4)
+  this
+  )
+
+;; definition of type mine-b
+(deftype mine-b (process-focusable)
+  ((shooter           uint64             :offset-assert 256)
+   (glued-to          uint64             :offset-assert 264)
+   (destination-point vector     :inline :offset-assert 272)
+   (destination-rot   quaternion :inline :offset-assert 288)
+   (traj              trajectory :inline :offset-assert 304)
+   (cached-rp-trans   vector     :inline :offset-assert 352)
+   (trail-tracker     uint64             :offset-assert 368)
+   (beepy             uint32             :offset-assert 376)
+   (attach-point      int32              :offset-assert 380)
+   (looseness         int32              :offset-assert 384)
+   (expires-on        uint64             :offset-assert 392)
+   (warning           basic              :offset-assert 400)
+   )
+  :method-count-assert 67
+  :size-assert         #x194
+  :flag-assert         #x4301100194
+  (:state-methods
+    idle ;; 59
+    falling ;; 60
+    leaping-onto ;; 61
+    attached ;; 62
+    shake-off ;; 63
+    die ;; 64
+    )
+  (:methods
+    (mine-b-method-65 (_type_) none) ;; 65
+    (mine-b-method-66 (_type_ object) none) ;; 66
+    )
+  )
+
+;; definition for method 3 of type mine-b
+(defmethod inspect ((this mine-b))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type process-focusable inspect)))
+    (t9-0 this)
+    )
+  (format #t "~2Tshooter: ~D~%" (-> this shooter))
+  (format #t "~2Tglued-to: ~D~%" (-> this glued-to))
+  (format #t "~2Tdestination-point: #<vector @ #x~X>~%" (-> this destination-point))
+  (format #t "~2Tdestination-rot: #<quaternion @ #x~X>~%" (-> this destination-rot))
+  (format #t "~2Ttraj: #<trajectory @ #x~X>~%" (-> this traj))
+  (format #t "~2Tcached-rp-trans: #<vector @ #x~X>~%" (-> this cached-rp-trans))
+  (format #t "~2Ttrail-tracker: ~D~%" (-> this trail-tracker))
+  (format #t "~2Tbeepy: ~D~%" (-> this beepy))
+  (format #t "~2Tattach-point: ~D~%" (-> this attach-point))
+  (format #t "~2Tlooseness: ~D~%" (-> this looseness))
+  (format #t "~2Texpires-on: ~D~%" (-> this expires-on))
+  (format #t "~2Twarning: ~A~%" (-> this warning))
+  (label cfg-4)
+  this
+  )
+
+;; definition of type v-yellow-guided-missile
+(deftype v-yellow-guided-missile (net-projectile)
+  ((trail-tracker        uint64                       :offset-assert 568)
+   (blast-radius         float                        :offset-assert 576)
+   (initial-velocity     float                        :offset-assert 580)
+   (time-of-next-pitch   uint64                       :offset-assert 584)
+   (time-strike-standoff int32                        :offset-assert 592)
+   (next-rot             quaternion           :inline :offset-assert 608)
+   (previous-target      uint64                       :offset-assert 624)
+   (pred                 net-predictor-simple :inline :offset-assert 640)
+   (defer-kaboom         uint64                       :offset 952)
+   (last-hit             uint64                       :offset-assert 960)
+   )
+  :method-count-assert 81
+  :size-assert         #x3c8
+  :flag-assert         #x51034003c8
+  (:state-methods
+    launching ;; 75
+    wild ;; 76
+    tracking ;; 77
+    )
+  (:methods
+    (v-yellow-guided-missile-method-78 (_type_) none) ;; 78
+    (v-yellow-guided-missile-method-79 (_type_) none) ;; 79
+    (v-yellow-guided-missile-method-80 (_type_) none) ;; 80
+    )
+  )
+
+;; definition for method 3 of type v-yellow-guided-missile
+(defmethod inspect ((this v-yellow-guided-missile))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (let ((t9-0 (method-of-type net-projectile inspect)))
+    (t9-0 this)
+    )
+  (format #t "~2Ttrail-tracker: ~D~%" (-> this trail-tracker))
+  (format #t "~2Tblast-radius: ~f~%" (-> this blast-radius))
+  (format #t "~2Tinitial-velocity: ~f~%" (-> this initial-velocity))
+  (format #t "~2Ttime-of-next-pitch: ~D~%" (-> this time-of-next-pitch))
+  (format #t "~2Ttime-strike-standoff: ~D~%" (-> this time-strike-standoff))
+  (format #t "~2Tnext-rot: #<quaternion @ #x~X>~%" (-> this next-rot))
+  (format #t "~2Tprevious-target: ~D~%" (-> this previous-target))
+  (format #t "~2Tpred: #<net-predictor-simple @ #x~X>~%" (-> this pred))
+  (format #t "~2Tdefer-kaboom: ~D~%" (-> this defer-kaboom))
+  (format #t "~2Tlast-hit: ~D~%" (-> this last-hit))
+  (label cfg-4)
+  this
+  )
+
+;; definition for method 72 of type net-projectile
+(defmethod net-projectile-method-72 ((this v-yellow-guided-missile) (arg0 vector) (arg1 vector) (arg2 vector) (arg3 vector) (arg4 object))
+  (when (not arg2)
+    (let ((v1-1 (new 'stack-no-clear 'vector)))
+      (set! (-> v1-1 quad) (-> this starting-pos quad))
+      (set! arg2 v1-1)
+      )
+    )
+  (when (not arg3)
+    (let ((v1-4 (new 'stack-no-clear 'vector)))
+      (set! (-> v1-4 quad) (-> this root transv quad))
+      (set! arg3 v1-4)
+      )
+    )
+  (if (not arg4)
+      (-> this spawn-time)
+      )
+  (set! (-> arg0 quad) (-> arg2 quad))
+  (let ((v0-0 arg1))
+    (set! (-> v0-0 quad) (-> arg3 quad))
+    v0-0
+    )
+  )
+
+;; definition for method 62 of type mine-a
+(defmethod mine-a-method-62 ((this mine-a))
+  (let ((s4-0 -4194305)
+        (s5-0 (new 'process 'collide-shape this (collide-list-enum usually-hit-by-player)))
+        )
+    (set! (-> s5-0 penetrate-using) (the-as penetrate -1))
+    (set! (-> s5-0 penetrated-by) (the-as penetrate s4-0))
+    (let ((v1-3 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-3 prim-core collide-as) (collide-spec obstacle))
+      (set-vector! (-> v1-3 local-sphere) 0.0 0.0 0.0 24576.0)
+      (set! (-> s5-0 total-prims) (the-as uint 1))
+      (set! (-> s5-0 root-prim) v1-3)
+      )
+    (set! (-> s5-0 nav-radius) (* 0.75 (-> s5-0 root-prim local-sphere w)))
+    (let ((v1-6 (-> s5-0 root-prim)))
+      (set! (-> s5-0 backup-collide-as) (-> v1-6 prim-core collide-as))
+      (set! (-> s5-0 backup-collide-with) (-> v1-6 prim-core collide-with))
+      )
+    (set! (-> s5-0 event-self) 'touched)
+    (set! (-> this root) s5-0)
+    )
+  (initialize-skeleton
+    this
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-mine-a" (the-as (pointer level) #f)))
+    (the-as pair 0)
+    )
+  (set! (-> this warning) (new 'process 'warning-hud-icon))
+  (set! (-> this part) (create-launch-control (-> *part-group-id-table* 253) this))
+  (cond
+    ((>= (-> *attackable-hash* length) (-> *attackable-hash* allocated-length))
+     (format 0 "Attackable hash has been overfilled. Tell Elan.~%")
+     (break!)
+     0
+     )
+    (else
+      (let ((s5-2 (-> *attackable-hash* length)))
+        (+! (-> *attackable-hash* length) 1)
+        (set! (-> *attackable-hash* procs s5-2) (ppointer->handle (process->ppointer this)))
+        (set! (-> *attackable-hash* trans s5-2 quad) (-> (get-trans this 3) quad))
+        (set! (-> *attackable-hash* masks s5-2) (process-focusable-method-50 this))
+        )
+      )
+    )
+  (none)
+  )
+
+;; definition for method 65 of type mine-b
+(defmethod mine-b-method-65 ((this mine-b))
+  (let ((s4-0 -4194305)
+        (s5-0 (new 'process 'collide-shape this (collide-list-enum usually-hit-by-player)))
+        )
+    (set! (-> s5-0 penetrate-using) (the-as penetrate -1))
+    (set! (-> s5-0 penetrated-by) (the-as penetrate s4-0))
+    (let ((v1-3 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-3 prim-core collide-as) (collide-spec obstacle))
+      (set-vector! (-> v1-3 local-sphere) 0.0 0.0 0.0 73728.0)
+      (set! (-> s5-0 total-prims) (the-as uint 1))
+      (set! (-> s5-0 root-prim) v1-3)
+      )
+    (set! (-> s5-0 nav-radius) (* 0.75 (-> s5-0 root-prim local-sphere w)))
+    (let ((v1-6 (-> s5-0 root-prim)))
+      (set! (-> s5-0 backup-collide-as) (-> v1-6 prim-core collide-as))
+      (set! (-> s5-0 backup-collide-with) (-> v1-6 prim-core collide-with))
+      )
+    (set! (-> s5-0 event-self) 'touched)
+    (set! (-> this root) s5-0)
+    )
+  (initialize-skeleton
+    this
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-mine-b" (the-as (pointer level) #f)))
+    (the-as pair 0)
+    )
+  (set! (-> this part) (create-launch-control (-> *part-group-id-table* 254) this))
+  (set! (-> this shooter) (the-as uint #f))
+  (set! (-> this glued-to) (the-as uint #f))
+  (set! (-> this trail-tracker) (the-as uint #f))
+  (set! (-> this attach-point) -1)
+  (set! (-> this expires-on) (the-as uint (+ (current-time) (seconds 40))))
+  (set! (-> this warning) (new 'process 'warning-hud-icon))
+  (cond
+    ((>= (-> *attackable-hash* length) (-> *attackable-hash* allocated-length))
+     (format 0 "Attackable hash has been overfilled. Tell Elan.~%")
+     (break!)
+     0
+     )
+    (else
+      (let ((s5-2 (-> *attackable-hash* length)))
+        (+! (-> *attackable-hash* length) 1)
+        (set! (-> *attackable-hash* procs s5-2) (ppointer->handle (process->ppointer this)))
+        (set! (-> *attackable-hash* trans s5-2 quad) (-> (get-trans this 3) quad))
+        (set! (-> *attackable-hash* masks s5-2) (process-focusable-method-50 this))
+        )
+      )
+    )
+  (none)
+  )
+

@@ -7,25 +7,55 @@
 
 ;; DECOMP BEGINS
 
-;; og:preserve-this wvehicle-weapons-vein rung 4: only this one method is
-;; landed from this object so far. It decoded clean once
-;; decompiler/config/jakx/all-types.gc gave muzzle-flash-init-by-other a
-;; real (function handle int object :behavior muzzle-flash) type (the run-
-;; function-in-process "invalid function type: function" wall, same class
-;; as net-player-init-remote above it in that file) and
-;; decompiler/config/jakx/ntsc_v1/type_casts.jsonc picked up four more
-;; casts: two logior operands at ops 42/82 (the same pid<<32|pointer handle
-;; idiom op 31/32 already resolved; rung 3's own casts at these two ops used
-;; (pointer process) instead of uint, which is what was still blocking once
-;; the function-type wall cleared) and s3 at ops 85/87/90/92 (a connection
-;; returned by add-connection, written past its own 32-byte declared size
-;; with two inline matrices and a handle by an engine-specific caller that
-;; knows the concrete allocation is bigger; cast per touch point to match
-;; each raw access's own width rather than inventing a name for the
-;; concrete connection subtype). muzzle-flash-init-by-other's own body is
-;; not landed (wvehicle-weapons-h.gc's own og:preserve-this note on its
-;; forward declaration has the dormancy argument); neither is anything else
-;; in this object. Retire this note once the object grows past this method.
+;; og:preserve-this wvehicle-weapons-vein rung 4: gunmount-drawable-method-
+;; 51 decoded clean once decompiler/config/jakx/all-types.gc gave muzzle-
+;; flash-init-by-other a real (function handle int object :behavior
+;; muzzle-flash) type (the run-function-in-process "invalid function type:
+;; function" wall, same class as net-player-init-remote above it in that
+;; file) and decompiler/config/jakx/ntsc_v1/type_casts.jsonc picked up four
+;; more casts: two logior operands at ops 42/82 (the same pid<<32|pointer
+;; handle idiom op 31/32 already resolved; rung 3's own casts at these two
+;; ops used (pointer process) instead of uint, which is what was still
+;; blocking once the function-type wall cleared) and s3 at ops 85/87/90/92
+;; (a connection returned by add-connection, written past its own 32-byte
+;; declared size with two inline matrices and a handle by an engine-
+;; specific caller that knows the concrete allocation is bigger; cast per
+;; touch point to match each raw access's own width rather than inventing
+;; a name for the concrete connection subtype).
+;;
+;; og:preserve-this wvehicle-weapons-vein rung 5: muzzle-flash-init-by-
+;; other's own body and gunmount-generic-drawable-state-55 land together
+;; below (rung 4's own map: landing either activates the other as a live
+;; runtime path once a caller reaches gunmount-drawable-method-51, so both
+;; land in the same commit or neither does). Both decode clean off a
+;; scoped decode of this object alone; the object's own TOP-LEVEL (the
+;; load-time chain of method-set!/state-construction calls covering every
+;; def in this file) does NOT sugar cleanly as a whole -- unrelated
+;; failures elsewhere in this object (the v-wpn-yellow-guided-missile and
+;; v-wpn-yellow-seismic-blaster families, several anon-functions) make the
+;; decompiler's own top-level aggregator fall back to a single raw
+;; local-vars-wrapped dump covering the whole object, with no per-function
+;; "definition for" headers anywhere in <object>_disasm.gc. Both landed
+;; bodies below were instead pulled from <object>_ir2.asm's own per-
+;; function ";;-*-OpenGOAL-Start/End-*-" blocks, which decode independently
+;; of the top-level's own success (the same file muzzle-flash-init-by-
+;; other's own extern type note above cites); gunmount-generic-drawable-
+;; state-55's own wiring (no clean defstate form exists anywhere in either
+;; file, since it is stored via method-set! rather than sugared) was
+;; instead read directly off the raw top-level's own s.w! stores at gp-4
+;; (event=offset 32, trans=offset 20, code=offset 16, post=offset 24,
+;; matching the state deftype's own field order exactly, gkernel-h.gc) --
+;; no :enter write exists for this state, so it takes none. Two more
+;; forward-declared callees needed extern-only landing alongside these
+;; (wvehicle-weapons-h.gc): gunmount-common-trans and gunmount-generic-
+;; event-handler, both still unlanded bodies of their own, out of scope
+;; here. gunmount-drawable-init-by-other, the same function family as
+;; muzzle-flash-init-by-other and the callee that unblocks (method 64
+;; wvehicle), was checked this rung too: it now decodes five ops' worth
+;; further once typed and cast (decompiler/config/jakx/ntsc_v1/
+;; type_casts.jsonc's own note on it) but still does not fully clear, so
+;; it and (method 64 wvehicle) both stay held; see that config file's own
+;; notes on both for the fresh wall.
 ;;
 ;; og:preserve-this build-time deviation from the raw decode: goalc rejects
 ;; (method-of-type muzzle-flash activate) with "The method form is ambiguous
@@ -104,6 +134,118 @@
                    )
                  )
           )
+    )
+  (none)
+  )
+
+;; definition for function muzzle-flash-init-by-other
+(defbehavior muzzle-flash-init-by-other muzzle-flash ((arg0 handle) (arg1 int))
+  (stack-size-set! (-> self main-thread) 64)
+  (set! (-> self root) (new 'process 'trsqv))
+  (initialize-skeleton
+    self
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-muzzle-flash" (the-as (pointer level) #f)))
+    (the-as pair 0)
+    )
+  (set! (-> self glued-to) (the-as uint arg0))
+  (set! (-> self glued-joint) arg1)
+  (quaternion-identity! (-> self local-rotation))
+  (go-virtual idle)
+  )
+
+;; og:preserve-this gunmount-generic-drawable-state-55: no clean defstate
+;; form exists in either <object>_disasm.gc or <object>_ir2.asm (the whole
+;; object's top-level fails to sugar, see this file's own header note);
+;; wired directly from the raw top-level's own method-set!/s.w! stores at
+;; gp-4, which write event (offset 32), trans (offset 20), code (offset
+;; 16) and post (offset 24) and leave enter (offset 28) untouched, matching
+;; the state deftype's own field order (gkernel-h.gc). gunmount-common-
+;; trans and gunmount-generic-event-handler are both forward-declared only
+;; (wvehicle-weapons-h.gc); neither body lands this rung.
+(defstate gunmount-generic-drawable-state-55 (gunmount-generic-drawable)
+  :event gunmount-generic-event-handler
+  :trans gunmount-common-trans
+  :code sleep-code
+  :post ja-post
+  )
+
+;; og:preserve-this wvehicle-weapons-vein rung 5: (method 58 vehicle-
+;; weapon-slot), the countermeasure-retarget/countermeasure-drop-target
+;; broadcast to every *locker-pool* child plus its own antenna-hardpoint
+;; part-tracker spawn (flare/chaff effect). Rung 3 rejected a 64-bit-
+;; handle-vs-32-bit-lwu cast at op 59's offset-252 read; that read is not
+;; on any *locker-pool* value (the pool walk uses its own s1/v1 registers,
+;; typed process-tree already) but on the process handle->process resolves
+;; from this method's own owning-vehicle field, generically typed process
+;; by that macro. decompiler/config/jakx/ntsc_v1/type_casts.jsonc and
+;; stack_structures.jsonc's own notes on this method have the full
+;; derivation (vehicle's own "info" field at declared offset 256,
+;; overriding rigid-body-object's; the antenna hardpoint chain below it)
+;; and the last-key-wins duplicate-JSON-key trap that hid rung 4's own
+;; note until this rung folded it into one entry. Decodes clean with zero
+;; further errors once cast. Two build-time deviations from the raw
+;; decode: handle->process's own macro call replaces the decoder's raw
+;; nonzero?/l32-false-check/pid-compare expansion (v-wpn-base-common-
+;; trans's own note above documents the identical class), and the raw
+;; decode's own dead (new 'stack-no-clear 'vector) expression -- proven
+;; dead at the machine level (op 47 computes the address, then v1 is
+;; immediately overwritten with *launch-matrix* the very next op, per
+;; stack_structures.jsonc's own note) -- is kept verbatim rather than
+;; dropped, matching AGENTS.md's transcribe-not-improve rule.
+(defmethod vehicle-weapon-slot-method-58 ((this vehicle-weapon-slot) (arg0 object))
+  (let* ((s5-0 (handle->process (-> this owning-vehicle)))
+         (s2-0 (if arg0
+                   'countermeasure-retarget
+                   'countermeasure-drop-target
+                   )
+               )
+         (gp-0 0)
+         )
+    (when s5-0
+      (let ((s1-0 (-> *locker-pool* child)))
+        (while s1-0
+          (if (send-event (ppointer->process s1-0) s2-0 :from s5-0 arg0)
+              (+! gp-0 1)
+              )
+          (set! s1-0 (-> s1-0 0 brother))
+          )
+        )
+      )
+    (when (> gp-0 0)
+      (new 'stack-no-clear 'vector)
+      (set! (-> *launch-matrix* trans quad) (-> *null-vector* quad))
+      (set! (-> *part-tracker-params-default* group) (-> *part-group-id-table* 274))
+      (set! (-> *part-tracker-params-default* local-offset quad)
+            (-> (the-as vehicle s5-0) info hardpoint local-pos-array 2 quad)
+            )
+      (set! (-> *part-tracker-params-default* duration) (the-as uint 600))
+      (set! (-> *part-tracker-params-default* callback) #f)
+      (set! (-> *part-tracker-params-default* userdata) (the-as uint (-> this owning-vehicle)))
+      (set! (-> *part-tracker-params-default* target) (the-as process-drawable s5-0))
+      (set! (-> *part-tracker-params-default* mat-joint) (the-as object 0))
+      (set! (-> *part-tracker-params-default* local-space-param) 0)
+      (set! (-> *part-tracker-params-default* local-space-callback) #f)
+      (set! (-> *part-tracker-params-default* subsampler-num) 1.0)
+      *part-tracker-params-default*
+      (if (logtest? (-> *part-group-id-table* 274 flags) (sp-group-flag sp13))
+          (process-spawn
+            part-tracker-subsampler
+            :init part-tracker-subsampler-init
+            *part-tracker-params-default*
+            :name "part-tracker-subsampler"
+            :to s5-0
+            :unk 0
+            )
+          (process-spawn
+            part-tracker
+            :init part-tracker-init
+            *part-tracker-params-default*
+            :name "part-tracker"
+            :to s5-0
+            :unk 0
+            )
+          )
+      )
     )
   (none)
   )
