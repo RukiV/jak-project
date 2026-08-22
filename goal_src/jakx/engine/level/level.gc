@@ -2042,6 +2042,12 @@
 (define-extern jakx-racer-spawn (function none))
 (define-extern *additional-spawner-count* int)
 (define-extern *jakx-racer* symbol)
+;; og:preserve-this forward decl (issue 595 regfix Edit C.2): jakx-region-driver-spawn
+;; lives in region-driver.gc, which builds after level.gc in game.gd
+;; (region-driver.gc:298 vs level.gc:267); play (this file, far below) now calls it
+;; unconditionally right after (on #t). Same forward-decl shape as jakx-racer-spawn
+;; immediately above.
+(define-extern jakx-region-driver-spawn (function none))
 (define-extern *jakx-racer-handle* (pointer handle))
 (define-extern *jakx-racer-track-index* int)
 (define-extern *jakx-racer-respawn-pending* symbol)
@@ -3117,6 +3123,14 @@
 ;; behavior, not exploration behavior, so it runs independently of this flag's value;
 ;; see the placement block itself for why.
 (define *jakx-want-driver* #t)
+;; og:preserve-this display-promotion lever (issue 595 regfix): three values, one
+;; symbol. 'inside (default) drives jakx-want-driver-display-tick below, promoting a
+;; tiny only once the camera is inside its bounds. 'blanket restores develop's
+;; original unconditional promotion exactly (the two want-display-level calls kept
+;; behind a branch above), for an A/B comparison against 'inside. #f promotes
+;; nothing, i.e. today's broken branch behavior, kept only so a bad boot stays
+;; diagnosable rather than silently falling back to a different rule.
+(define *jakx-want-driver-display-rule* 'inside)
 (define *jakx-want-driver-frame* 0)
 (define *jakx-want-driver-cp* (the continue-point #f))
 (define *jakx-want-driver-level* (the symbol #f))
@@ -8392,37 +8406,32 @@ window~%" cand-tiny0-name)
                           ;; wanted section actually draw instead of waiting for a later
                           ;; flip point this driver never reaches).
                           (want-display-level *load-state* (-> best-center name) 'display)
-                          ;; og:preserve-this issue 595 / trigvol dossier R2: retail only ever
-                          ;; flips a section's display? through a region volume the camera has
-                          ;; physically crossed (section 1/5 of the dossier); the blanket
-                          ;; promotion this replaced skipped that gate, so a freshly wanted
-                          ;; tiny section rendered its detail geometry unoccluded on top of the
-                          ;; still-displayed wide level's coarse geometry the moment it was
-                          ;; wanted, not once the camera reached it (issue 595's root cause:
-                          ;; all-visible? pinned at 'loading, invalid PC vis packet, tie/tfrag/
-                          ;; hfrag all draw). want-levels already initialises every new entry
-                          ;; hidden (comment above, still true), so gating this promotion on
-                          ;; inside-boxes? is a deletion of that bug, not new logic: a tiny
-                          ;; member outside the camera's boxes simply keeps the hidden default
-                          ;; until inside-boxes? goes true on a later tick (update-level-inside-
-                          ;; boxes sets it every frame, level.gc:10616-10623, called from
-                          ;; level-update at level.gc:10731) or a region volume promotes it
-                          ;; once R1 lands with its lever armed. This is the demotion the
-                          ;; dossier costs as R2; the want driver's own residency behavior
-                          ;; (which levels are wanted/loaded, want-levels above) is untouched,
-                          ;; only display? routing changes.
-                          (when cand-tiny0-name
-                            (let ((lev (level-get *level* cand-tiny0-name)))
-                              (when (and lev (-> lev inside-boxes?))
-                                (want-display-level *load-state* cand-tiny0-name 'display)
-                                )
+                          ;; og:preserve-this issue 595 regfix: the inside-boxes?-gated
+                          ;; promotion this replaced (04a803d3d) is deleted, not repaired -- it
+                          ;; can never fire for a section the driver has just slid into the
+                          ;; window. inside-boxes? is only ever computed for levels already
+                          ;; 'active (update-level-inside-boxes, level.gc:10651), and the only
+                          ;; steady-state path to 'active is this same display branch, so the
+                          ;; gate was checking a postcondition of the very promotion it gated --
+                          ;; provably false at the one moment it runs (want-levels, directly
+                          ;; above, has just initialised the candidate 'loaded with no slot yet,
+                          ;; so level-get returns #f the same tick). Promotion for a freshly
+                          ;; wanted tiny now lives in the per-frame reconciler,
+                          ;; jakx-want-driver-display-tick (this file, below
+                          ;; jakx-want-driver-tick), which tests camera distance against
+                          ;; jakx-level-bound-dist -- the same authority that selected this
+                          ;; window -- instead of a predicate that cannot go true until after the
+                          ;; fact. best-center's own unconditional promotion above is
+                          ;; retail-faithful (the "w" level always displays) and stays untouched.
+                          ;; The two calls below are kept only for
+                          ;; *jakx-want-driver-display-rule* = 'blanket, an exact A/B replay of
+                          ;; develop's original unconditional promotion; off by default.
+                          (when (= *jakx-want-driver-display-rule* 'blanket)
+                            (when cand-tiny0-name
+                              (want-display-level *load-state* cand-tiny0-name 'display)
                               )
-                            )
-                          (when cand-tiny1-name
-                            (let ((lev (level-get *level* cand-tiny1-name)))
-                              (when (and lev (-> lev inside-boxes?))
-                                (want-display-level *load-state* cand-tiny1-name 'display)
-                                )
+                            (when cand-tiny1-name
+                              (want-display-level *load-state* cand-tiny1-name 'display)
                               )
                             )
                           (want-vis-level *load-state* (-> best-center name))
@@ -8440,6 +8449,73 @@ window~%" cand-tiny0-name)
                         ;; next tick, exactly like the old continue-walk driver did.
                         (none)
                         )
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; og:preserve-this bring-up: name -> *jakx-level-bounds* row, mirroring
+;; jakx-level-name-built?'s own scan (level.gc:7889). Note: jakx-find-level-bound
+;; (level.gc:7904) already does this exact lookup; kept as a separate,
+;; narrowly-named entry point here per the issue 595 regfix spec that specified
+;; this function verbatim -- worth collapsing into one call site in a follow-up.
+(defun jakx-level-bound-by-name ((name symbol))
+  (dotimes (i (-> *jakx-level-bounds* length))
+    (if (= (-> (-> *jakx-level-bounds* i) name) name)
+        (return (-> *jakx-level-bounds* i))
+        )
+    )
+  (the jakx-level-bound #f)
+  )
+
+(defun jakx-want-driver-display-tick ()
+  "og:preserve-this bring-up display reconciler (issue 595 regfix). Runs every frame
+from level-update, between update-level-inside-boxes and update! *load-state*, so a
+promotion decided this frame is applied this frame with no one-frame lag. Input is
+*jakx-want-driver-tiny* (level.gc:3123, written at level.gc:8368-8369), the driver's
+own persisted two-slot window, so this can only promote what the driver itself just
+selected -- it cannot touch anything else and cannot fight net-world's or the
+racer's own want writes. It only ever promotes #f -> 'display, never the reverse;
+demotion stays exclusively with want-levels' own eviction path (want-display-level
+... #f calls deactivate, level.gc:10300, and retail never demotes on leaving a
+volume -- the far side volume does it). want-display-level is durable and
+slot-keyed (load-state.gc:570-581): the name is already in want[] because
+want-levels put it there, so its ERROR: can't display arm is unreachable here, and
+update! applies the flip as soon as status reaches 'loaded or 'active
+(level.gc:10265-10284). Strictly tighter than develop's blanket promotion (which
+displayed a tiny the moment it was wanted); this displays it only once the camera
+is inside its bounds, so it cannot regress develop's visuals and it narrows issue
+595's unoccluded-draw window to \"camera is geometrically inside the section\". It
+is looser than retail's own volume test -- region-driver.gc is what eventually
+supersedes it. Known imprecision, recorded not hidden: the bound spheres are
+deliberately generous and overlap across families (level.gc:8140-8161), so distance
+0.0 can hold for both window tinies at once; the blast radius is bounded at two
+levels, exactly the pair develop promoted unconditionally."
+  (when (and *jakx-want-driver* (= *jakx-want-driver-display-rule* 'inside))
+    (let ((mc (view-get-math-camera 0)))
+      (when (nonzero? (the-as int mc))
+        (let ((cam (-> mc trans)))
+          (dotimes (i 2)
+            (let ((nm (-> *jakx-want-driver-tiny* i)))
+              (when nm
+                (let ((lb (jakx-level-bound-by-name nm)))
+                  (when (and lb (= (jakx-level-bound-dist lb cam) 0.0))
+                    (dotimes (w 6)
+                      (when (and (= (-> *load-state* want w name) nm)
+                                 (not (-> *load-state* want w display?))
+                                 )
+                        (format 0 "want-driver: camera inside ~A, displaying~%" nm)
+                        (want-display-level *load-state* nm 'display)
+                        )
+                      )
                     )
                   )
                 )
@@ -9690,6 +9766,15 @@ drive/camera logic below ever runs."
         )
     )
   (on #t)
+  ;; og:preserve-this unconditional spawn (issue 595 regfix, Edit C.2): on creates
+  ;; *dproc* and populates *display-pool* (main.gc:4754-4772), so this is the
+  ;; earliest point a display process can sit beside it. Spawned unconditionally so
+  ;; arming the region driver is a single (set! *jakx-region-driver-enable* #t) with
+  ;; no "did I forget to spawn?" failure mode; the sweep itself stays gated inside
+  ;; the process by *jakx-region-driver-enable* (region-driver.gc). The lever stays
+  ;; #f by default (region-driver.gc), so this spawn is a no-op behavior change: a
+  ;; sleep-code process whose :post does two vector copies while disabled.
+  (jakx-region-driver-spawn)
   ;; og:preserve-this restored, R6 (#122): game-info.gc's initialize! landed by R3a
   ;; (85504cc1d), closing the reason this was disabled. Of the 296 static continue
   ;; points initialize! and its continue path can reach, 5 (the startup ladder's own:
@@ -10769,6 +10854,12 @@ drive/camera logic below ever runs."
   ;; Gated on *jakx-racer* inside the tick itself, like its neighbors above.
   (jakx-racer-tick)
   (update-level-inside-boxes this)
+  ;; og:preserve-this bring-up display reconciler call site (issue 595 regfix):
+  ;; must run after update-level-inside-boxes (camera and level state current for
+  ;; the frame) and before update! *load-state* (so a promotion decided this frame
+  ;; is applied this frame, not one frame late). See jakx-want-driver-display-tick's
+  ;; own docstring above for why this replaces the deleted inside-boxes? gate.
+  (jakx-want-driver-display-tick)
   ;; og:preserve-this gui/art pump, gui-control update-connection completion
   ;; lane (issues 522/550/551): jak3's own level-update runs a four-call
   ;; pump block here (level.gc:3572-3576, (update *setting-control*)
