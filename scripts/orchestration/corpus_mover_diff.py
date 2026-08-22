@@ -128,6 +128,11 @@ def main():
     ap.add_argument("--game", default="jakx")
     ap.add_argument("--version", default="ntsc_v1")
     ap.add_argument("--iso-data", default=None, help="default: <repo_root>/iso_data")
+    ap.add_argument("--keep-decodes", action="store_true",
+                    help="keep the two full-corpus decode trees after the diff; "
+                    "by default they are deleted once the table is printed, because "
+                    "each pair is ~4 GB of regenerable text and dozens of runs "
+                    "silently accumulated over 500 GB of dead scratch")
     args = ap.parse_args()
 
     repo_root = os.path.abspath(args.repo_root)
@@ -190,6 +195,22 @@ def main():
     print("\ncorpus_mover_diff: run completed and the tree was provably restored; "
           "whether the movers above are explained by the commits under test is for the "
           "caller to judge from this table, not this script.")
+
+    # The error counts above are the product; the decode trees are scaffolding.
+    # This script creates exactly one junction, proj/decompiler/config, and it
+    # must be removed as a link (os.rmdir deletes the junction, never its
+    # target) before the recursive delete, so the cleanup can never reach the
+    # real checkout's config through it.
+    if not args.keep_decodes:
+        import shutil
+        cfg_junction = os.path.join(proj, "decompiler", "config")
+        try:
+            os.rmdir(cfg_junction)
+        except OSError:
+            pass
+        for d in (out_before, out_after, proj):
+            shutil.rmtree(d, ignore_errors=True)
+        print("scratch decodes deleted (pass --keep-decodes to retain them)")
     return 0
 
 
