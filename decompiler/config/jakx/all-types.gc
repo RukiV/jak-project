@@ -47769,37 +47769,62 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced to 28)
-;; og:preserve-this light-trails rung: NOT fixed this rung, evidence-only.
-;; A scoped decode of this object (allowed_objects: [light-trails-h,
-;; light-trails], this worktree) strongly suggests the same defect class as
-;; light-trail's own table above (jak3 names adopted onto jak3's own slot
-;; numbers, unverified against jakx's compiled bodies): decoding under the
-;; CURRENT declaration below, slot 17 (declared should-track?) actually
-;; contains a type?/as-type process-focusable check plus a vtable dispatch
-;; that fetches a transform and quad-copies it out, matching
-;; get-tracked-object-pos, not should-track? (whose real trivial always-#t
-;; body instead decodes at slot 18); slot 19 (declared should-draw?) decodes
-;; as the trivial `(not arg0)` body that is really should-end?; slot 20
-;; (declared add-crumb!) decodes as the long offscreen/frustum body that is
-;; really should-draw?; and slot 21 (generic) decodes as the frame-stagger
-;; mod-check dispatching into (-> this trail) that is really add-crumb!.
-;; Separately, the scoped decode shows `(method-set! light-trail-tracker 16
-;; gp-1)` registering a real static state named 'die, which has no
-;; corresponding :state-methods entry at all (only tracking, at 15, is
-;; declared). Left unfixed here: attempting the correction produced a
-;; method-count-assert mismatch (24 vs 23 for light-trail when a slot-9
-;; override was redundantly re-declared on top of its parent's own count;
-;; 26 vs 28 for a first pass at this type once state entries moved blocks)
-;; that this rung could not resolve with confidence in the time available --
-;; the exact rule the deftype parser uses to assign real slot numbers to
-;; :state-methods vs :methods entries needs to be nailed down empirically
-;; (small scoped decodes, checked against method-count-assert and against
-;; the decompiler's own regenerated headers) before this type's table is
-;; touched. light-trail's own table above WAS fixed and reconfirmed clean
-;; this rung (pure in-place rename, zero structural change, matching
-;; method-count-assert 23 exactly); apply the same discipline here rather
-;; than restructuring blocks.
+;; resurrected from the dead block above (dead-type sweep; method-count-assert
+;; auto-synced to 28, since corrected below to 22).
+;; og:preserve-this tracker rung: resolves the slot-assignment rule the
+;; light-trails rung left unresolved ("the exact rule the deftype parser
+;; uses to assign real slot numbers to :state-methods vs :methods entries
+;; needs to be nailed down empirically"). Read directly from
+;; common/type_system/deftype.cpp's parse_structure_def and
+;; TypeSystem::declare_method/get_next_method_id: a deftype's option list is
+;; scanned ONCE, left to right, and each :methods or :state-methods block is
+;; dispatched to declare_method/declare_state_methods as the scanner reaches
+;; it; both call the identical TypeSystem::declare_method, which assigns
+;; get_next_method_id(type) (this type's own last-declared id + 1, or the
+;; parent's method-count if nothing is declared on this type yet) to every
+;; new entry, one id per entry, with zero special-casing for state-methods
+;; vs methods. The ONLY thing that decides a slot number is which block is
+;; textually first in the source and how many entries precede a given one
+;; within and across blocks. jakx's own process (this file, above) declares
+;; :method-count-assert 15, one more than jak3's 14, so every one of
+;; light-trail-tracker's real slots is jak3's own real number plus 1.
+;; Verified three ways against this rung's own scoped decode (allowed_objects:
+;; [light-trails-h, light-trails], this worktree): (1) against the
+;; PRE-FIX declaration below, the decompiler reports "Failed to find
+;; defstates: ... The state is named tracking, but the slot is named
+;; light-trail-tracker-state-15" -- it independently found a real
+;; (:name 'tracking ...) state object at the same real slot this file's lone
+;; :state-methods entry occupies, confirming both the block-order rule and
+;; that 'tracking' is real slot 15, just misnamed; (2) the same decode's
+;; disasm shows `(method-set! light-trail-tracker 16 gp-1)` installing a
+;; second `(new 'static 'state :name 'die ...)` immediately after -- a
+;; literal retail slot number baked into the MIPS, independent of any
+;; declaration -- confirming 'die' is real slot 16, contiguous with
+;; tracking, with no :state-methods entry at all beforehand; (3) the
+;; decode's own defmethod headers name real slots directly: methods 17/18/
+;; 19/20/21 of type light-trail-tracker are the only new virtual methods the
+;; retail binary has, content-matched to get-tracked-object-pos (17: a
+;; type?/as-type process-focusable check plus a vtable dispatch that
+;; quad-copies a transform out), should-track? (18: trivial `#t`),
+;; should-end? (19: trivial `(not arg0)`), should-draw? (20: the long
+;; offscreen?/offscreen-start-time/next-line-check-time frustum body, fields
+;; confirmed via the +4 basic-offset trap against this type's own field
+;; list), and add-crumb! (21: the frame-stagger mod-check dispatching a
+;; virtual call through (-> this trail), incrementing last-add-frame-val).
+;; Nothing real exists past slot 21: weapon-trail-tracker and
+;; light-trail-tracker-projectile each independently install their own
+;; `hang-on` state at the SAME literal slot 22 (`method-set!
+;; weapon-trail-tracker 22 ...` and `method-set! light-trail-tracker-
+;; projectile 22 ...`), only possible if light-trail-tracker's own count
+;; stops at 22 and both children independently claim the next-free slot --
+;; proof the pre-fix declaration's extra :methods placeholders (and the
+;; missing die state) inflated the real count from 22 to 28; that 28 was
+;; never binary-verified, only mechanically carried over from the dead
+;; block's own stale 13-entry single-block guess recomputed against the
+;; corrected parent base. Precedent for this campaign: the block that is
+;; textually first wins the lower slots, full stop; apply the same check to
+;; any other resurrected type whose :state-methods/:methods blocks were
+;; reordered or padded without a scoped-decode confirmation.
 (deftype light-trail-tracker (process)
   ((trail                light-trail  :offset-assert 144) ;; guessed by decompiler
    (tracked-object       uint64       :offset-assert 152) ;; handle
@@ -47808,25 +47833,19 @@
    (next-line-check-time uint64       :offset-assert 176) ;; time-frame
    (last-add-frame-val   uint32       :offset-assert 184)
    )
-  :method-count-assert 28
+  :method-count-assert 22
   :size-assert         #xbc
-  :flag-assert         #x1c003000bc
+  :flag-assert         #x16003000bc
   (:state-methods
-    light-trail-tracker-state-15 ;; 15
+    tracking ;; 15
+    die ;; 16
     )
   (:methods
-    (light-trail-tracker-method-10 () none) ;; 10
-    (light-trail-tracker-method-11 () none) ;; 11
-    (light-trail-tracker-method-12 () none) ;; 12
-    (light-trail-tracker-method-13 () none) ;; 13
-    (light-trail-tracker-method-14 () none) ;; 14 ;; (tracking () _type_ :state)
-    (light-trail-tracker-method-15 () none) ;; 15 ;; (die () _type_ :state)
-    (light-trail-tracker-method-16 () none) ;; 16 ;; (get-tracked-object-pos (_type_ process-focusable vector) vector)
-    (should-track? (_type_ process-focusable) symbol) ;; 17
-    (light-trail-tracker-method-18 () none) ;; 18 ;; (should-end? (_type_ process-focusable) symbol)
-    (should-draw? (_type_) symbol) ;; 19
-    (add-crumb! (_type_ vector) none) ;; 20
-    (light-trail-tracker-method-21 (_type_) none) ;; 21
+    (get-tracked-object-pos (_type_ process-focusable vector) vector) ;; 17
+    (should-track? (_type_ process-focusable) symbol) ;; 18
+    (should-end? (_type_ process-focusable) symbol) ;; 19
+    (should-draw? (_type_) symbol) ;; 20
+    (add-crumb! (_type_ vector) none) ;; 21
     )
   )
 
@@ -47845,17 +47864,32 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced to 29)
+;; resurrected from the dead block above (dead-type sweep; method-count-assert
+;; auto-synced to 29, corrected below to 23 -- see light-trail-tracker's own
+;; note above for the slot-assignment rule and the shared method-set!
+;; evidence). og:preserve-this tracker rung: weapon-trail-tracker installs
+;; its OWN `hang-on` state at real slot 22 (`method-set! weapon-trail-tracker
+;; 22 gp-4`, this rung's scoped decode), the first free slot after the
+;; parent's now-corrected count of 22, converted from a plain :methods
+;; placeholder to a :state-methods entry to match. weapon-trail-tracker also
+;; overrides tracking (real 15, `method-set! weapon-trail-tracker 15 gp-5`)
+;; with its own body; that is a defmethod override in goal_src, not a
+;; redeclaration here, since the slot already exists on the parent. `trail`
+;; is retyped to weapon-trail (:override, caught by JakXTypeConsistency
+;; against this rung's own goal_src landing, which already had it): matches
+;; both the jak3 twin's identical override and weapon-trail-tracker-init-
+;; by-other's own body, `(set! (-> self trail) (new 'process 'weapon-trail))`.
 (deftype weapon-trail-tracker (light-trail-tracker)
-  ((joint0     int16   :offset-assert 188)
+  ((trail      weapon-trail :override)
+   (joint0     int16   :offset-assert 188)
    (joint1     int16   :offset-assert 190)
    (state-time uint64  :offset-assert 192) ;; time-frame
    )
-  :method-count-assert 29
+  :method-count-assert 23
   :size-assert         #xc8
-  :flag-assert         #x1d004000c8
-  (:methods
-    (weapon-trail-tracker-method-22 () none) ;; 22
+  :flag-assert         #x17004000c8
+  (:state-methods
+    hang-on ;; 22
     )
   )
 
@@ -47868,12 +47902,22 @@
   :flag-assert         #x16003000bc
   )
 |#
-;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced to 28)
+;; resurrected from the dead block above (dead-type sweep; method-count-assert
+;; auto-synced to 28, corrected below to 22 -- see light-trail-tracker's own
+;; note above). tread-trail-tracker adds no new methods or states of its own
+;; (this rung's scoped decode shows only its own `inspect`/`relocate`/
+;; calc-vertex-pos! overrides, none of which change the method count); count
+;; and flag-assert follow the parent's corrected 22 exactly. `trail` is
+;; retyped to tread-trail (:override, caught by JakXTypeConsistency against
+;; this rung's own goal_src landing, which already had it): matches both the
+;; jak3 twin's identical override and tread-trail-tracker-init-by-other's
+;; own body, `(set! (-> self trail) (new 'process 'tread-trail))`.
 (deftype tread-trail-tracker (light-trail-tracker)
-  ()
-  :method-count-assert 28
+  ((trail tread-trail :override)
+   )
+  :method-count-assert 22
   :size-assert         #xbc
-  :flag-assert         #x1c003000bc
+  :flag-assert         #x16003000bc
   )
 
 
@@ -47885,12 +47929,17 @@
   :flag-assert         #x16003000bc
   )
 |#
-;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced to 28)
+;; resurrected from the dead block above (dead-type sweep; method-count-assert
+;; auto-synced to 28, corrected below to 22 -- see light-trail-tracker's own
+;; note above). light-trail-tracker-water adds no new methods or states
+;; either (this rung's scoped decode shows only an `inspect` override and a
+;; should-track? (real 18) override returning `(none)` instead of `#t`);
+;; count and flag-assert follow the parent's corrected 22 exactly.
 (deftype light-trail-tracker-water (light-trail-tracker)
   ()
-  :method-count-assert 28
+  :method-count-assert 22
   :size-assert         #xbc
-  :flag-assert         #x1c003000bc
+  :flag-assert         #x16003000bc
   )
 
 
@@ -47906,15 +47955,24 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced to 29)
+;; resurrected from the dead block above (dead-type sweep; method-count-assert
+;; auto-synced to 29, corrected below to 23 -- see light-trail-tracker's own
+;; note above). og:preserve-this tracker rung: light-trail-tracker-projectile
+;; installs its OWN `hang-on` state at real slot 22 (`method-set!
+;; light-trail-tracker-projectile 22 gp-3`, this rung's scoped decode), the
+;; same first-free slot weapon-trail-tracker independently claims, converted
+;; from a plain :methods placeholder to a :state-methods entry to match. It
+;; also overrides tracking (real 15, `method-set! light-trail-tracker-
+;; projectile 15 gp-2`) and both get-tracked-object-pos (real 17) and
+;; should-end? (real 19) with its own bodies.
 (deftype light-trail-tracker-projectile (light-trail-tracker)
   ((state-time uint64  :offset-assert 192) ;; time-frame
    )
-  :method-count-assert 29
+  :method-count-assert 23
   :size-assert         #xc8
-  :flag-assert         #x1d004000c8
-  (:methods
-    (light-trail-tracker-projectile-method-22 () none) ;; 22
+  :flag-assert         #x17004000c8
+  (:state-methods
+    hang-on ;; 22
     )
   )
 
@@ -75129,18 +75187,32 @@
     )
   )
 |#
-;; resurrected from the dead block above (dead-type sweep; method-count-assert auto-synced to 31)
+;; resurrected from the dead block above (dead-type sweep; method-count-assert
+;; auto-synced to 31 against light-trail-tracker's then-wrong count of 28).
+;; og:preserve-this tracker rung: forced ripple from light-trail-tracker's
+;; own correction above (22, not 28). tire-trail-tracker's own :state-methods
+;; entry `tracking` is a same-name OVERRIDE of the inherited real-15 state,
+;; not a new one: TypeSystem::declare_method's non-:replace path looks the
+;; name up first (try_lookup_method walks the parent chain) and reuses the
+;; existing id when the signature matches, consuming no new slot. So this
+;; type's only genuinely new methods are its own two (:methods entries,
+;; textually first, landing at real 22 and 23 off the corrected parent base
+;; exactly as the dead block above already had them (24 total, matching the
+;; auto-sync tool's pre-28-ripple value); the second argument on real 23
+;; is left as this file already had it (uncredited to this rung, not
+;; rechecked against a scoped decode of this type). :method-count-assert and
+;; :flag-assert restored to the dead block's own original 24/0x18003000bc.
 (deftype tire-trail-tracker (light-trail-tracker)
   ()
-  :method-count-assert 31
+  :method-count-assert 24
   :size-assert         #xbc
-  :flag-assert         #x1f003000bc
+  :flag-assert         #x18003000bc
   (:methods
     (tire-trail-tracker-method-22 () none) ;; 22
     (tire-trail-tracker-method-23 (_type_) none) ;; 23
     )
   (:state-methods
-    tracking ;; 15
+    tracking ;; 15 (override, reuses the inherited slot)
     )
   )
 

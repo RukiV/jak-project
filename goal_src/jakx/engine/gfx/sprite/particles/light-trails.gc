@@ -552,3 +552,96 @@
     )
   (none)
   )
+
+;; og:preserve-this tracker rung: clean band from a scoped decode against
+;; this worktree's own corrected all-types.gc (light-trail-tracker's own
+;; note there carries the full slot-assignment-rule evidence and the
+;; per-slot body citations). should-draw? (real slot 20) and light-trail-
+;; tracker-common-post below remain unlanded: should-draw? fails the same
+;; sllv/handle->process wall as light-trail-tracker-init-by-other (see
+;; light-trails-h.gc), and common-post's only branch calls should-draw? by
+;; virtual dispatch into a slot with no landed defmethod, the same
+;; unlanded-callee class this file's own common-trans! note above documents.
+;; The tracking/die/hang-on state bodies (declared in light-trails-h.gc,
+;; real slots 15/16/22) are held for the same reason: tracking's and die's
+;; own :event/:trans handlers hit the identical wall, and all three states'
+;; :post hook is the held common-post.
+
+(defmethod get-tracked-object-pos ((this light-trail-tracker) (arg0 process-focusable) (arg1 vector))
+  (let ((a0-2 (as-type arg0 process-focusable)))
+    (if a0-2
+        (set! (-> arg1 quad) (-> (get-trans a0-2 0) quad))
+        )
+    )
+  arg1
+  )
+
+(defmethod should-track? ((this light-trail-tracker) (arg0 process-focusable))
+  #t
+  )
+
+(defmethod should-track? ((this light-trail-tracker-water) (arg0 process-focusable))
+  #f
+  )
+
+(defmethod should-end? ((this light-trail-tracker) (arg0 process-focusable))
+  (not arg0)
+  )
+
+(defmethod add-crumb! ((this light-trail-tracker) (arg0 vector))
+  (if (zero? (mod (-> this last-add-frame-val) (-> this trail appearance frame-stagger)))
+      (add-crumb! (-> this trail) arg0 (seconds 10000))
+      (replace-last-crumb! (-> this trail) arg0)
+      )
+  (+! (-> this last-add-frame-val) 1)
+  (none)
+  )
+
+(defmethod get-tracked-object-pos ((this light-trail-tracker-projectile) (arg0 process-focusable) (arg1 vector))
+  (let ((a0-1 arg0))
+    (if a0-1
+        (set! (-> arg1 quad) (-> a0-1 root trans quad))
+        )
+    )
+  arg1
+  )
+
+(defmethod should-end? ((this light-trail-tracker-projectile) (arg0 process-focusable))
+  (if (not arg0)
+      (set! (-> this tracked-object) (the-as uint #f))
+      )
+  #f
+  )
+
+(defbehavior weapon-trail-tracker-init-by-other weapon-trail-tracker ((arg0 weapon-trail-tracker-spawn-params))
+  (set! (-> self tracked-object) (-> arg0 tracked-obj))
+  (set! (-> self trail) (new 'process 'weapon-trail))
+  (set! (-> self next-line-check-time) (the-as uint 0))
+  (set! (-> self last-add-frame-val) (the-as uint 0))
+  (set! (-> self joint0) (-> arg0 joint0))
+  (set! (-> self joint1) (-> arg0 joint1))
+  (set! (-> self offscreen?) #f)
+  (setup! (-> self trail) (-> arg0 appearance) (-> arg0 max-num-crumbs))
+  (go-virtual tracking)
+  )
+
+(defbehavior tread-trail-tracker-init-by-other tread-trail-tracker ((arg0 light-trail-tracker-spawn-params))
+  (set! (-> self tracked-object) (-> arg0 tracked-obj))
+  (set! (-> self trail) (new 'process 'tread-trail))
+  (set! (-> self offscreen?) #f)
+  (set! (-> self next-line-check-time) (the-as uint 0))
+  (set! (-> self last-add-frame-val) (the-as uint 0))
+  (setup! (-> self trail) (-> arg0 appearance) (-> arg0 max-num-crumbs))
+  (go-virtual tracking)
+  )
+
+;; og:preserve-this tracker rung: light-trail-tracker-init-by-other stays
+;; blocked on the same sllv/handle->process decompiler wall documented in
+;; decompiler/config/jakx/ntsc_v1/stack_structures.jsonc ("light-trail-
+;; tracker-init-by-other's own error (Unsupported inline assembly
+;; instruction kind - sllv, the handle->process idiom)"). Its two siblings
+;; above decode clean because they never touch the tracked-obj handle
+;; through that idiom in their own init path; light-trail-tracker's own
+;; init-by-other does, at the same op the type's `tracking`/`die` state
+;; handlers and should-draw? also fail on. Not forced; retire this note once
+;; that wall is resolved.

@@ -64,17 +64,25 @@
 ;; rung's own all-types.gc for the full evidence trail, one note per type.
 ;; light-trail-tracker and its descendants (weapon-trail-tracker,
 ;; tread-trail-tracker, light-trail-tracker-water,
-;; light-trail-tracker-projectile) are NOT landed this rung: the same defect
-;; class is visible there too (should-track?/should-end?/should-draw?/
+;; light-trail-tracker-projectile) were NOT landed that rung: the same defect
+;; class was visible there too (should-track?/should-end?/should-draw?/
 ;; add-crumb!/get-tracked-object-pos each one slot off, plus a `die` state
-;; missing from :state-methods entirely), but this rung could not resolve
+;; missing from :state-methods entirely), but that rung could not resolve
 ;; the deftype parser's slot-assignment rule for :state-methods vs :methods
-;; with confidence in the time available; fixing light-trail's own table
-;; required removing a redundant slot-9 override that double-counted against
-;; prim-client's own method-count-assert, and a first attempt at the tracker
-;; table hit an analogous but unresolved miscount. Land light-trail-tracker
-;; and its descendants, plus light-trail-tracker-init-by-other below, in a
-;; follow-up rung once that mechanism is nailed down empirically.
+;; with confidence in the time available.
+;;
+;; og:preserve-this tracker rung: the slot-assignment rule above is now
+;; nailed down empirically (see light-trail-tracker's own note below for the
+;; full evidence trail and the deftype.cpp/TypeSystem.cpp citations) and the
+;; table below is corrected. get-tracked-object-pos/should-track?/
+;; should-end?/add-crumb! (plus light-trail-tracker-water's should-track?
+;; override and light-trail-tracker-projectile's get-tracked-object-pos/
+;; should-end? overrides) land in light-trails.gc from this rung's clean
+;; scoped decode. Held back: should-draw? (the same sllv/handle->process
+;; wall as light-trail-tracker-init-by-other below), light-trail-tracker-
+;; common-post (calls the held should-draw?), and the tracking/die/hang-on
+;; state bodies themselves (their :event/:trans handlers hit the same wall,
+;; and :post is the held common-post).
 
 (deftype color-array (inline-array-class)
   ((data  rgbaf  :inline :dynamic)
@@ -197,4 +205,91 @@
   :method-count-assert 9
   :size-assert         #x18
   :flag-assert         #x900000018
+  )
+
+;; og:preserve-this tracker rung: landed from a scoped decode against this
+;; worktree's own corrected all-types.gc (light-trail-tracker's own note
+;; there carries the full slot-assignment-rule evidence trail: block order
+;; alone decides real ids, jakx's process has one more inherited method than
+;; jak3's so every real slot here is jak3's own number plus 1). tracking and
+;; die are declared states (:virtual #t, real slots 15 and 16) but their own
+;; bodies do not decode clean (event/trans hit the same handle-dereference
+;; wall documented on light-trail-tracker-init-by-other below) and stay held;
+;; the five :methods entries are the ones this rung's scoped decode content-
+;; matched by body (see light-trails.gc for the landed four and the one held
+;; slot).
+(deftype light-trail-tracker (process)
+  ((trail                light-trail  :offset-assert 144) ;; guessed by decompiler
+   (tracked-object       uint64       :offset-assert 152) ;; handle
+   (offscreen?           symbol       :offset-assert 160) ;; guessed by decompiler
+   (offscreen-start-time uint64       :offset-assert 168) ;; time-frame
+   (next-line-check-time uint64       :offset-assert 176) ;; time-frame
+   (last-add-frame-val   uint32       :offset-assert 184)
+   )
+  :method-count-assert 22
+  :size-assert         #xbc
+  :flag-assert         #x16003000bc
+  (:state-methods
+    tracking ;; 15
+    die ;; 16
+    )
+  (:methods
+    (get-tracked-object-pos (_type_ process-focusable vector) vector) ;; 17
+    (should-track? (_type_ process-focusable) symbol) ;; 18
+    (should-end? (_type_ process-focusable) symbol) ;; 19
+    (should-draw? (_type_) symbol) ;; 20
+    (add-crumb! (_type_ vector) none) ;; 21
+    )
+  )
+
+;; og:preserve-this tracker rung: weapon-trail-tracker installs its own
+;; hang-on state at real slot 22 (this rung's scoped decode: `method-set!
+;; weapon-trail-tracker 22 gp-4`), the first free slot after the parent's
+;; corrected count of 22.
+(deftype weapon-trail-tracker (light-trail-tracker)
+  ((trail      weapon-trail :override)
+   (joint0     int16        :offset-assert 188)
+   (joint1     int16        :offset-assert 190)
+   (state-time uint64       :offset-assert 192) ;; time-frame
+   )
+  :method-count-assert 23
+  :size-assert         #xc8
+  :flag-assert         #x17004000c8
+  (:state-methods
+    hang-on ;; 22
+    )
+  )
+
+;; og:preserve-this tracker rung: tread-trail-tracker adds no new methods or
+;; states; count and flag-assert follow the parent's corrected 22.
+(deftype tread-trail-tracker (light-trail-tracker)
+  ((trail tread-trail :override)
+   )
+  :method-count-assert 22
+  :size-assert         #xbc
+  :flag-assert         #x16003000bc
+  )
+
+;; og:preserve-this tracker rung: light-trail-tracker-water adds no new
+;; methods or states; count and flag-assert follow the parent's corrected 22.
+(deftype light-trail-tracker-water (light-trail-tracker)
+  ()
+  :method-count-assert 22
+  :size-assert         #xbc
+  :flag-assert         #x16003000bc
+  )
+
+;; og:preserve-this tracker rung: light-trail-tracker-projectile installs its
+;; own hang-on state at real slot 22 (this rung's scoped decode: `method-set!
+;; light-trail-tracker-projectile 22 gp-3`), the same first-free slot
+;; weapon-trail-tracker independently claims.
+(deftype light-trail-tracker-projectile (light-trail-tracker)
+  ((state-time uint64  :offset-assert 192) ;; time-frame
+   )
+  :method-count-assert 23
+  :size-assert         #xc8
+  :flag-assert         #x17004000c8
+  (:state-methods
+    hang-on ;; 22
+    )
   )
