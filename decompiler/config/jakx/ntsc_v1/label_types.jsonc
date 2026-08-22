@@ -439,7 +439,18 @@
   // type_casts.jsonc documents; attack-info is a plain structure, sized
   // #xa8, matching the block's own field writes at 0/16/32/64/92/128/132/
   // 144/152/156, all attack-info offsets).
-  "wvehicle-weapons": [["L920", "uint64"], ["L804", "attack-info"]],
+  // og:preserve-this wvehicle-weapons-vein rung 3: L832 is loaded then read
+  // with a single lqc2 (a 128-bit quadword) and vadd.xyz'd against a point
+  // taken from the target's collide-shape root (gp+184, +12), the standard
+  // "add a static offset vector to a world point" idiom; sized and used
+  // exactly like a plain vector constant.
+  // og:preserve-this wvehicle-weapons-vein rung 3: L835 is (method 57
+  // v-wpn-yellow-guided-missile)'s own fourth argument to
+  // vws-focus-search-base, forwarded by address with no dereference at this
+  // call site; vector is the type this file's own vws-focus-search-base
+  // declaration now carries (all-types.gc), the smallest static shape that
+  // decompiles cleanly for a bare address argument in this position.
+  "wvehicle-weapons": [["L920", "uint64"], ["L804", "attack-info"], ["L832", "vector"], ["L835", "vector"]],
   // *old-vector*: L166 is 4 raw zero words (16 bytes), exactly sizeof(vector)
   // (jakx's vector deftype, goal_src/jakx/kernel/gcommon.gc, is a plain
   // structure, not a basic, so no type tag word). top-level-login stores its
@@ -452,6 +463,12 @@
   // (L160 surfaced first, then L159 once L160 was fixed), so both land
   // together. L160 sits immediately before a ".type state" boundary (L161).
   "wvehicle-states": [["L166", "vector"], ["L160", "vector"], ["L159", "vector"]],
+  // og:preserve-this wvehicle-weapons-vein rung 3: L351 is
+  // rapid-fire-control-initialize-from-vehicle's own third argument to
+  // matrix-remove-scale! (already declared function matrix matrix vector
+  // matrix, all-types.gc), the out-vector slot that receives the removed
+  // scale factors.
+  "wvehicle-weapons-util": [["L351", "vector"]],
   // *car-part-type-to-text-table*: top-level-login stores L1's raw address
   // (lui/ori, no allocation) into the symbol slot, the same unboxed-static
   // shape as wvehicle-weapons' L920 and wvehicle-states' L166 above. L1 runs

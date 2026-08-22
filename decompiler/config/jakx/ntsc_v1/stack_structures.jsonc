@@ -1823,4 +1823,28 @@
   // error was "Failed store: (s.f! (+ a1-5 12) f0-7)" against the sp+16
   // stack var, matching light-trail-breadcrumb's own birth-time field at
   // +12 exactly.
-  "(method 12 light-trail)": [[16, "light-trail-breadcrumb"]]}
+  "(method 12 light-trail)": [[16, "light-trail-breadcrumb"]],
+  // (method 56 v-wpn-yellow-guided-missile), wvehicle-weapons-vein rung 3:
+  // "Failed to guess stack use for 16" at op 12 (daddiu s5, sp, 16). sp+64
+  // (s5+48, passed as spawn-net-projectile's own params arg at op 236)
+  // matches projectile-init-by-other-params field for field: attack-id
+  // (uint32, declared 64) at sp+128, ignore-handle (handle, declared 96) at
+  // sp+160 built from the same pid<<32|pointer idiom this rung's op-183
+  // fix already resolves, timeout (time-frame, declared 104) at sp+168,
+  // damage (float, declared 112) at sp+176, vehicle-damage-factor (float,
+  // declared 116) at sp+180, vehicle-impulse-factor (float, declared 120)
+  // at sp+184 and wpn-type (uint8, declared 124) at sp+188, seven
+  // consecutive fields landing exactly on their declared offsets, a named-
+  // type match. sp+16 through sp+63 (a leading float at relative offset 32,
+  // sp+48, forwarded into the params struct's own damage field) is not
+  // independently typed here; this rung's own evidence does not cover the
+  // rest of that header, so it is left the decompiler's own guess.
+  "(method 56 v-wpn-yellow-guided-missile)": [[64, "projectile-init-by-other-params"]],
+  // rapid-fire-control-initialize-from-vehicle, wvehicle-weapons-vein rung 3
+  // (this rung's own land target): "Failed to guess stack use for 16" at op
+  // 11 (daddiu s4, sp, 16). All three fields are accessed through s4 itself
+  // (offsets computed from s4, not fresh sp-relative loads per slot), so a
+  // single compound type resolves the whole region; see
+  // rapid-fire-control-init-scratch (all-types.gc) for the field-by-field
+  // evidence.
+  "rapid-fire-control-initialize-from-vehicle": [[16, "rapid-fire-control-init-scratch"]]}

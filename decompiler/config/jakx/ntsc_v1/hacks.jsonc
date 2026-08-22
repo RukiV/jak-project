@@ -334,6 +334,24 @@
     // than clearing the error, so this is parked as asm instead of chasing
     // that crash further; unrelated to this rung's scope.
     "(method 14 race-line)",
+    // wvehicle-weapons-vein rung 3: (method 57 v-wpn-yellow-guided-missile),
+    // v-wpn-yellow-chain-gun, v-wpn-yellow-default-gun and v-wpn-yellow-
+    // grenade all share the identical shape -- each is a thin four-to-six-
+    // constant wrapper around vws-focus-search-base (this rung activates it,
+    // all-types.gc), forwarding this's own a0 straight into the call with no
+    // local instruction that reads it first. Declaring the callee's real
+    // signature (six explicit args: float float float vector float symbol,
+    // this rung's own label_types.jsonc entry for L835's own vector shape)
+    // resolves the call target itself but leaves "Bad register dependency on
+    // a0"/"may read a register that is not set: a0" on all four: the same
+    // caller-supplied-register-through class (method 11 race-line) above
+    // already documents, the decompiler cannot see that a0 survives
+    // untouched from this method's own entry to the call with no
+    // intervening write. Same fix.
+    "(method 57 v-wpn-yellow-guided-missile)",
+    "(method 57 v-wpn-yellow-chain-gun)",
+    "(method 57 v-wpn-yellow-default-gun)",
+    "(method 57 v-wpn-yellow-grenade)",
     "(method 11 collide-mesh)",
     // dma
     "symlink2",

@@ -9870,13 +9870,33 @@
   // below already casts at its own op 39; s4 here is the same
   // handle->process resolution of owning-vehicle (op 2-11) that precedent's
   // gp is.
+  // og:preserve-this wvehicle-weapons-vein rung 3: op 41's type-tag deref
+  // needs gp (a0 here) recognized as process-focusable, not the generic
+  // process the type?-guard at op 24-30 leaves it typed as, or the op 42
+  // vtable read at offset 248 resolves against process's own (much shorter)
+  // method table and fails to find id 58. The debug string at op 55,
+  // "cur-targ-dam returns ~f~%", and process-focusable-method-58's own
+  // declared shape ((_type_) float, all-types.gc:35756, a health/max-health
+  // ratio per its vehicle override) confirm process-focusable is the right
+  // floor: no narrower cast is needed since the call itself is virtual.
   "(anon-function 14 wvehicle-weapons)": [
+    [6, "v1", "handle"],
     [7, "a0", "(pointer process)"],
     [13, "s4", "wvehicle"],
+    [17, "v1", "handle"],
     [18, "a0", "(pointer process)"],
-    [94, "v1", "(pointer process)"],
-    [222, "a0", "(pointer process)"],
-    [247, "v1", "(pointer process)"]
+    [41, "a0", "process-focusable"],
+    [62, "gp", "process-focusable"],
+    [93, "v1", "handle"],
+    [94, "v1", "uint"],
+    [114, "s4", "wvehicle"],
+    [165, "s4", "wvehicle"],
+    [214, "a1", "process"],
+    [221, "a0", "handle"],
+    [222, "a0", "uint"],
+    [235, "s4", "wvehicle"],
+    [246, "v1", "handle"],
+    [247, "v1", "uint"]
   ],
   "(anon-function 15 wvehicle-weapons)": [
     [19, "a0", "(pointer process)"],
@@ -9894,18 +9914,74 @@
   // all-types.gc:56226) the (anon-function 51 wvehicle-weapons) and
   // (anon-function 14 wvehicle-weapons) precedents already cast; s4 here is
   // the same handle->process resolution of owning-vehicle (op 1-10).
+  // og:preserve-this wvehicle-weapons-vein rung 3: op 49's raw offset-228
+  // load is process-drawable's own rbody field (rigid-body-control,
+  // declared offset 232, all-types.gc), inherited onto wvehicle unchanged;
+  // s4 is the same owning-vehicle process this method's own op 31 cast
+  // already narrows, just read again at a later op. Op 50's follow-on +140
+  // read resolves on its own
+  // once rbody's own declared type takes over: rigid-body-control's
+  // lin-velocity field sits at declared 144 (all-types.gc:48585), and op 51
+  // feeds it straight into veclength, i.e. this reads the vehicle's own
+  // linear speed. Held past this point: a stack_structures wall at sp+16
+  // (see stack_structures.jsonc) and eight sllv "Unsupported inline
+  // assembly instruction kind" markers, the same ppointer-chase-to-handle
+  // class hacks.jsonc already documents project-wide as not config-fixable.
   "(method 56 v-wpn-yellow-guided-missile)": [
     [6, "a0", "(pointer process)"],
     [31, "s4", "wvehicle"],
     [36, "a0", "(pointer process)"],
-    [183, "v1", "(pointer process)"],
-    [195, "v1", "(pointer process)"],
-    [209, "v1", "(pointer process)"],
-    [393, "v1", "(pointer process)"],
-    [404, "v1", "(pointer process)"],
-    [417, "v1", "(pointer process)"],
-    [461, "v1", "(pointer process)"]
+    [49, "s4", "wvehicle"],
+    [60, "s4", "wvehicle"],
+    [66, "s4", "wvehicle"],
+    [106, "s4", "wvehicle"],
+    [116, "s4", "wvehicle"],
+    [121, "s4", "wvehicle"],
+    [183, "v1", "uint"],
+    [195, "v1", "uint"],
+    [209, "v1", "uint"],
+    [258, "s4", "wvehicle"],
+    [269, "s4", "wvehicle"],
+    [312, "s4", "wvehicle"],
+    [325, "s4", "wvehicle"],
+    [330, "s4", "wvehicle"],
+    [393, "v1", "uint"],
+    [404, "v1", "uint"],
+    [417, "v1", "uint"],
+    [461, "v1", "uint"]
   ],
+  // og:preserve-this wvehicle-weapons-vein rung 3: gp is arg0, checked
+  // against its own emitters field (basic, declared offset 64, matching
+  // op3's raw 60 read) with a debug string naming it an rfc (rapid-fire-
+  // control); s5 is arg1, read at raw 4556/4564 (declared 4560/4568, the
+  // same wpn-drawable-left/right handle fields the anon-function 42/56
+  // precedents in wvehicle-weapons already cast) and raw 184 (declared 188,
+  // process-drawable's own root), so it is the owning wvehicle.
+  "rapid-fire-control-initialize-from-vehicle": [
+    [0, "gp", "rapid-fire-control"],
+    [1, "s5", "wvehicle"],
+    [4, "a0", "(pointer int32)"],
+    [17, "a0", "(pointer process)"],
+    [28, "a0", "(pointer process)"],
+    [45, "s2", "process-focusable"],
+    [74, "s3", "process-focusable"]
+  ],
+  // og:preserve-this wvehicle-weapons-vein rung 3: op 2's type-tag deref
+  // resolves method id 151 (raw offset 620) against arg1; vehicle-method-
+  // 151's own declared shape ((_type_ vector int) none, all-types.gc) is an
+  // exact match for the call's own two explicit args (root+12, a vector,
+  // and the constant 2), the strongest evidence available since neither
+  // mine-a-method-63 nor mine-b-method-66 narrows arg1 past object.
+  "(method 63 mine-a)": [[2, "a0", "vehicle"]],
+  "(method 66 mine-b)": [[2, "a0", "vehicle"]],
+  // og:preserve-this wvehicle-weapons-vein rung 3: op 58 stores s5 (a freshly
+  // constructed collide-shape-moving) directly into gp's own root field
+  // (declared trsqv, process-drawable's generic slot); op 59/65 re-read it
+  // through that generic declaration for two separate vtable calls (id 47
+  // at op 61, id 48 at op 67), each resolving against trsqv (19 own
+  // methods, ids 9-27) instead of the concrete collide-shape-moving
+  // (method-count-assert 55) that was just stored there.
+  "(method 60 v-yellow-guided-missile)": [[60, "a0", "collide-shape-moving"], [66, "a0", "collide-shape-moving"]],
   "guided-missile-gen-proj-targ-helper": [
     [102, "v1", "(pointer process)"],
     [113, "v1", "(pointer process)"],
@@ -9971,8 +10047,13 @@
     [24, "v1", "wvehicle"],
     [29, "a0", "(pointer process)"]
   ],
+  // og:preserve-this wvehicle-weapons-vein rung 3: op 31 reads firecontrol
+  // (basic, declared offset 272) then op 32 reads a byte at raw 18; raw+4
+  // (the basic-tag convention) is 22, rapid-fire-control's own next-to-fire
+  // field (int8, all-types.gc), an exact match.
   "(method 52 v-wpn-yellow-default-gun)": [
     [7, "a0", "(pointer process)"],
+    [32, "a0", "rapid-fire-control"],
     [41, "a0", "(pointer process)"]
   ],
   "hack-sparticle-track-gun": [
@@ -10006,6 +10087,7 @@
   ],
   "(method 52 v-wpn-yellow-chain-gun)": [
     [7, "a0", "(pointer process)"],
+    [32, "a0", "rapid-fire-control"],
     [41, "a0", "(pointer process)"]
   ],
   "gunmount-generic-event-handler": [
@@ -10013,7 +10095,7 @@
     [98, "a0", "(pointer process)"]
   ],
   "(method 51 gunmount-generic-drawable)": [
-    [32, "v1", "(pointer process)"],
+    [32, "v1", "uint"],
     [43, "v1", "(pointer process)"],
     [83, "v1", "(pointer process)"]
   ],
@@ -10038,7 +10120,7 @@
   ],
   "(method 10 vehicle-weapon-slot)": [
     [6, "a0", "(pointer process)"],
-    [28, "a1", "(pointer process)"]
+    [28, "a1", "uint"]
   ],
   "(anon-function 2 wvehicle-weapons-proj)": [
     [17, "a0", "(pointer process)"]
@@ -10100,8 +10182,16 @@
     [129, "v1", "(pointer process)"],
     [196, "v1", "(pointer process)"]
   ],
+  // og:preserve-this wvehicle-weapons-vein rung 3: op 44's type-tag deref
+  // resolves method id 51 (raw offset 220) against s4; process-focusable's
+  // own get-trans ((_type_ int) vector, all-types.gc) matches exactly: the
+  // call's single explicit arg is the constant 3 (an index), and its
+  // result is quad-read (a 16-byte vector) straight into the sp+16 scratch.
   "(method 78 v-yellow-guided-missile)": [
     [29, "a0", "(pointer process)"],
+    [44, "a0", "process-focusable"],
+    [93, "s4", "process-focusable"],
+    [195, "a0", "wvehicle"],
     [200, "a0", "(pointer process)"],
     [419, "a0", "(pointer process)"]
   ],

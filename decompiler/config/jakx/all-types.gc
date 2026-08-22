@@ -55666,7 +55666,12 @@
     (gunmount-drawable-method-50 () none) ;; 50
     (gunmount-drawable-method-51 (_type_) none) ;; 51
     (gunmount-drawable-method-52 (_type_) none) ;; 52
-    (gunmount-drawable-method-53 (_type_ object object) none) ;; 53
+    ;; og:preserve-this wvehicle-weapons-vein rung 3: retyped both args
+    ;; object -> draw-control-status, proven by the body's own bitwise
+    ;; set/clear on draw's own status field (offset 4, "(logior status
+    ;; arg0)" then "(logand ... (lognot arg1))", a standard set-mask/clear-
+    ;; mask pair).
+    (gunmount-drawable-method-53 (_type_ draw-control-status draw-control-status) none) ;; 53
     )
   )
 
@@ -55813,6 +55818,21 @@
     (rapid-fire-control-method-11 (_type_ object object float) none) ;; 11
     (rapid-fire-control-method-12 (_type_ object quaternion float) none) ;; 12
     )
+  )
+
+;; og:preserve-this landed (wvehicle-weapons-vein rung 3): rapid-fire-
+;; control-initialize-from-vehicle's own on-stack scratch (sp+16, 96
+;; bytes). mat is matrix-remove-scale!'s dest matrix (its own trans field,
+;; declared offset 48, is read back directly as the vector-!2 subtrahend,
+;; no separate slot needed); orient is the vector vector-!2/vector-orient-
+;; by-quat! compute in place; quat is quaternion-conjugate!'s dest, fed
+;; into vector-orient-by-quat! as the rotation. 64 + 16 + 16 = 96, matching
+;; the function's own declared stack_vars span exactly.
+(deftype rapid-fire-control-init-scratch (structure)
+  ((mat    matrix     :inline :offset 0)
+   (orient vector      :inline :offset 64)
+   (quat   quaternion  :inline :offset 80)
+   )
   )
 
 
@@ -58830,7 +58850,16 @@
 ;; (define-extern net-projectile-init-remote function)
 ;; (define-extern *msg-map-net-projectile* array)
 ;; (define-extern *net-process-class-info-net-projectile* object)
-;; (define-extern spawn-net-projectile function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 3): (method 56
+;; v-wpn-yellow-guided-missile) calls this with a type (v-yellow-guided-
+;; missile), a pointer into its own sp+16 struct at offset 48 (this rung's
+;; own stack_structures.jsonc entry names it projectile-init-by-other-
+;; params, field for field), *locker-pool* (declared process-tree) and
+;; *default-dead-pool* (declared dead-pool). Same four-argument shape as
+;; the already-active spawn-projectile (all-types.gc), the net-aware
+;; sibling; the call site's own nullable-deref-then-branch on the result
+;; matches spawn-projectile's own declared (pointer process) return.
+(define-extern spawn-net-projectile (function type projectile-init-by-other-params process-tree dead-pool (pointer process)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-time-trial-h               ;;
@@ -76484,11 +76513,18 @@
   )
 
 
-;; (define-extern mine-a-init-remote function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 3): (method 41
+;; mine-a) forwards its own a1 (int) straight through as run-function-in-
+;; process's own final arg with no other reads; identical shape to net-
+;; player-init-remote (all-types.gc), which the same "invalid function type:
+;; function" failure documents for the bare-"function" placeholder.
+(define-extern mine-a-init-remote (function int object :behavior mine-a))
 ;; (define-extern *msg-map-mine-a* array)
 ;; (define-extern *net-process-class-info-mine-a* object)
 ;; (define-extern mine-a-init-by-other function)
-;; (define-extern mine-b-init-remote function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 3): same shape as
+;; mine-a-init-remote immediately above, (method 41 mine-b)'s own call site.
+(define-extern mine-b-init-remote (function int object :behavior mine-b))
 ;; activated: wvehicle-weapons-proj top-level-login reads it directly (op 185,
 ;; also the L770 label-use failure at the same call site); array is the
 ;; placeholder's own already-given type, unchanged.
@@ -76497,7 +76533,10 @@
 ;; (define-extern mine-b-common-trans function)
 ;; (define-extern *mine-b-hack* object)
 ;; (define-extern mine-b-init-by-other function)
-;; (define-extern v-yellow-guided-missile-init-remote function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 3): same shape as
+;; mine-a/mine-b-init-remote above, (method 41 v-yellow-guided-missile)'s
+;; own call site.
+(define-extern v-yellow-guided-missile-init-remote (function int object :behavior v-yellow-guided-missile))
 ;; activated: wvehicle-weapons-proj top-level-login reads it directly (op
 ;; 429, also the L770 label-use failure at the same call site); array is the
 ;; placeholder's own already-given type, unchanged.
@@ -77193,7 +77232,14 @@
   )
 
 
-;; (define-extern vws-focus-search-base function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 3): top-level-login
+;; stores this function's own address into vws-focus-search-base's symbol
+;; slot directly (no method-set!, a plain global function pointer). (method
+;; 57 v-wpn-yellow-guided-missile) never reads its own a0 to forward it, so
+;; this is a plain function, not a method call: six explicit args -- three
+;; raw float immediates (a1/a2/a3), a static address (t0, label L835,
+;; label_types.jsonc), a fourth float (t1) and #f (t2, symbol).
+(define-extern vws-focus-search-base (function float float float vector float symbol object))
 ;; (define-extern gunmount-common-trans function)
 ;; (define-extern gunmount-common-post function)
 ;; (define-extern gunmount-drawable-init-by-other function)
@@ -77542,7 +77588,13 @@
 ;; (define-extern global-turbo-suppressor-set! function)
 ;; (define-extern should-suppress-eco? function)
 ;; (define-extern rapid-fire-control-emitter-from-world function)
-;; (define-extern rapid-fire-control-initialize-from-vehicle function)
+;; og:preserve-this landed (wvehicle-weapons-vein rung 3): a real, compiled
+;; function in wvehicle-weapons-util.gc, this rung's own land target. arg0
+;; is a rapid-fire-control (validated against its own emitters field, a
+;; debug string names it an rfc), arg1 the owning wvehicle (wpn-drawable-
+;; left/right and root reads, this rung's own type_casts.jsonc entry); it
+;; returns #t/#f (symbol) at every exit path.
+(define-extern rapid-fire-control-initialize-from-vehicle (function rapid-fire-control wvehicle symbol))
 ;; og:preserve-this activated (rigid-body-small-tier rung): its own body
 ;; (wvehicle-weapons-util.gc, unlanded, out of this band) type-checks both
 ;; args against 'vehicle before reading a team/player index at offset 2116
