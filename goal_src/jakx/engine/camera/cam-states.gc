@@ -1526,7 +1526,19 @@
                  )
               )
           (vector-lerp! s3-0 arg1 (the-as vector s4-0) (- 1.0 (fmin 1.0 (/ (-> this diverge-distance) f30-0))))
-          (let ((s2-1 (new 'stack-no-clear 'vector)))
+          ;; og:preserve-this stack-overflow class (round-four investigation):
+          ;; s2-1 is the fourth stack-no-clear var in this method (after s3-0,
+          ;; s1-1, v1-20), landing at the "vector@64" entry in this method's
+          ;; own stack_structures.jsonc entry ([[16,"vector"],[64,"vector"]]),
+          ;; but its own body writes a second, genuinely distinct vector
+          ;; through (&+ s2-1 16) below and reads (-> s2-1 data) as a
+          ;; quaternion - the config only hints the first 16 bytes and is
+          ;; decode-side under-declared past that, left untouched. Being the
+          ;; last stack-no-clear var in the method, the second vector overran
+          ;; straight into goalc's register spill area (allocator_interface.h:
+          ;; 138). Widened to an inline-array of 2 vectors, cast back to
+          ;; vector so (-> s2-1 data) and (&+ s2-1 16) stay verbatim.
+          (let ((s2-1 (the-as vector (new 'stack-no-clear 'inline-array 'vector 2))))
             (vector-! (&+ s2-1 16) s3-0 (-> this world-position))
             (let ((f30-1 (vector-normalize-ret-len! (&+ s2-1 16) 1.0)))
               (quaternion-look-at! (the-as quaternion (-> s2-1 data)) (&+ s2-1 16) *up-vector*)
@@ -1901,7 +1913,19 @@
     (set! *target-time-speed* 1.0)
     )
   :code (behavior ()
-    (let ((gp-0 (new 'stack-no-clear 'vector)))
+    ;; og:preserve-this stack-overflow class (round-four investigation): retail's
+    ;; frame here (stack_structures.jsonc's own "(code cam-training)" entry) is
+    ;; vector@16, matrix@32, vector@96 - one contiguous 80-byte run for gp-0
+    ;; (itself plus the matrix its own body writes through (&+ gp-0 16)) before
+    ;; the next local starts. goalc's allocate_aligned_stack_variable
+    ;; (goalc/compiler/Env.cpp) sizes a bare stack-no-clear 'vector at exactly
+    ;; 16 bytes and packs the next stack-no-clear call immediately after
+    ;; (allocator_interface.h:138: vars are packed before spills), so the old
+    ;; declaration let s4-0 below land on top of the matrix this method writes
+    ;; through gp-0 - the same class proven fatal by the method-220 crash.
+    ;; gp-0 widens to an inline-array of 5 vectors (80 bytes = vector + matrix)
+    ;; cast back to vector so (-> gp-0 data)/(-> gp-0 y) stay verbatim.
+    (let ((gp-0 (the-as vector (new 'stack-no-clear 'inline-array 'vector 5))))
       (set! (-> (the-as (pointer uint128) (-> gp-0 data)) 0) (-> (the-as camera-master (view-get-active-camera)) tpos-curr quad))
       (+! (-> gp-0 y) 8192.0)
       (let* ((a2-0 (the-as matrix (&+ gp-0 16)))
@@ -1927,7 +1951,18 @@
                (f22-0 (- (* f24-0 f0-3)))
                )
           (until #f
-            (let ((s4-0 (new 'stack-no-clear 'vector))
+            ;; og:preserve-this stack-overflow class (round-four investigation):
+            ;; s4-0 is the "vector@96" entry from stack_structures.jsonc's own
+            ;; "(code cam-training)" entry, but that hint only records the
+            ;; first 16 bytes; matrix-rotate-y! (goal_src/jakx/engine/math/
+            ;; matrix.gc) writes all four quads (rvec/uvec/fvec/trans, 64
+            ;; bytes) into it, and this local is the last stack-no-clear var
+            ;; in this behavior, so a bare 16-byte vector let a 64-byte write
+            ;; overrun straight into goalc's register spill area
+            ;; (allocator_interface.h:138). Widened to a full matrix, cast
+            ;; back to vector so (-> s4-0 data) stays verbatim; the config
+            ;; entry is decode-side under-declared and is left untouched.
+            (let ((s4-0 (the-as vector (new 'stack-no-clear 'matrix)))
                   (f20-0 (* 0.0033333334 (the float (- (current-time) s5-1))))
                   )
               (let ((f0-10 (+ (* 0.5 (square f20-0) f24-0) (* f22-0 f20-0) f26-0)))
@@ -2373,7 +2408,21 @@
          (vf3 :class vf)
          )
     (init-vf0-vector)
-    (let ((s5-0 (new 'stack-no-clear 'vector)))
+    ;; og:preserve-this stack-overflow class (round-four investigation): this
+    ;; function's own stack_structures.jsonc entry declares only [[16,
+    ;; "vector"]], but the body writes a second, genuinely distinct vector
+    ;; through (&+ s5-0 16) two lines below (compare choose-target-camera's
+    ;; own entry, [[16,"vector"],[32,"vector"]], for the same two-point
+    ;; shape) - the config is decode-side under-declared here and is left
+    ;; untouched. goalc's allocate_aligned_stack_variable sizes a bare
+    ;; stack-no-clear 'vector at exactly 16 bytes and this is the only
+    ;; stack-no-clear var in the function, so the second vector overran
+    ;; straight into goalc's register spill slot and 8 bytes of the pushed
+    ;; r12 (allocator_interface.h:138), corrupting a saved register silently
+    ;; on every call - a plausible source of the reported off-center camera
+    ;; symptoms. Widened to an inline-array of 2 vectors, cast back to
+    ;; vector so (-> s5-0 data) and (&+ s5-0 16) stay verbatim.
+    (let ((s5-0 (the-as vector (new 'stack-no-clear 'inline-array 'vector 2))))
       (vector-! (the-as vector (-> s5-0 data)) (get-trans arg1 0) arg3)
       (vector-! (&+ s5-0 16) (get-trans arg2 0) arg3)
       (let ((v1-4 (the-as object (-> s5-0 data))))
@@ -2789,7 +2838,23 @@
          (vf3 :class vf)
          )
     (init-vf0-vector)
-    (let ((s4-0 (new 'stack-no-clear 'vector)))
+    ;; og:preserve-this stack-overflow class (round-four investigation): this
+    ;; function's own stack_structures.jsonc entry already declares the
+    ;; correct two-vector shape ([[16,"vector"],[32,"vector"]]), but s4-0 was
+    ;; landed as a single bare stack-no-clear 'vector (16 bytes), so goalc's
+    ;; allocate_aligned_stack_variable placed the very next stack-no-clear
+    ;; call - v1-10 a few lines below, a real, separate difference vector -
+    ;; at exactly the address (&+ s4-0 16) also aliases. That collision
+    ;; happened not to corrupt memory (both are legitimately 16-byte
+    ;; vectors), but it silently clobbers VALUES: v1-10's vector-! write
+    ;; overwrites the arg1-trans value this method's own body stored through
+    ;; (&+ s4-0 16) two lines above, so the later target-camera-method-10
+    ;; call read the wrong vector before this fix. Widened s4-0 to an
+    ;; inline-array of 2 vectors, cast back to vector so (-> s4-0 data) and
+    ;; (&+ s4-0 16) stay verbatim; v1-10 now gets its own, non-aliased slot
+    ;; and (&+ s4-0 16) retains arg1's real trans, matching retail's frame.
+    ;; This changes observable behavior from wrong to retail-correct.
+    (let ((s4-0 (the-as vector (new 'stack-no-clear 'inline-array 'vector 2))))
       (set! (-> (the-as vector (-> s4-0 data)) quad) (-> (get-trans arg0 0) quad))
       (set! (-> (&+ s4-0 16) quad) (-> (get-trans arg1 0) quad))
       (set! (-> *target-camera-runtime* need-new-cam) #f)

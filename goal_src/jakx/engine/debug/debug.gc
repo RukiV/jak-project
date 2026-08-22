@@ -1386,7 +1386,19 @@
          )
     (init-vf0-vector)
     (when (and enable (or (not *display-capture-mode*) (-> *setting-control* user-current unknown-usd-748)))
-      (let ((s3-0 (new 'stack-no-clear 'vector)))
+      ;; og:preserve-this stack-overflow class (round-four investigation): this
+      ;; function's own stack_structures.jsonc entry already declares the
+      ;; correct two-vector shape ([[16,"vector"],[32,"vector"]], "a
+      ;; triangle-normal work vector and the point it gets drawn from"), but
+      ;; s3-0 was landed as a single bare stack-no-clear 'vector (16 bytes).
+      ;; goalc's allocate_aligned_stack_variable sizes it at exactly that and
+      ;; this is the only stack-no-clear var in the function, so the second
+      ;; vector this body writes through (&+ s3-0 16) overran straight into
+      ;; goalc's register spill area (allocator_interface.h:138) - the same
+      ;; class proven fatal by the method-220 crash. Widened to an
+      ;; inline-array of 2 vectors, cast back to vector so (-> s3-0 data) and
+      ;; (&+ s3-0 16) stay verbatim.
+      (let ((s3-0 (the-as vector (new 'stack-no-clear 'inline-array 'vector 2))))
         (vector-3pt-cross! (&+ s3-0 16) p0 p1 p2)
         (vector-float/! (&+ s3-0 16) (&+ s3-0 16) (* 0.00024414062 (vector-length (&+ s3-0 16))))
         (let ((v1-7 (-> s3-0 data)))
