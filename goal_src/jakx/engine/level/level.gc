@@ -2231,12 +2231,30 @@
         )
       (set! (-> this borrow-from-level) #f)
       )
+    ;; og:preserve-this eviction-discipline fix (issue 602): jak3's own landed unload!
+    ;; twin (goal_src/jak3/engine/level/level.gc, defmethod unload! ((this level)),
+    ;; the case on ->status here) has the identical two-arm shape and no 'login clause
+    ;; either -- confirmed by direct comparison, not assumed. Adding one anyway: the
+    ;; block right below this case (a few lines down, `(when (or 'loaded 'alive 'active
+    ;; 'login) ...)`, already landed) already treats 'login the same as 'loaded/'alive/
+    ;; 'active for the art-group unlink and texture-anim-array teardown, so a level
+    ;; mid-login already has state this method recognizes as needing cleanup. Folding
+    ;; 'login into this arm too costs nothing in today's tree: (birth (level)) is the
+    ;; only site that ever populates ->entity (this file, the 'loaded -> 'alive edge,
+    ;; gated on *dproc*), so ->entity is unconditionally #f for every level that has
+    ;; not yet reached 'alive, 'loaded included -- 'loaded's own presence in this arm
+    ;; is already a no-op today for the same reason, and 'login joining it is exactly
+    ;; as inert. The value is defensive completeness against the one path that still
+    ;; reaches unload! on a 'login level after the update! discard-eligibility fix
+    ;; above (this file, ~9840 and ~9880): the recursive `(unload! (-> this
+    ;; borrow-level s5-0))` call a few lines up, which tears down every borrow-level
+    ;; unconditionally on its own status, not gated by the discard picker at all.
     (case (-> this status)
       (('loading 'loading-bt)
        (dgo-load-cancel (the-as int (-> this load-id)))
        (link-reset)
        )
-      (('alive 'active 'loaded)
+      (('alive 'active 'loaded 'login)
        (when (-> this entity)
          (let ((s5-1 (the-as (function level object) (get-callback-symbol-value-by-slot! (-> this info) 33))))
            (if (and s5-1 (type? s5-1 function))
@@ -8128,9 +8146,11 @@ would close more of those and is deliberately not added here."
                   ;; through (jungles was still logging in when this exact push evicted it).
                   ;; Scoped fix: skip this tick's recompute outright whenever any resident
                   ;; level is mid-login, and retry next 30-frame tick once it settles. The
-                  ;; general fix (making update!'s own discard eligibility, level.gc ~9753
-                  ;; and ~9786, honor these statuses for every caller, not just this one)
-                  ;; stays a recorded follow-up, not built here.
+                  ;; general fix (making update!'s own discard eligibility honor these
+                  ;; statuses for every caller, not just this one) landed as issue 602's
+                  ;; own fix (update!'s two discard sites and unload!'s case statement,
+                  ;; this file); this scoped guard stays too, since it is strictly cheaper
+                  ;; than a discard-and-retry and was already proven safe.
                   (let ((login-lev (the level #f))
                         (login-status (the symbol #f))
                         )
@@ -9838,7 +9858,36 @@ drive/camera logic below ever runs."
         (let ((a0-3 -1))
           (countdown (a1-0 6)
             (let ((a2-3 (-> *level* level a1-0)))
-              (when (and (!= (-> a2-3 status) 'inactive) (>= (-> a2-3 load-order) (the-as uint s5-0)))
+              ;; og:preserve-this eviction-discipline fix (issue 602): the eligibility
+              ;; check here used to be only (!= status 'inactive), so a level that was
+              ;; 'loading, 'loading-bt, 'loading-done or 'login -- mid-walk on its own
+              ;; data -- could still be the highest-load-order pick and get discarded
+              ;; out from under itself. Three acceptance crashes (gk-camaccept2/4/5.err.
+              ;; log) show exactly that: pp "display" walking freed drawable/level-h
+              ;; memory (camaccept2/4) and pp "time-of-day-proc" executing an unresolved
+              ;; address (camaccept5), all downstream of a discard racing a level still
+              ;; resolving its own status. The want-driver's own og:preserve-this note
+              ;; above (jakx-want-driver-tick, this file) already named this exact class
+              ;; as "the general fix... stays a recorded follow-up, not built here" --
+              ;; this is that follow-up. No *dproc* gate: level-update (this file, the
+              ;; unconditional per-slot load-continue sweep before jakx-want-driver-tick
+              ;; and update! in the same method) and jakx-wait-for-levels-boot's own
+              ;; identical pump-then-evict ordering (net-world.gc) both always advance a
+              ;; 'login/'loading/'loading-bt level past that status before update! next
+              ;; runs against it, so excluding these statuses here cannot strand a slot;
+              ;; the one exception, jakx-goto-level's own bounded 6x update!-only drain
+              ;; (this file), lacks that interleaved pump, but *dproc* is unconditionally
+              ;; true for every call site of that lever (its own docstring), so a dproc
+              ;; gate would not change its behavior either -- a level still mid-login
+              ;; there simply survives the drain and gets swept normally on the very
+              ;; next frame's level-update, a bounded one-frame delay, not a stall.
+              (when (and (!= (-> a2-3 status) 'inactive)
+                         (!= (-> a2-3 status) 'loading)
+                         (!= (-> a2-3 status) 'loading-bt)
+                         (!= (-> a2-3 status) 'loading-done)
+                         (!= (-> a2-3 status) 'login)
+                         (>= (-> a2-3 load-order) (the-as uint s5-0))
+                         )
                 (let ((a3-5 #f))
                   (dotimes (t0-2 6)
                     (if (and (not (-> this target t0-2 force-reload)) (= (-> a2-3 name) (-> this target t0-2 name)))
@@ -9871,7 +9920,14 @@ drive/camera logic below ever runs."
           )
       (while (>= s4-1 s5-1)
         (let ((s3-1 (-> *level* level s5-1)))
-          (when (!= (-> s3-1 status) 'inactive)
+          ;; og:preserve-this eviction-discipline fix (issue 602): same exclusion as the
+          ;; slots 0-5 picker above, same reasoning, not re-derived here.
+          (when (and (!= (-> s3-1 status) 'inactive)
+                     (!= (-> s3-1 status) 'loading)
+                     (!= (-> s3-1 status) 'loading-bt)
+                     (!= (-> s3-1 status) 'loading-done)
+                     (!= (-> s3-1 status) 'login)
+                     )
             (when (or (-> this target s5-1 force-reload) (!= (-> s3-1 name) (-> this target s5-1 name)))
               (format #t "Discarding level ~A~%" (-> s3-1 name))
               (set! (-> this target s5-1 force-reload) #f)
