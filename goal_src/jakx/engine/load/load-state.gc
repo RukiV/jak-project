@@ -1328,48 +1328,79 @@
 ;; failed to figure out what this is:
 (kmemclose)
 
-;; og:preserve-this M1 vehicle-leg dev-lever (rung 2): the car-level want path.
-;; load-state-method-23 is the retail composer's own way to arm a car want slot
-;; (net-world.gc's R1 stub note, retail-staging ladder #192: method 23 called
-;; at net-world_ir2.asm:11689-11696 with 4 args, matching this branch's now-
-;; fixed declaration a few commits back), but its body is still an uncompiled
-;; failing decode on every branch that carries it (this file, "definition for
-;; method 23 of type load-state" above: "failed type prop", registers read but
-;; never set) -- there is nothing to call, and transcribing a body from a
-;; decode that does not decode would invent content AGENTS.md forbids.
+;; og:preserve-this M1 vehicle-leg dev-lever, rung 3 (issue 571): the car-look
+;; filter unlock. load-state-method-23 landed clean at 41bfbe7fb (rung 2,
+;; issue 522); the "nothing to call" framing this note used to carry is
+;; retired along with the raw add-want-level path below it.
 ;;
-;; add-want-level is the primitive method 23's own body would bottom out on for
-;; the actual array write; add-borrow-levels above is the proven, working,
-;; in-tree caller ((-> this want-exp), a stack counter via (&...), name/
-;; display?/force-vis?/force-inside?/slot copied from an existing want entry).
-;; This wraps that same call against (-> *load-state* want) directly, the array
-;; net-world-method-76's own step 9 (net-world.gc) copies slots 6-17 from.
-;; *level* reserves slots 6-11 for car levels (leg brief M1, texture.gc:
-;; 1869-1876, level.gc:1486-1488), so index 6 is car slot 0. No physics, pilot
-;; or net composition here; this only arms the want entry the ordinary
-;; level-load tick already scans every frame.
+;; The defect: nothing writes (-> *car-level-array* data i current-parts j)
+;; -- retail's own writer, convert-load-parts-to-car-info, is unlanded -- so
+;; filter-look stayed all zeros and level.gc:1090-1109's name generator only
+;; ever emitted "<car>-<part>-none" (*car-look-names* index 0); only the
+;; chassis (loaded by name directly, level.gc:1088-1089) ever registered.
+;;
+;; The seed below (look index 1, *car-look-names* "a", car-info-h.gc:751-776)
+;; is the one invented value here: a bring-up default look, not a recovered
+;; one, since convert-load-parts-to-car-info has no landed body to call yet.
+;; Seeding car slot 0's current-parts[0..10] before arming the want makes
+;; level.gc's generator emit "<car>-<part>-a" for the 10 non-wheel parts and
+;; "wheel-a" for part 8, the investigation's predicted 7-group ~474KB load
+;; for one car level. Retires when convert-load-parts-to-car-info lands.
+;;
+;; current-parts lives inside *car-level-array*'s inline car-info-full data
+;; array; car-info-full is #x200 (512) bytes (decompiler/config/jakx/all-
+;; types.gc :size-assert), matching load-state-method-23's own flattened
+;; (* arg0 512) stride (load-state.gc:1232/1262/1269): data 0 current-parts
+;; (+ i (* arg0 512)) and data arg0 current-parts i address the same byte,
+;; so writing through data 0 here is exactly car slot 0, this lever's only
+;; slot.
+;;
+;; This un-gates wvehicle-method-213's wheel spawn: every wcar-<name>.gc's
+;; init cascades get-art-group-by-name (-> this level) "wheel-a" .. "wheel-v"
+;; (wcar-falcon.gc:292-355) for the first loaded wheel skeleton group and
+;; only calls wvehicle-method-213 (wvehicle-physics.gc:213) when one hits
+;; (wcar-falcon.gc:361); "wheel-a" is exactly what this seed makes level.gc
+;; emit.
+;;
+;; Method 23 semantics, verified by reading its body (load-state.gc:1226-
+;; 1283): arg0 is the car-slot index (always 0 here, want slot arg0+6 = 6);
+;; arg2 ORs into a "changed?" test alongside a current-parts/filter-look diff
+;; and a name/status check, so #f here is harmless on this lever's first call
+;; (parts just changed from all-zero to the seed, tripping the diff check)
+;; and only a no-op on a re-request against an unchanged, already-active
+;; level, where the method early-returns #f at load-state.gc:1250 without
+;; writing anything.
+;;
+;; Method 23 also sets want[slot].display? to 'special (load-state.gc:1274-
+;; 1278), where this lever previously wrote #f directly via add-want-level.
+;; Checked before accepting: drawable-tree.gc:15-17's draw() treats 'special
+;; exactly like #f (skips the level's drawable-tree draw call), and level.gc's
+;; update! (landed, runs every frame, level.gc:9494-9497) does propagate
+;; want -> target -> level display?, so 'special is not inert downstream --
+;; it is retail's own "wanted but not rendered" state (level-info.gc's static
+;; want lists carry it ~90 times). That is a display-arming change this rung
+;; is not scoped to make, so the call below re-asserts #f right after method
+;; 23 returns, preserving this lever's prior display behavior; the separate
+;; arm-falcl step still owns flipping display? to 'display for an actual
+;; render.
 (defun jakx-vehicle-want-level! ((level-name symbol))
   "REPL lever: (jakx-vehicle-want-level! 'jakvl) wants the named car level into
 *load-state*'s want slot 6 (car slot 0), the same array net-world's own step 9
-reads from for the retail composer. Pass #f to clear the slot. Retires once
-load-state-method-23 decodes cleanly and the real retail composer (net-world
-steps 7-8) lands."
-  (let ((idx 6))
-    (add-want-level (-> *load-state* want)
-                     (the-as (pointer int64) (& idx))
-                     level-name
-                     #f
-                     #f
-                     #f
-                     6
-                     )
+reads from for the retail composer. Seeds car slot 0's current-parts with the
+bring-up default look ('a') before arming, then routes the want through
+load-state-method-23 -- the real filter-look/name/slot writer -- instead of
+the raw add-want-level path this lever used before. Pass #f to clear the
+slot. Retires once convert-load-parts-to-car-info lands and the real retail
+composer (net-world steps 7-8) does the arming."
+  (dotimes (i 11)
+    (set! (-> *car-level-array* data 0 current-parts i) 1)
     )
-  ;; og:preserve-this: every other add-want-level writer in this file already
-  ;; follows it with add-borrow-levels (lines 574, 602, 636, 703, 1218, 1220,
-  ;; 1280, 1304 above); this lever was the one write path missing it, so a
-  ;; wanted car level never actually got borrowed into the small center. falcl
-  ;; survives add-borrow-levels' small-center deletion pass because its
-  ;; memory-mode is alias (level-info.gc:12239), not small.
+  (load-state-method-23 *load-state* 0 level-name #f)
+  ;; og:preserve-this: method 23 sets display? to 'special (see the note
+  ;; above); re-assert #f here to keep this lever's prior display behavior,
+  ;; then re-run add-borrow-levels since this is a fresh want mutation after
+  ;; method 23's own internal add-borrow-levels call.
+  (set! (-> *load-state* want 6 display?) #f)
   (add-borrow-levels *load-state*)
   (none)
   )
