@@ -468,7 +468,17 @@
       )
     (set! (-> this car-info wheel-blur) (fmin 1.0 (/ (-> s5-0 val1) 16)))
     )
-  (let ((s5-1 (new 'stack-no-clear 'vector)))
+  ;; og:preserve-this issue 595-adjacent stack-overflow fix, proven by the
+  ;; attempt-6 crash disassembly: retail's frame carries TWO 16-byte scratch
+  ;; vectors here (stack_structures.jsonc declares both, [32,"vector"] and
+  ;; [48,"vector"]), but the decompiler emitted only this one and reached the
+  ;; second as (&+ s5-1 16). goalc backs only what is declared and places
+  ;; register spills immediately after the stack-variable area
+  ;; (goalc/regalloc/allocator_interface.h:138), so the (&+ 16) writes landed
+  ;; on the spill slot holding mem-copy!'s destination and the copy faulted on
+  ;; a float-bits pointer. Allocating the pair (the-as vector keeps every
+  ;; decoded expression verbatim) gives the second vector real storage.
+  (let ((s5-1 (the-as vector (new 'stack-no-clear 'inline-array 'vector 2))))
     (let ((a0-2 (-> this draw shadow-ctrl settings)))
       (vector+float*!
         (the-as vector (-> s5-1 data))
