@@ -5,6 +5,7 @@
 #include "common/util/FileUtil.h"
 
 #include "game/graphics/opengl_renderer/BlitDisplays.h"
+#include "game/graphics/opengl_renderer/CarPaintRenderer.h"
 #include "game/graphics/opengl_renderer/DepthCue.h"
 #include "game/graphics/opengl_renderer/DirectRenderer.h"
 #include "game/graphics/opengl_renderer/EyeRenderer.h"
@@ -578,6 +579,25 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     for (int id : kMercBuckets) {
       init_bucket_renderer<Merc2BucketRenderer>(fmt::format("merc-{}", id), BucketCategory::MERC,
                                                 id, m_merc2);
+    }
+
+    // Car paint (issue 649): car-info-full-method-16 (car-textures.gc:583-748)
+    // emits the per-car paint composite into one bucket per car slot
+    // (texture.gc:1755-1784), and each one sits exactly one below a registered
+    // merc bucket id above (406, 415, 424, 433, 442, 451 are all in kMercBuckets;
+    // 405/414/423/432/441/450 are the composite that paints the texture those
+    // merc draws read moments later in the same frame). The DMA is a raw
+    // set-display-gs-state FRAME/SCISSOR redirect followed by adgif+sprite
+    // layers (car-info-full-method-20/21), the same packet shape DirectRenderer
+    // already parses for every game's HUD sprites; CarPaintRenderer is a
+    // DirectRenderer subclass (sibling precedent: ProgressRenderer, registered
+    // above in this file's jak2/jak3 init functions, a minimap FBO redirect)
+    // that adds the missing FRAME-to-FBO redirect, sized per car from the
+    // SCISSOR register instead of ProgressRenderer's one fixed slot.
+    static constexpr int kCarPaintBuckets[6] = {405, 414, 423, 432, 441, 450};
+    for (int id : kCarPaintBuckets) {
+      init_bucket_renderer<CarPaintRenderer>(fmt::format("car-paint-{}", id), BucketCategory::TEX,
+                                             id, 1024);
     }
 
     // Sprite (#53 slice 1): the per-viewport sprite-draw destinations from sprite.o's
