@@ -24,10 +24,144 @@
   )
 
 ;; definition for method 217 of type wvehicle
-;; ERROR: function has no type analysis. Cannot decompile.
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod wvehicle-method-217 ((this wvehicle) (arg0 vehicle-wheel-state) (arg1 vehicle-wheel-info))
+  (let ((gp-0 (new 'stack-no-clear 'wvehicle-method-217-work)))
+    (set-vector! (-> gp-0 vec0) 1.0 0.0 0.0 1.0)
+    (set-vector! (-> gp-0 vec1) 0.0 1.0 0.0 1.0)
+    (quaternion-copy! (-> gp-0 q3) (the-as quaternion (-> this root rot)))
+    (matrix-copy! (-> gp-0 mat) (-> this rbody matrix))
+    (set! (-> gp-0 val0)
+          (+ (-> arg1 probe-y-offset) (* (-> arg1 radius) (-> arg1 scale)) (* -1.0 (-> arg0 pos2) (-> arg1 travel)))
+          )
+    (set! (-> arg0 sin-susp-ang) (fmax -1.0 (fmin 1.0 (/ (-> gp-0 val0) (-> arg1 susp-arm-length)))))
+    (set! (-> arg0 cos-susp-ang) (sqrtf (- 1.0 (square (-> arg0 sin-susp-ang)))))
+    (quaternion-identity! (-> gp-0 q4))
+    (set! (-> gp-0 q4 z) (* (sin (-> arg1 camber)) (-> arg0 x-scale)))
+    (set! (-> gp-0 q4 w) (cos (-> arg1 camber)))
+    (when (logtest? (-> arg1 flags) 32)
+      (quaternion-set!
+        (-> gp-0 q0)
+        0.0
+        0.0
+        (* (-> arg0 sin-susp-ang) (-> arg0 x-scale))
+        (+ 1.0 (-> arg0 cos-susp-ang))
+        )
+      (quaternion-normalize! (-> gp-0 q0))
+      (quaternion*! (-> gp-0 q4) (-> gp-0 q4) (-> gp-0 q0))
+      )
+    (set! (-> gp-0 vec2 quad) (-> arg1 local-pos quad))
+    (+! (-> gp-0 vec2 x) (+ (-> arg1 susp-arm-length) (-> arg1 probe-x-offset)))
+    (set! (-> gp-0 vec2 x) (* (-> gp-0 vec2 x) (-> arg0 x-scale)))
+    (+! (-> gp-0 vec2 y) (-> arg1 probe-y-offset))
+    (vector+float*!
+      (-> arg0 probe-local-pos)
+      (-> gp-0 vec2)
+      (-> arg0 local-axis)
+      (* (-> arg1 steer-arm-length) (-> arg0 x-scale))
+      )
+    (set! (-> gp-0 vec2 quad) (-> arg1 local-pos quad))
+    (+! (-> gp-0 vec2 x) (* (-> arg1 susp-arm-length) (-> arg0 cos-susp-ang)))
+    (set! (-> gp-0 vec2 x) (* (-> gp-0 vec2 x) (-> arg0 x-scale)))
+    (+! (-> gp-0 vec2 y) (-> gp-0 val0))
+    (vector+float*!
+      (-> gp-0 vec2)
+      (-> gp-0 vec2)
+      (-> arg0 local-axis)
+      (* (-> arg1 steer-arm-length) (-> arg0 x-scale))
+      )
+    (vector-matrix*! (-> gp-0 vec3) (-> gp-0 vec2) (-> gp-0 mat))
+    (quaternion-vector-angle! (-> gp-0 q2) (-> gp-0 vec1) (-> arg0 steer-angle))
+    (quaternion-vector-angle! (-> gp-0 q1) (-> gp-0 vec0) (-> arg0 angle))
+    (quaternion*! (-> gp-0 q0) (-> gp-0 q2) (-> gp-0 q4))
+    (quaternion*! (-> gp-0 q0) (-> gp-0 q0) (-> gp-0 q1))
+    (quaternion*! (-> arg0 quat) (-> gp-0 q3) (-> gp-0 q0))
+    (set! (-> arg0 trans quad) (-> gp-0 vec3 quad))
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 218 of type wvehicle
-;; ERROR: function has no type analysis. Cannot decompile.
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod wvehicle-method-218 ((this wvehicle) (arg0 vehicle-wheel-state) (arg1 vehicle-wheel-info))
+  (let ((gp-0 (new 'stack-no-clear 'wvehicle-method-218-work)))
+    (set-vector! (-> gp-0 vec2) 1.0 0.0 0.0 1.0)
+    (set-vector! (-> gp-0 vec3) 0.0 1.0 0.0 1.0)
+    (quaternion-copy! (-> gp-0 q3) (the-as quaternion (-> this root rot)))
+    (matrix-copy! (-> gp-0 mat) (-> this rbody matrix))
+    (set! (-> gp-0 val1) (* (-> arg1 radius) (-> arg1 scale)))
+    (set! (-> gp-0 val2) (-> arg1 susp-arm-length))
+    (set! (-> gp-0 val3) (-> arg1 probe-y-offset))
+    (set! (-> gp-0 val4) (+ (-> gp-0 val3) (* 2.0 (asin (/ (/ (-> arg1 travel) 2) (-> gp-0 val2))))))
+    (set! (-> gp-0 vec0 quad) (-> arg1 local-pos quad))
+    (set-vector!
+      (-> gp-0 vec6)
+      0.0
+      (* -1.0 (- (sin (-> gp-0 val4)) (sin (-> gp-0 val3))) (-> gp-0 val2))
+      (* (- (cos (-> gp-0 val4)) (cos (-> gp-0 val3))) (-> gp-0 val2))
+      1.0
+      )
+    (vector-normalize! (-> gp-0 vec6) 1.0)
+    (set! (-> gp-0 vec1 quad) (-> gp-0 vec0 quad))
+    (+! (-> gp-0 vec1 z) (* (-> gp-0 val2) (cos (-> gp-0 val3))))
+    (+! (-> gp-0 vec1 y) (* -1.0 (sin (-> gp-0 val3)) (-> gp-0 val2)))
+    (set! (-> gp-0 vec1 y) (- (-> gp-0 vec1 y) (-> gp-0 val1)))
+    (set! (-> gp-0 vec1 x) (* (-> gp-0 vec1 x) (-> arg0 x-scale)))
+    (vector+float*!
+      (-> gp-0 vec1)
+      (-> gp-0 vec1)
+      (-> arg0 local-axis)
+      (* (-> arg1 steer-arm-length) (-> arg0 x-scale))
+      )
+    (set! (-> arg0 probe-local-pos quad) (-> gp-0 vec1 quad))
+    (set! (-> arg0 probe-local-dir quad) (-> gp-0 vec6 quad))
+    (vector-matrix*! (-> gp-0 vec8) (-> gp-0 vec1) (-> gp-0 mat))
+    (vector-rotate*! (-> gp-0 vec7) (-> gp-0 vec6) (-> gp-0 mat))
+    (set! (-> gp-0 val0)
+          (- (+ (-> arg0 probe-local-pos y) (-> gp-0 val1) (* (-> arg0 probe-local-dir y) (-> arg0 pos2) (-> arg1 travel)))
+             (-> gp-0 vec0 y)
+             )
+          )
+    (set! (-> arg0 sin-susp-ang) (fmax -1.0 (fmin 1.0 (/ (- (-> gp-0 val0)) (-> gp-0 val2)))))
+    (set! (-> arg0 cos-susp-ang) (sqrtf (- 1.0 (square (-> arg0 sin-susp-ang)))))
+    (quaternion-identity! (-> gp-0 q4))
+    (set! (-> gp-0 q4 z) (* (sin (-> arg1 camber)) (-> arg0 x-scale)))
+    (set! (-> gp-0 q4 w) (cos (-> arg1 camber)))
+    (when (logtest? (-> arg1 flags) 32)
+      (quaternion-set!
+        (-> gp-0 q0)
+        0.0
+        0.0
+        (* (-> arg0 sin-susp-ang) (-> arg0 x-scale))
+        (+ 1.0 (-> arg0 cos-susp-ang))
+        )
+      (quaternion-normalize! (-> gp-0 q0))
+      (quaternion*! (-> gp-0 q4) (-> gp-0 q4) (-> gp-0 q0))
+      )
+    (set! (-> gp-0 vec4 quad) (-> gp-0 vec0 quad))
+    (+! (-> gp-0 vec4 z) (* (-> gp-0 val2) (-> arg0 cos-susp-ang)))
+    (+! (-> gp-0 vec4 y) (* -1.0 (-> arg0 sin-susp-ang) (-> gp-0 val2)))
+    (set! (-> gp-0 vec4 x) (* (-> gp-0 vec4 x) (-> arg0 x-scale)))
+    (vector+float*!
+      (-> gp-0 vec4)
+      (-> gp-0 vec4)
+      (-> arg0 local-axis)
+      (* (-> arg1 steer-arm-length) (-> arg0 x-scale))
+      )
+    (vector-matrix*! (-> gp-0 vec5) (-> gp-0 vec4) (-> gp-0 mat))
+    (quaternion-vector-angle! (-> gp-0 q2) (-> gp-0 vec3) (-> arg0 steer-angle))
+    (quaternion-vector-angle! (-> gp-0 q1) (-> gp-0 vec2) (-> arg0 angle))
+    (quaternion*! (-> gp-0 q0) (-> gp-0 q2) (-> gp-0 q4))
+    (quaternion*! (-> gp-0 q0) (-> gp-0 q0) (-> gp-0 q1))
+    (quaternion*! (-> arg0 quat) (-> gp-0 q3) (-> gp-0 q0))
+    (set! (-> arg0 trans quad) (-> gp-0 vec5 quad))
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 219 of type wvehicle
 ;; INFO: Used lq/sq
