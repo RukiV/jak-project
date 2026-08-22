@@ -74,6 +74,8 @@ written is read-only by design and not a finding.
 | `*display-sprite-info*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-sprite-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-sprite-spheres*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*draw-debug-boxes*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*hide-menus*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*ignore-want-load-display*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*lobby-local-players*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -149,7 +151,6 @@ written is read-only by design and not a finding.
 | `*display-water-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*dma-disasm*` | 1 | `goal_src/jakx/engine/dma/dma-disasm.gc` |
 | `*dnas-is-running*` | 1 | `goal_src/jakx/engine/sound/gsound.gc` |
-| `*draw-debug-boxes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*execute-regions*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*first-boot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*flip-blend*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
@@ -164,7 +165,6 @@ written is read-only by design and not a finding.
 | `*headset-input-bytes*` | 1 | `goal_src/jakx/engine/ps2/headset-h.gc` |
 | `*headset-output-bytes*` | 1 | `goal_src/jakx/engine/ps2/headset-h.gc` |
 | `*headset-output-offset*` | 1 | `goal_src/jakx/engine/ps2/headset-h.gc` |
-| `*hide-menus*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*jakx-boot-level*` | 1 | `goal_src/jakx/engine/level/level-h.gc` |
 | `*jakx-boot-level-load*` | 1 | `goal_src/jakx/engine/level/level-h.gc` |
 | `*jakx-cam-fly-dwell*` | 1 | `goal_src/jakx/engine/level/level.gc` |
