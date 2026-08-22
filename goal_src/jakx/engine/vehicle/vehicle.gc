@@ -289,3 +289,49 @@
   0
   (none)
   )
+
+;; definition for method 61 of type vehicle
+;; og:preserve-this panel-placement rung (issue 571 root cause, piece 3):
+;; scoped partial of retail's method 61 (a fresh scoped decode of the
+;; vehicle object, this rung's own tooling), the per-frame re-placer the
+;; brief's own root cause names alongside method 64. Retail's full body
+;; opens with an unconditional vehicle-method-185 call, then three cond
+;; blocks that each test a flags bit against both `flags` and its own
+;; last-frame snapshot `v-flags-2` (a (set! (-> this v-flags-2) (-> this
+;; flags)) copy sits between the third block and the tail below, feeding
+;; only those three blocks) to choose among rigid-body-object-method-70 /
+;; vehicle-method-144 / vehicle-method-113 / vehicle-method-114 (takes a
+;; second int arg this override's own zero-arg signature cannot supply --
+;; the scoped decode's own "Function may read a register that is not set:
+;; a1" flags exactly this) / vehicle-method-115 / vehicle-method-123 /
+;; vehicle-method-124, then vehicle-method-152 unconditionally at the very
+;; end. None of that lands here: vehicle-method-185, -152, -113, -123 and
+;; -124 are zero vtable slots in this worktree (no defmethod anywhere,
+;; kscheme.cpp zero-fills the dispatch), and the v-flags-2 snapshot copy
+;; has no reader left once the three cond blocks that read it are held
+;; out, so it is held too rather than landed as a dead write. What lands
+;; is exactly the retail tail past all of that: the no-draw cond
+;; (draw-control-method-14 when (-> this draw status) carries no-draw,
+;; ja-post otherwise) and the dotimes-12 loop dispatching vehicle-section-
+;; method-11 (the panel re-placer already landed at issue 571 R11, the
+;; joint-local consumer piece 2's own note above describes) across every
+;; section. A future full landing of (method 61 wvehicle) must call-
+;; parent-method into this body rather than re-inline it, once wvehicle's
+;; own callees above clear.
+(defmethod rigid-body-object-method-61 ((this vehicle))
+  (cond
+    ((logtest? (-> this draw status) (draw-control-status no-draw))
+     (draw-control-method-14 (-> this draw) (-> this node-list) (-> this skel))
+     0
+     )
+    (else
+      (ja-post)
+      )
+    )
+  (dotimes (i 12)
+    (vehicle-section-method-11 (-> this sections i) this)
+    )
+  0
+  (none)
+  )
+
