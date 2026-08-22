@@ -2928,24 +2928,75 @@
 (defun jakx-goto-level ((level-name symbol) (continue-name string))
   "og:preserve-this bring-up lever (the owner's level-switching request): force
 *load-state* to give up every current want, drain the resulting discards, boot
-level-name synchronously through bg, then arm a camera warp at continue-name if
-one was given. Eviction is load-state's own mechanism, not anything special to
-this function: want only reaches target through add-borrow-levels (want-exp
-copies straight into target when update-callback is #f, true throughout bring-up
-boots), and update! discards at most one level per call and returns early after
-any discard (this file), so clearing every want name and draining with a bounded
-loop is what actually frees the banks the destination level needs. bg's own wait
-loop (this file) pumps load-continue while the level's status is 'loading,
-'loading-bt or 'login, so by the time bg returns the level is either resident or,
-on a repeat bank exhaustion, was bailed 'inactive by the load-begin fix above and
-the wait loop never engaged; jakx-cam-warp-to-continue is safe either way, since
-it no-ops with a log line when level-get finds the level not loaded. The driver
-re-arms LAST, once the camera already sits in the destination family:
-*jakx-want-driver-level* is deliberately left holding the stale pre-jump family
-symbol, and jakx-want-driver-tick's family-changed check (this file) treats that
-stale mismatch as an ordinary family entry and bootstraps its window from the new
-position on its next tick. This is the debug menu's stand-in; retire when a real
-level-select UI drives the same clear/drain/bg sequence."
+level-name synchronously through bg, wait for it to actually become resident,
+then arm a camera warp at continue-name if one was given. Eviction is
+load-state's own mechanism, not anything special to this function: want only
+reaches target through add-borrow-levels (want-exp copies straight into target
+when update-callback is #f, true throughout bring-up boots), and update!
+discards at most one level per call and returns early after any discard (this
+file), so clearing every want name and draining with a bounded loop is what
+actually frees the banks the destination level needs.
+
+og:preserve-this warp-vs-load race fix: bg's own wait loop (this file, ~2769-
+2774) guards on (not *dproc*) as well as the loading-status check, because bg
+was written for the boot path, where the display process does not exist yet.
+This function fires from an already-running game (a debug-menu action), where
+*dproc* is always non-#f -- it is set once by `on` (main.gc) and never cleared
+until shutdown -- so that guard reads false on bg's very first test and its
+while body never runs here, no matter what the destination level's status is.
+bg still starts the DGO load synchronously (level-get-for-use ->
+level-status-update! 'loading -> load-begin, this file), but load-begin only
+enqueues the async DGO RPC; it does not wait for it. bg therefore returns with
+the level still 'loading, which is the confirmed run-2 crash: the cam-warp
+arming line printed BEFORE the DGO RPC load-start line, and the warp
+combiner's tick then read cam-start+0xca8 off a view field still holding a
+stale value (0x14001627) from whatever this heap slot held before, access
+violation. This docstring used to claim jakx-cam-warp-to-continue 'is safe
+either way, since it no-ops... when level-get finds the level not loaded' --
+that does not hold: level-get (this file) excludes only status 'inactive, and
+level-get-for-use assigns the slot's ->name before ->status ever leaves
+'loading, so a level that is only 'loading already reads back truthy from
+level-get and jakx-cam-warp-to-continue (cam-start.gc) arms the warp against
+it unconditionally. The residency gate has to live here, before that call.
+
+The fix pumps bg's own idiom without the *dproc* guard, the same shape
+`initialize!` already uses at real boot time (this file, the want-levels
+call's boot-cp/else branches, and its own follow-up level-status-update!
+'active a few lines later): resolve (level-get *level* level-name); if it is
+still #f -- level-get-for-use's 'could not find a slot' path, or load-begin's
+bank-exhaustion bail (this file, ~1291) which leaves status 'inactive on
+purpose, and whose own comment records that a later attempt just reprints the
+ERROR instead of reasserting, i.e. retrying is the sanctioned recovery -- retry
+by calling bg again and re-resolving. Once the level object exists, pump
+(load-continue lev) exactly like bg's loop while status is 'loading,
+'loading-bt or 'login. Nothing else on this path will ever promote a freshly
+'loaded level to 'active for us, since this function deliberately bypasses
+*load-state*'s want/target array (the one thing whose per-frame update! would
+otherwise do that), so once the pump loop exits, explicitly call
+(level-status-update! lev 'active) to finish the job, matching initialize!'s
+own follow-up call at the same structural position.
+
+The whole wait is bounded on wall-clock, not iteration count: net-world.gc's
+jakx-wait-for-levels-boot doc (this tree, issue #192) already measured that a
+raw iteration cap around a loop containing a non-blocking IOP poll is the
+wrong tool -- 18000 iterations burned inside one second of wall time, nowhere
+near a real load -- so this reuses that file's proven get-cpu-clock idiom
+verbatim: a 10-second bound (3,000,000,000 ticks at the PS2-accurate 300MHz
+rate), re-masked to 32 bits after subtraction since GOAL widens the
+subtraction to 64 bits across get-cpu-clock's own wrap, comfortably above
+every observed load time in this tree and generous enough that a bank-bail
+retry loop cannot hang the listener. On cap expiry, or if the level still is
+not 'loaded, 'active or 'alive once the loop exits, the warp is skipped with
+its own format-0 line naming the elapsed ticks and status, and the driver is
+still re-armed regardless.
+
+The driver re-arms LAST, once the camera already sits in the destination
+family (or the wait gave up): *jakx-want-driver-level* is deliberately left
+holding the stale pre-jump family symbol, and jakx-want-driver-tick's
+family-changed check (this file) treats that stale mismatch as an ordinary
+family entry and bootstraps its window from the new position on its next
+tick. This is the debug menu's stand-in; retire when a real level-select UI
+drives the same clear/drain/bg/wait sequence."
   (set! *jakx-want-driver* #f)
   (dotimes (i 18)
     (set! (-> *load-state* want i name) #f)
@@ -2955,10 +3006,46 @@ level-select UI drives the same clear/drain/bg sequence."
     (update! *load-state*)
     )
   (bg level-name)
-  (when continue-name
-    (let ((cp (jakx-find-continue-point continue-name)))
-      (if cp
-          (jakx-cam-warp-to-continue cp)
+  (let ((lev (level-get *level* level-name))
+        (start-tick (get-cpu-clock))
+        (elapsed (the uint 0))
+        (gave-up #f)
+        )
+    (while (and (not gave-up)
+                (or (not lev)
+                    (= (-> lev status) 'loading)
+                    (= (-> lev status) 'loading-bt)
+                    (= (-> lev status) 'login)
+                    )
+                )
+      (if lev
+          (load-continue lev)
+          (bg level-name)
+          )
+      (set! lev (level-get *level* level-name))
+      (set! elapsed (the uint (logand #xffffffff (- (get-cpu-clock) start-tick))))
+      (if (>= elapsed (the uint 3000000000))
+          (set! gave-up #t)
+          )
+      )
+    (if (and lev (not gave-up))
+        (level-status-update! lev 'active)
+        )
+    (when continue-name
+      (if (and lev
+               (or (= (-> lev status) 'loaded) (= (-> lev status) 'active) (= (-> lev status) 'alive))
+               )
+          (let ((cp (jakx-find-continue-point continue-name)))
+            (if cp
+                (jakx-cam-warp-to-continue cp)
+                )
+            )
+          (format 0 "jakx-goto-level: ~A not resident after ~D ticks (status ~A), skipping warp to ~A~%"
+            level-name
+            elapsed
+            (if lev (-> lev status) 'no-slot)
+            continue-name
+            )
           )
       )
     )
