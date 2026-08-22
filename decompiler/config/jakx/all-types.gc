@@ -59307,8 +59307,19 @@
 
 
 ;; all-types.gc:50174 (dead)
+;; og:preserve-this widget-typing rung (2026-08-22): child-handles retyped
+;; from bare basic to (array handle), matching the type_casts.jsonc note above
+;; ("lobby rung: the standard 'read a handle out of lobby-menu-manager's
+;; menu-handles array, then handle->process' idiom... following load at
+;; offset 248 (base-menu's own child-handles field)") plus (method 58
+;; base-menu)'s own decode: index stride is 8 (dsll s4 3, handle-sized), the
+;; indexed read lands at (base + i*8 + 12), matching array's own layout
+;; exactly (length@0, allocated-length@4, content-type@8, data@12), and the
+;; loaded value at that offset is an 8-byte ld feeding the standard
+;; handle->process check (subu against s7, sllv/lwu/dsra32/bne idiom). Same
+;; precedent as *deactivate-process-array*/*matrix-engine* below.
 (deftype base-menu (process-drawable)
-  ((child-handles     basic                       :offset-assert 248)
+  ((child-handles     (array handle)              :offset-assert 248)
    (info-ptr          base-menu-info              :offset-assert 252)
    (focused?          basic                       :offset-assert 256)
    ;; 16-byte alignment carries the cursor from 260 to 272
@@ -61044,7 +61055,14 @@
 ;; (define-extern *chat-msg-string* object)
 ;; (define-extern *chat-msg-string2* object)
 ;; (define-extern *chat-msg-player* object)
-;; (define-extern *lobby-chat-window* object)
+;; og:preserve-this widget-typing rung (2026-08-22): activated from the
+;; provisional-object comment above (jakx-provisional-extern-hygiene class).
+;; menu2-GAME's (method 60 chat-window-menu) reads *lobby-chat-window* then
+;; dispatches (l.wu (+ v1-5 56)) off the TYPE symbol lobby-chat-window itself
+;; (a method-table slot lookup, method 9's own inherited shape), so the global
+;; is a single lobby-chat-window instance, not the bare object the dead block
+;; carried.
+(define-extern *lobby-chat-window* lobby-chat-window)
 ;; (define-extern purge-top-chat-msg function)
 ;; (define-extern purge-all-chat-msgs function)
 ;; (define-extern get-top-chat-msg function)
@@ -68426,6 +68444,18 @@
 ;; find-first-selectable below); its only caller, (anon-function 79 menu2-GAME),
 ;; tail-returns it directly and that anon-function's own declared type below is
 ;; "(function object :behavior map-menu)", so the return is object.
+;; og:preserve-this widget-typing rung (2026-08-22), TRIED AND REVERTED: the
+;; survey rung above left self untyped, and the s6 read at op 2
+;; (l.wu (+ s6 248)) fails type prop (offset 248 is base-menu's own info-ptr
+;; field, invisible on the generic-process fallback per
+;; jakx-behavior-state-typing). Tagging :behavior base-menu clears THAT load
+;; but the function proceeds much further into a body previously invisible
+;; and hits a genuine new wall deeper in (op 53, (l.b (+ a1 12)), plus a
+;; stack-use guess failure at op 46); net corpus effect on this object alone
+;; was +1 error, matching the same "config-only retype exposes a landing-rung
+;; wall" shape already documented for base-menu-event-handler/menu-clear-strip
+;; below. Left at the bare guess; the :behavior tag is a real fix candidate
+;; for a future rung that also resolves the op-53 wall.
 (define-extern default-base-menu-post (function object))
 ;; og:preserve-this menu2-GAME survey rung, 2026-08-19: left at the bare
 ;; function guess. The body (ops 0-3) reads a0/a1/a2/a3 as real inputs and a2
@@ -68449,6 +68479,13 @@
 ;; layout, so a1 is vector; a2 is stored as a raw byte (op 22) into an s6
 ;; field. The tail return is enter-state's own passthrough (declared object
 ;; below), so the return is object.
+;; og:preserve-this widget-typing rung (2026-08-22), TRIED AND REVERTED: same
+;; s6/:behavior gap as default-base-menu-post above (op 40's
+;; (l.wu (+ s6 248)) is the same info-ptr read), and the same shape of
+;; regression: tagging :behavior base-menu clears that load and exposes a new
+;; wall at op 180 (l.b (+ a1 12)) plus a stack-use guess failure, deeper in
+;; the body the earlier failure had hidden. Left at the bare guess for the
+;; same reason as default-base-menu-post above.
 (define-extern base-menu-init-by-other (function object vector int object))
 ;; og:preserve-this menu2-GAME survey rung, 2026-08-19: left at the bare
 ;; function guess. a0 is a raw pointer written through at four fixed offsets
@@ -68471,6 +68508,18 @@
 ;; selection-menu-manager). Zero explicit args, object return, matching the
 ;; same "(function object)" shape already used for the zero-arg anon-functions
 ;; in this same object's own entries below (indices 21/22/23/35).
+;; og:preserve-this widget-typing rung (2026-08-22), TRIED AND REVERTED: same
+;; s6/:behavior gap as default-base-menu-post above (op 70's
+;; (l.wu (+ s6 244)) is base-menu's own child-handles field, the 4 bytes
+;; immediately before the 248 info-ptr read that base-menu-init-by-other
+;; resolves cleanly). Tagging :behavior base-menu DOES clear this load and its
+;; two sllv-fallback companions, but the function then proceeds into the same
+;; base-menu-info/children length-check wall (-> children length) that blocks
+;; (method 58 base-menu) (op 84-85 there); children is still bare basic (see
+;; base-menu-info below), so the net effect here is trading one wall for
+;; another rather than a clean win. Kept at the bare guess so this rung's
+;; measured net stays a real improvement; a follow-up that also retypes
+;; base-menu-info's children field can likely apply this tag for a clean win.
 (define-extern find-first-selectable (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
