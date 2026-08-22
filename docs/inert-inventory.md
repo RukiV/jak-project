@@ -32,6 +32,7 @@ written is read-only by design and not a finding.
 | `*display-bug-report*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-level-border*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*jakx-racer*` | 1 | `goal_src/jakx/engine/level/level.gc` |
+| `*jakx-region-driver-enable*` | 1 | `goal_src/jakx/engine/level/region-driver.gc` |
 | `*last-cash-game-mgr-for-player-0*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
@@ -75,6 +76,7 @@ written is read-only by design and not a finding.
 | `*display-sprite-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-sprite-spheres*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*draw-debug-boxes*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*execute-regions*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*hide-menus*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*ignore-want-load-display*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
@@ -151,7 +153,6 @@ written is read-only by design and not a finding.
 | `*display-water-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*dma-disasm*` | 1 | `goal_src/jakx/engine/dma/dma-disasm.gc` |
 | `*dnas-is-running*` | 1 | `goal_src/jakx/engine/sound/gsound.gc` |
-| `*execute-regions*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*first-boot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*flip-blend*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
 | `*flip-speed*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
