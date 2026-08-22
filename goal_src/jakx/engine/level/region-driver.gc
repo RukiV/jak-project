@@ -55,6 +55,14 @@
   )
 
 (defstate active (jakx-region-driver)
+  ;; og:preserve-this issue 595 regfix: :virtual #t is load-bearing, not style.
+  ;; active is declared in :state-methods, a fresh slot past process's 15
+  ;; methods, which kscheme zero-fills; without :virtual the defstate binds a
+  ;; global symbol instead of installing into that slot, go-virtual dispatches
+  ;; the zero, and enter-state's next-state kill assertion (gstate.gc:337)
+  ;; divides by zero on the first activation. Proven by two byte-identical
+  ;; boot crashes with pp jakx-region-driver at gstate enter-state.
+  :virtual #t
   :post (behavior ()
     ;; og:preserve-this issue 595 regfix Edit C.1: was :trans. region-tree-execute
     ;; writes the #x70000000 scratchpad overlay it shares with background-area /
