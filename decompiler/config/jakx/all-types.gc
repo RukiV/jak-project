@@ -54335,7 +54335,28 @@
     ;; index, not a pointer (this rung's scoped decode, vehicle-util
     ;; object).
     (vehicle-method-104 (_type_ int) none) ;; 104
-    (vehicle-method-105 (_type_) none) ;; 105 ;; (vehicle-method-105 (_type_) none)
+    ;; og:preserve-this issue 571 R8 adjudication: retyped from none. This
+    ;; rung's scoped decode (vehicle-util object) shows the body is exactly
+    ;; (handle->process (-> this cam-target-handle)) (none); the decompiler's
+    ;; own "Return type mismatch process vs none" warning proves the body
+    ;; computes a process, not none. (method 116 vehicle) then dispatches
+    ;; method id 65 (raw offset 276) straight on this result with no visible
+    ;; cast; plain process tops out at method-count 15 and only gains a
+    ;; method 65 once rigid-body-object is reached
+    ;; (rigid-body-object-method-65, :method-count-assert 89), so rigid-body-
+    ;; object is the minimal type that resolves the dispatch. All twelve
+    ;; landed rigid-body-object-method-65 overrides (rigid-body-object.gc,
+    ;; wcar-base.gc, train-obs.gc, construction-obs.gc, football2.gc,
+    ;; haven-obs.gc, peak-obs.gc, kcross-obs.gc) share the same
+    ;; zero-explicit-arg init-collision-shape body, so the a1/a2 draw-
+    ;; control-status registers method 116 still carries into the call are
+    ;; dead once the dispatch resolves, not a real second/third arg.
+    ;; Narrowing further to vehicle was considered but cam-target-handle's
+    ;; only other landed reader (cam-states.gc:2904/2954) treats it as a bare
+    ;; handle with no vehicle-specific access, so vehicle is not evidenced
+    ;; here; retire this note once a fuller landing of method 105 documents
+    ;; cam-target-handle's true referent from more call sites.
+    (vehicle-method-105 (_type_) rigid-body-object) ;; 105
     ;; og:preserve-this issue 571 R7: arg0 promoted object -> int (same
     ;; seat-count-bounded index as 104/108, sll-3 into the 748 handle array).
     ;; arg1 is read at its own offset 28 and double-dereferenced through a

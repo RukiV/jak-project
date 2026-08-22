@@ -985,10 +985,9 @@
   )
 
 ;; definition for method 105 of type vehicle
-;; WARN: Return type mismatch process vs none.
+;; WARN: Return type mismatch process vs rigid-body-object.
 (defmethod vehicle-method-105 ((this vehicle))
-  (handle->process (-> this cam-target-handle))
-  (none)
+  (the-as rigid-body-object (handle->process (-> this cam-target-handle)))
   )
 
 ;; definition for method 107 of type vehicle
@@ -2100,7 +2099,24 @@
   )
 
 ;; definition for method 116 of type vehicle
-;; ERROR: function was not converted to expressions. Cannot decompile.
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-116 ((this vehicle) (arg0 draw-control-status) (arg1 draw-control-status))
+  (set! (-> this draw status) (logclear (logior (-> this draw status) arg0) arg1))
+  (let ((s3-0 (-> this info damage section-mask)))
+    (dotimes (s2-0 12)
+      (if (logtest? s3-0 (ash 1 s2-0))
+          (vehicle-section-method-16 (-> this sections s2-0) arg0 arg1)
+          )
+      )
+    )
+  (let ((a0-6 (vehicle-method-105 this)))
+    (if a0-6
+        (rigid-body-object-method-65 a0-6)
+        )
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 117 of type vehicle
 ;; WARN: Return type mismatch int vs none.
