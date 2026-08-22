@@ -12,6 +12,12 @@
 
 (define-extern find-nearest-camera-distance (function vector float))
 
+;; og:preserve-this falcon-wheels rung, provisional: decompiler config
+;; (decompiler/config/jakx/all-types.gc) only feeds the decompiler's own
+;; type inference, not goalc's real compile-time symbol table, so method
+;; 66's reference below needs its own local redeclaration to build.
+(define-extern *vehicle-wheel-constants* object)
+
 ;; DECOMP BEGINS
 
 ;; og:preserve-this vehicle rung: retyped vehicle field basic -> vehicle.
@@ -56,8 +62,15 @@
 ;; other unparseable <static-data LNN> placeholders this band keeps
 ;; hitting; its likely type, rigid-body-vehicle-constants, is a huge
 ;; nested structure (12 sub-types, 3,200+ bytes), not a quick
-;; label_types.jsonc win like vehicle-effects's glow templates. Method
-;; 66 (its only reader) is omitted with it.
+;; label_types.jsonc win like vehicle-effects's glow templates.
+;; falcon-wheels rung: method 66 (its only reader) lands below despite
+;; this. Its body passes the symbol straight through to
+;; rigid-body-object-method-64 as an opaque argument and never
+;; dereferences a field, so it only needs *vehicle-wheel-constants* to
+;; exist as a symbol, which the corpus's own already-active extern
+;; (decompiler/config/jakx/all-types.gc, "provisional: call-site
+;; evidence only") already provides; the struct's own contents stay
+;; unresolved.
 
 ;; definition of type vehicle-wheel
 (deftype vehicle-wheel (rigid-body-object)
@@ -70,6 +83,19 @@
     )
   (:methods
     (vehicle-wheel-method-92 (_type_ object object) none)
+    ;; og:preserve-this falcon-wheels rung: method 65 REPLACES rigid-body-
+    ;; object's own zero-explicit-arg slot ("Function may read a register
+    ;; that is not set: a1" against the old 0-arg declaration,
+    ;; wvehicle-wheel_ir2.asm op 1 of this override, this rung's own
+    ;; scoped decode). vehicle-wheel-init-by-other calls this as its own
+    ;; first statement with no explicit second arg, so the borrowed a1
+    ;; register is init-by-other's own live arg0 (its vehicle-wheel-init-
+    ;; params), not yet clobbered; op 41 reads only its offset-12 float
+    ;; (the params' own radius field) into the new collision sphere's
+    ;; local-sphere.w. No other landed rigid-body-object-method-65
+    ;; override touches this register, so the base slot and its other
+    ;; eleven overrides are untouched.
+    (rigid-body-object-method-65 (_type_ vehicle-wheel-init-params) none :replace) ;; 65
     )
   )
 
@@ -87,22 +113,117 @@
   this
   )
 
-;; og:preserve-this methods 92, 65 and 87 are omitted rather than
-;; landed. Same defect class as vehicle-debris's methods 65/87 in this
-;; same band: method 92 fails at op 0 and reads a0/a1/a2 with none set
-;; (three unset registers, not a dropped-argument fix, something else
-;; corrupted this override's decode); method 65 fails at op 41 and reads
-;; a1 unset; method 87 fails a stack-use guess. idle's own :event
-;; handler still dispatches vehicle-wheel-method-92 (unfilled,
-;; check_method_slots flags it); the callee's home is this same object
-;; once method 92 lands.
-;;
-;; method 88 was in this same held state until its own blocker (the same
+;; og:preserve-this method 88 was held until its own blocker (the same
 ;; unactivated find-nearest-camera-distance vehicle-debris's method 88
 ;; hit) was cleared by the race-mesh rung (jakx-levels-other-tier-4, both
 ;; the decompiler-config extern and a real define-extern now live in
 ;; goal_src/jakx/levels/common/race/race-mesh.gc). Its decode was
-;; already fully clean at that point; this rung landed it below.
+;; already fully clean at that point; landed below.
+;;
+;; falcon-wheels rung: methods 92, 65 and 87 land here too. The prior
+;; hold's "three unset registers" reading of method 92 and "a1 unset"
+;; reading of method 65 do not reproduce in a fresh scoped decode against
+;; this worktree's own current config; all three clear with the config
+;; fixes cited at each method below (decompiler/config/jakx/ntsc_v1/
+;; type_casts.jsonc and stack_structures.jsonc, plus the :replace method
+;; 65 signature above). idle's own :event handler dispatch of
+;; vehicle-wheel-method-92 updates below to a direct call now that the
+;; callee is defined (the decompiler no longer needs the method-of-object
+;; indirection it used while the slot was unfilled).
+
+;; definition for method 92 of type vehicle-wheel
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-wheel-method-92 ((this vehicle-wheel) (arg0 object) (arg1 object))
+  (set! (-> this draw status)
+        (logclear (logior (-> this draw status) (the-as uint arg0)) (the-as draw-control-status arg1))
+        )
+  0
+  (none)
+  )
+
+;; definition for method 65 of type vehicle-wheel
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-65 ((this vehicle-wheel) (arg0 vehicle-wheel-init-params))
+  (let ((s5-0 (new 'process 'collide-shape-moving this (collide-list-enum usually-hit-by-player))))
+    (set! (-> s5-0 dynam) (copy *standard-dynamics* 'process))
+    (set! (-> s5-0 reaction) cshape-reaction-default)
+    (set! (-> s5-0 no-reaction)
+          (the-as (function collide-shape-moving collide-query vector vector object) nothing)
+          )
+    (set! (-> s5-0 penetrate-using) (penetrate vehicle))
+    (let ((v1-7 (new 'process 'collide-shape-prim-sphere s5-0 (the-as uint 0))))
+      (set! (-> v1-7 prim-core action) (collide-action solid))
+      (set! (-> v1-7 transform-index) 0)
+      (set-vector! (-> v1-7 local-sphere) 0.0 0.0 0.0 (-> arg0 radius))
+      (set! (-> s5-0 total-prims) (the-as uint 1))
+      (set! (-> s5-0 root-prim) v1-7)
+      )
+    (set! (-> s5-0 nav-radius) (* 0.75 (-> s5-0 root-prim local-sphere w)))
+    (let ((v1-10 (-> s5-0 root-prim)))
+      (set! (-> s5-0 backup-collide-as) (-> v1-10 prim-core collide-as))
+      (set! (-> s5-0 backup-collide-with) (-> v1-10 prim-core collide-with))
+      )
+    (set! (-> this root) s5-0)
+    )
+  ;; og:preserve-this falcon-wheels rung: the raw decode types this
+  ;; callback's own arg0 as bare object and writes its two collide-spec
+  ;; fields via raw machine-offset s.w! ("Cannot do math on a object" at
+  ;; compile, since object carries no pointer arithmetic), the same wall
+  ;; (method 65 construction-obs) already hit and fixed by typing the
+  ;; callback arg0 collide-shape-prim and using prim-core's own field
+  ;; accessors (construction-obs.gc:191); iterate-prims's own declared
+  ;; type (collide-shape-h.gc, method 53) already expects exactly that
+  ;; signature. The +4 basic-offset trap maps this rung's own machine
+  ;; offsets 32/28 to collide-prim-core's declared 36/32 (prim-core sits
+  ;; at absolute offset 16, collide-with/collide-as at its own relative
+  ;; 20/16); #xc1027fd and 256 decode bit-for-bit against collide-spec
+  ;; (decompiler/config/jakx/all-types.gc) to the flag lists below.
+  (iterate-prims (-> this root) (lambda ((arg0 collide-shape-prim))
+                                  (set! (-> arg0 prim-core collide-with)
+                                        (collide-spec
+                                          backgnd
+                                          bot
+                                          crate
+                                          civilian
+                                          enemy
+                                          obstacle
+                                          vehicle-sphere
+                                          vehicle-debris
+                                          hit-by-player-list
+                                          hit-by-others-list
+                                          collectable
+                                          pusher
+                                          shield
+                                          vehicle-sphere-no-probe
+                                          )
+                                        )
+                                  (set! (-> arg0 prim-core collide-as) (collide-spec vehicle-debris))
+                                  (none)
+                                  )
+                 )
+  (let ((v1-15 (-> this root root-prim)))
+    (set! (-> this root backup-collide-as) (-> v1-15 prim-core collide-as))
+    (set! (-> this root backup-collide-with) (-> v1-15 prim-core collide-with))
+    )
+  0
+  (none)
+  )
+
+;; definition for method 66 of type vehicle-wheel
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-66 ((this vehicle-wheel))
+  (rigid-body-object-method-64 this *vehicle-wheel-constants*)
+  (set! (-> this root max-iteration-count) (the-as uint 3))
+  (set! (-> this max-time-step) 0.05)
+  (set! (-> this draw shadow-ctrl)
+        (new 'process 'shadow-control -43008.0 -2048.0 69632.0 (the-as vector #f) (shadow-flags) 245760.0)
+        )
+  (set! (-> this focus-status)
+        (the-as focus-status (logior (focus-status gun-no-target) (-> this focus-status)))
+        )
+  0
+  (none)
+  )
 
 ;; definition for method 61 of type vehicle-wheel
 ;; WARN: Return type mismatch int vs none.
@@ -111,6 +232,48 @@
   (if (logtest? (-> this rbody flags) 1)
       (update-transforms (-> this root))
       )
+  0
+  (none)
+  )
+
+;; definition for method 87 of type vehicle-wheel
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+;; ERROR: Failed store: (s.f! (+ a0-4 268) f0-2) at op 20
+;; ERROR: Failed store: (s.w! (+ a0-4 100) a1-8) at op 22
+;; ERROR: Failed store: (s.w! (+ a0-4 88) this) at op 23
+;; ERROR: Failed store: (s.w! (+ a0-4 92) #f) at op 24
+;; ERROR: Failed store: (s.w! (+ a0-4 96) a1-9) at op 26
+;; ERROR: Failed store: (s.w! (+ a0-4 352) a1-10) at op 28
+;; ERROR: Failed store: (s.w! (+ a0-4 116) #f) at op 29
+;; og:preserve-this falcon-wheels rung: the "ERROR: Failed store" lines
+;; above are the raw decode addressing collide-query's own fields through
+;; a raw best-other-tri pointer (offset 0 of the struct, so numerically
+;; the same address as v1-0 itself) plus machine-offset s.w!/s.f!, which
+;; does not compile ("Cannot do math on a collide-tri-result", the same
+;; wall class method 65's own iterate-prims callback hit). Rewritten to
+;; collide-query's own declared field accessors (decompiler/config/jakx/
+;; all-types.gc:37155) at the identical offsets the stack-structure hint
+;; below already establishes (88/92/96/100/116/208/224/268/352); every
+;; stored value transcribes byte-identical, including (collide-action
+;; solid)'s own bit value (1) matching the raw store at +352 exactly.
+(defmethod rigid-body-object-method-87 ((this vehicle-wheel))
+  (let ((v1-0 (new 'stack-no-clear 'collide-query)))
+    (set! (-> v1-0 start-pos quad) (-> this rbody position quad))
+    (vector-float*! (-> v1-0 move-dist) (-> this rbody lin-velocity) (seconds-per-frame))
+    (set! (-> v1-0 radius) (+ 4096.0 (-> this root root-prim local-sphere w)))
+    (set! (-> v1-0 collide-with-s32) #xc106eff)
+    (set! (-> v1-0 ignore-process0) this)
+    (set! (-> v1-0 ignore-process1) #f)
+    (set! (-> v1-0 ignore-pat-s32) #x1000051)
+    (set! (-> v1-0 action-mask) (collide-action solid))
+    (set! (-> v1-0 num-spheres) (the-as uint32 #f))
+    (fill-using-line-sphere *collide-cache* v1-0)
+    )
+  (if *display-collide-cache*
+      (debug-draw *collide-cache*)
+      )
+  (rigid-body-control-method-10 (-> this rbody) this (-> this rbody time-remaining) (-> this max-time-step))
   0
   (none)
   )
@@ -184,9 +347,16 @@
 ;; hacks.jsonc entry blocked them. vehicle-wheel-init-by-other's own
 ;; offset-192-of-vehicle read needed the vehicle-wheel-init-params.vehicle
 ;; field retyped above.
+;;
+;; falcon-wheels rung: the rigid-body-object-method-65 call below now
+;; passes arg0 explicitly, matching the :replace signature above; this is
+;; the same value the raw asm already reads out of the still-live a1
+;; register at method 65's own op 1 (this call is the first statement in
+;; this behavior, before arg0 is written anywhere else), so this makes an
+;; already-real read explicit rather than changing behavior.
 ;; definition for function vehicle-wheel-init-by-other
 (defbehavior vehicle-wheel-init-by-other vehicle-wheel ((arg0 vehicle-wheel-init-params))
-  (rigid-body-object-method-65 self)
+  (rigid-body-object-method-65 self arg0)
   (set! (-> self root trans quad) (-> arg0 position quad))
   (quaternion-copy! (the-as quaternion (-> self root rot)) (-> arg0 rotation))
   (set! (-> self root scale quad) (-> arg0 scale quad))
@@ -267,11 +437,11 @@
        v0-1
        )
       (('modify-draw-status)
-       ((method-of-object self vehicle-wheel-method-92)
-        self
-        (-> block param 0)
-        (-> block param 1)
-        )
+       (let ((a1-5 (-> block param 0))
+             (a2-1 (-> block param 1))
+             )
+         (vehicle-wheel-method-92 self a1-5 a2-1)
+         )
        )
       )
     )
@@ -313,6 +483,14 @@
   ;; code spawns a vehicle-wheel process yet: vehicle-wheel-spawn's only
   ;; caller, wvehicle-method-213, is a declared but unfilled method slot
   ;; across every wcar-* file), so this rung adds no new boot-path exposure.
+  ;; falcon-wheels rung: method 213's own real body decodes clean (a
+  ;; scoped decode of wvehicle-util, this rung) but was held rather than
+  ;; landed: every path through it dispatches wvehicle-method-220, itself
+  ;; a declared-but-unfilled slot with zero landed defmethod anywhere in
+  ;; the corpus (check_method_slots.py, this rung's own gate run), the
+  ;; same GOAL-address-0 crash class the stub exists to prevent. Landing
+  ;; 213 for real needs wvehicle-method-220 landed first, or its own call
+  ;; sites held with a documented reason; out of scope for this rung.
   :enter (behavior ()
     (set-time! (-> self state-time))
     (let* ((f30-0 0.5)

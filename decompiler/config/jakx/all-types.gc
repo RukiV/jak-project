@@ -74584,6 +74584,18 @@
     )
   (:methods
     (vehicle-wheel-method-92 (_type_ object object) none) ;; 92
+    ;; og:preserve-this falcon-wheels rung: method 65 REPLACES rigid-body-
+    ;; object's own zero-explicit-arg slot ("Function may read a register
+    ;; that is not set: a1" against the old 0-arg declaration,
+    ;; wvehicle-wheel_ir2.asm op 1 of this override). vehicle-wheel-init-
+    ;; by-other calls this as its own first statement with no explicit
+    ;; second arg, so the borrowed a1 register is init-by-other's own live
+    ;; arg0 (its vehicle-wheel-init-params), not yet clobbered; op 41 reads
+    ;; only its offset-12 float (the params' own radius field) into the
+    ;; new collision sphere's local-sphere.w. No other landed
+    ;; rigid-body-object-method-65 override touches this register, so the
+    ;; base slot and its other eleven overrides are untouched.
+    (rigid-body-object-method-65 (_type_ vehicle-wheel-init-params) none :replace) ;; 65
     )
   )
 
