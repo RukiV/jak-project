@@ -36,36 +36,70 @@
 ;; anything this file does not explicitly wire up.
 ;;
 ;; Lever: *jakx-region-driver-enable*, default #f, matching the campaign's
-;; standing lever discipline (*jakx-want-driver*, level.gc:3114). Arm with
-;; (set! *jakx-region-driver-enable* #t) from the REPL after (mi), then spawn
-;; with (jakx-region-driver-spawn) -- nothing calls that automatically yet, so
-;; a session that never arms/spawns it sees zero behavior change from this file
-;; landing.
+;; standing lever discipline (*jakx-want-driver*, level.gc:3114). og:preserve-this
+;; updated (issue 595 regfix Edit C.2): play now calls (jakx-region-driver-spawn)
+;; unconditionally right after (on #t), so the process always exists once
+;; *dproc*/*display-pool* do; arming is a single (set! *jakx-region-driver-enable*
+;; #t) from the REPL after (mi), no separate spawn step. A session that never sets
+;; the lever still sees zero behavior change beyond the process existing: its
+;; :post does the camera-pos bookkeeping (required either way, see below) and a
+;; cheap no-op region-tree-execute skip while the lever is #f.
 (define *jakx-region-driver-enable* #f)
 
 (deftype jakx-region-driver (process)
-  ()
+  ((valid? symbol)
+   )
   (:state-methods
     active
     )
   )
 
 (defstate active (jakx-region-driver)
-  :trans (behavior ()
+  :post (behavior ()
+    ;; og:preserve-this issue 595 regfix Edit C.1: was :trans. region-tree-execute
+    ;; writes the #x70000000 scratchpad overlay it shares with background-area /
+    ;; foreground-area / sprite-area (subdivide-h.gc:137-142), so it must run at
+    ;; retail's own point in the frame -- a process post, before the draw -- not in
+    ;; the general per-frame :trans tick. :post pattern to copy:
+    ;; cam-states.gc:3158.
+    ;;
     ;; og:preserve-this: transcribed shape from (post running net-player)'s own
     ;; camera-pos sweep (net-player_ir2.asm:10345-10370), view 0 only (see file
     ;; header). prev <- curr, curr <- (camera-pos), every frame regardless of
     ;; the lever, matching retail's own unconditional sweep; only the
     ;; region-tree-execute calls below are lever-gated.
-    (set! (-> *level* prev-camera-pos 0 quad) (-> *level* curr-camera-pos 0 quad))
-    (set! (-> *level* curr-camera-pos 0 quad) (-> (camera-pos) quad))
-    (when (and *jakx-region-driver-enable*
-               *execute-regions*
-               (-> *setting-control* user-current region-mode)
-               (not (paused?))
-               )
-      (region-tree-execute 'camera (-> *level* prev-camera-pos 0) (-> *level* curr-camera-pos 0))
-      (region-tree-execute 'target (-> *level* prev-camera-pos 0) (-> *level* curr-camera-pos 0))
+    ;;
+    ;; og:preserve-this first-tick prime (issue 595 regfix Edit C.3): with no
+    ;; prime, prev/curr both start at whatever init-level-system left in *level*'s
+    ;; camera-pos slots, so the very first swept segment would run from that stale
+    ;; point to the live camera -- a segment that can cross every volume on the map
+    ;; at once and fire an arbitrary burst of want-display/want-load. Retail guards
+    ;; the equivalent case with a validity flag (dead-camera-pos-valid). Mirror
+    ;; that here: on the first :post, snap both slots to the live camera position,
+    ;; latch valid?, and skip the sweep for that one frame only. first-tick is
+    ;; captured before valid? is set so the skip applies to the same frame that
+    ;; does the priming, not the frame after.
+    (let ((first-tick (not (-> self valid?))))
+      (if first-tick
+          (begin
+            (set! (-> *level* prev-camera-pos 0 quad) (-> (camera-pos) quad))
+            (set! (-> *level* curr-camera-pos 0 quad) (-> (camera-pos) quad))
+            (set! (-> self valid?) #t)
+            )
+          (begin
+            (set! (-> *level* prev-camera-pos 0 quad) (-> *level* curr-camera-pos 0 quad))
+            (set! (-> *level* curr-camera-pos 0 quad) (-> (camera-pos) quad))
+            )
+          )
+      (when (and (not first-tick)
+                 *jakx-region-driver-enable*
+                 *execute-regions*
+                 (-> *setting-control* user-current region-mode)
+                 (not (paused?))
+                 )
+        (region-tree-execute 'camera (-> *level* prev-camera-pos 0) (-> *level* curr-camera-pos 0))
+        (region-tree-execute 'target (-> *level* prev-camera-pos 0) (-> *level* curr-camera-pos 0))
+        )
       )
     )
   :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
@@ -121,17 +155,22 @@
 ;; og:preserve-this: process-spawn's default :init convention is
 ;; <type>-init-by-other (external-camera-controller-init-by-other,
 ;; generic-obs.gc:3094, is the landed example); this process needs nothing
-;; from its spawner, so the init just enters the one state.
+;; from its spawner beyond the explicit valid? clear (issue 595 regfix Edit C.3:
+;; process heap memory is not guaranteed zeroed on spawn, matching this file's own
+;; init-by-other convention above of setting every declared field explicitly), so
+;; the init just clears the flag and enters the one state.
 (defbehavior jakx-region-driver-init-by-other jakx-region-driver ()
+  (set! (-> self valid?) #f)
   (go-virtual active)
   )
 
-;; og:preserve-this: REPL spawn helper, matching play-boot's own
+;; og:preserve-this: spawn helper, matching play-boot's own
 ;; process-spawn-function pattern (level.gc:9684) and display-loop's persistent
-;; top-level pool (main.gc:4763-4771). Not called from anywhere by default in
-;; this rung; a future rung can wire this into play once the lever above is
-;; proven safe to default on, matching *jakx-want-driver*'s own history
-;; (level.gc:3048-3114).
+;; top-level pool (main.gc:4763-4771). og:preserve-this updated (issue 595 regfix
+;; Edit C.2): called unconditionally from play, right after (on #t) creates
+;; *dproc*/*display-pool* (level.gc). Still callable standalone from the REPL
+;; (discard the return, matching every other bring-up spawn helper) for a session
+;; that boots through a path other than play.
 (defun jakx-region-driver-spawn ()
   (process-spawn jakx-region-driver :name "jakx-region-driver" :to *display-pool*)
   (none)
