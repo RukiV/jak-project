@@ -20,10 +20,16 @@
 ;; corpus scan confirms the resulting 10 UNFILLED dispatch findings
 ;; (method-slots baseline moved 134/45 -> 144/45 landing this file) all land
 ;; on these six slots. Calling any of them today crashes at a zero-linked
-;; vtable entry, but nothing does yet: *actor-hash* stays nil until
-;; actor-hash.gc lands (collide-shape.gc's own og:preserve-this note), so no
-;; live grid-hash/sphere-hash/spatial-hash instance exists to walk these
-;; dispatches. Retire this note once each slot gets a real mips2c port.
+;; vtable entry, but nothing does yet. Correction (this rung): the reason
+;; is not that no live grid-hash/sphere-hash/spatial-hash instance exists
+;; at all, *powerup-static-hash* and *powerup-dynamic-hash*
+;; (net-powerup-h.gc:11,14) are both real, live spatial-hash globals.
+;; *actor-hash* does still stay nil (its own og:preserve-this note,
+;; actor-hash-h.gc), but that only accounts for spatial-hash-method-39's
+;; own fill-actor-list-for-vec+r dispatch; the other five slots are simply
+;; uncalled by anything in goal_src yet, live instance or not. The
+;; conclusion (nothing crashes on any of the six today) still holds.
+;; Retire this note once each slot gets a real mips2c port.
 
 ;; definition of type grid-hash-work
 (deftype grid-hash-work (basic)
