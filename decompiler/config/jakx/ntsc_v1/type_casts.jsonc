@@ -9556,6 +9556,72 @@
   "(anon-function 26 lobby-net-startup)": [
     [29, "s6", "lobby-menu-manager"]
   ],
+  // lobby rung (lobby-adventure/lobby-menu-manager top pair): same class as
+  // the block above, but the callback runs on lobby-menu-manager's own
+  // anon-functions rather than a sibling lobby object's, so self was never
+  // cast here yet. Each consuming -4(self)/self-field read needs its own
+  // entry: op 1 loads the byte field at raw 324, +4 the machine-load-offset
+  // convention gives current-local-player, declared int8 at offset-assert
+  // 328 on lobby-menu-manager's own table; op 2 is the standard (l.wu (+
+  // self -4)) type-tag read consumed by the offset-212 vtable dispatch two
+  // ops later (entering a lobby-menu-manager state, the same shape as
+  // (anon-function 8 lobby-adventure)'s -4/748 dispatch above) - left at
+  // process, offset 212 resolves against process's own 15-method table and
+  // throws "method 49 of type process", surfaced only once op 1's read
+  // stopped poisoning the rest of the function.
+  "(anon-function 36 lobby-menu-manager)": [
+    [1, "s6", "lobby-menu-manager"],
+    [2, "s6", "lobby-menu-manager"]
+  ],
+  "(anon-function 37 lobby-menu-manager)": [
+    [1, "s6", "lobby-menu-manager"],
+    [2, "s6", "lobby-menu-manager"]
+  ],
+  "(anon-function 61 lobby-menu-manager)": [
+    [1, "s6", "lobby-menu-manager"],
+    [2, "s6", "lobby-menu-manager"]
+  ],
+  "(anon-function 62 lobby-menu-manager)": [
+    [1, "s6", "lobby-menu-manager"],
+    [2, "s6", "lobby-menu-manager"]
+  ],
+  // lobby rung: adventure-map-update/adventure-map-fade-out/adventure-map-
+  // fade-in all copy a literal "camera-N" string into self's own cam-string
+  // field via copy-string<-string, each venue branch re-reading self at raw
+  // offset 352 (+4 gives 356, cam-string, already declared on
+  // lobby-menu-manager from the credits-obs fix); self arrives generically
+  // typed process (adventure-map-update takes no declared self/this arg, it
+  // is the current process by the same convention as the callback class
+  // above), so every one of these reads needs its own cast entry.
+  "adventure-map-update": [
+    [4, "s6", "lobby-menu-manager"],
+    [16, "s6", "lobby-menu-manager"],
+    [28, "s6", "lobby-menu-manager"],
+    [40, "s6", "lobby-menu-manager"],
+    [55, "s6", "lobby-menu-manager"],
+    [64, "s6", "lobby-menu-manager"],
+    [73, "s6", "lobby-menu-manager"],
+    [82, "s6", "lobby-menu-manager"]
+  ],
+  "adventure-map-fade-out": [
+    [23, "s6", "lobby-menu-manager"],
+    [29, "s6", "lobby-menu-manager"],
+    [123, "s6", "lobby-menu-manager"],
+    [129, "s6", "lobby-menu-manager"]
+  ],
+  // adventure-map-fade-in: same cam-string idiom as its sibling
+  // adventure-map-fade-out just above, same two branches (op 13 the
+  // "display" case, op 76 the fallback case).
+  "adventure-map-fade-in": [
+    [13, "s6", "lobby-menu-manager"],
+    [76, "s6", "lobby-menu-manager"]
+  ],
+  // adventure-venue-init: same enter-state dispatch idiom as the callback
+  // class above (self cast for the -4/vtable-offset/enter-state sequence);
+  // offset 456 matches the same vtable slot (anon-function 15
+  // lobby-adventure's own L159 branch) already resolving to <vmethod
+  // (state lobby-menu-manager)> there.
+  "adventure-venue-init": [[498, "s6", "lobby-menu-manager"]],
   // lobby rung: menu-item event-handler callback bodies (dispatched via
   // method-set! onto a menu instances method 61 slot, the base-menu event
   // handler convention) read their fourth argument as the event-message-block

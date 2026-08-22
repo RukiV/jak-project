@@ -84981,18 +84981,37 @@
 ;; (define-extern *lobby-adv-grand-prix* object)
 ;; (define-extern *adv-coming-back-from-game* object)
 ;; (define-extern *open-new-cup* object)
-(define-extern *adventure-map-city* array)
-(define-extern *adventure-map-stats* array)
-(define-extern *adventure-map-new* array)
-;; (define-extern *adventure-venue-name* array)
-;; (define-extern *adventure-venue-new* array)
-;; (define-extern *adventure-venue-stats* array)
-(define-extern *adventure-task-stats* array)
+;; *adventure-map-city*/*adventure-map-stats*/*adventure-map-new*/
+;; *adventure-venue-name*/*adventure-venue-new*/*adventure-venue-stats*/
+;; *adventure-task-stats*: top-level-login stores a literal array into each
+;; of these seven globals back to back (ops 6, 8, 10, 12, 14, 16, 18), and
+;; the decompiler reads the content type straight off each literal's own
+;; header, independently landing on (array strings-extra-struct) for every
+;; one of them (scoped decode, this worktree's config). Narrowed from
+;; generic array; *adventure-venue-name* and *adventure-venue-new* and
+;; *adventure-venue-stats* were fully undeclared before this, the direct
+;; cause of top-level-login's own "did not know the type of symbol
+;; *adventure-venue-name*" error.
+(define-extern *adventure-map-city* (array strings-extra-struct))
+(define-extern *adventure-map-stats* (array strings-extra-struct))
+(define-extern *adventure-map-new* (array strings-extra-struct))
+(define-extern *adventure-venue-name* (array strings-extra-struct))
+(define-extern *adventure-venue-new* (array strings-extra-struct))
+(define-extern *adventure-venue-stats* (array strings-extra-struct))
+(define-extern *adventure-task-stats* (array strings-extra-struct))
 ;; (define-extern pulse-new-font-color function)
+;; *cup1-extra*/*cup2-extra*/*cup3-extra*/*cup4-extra*: top-level-login
+;; stores a literal array into all four back to back (ops 73, 75, 77, 79,
+;; immediately after the *adventure-*-name/-new/-stats septet above), same
+;; shape as that septet; *cup1-extra* was already declared array and reads
+;; clean elsewhere in this object, so cup2/3/4 are enabled to match rather
+;; than left commented (this rung's own scoped decode; the two/three/four
+;; siblings are unread outside this init sequence in-scope, so no further
+;; element-type evidence beyond the sibling match is available yet).
 (define-extern *cup1-extra* array)
-;; (define-extern *cup2-extra* array)
-;; (define-extern *cup3-extra* array)
-;; (define-extern *cup4-extra* array)
+(define-extern *cup2-extra* array)
+(define-extern *cup3-extra* array)
+(define-extern *cup4-extra* array)
 ;; (define-extern *adventure-cup* object)
 ;; (define-extern get-next-training-task function)
 ;; (define-extern setup-cup-menu-score function)
@@ -85006,7 +85025,18 @@
 (define-extern *adventure-venue* object)
 ;; (define-extern adventure-venue-init function)
 ;; (define-extern *adventure-task-sprite-info-array* array)
-(define-extern *adventure-task-info-array* array)
+;; *adventure-task-info-array*: (anon-function 8 lobby-adventure) and
+;; (anon-function 15 lobby-adventure) both index this array by
+;; *lobby-adv-selected-task* (a scaled *4 index added to the array's own
+;; base pointer, the standard array-of-basic content addressing, data at
+;; +12) then read the resulting pointer's own offset 8 (compared against
+;; the integer 1) and offset 4 (compared against the symbol 'grand-prix).
+;; game-task-node-info's own field table is an exact match: task uint8 at
+;; offset 8, level symbol at offset-assert 4 (scoped decode, this
+;; worktree's config). get-next-training-task and get-open-task-node-info,
+;; already declared/used elsewhere in this same object, both traffic in
+;; game-task-node-info too.
+(define-extern *adventure-task-info-array* (array game-task-node-info))
 ;; (define-extern *task-medals* array)
 ;; (define-extern *grand-prix-locked* object)
 (define-extern *adventure-task* object)
@@ -88123,8 +88153,25 @@
 ;; (40), zbuffer? (128) and inline lie-vector (112) (scoped decode, this
 ;; worktree's config, matches the type's own commented hint above).
 (define-extern *wheel-trail-info* (pointer light-trail-composition))
-(define-extern *world-map-kras-mesh-proc* object) ;; provisional: call-site evidence only
-(define-extern *world-map-spargus-mesh-proc* object) ;; provisional: call-site evidence only
+;; *world-map-kras-mesh-proc*: (method 191 lobby-menu-manager) reads offset
+;; 28 off it after a truthy check, the process-tree child field (see the
+;; deftype's own :offset-assert 28 on process-tree, inherited unmodified
+;; through process-drawable to interface-world-map to this type), an exact
+;; match for the identical (l.wu (+ x 28)) read two ops earlier in the same
+;; function off s6 (declared process there). Retyped to the sibling
+;; world-map-kras-mesh rather than bare process, matching the naming and
+;; typing convention of every other *world-map-*-mesh-proc* global already
+;; declared here (docks, drome, dockkra, dromedoc, kras-tour), all of which
+;; point at their own same-named deftype (scoped decode, this worktree's
+;; config).
+(define-extern *world-map-kras-mesh-proc* world-map-kras-mesh)
+;; *world-map-spargus-mesh-proc*: same idiom as *world-map-kras-mesh-proc*
+;; above, same function even ((method 191 lobby-menu-manager), the venue
+;; dispatch table): offset 28 read after a truthy check, matching the
+;; process-tree child field inherited unmodified through process-drawable
+;; and interface-world-map. Retyped to the sibling world-map-spargus-mesh
+;; for the same reason (scoped decode, this worktree's config).
+(define-extern *world-map-spargus-mesh-proc* world-map-spargus-mesh)
 (define-extern *wvehicle-ai-steering-params* (array vector))
 (define-extern V_R_MINE1_ARMED? object) ;; provisional: call-site evidence only
 (define-extern V_YELLOW_GUIDED_MISSILE_STANDOFF_TIME object) ;; provisional: call-site evidence only
@@ -88346,6 +88393,15 @@
 (define-extern get-next-training-task (function none)) ;; mechanical-arity fixpoint
 (define-extern spawn-intro-hud (function object)) ;; mechanical-arity fixpoint
 (define-extern adventure-map-fade-out (function object object)) ;; mechanical-arity fixpoint
+;; adventure-map-fade-in: still fully commented out (line 83710) unlike its
+;; sibling adventure-map-fade-out just above, so every caller in this band
+;; (adventure-venue-init) saw it as an untyped callee and its own body got
+;; no per-op type tracking at all ("Function adventure-map-fade-in has
+;; unknown type"). Declared with the same (function object object) shape
+;; as the sibling it is called and named symmetrically with (scoped
+;; decode, this worktree's config; support-level evidence from the
+;; sibling, not machine-verified per-arg).
+(define-extern adventure-map-fade-in (function object object))
 (define-extern keybd-read-ascii (function object)) ;; mechanical-arity fixpoint
 (define-extern adventure-task-init (function none)) ;; mechanical-arity fixpoint
 (define-extern ctf-base-b-spawn (function object object object)) ;; mechanical-arity fixpoint
