@@ -7,3 +7,64 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this find-poly-containing-point-1 (slot 11) is declared-
+;; never-defined; jak3 twin at goal_src/jak3/engine/nav/nav-control.gc:271,
+;; name-dispatched so jak3's own +1 shift does not apply. Called naked
+;; (no guard) from trajectory.gc's point-tracker-method-11 via
+;; method-of-type, so an empty slot there is a live zero-jump. Fields
+;; (state, mesh, nearest-y-threshold) and nav-poly's own overlaid fields
+;; (vertex, vertex1, data) all match jakx's own declarations verbatim
+;; (nav-control-h.gc, nav-mesh-h.gc). One deviation from a pure verbatim
+;; port: jak3's body dispatches into nav-mesh-method-45, which is itself
+;; declared-never-defined in jakx and currently has zero callers, so
+;; transcribing that inner call unguarded would trade one zero-jump for a
+;; new one instead of fixing one. Guarding that inner dispatch instead;
+;; #f matches the natural "poly not found" return every known caller
+;; already treats as falsy (trajectory.gc:304's own (if a2-3 ...) test).
+(defmethod find-poly-containing-point-1 ((this nav-control) (arg0 vector))
+  (let ((v1-0 (new 'stack-no-clear 'nav-poly)))
+    (vector-! (-> v1-0 vertex 0) arg0 (the-as vector (-> this state mesh bounds)))
+    (set! (-> v1-0 vertex1 x) (-> this nearest-y-threshold))
+    (set! (-> v1-0 data 20) (the-as uint 2))
+    (let ((m45 (method-of-object (-> this state mesh) nav-mesh-method-45)))
+      (if (nonzero? m45)
+          (m45 (-> this state mesh) v1-0)
+          (the-as nav-poly #f)
+          )
+      )
+    )
+  )
+
+;; og:preserve-this clamp-vector-to-mesh-cross-gaps (slot 20 on nav-control)
+;; is declared-never-defined; jak3 twin at
+;; goal_src/jak3/engine/nav/nav-control.gc:2009, name-dispatched. Called
+;; naked (no guard) from trajectory.gc's point-tracker-method-11 via
+;; method-of-type, guarded only by find-poly-containing-point-1's own
+;; result above (trajectory.gc:304-313), so an empty slot here is also a
+;; live zero-jump once that guard passes. Same deviation as
+;; find-poly-containing-point-1 above: jak3's body dispatches into
+;; nav-mesh's OWN clamp-vector-to-mesh-cross-gaps (a different method slot,
+;; same name, jak3 twin at nav-control.gc:1374), which is itself declared-
+;; never-defined in jakx with zero current callers. Guarding that inner
+;; dispatch instead of transcribing it naked; the method returns none
+;; (side effects only, into arg5), so skipping it on an empty slot is safe.
+(defmethod clamp-vector-to-mesh-cross-gaps ((this nav-control)
+                                           (arg0 vector)
+                                           (arg1 nav-poly)
+                                           (arg2 vector)
+                                           (arg3 float)
+                                           (arg4 symbol)
+                                           (arg5 clamp-travel-vector-to-mesh-return-info)
+                                           )
+  (let ((v1-0 (new 'stack-no-clear 'vector)))
+    (vector-! v1-0 arg0 (the-as vector (-> this state mesh bounds)))
+    (let ((m20 (method-of-object (-> this state mesh) clamp-vector-to-mesh-cross-gaps)))
+      (if (nonzero? m20)
+          (m20 (-> this state mesh) v1-0 arg1 arg2 arg3 arg4 arg5)
+          )
+      )
+    )
+  0
+  (none)
+  )
+

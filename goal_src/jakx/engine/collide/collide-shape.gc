@@ -687,7 +687,17 @@
               )
           (set-vector! (-> s1-0 move-dist) 0.0 0.0 arg3 1.0)
           (vector-rotate-y! (-> s1-0 move-dist) (-> s1-0 move-dist) f28-0)
-          (if (>= (collide-cache-method-16 *collide-cache* s1-0) 0.0)
+          ;; og:preserve-this collide-cache-method-16 is declared-never-
+          ;; defined; see the full note at collide-cache.gc's
+          ;; collide-cache-method-10.
+          (if (>= (let ((m16 (method-of-object *collide-cache* collide-cache-method-16)))
+                    (if (nonzero? m16)
+                        (m16 *collide-cache* s1-0)
+                        -100000000.0
+                        )
+                    )
+                  0.0
+                  )
               (set! f26-0 (+ -6144.0 (vector-vector-xz-distance s2-0 (-> s1-0 best-other-tri intersect))))
               )
           (let ((f24-0 arg2))
@@ -716,7 +726,17 @@
                 (set! (-> v1-33 action-mask) (collide-action solid))
                 (set! (-> v1-33 best-other-prim) #f)
                 )
-              (when (>= (collide-cache-method-16 *collide-cache* s1-0) 0.0)
+              ;; og:preserve-this collide-cache-method-16 is declared-never-
+              ;; defined; see the full note at collide-cache.gc's
+              ;; collide-cache-method-10.
+              (when (>= (let ((m16 (method-of-object *collide-cache* collide-cache-method-16)))
+                          (if (nonzero? m16)
+                              (m16 *collide-cache* s1-0)
+                              -100000000.0
+                              )
+                          )
+                        0.0
+                        )
                 (cond
                   ((and (or (= (-> s1-0 best-other-tri pat mode) (pat-mode ground))
                             (= (-> s1-0 best-other-tri pat mode) (pat-mode halfpipe))
@@ -1174,7 +1194,13 @@
       (.svf (&-> a1-2 quad) vf6)
       )
     (vector-normalize-copy! (-> arg4 move-dist) arg0 (- arg2 arg1))
-    (fill-using-line-sphere *collide-cache* arg4)
+    ;; og:preserve-this fill-using-line-sphere is declared-never-defined; see
+    ;; the full note at collide-cache.gc's collide-cache-method-10.
+    (let ((m13 (method-of-object *collide-cache* fill-using-line-sphere)))
+      (if (nonzero? m13)
+          (m13 *collide-cache* arg4)
+          )
+      )
     (try-snap-to-surface this arg0 arg1 arg2 arg3)
     )
   )

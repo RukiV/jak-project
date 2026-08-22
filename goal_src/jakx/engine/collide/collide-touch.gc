@@ -101,136 +101,65 @@
   (none)
   )
 
+;; og:preserve-this get-shapes-entry (slot 13): declared-never-defined in
+;; jakx's own scoped decode. The scoped decode's own raw disasm for this
+;; slot (previously commented out in this file, replaced by this land)
+;; failed on two unsupported [sllv v1, v1, r0] ops and one unresolved
+;; (l.wu v0) load, but its own structure (the >= 32 overflow check, the
+;; "touching-list::get-shapes-entry() failed!" format string, the sllv
+;; pid-packing feeding both handle fields) matches jak3's own clean twin
+;; verbatim (goal_src/jak3/engine/collide/collide-touch.gc:97), and jakx's
+;; own touching-shapes-entry (collide-touch-h.gc) declares identical field
+;; names at the same #x20 entry size jak3 hardcodes as its own +32 pointer
+;; stride. Lands as a straight transcription of jak3's body. Called as the
+;; first statement of add-touching-prims below.
 ;; definition for method 13 of type touching-list
-;; ERROR: failed type prop at 5: Could not figure out load: (set! t0 (l.wu v0))
-;; WARN: Return type mismatch (inline-array touching-shapes-entry) vs touching-shapes-entry.
-;; ERROR: Unsupported inline assembly instruction kind - [sllv v1, v1, r0]
-;; ERROR: Unsupported inline assembly instruction kind - [sllv v1, v1, r0]
-;; NOTE: decomp still fails; commented out until fixed
-;; (defmethod get-shapes-entry ((a0-0 touching-list) (a1-0 collide-shape) (a2-0 collide-shape))
-;;   (local-vars
-;;     (v0-0 object)
-;;     (v0-1 object)
-;;     (v1-0 (inline-array touching-shapes-entry))
-;;     (v1-2 int)
-;;     (v1-5 int)
-;;     (v1-6 int)
-;;     (v1-7 int)
-;;     (v1-8 int)
-;;     (v1-9 (pointer process))
-;;     (v1-10 int)
-;;     (v1-11 int)
-;;     (v1-12 (pointer process))
-;;     (v1-13 int)
-;;     (v1-14 int)
-;;     (a0-1 int)
-;;     (a0-2 process-drawable)
-;;     (a0-3 process)
-;;     (a0-4 int)
-;;     (a0-5 int)
-;;     (a0-6 process-drawable)
-;;     (a0-7 process)
-;;     (a0-8 int)
-;;     (a0-9 int)
-;;     (a1-1 string)
-;;     (a3-0 int)
-;;     (t0-0 collide-shape)
-;;     (t0-1 symbol)
-;;     (t0-2 collide-shape)
-;;     (t1-0 symbol)
-;;     (t1-1 collide-shape)
-;;     (t1-2 symbol)
-;;     (t2-0 symbol)
-;;     (t9-0 (function _varargs_ object))
-;;     )
-;;   (cond
-;;     ((begin
-;;        (set! v0-0 (-> a0-0 touching-shapes))
-;;        (set! v1-0 (the-as (inline-array touching-shapes-entry) #f))
-;;        (set! a3-0 (-> a0-0 num-touching-shapes))
-;;        (while (nonzero? a3-0)
-;;          (cond
-;;            ((begin (set! a3-0 (+ a3-0 -1)) (set! t0-0 (l.wu v0-0)) t0-0)
-;;             (if (begin
-;;                   (or (begin
-;;                         (and (begin (set! t2-0 (= t0-0 a1-0)) t2-0) (begin (set! t1-1 (-> v0-0 0 cshape2)) (set! t1-0 (= t1-1 a2-0))))
-;;                         t1-0
-;;                         )
-;;                       (and (begin (set! t1-2 (= t0-0 a2-0)) t1-2) (begin (set! t0-2 (-> v0-0 0 cshape2)) (set! t0-1 (= t0-2 a1-0))))
-;;                       )
-;;                   t0-1
-;;                   )
-;;                 (return (set! v0-0 v0-0))
-;;                 )
-;;             )
-;;            (else
-;;              (set! v1-0 v0-0)
-;;              (set! t0-4 v1-0)
-;;              )
-;;            )
-;;          (set! v0-0 (-> v0-0 1))
-;;          )
-;;        v1-0
-;;        )
-;;      (set! v0-0 v1-0)
-;;      (set! v1-1 v0-0)
-;;      )
-;;     (else
-;;       (if (begin (set! v1-2 (-> a0-0 num-touching-shapes)) (>=.si v1-2 32))
-;;           (return (begin (set! t9-0 format) (set! a0-1 0) (set! a1-1 L127) (call! a0-1 a1-1) (set! v0-0 #f)))
-;;           )
-;;       (set! v1-5 (-> a0-0 num-touching-shapes))
-;;       (set! v1-6 (+ v1-5 1))
-;;       (set! (-> a0-0 num-touching-shapes) v1-6)
-;;       )
-;;     )
-;;   (if (begin
-;;         (if (begin
-;;               (s.w! v0-0 a1-0)
-;;               (s.w! (+ v0-0 4) a2-0)
-;;               (s.w! (+ v0-0 12) #f)
-;;               (set! v1-7 1)
-;;               (s.b! (+ v0-0 8) v1-7)
-;;               (set! v1-8 1)
-;;               (set! (-> a0-0 resolve-u) v1-8)
-;;               (set! a0-2 (-> a1-0 process))
-;;               a0-2
-;;               )
-;;             (set! v1-9 (-> a0-2 ppointer))
-;;             )
-;;         (cond
-;;           (v1-9
-;;             (set! a0-3 (-> v1-9 0))
-;;             (set! a0-4 (-> a0-3 pid))
-;;             (set! a0-5 (sll a0-4 32))
-;;             )
-;;           (else
-;;             (set! a0-5 0)
-;;             )
-;;           )
-;;         (.sllv v1-10 v1-9 r0)
-;;         (set! v1-11 (logior a0-5 v1-10))
-;;         (set! (-> v0-0 0 handle1) (the-as handle v1-11))
-;;         (set! a0-6 (-> a2-0 process))
-;;         a0-6
-;;         )
-;;       (set! v1-12 (-> a0-6 ppointer))
-;;       )
-;;   (cond
-;;     (v1-12
-;;       (set! a0-7 (-> v1-12 0))
-;;       (set! a0-8 (-> a0-7 pid))
-;;       (set! a0-9 (sll a0-8 32))
-;;       )
-;;     (else
-;;       (set! a0-9 0)
-;;       )
-;;     )
-;;   (.sllv v1-13 v1-12 r0)
-;;   (set! v1-14 (logior a0-9 v1-13))
-;;   (set! (-> v0-0 0 handle2) (the-as handle v1-14))
-;;   (ret-value v0-0)
-;;   )
+;; WARN: Return type mismatch object vs touching-shapes-entry.
+(defmethod get-shapes-entry ((this touching-list) (arg0 collide-shape) (arg1 collide-shape))
+  (let ((v0-0 (the-as object (-> this touching-shapes))))
+    (let ((v1-0 (the-as touching-shapes-entry #f)))
+      (countdown (a3-0 (-> this num-touching-shapes))
+        (let ((t0-0 (-> (the-as touching-shapes-entry v0-0) cshape1)))
+          (set! v1-0 (cond
+                       (t0-0
+                         (if (or (and (= t0-0 arg0) (= (-> (the-as touching-shapes-entry v0-0) cshape2) arg1))
+                                 (and (= t0-0 arg1) (= (-> (the-as touching-shapes-entry v0-0) cshape2) arg0))
+                                 )
+                             (return (the-as touching-shapes-entry v0-0))
+                             )
+                         v1-0
+                         )
+                       (else
+                         (the-as touching-shapes-entry v0-0)
+                         )
+                       )
+                )
+          )
+        (set! v0-0 (&+ (the-as touching-shapes-entry v0-0) 32))
+        )
+      (cond
+        (v1-0
+          (set! v0-0 v1-0)
+          )
+        (else
+          (when (>= (-> this num-touching-shapes) 32)
+            (format 0 "ERROR: touching-list::get-shapes-entry() failed!~%")
+            (return (the-as touching-shapes-entry #f))
+            )
+          (+! (-> this num-touching-shapes) 1)
+          )
+        )
+      )
+    (set! (-> (the-as touching-shapes-entry v0-0) cshape1) arg0)
+    (set! (-> (the-as touching-shapes-entry v0-0) cshape2) arg1)
+    (set! (-> (the-as touching-shapes-entry v0-0) head) #f)
+    (set! (-> (the-as touching-shapes-entry v0-0) resolve-u) 1)
+    (set! (-> this resolve-u) 1)
+    (set! (-> (the-as touching-shapes-entry v0-0) handle1) (process->handle (-> arg0 process)))
+    (set! (-> (the-as touching-shapes-entry v0-0) handle2) (process->handle (-> arg1 process)))
+    (the-as touching-shapes-entry v0-0)
+    )
+  )
 
 ;; definition of type add-prims-touching-work
 (deftype add-prims-touching-work (structure)

@@ -165,9 +165,38 @@
   (none)
   )
 
+;; og:preserve-this fill-using-line-sphere (slot 13) and collide-cache-method-16
+;; (slot 16, jak3 twin probe-using-line-sphere: both position AND numeric id
+;; match, goal_src/jak3/engine/collide/collide-cache.gc:238,767) are both
+;; declared-never-defined. jak3's own bodies are ~295 and ~80 lines of raw
+;; VU assembly (rlet/.lvf/.svf) against collide-query/collide-cache field
+;; offsets, and jakx's own collide-cache carries two extra fields (max-tris,
+;; max-prims) jak3 does not have, so a verbatim port risks silent offset
+;; drift; too large to adapt clean this rung, per the brief's own fallback
+;; clause. probe-using-line-sphere's own jak3 body also calls
+;; resolve-moving-sphere-tri/-sphere (method-of-type collide-cache-prim),
+;; both explicitly held this same rung (their own results feed collision
+;; comparisons, neither a stub nor a cheap guard is safe for them), so a
+;; real land of collide-cache-method-16 is structurally blocked on those two
+;; holds regardless of this function's own size. Guarding both call sites
+;; instead (pattern C); -100000000.0 mirrors jak3's own initial "no hit"
+;; accumulator (f30-0 in probe-using-line-sphere) so the miss path behaves
+;; like an empty prim list, not an undefined comparison. All other call
+;; sites for both names carry a short cross-reference to this note. Retires
+;; once both land for real, which itself waits on the resolve-moving-sphere-*
+;; holds above.
 (defmethod collide-cache-method-10 ((this collide-cache) (arg0 collide-query))
-  (fill-using-line-sphere this arg0)
-  (collide-cache-method-16 this arg0)
+  (let ((m13 (method-of-object this fill-using-line-sphere)))
+    (if (nonzero? m13)
+        (m13 this arg0)
+        )
+    )
+  (let ((m16 (method-of-object this collide-cache-method-16)))
+    (if (nonzero? m16)
+        (m16 this arg0)
+        -100000000.0
+        )
+    )
   )
 
 (defmethod collide-cache-method-12 ((this collide-cache) (arg0 collide-query))
@@ -227,11 +256,17 @@
       )
     0
     (when (logtest? (-> arg0 collide-with) (collide-spec backgnd))
-      (collide-cache-method-18
-        this
-        (method-of-type collide-hash drawable-method-11)
-        collide-list-fill-bg-using-box
-        arg0
+      ;; og:preserve-this collide-cache-method-18 is declared-never-
+      ;; defined; guarding this call site (pattern C).
+      (let ((m18 (method-of-object this collide-cache-method-18)))
+        (if (nonzero? m18)
+            (m18
+              this
+              (method-of-type collide-hash drawable-method-11)
+              collide-list-fill-bg-using-box
+              arg0
+              )
+            )
         )
       (let ((v1-12 (-> this num-tris)))
         (when (> v1-12 0)
@@ -250,11 +285,22 @@
         )
       (+! (-> *collide-stats* output) (-> this num-tris))
       )
+    ;; og:preserve-this collide-cache-method-19 and collide-cache-method-23
+    ;; are both declared-never-defined; guarding both call sites (pattern
+    ;; C).
     (if (logtest? (-> arg0 collide-with) (collide-spec hit-by-player-list hit-by-others-list player-list))
-        (collide-cache-method-19 this)
+        (let ((m19 (method-of-object this collide-cache-method-19)))
+          (if (nonzero? m19)
+              (m19 this)
+              )
+          )
         )
     (if (logtest? (collide-spec nav-mesh) (-> arg0 collide-with))
-        (collide-cache-method-23 this arg0)
+        (let ((m23 (method-of-object this collide-cache-method-23)))
+          (if (nonzero? m23)
+              (m23 this arg0)
+              )
+          )
         )
     0
     (none)

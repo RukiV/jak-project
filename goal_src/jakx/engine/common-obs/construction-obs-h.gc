@@ -259,7 +259,13 @@
       (set! (-> (the-as collide-query a0-16) action-mask) (collide-action solid))
       (set! (-> (the-as collide-query a0-16) best-other-prim) #f)
       )
-    (fill-using-line-sphere *collide-cache* (the-as collide-query (-> v1-28 best-other-tri)))
+    ;; og:preserve-this fill-using-line-sphere is declared-never-defined; see
+    ;; the full note at collide-cache.gc's collide-cache-method-10.
+    (let ((m13 (method-of-object *collide-cache* fill-using-line-sphere)))
+      (if (nonzero? m13)
+          (m13 *collide-cache* (the-as collide-query (-> v1-28 best-other-tri)))
+          )
+      )
     )
   ((method-of-type rigid-body-object rigid-body-object-method-71) this)
   (none)

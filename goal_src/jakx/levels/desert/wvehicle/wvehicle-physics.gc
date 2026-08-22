@@ -196,6 +196,27 @@
   (none)
   )
 
+;; og:preserve-this bring-up stub for wvehicle-method-213, pattern
+;; f5afc742b: NOT retail's body. All 15 wcar rigid-body-object-method-66
+;; overrides (wcar-bear, -bobcat, -cheetah, -cougar, -daxtermobile,
+;; -falcon, -gila, -leopard, -mongoose, -panther, -possum, -tiger, -wolf,
+;; -wombat, -snake) tail-dispatch it identically under a wheel art-group
+;; guard: "(when s5-24 (let ((t9 (method-of-object this
+;; wvehicle-method-213))) (t9 this s5-24)))" (e.g.
+;; levels/common/wcar-bear.gc:359-363). The art-group lookup is guarded
+;; but the method-table slot itself is not, so every wheel art-group that
+;; resolved jumped straight to GOAL address 0 with no defmethod installed.
+;; Declared return is none and every call site discards it, so a no-op
+;; stub disarms the dispatch safely and keeps a future wheel landing from
+;; crashing the spawn. Retirement condition: the real method 213 landing
+;; (its own decode/adaptation lane, likely the wheel-spawn wiring the
+;; all-types.gc note near wvehicle-method-213's own declaration
+;; references).
+(defmethod wvehicle-method-213 ((this wvehicle) (arg0 object))
+  0
+  (none)
+  )
+
 ;; og:preserve-this rigid-body-small-tier rung (held): a related cluster of
 ;; debug/network telemetry methods that write into the same shared fixed
 ;; scratchpad address (0x70002000, method 212 above) at offsets past 500

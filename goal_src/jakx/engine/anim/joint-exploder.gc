@@ -534,7 +534,17 @@
             (set! (-> v1-11 action-mask) (collide-action solid))
             (set! (-> v1-11 best-other-prim) #f)
             )
-          (when (>= (collide-cache-method-16 *collide-cache* s2-0) 0.0)
+          ;; og:preserve-this collide-cache-method-16 is declared-never-
+          ;; defined; see the full note at collide-cache.gc's
+          ;; collide-cache-method-10.
+          (when (>= (let ((m16 (method-of-object *collide-cache* collide-cache-method-16)))
+                      (if (nonzero? m16)
+                          (m16 *collide-cache* s2-0)
+                          -100000000.0
+                          )
+                      )
+                    0.0
+                    )
             (set! (-> s3-0 quad) (-> s2-0 best-other-tri intersect quad))
             (let* ((v1-16 (-> s4-1 transv))
                    (f28-0 (sqrtf (+ (* (-> v1-16 x) (-> v1-16 x)) (* (-> v1-16 z) (-> v1-16 z)))))

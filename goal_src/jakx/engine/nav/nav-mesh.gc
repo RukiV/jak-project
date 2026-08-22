@@ -407,7 +407,19 @@
                   (when s0-0
                     (vector-! (-> sv-64 point) arg0 (the-as vector (-> s0-0 bounds)))
                     (set! (-> sv-64 y-threshold) (fmax (-> s0-0 nearest-y-threshold) arg1))
-                    (let ((v1-14 (nav-mesh-method-42 s0-0 (the-as nav-poly sv-64))))
+                    ;; og:preserve-this nav-mesh-method-42 is declared-
+                    ;; never-defined; guarding this call site (pattern C).
+                    ;; #f matches the natural "no poly found in this mesh"
+                    ;; outcome the (when v1-14 ...) below already treats as
+                    ;; falsy, so an empty slot just continues the search to
+                    ;; the next resident nav-mesh instead of crashing.
+                    (let ((v1-14 (let ((m42 (method-of-object s0-0 nav-mesh-method-42)))
+                                   (if (nonzero? m42)
+                                       (m42 s0-0 (the-as nav-poly sv-64))
+                                       (the-as nav-poly #f)
+                                       )
+                                   )
+                            ))
                       (when v1-14
                         (if arg2
                             (set! (-> arg2 0) v1-14)

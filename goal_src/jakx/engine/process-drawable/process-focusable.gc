@@ -83,6 +83,45 @@
 ;; process-focusable directly (only its subtypes), so this file has no
 ;; other landed callers to check against.
 
+;; og:preserve-this get-trans (slot 51): declared-never-defined in the
+;; original decode, landing the base fallback here per jak3's twin
+;; (goal_src/jak3/engine/process-drawable/process-focusable.gc:122, name-
+;; dispatched so jak3's +1 method-id shift does not apply). target overrides
+;; get-trans on its own type (target-util.gc:227) so this base only fires for
+;; every other process-focusable subtype; master-track-target
+;; (cam-master.gc:71,87,218,226,275,360) dispatches it on whatever the
+;; camera is tracking, so this was the widest-blast-radius zero-slot in the
+;; batch. All fields transcribed verbatim from jak3: root/trans/root-prim/
+;; prim-core match jakx's own collide-shape and collide-shape-prim layouts
+;; (collide-shape-h.gc), gspot-pos matches collide-shape-moving, and
+;; draw-control-status's uninited bit is 4 in both games' art-h.gc so the
+;; flag-bit hazard does not apply here.
+;; definition for method 51 of type process-focusable
+;; WARN: Return type mismatch structure vs vector.
+(defmethod get-trans ((this process-focusable) (mode int))
+  "Get the `trans` for this process."
+  (let ((cshape (-> this root)))
+    (the-as vector (cond
+                     ((zero? mode)
+                      (-> cshape trans)
+                      )
+                     ((and (= mode 1) (type? cshape collide-shape-moving))
+                      (-> (the-as collide-shape-moving cshape) gspot-pos)
+                      )
+                     ((and (or (= mode 2) (= mode 3) (= mode 10)) (type? cshape collide-shape))
+                      ;; og:preserve-this added check here so we don't use invalid bones
+                      (if (logtest? (-> this draw status) (draw-control-status uninited))
+                          (-> (the-as collide-shape-moving cshape) trans)
+                          (-> (the-as collide-shape-moving cshape) root-prim prim-core))
+                      )
+                     (else
+                       (-> cshape trans)
+                       )
+                     )
+            )
+    )
+  )
+
 ;; definition for method 52 of type process-focusable
 ;; WARN: Return type mismatch vector vs quaternion.
 (defmethod process-focusable-method-52 ((this process-focusable) (arg0 int))

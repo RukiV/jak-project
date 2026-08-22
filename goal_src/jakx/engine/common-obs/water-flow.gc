@@ -225,13 +225,25 @@
   )
 
 ;; og:preserve-this method 12 (find-and-push-things) stays unlanded, see the note
-;; above method 11; method 10 (setup) also stays unlanded: its scoped decode leaves
-;; one type-merge unresolved (op 139, "add failed: '#f <integer 16>") where a stack
-;; slot initialized to the #f sentinel at op 34 is later reused for two consecutive
-;; vector reads; stack_structures.jsonc typing it (inline-array vector 2) did not
-;; clear the merge. Called once, from this type's own constructor below (method
-;; 0), which stays intact and compiles regardless since the call site only needs a
-;; vtable slot, not a landed body.
+;; above method 11.
+
+;; og:preserve-this bring-up stub for method 10 (setup), pattern f5afc742b:
+;; NOT retail's body. Its scoped decode leaves one type-merge unresolved (op
+;; 139, "add failed: '#f <integer 16>") where a stack slot initialized to
+;; the #f sentinel at op 34 is later reused for two consecutive vector
+;; reads; stack_structures.jsonc typing it (inline-array vector 2) did not
+;; clear the merge. This type's own constructor below (method 0) dispatches
+;; it naked via method-of-object with no nonzero? guard
+;; ((t9-6 (method-of-object a0-8 flow-control-method-10)) then (t9-6 a0-8
+;; ...)), so every flow-control spawn jumped straight to GOAL address 0
+;; with no defmethod installed. The declared return is none and the
+;; constructor discards t9-6's call result, so a no-op stub disarms the
+;; dispatch safely. Retirement condition: the real method 10 landing once
+;; the write-cursor-style type-merge above resolves.
+(defmethod flow-control-method-10 ((this flow-control) (arg0 (pointer float)) (arg1 int))
+  0
+  (none)
+  )
 
 ;; definition for method 0 of type flow-control
 ;; INFO: Used lq/sq
@@ -271,6 +283,22 @@
       )
     gp-0
     )
+  )
+
+;; og:preserve-this bring-up stub for method 13 (test-point), pattern
+;; f5afc742b: NOT retail's body. Called naked (no nonzero? guard) from
+;; water-flow's own idle state on the 'water-info event message below
+;; ((flow-control-method-13 (-> self flow) ...)), so every water-info probe
+;; against a flow-control jumped straight to GOAL address 0 with no
+;; defmethod installed. The event handler's own return value is discarded
+;; by every known caller (nothing in goal_src inspects a 'water-info
+;; send-event's result), so a no-op stub matching the declared symbol
+;; return type disarms the dispatch safely. Retirement condition: the real
+;; method 13 landing (jak3 twin at
+;; goal_src/jak3/engine/common-obs/water-flow.gc:77, held for its own rung
+;; since it dispatches into other unlanded flow-section geometry).
+(defmethod flow-control-method-13 ((this flow-control) (arg0 water-info) (arg1 vector))
+  #f
   )
 
 ;; definition of type water-flow
