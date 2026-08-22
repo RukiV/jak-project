@@ -5,6 +5,32 @@
 ;; name in dgo: task-control-h
 ;; dgos: ENGINE, GAME
 
+;; og:preserve-this task-control rung: reset-city-squad-control and
+;; city-task-faction-commands/evaluate-faction-commands (task-control.gc) guard on
+;; these two globals, matching this file's own all-types.gc entries (both marked
+;; "provisional: call-site evidence only" there already); no city subsystem defines
+;; them yet, so every guard they gate short-circuits at runtime. Declaration-side
+;; externs only, needed for task-control.gc to compile.
+(define-extern *cty-attack-controller* object)
+(define-extern *cty-faction-manager* object)
+
+;; og:preserve-this task-control rung: cty-attack-reset, setup-city-task-faction and
+;; cty-faction-evaluate-commands are the call targets the three guard functions above
+;; reach once their globals are true; signatures are call-site evidence from this
+;; rung's own decode (task-control_ir2.asm), matching this file's own all-types.gc
+;; entries. Home is an unlanded city subsystem file; declaration-side externs only,
+;; needed for task-control.gc to compile.
+(define-extern cty-attack-reset (function none))
+(define-extern setup-city-task-faction (function object))
+(define-extern cty-faction-evaluate-commands (function pair object))
+
+;; og:preserve-this task-control rung: update-task-masks' minimap sweep reads *minimap*
+;; directly; game.gd compiles task-control.o (this file's DGO) before minimap.o, so the
+;; real (define *minimap* ...) in minimap.gc has not run yet at this point in the
+;; compile order. Declaration-side extern only, matching all-types.gc's own entry;
+;; minimap-h.o (compiled earlier, same DGO order) already defines the minimap type.
+(define-extern *minimap* minimap)
+
 ;; DECOMP BEGINS
 
 (defun-debug game-task->string ((arg0 game-task))

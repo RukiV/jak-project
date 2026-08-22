@@ -36,11 +36,11 @@ written is read-only by design and not a finding.
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (179)
+### Never written (178)
 
 | symbol | reading files | defined in |
 |---|---:|---|
-| `*game-mode*` | 5 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*game-mode*` | 6 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-marks*` | 4 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 4 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -122,7 +122,6 @@ written is read-only by design and not a finding.
 | `*display-actor-pointer*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-ai-tuning*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-battle-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-bsp-errors*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-cam-los-info*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-collide-history*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-deci-count*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
