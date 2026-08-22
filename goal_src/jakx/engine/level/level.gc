@@ -2223,25 +2223,86 @@
 (define *level-sweep-heap-base* 0)
 (define *level-sweep-heap-top* 0)
 
+(defun in-level-sweep-range? ((addr int))
+  "Bounds check shared by both kill-level-typed-processes predicates below.
+   Only valid while that sweep is running for the level whose heap bounds are
+   latched in *level-sweep-heap-base*/*level-sweep-heap-top*."
+  (and (>= addr *level-sweep-heap-base*) (< addr *level-sweep-heap-top*))
+  )
+
+;; og:preserve-this bring-up sweep, layer two (issue 602): the type-in-heap
+;; sweep above fixed the run-logic? crash on the junglew-to-havjungw swap, but
+;; the acceptance run then hit a second, one-layer-deeper fault on the same
+;; swap: pp = "group-jungle-coolingsmoke-small", a READ fault (not execute) at
+;; sparticle-launcher+0x470f. That process's own type resolves fine (an
+;; engine type, not level-typed, so the sweep above correctly leaves it
+;; alone); what it captured does not. part-tracker and part-spawner
+;; (engine/common-obs/generic-obs-h.gc:87-108 and :110-136) each carry a
+;; `part` field typed sparticle-launch-control (engine/gfx/sprite/particles/
+;; sparticle-launcher-h.gc:514-530, "typically owned by a process, and
+;; allocated on the process heap" per its own doc string -- process-owned, so
+;; always safe to dereference once the process itself is confirmed live).
+;; sparticle-launch-control carries a `group` field (line 519) pointing at the
+;; sparticle-launch-group static data compiled into the level's DGO (jungle-
+;; part.o here); that data is level-heap, not process-heap, and the acceptance
+;; run's crashed process was named after its group ("group-jungle-
+;; coolingsmoke-small" is a sparticle-launch-group name per that type's own
+;; `name` field, sparticle-launcher-h.gc:496), matching this chain exactly.
+;; part-spawner additionally carries `mode`, a bare (pointer sparticle-launch-
+;; group) field (generic-obs-h.gc:94) alongside its own `part`; checked too,
+;; same cost, same risk profile, same type gate.
+;; Deliberately narrow: only part-tracker and part-spawner are type-tested and
+;; read here, per the crash evidence and per AGENTS.md's own caution against
+;; presenting an unverified guess as a finding. process-drawable itself also
+;; declares a `part` field (engine/game/game-h.gc:130) and is a far larger
+;; population; it is a credible next-layer candidate but its teardown path
+;; has not been audited for this sweep and is deliberately left unswept
+;; rather than risk a crash inside the sweep itself -- see the issue 602
+;; thread before extending to it.
+(defun captured-part-group-addr ((proc process))
+  "Returns the raw address of proc's captured sparticle-launch-group pointer
+   for the part-tracker/part-spawner family, or 0 for every other process
+   type or an unset part/mode field. 0 never falls inside a real heap range,
+   so callers can feed the result straight into in-level-sweep-range?
+   without a separate null check. Never dereferences the returned address;
+   only -> part and -> part group/-> mode are read, both process-owned
+   fields safe on any live process of these two types."
+  (cond
+    ((type? proc part-tracker)
+     (let ((ctrl (-> (the-as part-tracker proc) part)))
+       (if ctrl (the-as int (-> ctrl group)) 0)
+       )
+     )
+    ((type? proc part-spawner)
+     (let* ((ps (the-as part-spawner proc))
+            (ctrl (-> ps part))
+            (ctrl-addr (if ctrl (the-as int (-> ctrl group)) 0))
+            )
+       (if (in-level-sweep-range? ctrl-addr)
+           ctrl-addr
+           (the-as int (-> ps mode))
+           )
+       )
+     )
+    (else 0)
+    )
+  )
+
 (defun kill-level-typed-processes ((lev level))
   "Deactivate every live process whose type pointer falls inside lev's heap
-   range. Belt-and-suspenders for issue 602: catches level-typed processes
-   (e.g. pusher-init props) that the entity-teardown callback above does not
-   own. Logs a format-0 line per process killed, naming it for the record."
-  (local-vars (a0-1 process))
+   range, then every part-tracker/part-spawner whose captured particle-group
+   pointer does. Belt-and-suspenders for issue 602: catches processes the
+   entity-teardown callback above does not own (pusher-init props by type,
+   particle trackers/spawners by captured data). Logs a format-0 line per
+   process killed, naming it for the record."
+  (local-vars (a0-1 process) (a1-1 process))
   (set! *level-sweep-heap-base* (the-as int (-> lev heap base)))
   (set! *level-sweep-heap-top* (the-as int (-> lev heap top-base)))
   (while (begin
            (set! a0-1
                  (search-process-tree
                    *active-pool*
-                   (lambda ((arg0 process))
-                     (let ((type-addr (the-as int (-> arg0 type))))
-                       (and (>= type-addr *level-sweep-heap-base*)
-                            (< type-addr *level-sweep-heap-top*)
-                            )
-                       )
-                     )
+                   (lambda ((arg0 process)) (in-level-sweep-range? (the-as int (-> arg0 type))))
                    )
                  )
            a0-1
@@ -2252,6 +2313,23 @@
             (the-as int (-> a0-1 type))
             )
     (deactivate a0-1)
+    )
+  (while (begin
+           (set! a1-1
+                 (search-process-tree
+                   *active-pool*
+                   (lambda ((arg0 process)) (in-level-sweep-range? (captured-part-group-addr arg0)))
+                   )
+                 )
+           a1-1
+           )
+    (format 0 "level-sweep ~A: killing part-group process ~A type #x~X group #x~X~%"
+            (-> lev name)
+            (-> a1-1 name)
+            (the-as int (-> a1-1 type))
+            (captured-part-group-addr a1-1)
+            )
+    (deactivate a1-1)
     )
   (none)
   )
