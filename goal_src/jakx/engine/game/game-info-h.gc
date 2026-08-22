@@ -413,6 +413,30 @@
 ;; creates *game-info* the same way (static instance, mode 'debug).
 (define-perm *game-info* game-info (new 'static 'game-info :mode 'debug))
 
+;; og:preserve-this null-handle arming (issue 594): the static above zero-fills
+;; player-info, and a zero handle is TRUTHY in GOAL, so handle->process's #f guard
+;; passes and dereferences goal 0. The first victim was the debug menu's
+;; construction-time dm-setting-vehicle-tuning callbacks, which killed every -debug
+;; boot at default-menu's link-and-exec; the same zero also reaches the field's six
+;; other landed readers (gsound.gc:748, generic-obs.gc:2956, settings.gc:1702, the
+;; in-game-menu huds). jak3's twin arms its nullable static fields in the
+;; initializer itself (jak3 game-info-h.gc:459 arms current-continue/last-continue);
+;; jakx's nullables live inside the player-info inline array, which a static
+;; initializer cannot reach, so they are armed here instead. Zero-guarded so a
+;; re-link under define-perm (which preserves the live object) can never clobber a
+;; real handle or continue pointer mid-session.
+(dotimes (i 2)
+  (if (zero? (the-as int (-> *game-info* player-info i vehicle)))
+      (set! (-> *game-info* player-info i vehicle) (the-as handle #f))
+      )
+  (if (zero? (the-as int (-> *game-info* player-info i current-continue)))
+      (set! (-> *game-info* player-info i current-continue) (the-as continue-point #f))
+      )
+  (if (zero? (the-as int (-> *game-info* player-info i last-continue)))
+      (set! (-> *game-info* player-info i last-continue) (the-as continue-point #f))
+      )
+  )
+
 ;; og:preserve-this: the load-state family lives here (not in load-state.gc) so that
 ;; gsound.o, which compiles earlier and calls want-sound-banks, can see the method
 ;; declarations. jak3 keeps its load-state deftype in game-info-h.gc for the same reason.
