@@ -133,6 +133,27 @@
 ;; precedent for the same message (title-obs.gc:717). Retirement condition: the real
 ;; target-continue state lands its own :event (same condition as the stub note
 ;; above).
+;;
+;; og:preserve-this partial arming (issue 595, region-mode dossier): the real
+;; :exit's own decoded evidence sits held in target-death.gc's commented block
+;; (:exit line "(set! (-> *setting-control* user-default region-mode) (the-as
+;; basic #t))", held whole since 5372bb41e alongside :code/:event's unrelated
+;; decode failures) and jak3's own landed twin agrees verbatim in shape
+;; (goal_src/jak3/engine/target/target-death.gc:472, "(set! (-> *setting-control*
+;; user-default region-mode) #t)"). start (above in this file, and its jak3 twin
+;; at logic-target.gc:3117) unconditionally clears user-default region-mode to #f
+;; on every level-start, retail-faithful; retail undoes that clear here, on the
+;; continue-arrival this bring-up stub already stands in for. With this stub
+;; carrying no :exit at all, the clear was never undone: region-mode stuck #f
+;; forever post level-start, evidenced live by the jakx-region-driver diagnosis
+;; boot (issue 595) reading user-default AND user-current region-mode #f despite
+;; settings.gc:2056's own init store writing #t, and confirmed self-consistent
+;; (a REPL write to user-default propagated to user-current and armed the whole
+;; region driver gate) rather than an offset defect. Same shape as target-
+;; method-59's own partial arming above: one field of the real body's :exit armed
+;; by citation, not the whole handler. Retires when the real target-continue
+;; :exit lands (movement, physics, camera-framing logic; same leg as target-
+;; method-59's retirement condition).
 (defstate target-continue (target)
   :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
     (case message
@@ -147,6 +168,9 @@
         (target-generic-event-handler proc argc message block)
         )
       )
+    )
+  :exit (behavior ()
+    (set! (-> *setting-control* user-default region-mode) (the-as basic #t))
     )
   :code (behavior ((arg0 continue-point))
     (sleep-code)
