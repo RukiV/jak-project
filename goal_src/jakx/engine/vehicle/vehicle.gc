@@ -246,15 +246,46 @@
 ;; alone clears the fault. Do not null-guard the wvehicle.gc dereference
 ;; instead: retail always allocates before that read, so a guard would
 ;; silently kill vehicle shadows and dead-end method 68's future stores. The
-;; full retail body also dispatches vehicle-method-99/110/50/51, vehicle-
-;; section-method-10 and collide-shape-method-46, all still zero slots; the
-;; verbatim landing is a future priced rung once those callees land.
+;; full retail body also dispatches vehicle-method-99/110/50/51 and
+;; collide-shape-method-46, still zero slots; the verbatim landing is a
+;; future priced rung once those callees land.
+;;
+;; og:preserve-this panel-placement rung (issue 571 root cause, piece 2):
+;; the dotimes-12 section dispatch loop below is added after call-parent-
+;; method, matching retail's own placement (a fresh scoped decode of the
+;; vehicle object, this rung's own tooling, ops 240-258; the raw asm
+;; sequence right after the ja-post/status-flag block ops 13-26's own
+;; landing stops short of). Per section (gp+1020+64*i machine, the +4
+;; basic-tag correction over `sections`'s own :offset-assert 1024 landing
+;; on the same stride the vehicle-h.gc deftype already declares :inline):
+;; op 245 reads the section's own machine offset 24 (draw, unshifted --
+;; vehicle-section is a plain structure, not basic-derived) and op 246
+;; skips the whole body when it is zero. Inside: op 247 stores the loop
+;; index at machine offset 55 (car-part); ops 248-252 dispatch vehicle-
+;; section-method-10 with the section as `this` and this vehicle (gp) as
+;; arg0, matching the signature landed on a sibling branch (issue 571
+;; piece 1, rebased into this one at train time -- this loop is what
+;; actually calls it, since method 10 was reachable from nowhere else in
+;; this worktree before this loop existed); ops 253-256 store the literal
+;; 30 into the section's own draw-control at offset 128 (light-index),
+;; the identical idiom method 64's own already-landed block (ops 219-221)
+;; uses to set light-index on the vehicle's own draw. Sections are built
+;; by (method 66 vehicle, unlanded) and (method 68 vehicle, landed issue
+;; 571 R11) repoints each section's own info pointer before this loop
+;; runs on every subsequent call to method 64, per the investigation's
+;; own ordering proof.
 (defmethod rigid-body-object-method-64 ((this vehicle) (arg0 object))
   (set! (-> this draw shadow-ctrl)
         (new 'process 'shadow-control -61440.0 -2048.0 69632.0 (-> this root trans) (shadow-flags shdf03) 245760.0)
         )
   (call-parent-method this arg0)
+  (dotimes (i 12)
+    (when (nonzero? (-> this sections i draw))
+      (set! (-> this sections i car-part) i)
+      (vehicle-section-method-10 (-> this sections i) this)
+      (set! (-> this sections i draw light-index) 30)
+      )
+    )
   0
   (none)
   )
-
