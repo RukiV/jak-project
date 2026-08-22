@@ -32,6 +32,21 @@
 ;; typing and a genuine CFG join the decompiler cannot build, not config
 ;; gaps. See each method's own header note for the full per-instruction
 ;; citation.
+;;
+;; og:preserve-this vinit rung (method 64 vehicle callee set): re-surveyed
+;; vehicle-section-method-10 with a fresh scoped decode (worktree's own
+;; config, --config-override allowed_objects ["vehicle-util"]) since it
+;; is one of (method 64 vehicle)'s own zero-slot dispatch targets (offset
+;; 56 = 16 + 4*10, called via the vehicle-section type symbol directly on
+;; a freshly-initialized section, vehicle_ir2.asm ops 249-252). Confirmed
+;; still HELD, not stale: the decode carries "ERROR: Failed to guess
+;; stack use for 16 in (method 10 vehicle-section):55", a genuine stack-
+;; layout wall (a local 4x4 matrix built on the raw stack via
+;; matrix-4x4-inverse!/matrix*!, the same sp+16 scratch idiom the
+;; decompiler also cannot resolve in method 64 itself), not a config gap
+;; this rung's tools can clear. Landing it would require either a
+;; decompiler-side stack-inference fix or a fully hand-verified
+;; transcription against the raw asm; out of this rung's scope.
 
 ;; definition for method 9 of type vehicle-section
 (defmethod vehicle-section-method-9 ((this vehicle-section) (arg0 vehicle) (arg1 art-group) (arg2 int))
@@ -483,3 +498,40 @@
   0
   (none)
   )
+
+;; og:preserve-this method 69 (rigid-body-object-method-69): clean scoped
+;; decode, worktree's own config (--config-override allowed_objects
+;; ["vehicle-util"], levels_extract false, ntsc_v1); immediately follows
+;; method 68 above in decode order. Zero-slot: vehicle never overrode this
+;; slot, so (method 69 wvehicle) (wvehicle-util.gc:12)'s own
+;; call-parent-method landed straight on rigid-body-object's base body
+;; (rigid-body-object.gc:51), skipping vehicle-level init entirely -- the
+;; bug this rung's investigation traced. Calls vehicle-method-100, which
+;; has no base-vehicle override either, but every leaf wcar-* type that is
+;; ever actually spawned already overrides it (wcar-cheetah.gc and
+;; siblings), so the dispatch is covered at every real call site.
+;; definition for method 69 of type vehicle
+(defmethod rigid-body-object-method-69 ((this vehicle))
+  (call-parent-method this)
+  (vehicle-method-100 this)
+  (none)
+  )
+
+;; og:preserve-this method 110 (vehicle-method-110): HELD, not landed.
+;; Scoped decode against this worktree's own config (--config-override
+;; allowed_objects ["vehicle-util"], levels_extract false, ntsc_v1)
+;; proves the earlier wall stale -- the corpus copy of this function
+;; failed type prop at op 34 ("Unknown symbol: rigid-body-control"),
+;; which is now fully defined and the decode advances to a complete,
+;; syntactically clean body. But that body calls (vehicle-method-153
+;; this), declared (vehicle-h.gc:1185) with no defmethod anywhere in this
+;; worktree or on any wcar-* leaf type (unlike vehicle-method-100 off
+;; method 69 above, which every leaf type already overrides) -- a genuine
+;; zero vtable slot at every real call site, not just the base. Landing
+;; method 110 as-is would trade one falcon-crash callee for another the
+;; first time a spawned vehicle reaches this path. vehicle-method-153 is
+;; itself not landable this rung either: its own scoped decode carries
+;; "ERROR: Unsupported inline assembly instruction kind - [srl v1, v1,
+;; 24]", a genuine decompiler wall, not a config gap. Retire this hold
+;; once a future rung lands vehicle-method-153 (or the decompiler gains
+;; srl/24 support for it).

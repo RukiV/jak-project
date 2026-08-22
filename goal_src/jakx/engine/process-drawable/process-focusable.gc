@@ -77,6 +77,30 @@
     )
   )
 
+;; og:preserve-this method 50 (process-focusable-method-50): clean scoped
+;; decode, worktree's own config (--config-override allowed_objects
+;; ["process-focusable"], levels_extract false, ntsc_v1). Zero-slot base:
+;; net-enemy already overrides this method with its own state-aware body
+;; (net-enemy.gc), but nothing landed the process-focusable base fallback
+;; that every other process-focusable subtype (including vehicle, via
+;; rigid-body-object) actually dispatches to. (method 64 vehicle) is one
+;; such caller (vehicle_ir2.asm, offset 216 = (16 + 4*50)), which is what
+;; surfaced this as a falcon-crash blocker.
+;; definition for method 50 of type process-focusable
+(defmethod process-focusable-method-50 ((this process-focusable))
+  (let ((v0-0 0))
+    (let ((v1-0 (-> this mask)))
+      (if (logtest? (process-mask crate) v1-0)
+          (set! v0-0 (logior v0-0 2))
+          )
+      (if (logtest? (process-mask enemy) v1-0)
+          (set! v0-0 (logior v0-0 16))
+          )
+      )
+    v0-0
+    )
+  )
+
 ;; og:preserve-this get-quat/m55/m56: clean decode, no config edits needed;
 ;; none of the three read arg0 (m52's own index arg included) or any other
 ;; process-focusable field beyond root, and jakx-init does not spawn a

@@ -151,6 +151,38 @@
   (none)
   )
 
+;; og:preserve-this method 99 (vehicle-method-99): clean scoped decode,
+;; worktree's own config (--config-override allowed_objects ["vehicle"],
+;; levels_extract false, ntsc_v1); source order sits between method 129
+;; above and method 64 below (held, separate lane owns the full method 64
+;; override -- this landing touches only the callee). Zero-slot: declared
+;; past rigid-body-object's method count (vehicle-h.gc:984) with no
+;; defmethod anywhere in this worktree; (method 64 vehicle) dispatches it
+;; at offset 412 (16 + 4*99) as its very first call. Resets particles'
+;; birth-accum pairs and (re)seeds each particle's launcher from
+;; *part-id-table*; both particles (vehicle-h.gc:877) and *part-id-table*
+;; are already landed.
+;; definition for method 99 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-99 ((this vehicle))
+  (dotimes (v1-0 2)
+    (set! (-> this particles 0 birth-accum v1-0) 0.0)
+    (set! (-> this particles 1 birth-accum v1-0) 0.0)
+    (set! (-> this particles 2 birth-accum v1-0) 0.0)
+    (set! (-> this particles 3 birth-accum v1-0) 0.0)
+    (set! (-> this particles 4 birth-accum v1-0) 0.0)
+    (set! (-> this particles 5 birth-accum v1-0) 0.0)
+    )
+  (set! (-> this particles 0 launcher) (-> *part-id-table* 264))
+  (set! (-> this particles 1 launcher) (-> *part-id-table* 266))
+  (set! (-> this particles 2 launcher) (-> *part-id-table* 268))
+  (set! (-> this particles 3 launcher) (-> *part-id-table* 265))
+  (set! (-> this particles 4 launcher) (-> *part-id-table* 267))
+  (set! (-> this particles 5 launcher) (-> *part-id-table* 269))
+  0
+  (none)
+  )
+
 ;; definition for method 83 of type vehicle
 (defmethod rigid-body-object-method-83 ((this vehicle) (arg0 process-focusable) (arg1 touching-shapes-entry))
   #t
