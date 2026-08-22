@@ -75928,6 +75928,85 @@
   :flag-assert         #x90000000c
   )
 
+;; wheelreal rung: NOT a resurrected census entry, this rung's own
+;; derivation, replacing the wvehicle-core rung's held stub. (method 217
+;; wvehicle)'s own local sp+16 scratch ("Failed to guess stack use for
+;; 16") is jak3's wvehicle-method-164 shape field-for-field: a rigid-body
+;; matrix copied from (-> this rbody matrix) at offset 0, five composed
+;; quaternions at 64 through 143 (q3 a copy of (-> this root rot), q4
+;; built from vehicle-wheel-info's own camber field, arg1+80, sin/cos
+;; into q4's own z/w at 136/140), two constant vectors (1 0 0 1) and
+;; (0 1 0 1) at 144/160, a probe vector at 176 copied out to arg0's own
+;; probe-local-pos, and a transform-target vector at 192 copied out to
+;; arg0's own trans. 208-239 (32 bytes) is read and written by nothing in
+;; the function's own body.
+(deftype wvehicle-method-217-work (structure)
+  ((mat  matrix     :inline :offset-assert 0)
+   (q0   quaternion :inline :offset-assert 64)
+   (q1   quaternion :inline :offset-assert 80)
+   (q2   quaternion :inline :offset-assert 96)
+   (q3   quaternion :inline :offset-assert 112)
+   (q4   quaternion :inline :offset-assert 128)
+   (vec0 vector     :inline :offset-assert 144)
+   (vec1 vector     :inline :offset-assert 160)
+   (vec2 vector     :inline :offset-assert 176)
+   (vec3 vector     :inline :offset-assert 192)
+   (pad0 uint8 32            :offset-assert 208)
+   (val0 float               :offset-assert 240)
+   )
+  :method-count-assert 9
+  :size-assert         #xf4
+  :flag-assert         #x9000000f4
+  )
+
+;; wheelreal rung: NOT a resurrected census entry, this rung's own
+;; derivation, replacing the wvehicle-core rung's held stub. (method 218
+;; wvehicle) shares (method 217 wvehicle)'s matrix/quaternion core at the
+;; same offsets (mat 0, q0 64, q1 80, q2 96, q3 112, q4 128) but carries a
+;; wider vector bank: a local-pos copy at 144 (its own y read directly at
+;; 148 by the arc-term formula below), the two constant vectors (1 0 0 1)/
+;; (0 1 0 1) pushed to 192/208 instead of 217's 144/160, a probe vector at
+;; 176 (x/y/z touched individually at 176/180/184) copied out to arg0's
+;; own probe-local-pos, a second probe-derived vector at 224 (x/y/z at
+;; 224/228/232) feeding arg0's own trans by way of a vector-matrix*! at
+;; 240, a vector-normalize! result at 256 copied out to arg0's own
+;; probe-local-dir, and two more vectors at 272/288 (vector-rotate*!/
+;; vector-matrix*! outputs) this method's own body computes but never
+;; reads back. Five floats close the struct at 320-336: an arc term this
+;; rung has no jak3 twin for (asin(0.5 * arg1 travel / susp-arm-length),
+;; doubled and added to arg1's own probe-y-offset), plus cached copies of
+;; arg1's own radius*scale, susp-arm-length and probe-y-offset the body
+;; reuses at multiple call sites. 160-175 and 304-319 (32 bytes total) are
+;; read and written by nothing in the function's own body.
+(deftype wvehicle-method-218-work (structure)
+  ((mat  matrix     :inline :offset-assert 0)
+   (q0   quaternion :inline :offset-assert 64)
+   (q1   quaternion :inline :offset-assert 80)
+   (q2   quaternion :inline :offset-assert 96)
+   (q3   quaternion :inline :offset-assert 112)
+   (q4   quaternion :inline :offset-assert 128)
+   (vec0 vector     :inline :offset-assert 144)
+   (pad0 uint8 16            :offset-assert 160)
+   (vec1 vector     :inline :offset-assert 176)
+   (vec2 vector     :inline :offset-assert 192)
+   (vec3 vector     :inline :offset-assert 208)
+   (vec4 vector     :inline :offset-assert 224)
+   (vec5 vector     :inline :offset-assert 240)
+   (vec6 vector     :inline :offset-assert 256)
+   (vec7 vector     :inline :offset-assert 272)
+   (vec8 vector     :inline :offset-assert 288)
+   (pad1 uint8 16            :offset-assert 304)
+   (val0 float               :offset-assert 320)
+   (val1 float               :offset-assert 324)
+   (val2 float               :offset-assert 328)
+   (val3 float               :offset-assert 332)
+   (val4 float               :offset-assert 336)
+   )
+  :method-count-assert 9
+  :size-assert         #x154
+  :flag-assert         #x900000154
+  )
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hud-player-indicators          ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

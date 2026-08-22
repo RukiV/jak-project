@@ -125,38 +125,57 @@
   // wvehicle): each its own independent field-offset or sllv-fold wall
   // (respectively: s5+312 plus five sllv folds; gp+252 plus an unset-a0
   // read plus a sllv fold; s5+832 buried at op 270 of a 1500-line body
-  // behind an 80-byte unresolved stack struct). (method 217 wvehicle): a
-  // 264-byte arg2 struct with fields at 16/32/36/40/44/48/52/56/80 this
-  // rung's own evidence does not cover. (method 64 wvehicle), (method 134
+  // behind an 80-byte unresolved stack struct). (method 217 wvehicle) and
+  // (method 218 wvehicle) were held here for the same reason (each its own
+  // unresolved local stack struct); both are UN-HELD by the wheelreal
+  // rung, see its own note below. (method 64 wvehicle), (method 134
   // wvehicle) and (method 129 wvehicle) each override an ancestor slot
   // (vehicle's own :method-count-assert is 204, vehicle-h.gc:937), so an
   // unlanded override there leaves the ancestor's own default running, not
-  // a jump to zero. (method 217 wvehicle) does not: at slot 217, past
-  // vehicle's 204, it is new to wvehicle, so kscheme zero-fills the
-  // unlanded slot instead. The wheelcb rung's own falcon post-spawn crash
+  // a jump to zero. (method 217 wvehicle) and (method 218 wvehicle) did
+  // not: at slots 217/218, past vehicle's 204, they are new to wvehicle,
+  // so kscheme zero-filled the unlanded slots instead until the wheelreal
+  // rung's own landing. The wheelcb rung's own falcon post-spawn crash
   // (wvehicle+0x828, wvehicle-method-220 calling a zero callback through
-  // vehicle-wheel-info) is exactly this class; (method 218 wvehicle), held
-  // below, is the same new-to-wvehicle slot for the same reason and
-  // carries the same risk. Correcting this rung's own prior "none of these
-  // four are new-to-wvehicle" claim, which was false for 217 (and, by the
-  // same method-count math, for 218). (method 220 wvehicle) un-held,
-  // falcon-wheels rung (wheel-
+  // vehicle-wheel-info) was exactly this class. (method 220 wvehicle)
+  // un-held, falcon-wheels rung (wheel-
   // constants leg): its own s2+192 wall was a handle-verified process
   // typed only to the base "process" class rather than process-drawable;
   // type_casts.jsonc casts it, stack_structures.jsonc covers its own two
   // local scratches, and it decodes clean with no warnings. Removed from
   // this list.
-  // (method 218 wvehicle): one of this rung's own named targets, held
-  // rather than landed. Its own local sp+16 scratch is the same
-  // matrix-plus-composed-quaternions shape as (method 219 wvehicle),
-  // landed above, but roughly twice the size (up to offset 336, against
-  // 219's 224) with a field read at offset 144 this rung cannot attribute
-  // to any write inside the function's own body (every other 16-byte
-  // region in the struct is either a matrix, a quaternion built by a
-  // named quaternion-* call, or a vector fed to vector-matrix*!/
-  // vecplusfloattimes; 144 is read once, at op 111, by nothing else).
-  // Landing a guessed field there would be presenting a guess as a
-  // finding; held pending a second rung's own evidence.
+  // (method 217 wvehicle) and (method 218 wvehicle) UN-HELD, wheelreal
+  // rung: both were held on an unresolved local stack struct (each its
+  // own "Failed to guess stack use for 16"); a fresh scoped decode of
+  // wvehicle alone (allowed_objects wvehicle, no pre-existing casts)
+  // walked every op touching the sp+16 region in both raw disassemblies
+  // and accounted for all of it. (method 217 wvehicle)'s own local struct
+  // is jak3's wvehicle-method-164 shape field-for-field (a rigid-body
+  // matrix at 0, five composed quaternions at 64/80/96/112/128, two
+  // constant vectors (1 0 0 1)/(0 1 0 1) at 144/160, a probe vector at 176
+  // and a transform-target vector at 192), landed as
+  // wvehicle-method-217-work; 208-239 (32 bytes) is read and written by
+  // nothing in the function's own body and is declared padding. This also
+  // resolves the prior note's "264-byte arg2 struct with fields at
+  // 16/32/36/40/44/48/52/56/80" claim: those offsets are vehicle-wheel-
+  // info's own already-typed fields (arg1), not the local struct, and the
+  // local struct itself measures 244 bytes (0xf4), not 264. (method 218
+  // wvehicle)'s own local struct shares (method 217 wvehicle)'s matrix/
+  // quaternion core at the same offsets but carries a wider vector bank
+  // (nine vectors total against 217's four) plus a five-float tail at
+  // 320-336, one of which (an asin-based arc term over arg1's own travel
+  // and susp-arm-length fields) has no jak3 twin at all; landed as
+  // wvehicle-method-218-work, size 340 bytes (0x154). The prior note's
+  // "field read at offset 144... attributed to nothing" does not hold
+  // against this rung's own trace: gp+144 is written by a local-pos copy
+  // at op 66-69 and read back both as a full quad (op 111-114, op
+  // 246-249) and as a lone scalar at its own +4 byte (op 180, the y
+  // component, feeding the arc-term formula); the prior rung's read must
+  // have been against an earlier, differently-offset struct guess. Both
+  // bodies transcribe clean with zero warnings under stack_structures.jsonc
+  // entries pointing sp+16 at the two new types (mirrored in
+  // decompiler/config/jakx/all-types.gc); no type_casts.jsonc entries were
+  // needed for either.
   // (method 133 wvehicle): arg1 (a type_casts.jsonc cast, not a signature
   // change, since it is declared on vehicle) reads clean as rigid-body-
   // vehicle-constants at offsets 0/12/212/224/228/240/244/264/268/312/316
@@ -190,8 +209,6 @@
     "(method 64 wvehicle)",
     "(method 134 wvehicle)",
     "(method 129 wvehicle)",
-    "(method 217 wvehicle)",
-    "(method 218 wvehicle)",
     "(method 133 wvehicle)",
     "(method 157 wvehicle)",
     "(method 34 rigid-body-control)",

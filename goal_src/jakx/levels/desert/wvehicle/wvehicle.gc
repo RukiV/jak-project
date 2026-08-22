@@ -106,65 +106,254 @@
     )
   )
 
-;; og:preserve-this wvehicle-core rung (held): (method 217 wvehicle) is one
-;; of this rung's own named targets but stays held. Its own local sp+16
-;; scratch is the same matrix-plus-composed-quaternions shape as (method 219
-;; wvehicle) below, roughly twice the size, with fields at 16/32/36/40/44/
-;;48/52/56/80 on its own arg2 confirming vehicle-wheel-info (the same
-;; retype (method 219 wvehicle) proves), but this rung's own evidence does
-;; not cover the rest of its own 264-byte local struct. Parked in
-;; hacks.jsonc's no_type_analysis_functions_by_name; reachable, not
-;; unreached: 6e8cc3f21 wired wheel[i].info to physics-model.front-wheel/
-;; rear-wheel ahead of (method 213 wvehicle)'s own spawn loop, and (method
-;; 69 wvehicle) (wvehicle-util.gc, this rung) installs this method into
-;; both wheel-info structs' own callback field (offset 24); (method 220
-;; wvehicle)'s own naked call through that field is what actually reaches
-;; it on falcon spawn. Wheelcb rung's own bring-up stub below covers the
-;; gap until the real body lands.
+;; wheelreal rung: NOT a resurrected census entry, this rung's own
+;; derivation, replacing the wvehicle-core rung's held stub. (method 217
+;; wvehicle)'s own local sp+16 scratch ("Failed to guess stack use for
+;; 16") is jak3's wvehicle-method-164 shape field-for-field: a rigid-body
+;; matrix copied from (-> this rbody matrix) at offset 0, five composed
+;; quaternions at 64 through 143 (q3 a copy of (-> this root rot), q4
+;; built from vehicle-wheel-info's own camber field, arg1+80, sin/cos
+;; into q4's own z/w at 136/140), two constant vectors (1 0 0 1) and
+;; (0 1 0 1) at 144/160, a probe vector at 176 copied out to arg0's own
+;; probe-local-pos, and a transform-target vector at 192 copied out to
+;; arg0's own trans. 208-239 (32 bytes) is read and written by nothing in
+;; the function's own body. Prior rung's own "264-byte arg2 struct with
+;; fields at 16/32/36/40/44/48/52/56/80" was a mislabel: those offsets
+;; are vehicle-wheel-info's own already-typed fields (arg1), not the
+;; local struct, which itself measures 244 bytes (0xf4).
+(deftype wvehicle-method-217-work (structure)
+  ((mat  matrix     :inline :offset-assert 0)
+   (q0   quaternion :inline :offset-assert 64)
+   (q1   quaternion :inline :offset-assert 80)
+   (q2   quaternion :inline :offset-assert 96)
+   (q3   quaternion :inline :offset-assert 112)
+   (q4   quaternion :inline :offset-assert 128)
+   (vec0 vector     :inline :offset-assert 144)
+   (vec1 vector     :inline :offset-assert 160)
+   (vec2 vector     :inline :offset-assert 176)
+   (vec3 vector     :inline :offset-assert 192)
+   (pad0 uint8 32            :offset-assert 208)
+   (val0 float               :offset-assert 240)
+   )
+  :method-count-assert 9
+  :size-assert         #xf4
+  :flag-assert         #x9000000f4
+  )
 
-;; og:preserve-this wvehicle-core rung (held): (method 218 wvehicle) is one
-;; of this rung's own named targets but stays held. Its own local sp+16
-;; scratch is the same matrix-plus-composed-quaternions shape as (method 219
-;; wvehicle) below, but roughly twice the size (up to offset 336, against
-;; 219's 224) with a field read at offset 144 this rung cannot attribute to
-;; any write inside the function's own body (every other 16-byte region in
-;; the struct is either a matrix, a quaternion built by a named
-;; quaternion-* call, or a vector fed to vector-matrix*!/vecplusfloattimes;
-;; 144 is read once, at op 111, by nothing else). Landing a guessed field
-;; there would be presenting a guess as a finding; held pending a second
-;; rung's own evidence. Parked in hacks.jsonc's
-;; no_type_analysis_functions_by_name.
+;; wheelreal rung: NOT a resurrected census entry, this rung's own
+;; derivation, replacing the wvehicle-core rung's held stub. (method 218
+;; wvehicle) shares (method 217 wvehicle)'s matrix/quaternion core at the
+;; same offsets (mat 0, q0 64, q1 80, q2 96, q3 112, q4 128) but carries a
+;; wider vector bank: a local-pos copy at 144 (its own y read directly at
+;; 148 by the arc-term formula below), the two constant vectors (1 0 0 1)/
+;; (0 1 0 1) pushed to 192/208 instead of 217's 144/160, a probe vector at
+;; 176 (x/y/z touched individually at 176/180/184) copied out to arg0's
+;; own probe-local-pos, a second probe-derived vector at 224 (x/y/z at
+;; 224/228/232) feeding arg0's own trans by way of a vector-matrix*! at
+;; 240, a vector-normalize! result at 256 copied out to arg0's own
+;; probe-local-dir, and two more vectors at 272/288 (vector-rotate*!/
+;; vector-matrix*! outputs) this method's own body computes but never
+;; reads back. Five floats close the struct at 320-336: an arc term this
+;; rung has no jak3 twin for (asin(0.5 * arg1 travel / susp-arm-length),
+;; doubled and added to arg1's own probe-y-offset), plus cached copies of
+;; arg1's own radius*scale, susp-arm-length and probe-y-offset the body
+;; reuses at multiple call sites. 160-175 and 304-319 (32 bytes total) are
+;; read and written by nothing in the function's own body. Prior rung's
+;; own "field read at offset 144, attributed to nothing" does not hold
+;; against this rung's own trace: gp+144 is written by a local-pos copy
+;; and read back both as a full quad and as a lone scalar at its own +4
+;; byte (the y component, feeding the arc-term formula); the prior read
+;; must have been against an earlier, differently-offset struct guess.
+(deftype wvehicle-method-218-work (structure)
+  ((mat  matrix     :inline :offset-assert 0)
+   (q0   quaternion :inline :offset-assert 64)
+   (q1   quaternion :inline :offset-assert 80)
+   (q2   quaternion :inline :offset-assert 96)
+   (q3   quaternion :inline :offset-assert 112)
+   (q4   quaternion :inline :offset-assert 128)
+   (vec0 vector     :inline :offset-assert 144)
+   (pad0 uint8 16            :offset-assert 160)
+   (vec1 vector     :inline :offset-assert 176)
+   (vec2 vector     :inline :offset-assert 192)
+   (vec3 vector     :inline :offset-assert 208)
+   (vec4 vector     :inline :offset-assert 224)
+   (vec5 vector     :inline :offset-assert 240)
+   (vec6 vector     :inline :offset-assert 256)
+   (vec7 vector     :inline :offset-assert 272)
+   (vec8 vector     :inline :offset-assert 288)
+   (pad1 uint8 16            :offset-assert 304)
+   (val0 float               :offset-assert 320)
+   (val1 float               :offset-assert 324)
+   (val2 float               :offset-assert 328)
+   (val3 float               :offset-assert 332)
+   (val4 float               :offset-assert 336)
+   )
+  :method-count-assert 9
+  :size-assert         #x154
+  :flag-assert         #x900000154
+  )
 
-;; og:preserve-this bring-up stub for (method 217 wvehicle), pattern
-;; f5afc742b: NOT retail's body (see the hold note above). A slot new to
-;; wvehicle (vehicle's own :method-count-assert is 204, vehicle-h.gc:937),
-;; so an unlanded override here is kscheme zero-filled rather than falling
+;; wheelreal rung: (method 217 wvehicle) un-held, replacing the wheelcb
+;; rung's bring-up stub (pattern f5afc742b). A slot new to wvehicle
+;; (vehicle's own :method-count-assert is 204, vehicle-h.gc:937), so an
+;; unlanded override here was kscheme zero-filled rather than falling
 ;; back to an ancestor default. (method 69 wvehicle) installs this method
 ;; into vehicle-wheel-info's own callback field (offset 24) on both
 ;; front-wheel and rear-wheel; (method 220 wvehicle)'s own naked call
 ;; through that field crashed on falcon spawn once 6e8cc3f21's wheel-info
-;; wiring made the field reachable. A no-op stub disarms that call safely;
-;; wheels will not receive their per-frame transform update from this
-;; callback until the real body lands. Retirement condition: the real
-;; method 217 landing (its own decode/adaptation lane).
+;; wiring made the field reachable, and its own post-callback reads of
+;; the wheel's trans/quat fields (wvehicle.gc, this same file) were
+;; consuming whatever the no-op stub left behind. This body writes both:
+;; a scoped decode of wvehicle alone, decompiler/config/jakx/ntsc_v1/
+;; stack_structures.jsonc's own new entry pointing sp+16 at
+;; wvehicle-method-217-work above, transcribes clean with zero warnings.
+;; definition for method 217 of type wvehicle
 (defmethod wvehicle-method-217 ((this wvehicle) (arg0 vehicle-wheel-state) (arg1 vehicle-wheel-info))
+  (let ((gp-0 (new 'stack-no-clear 'wvehicle-method-217-work)))
+    (set-vector! (-> gp-0 vec0) 1.0 0.0 0.0 1.0)
+    (set-vector! (-> gp-0 vec1) 0.0 1.0 0.0 1.0)
+    (quaternion-copy! (-> gp-0 q3) (the-as quaternion (-> this root rot)))
+    (matrix-copy! (-> gp-0 mat) (-> this rbody matrix))
+    (set! (-> gp-0 val0)
+          (+ (-> arg1 probe-y-offset) (* (-> arg1 radius) (-> arg1 scale)) (* -1.0 (-> arg0 pos2) (-> arg1 travel)))
+          )
+    (set! (-> arg0 sin-susp-ang) (fmax -1.0 (fmin 1.0 (/ (-> gp-0 val0) (-> arg1 susp-arm-length)))))
+    (set! (-> arg0 cos-susp-ang) (sqrtf (- 1.0 (square (-> arg0 sin-susp-ang)))))
+    (quaternion-identity! (-> gp-0 q4))
+    (set! (-> gp-0 q4 z) (* (sin (-> arg1 camber)) (-> arg0 x-scale)))
+    (set! (-> gp-0 q4 w) (cos (-> arg1 camber)))
+    (when (logtest? (-> arg1 flags) 32)
+      (quaternion-set!
+        (-> gp-0 q0)
+        0.0
+        0.0
+        (* (-> arg0 sin-susp-ang) (-> arg0 x-scale))
+        (+ 1.0 (-> arg0 cos-susp-ang))
+        )
+      (quaternion-normalize! (-> gp-0 q0))
+      (quaternion*! (-> gp-0 q4) (-> gp-0 q4) (-> gp-0 q0))
+      )
+    (set! (-> gp-0 vec2 quad) (-> arg1 local-pos quad))
+    (+! (-> gp-0 vec2 x) (+ (-> arg1 susp-arm-length) (-> arg1 probe-x-offset)))
+    (set! (-> gp-0 vec2 x) (* (-> gp-0 vec2 x) (-> arg0 x-scale)))
+    (+! (-> gp-0 vec2 y) (-> arg1 probe-y-offset))
+    (vector+float*!
+      (-> arg0 probe-local-pos)
+      (-> gp-0 vec2)
+      (-> arg0 local-axis)
+      (* (-> arg1 steer-arm-length) (-> arg0 x-scale))
+      )
+    (set! (-> gp-0 vec2 quad) (-> arg1 local-pos quad))
+    (+! (-> gp-0 vec2 x) (* (-> arg1 susp-arm-length) (-> arg0 cos-susp-ang)))
+    (set! (-> gp-0 vec2 x) (* (-> gp-0 vec2 x) (-> arg0 x-scale)))
+    (+! (-> gp-0 vec2 y) (-> gp-0 val0))
+    (vector+float*!
+      (-> gp-0 vec2)
+      (-> gp-0 vec2)
+      (-> arg0 local-axis)
+      (* (-> arg1 steer-arm-length) (-> arg0 x-scale))
+      )
+    (vector-matrix*! (-> gp-0 vec3) (-> gp-0 vec2) (-> gp-0 mat))
+    (quaternion-vector-angle! (-> gp-0 q2) (-> gp-0 vec1) (-> arg0 steer-angle))
+    (quaternion-vector-angle! (-> gp-0 q1) (-> gp-0 vec0) (-> arg0 angle))
+    (quaternion*! (-> gp-0 q0) (-> gp-0 q2) (-> gp-0 q4))
+    (quaternion*! (-> gp-0 q0) (-> gp-0 q0) (-> gp-0 q1))
+    (quaternion*! (-> arg0 quat) (-> gp-0 q3) (-> gp-0 q0))
+    (set! (-> arg0 trans quad) (-> gp-0 vec3 quad))
+    )
   0
   (none)
   )
 
-;; og:preserve-this bring-up stub for (method 218 wvehicle), pattern
-;; f5afc742b: NOT retail's body (see the hold note above). Also a slot new
-;; to wvehicle (vehicle's own :method-count-assert is 204, vehicle-h.gc:937),
-;; so an unlanded override here is kscheme zero-filled rather than falling
+;; wheelreal rung: (method 218 wvehicle) un-held, replacing the wheelcb
+;; rung's bring-up stub (pattern f5afc742b). Also a slot new to wvehicle
+;; (vehicle's own :method-count-assert is 204, vehicle-h.gc:937), so an
+;; unlanded override here was kscheme zero-filled rather than falling
 ;; back to an ancestor default. (method 69 v-mongoose), already landed
 ;; (wcar-mongoose.gc), installs this method into its own rear-wheel
-;; vehicle-wheel-info callback field after calling its parent method;
-;; any v-mongoose spawn reaching that call site would hit the same
-;; zero-slot crash class as falcon's (method 217 wvehicle) without this
-;; stub. Wheels will not receive their per-frame transform update from
-;; this callback until the real body lands. Retirement condition: the real
-;; method 218 landing (its own decode/adaptation lane).
+;; vehicle-wheel-info callback field after calling its parent method; any
+;; v-mongoose spawn reaching that call site hit the same zero-slot crash
+;; class as falcon's (method 217 wvehicle) without this stub. A scoped
+;; decode of wvehicle alone, stack_structures.jsonc's own new entry
+;; pointing sp+16 at wvehicle-method-218-work above, transcribes clean
+;; with zero warnings; no jak3 twin covers this body's own arc-angle term
+;; (val4 below), so that formula is transcribed solely from this rung's
+;; own trace of the raw disassembly, not carried over from any other
+;; game's source.
+;; definition for method 218 of type wvehicle
 (defmethod wvehicle-method-218 ((this wvehicle) (arg0 vehicle-wheel-state) (arg1 vehicle-wheel-info))
+  (let ((gp-0 (new 'stack-no-clear 'wvehicle-method-218-work)))
+    (set-vector! (-> gp-0 vec2) 1.0 0.0 0.0 1.0)
+    (set-vector! (-> gp-0 vec3) 0.0 1.0 0.0 1.0)
+    (quaternion-copy! (-> gp-0 q3) (the-as quaternion (-> this root rot)))
+    (matrix-copy! (-> gp-0 mat) (-> this rbody matrix))
+    (set! (-> gp-0 val1) (* (-> arg1 radius) (-> arg1 scale)))
+    (set! (-> gp-0 val2) (-> arg1 susp-arm-length))
+    (set! (-> gp-0 val3) (-> arg1 probe-y-offset))
+    (set! (-> gp-0 val4) (+ (-> gp-0 val3) (* 2.0 (asin (/ (/ (-> arg1 travel) 2) (-> gp-0 val2))))))
+    (set! (-> gp-0 vec0 quad) (-> arg1 local-pos quad))
+    (set-vector!
+      (-> gp-0 vec6)
+      0.0
+      (* -1.0 (- (sin (-> gp-0 val4)) (sin (-> gp-0 val3))) (-> gp-0 val2))
+      (* (- (cos (-> gp-0 val4)) (cos (-> gp-0 val3))) (-> gp-0 val2))
+      1.0
+      )
+    (vector-normalize! (-> gp-0 vec6) 1.0)
+    (set! (-> gp-0 vec1 quad) (-> gp-0 vec0 quad))
+    (+! (-> gp-0 vec1 z) (* (-> gp-0 val2) (cos (-> gp-0 val3))))
+    (+! (-> gp-0 vec1 y) (* -1.0 (sin (-> gp-0 val3)) (-> gp-0 val2)))
+    (set! (-> gp-0 vec1 y) (- (-> gp-0 vec1 y) (-> gp-0 val1)))
+    (set! (-> gp-0 vec1 x) (* (-> gp-0 vec1 x) (-> arg0 x-scale)))
+    (vector+float*!
+      (-> gp-0 vec1)
+      (-> gp-0 vec1)
+      (-> arg0 local-axis)
+      (* (-> arg1 steer-arm-length) (-> arg0 x-scale))
+      )
+    (set! (-> arg0 probe-local-pos quad) (-> gp-0 vec1 quad))
+    (set! (-> arg0 probe-local-dir quad) (-> gp-0 vec6 quad))
+    (vector-matrix*! (-> gp-0 vec8) (-> gp-0 vec1) (-> gp-0 mat))
+    (vector-rotate*! (-> gp-0 vec7) (-> gp-0 vec6) (-> gp-0 mat))
+    (set! (-> gp-0 val0)
+          (- (+ (-> arg0 probe-local-pos y) (-> gp-0 val1) (* (-> arg0 probe-local-dir y) (-> arg0 pos2) (-> arg1 travel)))
+             (-> gp-0 vec0 y)
+             )
+          )
+    (set! (-> arg0 sin-susp-ang) (fmax -1.0 (fmin 1.0 (/ (- (-> gp-0 val0)) (-> gp-0 val2)))))
+    (set! (-> arg0 cos-susp-ang) (sqrtf (- 1.0 (square (-> arg0 sin-susp-ang)))))
+    (quaternion-identity! (-> gp-0 q4))
+    (set! (-> gp-0 q4 z) (* (sin (-> arg1 camber)) (-> arg0 x-scale)))
+    (set! (-> gp-0 q4 w) (cos (-> arg1 camber)))
+    (when (logtest? (-> arg1 flags) 32)
+      (quaternion-set!
+        (-> gp-0 q0)
+        0.0
+        0.0
+        (* (-> arg0 sin-susp-ang) (-> arg0 x-scale))
+        (+ 1.0 (-> arg0 cos-susp-ang))
+        )
+      (quaternion-normalize! (-> gp-0 q0))
+      (quaternion*! (-> gp-0 q4) (-> gp-0 q4) (-> gp-0 q0))
+      )
+    (set! (-> gp-0 vec4 quad) (-> gp-0 vec0 quad))
+    (+! (-> gp-0 vec4 z) (* (-> gp-0 val2) (-> arg0 cos-susp-ang)))
+    (+! (-> gp-0 vec4 y) (* -1.0 (-> arg0 sin-susp-ang) (-> gp-0 val2)))
+    (set! (-> gp-0 vec4 x) (* (-> gp-0 vec4 x) (-> arg0 x-scale)))
+    (vector+float*!
+      (-> gp-0 vec4)
+      (-> gp-0 vec4)
+      (-> arg0 local-axis)
+      (* (-> arg1 steer-arm-length) (-> arg0 x-scale))
+      )
+    (vector-matrix*! (-> gp-0 vec5) (-> gp-0 vec4) (-> gp-0 mat))
+    (quaternion-vector-angle! (-> gp-0 q2) (-> gp-0 vec3) (-> arg0 steer-angle))
+    (quaternion-vector-angle! (-> gp-0 q1) (-> gp-0 vec2) (-> arg0 angle))
+    (quaternion*! (-> gp-0 q0) (-> gp-0 q2) (-> gp-0 q4))
+    (quaternion*! (-> gp-0 q0) (-> gp-0 q0) (-> gp-0 q1))
+    (quaternion*! (-> arg0 quat) (-> gp-0 q3) (-> gp-0 q0))
+    (set! (-> arg0 trans quad) (-> gp-0 vec5 quad))
+    )
   0
   (none)
   )
