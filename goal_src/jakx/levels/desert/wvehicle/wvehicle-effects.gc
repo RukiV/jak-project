@@ -7,3 +7,103 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this tracker rung: partial clean band from a scoped decode
+;; against this worktree's own corrected all-types.gc (allowed_objects:
+;; [wvehicle-effects], this worktree), reachable only after light-trail-
+;; tracker's own method-table fix (this object moved 41->35 ir2 markers off
+;; that correction alone, per this rung's corpus_mover_diff). This is a much
+;; larger object than the rest of the family: wvehicle-wheel-launcher-spec,
+;; wvehicle-part-work, the *wheel-trail-info* top-level init block (every
+;; access into it still decodes as "failed to figure out what this is"),
+;; tire-trail-tracker's own tracking-state override, and the entire
+;; wvehicle-method-2XX cluster (a separate, much larger rigid-body wheel
+;; system with its own unrelated walls: gp/a2-offset loads, a "Failed
+;; convert_to_old_format" register conversion, an "add failed" type error)
+;; are all held, out of scope for this rung. Landed here: tire-trail-crumb
+;; (trivial, no jak3 divergence), tire-trail's own calc-vertex-pos!/setup!
+;; (clean, no unlanded callees), the tire-trail-tracker type itself (needed
+;; to host the two functions below; its own tire-trail-tracker-method-22
+;; calls the held light-trail-tracker-common-post and tire-trail-tracker-
+;; method-23 fails the family's usual sllv/handle->process wall, so neither
+;; is landed), and tire-trail-tracker-init-by-other/spawn-tire-trail-tracker
+;; (both decode clean, directly parallel to weapon-trail-tracker-init-by-
+;; other/tread-trail-tracker-init-by-other already landed in light-trails.gc).
+
+(deftype tire-trail-crumb (light-trail-breadcrumb)
+  ((offset vector :inline :offset-assert 16)
+   (uu     float          :offset 28)
+   )
+  )
+
+(deftype tire-trail (light-trail)
+  ()
+  (:methods
+    (tire-trail-method-23 (_type_ vector vector float) none) ;; 23
+    (tire-trail-method-24 (_type_ object object object) none) ;; 24
+    )
+  )
+
+(defmethod calc-vertex-pos! ((this tire-trail) (arg0 light-trail-breadcrumb) (arg1 int) (arg2 vector) (arg3 vector))
+  (set! (-> arg3 quad) (-> (&+ arg0 16) pos quad))
+  (none)
+  )
+
+(defmethod setup! ((this tire-trail) (arg0 light-trail-composition) (arg1 int))
+  (set! (-> this crumb-size) (the-as uint 32))
+  (call-parent-method this arg0 arg1)
+  (set! (-> this strip tex-name) (-> arg0 tex-name))
+  (none)
+  )
+
+(deftype tire-trail-tracker (light-trail-tracker)
+  ((trail tire-trail :override)
+   )
+  :method-count-assert 24
+  :size-assert         #xbc
+  :flag-assert         #x18003000bc
+  (:methods
+    (tire-trail-tracker-method-22 () none) ;; 22
+    (tire-trail-tracker-method-23 (_type_) none) ;; 23
+    )
+  (:state-methods
+    tracking ;; 15 (override, reuses the inherited slot)
+    )
+  )
+
+(defbehavior tire-trail-tracker-init-by-other tire-trail-tracker ((arg0 light-trail-tracker-spawn-params))
+  (stack-size-set! (-> self main-thread) 32)
+  (set! (-> self tracked-object) (-> arg0 tracked-obj))
+  (set! (-> self trail) (new 'process 'tire-trail))
+  (set! (-> self offscreen?) #f)
+  (set! (-> self next-line-check-time) (the-as uint 0))
+  (set! (-> self last-add-frame-val) (the-as uint 0))
+  (setup! (-> self trail) (-> arg0 appearance) (-> arg0 max-num-crumbs))
+  (change-parent self *rigid-body-queue-manager*)
+  (go-virtual tracking)
+  )
+
+(defun spawn-tire-trail-tracker ((arg0 process) (arg1 light-trail-tracker-spawn-params))
+  (let ((v1-2 (+ (estimate-light-trail-mem-usage (the-as uint (-> arg1 max-num-crumbs)) (the-as uint #f))
+                 (* (-> arg1 max-num-crumbs) 16)
+                 )
+              )
+        (s4-0 (the-as process #f))
+        )
+    (let* ((s3-0 (get-process *default-dead-pool* tire-trail-tracker (+ v1-2 1024) 1))
+           (v1-3 (when s3-0
+                   (let ((t9-2 (method-of-type process activate)))
+                     (t9-2 s3-0 arg0 "tire-trail" (the-as pointer #x70004000))
+                     )
+                   (run-now-in-process s3-0 tire-trail-tracker-init-by-other arg1)
+                   (-> s3-0 ppointer)
+                   )
+                 )
+           )
+      (if v1-3
+          (set! s4-0 (-> v1-3 0))
+          )
+      )
+    (the-as tire-trail-tracker s4-0)
+    )
+  )
+
