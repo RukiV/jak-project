@@ -1748,4 +1748,47 @@
   // slot to dma-packet (its own type_casts.jsonc carries this as a
   // "_stack_" offset-16 entry; jakx's decompiler build resolves the same
   // fix through stack_structures.jsonc instead, so it is expressed here).
-  "add-debug-bound": [[16, "dma-packet"]]}
+  "add-debug-bound": [[16, "dma-packet"]],
+  // (anon-function 51 wvehicle-weapons), wvehicle-weapons-vein rung 2: sp+16
+  // fails "Failed to guess stack use for 16 in (anon-function 51
+  // wvehicle-weapons):11". Field stores match the standard on-stack
+  // send-event-function idiom seen throughout this file (task-control,
+  // play-task above): a pointer-process at +8 (op 15), num-params 2 at +68
+  // (op 17), message 'weapon at +64 (op 19), a symbol param 'fire-discrete
+  // at +16 (op 21) and a byte param at +24 (op 23), then a1 handed straight
+  // to send-event-function. Same event-message-block idiom, same fix.
+  // Fixing sp+16 above unmasks a second wall in the same function: "Failed
+  // to guess stack use for 96 in (anon-function 51 wvehicle-weapons):38"
+  // (daddiu s5, sp, 96). s5 is used as the base of four independent 16-byte
+  // slots at +0/+16/+32/+48, every one written or read with a full quad
+  // sq/lq or VU0 lqc2/sqc2 (never a sub-field access), and the region ends
+  // exactly at sp+160 (this function's own stack_vars: 144 bytes at 16, so
+  // 16 + 144 = 160), leaving no slack for a fifth slot. s5+16 and s5+48 feed
+  // the inline-asm vector-subtract idiom the decompiler already names
+  // vector-!2 (op 105, s5+0 = s5+16 - s5+48); s5+32 alone is passed to
+  // vector-inv-orient-by-quat! (op 106) and vector-normalize! (op 115).
+  // Four contiguous vectors, not a guess.
+  "(anon-function 51 wvehicle-weapons)": [
+    [16, "event-message-block"],
+    [96, "vector"],
+    [112, "vector"],
+    [128, "vector"],
+    [144, "vector"]
+  ],
+  // (anon-function 59 wvehicle-weapons-proj) and (anon-function 99
+  // wvehicle-weapons-proj), wvehicle-weapons-vein rung 2: mine-b's and
+  // mine-a's own death-spawn handlers each fail "Failed to guess stack use
+  // for 16" at their own op 26 (daddiu gp, sp, 16). Both build the sp+16
+  // struct with the identical field-store sequence -- a handle at +8 (op
+  // 38, the tracked process), a color symbol at +0 (op 40, *mine-trail-red*
+  // for mine-b / *mine-trail-purple* for mine-a), a computed int at +4 (op
+  // 49, max-num-crumbs) and #t at +16 (op 51) -- then pass gp straight to
+  // run-function-in-process as light-trail-tracker-init-by-other's own
+  // second argument (op 80), whose declared type is (function
+  // light-trail-tracker-spawn-params object :behavior light-trail-tracker).
+  // light-trail-tracker-spawn-params (all-types.gc) declares exactly those
+  // four fields at exactly those offsets (appearance 0, max-num-crumbs 4,
+  // tracked-obj 8, track-immediately? 16), so this is a named-type match,
+  // not a guess.
+  "(anon-function 59 wvehicle-weapons-proj)": [[16, "light-trail-tracker-spawn-params"]],
+  "(anon-function 99 wvehicle-weapons-proj)": [[16, "light-trail-tracker-spawn-params"]]}

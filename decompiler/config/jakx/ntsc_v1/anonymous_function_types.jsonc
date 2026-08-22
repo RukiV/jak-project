@@ -2440,13 +2440,19 @@
     // before v-wpn-yellow-grenade's own method-3 constructor label and
     // read the same s6+244 target-handle field the seismic-blaster cluster
     // above does; missing the :behavior tag left s6 untyped, failing the
-    // very first field read in each. anon-function 14 (immediately after
-    // (method 54 vehicle-weapon-slot) in file order) reads s6+308 and
-    // fails the same way; neither v-wpn-yellow-seismic-blaster nor
-    // vehicle-weapon-slot as its :behavior clears op 0's read, so its
-    // true owner is held unresolved rather than guessed further this
-    // rung (see report).
-    [14, "(function object)"],
+    // very first field read in each.
+    // og:preserve-this wvehicle-weapons-vein rung 2: anon-function 14's own
+    // op 0 is `lb v1, 308(s6)` (a raw byte load) fed straight into a
+    // truthy/`slt r0` guard. Rung 1 tried v-wpn-yellow-seismic-blaster and
+    // vehicle-weapon-slot and neither cleared it (seismic-blaster ends at
+    // size 0x10d/269, slot itself ends at 0x105/261; a field at raw 308
+    // needs declared placement 312, past both). v-wpn-yellow-guided-missile
+    // (all-types.gc) declares exactly that: run-targeting-this-frame, int8,
+    // :offset-assert 312 -- placement matches the machine offset (308+4)
+    // exactly, and the field's own byte width matches the raw `lb`. The
+    // name matches the guard's own shape (a per-frame boolean gating
+    // whatever follows). Retyped to this weapon's own gun/slot type.
+    [14, "(function object :behavior v-wpn-yellow-guided-missile)"],
     [15, "(function object :behavior v-wpn-yellow-seismic-blaster)"],
     [16, "(function object object object object :behavior v-wpn-yellow-seismic-blaster)"],
     [29, "(function object object object object :behavior v-wpn-yellow-grenade)"],
@@ -2455,15 +2461,31 @@
     [38, "(function object :behavior v-wpn-yellow-default-gun)"],
     [39, "(function object :behavior v-wpn-yellow-default-gun)"],
     [40, "(function object :behavior v-wpn-yellow-default-gun)"],
-    [41, "(function object object object object :behavior v-wpn-yellow-default-gun)"],
-    [42, "(function object object object object :behavior v-wpn-yellow-default-gun)"],
+    // og:preserve-this wvehicle-weapons-vein rung 2: 41 and 42 are the :event
+    // handlers of two separate v-wpn-yellow-default-gun states (method-ids 60
+    // and 50; see the state-construction asm around L550/L553). Both fall
+    // through to (v-wpn-event-base arg0 arg1 arg2 a3-0) whenever the event
+    // isn't 'fire, and v-wpn-event-base's own declared signature is (function
+    // process int symbol event-message-block object :behavior
+    // vehicle-weapon-slot), a real 4th parameter (a3, the event-message-block).
+    // The 3-param arity here left a3 outside the declared signature, so the
+    // decompiler read it as a register nothing set ("Function may read a
+    // register that is not set: a3") rather than as arg3 forwarded from the
+    // caller. Widened to 4 params to match. Rung 1's report named only 42/56;
+    // 41 and 55 carry the identical shape and error in this rung's own scoped
+    // decode, so they are widened alongside (see report).
+    [41, "(function object object object object object :behavior v-wpn-yellow-default-gun)"],
+    [42, "(function object object object object object :behavior v-wpn-yellow-default-gun)"],
     [50, "(function object :behavior v-wpn-yellow-chain-gun)"],
     [51, "(function object :behavior v-wpn-yellow-chain-gun)"],
     [52, "(function object :behavior v-wpn-yellow-chain-gun)"],
     [53, "(function object :behavior v-wpn-yellow-chain-gun)"],
     [54, "(function object :behavior v-wpn-yellow-chain-gun)"],
-    [55, "(function object object object object :behavior v-wpn-yellow-chain-gun)"],
-    [56, "(function object object object object :behavior v-wpn-yellow-chain-gun)"],
+    // og:preserve-this wvehicle-weapons-vein rung 2: same class as 41/42
+    // above, mirrored on v-wpn-yellow-chain-gun's two states (L629/L632);
+    // widened to 4 params for the same a3-forwarding reason.
+    [55, "(function object object object object object :behavior v-wpn-yellow-chain-gun)"],
+    [56, "(function object object object object object :behavior v-wpn-yellow-chain-gun)"],
     [63, "(function object :behavior gunmount-generic-drawable)"],
     [64, "(function object :behavior gunmount-generic-drawable)"],
     [65, "(function object :behavior gunmount-generic-drawable)"],
