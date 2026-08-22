@@ -56,7 +56,12 @@ EXCLUDED_BASENAMES = (
 )
 
 # Classic markers, whole-word so READDATA does not match re-add.
-MARKER_WORDS = re.compile(r"(?<![A-Za-z])(TODO|FIXME|XXX|HACK)(?![A-Za-z])")
+# Hyphens count as word-interior here: retail GOAL symbols legitimately embed
+# marker words ('guided-missile-update-HACK ships in wvehicle-weapons-proj.go's
+# own symbol table), and a human deferral note never hyphenates straight into
+# its marker word. Without this, verbatim transcription of retail code reddens
+# the gate.
+MARKER_WORDS = re.compile(r"(?<![A-Za-z-])(TODO|FIXME|XXX|HACK)(?![A-Za-z-])")
 
 # The dangerous class: an instruction to restore or enable something later. These
 # are worse than a TODO because the code reads as complete while being inert.
