@@ -85,7 +85,12 @@
 ;; that every other process-focusable subtype (including vehicle, via
 ;; rigid-body-object) actually dispatches to. (method 64 vehicle) is one
 ;; such caller (vehicle_ir2.asm, offset 216 = (16 + 4*50)), which is what
-;; surfaced this as a falcon-crash blocker.
+;; surfaced this as a falcon-crash blocker, but the blast radius is wider
+;; and already live: attackable-hash-update (attackable-hash.gc:249,264)
+;; dispatches this method on every attackable process-focusable each time
+;; it runs, called every frame off update-actor-hash (entity.gc:1053), so
+;; this base fallback was a standing crash for any non-net-enemy
+;; attackable before this landing, not only a method-64 prerequisite.
 ;; definition for method 50 of type process-focusable
 (defmethod process-focusable-method-50 ((this process-focusable))
   (let ((v0-0 0))
