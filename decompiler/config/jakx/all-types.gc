@@ -67770,11 +67770,15 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 (define-extern set-veh-weapon (function symbol int wvehicle object))
-;; arg1 corrected int32 -> int: default-menu.gc's own call sites pass
-;; (the-as int32 N) and goalc's typecheck rejects int32 against int32
-;; ("got a 'int' when expecting a 'int32'", the-as's static result reads back
-;; as plain int for a bitfield-sized target); int accepts the same call
-;; sites without narrowing anything those callers rely on
+;; arg1 corrected int32 -> int: no expression built from an integer literal
+;; at a call site (bare literal, the-as int32, or the int32) reads back as
+;; int32 against a formal int32 parameter in this compiler; default-menu.gc
+;; (goal_src/jakx/engine/debug) calls this with thirteen literal weapon-id
+;; constants, so int is the type its own call sites can actually produce.
+;; wvehicle-weapons-debug.gc's own landed defun already treats the value as
+;; plain int internally ((the-as int arg1) before calling set-veh-weapon),
+;; so this correction does not change that file's behavior, only its
+;; decompiler-driven REF text (regenerated alongside default-menu's own).
 (define-extern dm-set-veh-weapon (function symbol int none))
 ;; og:preserve-this arg1 was object; the body stores the clamped float at raw
 ;; offset 704, which is vehicle's own unknown-float-704 field once the -4

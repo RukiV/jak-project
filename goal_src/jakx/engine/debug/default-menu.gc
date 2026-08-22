@@ -146,12 +146,17 @@
 (define-extern debug-reset-prim-buffer (function none))
 (define-extern dm-play-task-with-continue (function game-task string object))
 (define-extern dm-set-veh-leco (function int none))
-;; arg1 declared int here, not all-types.gc's own unconfirmed int32 guess:
-;; every call site below passes (the-as int32 N) and goalc's own typecheck
-;; rejects int32 against int32 ("got a 'int' when expecting a 'int32'",
-;; the-as's static result reads back as plain int for a bitfield-sized
-;; target); int accepts the same call sites without narrowing anything this
-;; file's callers rely on.
+;; arg1 declared int here, not all-types.gc's own int32: goalc's typecheck
+;; rejects a bare int literal, a (the-as int32 N) cast, and a (the int32 N)
+;; cast alike against a formal int32 parameter ("got a 'int' when expecting
+;; a 'int32'" every time); no expression built from an integer literal at a
+;; call site reads back as int32 in this compiler, only a genuine int32
+;; value already in hand does (e.g. a variable populated elsewhere, as
+;; wvehicle-weapons-debug.gc's own landed defun does internally). All
+;; thirteen call sites below pass literal weapon-id constants, so this
+;; extern is declared int to match what they can actually produce; the
+;; matching all-types.gc correction ripples into wvehicle-weapons-debug's
+;; own REF (regenerated alongside this file's).
 (define-extern dm-set-veh-weapon (function symbol int none))
 (define-extern editable-player-init (function symbol none :behavior editable-player))
 (define-extern start-drift (function none))
@@ -4086,19 +4091,19 @@
              )
            (menu
              "Pickups"
-             (function "Success Seeker" #f ,(lambda () (dm-set-veh-weapon 'right (the-as int32 5))))
-             (function "Chicken Drone" #f ,(lambda () (dm-set-veh-weapon 'right (the-as int32 6))))
-             (function "Machinegun" #f ,(lambda () (dm-set-veh-weapon 'right (the-as int32 2))))
-             (function "Grenade" #f ,(lambda () (dm-set-veh-weapon 'right (the-as int32 3))))
-             (function "Homing Missile" #f ,(lambda () (dm-set-veh-weapon 'right (the-as int32 4))))
-             (function "Mine" #f ,(lambda () (dm-set-veh-weapon 'left (the-as int32 8))))
-             (function "Shield" #f ,(lambda () (dm-set-veh-weapon 'left (the-as int32 10))))
-             (function "Smokescreen" #f ,(lambda () (dm-set-veh-weapon 'left (the-as int32 11))))
-             (function "Oil" #f ,(lambda () (dm-set-veh-weapon 'left (the-as int32 12))))
-             (function "Sentry Gun" #f ,(lambda () (dm-set-veh-weapon 'left (the-as int32 9))))
-             (function "Bulldog Gun" #f ,(lambda () (dm-set-veh-weapon 'left (the-as int32 13))))
-             (function "Seismic Blaster" #f ,(lambda () (dm-set-veh-weapon 'right (the-as int32 15))))
-             (function "Turbo Inhibitor" #f ,(lambda () (dm-set-veh-weapon 'left (the-as int32 14))))
+             (function "Success Seeker" #f ,(lambda () (dm-set-veh-weapon 'right 5)))
+             (function "Chicken Drone" #f ,(lambda () (dm-set-veh-weapon 'right 6)))
+             (function "Machinegun" #f ,(lambda () (dm-set-veh-weapon 'right 2)))
+             (function "Grenade" #f ,(lambda () (dm-set-veh-weapon 'right 3)))
+             (function "Homing Missile" #f ,(lambda () (dm-set-veh-weapon 'right 4)))
+             (function "Mine" #f ,(lambda () (dm-set-veh-weapon 'left 8)))
+             (function "Shield" #f ,(lambda () (dm-set-veh-weapon 'left 10)))
+             (function "Smokescreen" #f ,(lambda () (dm-set-veh-weapon 'left 11)))
+             (function "Oil" #f ,(lambda () (dm-set-veh-weapon 'left 12)))
+             (function "Sentry Gun" #f ,(lambda () (dm-set-veh-weapon 'left 9)))
+             (function "Bulldog Gun" #f ,(lambda () (dm-set-veh-weapon 'left 13)))
+             (function "Seismic Blaster" #f ,(lambda () (dm-set-veh-weapon 'right 15)))
+             (function "Turbo Inhibitor" #f ,(lambda () (dm-set-veh-weapon 'left 14)))
              (menu
                "Set Powerup Level"
                (function "1" #f ,(lambda () (dm-set-veh-leco 1)))
