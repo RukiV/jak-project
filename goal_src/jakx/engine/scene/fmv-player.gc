@@ -65,6 +65,22 @@
 ;; sampling on this renderer -- DirectRenderer only reads tbp0/psm/tcc/tfx off tex0
 ;; and normalizes UV by the bound GL texture's real size, not by tw/th (L1 spike,
 ;; issue 569 comment). 640x448 needs no power-of-two padding for the same reason.
+;;
+;; issue 569 follow-up (white-lines/off-center fix): the second vertex's screen
+;; XYZ (the &+ 96 block below) must be the same full-screen bottom-right corner
+;; draw-color-bars uses -- #x9000/#x8d00, i.e. vertex1's (-256,-208) plus the
+;; display's own 512x416 half-extents (208.0/256.0 recur as the direct-render
+;; screen bound in draw-raw-image's blit-displays.gc:900-901 and as the
+;; mouse-cursor clamp in pad.gc:779-780; 416 recurs as credits-obs.gc:433's
+;; set-height!). It was previously vertex1 plus the VIDEO's own raw pixel
+;; dimensions (#x9800/#x8f00 = (-256+640, -208+448)) instead of the display's
+;; (512,416) -- a 640x448-in-screen-units quad drawn against a 512x416 internal
+;; render target. UV stays the full (0,0)-(640,448) texel range regardless (the
+;; &+ 80 block): GS interpolates it linearly across whatever screen extent the
+;; quad has, so the fix is scaling the whole 640x448 frame down to fill the
+;; correct 512x416 quad, not cropping it. Confirmed by frame-dumping THX.MJV's
+;; JPEG payload directly (all 450 frames, top/bottom 16/4 rows) with zero
+;; brightness anomalies, ruling out the transcoder/decoded-pixel path.
 (defun fmv-draw-quad ()
   (let ((tbp (fmv-get-tbp)))
     (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
@@ -101,8 +117,8 @@
           (set! (-> (the-as (inline-array vector4w) a0-11) 0 w) 0)
           )
         (let ((v1-9 (the-as object (&+ (the-as pointer v1-8) 96))))
-          (set! (-> (the-as (pointer int32) v1-9)) #x9800)
-          (set! (-> (the-as (inline-array vector4w) v1-9) 0 y) #x8f00)
+          (set! (-> (the-as (pointer int32) v1-9)) #x9000)
+          (set! (-> (the-as (inline-array vector4w) v1-9) 0 y) #x8d00)
           (set! (-> (the-as (inline-array vector4w) v1-9) 0 z) 0)
           (set! (-> (the-as (inline-array vector4w) v1-9) 0 w) 0)
           )

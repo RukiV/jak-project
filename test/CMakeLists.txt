@@ -41,6 +41,7 @@ add_executable(goalc-test
         ${CMAKE_CURRENT_LIST_DIR}/common/formatter/test_formatter.cpp
         ${CMAKE_CURRENT_LIST_DIR}/game/kernel/common/test_goal_crash_map.cpp
         ${CMAKE_CURRENT_LIST_DIR}/game/graphics/opengl_renderer/sprite/test_Sprite3.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/game/graphics/texture/test_MjvVideoReader.cpp
         ${GOALC_TEST_FRAMEWORK_SOURCES}
         ${GOALC_TEST_CASES}
         )
