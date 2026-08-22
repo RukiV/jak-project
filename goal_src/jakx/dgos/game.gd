@@ -295,6 +295,7 @@
   "ambient.o"
   "speech.o"
   "region.o"
+  "region-driver.o"
   "script.o"
   "generic-obs.o"
   "lightning.o"

@@ -1,0 +1,138 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: region-driver.gc
+;; name in dgo: region-driver
+;; dgos: ENGINE, GAME
+
+;; og:preserve-this issue 595 / trigvol dossier: jakx-region-driver is bring-up
+;; authored code, not a decode. Retail's positional input into
+;; region-tree-execute lives in (post running net-player)
+;; (net-player_ir2.asm:10283-10420), split-screen aware and unreachable in the
+;; single-view bring-up (no net-player process exists here). This process
+;; reproduces the same shape for view 0 only: sweep *level*'s camera-pos pair
+;; through the 'camera region tree every frame, and act as the single-point
+;; receiver every send-event-driven script form in Jak X's level data targets
+;; (script.gc:1213-1296, 1395-1402, 2503-2515; the dossier's section 5 table).
+;; Until this process runs and a caller has armed the lever below, every one of
+;; those forms is a no-op -- proven by their own dispatch through send-event,
+;; not asserted here -- so landing this file is what makes the volumes fire at
+;; all.
+;;
+;; The dossier's composed design (section 6.3 item 3) also feeds the 'target
+;; tree from the racer vehicle's own swept trans once *jakx-racer* is armed;
+;; that split is R3 (issue 595), not this rung. Here 'target reuses the same
+;; camera segment as 'camera, which the dossier's probe 2 flags as the one
+;; place this driver's behavior is still support-grade rather than proof-grade
+;; (which named tree the w-level volumes actually live in -- section 8).
+;;
+;; 'want-display and 'want-load are routed to their real load-state methods
+;; (want-display-level, want-levels). The remaining side-effecting forms the
+;; corpus actually contains -- kill-vehicle, turbo-pad, endlessfall, want-sound
+;; -- are received but left inert (a one-line debug print only), matching the
+;; dossier's section 5 argument: none of the three forms that fire unconditionally
+;; (want-vis, want-force-vis, want-force-inside) appear anywhere in the level
+;; data, so this process is a complete control surface and a volume cannot do
+;; anything this file does not explicitly wire up.
+;;
+;; Lever: *jakx-region-driver-enable*, default #f, matching the campaign's
+;; standing lever discipline (*jakx-want-driver*, level.gc:3114). Arm with
+;; (set! *jakx-region-driver-enable* #t) from the REPL after (mi), then spawn
+;; with (jakx-region-driver-spawn) -- nothing calls that automatically yet, so
+;; a session that never arms/spawns it sees zero behavior change from this file
+;; landing.
+(define *jakx-region-driver-enable* #f)
+
+(deftype jakx-region-driver (process)
+  ()
+  (:state-methods
+    active
+    )
+  )
+
+(defstate active (jakx-region-driver)
+  :trans (behavior ()
+    ;; og:preserve-this: transcribed shape from (post running net-player)'s own
+    ;; camera-pos sweep (net-player_ir2.asm:10345-10370), view 0 only (see file
+    ;; header). prev <- curr, curr <- (camera-pos), every frame regardless of
+    ;; the lever, matching retail's own unconditional sweep; only the
+    ;; region-tree-execute calls below are lever-gated.
+    (set! (-> *level* prev-camera-pos 0 quad) (-> *level* curr-camera-pos 0 quad))
+    (set! (-> *level* curr-camera-pos 0 quad) (-> (camera-pos) quad))
+    (when (and *jakx-region-driver-enable*
+               *execute-regions*
+               (-> *setting-control* user-current region-mode)
+               (not (paused?))
+               )
+      (region-tree-execute 'camera (-> *level* prev-camera-pos 0) (-> *level* curr-camera-pos 0))
+      (region-tree-execute 'target (-> *level* prev-camera-pos 0) (-> *level* curr-camera-pos 0))
+      )
+    )
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('want-display)
+       (let ((level-name (the-as symbol (-> block param 1)))
+             (mode (the-as symbol (-> block param 2)))
+             )
+         (format 0 "jakx-region-driver: want-display ~A ~A~%" level-name mode)
+         (want-display-level *load-state* level-name mode)
+         )
+       )
+      (('want-load)
+       ;; og:preserve-this: retail's own handler (net-player_disasm.gc, the
+       ;; 'want-load case) walks the &rest levels list with `ref` up to 6
+       ;; entries -- the same bound want-levels itself uses
+       ;; (load-state.gc:203-213, dotimes 6) -- rather than taking the pair
+       ;; directly; script-context-method-11 (script.gc:462-469) is what
+       ;; proves &rest params arrive as a raw pair, so this walk is required,
+       ;; not a simplification. `ref` returns '() past the list's end
+       ;; (gcommon.gc:313-321), which want-levels' own per-slot `when` guard
+       ;; already treats as empty (load-state.gc:206, 215), so no separate
+       ;; bounds check is needed here.
+       (let ((names (new 'stack-no-clear 'array 'symbol 6)))
+         (dotimes (i 6)
+           (set! (-> names i) (the-as symbol (ref (-> block param 1) i)))
+           )
+         (format 0 "jakx-region-driver: want-load ~A~%" (-> block param 1))
+         (want-levels *load-state* names)
+         )
+       )
+      (('kill-vehicle)
+       (format 0 "jakx-region-driver: kill-vehicle (inert)~%")
+       )
+      (('turbo-pad)
+       (format 0 "jakx-region-driver: turbo-pad (inert)~%")
+       )
+      (('endlessfall)
+       (format 0 "jakx-region-driver: endlessfall (inert)~%")
+       )
+      (('want-sound)
+       (format 0 "jakx-region-driver: want-sound (inert)~%")
+       )
+      (else
+        (format 0 "jakx-region-driver: unhandled event ~A~%" message)
+        )
+      )
+    #f
+    )
+  :code sleep-code
+  )
+
+;; og:preserve-this: process-spawn's default :init convention is
+;; <type>-init-by-other (external-camera-controller-init-by-other,
+;; generic-obs.gc:3094, is the landed example); this process needs nothing
+;; from its spawner, so the init just enters the one state.
+(defbehavior jakx-region-driver-init-by-other jakx-region-driver ()
+  (go-virtual active)
+  )
+
+;; og:preserve-this: REPL spawn helper, matching play-boot's own
+;; process-spawn-function pattern (level.gc:9684) and display-loop's persistent
+;; top-level pool (main.gc:4763-4771). Not called from anywhere by default in
+;; this rung; a future rung can wire this into play once the lever above is
+;; proven safe to default on, matching *jakx-want-driver*'s own history
+;; (level.gc:3048-3114).
+(defun jakx-region-driver-spawn ()
+  (process-spawn jakx-region-driver :name "jakx-region-driver" :to *display-pool*)
+  (none)
+  )
