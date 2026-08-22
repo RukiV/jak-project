@@ -9724,6 +9724,46 @@
   "(method 67 scrolling-item-player)": [
     [32, "gp", "scrolling-menu-player"]
   ],
+  // lobby rung 4: the method-63/65 wall recurs outside the lobby-adventure/
+  // lobby-menu-manager pair rung 3 fixed it in. (anon-function 21
+  // lobby-games) repeats rung 3's exact "manager tag then dispatch id 65 on
+  // the result with a second symbol arg" idiom verbatim (ops 145-149 and
+  // 155-159 each call method 185, offset 756 = 16 + 185*4, on self with the
+  // 'manager tag and get back a bare process; the second call's return
+  // feeds a0 at op 160, then op 161 reads -4(a0) and op 162 dispatches
+  // offset 276 = 16 + 65*4 on it with a second symbol arg, 'search here vs
+  // rung 3's 'task0/'start-shaped). selection-menu-manager is still the
+  // only base-menu descendant declaring method 65; cast at the same
+  // consuming -4(reg) read rung 3 used.
+  "(anon-function 21 lobby-games)": [
+    [161, "a0", "selection-menu-manager"]
+  ],
+  // lobby rung 4: the dropdown-cup-strings site rung 3 held. Rung 3 read
+  // its own trial ("tried string-menu, dynamic-string-menu and games-list-
+  // selection as the cast target, all show the correct type annotation at
+  // the op itself and all still fail") as a decompiler placement
+  // limitation specific to merge blocks; re-tested here with an identical
+  // cast at the identical op (9, the merge block's first op, two
+  // predecessors: the null-ppointer-check's delay slot and process-tree's
+  // own field-32 deref) but with dropdown-item as the target instead, and
+  // it resolves cleanly with no placement change at all. The three
+  // originally-tried types cap out at offset-assert 560/561 (string-menu's
+  // own end, games-list-selection's 1-byte selection-index there), so raw
+  // offset 556 (declared 560 under this basic family's own +4 machine-vs-
+  // declared shift, the same shift string-menu's "strings" field already
+  // shows at 548 raw / 552 declared) never lands on a real field for any
+  // of them; dropdown-item's own "selected" field sits exactly at declared
+  // 560 and is basic-sized, a clean match. A second read 24 ops later at
+  // raw 568 (declared 572) matches dropdown-item's "enabled" field the same
+  // way, corroborating the type independent of this first site. Confirmed
+  // by re-running rung 3's own failing string-menu cast at this exact op
+  // in this worktree: identical "Could not figure out load: (l.wu (+ v1
+  // 556))" failure, ruling out the placement theory. Rung 3's caution on
+  // process-tree itself still holds (this is a per-site cast, not a
+  // process-tree field retype).
+  "(method 67 dropdown-cup-strings)": [
+    [9, "v1", "dropdown-item"]
+  ],
   "(anon-function 0 lobby-clans)": [
     [3, "a3", "event-message-block"]
   ],

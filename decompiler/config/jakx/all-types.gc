@@ -62573,7 +62573,23 @@
 (define-extern *scrap-book-3* array)
 (define-extern *scrap-book-1* array) ;; (array int16)
 (define-extern *scrap-book-2* array) ;; (array int16)
-(define-extern *progress-save-info* object) ;; mc-slot-info
+;; lobby rung 4: dropdown-profile's own method-67 override (lobby-profile's
+;; own decode, this worktree) indexes it with a raw (28 + 100*i) byte
+;; offset, one add-node per profile-selection row -- 28 is exactly
+;; mc-slot-info's own "file" field offset (memcard-h.gc, already landed,
+;; :offset-assert 28) and 100 (#x64) is exactly mc-file-info's own
+;; :size-assert, so every field the row reads independently confirms an
+;; already-landed mc-file-info sibling rather than needing a new type:
+;; present (offset 0) compared against integer 1 to pick the "has a save"
+;; branch vs the "--" placeholder branch; completion-percentage (offset 16,
+;; float) loaded, truncated and formatted "~D%%"; game-time0/game-time1
+;; (offsets 36/40) reloaded as two uint32 halves, shifted/or'd back into one
+;; 64-bit value and divided by 1080000/18000 (300 ticks/sec * 3600/60) to
+;; format "~2,'0D:~2,'0D" hours:minutes; secrets (offset 52) masked against
+;; bit 0; name (offset 68) taken by address, not dereferenced, matching its
+;; own 16-byte char-buffer declaration. Retyped mc-slot-info in place of the
+;; object placeholder; no new deftype needed.
+(define-extern *progress-save-info* mc-slot-info)
 ;; confirmed by this object's own decoder-inserted cast at the target-title
 ;; :post slot: (the-as (function object) post-memcard).
 (define-extern post-memcard (function object))
@@ -84090,7 +84106,14 @@
 ;; activate-bar's own body process-spawns an interface-cam through
 ;; *default-dead-pool*, referencing no arguments of its own; jakx-only
 (define-extern activate-bar (function object))
-(define-extern *garage-cinema* object)
+;; lobby rung 4: three independent lobby-results sites ((anon-function 9),
+;; (anon-function 18) op 190, (anon-function 14) op 28) all dispatch method
+;; id 10 (offset 56 = 16 + 10*4) on *garage-cinema* directly (no ppointer
+;; hop, straight -4/vtable read on the global itself), the same "generic
+;; object placeholder strands a real vtable dispatch" class as every other
+;; process-family global on this vein. garage-cinema is already resurrected
+;; above with a method-count-assert of 51, comfortably covering id 10.
+(define-extern *garage-cinema* garage-cinema)
 (define-extern garage-cinema-init-by-other (function entity object :behavior garage-cinema))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -84143,7 +84166,10 @@
 ;; (define-extern *progressive-accept* object)
 ;; (define-extern *ready-room-options-menu* object)
 ;; (define-extern *local-highscore-table-info* object)
-;; (define-extern get-net-driver-idx-by-type function)
+;; lobby rung 4: (anon-function 2 lobby-results) op 15 calls it with one
+;; arg, *lobby-awards-new-driver* (already typed int), and uses the result
+;; as an int index into *net-drivers*, shifted left 2 (word-scaled).
+(define-extern get-net-driver-idx-by-type (function int int))
 ;; (define-extern get-net-driver-by-type function)
 (define-extern get-driver-flavor-text (function (int32) int))
 
@@ -84465,6 +84491,19 @@
   :flag-assert         #x4d0200028c
   )
 |#
+;; lobby rung 4: resurrected from the dead block above (dead-type sweep);
+;; lobby-brs's own top-level-login type-news this type then immediately
+;; reads the symbol back in the same straight-line flow (the same idiom
+;; dropdown-profile's own type-new/read-back pair already uses cleanly),
+;; failing "Unknown symbol" only because the declaration above was dead.
+(deftype scrolling-task-menu (scrolling-menu)
+  ((task-ct  int32      :offset-assert 616)
+   (task-ids uint8 32 :offset-assert 620)
+   )
+  :method-count-assert 77
+  :size-assert         #x28c
+  :flag-assert         #x4d0200028c
+  )
 
 #|
 (deftype scrolling-net-task-menu (scrolling-task-menu)
@@ -84474,6 +84513,14 @@
   :flag-assert         #x4d0200028c
   )
 |#
+;; lobby rung 4: resurrected from the dead block above (dead-type sweep);
+;; lobby-brs's own top-level-login type-news this sibling the same way.
+(deftype scrolling-net-task-menu (scrolling-task-menu)
+  ()
+  :method-count-assert 77
+  :size-assert         #x28c
+  :flag-assert         #x4d0200028c
+  )
 
 ;; (define-extern *choose-your-adventure* object)
 ;; (define-extern *choose-your-online-adventure* object)
@@ -85806,7 +85853,11 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 ;; (define-extern *lobby-results-enabled* object)
-;; (define-extern *lobby-results-no-adventure-mode* object)
+;; lobby rung 4: top-level-login sets it #f directly (s.w! ... #f), and the
+;; two read sites ((anon-function 22) op 9, (anon-function 4) op 17) only
+;; test it for truthiness; object matches the sibling *lobby-results-*
+;; flag/screen globals in this same block.
+(define-extern *lobby-results-no-adventure-mode* object)
 ;; (define-extern wait-and-play-award function)
 ;; (define-extern lobby-results-awarded-vehicle function)
 ;; (define-extern lobby-results-first-awarded-vehicle function)
@@ -85818,16 +85869,31 @@
 ;; (define-extern *lobby-results-new-body-part-screen-text* array)
 ;; (define-extern *lobby-results-new-body-part-tab-text* array)
 ;; (define-extern *lobby-results-new-body-part-tab-text-ii* array)
-;; (define-extern *lobby-results-new-body-part-screen* object)
-;; (define-extern *lobby-results-new-vehicle-screen-text* array)
+;; lobby rung 4: top-level-login's own init sequence stores a freshly built
+;; menu object into it ((anon-function 25) op 66 reads it back the same
+;; way its *-new-vehicle-screen*/*-new-driver-screen* siblings below do).
+(define-extern *lobby-results-new-body-part-screen* object)
+;; lobby rung 4: top-level-login stores a static array into it; read back
+;; at (anon-function 12) op 197 the same way *-new-body-part-screen-text*
+;; above is written.
+(define-extern *lobby-results-new-vehicle-screen-text* array)
 ;; (define-extern *lobby-results-new-vehicle-class-text* array)
-;; (define-extern *lobby-results-new-vehicle-screen* object)
+;; lobby rung 4: same top-level-login menu-object init/read-back shape as
+;; *-new-body-part-screen* above; read at (anon-function 11) op 59.
+(define-extern *lobby-results-new-vehicle-screen* object)
 ;; (define-extern *lobby-results-new-events-levname-text* array)
 ;; (define-extern *lobby-results-new-events-levmode-text* array)
-;; (define-extern *lobby-results-new-events-screen-back* object)
+;; lobby rung 4: same top-level-login menu-object init/read-back shape;
+;; read at (anon-function 7) op 10.
+(define-extern *lobby-results-new-events-screen-back* object)
 ;; (define-extern *lobby-results-new-events-screen-front* object)
-;; (define-extern *lobby-results-new-qualifier-screen* object)
-;; (define-extern *lobby-results-new-driver-screen* object)
+;; lobby rung 4: same top-level-login menu-object init/read-back shape as
+;; its *-new-driver-screen*/*-new-vehicle-screen* siblings; read at
+;; (anon-function 4) op 76.
+(define-extern *lobby-results-new-qualifier-screen* object)
+;; lobby rung 4: same top-level-login menu-object init/read-back shape;
+;; read at (anon-function 2) op 10.
+(define-extern *lobby-results-new-driver-screen* object)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-net-h                    ;;
@@ -87835,7 +87901,6 @@
 ;; *game-title-extra* and *garage-string* stay declared array (menu2-lists
 ;; rung, evidence above); stale object-typed duplicates removed, same
 ;; later-define-extern-wins-at-compile reason as the blocks above.
-(define-extern *garage-cinema* object) ;; provisional: call-site evidence only
 (define-extern *generic-ai-tuning* array) ;; runtime-typed from savestate
 (define-extern *ghost-info-ptr* object) ;; provisional: call-site evidence only
 (define-extern *ghost-rec* object) ;; provisional: call-site evidence only
@@ -88487,7 +88552,6 @@
 (define-extern *print-game-text-work* object) ;; provisional: call-site evidence only
 (define-extern *profile-errors-continue* object) ;; provisional: call-site evidence only
 (define-extern *profile-yes-no* object) ;; provisional: call-site evidence only
-(define-extern *progress-save-info* object) ;; provisional: call-site evidence only
 ;; lobby-menu-manager rung: both read then passed straight through as the
 ;; object-typed a1 to (method 165 lobby-menu-manager)'s (function
 ;; lobby-menu-manager object object none) vmethod slot, the identical call
