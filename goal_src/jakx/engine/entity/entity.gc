@@ -672,11 +672,13 @@ No-op if already spawned. Retires with the real vehicle chain."
 ;; decompiler's type propagation does not carry the narrowed (type? ...
 ;; function) result across the loop edge, so the whole function falls back to
 ;; an unreconstructed local-vars machine dump. Hand-writing the level.gc-style
-;; cast here would be inventing content the decode does not contain, so
-;; reset-actors stays on the game-info.gc extern (guarded, unchanged: it still
-;; links to 0) until a future rung lands it for real, most likely by reworking
-;; the loop so the decompiler can re-derive the cast on its own. update-nav-
-;; meshes-method and nav-mesh-from-res-tag, entity-nav-mesh-by-aid's neighbors
+;; cast here would have been inventing content the decode does not contain, so
+;; reset-actors stayed on the game-info.gc extern until this held. It lands
+;; below in the entity S-stage rung, once type_casts.jsonc's op-verified
+;; reset-actors entry (jakx ir2 ops 153/163, the level-load-info callback
+;; dispatch) gives the decoder the same cast level.gc's unload! already
+;; carries for the single-shot case. update-nav-meshes-method and nav-mesh-
+;; from-res-tag, entity-nav-mesh-by-aid's neighbors
 ;; in the object, remain unlanded too: the former carries its own unrelated
 ;; decode ERROR (register a2 read unset), the latter decodes clean but names no
 ;; function on this rung's brief.
@@ -1223,6 +1225,259 @@ No-op if already spawned. Retires with the real vehicle chain."
       )
     )
   (label cfg-153)
+  0
+  (none)
+  )
+
+;; og:preserve-this the debug-actor menu cluster (entity S-stage rung, S2):
+;; L607's bare label resolves into this real inlined lambda once
+;; anonymous_function_types.jsonc's entity block retypes its five anon
+;; functions (function object object) to (function process object), matching
+;; jak3's own typing for the same functions. debug-actor decodes WARN (twin
+;; 0.985 against jak3): jakx iterates *default-pool*, *pusher-pool* and
+;; *entity-pool*, where jak3 only walks the last two. debug-actor-process
+;; decodes WARN and matches jak3's body exactly (twin 1.000). The deftype and
+;; its inspect method decode CLEAN; the inspect method is a genuine jakx
+;; original with no jak3 counterpart (jak3's entity.gc has no inspect method
+;; for this type). handle is typed handle here, matching the all-types.gc fix
+;; this same rung makes (debug-actor-info.handle was uint64 with a trailing
+;; ";; handle" comment recording the intended type). Retires the runtime-link
+;; extern notes for debug-actor in engine/debug/visvol-edit.gc and
+;; engine/debug/default-menu.gc: both are now ordinary forward declarations,
+;; not hazards, since entity.o (build order 329) compiles before either file
+;; (505 and 504).
+;;
+;; This does not fully close the Artist > Mike F menu row (menu-safety-map.md
+;; :109): default-menu.gc:3508's lambda also sends *debug-actor* a 'die event
+;; after the debug-actor call, and *debug-actor* (main-h.gc:5991) is written
+;; only by jak3's debug-draw-actors ((method 15 level-group) here), an L-stage
+;; form held out of this rung. send-event-function (gstate.gc) rejects a #f
+;; receiver before it does anything, so that half stays a proven no-op, not a
+;; crash, until debug-draw-actors lands.
+(deftype debug-actor-info (basic)
+  ((name     string)
+   (handle   handle)
+   (process  process)
+   (pid      int32)
+   )
+  )
+
+(defmethod inspect ((this debug-actor-info))
+  (when (not this)
+    (set! this this)
+    (goto cfg-4)
+    )
+  (format #t "[~8x] ~A~%" this (-> this type))
+  (format #t "~1Tname: ~A~%" (-> this name))
+  (format #t "~1Thandle: ~D~%" (-> this handle))
+  (format #t "~1Tprocess: ~A~%" (-> this process))
+  (format #t "~1Tpid: ~D~%" (-> this pid))
+  (label cfg-4)
+  this
+  )
+
+(define *debug-actor-info* (new 'static 'debug-actor-info :name #f))
+
+(define *pid-string* (new 'global 'string 128 (the-as string #f)))
+
+;; WARN: Return type mismatch int vs none.
+(defun-debug debug-actor ((arg0 string))
+  (let ((gp-0 *debug-actor-info*))
+    (set! (-> gp-0 name) #f)
+    (set! (-> gp-0 handle) (the-as handle #f))
+    (cond
+      ((string-prefix= "pid " arg0)
+       (let ((s4-0 (length arg0)))
+         (when (< 4 s4-0)
+           (clear *pid-string*)
+           (catn-string<-charp *pid-string* (&-> arg0 data 4) (+ s4-0 -4))
+           (set! (-> gp-0 pid) (string->int *pid-string*))
+           )
+         )
+       (let ((gp-1 (lambda ((arg0 process)) (let ((v1-0 *debug-actor-info*))
+                                              (when (= (-> arg0 pid) (-> v1-0 pid))
+                                                (let ((v0-0 (process->handle arg0)))
+                                                  (set! (-> v1-0 handle) (the-as handle v0-0))
+                                                  v0-0
+                                                  )
+                                                )
+                                              )
+                           )
+                   )
+             )
+         (iterate-process-tree *default-pool* gp-1 *null-kernel-context*)
+         (iterate-process-tree *pusher-pool* gp-1 *null-kernel-context*)
+         (iterate-process-tree *entity-pool* gp-1 *null-kernel-context*)
+         )
+       )
+      (else
+        (set! (-> gp-0 name) arg0)
+        )
+      )
+    )
+  0
+  (none)
+  )
+
+;; WARN: Return type mismatch int vs none.
+(defun-debug debug-actor-process ((arg0 process))
+  (let ((v1-0 *debug-actor-info*))
+    (set! (-> v1-0 handle) (process->handle arg0))
+    )
+  (none)
+  )
+
+;; og:preserve-this reset-actors and reset-actors-by-game-type (entity
+;; S-stage rung, S3): decode WARN (twin 0.896 against jak3 for reset-actors;
+;; reset-actors-by-game-type has no jak3 counterpart, matching game-info.gc's
+;; own "signature authored from usage" note). reset-actors's 321-line
+;; local-vars dump becomes this 113-line formed body once type_casts.jsonc's
+;; op-verified reset-actors entry (jakx ir2 ops 153/163) resolves the
+;; level-load-info callback dispatch's callee type; var_names.jsonc's
+;; reset-actors/s5-0 entry names the perm bitfield local. jakx iterates three
+;; process pools (*pusher-pool*, *entity-pool*, *locker-pool*) plus a fourth
+;; pass over *default-pool* killing powerup-draw processes, where jak3 walks
+;; only the first two pools and has no fourth pass; jakx also dispatches
+;; level-load-info callback slot 34 against jak3's slot 35, a data-driven
+;; index (level.gc's callback-list, not a struct offset) so this is a data
+;; difference, not a port bug -- get-callback-symbol-value-by-slot! warns
+;; rather than crashes on an unbound slot, and this call site additionally
+;; guards with (and s3-2 (type? s3-2 function)).
+;;
+;; Retires the reset-actors and reset-actors-by-game-type e2 hazards
+;; (engine/game/game-info.gc, engine/debug/default-menu.gc x4,
+;; engine/scene/scene.gc): all call sites now link to a real body. Landing
+;; also ARMS three currently-dormant nonzero? guards in game-info.gc: :224-225
+;; and :233-234 (reset-actors-by-game-type, both inside anon-function-14-
+;; game-info), and :552-553 inside initialize!'s 'debug mode-field branch,
+;; which is the R7 (#122) boot-crash guard itself and runs on every boot.
+;; This is a behavioral change reaching the boot path; it is not softened or
+;; held back for that reason, per this rung's own brief, and is called out for
+;; the boot smoke that gates the merge.
+;;
+;; og:preserve-this forward declaration: reset-actors's fourth pool pass below
+;; type-checks against powerup-draw, whose real deftype lives in
+;; net-powerup-h.o (build order 379), which compiles after entity.o (329).
+;; Same declare-type idiom this file already uses for net-process-mgr above
+;; (birth! (entity-actor)): the type-check only needs powerup-draw's identity
+;; to resolve, not its full field layout, so declaring it as a process-drawable
+;; subtype here is sufficient and later consumers get the full deftype.
+(declare-type powerup-draw process-drawable)
+
+(defun reset-actors-by-game-type ((arg0 symbol))
+  (reset-actors arg0)
+  0
+  (none)
+  )
+
+;; WARN: Return type mismatch int vs none.
+(defun reset-actors ((arg0 symbol))
+  (let* ((v1-0 arg0)
+         (perm
+           (cond
+             ((or (= v1-0 'life) (= v1-0 'debug))
+              (the-as
+                entity-perm-status
+                (entity-perm-status bit-0 error dead no-kill bit-5 subtask-complete bit-9 bit-12 bit-15)
+                )
+              )
+             ((= v1-0 'try)
+              (the-as
+                entity-perm-status
+                (entity-perm-status bit-0 error dead no-kill bit-5 subtask-complete bit-9 bit-12 bit-15)
+                )
+              )
+             ((= v1-0 'game)
+              (the-as entity-perm-status (entity-perm-status
+                                           bit-0
+                                           error
+                                           dead
+                                           no-kill
+                                           bit-4
+                                           bit-5
+                                           subtask-complete
+                                           complete
+                                           bit-9
+                                           bit-10
+                                           bit-12
+                                           bit-13
+                                           bit-15
+                                           )
+                      )
+              )
+             (else
+               (the-as
+                 entity-perm-status
+                 (entity-perm-status bit-0 error dead no-kill bit-4 bit-5 subtask-complete bit-9 bit-10 bit-12 bit-15)
+                 )
+               )
+             )
+           )
+         (s4-0 *game-info*)
+         )
+    (dotimes (s3-0 (-> *level* length))
+      (let ((v1-4 (-> *level* level s3-0)))
+        (when (or (= (-> v1-4 status) 'active) (= (-> v1-4 status) 'alive) (= (-> v1-4 status) 'loaded))
+          (when (-> v1-4 part-engine)
+            (set! (-> v1-4 part-engine length) 0)
+            0
+            )
+          (when (-> v1-4 entity)
+            (let ((s2-0 (-> v1-4 bsp level entity)))
+              (dotimes (s1-0 (-> s2-0 length))
+                (let ((s0-0 (-> s2-0 data s1-0 entity)))
+                  (if (not (and (-> s0-0 extra process) (logtest? (-> s0-0 extra process mask) (process-mask no-kill))))
+                      (kill! s0-0)
+                      )
+                  (update (-> s0-0 extra perm) arg0 (the-as entity-perm-status perm))
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
+    (let ((s4-1 (-> s4-0 perm-list)))
+      (dotimes (s3-1 (-> s4-1 length))
+        (update (-> s4-1 data s3-1) arg0 (the-as entity-perm-status perm))
+        )
+      )
+    )
+  (let ((s5-1 (lambda ((arg0 process)) (if (not (logtest? (-> arg0 mask) (process-mask no-kill)))
+                                           (deactivate arg0)
+                                           )
+                      )
+              )
+        )
+    (iterate-process-tree *pusher-pool* s5-1 *null-kernel-context*)
+    (iterate-process-tree *entity-pool* s5-1 *null-kernel-context*)
+    (iterate-process-tree *locker-pool* s5-1 *null-kernel-context*)
+    )
+  (let ((a1-11 (lambda ((arg0 process))
+                 (if (and (type? arg0 powerup-draw) (not (logtest? (-> arg0 mask) (process-mask no-kill))))
+                     (deactivate arg0)
+                     )
+                 )
+               )
+        )
+    (iterate-process-tree *default-pool* a1-11 *null-kernel-context*)
+    )
+  (if #t
+      (task-node-reset arg0)
+      )
+  (dotimes (s5-2 (-> *level* length))
+    (let ((s4-2 (-> *level* level s5-2)))
+      (when (= (-> s4-2 status) 'active)
+        (let ((s3-2 (the-as (function level none) (get-callback-symbol-value-by-slot! (-> s4-2 info) 34))))
+          (if (and s3-2 (type? s3-2 function))
+              (s3-2 s4-2)
+              )
+          )
+        )
+      )
+    )
+  (set! (-> *ACTOR-bank* birth-max) 1000)
+  (update-task-masks arg0)
   0
   (none)
   )

@@ -179,17 +179,22 @@
 (define-extern scf-get-time (function scf-time none))
 (define-extern select-continue-point (function int basic))
 
-;; og:preserve-this task-node-reset/reset-actors/reset-actors-by-game-type are not
-;; forward-declared anywhere in this tree yet; signatures taken from all-types.gc
-;; (task-node-reset, reset-actors) and the leg brief's own citation (all-types.gc:42743,
-;; reset-actors-by-game-type, "signature authored from usage, no jak3 counterpart").
-;; og:preserve-this runtime-link guards, R7 (#122): none of the three has a landed
-;; body anywhere in goal_src (grep confirms zero defuns); all three call sites below
-;; are guarded per the kill-current-talker precedent. reset-actors was the R7 boot
-;; crash itself: initialize!'s 'debug mode-field branch calls it unconditionally and
-;; unguarded, reached on every boot since *game-info*'s own default mode is 'debug
-;; (game-info-h.gc:340) and the boot's mode argument is 'boot, which together select
-;; that branch before this rung's fix.
+;; og:preserve-this ordinary forward declarations: game-info.o (build order 251)
+;; compiles before both task-control.o (339), task-node-reset's real home, and
+;; entity.o (329), reset-actors's and reset-actors-by-game-type's real home, so
+;; all three still need declaring here regardless of landing status.
+;; task-node-reset already carries a real defun (task-control.gc:525). As of the
+;; entity S-stage rung, reset-actors and reset-actors-by-game-type do too
+;; (entity.gc), so all three nonzero? guards below (task-node-reset's at :540,
+;; reset-actors-by-game-type's at :224-225 and :233-234, and reset-actors's at
+;; :552-553) are ARMED rather than DORMANT: their bodies now run.
+;; og:preserve-this runtime-link guard history, R7 (#122): none of the three had
+;; a landed body when these guards were added; all three call sites below were
+;; guarded per the kill-current-talker precedent. reset-actors was the R7 boot
+;; crash itself: initialize!'s 'debug mode-field branch called it unconditionally
+;; and unguarded, reached on every boot since *game-info*'s own default mode is
+;; 'debug (game-info-h.gc:340) and the boot's mode argument is 'boot, which
+;; together selected that branch before R7's guard fix.
 (define-extern task-node-reset (function symbol int))
 (define-extern reset-actors (function symbol none))
 (define-extern reset-actors-by-game-type (function symbol none))
