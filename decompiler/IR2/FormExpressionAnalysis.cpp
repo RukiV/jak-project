@@ -6326,7 +6326,24 @@ void push_asm_srl_to_stack(const AsmOp* op,
       stack.push_value_to_reg(*dst, pool.alloc_single_form(nullptr, other), true,
                               env.get_variable_type(*dst, true));
     } else {
-      stack.push_form_element(form_elt, true);
+      // Bare srl with no bitfield context: emit the same shr form the
+      // dsrl/dsrl32 funnel-shift pairs already produce (forge issue #319).
+      // Falling back to the raw assembly element here prints `.srl`, which
+      // goalc rejects outright.
+      if (!is_int_type(arg0_type) && !is_uint_type(arg0_type)) {
+        auto new_form = pool.alloc_element<GenericElement>(
+            GenericOperator::make_fixed(FixedOperatorKind::SHR),
+            pool.form<CastElement>(TypeSpec("int"), src_var),
+            pool.form<SimpleAtomElement>(SimpleAtom::make_int_constant(integer)));
+        stack.push_value_to_reg(*dst, pool.alloc_single_form(nullptr, new_form), true,
+                                env.get_variable_type(*dst, true));
+      } else {
+        auto new_form = pool.alloc_element<GenericElement>(
+            GenericOperator::make_fixed(FixedOperatorKind::SHR), src_var,
+            pool.form<SimpleAtomElement>(SimpleAtom::make_int_constant(integer)));
+        stack.push_value_to_reg(*dst, pool.alloc_single_form(nullptr, new_form), true,
+                                env.get_variable_type(*dst, true));
+      }
       //  throw std::runtime_error(
       //  fmt::format("Got invalid bitfield manip for srl at op {}: {} type was {}", op->op_id(),
       //             src_var->to_string(env), arg0_type.print()));
