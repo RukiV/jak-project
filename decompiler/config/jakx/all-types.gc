@@ -21554,7 +21554,24 @@
     ;; citation. net-start.gc's listener-continue decode proves the one-string-arg call
     ;; shape (vtable offset 92 = 16 + 4*19); the true return is a continue-point.
     (get-continue-by-name (_type_ string) continue-point) ;; 19
-    (set-continue! (_type_ basic int) continue-point) ;; 20 ;; jakx: third arg is player index, jak3 had symbol
+    ;; og:preserve-this signature fix, set-continue!/game-info-method-17 rung, the
+    ;; retail-startup ladder's keystone S rung (#192): the decompiler's own warning
+    ;; on this slot ("Function may read a register that is not set: a3") is a real
+    ;; fourth argument, not residue. jak3/jak2 parity
+    ;; (goal_src/jak3/engine/game/game-info.gc:269, "(_type_ basic symbol)") already
+    ;; carries this exact flag as their own second argument; jakx's own third
+    ;; argument (the player index, absent from jak3/jak2) pushed it one slot right.
+    ;; Confirmed directly against jakx's raw retail asm at every located call site
+    ;; in the corpus: game-info_ir2.asm op 25 (anon-function 14 game-info, a3=#t) and
+    ;; op 150 ((method 9 game-info)/initialize!, a3=#f); level_ir2.asm op 87 (bg,
+    ;; a3=#f); net-start_ir2.asm op 21 (listener-continue, a3=#f) and op 27
+    ;; (select-continue-point, a3=#f); scene_ir2.asm op 444 ((code release
+    ;; scene-player), a3=#f); script_ir2.asm op 12 (want-continue script form,
+    ;; a3=#f); target-death_ir2.asm ops preceding both offset-96 dispatches inside
+    ;; (code target-continue), a3=#f twice (this state is not landed, corroboration
+    ;; only). Seven of eight confirmed sites pass #f; the sole #t is the boot-time
+    ;; process spawn, exactly the retail startup path this rung lands.
+    (set-continue! (_type_ basic int symbol) continue-point) ;; 20 ;; jakx: third arg is player index, jak3 had symbol as its second; fourth arg is jak3's own symbol flag, shifted one slot
     (game-info-method-21 () none) ;; 21 ;; (game-info-method-21 (_type_) none)
     (game-info-method-22 (_type_ object object object) none) ;; 22 ;; (save-game (_type_ object object object) game-save)
     ;; og:preserve-this signature fix, R3a (#122): game-info_ir2.asm (method 9

@@ -1421,13 +1421,17 @@
                (-> *setting-control* user-target dialog-volume)
                0
                )
-             (let* ((s5-6 *game-info*)
-                    (s4-2 (method-of-object s5-6 set-continue!))
-                    (s3-0 gp-7)
-                    (a2-19 (view-get-active-index))
-                    )
-               (s4-2 s5-6 s3-0 a2-19)
-               )
+             ;; og:preserve-this set-continue!/game-info-method-17 rung: the raw
+             ;; method-of-object dispatch this replaces was the decompiler's
+             ;; own fallback for an arity it could not match against the
+             ;; then-3-arg declared signature (scene_ir2.asm op 444 sets a3=#f
+             ;; immediately before this dispatch, a register the old signature had
+             ;; no parameter for); now that set-continue! is declared with its real
+             ;; fourth argument, re-decompiling this object resolves the call
+             ;; cleanly and test/decompiler/reference/jakx/engine/scene/scene_REF.gc
+             ;; was regenerated to match (offline-test, --dump_current_output).
+             ;; Landed here verbatim from that regenerated reference.
+             (set-continue! *game-info* gp-7 (view-get-active-index) #f)
              (send-event (view-get-active-target) 'continue gp-7)
              )
            )

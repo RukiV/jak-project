@@ -13,36 +13,57 @@
   (logtest? (-> *game-info* secrets) #x4000)
   )
 
-;; og:preserve-this bring-up stubs, R7 (#122): methods 17/20/23 are dispatched
-;; unconditionally from initialize! and anon-function-14-game-info below, with no
-;; nonzero? guard possible (they are vtable slots, not symbols; a symbol guard cannot
-;; protect a zero vtable slot). R3a's own landing note on set-continue! claimed method
-;; 20 was "already landed"; it was not, only its signature was, and the resulting zero
-;; slot is the R7 boot crash (game-info+0x797, rip at goal 0, exactly this class of
-;; bug). All three share one root cause: game-info_ir2.asm's own bodies for methods
-;; 17/20 fail on the same unresolved global, "Unknown symbol: *default-continue*"
-;; (method 23 has no captured decode at all in this leg's scratch runs); the real
-;; continue-lookup system these implement is explicitly out of this leg's scope
-;; (section 1.10 of the leg brief: continue-point methods 9/10/11 are also declared but
-;; unimplemented). Stubbed rather than guarded, since the callers use the return value;
-;; a guard would still need a fallback value at the call site, which is what these are.
-;; R8 (#122) research, per the coordinator's ask: *default-continue* is NOT an
-;; out-of-object blocker. jak3 parity (goal_src/jak3/.../game-info.gc:148) and the
-;; retail raw_obj link table (grep -la across decompiler_out/jakx/raw_obj/*.go) both
-;; show it referenced only from game-info.go, so it belongs here. It is not the
-;; minimal fix, though: game-info_ir2.asm's own top-level-login (ops 208-260+, not
-;; landed anywhere in this tree, game-info.gc has no top-level code) carries a
-;; per-player loop that dispatches set-continue! itself with *default-continue* as the
-;; fallback value, which is the only place in this leg's evidence that would actually
-;; exercise a real set-continue! body; landing that loop, plus jakx's own
-;; *default-continue* static data (unconfirmed in this leg's decode scratch, jak3's
-;; own definition is parity reference only), plus method 20's own residual "may read a
-;; register that is not set: a3" error, is a real landing, not a minimal one. Stays
-;; stubbed. Retirement condition: *default-continue*'s jakx static data, the
-;; top-level-login per-player lazy-init loop, and the by-name continue lookup
-;; (get-continue-by-name, method 19, R5a's own start-1 blocker) all land for real.
+;; og:preserve-this *default-continue* forward-declared for the compiler
+;; (all-types.gc:87127 carries the matching decompiler-side declaration), read by
+;; set-continue!'s change-continue guard below. Landed ahead of both methods below
+;; so the compiler sees it before either references it (game-info.o build order
+;; concession, same class as anon-function-14-game-info's forward landing further
+;; down). Type-only: no real static data is landed for it (see both methods' own
+;; landing comments below for why their *default-continue* consumers stay stubbed
+;; rather than call through it).
+(define-extern *default-continue* continue-point)
+
+;; og:preserve-this landed for real, set-continue!/game-info-method-17 rung, the
+;; retail-startup ladder's keystone S rung (#192): the R7 (#122) stub
+;; comment this replaces named three retirement blockers for methods 17/20/23 --
+;; *default-continue*'s jakx static data, the top-level-login per-player lazy-init
+;; loop, and the by-name continue lookup (get-continue-by-name, method 19). Two are
+;; stale: get-continue-by-name landed for real at the net-start rung (issue 571,
+;; below), and neither this method's primary path nor set-continue!'s (string)/
+;; (continue-point) cases ever touch *default-continue* or the login loop; only the
+;; unreached *default-continue* fallback below needs them, and that fallback stays
+;; stubbed (see its own note). Method 23 is unaffected by this rung; it already
+;; landed separately with identity-stub semantics (below).
+;;
+;; Decodes clean at game-info_ir2.asm:9217-9305 (header L216, no warnings besides
+;; the return-type widening already reflected in this method's declared signature).
+;; Primary path: return player-info[arg0]'s current-continue if set. Every located
+;; caller in the corpus (this file's own anon-function-14-game-info and initialize!,
+;; both below) reaches this method only after the same player's current-continue was
+;; already populated by a preceding set-continue! call earlier in the same control
+;; flow, so the fallback below is reachable in principle but unproven live by any
+;; landed call site. [S: control-flow inference, not a runtime trace.]
 (defmethod game-info-method-17 ((this game-info) (arg0 int))
-  (the-as object #f)
+  (cond
+    ((-> this player-info arg0 current-continue)
+     (-> this player-info arg0 current-continue)
+     )
+    (else
+      ;; og-stub: retail's *default-continue* fallback (game-info_ir2.asm ops 8-25
+      ;; of this function: position-in-front-of-camera!, a quat reset via
+      ;; set-vector!, then (continue-point-method-10 gp-0 *load-state*) to bind the
+      ;; snapshot to *load-state*, returning it). Not landed: continue-point-method-10
+      ;; has no defmethod anywhere in goal_src (all-types.gc carries only its
+      ;; vtable-slot declaration), so an unguarded call would be the same
+      ;; zero-vtable-slot crash class the R7 (#122) fix already retired once for this
+      ;; file. *default-continue* itself is define-extern'd above for the type
+      ;; system but never given real static data, so even a guarded call would write
+      ;; position-in-front-of-camera!'s and set-vector!'s output through an
+      ;; unallocated pointer, corrupting the symbol table region rather than merely
+      ;; no-oping. Retirement: continue-point-method-10 lands a real defmethod and
+      ;; *default-continue* gets real static data.
+      )
+    )
   )
 ;; og:preserve-this scoped decode landing, R1 of the retail-staging ladder (#192):
 ;; a scratch decode scoped to game-info.o alone (allowed_objects ["game-info"], run
@@ -123,8 +144,82 @@
   (the-as continue-point #f)
   )
 
-(defmethod set-continue! ((this game-info) (arg0 basic) (arg1 int))
-  (the-as continue-point #f)
+;; og:preserve-this landed for real, this rung, the retail-startup ladder's
+;; keystone S rung (#192): the R7 (#122) stub comment above game-info-
+;; method-17 also blocked this method on *default-continue*'s static data and the
+;; top-level-login lazy-init loop; stale for the same reason documented there
+;; (neither the (string) nor (continue-point) case, nor the change-continue guard's
+;; pointer comparison below, touches either; only the unreached else arm does).
+;;
+;; Decodes clean at game-info_ir2.asm:8500-8840 (header L183), with one flagged
+;; warning: "Function may read a register that is not set: a3". That register is a
+;; real fourth argument, not residue: jak3/jak2 parity (goal_src/jak3/engine/game/
+;; game-info.gc:269, "(defmethod set-continue! ((this game-info) (arg0 basic) (arg1
+;; symbol))") already carries this exact flag as its own second argument, gating the
+;; identical "(not arg1)" check in the identical change-continue guard below; jakx's
+;; own third argument (the player index, absent from jak3/jak2's game-info) pushed
+;; it one slot right, into a3.
+;;
+;; Proven live, not assumed, against every located call site in the corpus: this
+;; file's own two landed callers (anon-function-14-game-info, initialize!, both
+;; below) plus four more across the tree (level.gc's bg, net-start.gc's
+;; listener-continue and select-continue-point, scene.gc's (code release
+;; scene-player), script.gc's want-continue script form) all explicitly write a3
+;; before this vtable dispatch (game-info_ir2.asm op 25 and op 150; level_ir2.asm op
+;; 87; net-start_ir2.asm op 21 and op 27; scene_ir2.asm op 444; script_ir2.asm op
+;; 12). Seven of eight confirmed writes are #f; the sole #t is anon-function-14's
+;; boot-time process spawn, exactly the retail startup path this rung lands. All six
+;; of the pre-existing landed call sites were missing this argument (silently
+;; reading whatever garbage sat in a3 at the time, since the stub never reached far
+;; enough to matter); all six are corrected in this same commit to pass their own
+;; site's evidenced value. target-death.gc's (code target-continue) state carries two
+;; more matching a3=#f writes around its own offset-96 dispatches, corroboration
+;; only since that state is not landed.
+;;
+;; The else arm (the *default-continue* composition) is proven unreached rather than
+;; assumed: every one of the seven real call sites above passes either a string
+;; literal, a game-info-method-18/get-continue-by-name return value, or a raw
+;; continue-point pulled from a level-load-info continues list, never #f or any
+;; other rtype. Stubbed rather than landed, the same class as game-info-method-17's
+;; own fallback: *default-continue* is define-extern'd above for the type system
+;; but never given real static data, so position-in-front-of-camera! and set-vector!
+;; would write their output through an unallocated pointer if this arm ever ran.
+;; Retirement: *default-continue*'s jakx static data lands for real.
+(defmethod set-continue! ((this game-info) (arg0 basic) (arg1 int) (arg2 symbol))
+  (let ((s4-0 (-> this player-info arg1 current-continue)))
+    (if (null? arg0)
+        (set! arg0 (the-as basic #f))
+        )
+    (case (rtype-of arg0)
+      ((string)
+       (let ((v1-9 (game-info-method-18 this (the-as string arg0))))
+         (if v1-9
+             (set! (-> this player-info arg1 current-continue) (the-as continue-point v1-9))
+             )
+         )
+       )
+      ((continue-point)
+       (set! (-> this player-info arg1 current-continue) (the-as continue-point arg0))
+       )
+      (else
+        ;; og-stub: retail's *default-continue* composition (game-info_ir2.asm ops
+        ;; 41-99 of this function: position-in-front-of-camera!, a quat reset via
+        ;; set-vector!, a vis-nick copy from lookup-level-info, then a want/
+        ;; want-sound copy loop from *load-state*). See this landing's citation
+        ;; above for why it is unreached and what blocks it.
+        )
+      )
+    (if (and (logtest? (-> this player-info arg1 current-continue flags) (continue-flags change-continue))
+             (and (!= (-> this player-info arg1 current-continue) *default-continue*) (not arg2))
+             )
+        (set! (-> this player-info arg1 current-continue) s4-0)
+        )
+    (when (!= s4-0 (-> this player-info arg1 current-continue))
+      (set! (-> this continue-deaths) 0)
+      (set! (-> this continue-time) (the-as uint (-> *display* game-clock frame-counter)))
+      )
+    )
+  (-> this player-info arg1 current-continue)
   )
 ;; og:preserve-this method 23's declared slot signature takes and returns
 ;; game-save, which was declare-type only here until this rung (game-save
@@ -218,19 +313,21 @@
 ;; x2 (already-declared extern, guarded, R7 (#122): corrects this note's own prior
 ;; claim that set-continue!/method 20 was "already landed"; it was not, and calling it
 ;; unguarded is the R7 boot crash, see the guard-set note above), the open!/'event
-;; send on sub-task-list slot 1, (set-continue! this ...) (method 20, stubbed above,
-;; R7; the raw also sets a third register before this call that the declared 2-arg
-;; signature does not read, left unpassed here to match), game-info-method-23/17
-;; (both stubbed above, R7), a (suspend), and finally select-continue-point/start:
-;; select-continue-point is guarded (all-types.gc:49713, unlanded), start is guarded
-;; per the leg's guard set.
+;; send on sub-task-list slot 1, (set-continue! this ...) (method 20, landed for real,
+;; set-continue!/game-info-method-17 rung, #192; this call is the sole a3=#t site
+;; among every located caller in the corpus, game-info_ir2.asm op 25, corrected here
+;; from a previously-missing fourth argument, see set-continue!'s own landing comment
+;; above), game-info-method-23 (identity-stub landed) / game-info-method-17 (landed
+;; for real, same rung as set-continue!), a (suspend), and finally
+;; select-continue-point/start: select-continue-point is guarded (all-types.gc:49713,
+;; unlanded), start is guarded per the leg's guard set.
 (defun anon-function-14-game-info ((mode-field symbol) (mode symbol) (continue-arg basic) (save game-save))
   (stop mode-field 0)
   (if (nonzero? reset-actors-by-game-type)
       (reset-actors-by-game-type mode)
       )
   (open! (-> *game-info* sub-task-list 1) 'event)
-  (set-continue! *game-info* continue-arg 0)
+  (set-continue! *game-info* continue-arg 0 #t)
   (when save
     (game-info-method-23 *game-info* save)
     (game-info-method-17 *game-info* 0)
@@ -321,7 +418,11 @@
 
       ;; set-continue! dispatch: og:preserve-this matches game-info_ir2.asm ops 126-153
       ;; verbatim; menu2-start/fmv-intro are plain string literals (section 1.5), not
-      ;; symbols, so they need no runtime-link guard.
+      ;; symbols, so they need no runtime-link guard. Fourth argument added,
+      ;; set-continue!/game-info-method-17 rung: op 150 sets a3=#f
+      ;; immediately before this dispatch, matching every non-boot-spawn call site in
+      ;; the corpus (see set-continue!'s own landing comment for the full list);
+      ;; previously missing.
       (set-continue! this
                       (cond
                         ((demo?) "fmv-intro")
@@ -330,6 +431,7 @@
                         (else (if (and *debug-segment* (= mode 'boot)) "menu2-start" "fmv-intro"))
                         )
                       view-idx
+                      #f
                       )
       (set! (-> this auto-save-count) 0)
       (set! (-> *setting-control* user-default auto-save) #f)
