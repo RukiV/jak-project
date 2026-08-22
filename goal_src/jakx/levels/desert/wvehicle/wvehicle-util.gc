@@ -74,16 +74,101 @@
 ;; those weapon-slot fields still want their own arming, but that is a
 ;; separate rung against a verified caller, not this crash.
 ;;
-;; The rest of retail's method 64 body (particle-subsampler seeding,
-;; rigid-body-control flag bits, per-wheel quaternion/extent setup,
-;; particle-group-id wiring, the weapon-slot arming above, gunmount spawn)
-;; stays held; this partial closes only the wheel-handle gap.
+;; og:preserve-this wheelmirror rung (falcon collapsed-flat-wheels fix):
+;; extends the partial above with retail's second per-wheel loop, asm ops
+;; [115]-[201] (same scoped decode cited above, asm lines 193-319), landed
+;; together with its drive-radius tail because avg-drive-wheel-radius
+;; divides by the loop's own drive-wheel count -- landing the loop without
+;; the tail would leave a divide-by-zero window open. Every offset below is
+;; confirmed against wvehicle-h.gc's and vehicle-h.gc's own declared
+;; asserts: vehicle-wheel-state and vehicle-wheel-info are both plain
+;; `structure`s, so their fields need no +4 basic-bias past the wheel
+;; array's own base (already +4'd, machine 2476 -> declared 2480, per the
+;; note above); `this`/`root`/`rbody` do take the +4 (root machine 184 ->
+;; declared 188, same as above); arg0 -- rigid-body-vehicle-constants,
+;; itself `structure`-derived, not `basic` -- takes none, confirmed by
+;; `transmission gear-count` (264 + 48 = 312) and `engine idle-rpm`
+;; (208 + 12 = 220) landing at their compound declared offsets with zero
+;; adjustment, matching the asm's raw 312/220 exactly.
+;;
+;; float2 is (vector-dot (-> this root transv) (-> this rbody matrix
+;; fvec)); byte0/float0 are plain accumulator locals rather than a new
+;; stack-struct type, per this rung's own brief -- this is a hand-authored
+;; insertion against a fixed spec, not a fresh decompiler run, so there is
+;; no struct-inference gap to fill. Per wheel: x-scale mirrors retail's own
+;; parity (1.0 even, -1.0 odd, offset 204) -- the read side of
+;; wvehicle-physics.gc:266's own `(* (-> s3-0 x-scale) (-> s3-0 info
+;; x-scale))`, retail's mirrored-mesh method for wheels 1 and 3; surface
+;; resets to #f (176); rev is float2 / (info radius * info scale) (200,
+;; radius*scale materialized once as retail's own asm does, reused for the
+;; drive-wheel accumulator below); the drive-wheel branch tests (-> info
+;; flags) against literal 1 (bit 0) rather than a defenum -- jakx has none
+;; for this field; inertia copies from info (188); probe-local-dir and
+;; local-axis load from static (0.0 -1.0 0.0 1.0) (32) and (1.0 0.0 0.0
+;; 1.0) (48), the same `vector-copy!` idiom jak3's own landed wvehicle.gc
+;; (lines 882-883) uses for the identical retail construct. Ops [176]-[177]
+;; (two "or a0, s7, r0" sets between the loop and the tail) write no memory
+;; and are overwritten before any read; the same dead-set idiom already
+;; appears, unlanded, at this function's own ops [32]-[33] and [67]-[68],
+;; so they carry no source-level construct and are not transcribed.
+;;
+;; The tail computes avg-drive-wheel-radius (float0 / (the float byte0),
+;; 2404) and wheel-rev (float2 / avg-drive-wheel-radius, 2364); the
+;; (< 0.0 float2) branch sets gear-select and engine-rev for fidelity with
+;; retail, dead at a standing spawn (float2 is a fore-aft dot product
+;; against transv, which starts zero). jak3's own per-side
+;; collision-mesh-index line, that game's equivalent wheel-loop addition,
+;; does not exist in jakx's (method 213 wvehicle) and is not added here; x
+;; is not negated in method 217 either.
+;;
+;; Ops [0]-[57] (particle-subsampler seeding, an unrelated 2-iteration
+;; loop), [67]-[75] (a second unrelated 4-iteration #f/0-store loop over
+;; antenna/fire-tracker/power-slide-hud/hang-time-hud/sound-id fields),
+;; [85]-[113] (gear-select's own 1-default, clutch-grab/sound-engine-
+;; envelope resets, a vtable call at slot 916, and the enumerated
+;; susp/jump/turbo/health 1.0 stores plus the rigid-body-control flag
+;; bits), and [202]+ (extent seeding, the section loop, weapon-slot
+;; arming, gunmount spawn) all stay held; retire each from this list only
+;; as a follow-up rung lands it.
 (defmethod rigid-body-object-method-64 ((this wvehicle) (arg0 object))
   (dotimes (i 4)
     (set! (-> this wheel i handle) (the-as handle #f))
     (set! (-> this wheel i tread-tracker) (the-as uint64 (the-as handle #f)))
     )
   (call-parent-method this arg0)
+  (let ((float2 (vector-dot (-> this root transv) (-> this rbody matrix fvec)))
+        (byte0 0)
+        (float0 0.0)
+        )
+    (dotimes (i 4)
+      (let* ((wheel (-> this wheel i))
+             (info (-> wheel info))
+             (radius-scale (* (-> info radius) (-> info scale)))
+             )
+        (set! (-> wheel x-scale) (if (= (logand i 1) 1)
+                                     -1.0
+                                     1.0
+                                     )
+              )
+        (set! (-> wheel surface) #f)
+        (set! (-> wheel rev) (/ float2 radius-scale))
+        (when (logtest? (-> info flags) 1)
+          (+! byte0 1)
+          (+! float0 radius-scale)
+          (set! (-> wheel drive-diff) 1.0)
+          )
+        (set! (-> wheel inertia) (-> info inertia))
+        (vector-copy! (-> wheel probe-local-dir) (new 'static 'vector :y -1.0 :w 1.0))
+        (vector-copy! (-> wheel local-axis) (new 'static 'vector :x 1.0 :w 1.0))
+        )
+      )
+    (set! (-> this avg-drive-wheel-radius) (/ float0 (the float byte0)))
+    (set! (-> this wheel-rev) (/ float2 (-> this avg-drive-wheel-radius)))
+    (when (< 0.0 float2)
+      (set! (-> this gear-select) (+ (-> (the-as rigid-body-vehicle-constants arg0) transmission gear-count) -1))
+      (set! (-> this engine-rev) (* 0.10471976 (-> (the-as rigid-body-vehicle-constants arg0) engine idle-rpm)))
+      )
+    )
   0
   (none)
   )
