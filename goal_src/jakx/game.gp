@@ -91,6 +91,31 @@
 ;;   )
 ;; (hash-table-set! *file-entry-map* "dir-tpages.go" #f)
 
+;; og:preserve-this GAME.CGO's own "menu2" widget engine (menu2-GAME, 64,240 bytes
+;; of real functions, unlanded). It collides by base name with MENU2.DGO's "menu2"
+;; (the game.gp:~500 block below, 773,504 bytes of pure background data): both
+;; retail members are literally named "menu2" (confirmed via dgo_unpacker against
+;; both GAME.CGO and MENU2.DGO), but DgoTool's packed name is always derived from
+;; the .gd entry's own text (Tools.cpp's parse_desc_file strips the extension), so
+;; a plain "menu2.go" entry here would fight MENU2.DGO's existing "menu2.go" for
+;; the SAME $OUT/obj/menu2.go build target. That is not a naming nuisance, it is a
+;; hard MakeSystem invariant: two defsteps naming the same :out throw "There are
+;; multiple ways to make output ..." at (mi) graph-construction time (verified
+;; directly by probing it before landing this block). Route around it by giving
+;; this copy a DIFFERENT on-disk slot: parse_desc_file derives name_in_dgo by
+;; stripping ".o" (2 chars) just as readily as ".go" (3 chars), so a "menu2.o"
+;; entry packs under the identical retail name "menu2" while living at its own
+;; $OUT/obj/menu2.o, never touching MENU2.DGO's $OUT/obj/menu2.go. Still a raw
+;; copy, not a compile: the ".o" here is a build-cache-slot choice, not a claim
+;; that goal_src/jakx has a menu2.gc backing it yet (it does not, this rung is
+;; wiring only). Pre-mark *file-entry-map* so game.gd's own cgo-file pass doesn't
+;; also try to synthesize a goal-src-sequence for "menu2.o" and go looking for a
+;; .gc file that isn't there.
+(defstep :in "$DECOMP/raw_obj/menu2-GAME.go"
+  :tool 'copy
+  :out '("$OUT/obj/menu2.o"))
+(hash-table-set! *file-entry-map* "menu2.o" #f)
+
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
 ;; note: some of these dependencies are slightly wrong because cgo-file doesn't really handle
