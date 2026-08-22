@@ -7,3 +7,434 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this net-start rung (issue 571): literal-1 top-level-login store,
+;; net-start_ir2.asm op 0-1.
+(define *net-start-view-ct* 1)
+
+;; og:preserve-this net-start rung: top-level-login only ever stores #f into this;
+;; listener-continue below is the only real writer, storing the string returned by
+;; (method 18 game-info)'s continue-name lookup.
+(define *listener-cpt* (the-as string #f))
+
+(define *net-hw-initted* (the-as object #f))
+(define *net-hw-config-id* 0)
+(define *net-hw-last-error* 0)
+
+;; og:preserve-this forward declarations, net-start rung: decompiler/config/jakx/
+;; all-types.gc already carries these two as evidence-based externs for the
+;; decompiler's own use, but that database is invisible to the compiler; neither
+;; symbol has a real defun or define-extern anywhere in goal_src yet (their home
+;; objects, presumably net-mgr.gc/net-player.gc, are unlanded), so the compiler
+;; needs its own forward reference, matching game-info.gc's own precedent for the
+;; same situation (start, reset-actors, task-node-reset, etc).
+(define-extern clear-local-players (function none))
+(define-extern net-mgr-start (function object none))
+(define-extern *net-mgr-startup-status* symbol)
+;; og:preserve-this forward declaration, net-start rung: select-continue-point's own
+;; home in all-types.gc's decompiler database, but its home object (presumably
+;; net-game-mgr.gc) is unlanded, so it needs the same compiler-side forward
+;; reference as the two symbols above.
+(define-extern *static-continues* object)
+
+;; og:preserve-this forward declarations, net-start rung: PS2 EE-net kernel calls
+;; with no native binding anywhere in this runtime (grep of game/ for "eenet" turns
+;; up zero matches, checked 2026-08-21, the same class as knet-get-dynamic-patches;
+;; see net-hw-stop's own og:preserve-this note below for the full citation). Needed
+;; here purely so the compiler accepts the guarded call sites below; none has a
+;; defun anywhere in goal_src.
+(define-extern knet-eenet-get-config-list (function object))
+(define-extern knet-eenet-poll-is-started (function int int))
+(define-extern knet-eenet-set-filter (function int int))
+(define-extern knet-eenet-start-hw (function int))
+(define-extern knet-eenet-shutdown (function none))
+(define-extern knet-eenet-poll-is-shutdown (function int))
+
+;; og:preserve-this forward declarations, net-start rung: same class as
+;; clear-local-players/net-mgr-start above. Both already carry a real (uncommented)
+;; declaration in decompiler/config/jakx/all-types.gc for the decompiler's own use,
+;; but the compiler needs its own.
+(define-extern *medius-account-name* object)
+(define-extern *medius-account-password* object)
+
+;; og:preserve-this net-start rung (issue 571): net-hw-stop, net-hw-start-part1 and
+;; net-hw-start-part2 below all bring up or tear down PS2 EE-net hardware through
+;; the knet-eenet-* family (knet-eenet-set-filter/start-hw/poll-is-started/
+;; shutdown/poll-is-shutdown), none of which has a native binding anywhere in this
+;; runtime (grep of game/ for "eenet" turns up zero matches, checked 2026-08-21).
+;; Same class as knet-get-dynamic-patches, whose own og:preserve-this note in
+;; dynamic-patch.gc's dynamic-patch-hook already sets the precedent this follows:
+;; with the hardware never reachable, a stub that reproduces the same failure value
+;; the real body's own error path would already produce is behaviorally correct
+;; offline, not an invented substitute. Retirement: an eenet-family native binding
+;; lands in game/kernel.
+(defun net-hw-stop ()
+  (set! *net-hw-initted* (the-as object #f))
+  #f
+  )
+
+;; og:preserve-this net-start rung: same class as net-hw-stop directly above.
+;; *net-hw-initted* stays #f rather than being set #t, since no hardware was
+;; actually brought up; net-mgr-start-hardware-already-done and hack-reset-state
+;; below already treat a #f/unset *net-hw-initted* as the normal offline case.
+(defun net-hw-start-part1 ()
+  #f
+  )
+
+;; og:preserve-this net-start rung: same class as net-hw-stop above.
+(defun net-hw-start-part2 ()
+  #f
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571). Clean disasm.gc
+;; transcription verbatim.
+(defun hack-reset-state ((arg0 symbol))
+  (when *net-mgr*
+    (format 0 "going idle~%")
+    (suspend-for (seconds 10)
+      (send-event *net-mgr* 'leave-game)
+      (send-event *net-mgr* 'leave-lobby)
+      (suspend)
+      (if (and (-> *net-mgr* next-state) (= (-> *net-mgr* next-state name) 'idle))
+          (goto cfg-14)
+          )
+      )
+    (label cfg-14)
+    (format 0 "killing mgr~%")
+    (while *net-mgr*
+      (send-event *net-mgr* 'go-die)
+      (suspend)
+      )
+    (format 0 "ok... he's dead...~%")
+    )
+  (when (and arg0 *net-hw-initted*)
+    (format 0 "shutting down net-hw~%")
+    (net-hw-stop)
+    )
+  0
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571). Clean disasm.gc
+;; transcription, with two runtime-link guards added (check_extern_defun flags both
+;; clear-local-players and net-mgr-start: declared here, no defun anywhere in
+;; goal_src, presumably net-mgr.gc/net-player.gc's own unlanded territory).
+;; Same class and same technique as game-info.gc's own reset-actors/task-node-reset
+;; guards (R7, #122). Retirement: whichever object lands these two for real.
+(defun net-mgr-start-hardware-already-done ((arg0 symbol))
+  (with-pp
+    (when *net-mgr*
+      (format 0 "there is a net-mgr already... killing...~%")
+      (until (and (-> *net-mgr* next-state) (= (-> *net-mgr* next-state name) 'idle))
+        (send-event *net-mgr* 'leave-game)
+        (let ((a1-2 (new 'stack-no-clear 'event-message-block)))
+          (let ((v1-5 (process->ppointer pp)))
+            (set! (-> a1-2 from) v1-5)
+            )
+          (set! (-> a1-2 num-params) 0)
+          (set! (-> a1-2 message) 'leave-lobby)
+          (send-event-function *net-mgr* a1-2)
+          )
+        (suspend)
+        )
+      (format 0 "killing mgr~%")
+      (while *net-mgr*
+        (send-event *net-mgr* 'go-die)
+        (suspend)
+        )
+      (format 0 "ok... he's dead...~%")
+      )
+    (if (nonzero? clear-local-players)
+        (clear-local-players)
+        )
+    (if (nonzero? net-mgr-start)
+        (net-mgr-start arg0)
+        )
+    (until #f
+      (suspend)
+      (if (= *net-mgr-startup-status* 'ok)
+          (return #t)
+          )
+      (when (= *net-mgr-startup-status* 'dead)
+        (hack-reset-state #t)
+        (return #f)
+        )
+      )
+    #f
+    )
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571). Clean disasm.gc
+;; transcription, with the same two runtime-link guards as
+;; net-mgr-start-hardware-already-done above (clear-local-players, net-mgr-start).
+(defun hack-start-local-game ()
+  (local-vars (v1-14 object))
+  (hack-reset-state #t)
+  (suspend)
+  (suspend)
+  (if (nonzero? clear-local-players)
+      (clear-local-players)
+      )
+  (if (nonzero? net-mgr-start)
+      (net-mgr-start #f)
+      )
+  (until #f
+    (suspend)
+    (when (= *net-mgr-startup-status* 'ok)
+      #t
+      (goto cfg-8)
+      )
+    (when (= *net-mgr-startup-status* 'dead)
+      (hack-reset-state #t)
+      (return #f)
+      )
+    )
+  #f
+  (label cfg-8)
+  (suspend)
+  (suspend)
+  (format 0 "hack-start-local-game: net-mgr ~A~%" *net-mgr*)
+  (send-event *net-mgr* 'start-sp-game)
+  (until v1-14
+    (suspend)
+    (set! v1-14 (and (-> *net-mgr* next-state) (= (-> *net-mgr* next-state name) 'playing-sp-game)))
+    )
+  (until *net-world*
+    (suspend)
+    )
+  (format 0 "hack-start-net-local-game succeeded~%")
+  (suspend)
+  0
+  (none)
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571). Clean disasm.gc
+;; transcription verbatim.
+(defun artist-clean-up-net-mgr ()
+  (local-vars (v1-14 object) (v1-31 object))
+  (when *net-mgr*
+    (when (and (-> *net-mgr* next-state) (let ((v1-7 (-> *net-mgr* next-state name)))
+                                           (or (= v1-7 'playing) (= v1-7 'playing-sp-game))
+                                           )
+               )
+      (send-event *net-mgr* 'leave-game)
+      (until v1-14
+        (suspend)
+        (set! v1-14 (and (-> *net-mgr* next-state) (let ((v1-17 (-> *net-mgr* next-state name)))
+                                                     (or (= v1-17 'idle) (= v1-17 'lobby-idle))
+                                                     )
+                         )
+              )
+        )
+      (when (and (-> *net-mgr* next-state) (= (-> *net-mgr* next-state name) 'lobby-idle))
+        (send-event *net-mgr* 'leave-lobby)
+        (until v1-31
+          (suspend)
+          (set! v1-31 (and (-> *net-mgr* next-state) (= (-> *net-mgr* next-state name) 'idle)))
+          )
+        )
+      )
+    (send-event *net-mgr* 'go-die)
+    (while *net-mgr*
+      (suspend)
+      )
+    )
+  0
+  (none)
+  )
+
+(define *artist-continue-busy* #f)
+
+;; og:preserve-this NOT landed with a real body, net-start rung (issue 571): every
+;; path through this function's decode reaches an unlanded external unconditionally,
+;; which the e2 discipline holds rather than guards.
+;;   - the "already in a race" branch (arg0's process-mask bit #x40000 clear) calls
+;;     start unconditionally (net-start_ir2.asm op 20-24); start has no defun
+;;     anywhere in goal_src (all-types.gc:48330-ish, R5a's own start-1 blocker note).
+;;   - the "start local game" branch waits for *net-mgr*/*net-world* to reach
+;;     specific states, then dispatches net-world's own vtable methods 47, 49, 51,
+;;     53, 63, 68 and 69 (net-start_ir2.asm ops at vtable offsets 204, 212, 220,
+;;     228, 268, 288 and 292 = 16 + 4*method), none of which has a defmethod
+;;     anywhere in net-world.gc (grep confirms; net-world.gc lands methods 64, 76,
+;;     77 and 78 only). A vtable slot cannot be runtime-link guarded the way a
+;;     symbol can (game-info.gc's own R7 note on this exact limitation, methods
+;;     17/20/23); the zero slot would jump to address 0 the moment this path runs.
+;; Stubbed rather than left undefined: listener-continue and listener-task below
+;; both pass this function's own symbol to process-spawn-function as a spawned
+;; process's entry point, so an undefined artist-continue would link that spawn to
+;; zero the first time either fires (AGENTS.md rule 5). The stub clears the busy
+;; flag it would otherwise leave stuck set and returns the same #f value every real
+;; exit path produces. Signature is STRONG not PROVEN: the two landed call sites
+;; disagree on arg0's exact type (listener-continue passes *listener-cpt*, a
+;; string; listener-task passes #f, a symbol), so arg0 is declared the common
+;; supertype object; arg1 is int at both sites (listener-continue passes literal
+;; -1, listener-task forwards its own int arg0). Retirement: net-world.gc lands
+;; methods 47/49/51/53/63/68/69 for real, and start/start-1 land.
+(defun artist-continue ((arg0 object) (arg1 int))
+  (set! *artist-continue-busy* #f)
+  (the-as object #f)
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571). Clean disasm.gc
+;; transcription verbatim; this is the default-menu rung's own call target
+;; (all-types.gc's net-start section note).
+(defun listener-continue ((arg0 string))
+  (let ((gp-0 (game-info-method-18 *game-info* arg0)))
+    (when (not gp-0)
+      (format 0 "can't find continue ~A~%" arg0)
+      (return (the-as object #f))
+      )
+    (let* ((a0-3 *game-info*)
+           (t9-2 (method-of-object a0-3 set-continue!))
+           (a1-2 gp-0)
+           (a2-1 0)
+           )
+      (t9-2 a0-3 a1-2 a2-1)
+      )
+    (set! *listener-cpt* gp-0)
+    )
+  (kill-by-name "artist-continue" *active-pool*)
+  (process-spawn-function process artist-continue *listener-cpt* -1 :name "artist-continue")
+  0
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571). Clean disasm.gc
+;; transcription verbatim.
+(defun listener-task ((arg0 int))
+  (kill-by-name "artist-continue" *active-pool*)
+  (process-spawn-function process artist-continue #f arg0 :name "artist-continue")
+  0
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571), the leg's payoff:
+;; this is the debug menu's Game>Continue submenu press path (all-types.gc's
+;; net-start section note documents the runtime-link guard this retires in
+;; game-info.gc). *static-continues* is typed object (provisional, all-types.gc), so
+;; the offset-12 read below cannot resolve through ->; transcribed as raw pointer
+;; arithmetic, same class as game-info.gc's own best-times/game-info-pad2 handling.
+;; The mid-function (break!) is verbatim from the decode (net-start_ir2.asm op 21,
+;; the exact lw r0, 2(r0) idiom this codebase's decompiler already recognizes as
+;; break!, matching game-info.gc's own usage); both control-flow paths converge on
+;; it unconditionally, so it is not a decode artifact to remove. set-continue!'s own
+;; return is read into a register but never used afterward (net-start_ir2.asm op
+;; 30, overwritten before the function's real return), matching the raw machine
+;; code exactly.
+(defun select-continue-point ((arg0 int))
+  (local-vars (gp-0 uint))
+  (when (not *net-game-mgr*)
+    (set! gp-0 (the-as uint #f))
+    (goto cfg-7)
+    )
+  (set! gp-0 (l.wu (+ (* arg0 4) (the-as int *static-continues*) 12)))
+  ;; og:preserve-this build-order raw access: net-mgr's real deftype (game-state's
+  ;; own struct type too) lands in cam-states.gc (game.gd position 469), which
+  ;; compiles after net-start.o (position 416); at this point in the build net-mgr
+  ;; is still its process forward declaration, with no game-state field visible to
+  ;; the compiler. -> game-state local-machine-idx is declared offset 152 + 4 = 156
+  ;; from *net-mgr* (all-types.gc's net-mgr-game-state deftype), read directly.
+  (-> *net-players* (+ arg0 (* (if *net-mgr*
+                                   (-> (the-as (pointer int32) (&+ *net-mgr* 156)) 0)
+                                   0
+                                   )
+                               2
+                               )
+                       )
+      )
+  (break!)
+  (let* ((v1-13 *game-info*)
+         (t9-0 (method-of-object v1-13 set-continue!))
+         (a1-3 gp-0)
+         (a2-0 arg0)
+         )
+    (t9-0 v1-13 (the-as basic a1-3) a2-0)
+    )
+  (label cfg-7)
+  (the-as basic gp-0)
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571). Clean disasm.gc
+;; transcription verbatim; this is the default-menu rung's own call target
+;; (all-types.gc's net-start section note).
+(defun set-local-vehicle ((arg0 int))
+  (set! (-> *game-info* current-vehicle) (the-as uint arg0))
+  (when *net-world*
+    (set! (-> *net-world* net-state players 0 vehicle-selection) 0)
+    (set! (-> *net-world* net-state assigned-drivers 0) (the-as uint 0))
+    (dotimes (v1-5 (-> *net-vehicles* length))
+      (if (= (-> *net-vehicles* v1-5 vt) (-> *game-info* current-vehicle))
+          (set! (-> *net-world* net-state players 0 vehicle-selection) v1-5)
+          )
+      )
+    )
+  0
+  (none)
+  )
+
+;; og:preserve-this landed ahead of qo so the compiler sees it defined before qo's
+;; own spawn site references it, matching game-info.gc's own anon-function-14
+;; precedent for the same situation (the original retail object has no such
+;; ordering constraint; this is a GOAL-source-only concession). Handles the medius
+;; account login and connect-to-lobby handshake; the loop's 9000-tick threshold is
+;; transcribed as (seconds 30), corroborated by hack-reset-state's own 3000-tick
+;; wait above, which the decompiler auto-recognizes as (seconds 10) at the same
+;; 300-ticks-per-second rate.
+(defun anon-function-1-net-start ((arg0 object) (arg1 object))
+  (with-pp
+    (hack-reset-state #t)
+    (net-hw-start-part1)
+    ;; og:preserve-this runtime-link guard: knet-eenet-get-config-list has no
+    ;; native binding in this runtime (net-hw-stop's own og:preserve-this note
+    ;; above carries the full eenet-family evidence). Guarded rather than stubbed
+    ;; since everything else in this function is real, landable login/lobby logic.
+    (when (nonzero? knet-eenet-get-config-list)
+      (let ((v1-0 (the-as pointer (knet-eenet-get-config-list))))
+        (set! *net-hw-config-id* (-> (the-as (pointer int32) (&+ v1-0 4)) 0))
+        )
+      )
+    (net-hw-start-part2)
+    (format 0 "net-hw-initted is ~A~%" *net-hw-initted*)
+    (net-mgr-start-hardware-already-done #t)
+    (suspend)
+    (copy-string<-string (the-as string *medius-account-name*) (the-as string arg0))
+    (copy-string<-string (the-as string *medius-account-password*) (the-as string arg1))
+    ;; og:preserve-this build-order raw access: same constraint as select-continue-
+    ;; point's own note above (net-start.o compiles before cam-states.o, which
+    ;; carries net-mgr's real deftype). auto-register is declared offset 288.
+    (set! (-> (the-as (pointer symbol) (&+ *net-mgr* 288)) 0) #t)
+    (let ((a1-4 (new 'stack-no-clear 'event-message-block)))
+      (set! (-> a1-4 from) (process->ppointer pp))
+      (set! (-> a1-4 num-params) 0)
+      (set! (-> a1-4 message) 'connect-to-lobby)
+      (send-event-function *net-mgr* a1-4)
+      )
+    (let ((gp-1 (-> pp clock frame-counter)))
+      (suspend-for (seconds 30)
+        (when (and *net-mgr*
+                   (-> *net-mgr* next-state)
+                   (or (= (-> *net-mgr* next-state name) 'lobby-idle) (= (-> *net-mgr* next-state name) 'idle))
+                   )
+          (goto cfg-19)
+          )
+        )
+      )
+    (label cfg-19)
+    (if (not (and *net-mgr* (-> *net-mgr* next-state) (= (-> *net-mgr* next-state name) 'lobby-idle)))
+        (return (begin
+                  (format 0 "connect failed!!~%")
+                  (hack-reset-state #t)
+                  (the-as object #f)
+                  )
+                )
+        )
+    (let ((a1-6 (new 'stack-no-clear 'event-message-block)))
+      (set! (-> a1-6 from) (process->ppointer pp))
+      (set! (-> a1-6 num-params) 0)
+      (set! (-> a1-6 message) 'hack-goto-lobby)
+      (send-event-function (the-as process-tree *lobby-menu-manager*) a1-6)
+      )
+    )
+  )
+
+;; og:preserve-this landed for real, net-start rung (issue 571). Clean disasm.gc
+;; transcription verbatim.
+(defun qo ((arg0 object) (arg1 object))
+  (process-spawn-function process anon-function-1-net-start arg0 arg1 :name "qo")
+  )
