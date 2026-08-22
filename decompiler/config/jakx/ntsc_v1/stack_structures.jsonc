@@ -11,6 +11,28 @@
   // remaining-errors accounting in this rung's own report).
   "(method 177 wvehicle)": [[16, "wvehicle-stack-type2"]],
   "(method 230 wvehicle)": [[16, "wvehicle-stack-type1"]],
+  // issue 571 R8 adjudication (vehicle-marker-batch rung): the wall
+  // immediately past the transplant above is not a stack structure at all.
+  // A scoped decode of wvehicle-util reports "In (method 177 wvehicle):
+  // Failed to decompile integer enum. Value 63 (0x3f) wasn't found in enum
+  // pat-material", from (logand (-> ... pat material) 63) followed by
+  // (<.si a0-21 34) gating a *material-to-rb-material-table* lookup. jak3's
+  // pat-material (decompiler/config/jak3/all-types.gc, same file layout) is
+  // byte-identical to jakx's: same 34 named values 0-33, same uint8 backing,
+  // same pat-surface material field (offset 10, size 6). The landed header
+  // (goal_src/jakx/engine/collide/pat-h.gc, mirrored here) settles it
+  // directly: pat-material->string's own case dispatch enumerates all 34
+  // names and falls back to a generic "*unknown*" for everything else, so
+  // the game's own code already treats every unnamed value in the 6-bit
+  // range, including 63 (the field's own all-ones mask, not a real
+  // material id) as an intentional catch-all, not a coverage gap. Naming
+  // 63 would misrepresent a bitmask literal as a distinct material with no
+  // supporting evidence. No all-types.gc or pat-h.gc change follows from
+  // this; the wall is decompile_int_enum_from_int's own exact-match
+  // requirement for a non-bitfield enum (decompiler/util/data_decompile.cpp)
+  // encountering a literal that was never meant to have a name. Retire this
+  // note if (method 177 wvehicle) is later landed and a real config lever
+  // (a type_casts.jsonc int cast on this op, not an enum edit) clears it.
   // activate-bar, 3d-menu-elements rung: sp+16 is passed as the trailing
   // arg to run-function-in-process (interface-cam-init-by-other's own
   // side reads it with a 16-byte l.q load), matching a plain vector.
@@ -1601,5 +1623,68 @@
   // file's type_casts.jsonc, "(method 21 gui-control)") feeds, resolves on
   // its own from that call's own (dest vector) parameter type and needs no
   // entry here.
-  "(method 21 gui-control)": [[32, "vector"]]
+  "(method 21 gui-control)": [[32, "vector"]],
+  // issue 571 R8, vehicle-marker-batch rung: six "Failed to guess stack use
+  // for 16" sites on vehicle (methods 82, 86, 88, 132, 135, 156), each
+  // archaeologized from this rung's own scoped decode (vehicle object).
+  // (method 82 vehicle): sp+16 is passed straight to method 84's own vtable
+  // slot (raw offset 352, rigid-body-object-method-84, already declared
+  // (_type_ rigid-body-impact touching-shapes-entry) none) as its rigid-
+  // body-impact arg1; the velocity field (offset 32) is quad-copied from
+  // attack-info's own offset 32, the impulse field (offset 48) takes a
+  // direct float store, and the process field (offset 56) is read then
+  // written back as a word, all three matching rigid-body-impact's declared
+  // layout exactly. sp+96 (16 + rigid-body-impact's own 0x44 size, rounded
+  // to 16) is a second, independent vector: written by a full quad store at
+  // op 37, then consumed by vector-!2 as the subtrahend against the
+  // rigid-body-impact's own point field to compute its velocity.
+  "(method 82 vehicle)": [[16, "rigid-body-impact"], [96, "vector"]],
+  // (method 86 vehicle): sp+16 is a collide-query (offsets 208/224 hit
+  // exactly on its declared start-pos/move-dist fields). sp+560 (16 +
+  // collide-query's own 0x21c size, rounded to 16), the same offset the
+  // established (method 71 coli-atlas-globe) precedent above uses for its
+  // own trailing structure, is find-water-simple's own out-param: offset
+  // 576 (relative 32) matches water-info's base-height float exactly, and
+  // offset 592 (relative 48) matches water-info's flags field exactly, both
+  // read back and tested against water-flag bit constants immediately after
+  // the call. This method also fails independently at op 13 ("Called a
+  // function, but we do not know its type", find-water-simple has no
+  // landed signature) and touches several more offsets past water-info
+  // (608 through 684) that this rung did not trace; those remain the
+  // decompiler's own guess.
+  "(method 86 vehicle)": [[16, "collide-query"], [560, "water-info"]],
+  // (method 88 vehicle): sp+16 is a two-element vector array sized to the
+  // function's own 32-byte stack_vars span exactly. Slot 0 is filled by a
+  // quad copy from collide-shape's own offset 60; slot 1 (s5+16) is written
+  // by vector-!2 subtracting slot 0 from a rigid-body-control field, the
+  // same two-write shape (method 136 vehicle) established earlier in this
+  // file for its own three-vector array.
+  "(method 88 vehicle)": [[16, ["inline-array", "vector", 2]]],
+  // (method 132 vehicle): sp+16 is passed straight to method 129's own
+  // vtable slot (raw offset 532), already typed (function vehicle
+  // vehicle-controls none) by the decompiler itself from that call. Offset
+  // 4 (sp+20) is read back as a float and compared against 1.0, matching
+  // vehicle-controls' own throttle field exactly; this is the same
+  // vehicle-controls type the wvehicle-small-tier entry names on
+  // player-wait-control-hook's own field evidence (comment above, near
+  // (method 136 vehicle)).
+  "(method 132 vehicle)": [[16, "vehicle-controls"]],
+  // (method 135 vehicle) HELD, not pinned: sp+16 is used only briefly (the
+  // s5 register holding it is reassigned to unrelated values around op 431
+  // of this 800-byte-frame, ~2000-line function) for two writes -- a
+  // truncated time-frame low-word at relative offset 4 (sd-loaded, sw-
+  // stored) read back later via subtraction against a vehicle field, and a
+  // single byte at relative offset 8 copied from vehicle's own view field.
+  // No corpus type matches this two-field heterogeneous shape, and forcing
+  // a raw array risks a width mismatch against the mixed sw/sb accesses
+  // this rung did not fully verify would resolve cleanly. The function also
+  // fails independently at op 39 on an unrelated unresolved vehicle field
+  // (raw offset 796), so it cannot fully decompile in this rung regardless
+  // of this slot; left to the decompiler's own guess pending a wider
+  // vehicle-h.gc field pass.
+  // (method 156 vehicle): sp+16 is a single scratch word: a time-frame's
+  // low word stored via sw at op 4, then immediately read back via lwu at
+  // op 6 and subtracted from a vehicle field to gate a state transition.
+  // Same lone-scalar shape as vis-dist-additional-ok? above.
+  "(method 156 vehicle)": [[16, ["array", "uint32", 1]]]
 }
