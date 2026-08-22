@@ -9664,11 +9664,15 @@ drive/camera logic below ever runs."
     )
   (on #t)
   ;; og:preserve-this restored, R6 (#122): game-info.gc's initialize! landed by R3a
-  ;; (85504cc1d), closing the reason this was disabled. The 296 static continue
-  ;; points initialize! and its continue path can reach all carry :on-goto #f
-  ;; (level-info.gc:87-89): the decompiler cannot emit the original anonymous lambdas,
-  ;; so any continue whose retail behaviour lived in :on-goto silently does nothing now.
-  ;; That gap is not this rung's to close; filed separately per the leg brief.
+  ;; (85504cc1d), closing the reason this was disabled. Of the 296 static continue
+  ;; points initialize! and its continue path can reach, 5 (the startup ladder's own:
+  ;; title-start, title-restart, title-from-intro, menu2-start, menu2-start-button,
+  ;; level-info.gc:87-146 and :12096-12135) now carry the real landed :on-goto lambda,
+  ;; title-band rung. The other 291 still carry :on-goto #f: the decompiler cannot
+  ;; emit the original anonymous lambdas embedded in a static array literal, so any
+  ;; other continue whose retail behaviour lived in :on-goto still silently does
+  ;; nothing. That remaining gap is not this rung's to close; filed separately per
+  ;; the leg brief.
   (if arg1
       (initialize! *game-info* 'boot (the-as game-save #f) (the-as string #f) (the-as resetter-spec #f))
       )

@@ -732,11 +732,66 @@
         )
       )
     )
-  ;; og:preserve-this: the retail :enter handler decoded as a raw label
-  ;; (L40), an anon-function the decompiler never recognized as a proper
-  ;; function; raw label references are not valid GOAL, so the key is
-  ;; omitted entirely, matching the credits-obs precedent for the same
-  ;; defect class (also applied to this object's own startup state above).
+  ;; og:preserve-this: the retail :enter handler decoded as a raw label (L40)
+  ;; because the decompiler could not previously resolve its trailing call
+  ;; through lobby-start; landed here now that lobby rung 2 (af786d70a)
+  ;; derived lobby-start's own signature from its register usage, letting the
+  ;; label resolve into a normal behavior body matching this file's own
+  ;; target-intro :enter (below) almost verbatim. Decodes clean at
+  ;; test/decompiler/reference/jakx/levels/title/title-obs_REF.gc:693-718,
+  ;; regenerated from the decompiler's own fresh output in that same commit.
+  ;;
+  ;; The trailing (lobby-start) call stays stubbed rather than landed:
+  ;; lobby-start's own decode is "ERROR: Function lobby-start has unknown
+  ;; type" (census lobby-menu-manager_ir2.asm:5304), it has no defun anywhere
+  ;; in goal_src (lobby-menu-manager.gc is still the 116-error stub), and its
+  ;; body process-spawns lobby-menu-manager via run-function-in-process
+  ;; against lobby-menu-manager-init-by-other, itself undefined -- the same
+  ;; zero-vtable-slot/nullptr-function crash class jakx-build-toolchain-quirks
+  ;; #5d already named for vehicle-manager-start. Landing the call here would
+  ;; put a nullptr-function crash on the retail boot path. Retirement: the
+  ;; lobby-menu-manager/lobby-adventure screen-flow rung lands lobby-start and
+  ;; lobby-menu-manager-init-by-other for real.
+  ;;
+  ;; a0-0 (declared (local-vars (a0-0 none)) by the decompiler, read in the
+  ;; (when a0-0 ...) block below) is a genuine register-not-set residual, not
+  ;; a hidden argument like set-continue!'s a3: the corpus's one call site,
+  ;; target-death.gc's (go target-title), passes no argument at all (checked
+  ;; against the full 758-object census, not just this tree's landed
+  ;; callers), unlike jak3's own target-title :enter, which declares an
+  ;; explicit arg0 and whose callers pass #t/#f. Transcribed otherwise
+  ;; verbatim per the decoded form; retyped none to object (the same
+  ;; already-landed fix credits-obs.gc:555 applies to the identical
+  ;; none-in-a-condition shape) since goalc rejects a none-typed variable in
+  ;; a condition outright: "Cannot use none-typed variable in a condition."
+  ;; The branch still reads whatever the prior call left in a0, matching
+  ;; retail rather than inventing an argument the corpus disproves.
+  :enter (behavior ()
+    (local-vars (a0-0 object))
+    (let ((a0-1 (-> *hud-engine* alive-list next0)))
+      *hud-engine*
+      (let ((s5-0 (-> a0-1 next0)))
+        (while (!= a0-1 (-> *hud-engine* alive-list-end))
+          (deactivate ((method-of-type connection get-process) (the-as connection a0-1)))
+          (set! a0-1 s5-0)
+          *hud-engine*
+          (set! s5-0 (-> s5-0 next0))
+          )
+        )
+      )
+    (when a0-0
+      (let ((v1-13 (-> self mask))
+            (a0-4 (-> *game-info* mode))
+            )
+        (set! (-> *game-info* mode) 'movie)
+        (logior! (-> self mask) (process-mask no-kill))
+        (set! (-> self mask) v1-13)
+        (set! (-> *game-info* mode) a0-4)
+        )
+      (send-event (ppointer->process (-> *setting-control* user-current movie)) 'abort)
+      )
+    ;; og-stub: (lobby-start), see this state's :enter citation above.
+    )
   :exit (behavior ()
     '()
     )
