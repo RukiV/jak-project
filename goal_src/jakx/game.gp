@@ -488,7 +488,24 @@
 ;; (cgo-file "atollart.gd" common-dep)
 (cgo-file "hjx.gd" common-dep) ;; havjung alternate host: track code + shared art (#129)
 ;; (cgo-file "kratours.gd" common-dep)
-;; (cgo-file "menu2.gd" common-dep)
+;; og:preserve-this menu2 startup-ladder band (title screen / garage showroom).
+;; The DGO's own "menu2" object collides by base name with GAME.CGO's unlanded
+;; "menu2" widget engine (menu2-GAME), so the decompiler disambiguates raw_obj
+;; copies by DGO suffix: menu2-GAME.go vs menu2-MENU2.go. cgo-file's generic
+;; per-file copy-obj step looks up "$DECOMP/raw_obj/menu2.go" verbatim (project-lib.gp's
+;; DgoTool derives the packed member's retail name the same way, stripping ".go"),
+;; so a plain "menu2.go" entry in menu2.gd can never find its source, and renaming
+;; the .gd entry to "menu2-MENU2.go" would corrupt the packed DGO's member name.
+;; A scoped decode (allowed_objects ["menu2"], scratch-only, off menu2-MENU2.go)
+;; emits no menu2-MENU2_disasm.gc/_ir2.asm at all, i.e. zero functions, matching
+;; the garage.go/brdroom.go/jakvl.o precedent: pure background data, safe as a raw
+;; copy. Route it by hand to its correct retail name before menu2.gd's own pass
+;; (same technique as the commented-out dir-tpages.go example above).
+(defstep :in "$DECOMP/raw_obj/menu2-MENU2.go"
+  :tool 'copy
+  :out '("$OUT/obj/menu2.go"))
+(hash-table-set! *file-entry-map* "menu2.go" #f)
+(cgo-file "menu2.gd" common-dep) ;; MENU2.DGO: title screen + garage showroom, startup-ladder band
 ;; (cgo-file "hvswfoot.gd" common-dep)
 ;; (cgo-file "atolls.gd" common-dep)
 ;; (cgo-file "garageb.gd" common-dep)
