@@ -211,12 +211,27 @@
   )
 
 ;; definition of type gunmount-drawable
+;; og:preserve-this wvehicle-weapons-vein rung 6: method-50 reclassified
+;; :methods -> :state-methods. gunmount-drawable-init-by-other's own op-83
+;; wall calls enter-state on a value read off this type's own method-50
+;; vtable slot (offset 216 = 16 + 4*50), and the same slot is fed to
+;; inherit-state elsewhere in this object's own top-level (gunmount-
+;; generic-drawable's own state-50 override) -- proof it is a state, not a
+;; function-returning-none method (the jakx-behavior-state-typing defect
+;; class). No real retail name recovered (same as this file's own
+;; gunmount-generic-drawable-state-55 precedent, wired from raw top-level
+;; evidence rather than a clean defstate form); named by the same -state-NN
+;; placeholder convention. The :state-methods block is declared FIRST so
+;; the textual-order slot rule keeps this state at id 50 and leaves methods
+;; 51/52/53 (51 already landed, wvehicle-weapons.gc) untouched.
 (deftype gunmount-drawable (process-drawable)
   ((mounted-on  uint64)
    (hardpoint   int8)
    )
+  (:state-methods
+    gunmount-drawable-state-50
+    )
   (:methods
-    (gunmount-drawable-method-50 () none)
     (gunmount-drawable-method-51 (_type_) none)
     (gunmount-drawable-method-52 (_type_) none)
     (gunmount-drawable-method-53 (_type_ draw-control-status draw-control-status) none)
@@ -265,6 +280,26 @@
 ;; trans above, sleep-code from process-drawable-h.gc).
 (define-extern gunmount-common-trans (function object :behavior gunmount-drawable))
 (define-extern gunmount-generic-event-handler (function process int symbol event-message-block object :behavior gunmount-drawable))
+
+;; og:preserve-this wvehicle-weapons-vein rung 6: gunmount-event-handler and
+;; gunmount-common-post are gunmount-drawable-state-50's own :event and
+;; :post, needed to land that state (wvehicle-weapons.gc). Both were dead
+;; bare-"function" placeholders in all-types.gc (the all-types offset
+;; convention's provisional-extern class); neither body lands here (each is
+;; its own further wall, matching gunmount-common-trans's own precedent
+;; above). gunmount-event-handler's own scoped decode has the standard
+;; event-handler prologue (a2 compared against 'expire/'modify-draw-status),
+;; typed to match gunmount-generic-event-handler's own shape but for the
+;; base type. gunmount-common-post reads two gunmount-generic-drawable-only
+;; fields (machine offsets 244/272 = declared 248/276, the +4 basic-tag
+;; trap; 248 is mounted-on on the base type but 276 is powerup-level, only
+;; declared on gunmount-generic-drawable), so it is typed :behavior
+;; gunmount-generic-drawable rather than the base type even though it also
+;; serves as gunmount-drawable-state-50's own :post default; falls through
+;; to a bare (call! ja-post) on one branch with no other consumed return
+;; value, typed none to match ja-post's own precedent.
+(define-extern gunmount-event-handler (function process int symbol event-message-block object :behavior gunmount-drawable))
+(define-extern gunmount-common-post (function none :behavior gunmount-generic-drawable))
 
 ;; definition for method 3 of type gunmount-generic-drawable
 (defmethod inspect ((this gunmount-generic-drawable))

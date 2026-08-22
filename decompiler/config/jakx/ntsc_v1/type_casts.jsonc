@@ -10518,8 +10518,19 @@
     [57, "v1", "(pointer process)"],
     [66, "a0", "(pointer process)"]
   ],
+  // og:preserve-this wvehicle-weapons-vein rung 6: op 41's own l.hu (+ v1
+  // 158) is the +4 basic-tag trap (machine 158 = declared 162, process-
+  // nettable's own net-id field); the type? guard just above it (ops
+  // 32-36, checked against process-nettable) proves the type but does not
+  // narrow it, so op 41 still sees v1 as the pre-check plain process. The
+  // range starts at op 37 (v1's own post-guard assignment, the ONLY path
+  // that reaches op 41 without hitting the op 38 #f short-circuit first)
+  // rather than op 31's earlier, unconfirmed assignment of the same
+  // register. Matches process-nettable-method-15's own declared purpose
+  // ("net message pack") exactly.
   "(method 15 mine-a)": [
-    [26, "a0", "(pointer process)"]
+    [26, "a0", "(pointer process)"],
+    [[37, 42], "v1", "process-nettable"]
   ],
   // wvehicle-weapons-vein rung 5, item 4: same wrong-type class as (method
   // 61 v-yellow-guided-missile)'s own note above (pid<<32|pointer low-word
@@ -11088,32 +11099,38 @@
   // 64 now clears op 401 and runs 60 ops further before a NEW, unrelated
   // wall at op 461: "add failed: object <integer 3168>", (+ s5 3168) with
   // s5 still typed rigid-body-vehicle-constants everywhere else in its
-  // lifetime. 3168 is far past that type's own size-assert, so the
-  // decompiler's own bounds check silently declines the cast at this one
-  // op and falls back to the pre-cast "object" inference rather than
-  // reporting an out-of-bounds error directly; s5 is either a different
-  // type by this point in the body (without a visible reassignment this
-  // rung could find) or rigid-body-vehicle-constants's own declared size
-  // is wrong. Still muted in no_type_analysis_functions_by_other below
-  // pending that derivation; a future rung can start from op 461 rather
-  // than op 191 or op 401.
+  // lifetime.
   //
-  // gunmount-drawable-init-by-other's own body does NOT fully decode
-  // either even with a real type: five more scoped-decode casts (see its
-  // entry below) clear it to op 83, where it calls enter-state on a value
-  // read from gunmount-drawable's own method-50 vtable slot (offset 216 =
-  // 16 + 4*50); gunmount-drawable-method-50 is declared under (:methods)
-  // in wvehicle-weapons-h.gc as a plain (function none), but the same
-  // slot is fed to inherit-state elsewhere in this object's own top-level
-  // (disasm.gc, gunmount-generic-drawable's own state-50 override), proof
-  // it is actually a state, not a function-returning-none method. That is
-  // the jakx-behavior-state-typing defect class (zero (:state-methods)
-  // declarations), not something this rung's landing touches (gunmount-
-  // drawable-method-50 already has a landed :methods declaration and no
-  // landed body to conflict with a reclassification, but renaming it into
-  // :state-methods and re-deriving its real retail name is its own rung).
+  // og:preserve-this wvehicle-weapons-vein rung 6: the op-461 wall was a
+  // cast-range off-by-one, not a real type gap. parse_json_optional_
+  // integer_range (common/util/json_util.cpp) documents "[2, 10] ->
+  // Range(2, 10)" and Range<T>::contains is val >= start && val < end
+  // (common/util/Range.h) -- END-EXCLUSIVE. [2, 461] therefore covered ops
+  // 2 through 460 and left op 461 itself, the exact failing op, one past
+  // the cast's own range; s5 fell back to the pre-cast "object" inference
+  // only at that one op (ForwardProp.cpp's "obj + C1" branch never got a
+  // structure-typed arg0 to feed reverse_field_multi_lookup). 3168 was
+  // never out of bounds (rigid-body-vehicle-constants's own :size-assert
+  // is #xcbc = 3260) and needed no field carve: 3168 = hardpoint (3136,
+  // :inline vehicle-hardpoint-info) + antenna-attach (32), a field vehicle-
+  // weapon-slot-method-58 already resolves through the named -> chain
+  // (wvehicle-weapons.gc). Widening the range's own end to 462 covers op
+  // 461 and clears it with zero further ops touched; method 64 now runs to
+  // completion (see below). Un-muted from no_type_analysis_functions_by_name
+  // (hacks.jsonc) accordingly.
+  //
+  // gunmount-drawable-init-by-other's own body decodes clean once
+  // gunmount-drawable-method-50 was reclassified :methods -> :state-
+  // methods (wvehicle-weapons-h.gc, rung 6): the op-83 enter-state call
+  // that read gunmount-drawable's own method-50 vtable slot as a plain
+  // (function none) now resolves as a state dispatch, and the function
+  // landed whole (wvehicle-weapons.gc). gunmount-drawable-state-50 (the
+  // state gunmount-drawable-init-by-other's own go-virtual enters) landed
+  // alongside it, both the base declaration and gunmount-generic-
+  // drawable's own :virtual override -- see wvehicle-weapons.gc's own
+  // notes on both.
   "(method 64 wvehicle)": [
-    [[2, 461], "s5", "rigid-body-vehicle-constants"]
+    [[2, 462], "s5", "rigid-body-vehicle-constants"]
   ],
   // (method 71 turbodash-seeker): the same downstream cascade as the
   // wvehicle-weapons-family lane's other handle->process fold sites (no

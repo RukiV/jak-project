@@ -153,6 +153,117 @@
   (go-virtual idle)
   )
 
+;; og:preserve-this wvehicle-weapons-vein rung 6: gunmount-drawable-init-by-
+;; other's own op-83 wall (enter-state on a value read off gunmount-
+;; drawable's own method-50 vtable slot) cleared once wvehicle-weapons-h.gc
+;; reclassified that slot :methods -> :state-methods (the jakx-behavior-
+;; state-typing defect class); the whole body then decodes clean off this
+;; object's own <object>_ir2.asm per-function block (the object's own top-
+;; level still falls back to a raw dump, same as muzzle-flash-init-by-other
+;; above). One build-time deviation, the same class documented above: op
+;; 25/26's raw (logior (shl (-> v1 0 12) 32) (.asm.sllv.r0 (the-as uint
+;; v1))) triple is the compiled pid<<32|pointer expansion of ppointer-
+;; >handle (gkernel-h.gc); substituted the real macro call. Op 18's own raw
+;; (l.wu (&+ a0-3 28)) load is kept verbatim: a0-3 is the incoming raw
+;; pointer arg with no further evidence for a real field name at this
+;; offset, so this rung transcribes rather than invents one.
+(defbehavior gunmount-drawable-init-by-other gunmount-drawable ((arg0 pointer) (arg1 int) (arg2 object))
+  (stack-size-set! (-> self main-thread) 32)
+  (set! (-> self root) (new 'process 'trsqv))
+  (set! (-> self hardpoint) arg1)
+  (let* ((a0-3 arg0)
+         (v1-3 (if a0-3
+                   (l.wu (&+ a0-3 28))
+                   )
+               )
+         )
+    (set! (-> self mounted-on) (the-as uint (ppointer->handle v1-3)))
+    )
+  (initialize-skeleton
+    self
+    (the-as skeleton-group (art-group-get-by-name *level* "skel-chaingun" (the-as (pointer level) #f)))
+    (the-as pair 0)
+    )
+  (when (nonzero? (-> self draw))
+    (set! (-> self draw light-index) (-> (the-as draw-control (l.wu (&+ arg0 192))) light-index))
+    (set! (-> (the-as draw-control (-> self draw)) lights) (-> (the-as draw-control (l.wu (&+ arg0 192))) lights))
+    )
+  (set-vector!
+    (-> self root scale)
+    (if (zero? arg2)
+        -1.0
+        1.0
+        )
+    1.0
+    1.0
+    1.0
+    )
+  (gunmount-drawable-method-51 self)
+  (gunmount-common-trans)
+  (ja-post)
+  (go-virtual gunmount-drawable-state-50)
+  )
+
+;; og:preserve-this wvehicle-weapons-vein rung 6: gunmount-drawable-state-50
+;; is the state gunmount-drawable-init-by-other's own go-virtual enters; a
+;; landed base is required before that function can safely dispatch (an
+;; unlanded slot is the empty-vtable-slot boot-time class, not something a
+;; compile gate catches, jakx-build-toolchain-quirks 5b/5c). Decoded off
+;; this object's own raw top-level method-set! at gunmount-drawable's own
+;; slot 50 (no inherit-state precedes it, unlike gunmount-generic-
+;; drawable's own override below, since this is the FIRST declaration of
+;; the slot rather than an override); the fields sugar cleanly through ->
+;; accessors (unlike state-55's own raw s.w! stores below) and leave enter
+;; (offset 28) untouched, the same "no :enter write" precedent state-55
+;; documents. gunmount-event-handler and gunmount-common-post are both
+;; forward-declared only (wvehicle-weapons-h.gc); neither body lands this
+;; rung.
+(defstate gunmount-drawable-state-50 (gunmount-drawable)
+  :event gunmount-event-handler
+  :trans gunmount-common-trans
+  :code sleep-code
+  :post gunmount-common-post
+  )
+
+;; og:preserve-this wvehicle-weapons-vein rung 6: gunmount-generic-
+;; drawable's own override of the same slot (:virtual #t, matching the
+;; compiled inherit-state/method-set! pair the raw top-level shows
+;; immediately after gunmount-drawable's own base declaration above) --
+;; this is the exact "gunmount-generic-drawable's own state-50 override"
+;; the reclassification's proof cited (wvehicle-weapons-h.gc). :enter's own
+;; lambda picks a setup-masks mask pair off config (0/1/2) and, if a lobby
+;; menu is live, hands off to state-55 (gunmount-generic-drawable-state-55
+;; below, landed rung 5); no clean defstate form exists for it either (same
+;; raw s.w!-store wiring as state-55, this object's own top-level does not
+;; sugar as a whole), so the fields are wired directly off the raw stores
+;; at gp-3 (event=offset 32, trans=offset 20, code=offset 16, post=offset
+;; 24), all four overwriting whatever inherit-state copied from the base.
+(defstate gunmount-drawable-state-50 (gunmount-generic-drawable)
+  :virtual #t
+  :enter (behavior ()
+    (let ((v1-0 (-> self config)))
+      (cond
+        ((zero? v1-0)
+         (setup-masks (-> self draw) 4 3)
+         )
+        ((= v1-0 1)
+         (setup-masks (-> self draw) 2 5)
+         )
+        ((= v1-0 2)
+         (setup-masks (-> self draw) 1 6)
+         )
+        )
+      )
+    (if *lobby-menu-manager*
+        (go-virtual gunmount-generic-drawable-state-55)
+        )
+    )
+  :event gunmount-generic-event-handler
+  :trans gunmount-common-trans
+  :code sleep-code
+  :post gunmount-common-post
+  )
+
 ;; og:preserve-this gunmount-generic-drawable-state-55: no clean defstate
 ;; form exists in either <object>_disasm.gc or <object>_ir2.asm (the whole
 ;; object's top-level fails to sugar, see this file's own header note);

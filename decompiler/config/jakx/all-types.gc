@@ -51946,12 +51946,21 @@
 ;; (define-extern get-shared-level function)
 ;; (define-extern nos function)
 ;; (define-extern write-process-as-handle function)
-;; activated: wvehicle-weapons-chicken-drone and wvehicle-weapons-proj both
-;; read it directly as a plain global function reference; function is the
-;; placeholder's own already-given type, unchanged.
-(define-extern write-handle function)
-;; activated: same evidence as write-handle above, same two callers.
-(define-extern read-handle function)
+;; og:preserve-this wvehicle-weapons-vein rung 6: a bare "function" callee
+;; hits the same run-function-in-process-style "we do not know its type"
+;; wall this file's own init-by-other class already documents, here at the
+;; call site itself rather than a stored state slot ((method 15 mine-b),
+;; called twice with a0 the mem-buffer-as-symbol receiver every sibling
+;; mem-buffer pack call in this file uses and a1 a uint64 read off mine-b's
+;; own shooter/glued-to handle fields, machine offsets 252/260 = declared
+;; 256/264, the +4 basic-tag trap). Typed to match: a mem-buffer pack
+;; routine over a raw handle. Body not landed (its own further wall, not
+;; something this rung's evidence covers).
+(define-extern write-handle (function mem-buffer uint none))
+;; og:preserve-this wvehicle-weapons-vein rung 6: same evidence as write-
+;; handle above (its own read-side counterpart, same two callers); typed
+;; to match.
+(define-extern read-handle (function mem-buffer uint))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; statistics                     ;;
@@ -52927,7 +52936,11 @@
     (net-predictor-simple-method-9 (_type_ object object) none) ;; 9
     (net-predictor-simple-method-10 (_type_ object) none) ;; 10
     (net-predictor-simple-method-11 (_type_ object object) none) ;; 11
-    (net-predictor-simple-method-12 (_type_) none) ;; 12
+    ;; og:preserve-this wvehicle-weapons-vein rung 6: return retyped none ->
+    ;; symbol, mirroring net-predict-h.gc's own note; v-yellow-guided-
+    ;; missile-method-80's own (when ...) test is this method's only
+    ;; caller in the landed corpus.
+    (net-predictor-simple-method-12 (_type_) symbol) ;; 12
     (net-predictor-simple-method-13 (_type_) none) ;; 13
     (net-predictor-simple-method-14 (_type_) none) ;; 14
     (net-predictor-simple-method-15 (_type_) none) ;; 15
@@ -55725,6 +55738,10 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; og:preserve-this wvehicle-weapons-vein rung 6: method-50 reclassified
+;; :methods -> :state-methods, mirroring wvehicle-weapons-h.gc's own note;
+;; :state-methods declared first so the textual-order slot rule keeps the
+;; state at id 50 and leaves 51/52/53 untouched.
 (deftype gunmount-drawable (process-drawable)
   ((mounted-on uint64  :offset-assert 248)
    (hardpoint  int8    :offset-assert 256)
@@ -55732,8 +55749,10 @@
   :method-count-assert 54
   :size-assert         #x101
   :flag-assert         #x3600800101
+  (:state-methods
+    gunmount-drawable-state-50 ;; 50
+    )
   (:methods
-    (gunmount-drawable-method-50 () none) ;; 50
     (gunmount-drawable-method-51 (_type_) none) ;; 51
     (gunmount-drawable-method-52 (_type_) none) ;; 52
     ;; og:preserve-this wvehicle-weapons-vein rung 3: retyped both args
@@ -77555,7 +77574,15 @@
 ;; field shape ((function object)), the same convention v-wpn-base-common-
 ;; trans documents in wvehicle-weapons-h.gc.
 (define-extern gunmount-common-trans (function object :behavior gunmount-drawable))
-;; (define-extern gunmount-common-post function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 6): gunmount-
+;; drawable-state-50's own :post default (wvehicle-weapons.gc); reads two
+;; gunmount-generic-drawable-only fields (machine 244/272 = declared
+;; 248/276, the +4 basic-tag trap; 276 is powerup-level, not declared on the
+;; base gunmount-drawable), typed to the more specific subtype. Falls
+;; through to a bare (call! ja-post) on one branch with no other consumed
+;; return value, typed none to match ja-post's own precedent. Body not
+;; landed (its own further wall, matching gunmount-common-trans above).
+(define-extern gunmount-common-post (function none :behavior gunmount-generic-drawable))
 ;; og:preserve-this activated (wvehicle-weapons-vein rung 5): (method 64
 ;; wvehicle) passes this to run-function-in-process with a2 a raw ppointer
 ;; (not yet handle-converted, unlike muzzle-flash-init-by-other's own a2
@@ -77571,7 +77598,13 @@
 ;; Matches the init-by-other convention (function <fwd-args> object
 ;; :behavior <type>).
 (define-extern gunmount-drawable-init-by-other (function pointer int object object :behavior gunmount-drawable))
-;; (define-extern gunmount-event-handler function)
+;; og:preserve-this activated (wvehicle-weapons-vein rung 6): gunmount-
+;; drawable-state-50's own :event default (wvehicle-weapons.gc). The scoped
+;; decode's own prologue is the standard event-handler shape (a2 compared
+;; against 'expire and 'modify-draw-status), typed to match gunmount-
+;; generic-event-handler's own shape (wvehicle-weapons-h.gc) but for the
+;; base type. Body not landed (its own further wall).
+(define-extern gunmount-event-handler (function process int symbol event-message-block object :behavior gunmount-drawable))
 ;; (define-extern muzzle-flash-event-handler function)
 ;; og:preserve-this activated (wvehicle-weapons-vein rung 4): (method 51
 ;; gunmount-generic-drawable) passes this to run-function-in-process with a2

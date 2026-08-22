@@ -316,3 +316,227 @@
   (none)
   )
 
+;; og:preserve-this wvehicle-weapons-vein rung 6: process-nettable-method-15
+;; on mine-a ("net message pack"), mine-b's own 15/17 and v-yellow-guided-
+;; missile-method-80 all decode clean off this object's own scoped decode;
+;; landed together as the rung's own mass-mining item. mine-a's own op-41
+;; wall (l.hu (+ v1 158)) was a missing narrowing cast: the type? guard
+;; just above it (ops 32-36) proves v1 is process-nettable but does not
+;; narrow it for the decompiler, so the read still saw the pre-check plain
+;; process; type_casts.jsonc's own new "(method 15 mine-a)" entry casts v1
+;; to process-nettable for ops 37-41 (the only path that reaches the read
+;; without hitting the op-38 #f short-circuit first), resolving machine
+;; offset 158 = declared 162 (the +4 basic-tag trap) as process-nettable's
+;; own net-id field -- exactly the method's own declared purpose. mine-b's
+;; own 15/17 walls were the same class: write-handle and read-handle
+;; (all-types.gc) were both already "activated" as live externs but left
+;; typed bare "function", which fails at the CALL site itself (not a state
+;; slot) with the same "we do not know its type" the init-by-other class
+;; hits; both retyped from their own two call sites' evidence (a mem-
+;; buffer-as-symbol receiver every sibling mem-buffer pack call in this
+;; file uses, and a uint read off mine-b's own shooter/glued-to handle
+;; fields for write-handle, machine offset 252/260 = declared 256/264;
+;; uint not uint64 despite the fields' own uint64 declaration -- goalc's
+;; function-argument typecheck rejected a uint64 the-as here with "got a
+;; uint", matching this file's own already-landed mine-b-method-65's own
+;; (the-as uint #f) convention on the same fields).
+;;
+;; Two verbatim orphan-tell markers, NOT reconstructed into their likely
+;; intended call shape (the jakx-phase1-landing-pipeline orphan-tell
+;; corollary, issue 531: a landed caller carrying the tell IS the defect,
+;; not something a landing rung invents a fix for): mine-a-method-15's own
+;; "(-> v1-10 net-id) (t9-4)" pair (mem-buffer-method-19, called bare
+;; immediately after an orphaned read of the value it almost certainly
+;; consumes) and mine-b-method-17's own "enter-state (-> this glued-to)
+;; (-> this attach-point) (go ...)" sequence (go compiles to (go-hook pp
+;; next-state args...), gstate.gc, so the two orphaned reads are very
+;; likely go-hook's own intended extra args) are both transcribed exactly
+;; as the decompiler printed them and both compile as printed.
+;;
+;; One build-time deviation, the same class documented elsewhere in this
+;; file: mine-a-method-15's own raw pid<<32|pointer triple (nonzero?/
+;; l32-false-check/sllv-r0/pid-compare over this's own shooter handle) is
+;; handle->process's own compiled expansion (gkernel-h.gc); substituted the
+;; real macro call.
+;;
+;; v-yellow-guided-missile-method-80 needed no config changes at all
+;; (decoded clean once mine-b's own write-handle/read-handle fix landed,
+;; which this object's own top-level construction touches before method
+;; 80's own code); its own trailing bare 0 before (none) matches this
+;; file's own gunmount-drawable-method-51 precedent (wvehicle-weapons.gc),
+;; kept verbatim.
+;;
+;; mine-b-method-35 tried and reverted: its own wall (op 49, offset 28,
+;; "Could not figure out load: (set! v1 (l.wu (+ a0 28)))") clears with the
+;; same mem-buffer-as-int-arg0 pattern every sibling call in this function
+;; uses, decoding a full clean body that calls mem-buffer-method-45 through
+;; method-of-type and pattern-matches its return against 'idle/'shake-off/
+;; 'falling/'attached/'leaping-onto. mem-buffer-method-45 is declared
+;; () none (a bare zero-arg placeholder, not even a _type_ receiver) and
+;; goalc will not compile a call against it at all -- "Expected 0 arguments
+;; but got 1" with the receiver supplied, "get_preferred_reg_class called
+;; on NullType" (a compiler crash, not a clean rejection) with the bare
+;; form as printed, since the body's own let binds its none-typed result
+;; to a variable and pattern-matches it against symbols. mem-buffer-h.gc's
+;; own og:preserve-this note on method 45 (methods 18/19/20/21/28/45)
+;; already investigated this exact slot and held it deliberately: its raw
+;; body reads an uninitialized a0 and contains an inline instruction the
+;; decompiler cannot render at all (the raw address-into-symbol-table
+;; idiom), and net-enemy.gc's own call site has the identical bare zero-
+;; arg shape with nothing to supply either register -- "a systemic decode
+;; gap in this whole zero-arg-declared method family... held rather than
+;; guessed." Retyping the signature to unblock this one caller without
+;; being able to land method-45's own body would silently paper over that
+;; documented gap on a type used across dozens of objects in the corpus,
+;; a much wider blast radius than this rung's own scope; left held, not
+;; landed, matching that prior call.
+;;
+;; Held, not landed this rung, fresh walls documented in the relevant
+;; config files (type_casts.jsonc / hacks.jsonc's own notes): mine-a-
+;; method-35 (op 49, offset 28 off net-process-mgr-method-46's own return,
+;; declared none but evidently used -- the same defect class as write-
+;; handle/read-handle above, but on a shared corpus type with a much wider
+;; blast radius to retype), and v-yellow-guided-missile's own methods 67
+;; (op 1), 70 (op 2) and 79 (op 52), each its own independent offset-28/
+;; offset-284/offset-136 wall this rung found no in-band evidence to
+;; resolve safely.
+;;
+(define-extern write-handle (function mem-buffer uint none))
+(define-extern read-handle (function mem-buffer uint))
+
+;; definition for method 15 of type mine-a
+(defmethod process-nettable-method-15 ((this mine-a) (arg0 symbol) (arg1 mem-buffer))
+  ((method-of-type mem-buffer mem-buffer-method-23) (the-as mem-buffer arg0) (-> this root trans))
+  ((method-of-type mem-buffer mem-buffer-method-23) (the-as mem-buffer arg0) (-> this destination-point))
+  ((method-of-type mem-buffer mem-buffer-method-25) (the-as mem-buffer arg0) (-> this destination-rot))
+  (let ((v1-10 (as-type (handle->process (-> this shooter)) process-nettable)))
+    (cond
+      (v1-10
+        (let ((t9-4 (method-of-type mem-buffer mem-buffer-method-19)))
+          (-> v1-10 net-id)
+          (t9-4)
+          )
+        )
+      (else
+        (let ((t9-5 (method-of-type mem-buffer mem-buffer-method-19)))
+          #xffff
+          (t9-5)
+          )
+        )
+      )
+    )
+  (none)
+  )
+
+;; definition for method 15 of type mine-b
+(defmethod process-nettable-method-15 ((this mine-b) (arg0 symbol) (arg1 mem-buffer))
+  (let ((t9-0 (method-of-type mem-buffer mem-buffer-method-28)))
+    (-> this state name)
+    (t9-0)
+    )
+  ((method-of-type mem-buffer mem-buffer-method-23) (the-as mem-buffer arg0) (-> this root trans))
+  ((method-of-type mem-buffer mem-buffer-method-25) (the-as mem-buffer arg0) (-> this root rot))
+  ((method-of-type mem-buffer mem-buffer-method-23) (the-as mem-buffer arg0) (-> this destination-point))
+  ((method-of-type mem-buffer mem-buffer-method-25) (the-as mem-buffer arg0) (-> this destination-rot))
+  (write-handle (the-as mem-buffer arg0) (the-as uint (-> this shooter)))
+  (write-handle (the-as mem-buffer arg0) (the-as uint (-> this glued-to)))
+  ((method-of-type mem-buffer mem-buffer-method-16) (the-as mem-buffer arg0) (-> this attach-point))
+  (let ((t9-8 (method-of-type mem-buffer mem-buffer-method-20)))
+    (+ (- (the-as time-frame (- (- (if *net-mgr*
+                                       (-> *net-mgr* game-state time)
+                                       0
+                                       )
+                                   (if *net-world*
+                                       (-> *net-world* net-state game-start-time)
+                                       0
+                                       )
+                                   )
+                                (if *net-world*
+                                    (-> *net-world* net-state total-pause-time)
+                                    0
+                                    )
+                                )
+                  )
+          (current-time)
+          )
+       (-> this expires-on)
+       )
+    (t9-8)
+    )
+  (none)
+  )
+
+;; definition for method 17 of type mine-b
+(defmethod process-nettable-method-17 ((this mine-b) (arg0 symbol) (arg1 mem-buffer))
+  (case arg0
+    (('falling-off)
+     (mem-buffer-method-41 arg1 (-> this root trans))
+     (mem-buffer-method-43 arg1 (-> this root rot))
+     (mem-buffer-method-41 arg1 (-> this root transv))
+     (go (method-of-object this shake-off))
+     )
+    (('attached-to)
+     (set! (-> this glued-to) (the-as uint (read-handle arg1)))
+     (set! (-> this attach-point) (the-as int (mem-buffer-method-34 arg1)))
+     enter-state
+     (-> this glued-to)
+     (-> this attach-point)
+     (go (method-of-object this leaping-onto))
+     )
+    )
+  (none)
+  )
+
+;; definition for method 80 of type v-yellow-guided-missile
+(defmethod v-yellow-guided-missile-method-80 ((this v-yellow-guided-missile))
+  (cond
+    ((process-nettable-method-22 this)
+     (let ((s5-0 (-> this pred active)))
+       (set! (-> s5-0 pos quad) (-> this root trans quad))
+       (set! (-> s5-0 vel quad) (-> this root transv quad))
+       (quaternion-copy! (-> s5-0 rot) (the-as quaternion (-> this root rot)))
+       (vector-reset! (-> s5-0 angvel))
+       (set! (-> s5-0 time) (- (- (if *net-mgr*
+                                      (-> *net-mgr* game-state time)
+                                      0
+                                      )
+                                  (if *net-world*
+                                      (-> *net-world* net-state game-start-time)
+                                      0
+                                      )
+                                  )
+                               (if *net-world*
+                                   (-> *net-world* net-state total-pause-time)
+                                   0
+                                   )
+                               )
+             )
+       )
+     (when (net-predictor-simple-method-12 (-> this pred))
+       (let ((s5-1 (process-nettable-method-27 this 'guided-missile-update-HACK)))
+         (mem-buffer-method-15 s5-1 ((method-of-object *net-process-mgr* net-process-mgr-method-51)))
+         (net-predictor-simple-method-10 (-> this pred) s5-1)
+         (process-nettable-method-29 this s5-1 -2 0)
+         (process-nettable-method-28 this s5-1)
+         )
+       )
+     )
+    (else
+      (net-predictor-simple-method-14 (-> this pred))
+      (let ((v1-26 (-> this pred active)))
+        (set! (-> v1-26 pos quad) (-> this root trans quad))
+        (set! (-> v1-26 vel quad) (-> this root transv quad))
+        (quaternion-copy! (-> v1-26 rot) (the-as quaternion (-> this root rot)))
+        )
+      (net-predictor-simple-method-16 (-> this pred))
+      (let ((v1-31 (-> this pred active)))
+        (set! (-> this root trans quad) (-> v1-31 pos quad))
+        (set! (-> this root transv quad) (-> v1-31 vel quad))
+        (quaternion-copy! (the-as quaternion (-> this root rot)) (-> v1-31 rot))
+        )
+      )
+    )
+  0
+  (none)
+  )
+
