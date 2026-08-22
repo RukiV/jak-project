@@ -1343,6 +1343,22 @@
   (set! (-> this status) 'loading)
   (do-nothing *level*)
   (set! (-> *texture-pool* allocate-func) texture-page-level-allocate)
+  ;; og:preserve-this adjudication (diagnosis: "DGO RPC LoadDGO junglef.DGO file not
+  ;; found" against junglef's :nickname 'jgf, level-info.gc:407-411; the on-disc
+  ;; artifact is JGF.DGO): this visname compare looked like a decode misreading of
+  ;; "use the nickname whenever the info carries one" until checked against jak3's
+  ;; landed twin (jak3/engine/level/level.gc:1681-1684, byte-identical) and a fresh
+  ;; scoped decode of jakx's own level.o (scratch, this rung, same offsets, same
+  ;; compare) -- both confirm this is genuine retail machine code, untouched here.
+  ;; The actual defect is upstream: load-name is set by level-get-for-use via
+  ;; remap-level-name (this file) purely from the global (-> *level* vis?) flag.
+  ;; bg (this file) arms vis? when called with a visname and actively CLEARS it
+  ;; when called with any other alias; the boot's own (bg *kernel-boot-level*)
+  ;; arms it on default boots (measured: pre-fix boots nickname-resolved the ice
+  ;; ring, ICD.DGO in the log), and jakx-goto-level's old plain-name bg call then
+  ;; disarmed it for the rest of the session, sending every later load down this
+  ;; plain-name arm (junglef.DGO instead of JGF.DGO). Fixed at the request layer
+  ;; there, not here.
   (if (= (-> this load-name) (-> this info visname))
       (format (clear *temp-string*) "~S" (-> this info nickname))
       (format (clear *temp-string*) "~S" (-> this name))
@@ -3005,7 +3021,24 @@ drives the same clear/drain/bg/wait sequence."
   (dotimes (i 6)
     (update! *load-state*)
     )
-  (bg level-name)
+  ;; og:preserve-this fix (nickname-DGO adjudication, see level.gc:1346-1349 and the
+  ;; junglef.DGO diagnosis on jakx-want-driver-tick above): bg (this file) only arms
+  ;; *level* vis? -- and therefore load-begin's nickname branch -- when its argument
+  ;; IS the level's visname; a plain name always takes the else branch and forces the
+  ;; literal name into the DGO filename. This call used to pass level-name verbatim,
+  ;; the plain name a debug-menu action supplies, so switching to a nicknamed level
+  ;; through here hit the same junglef.DGO-not-JGF.DGO defect the want driver hit.
+  ;; Resolving the visname here and handing bg THAT instead reuses bg's existing,
+  ;; decode-verified branch correctly. The level-get calls below are untouched and
+  ;; still match on the plain level-name: bg's vis? branch itself rewrites its
+  ;; argument back to the info's ->name before calling level-get-for-use, so the
+  ;; stored level object's ->name is always the plain name regardless of which alias
+  ;; bg was called with. A level whose :nickname mirrors :name (icew) is unaffected:
+  ;; either bg branch produces the same DGO string for it.
+  (bg (let ((info (lookup-level-info level-name)))
+        (if info (-> info visname) level-name)
+        )
+      )
   (let ((lev (level-get *level* level-name))
         (start-tick (get-cpu-clock))
         (elapsed (the uint 0))
@@ -3020,7 +3053,10 @@ drives the same clear/drain/bg/wait sequence."
                 )
       (if lev
           (load-continue lev)
-          (bg level-name)
+          (bg (let ((info (lookup-level-info level-name)))
+                (if info (-> info visname) level-name)
+                )
+              )
           )
       (set! lev (level-get *level* level-name))
       (set! elapsed (the uint (logand #xffffffff (- (get-cpu-clock) start-tick))))
@@ -7758,6 +7794,37 @@ iced-start survives the swap arm's 1.4x factor by only 0.08%. Honest limit: fami
 attribution stays ill-posed in overlap zones -- 57 mis-attributions under the old rule
 fall to 41 under this one, across 128 sampled member positions; a residency preference
 would close more of those and is deliberately not added here."
+  ;; og:preserve-this fix (issue diagnosis: "DGO RPC LoadDGO junglef.DGO file not
+  ;; found", junglef's load-info at level-info.gc:407-411 carries :nickname 'jgf and
+  ;; the on-disc artifact is JGF.DGO): load-begin (level.gc:1346-1349) only formats
+  ;; the DGO filename from a level's nickname when (-> this load-name) equals (-> this
+  ;; info visname); adjudicated against jak3's byte-identical landed twin
+  ;; (jak3/engine/level/level.gc:1681-1684) and a fresh scoped decode of jakx's own
+  ;; level.o (scratch, this rung) at the same offsets, both matching verbatim, so the
+  ;; visname compare is retail machine code, not a decode misreading, and load-begin
+  ;; itself is untouched. load-name is set by level-get-for-use via remap-level-name
+  ;; (this file), which ignores whatever alias (name/visname/nickname) a caller
+  ;; passed and instead reads only the global (-> *level* vis?) flag: #t picks
+  ;; visname (so load-begin's compare succeeds and nickname wins), #f picks the
+  ;; literal name (level-get-for-use rewrites every request down to the plain name
+  ;; either way). Retail arms vis? once per session via play's own (set! (-> *level*
+  ;; vis?) arg0), called #t from play-boot/play2 (this file); neither has any call
+  ;; site anywhere in goal_src/jakx. bg (this file) also arms vis? when its argument
+  ;; is a visname and actively CLEARS it on any other alias, and the boot path's own
+  ;; (bg *kernel-boot-level*) arms it on default boots -- measured: pre-fix boots
+  ;; nickname-resolved the whole ice ring (ICD.DGO in the log). The live defect was
+  ;; therefore any plain-name bg call (the old jakx-goto-level, main.gc's
+  ;; (bg 'halfpipe)) DISARMING vis? mid-session, after which every driver load took
+  ;; load-begin's plain-name branch regardless of nickname (junglef.DGO, not
+  ;; JGF.DGO). This function is the unconditional per-frame heart of that
+  ;; loading (level-update calls it every frame with no gate), so holding the
+  ;; invariant true here makes the driver immune to any residual plain-name bg
+  ;; caller; the mirror fix for the debug-menu's manual switch lever is on
+  ;; jakx-goto-level's own bg calls below, which resolve and pass the visname
+  ;; directly instead. Retires when a real boot sequence wires play's own vis?
+  ;; arming into whatever actually invokes play in this bring-up, making this
+  ;; redundant.
+  (set! (-> *level* vis?) #t)
   (when *jakx-campath-record*
     (+! *jakx-campath-frame* 1)
     (when (>= *jakx-campath-frame* 20)
