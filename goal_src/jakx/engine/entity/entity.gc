@@ -33,7 +33,17 @@
 ;; through garbage (the attract-camera DEP crash). relocate.gc landed at
 ;; 625b4c2cb (401 lines, 23 relocate methods, all four named types covered),
 ;; so that condition is met.
-(define *compact-actors* #t)
+;; og:preserve-this compact-actors falsification (2026-08-22, entity S-stage): the
+;; prior note's restore condition ("Restore #t with the relocate.gc landing") was MET
+;; on paper (relocate landed at 625b4c2cb, all four named types covered) and the flip
+;; to #t was tried this rung -- and FALSIFIED by boot: with compaction armed the boot
+;; wedges silently mid-level-streaming (663 objects linked, froze during ICES.DGO,
+;; zero crash markers, 300s smoke window; discriminator smoke with only this flipped
+;; back went green at slides=364). The dead-pool compaction loop itself wedges under
+;; boot-time actor churn, independent of the relocate methods. Stays #f; retirement
+;; now requires root-causing the compaction loop (actors-update -> the *nk-dead-pool*
+;; walk below) under a live probe, not just the relocate landing.
+(define *compact-actors* #f)
 
 ;; og:preserve-this restored to the retail default #t in the #41 follow-up pass:
 ;; births gate on vis-bits, which carry real per-leaf occlusion since the vis leg
@@ -1327,6 +1337,96 @@ No-op if already spawned. Retires with the real vehicle chain."
     (set! (-> v1-0 handle) (process->handle arg0))
     )
   (none)
+  )
+
+;; og:preserve-this method 9 of entity-perm, update (crash hotfix, entity
+;; S-stage rung): the smoke landed by the previous commit crashed on boot,
+;; entity+0x39e3 and entity+0x3d61 executing at goal 0 over game-info+0x2e3
+;; and game-info+0x294 (initialize!'s newly-armed reset-actors guard). Both
+;; addresses are reset-actors's own two (update (-> ... perm) arg0 ...) call
+;; sites (below, entity.gc:1516 and :1526 once this method lands ahead of
+;; them): entity-perm's method
+;; 9 was declared in all-types.gc (:method-count-assert 10, the (:methods
+;; (update ...)) block) but had no defmethod anywhere in goal_src, so calling
+;; it dispatched an unfilled (zero) vtable slot. No code for this method
+;; existed anywhere in the previously-pushed entity.o, so the two crash
+;; addresses can only be the call sites, not a body that did not yet exist.
+;;
+;; Landed from jakx's own clean decode (entity_ir2.asm, method 9 of type
+;; entity-perm, CLEAN grade, 49 lines), with one correction and one guard:
+;;
+;; Correction: the raw decode splits ((task-complete? *game-info* (-> this
+;; task))) into two bare statements, (-> this task) followed by a zero-arg
+;; (t9-0), a decompiler expression-merge failure, not the machine code's real
+;; behavior. entity_ir2.asm op 13 (lbu a1, 11(gp), loading this's task field)
+;; sits directly before op 14's jalr, so the machine code passes this task as
+;; the call's argument; the decode's own two statements are merged back into
+;; (t9-0 (-> this task)) here, reconstructing what the ops show rather than
+;; inventing new content.
+;;
+;; Guard: game-info-method-11 (all-types.gc's own trailing comment: "11
+;; (task-complete? (_type_ game-task) symbol)") has no landed defmethod
+;; anywhere in goal_src/jakx either, the identical declared-new-without-
+;; defmethod class one level deeper (issue 562 precedent). Landing update
+;; without guarding this call would trade the reset-actors crash for a new
+;; one the first time update runs with arg0 not 'game (the menu's
+;; (reset-actors 'debug) callers, default-menu.gc). Guarded with (and
+;; (nonzero? t9-0) ...), matching this file's own (and s3-2 (type? s3-2
+;; function)) precedent for reset-actors's callback-slot dispatch: an
+;; unfilled slot falls through to the else branch instead of crashing, the
+;; same safe-default shape get-callback-symbol-value-by-slot! uses.
+;;
+;; The method-of-object result also needs a the-as cast to the real
+;; (function game-task symbol) signature: all-types.gc still declares
+;; game-info-method-11's arity as the placeholder (() none) despite its own
+;; comment recording the true signature, so an uncast call fails to compile
+;; against zero args. Same idiom this tree already uses elsewhere for a
+;; mismatched method-of-object arity (e.g. rigid-body-object.gc:58).
+(defmethod update ((this entity-perm) (arg0 symbol) (arg1 entity-perm-status))
+  (cond
+    ((= arg0 'game)
+     (logclear! (-> this status) arg1)
+     )
+    ((let ((t9-0 (the-as (function game-task symbol) (method-of-object *game-info* game-info-method-11))))
+       (and (nonzero? t9-0) (t9-0 (-> this task)))
+       )
+     (if (or (= arg0 'try) (= arg0 'life))
+         (logclear! (-> this status) (logior (if (logtest? (-> this status) (entity-perm-status bit-4))
+                                                 524
+                                                 0
+                                                 )
+                                             #x8203
+                                             )
+                    )
+         (logclear! (-> this status) (logior (if (logtest? (-> this status) (entity-perm-status bit-4))
+                                                 524
+                                                 0
+                                                 )
+                                             515
+                                             )
+                    )
+         )
+     )
+    (else
+      (logclear! (-> this status) (logclear
+                                    (logior arg1 (if (logtest? (-> this status) (entity-perm-status bit-4))
+                                                     524
+                                                     0
+                                                     )
+                                            )
+                                    (if (logtest? (-> this status) (entity-perm-status bit-14))
+                                        32
+                                        0
+                                        )
+                                    )
+                 )
+      )
+    )
+  (when (not (logtest? (-> this status) (entity-perm-status bit-5)))
+    (set! (-> this user-uint64) (the-as uint 0))
+    0
+    )
+  this
   )
 
 ;; og:preserve-this reset-actors and reset-actors-by-game-type (entity
