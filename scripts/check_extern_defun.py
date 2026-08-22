@@ -73,6 +73,28 @@ comments are not handled; none exist anywhere in goal_src/jakx today (every
 file's open/close counts balance and no file opens a second block before its
 first one closes, swept file by file as part of this fix).
 
+String masking runs before comment stripping, on raw text, ahead of
+call-site scanning only (definition scanning is untouched): mask_strings
+blanks the interior of every real `"..."` string literal (leaving
+delimiters and newlines untouched, so length and line numbers do not move),
+tracking comments itself so a `"` inside a real comment cannot fool it.
+Without it, `(let (...)`-shaped text sitting in a string as plain prose,
+rather than as code, can be found by the indirect-call scan's LET_HEAD_RE
+regex and handed to matching_close starting from a position already inside
+a real string; matching_close does not know that, mistakes the string's own
+closing quote for a new one opening, and returns a wildly displaced offset
+that find_indirect_call_sites then feeds to tokens_of. default-menu.gc's
+debug-create-cam-restore does exactly this, printing example GOAL source
+that includes a literal `(let ((pos ...` as part of a `format` string, and
+hitting it turned into a MemoryError after roughly 340s before this fix.
+Masking has to run before strip_comments rather than on its output: strip_
+comments cannot see string state either, so a `;` sitting inside a real,
+single-line string reads as a comment start to it and deletes everything
+after, including that string's own closing quote, corrupting exactly the
+kind of position mask_strings otherwise relies on. See mask_strings's own
+docstring for the full mechanism and the collision-editor.gc regression
+that ordering fix was found from.
+
 Known remaining gaps, unverified either way: a funcall through a value stored
 in a struct field rather than a plain local, and a method-of-object chain
 that resolves to a plain function rather than a method, are both invisible to
@@ -155,6 +177,126 @@ def strip_comments(text):
             i += 1
             continue
         out.append(c)
+        i += 1
+    return "".join(out)
+
+
+def mask_strings(text):
+    """Blank the interior of every real `"..."` string literal, replacing
+    each non-newline character inside a string (including an escape pair's
+    backslash and the character it escapes) with a space. Delimiting
+    quotes, everything outside strings, and every newline are left
+    untouched, so the result has exactly the same length and the same line
+    numbers as the input. Takes RAW text and must run before strip_comments
+    in the call-site-scanning pipeline (`strip_comments(mask_strings(landed))`),
+    not after it; it tracks `;` line comments and `#| |#` block comments
+    itself, mirroring strip_comments' own state machine, purely so a `"`
+    sitting inside a real comment is never mistaken for a string delimiter.
+
+    Why this exists: matching_close and the LET_HEAD_RE / call-site regexes
+    scan text with no notion of "already inside a string." That is fine
+    when they start at real code, because matching_close's own in_str
+    tracking correctly skips a string's contents from its opening quote.
+    But `(let (...)`-shaped text routinely appears as plain characters
+    inside a string, not as code: default-menu.gc's debug-create-cam-restore
+    builds example GOAL source as documentation by printing it, and one of
+    its `format` calls is literally `(format #t " (let ((pos (new 'stack
+    'vector))~%")`. LET_HEAD_RE finds that fake "(let (" wherever it sits in
+    the raw text, string or not, and matching_close is then asked to scan
+    starting from a position that is lexically inside an already-open real
+    string, with in_str reset to False. It walks forward, hits the string's
+    genuine closing quote, and (not knowing it was already inside a string)
+    treats that quote as OPENING a new one instead of closing the old one.
+    That flips the string/paren parity for the rest of the scan, so
+    matching_close can no longer find the fake "(let"'s true close within
+    any sane bound and returns a wildly displaced offset, often far past
+    where any real form ends. find_indirect_call_sites then hands that
+    enormous, bogus span to tokens_of, which re-slices and re-copies it at
+    every nesting level it (wrongly) discovers inside, and that cascade of
+    large string copies is what turned one fake-code string in
+    default-menu.gc into a MemoryError after roughly 340s (issue: jakx-debug
+    menu's default-menu.gc, unmerged feat/jakx-debug-menu branch).
+
+    Running this on raw text rather than on strip_comments' own output is
+    not a style choice, it is load-bearing. strip_comments has no notion of
+    string state at all, so a `;` sitting inside a real, single-line string
+    is (wrongly, from strip_comments' point of view) a comment start, and
+    everything after it on that line, including the string's own closing
+    quote, gets deleted from strip_comments' output; collision-editor.gc:971
+    `(format #t "        ;;:action (solid)~%")` is exactly this shape, a
+    single-line string whose own content happens to start with `;;`. Handed
+    that already-mutilated text, a fresh string scanner sees an unclosed
+    quote and, correctly given what it was handed, treats everything up to
+    the next stray quote it can find, however far away, as still inside the
+    string. That silently masked two real call sites right out of the
+    output, show-maya-skeleton's at collision-editor.gc:1425 and :1472, in
+    this fix's own before/after corpus diff, which is how this ordering
+    requirement was found. Working from the raw text sidesteps the whole
+    class: nothing has deleted a closing quote yet, so a real single-line
+    string that happens to contain `;` or `#|`/`|#` as plain content (this
+    codebase has many, mostly debug `format` calls building example GOAL
+    source or printable text) is recognized correctly. Genuine strings
+    spanning more than one physical line are common too, mostly
+    deftype/defun docstrings (joint-h.gc, ambient-h.gc, mspace-h.gc,
+    cam-start.gc's og:preserve-this notes, and others); this function
+    follows them across their real newlines rather than assuming a string
+    always closes by end of line, which is exactly the assumption that
+    would break those docstrings.
+
+    Masking string interiors before any call-site scanning runs removes
+    every fake delimiter up front, so LET_HEAD_RE can never match inside a
+    string and matching_close is never asked to start mid-string in the
+    first place. A call name written in prose inside a string is not a real
+    call site either way (the module docstring's own definition of a call
+    site excludes it), so this is not a semantics change for well-formed
+    input, only a fix for text that was never code to begin with."""
+    out = list(text)
+    in_str = False
+    in_line = False
+    in_block = False
+    i = 0
+    n = len(text)
+    while i < n:
+        c = text[i]
+        if c == "\n":
+            in_line = False
+            i += 1
+            continue
+        if in_block:
+            if text.startswith("|#", i):
+                in_block = False
+                i += 2
+            else:
+                i += 1
+            continue
+        if in_line:
+            i += 1
+            continue
+        if in_str:
+            if c == "\\":
+                for k in (i, i + 1):
+                    if k < n and text[k] != "\n":
+                        out[k] = " "
+                i += 2
+                continue
+            if c == '"':
+                in_str = False
+                i += 1
+                continue
+            if c != "\n":
+                out[i] = " "
+            i += 1
+            continue
+        if text.startswith("#|", i):
+            in_block = True
+            i += 2
+            continue
+        if c == ";":
+            in_line = True
+            i += 1
+            continue
+        if c == '"':
+            in_str = True
         i += 1
     return "".join(out)
 
@@ -363,9 +505,9 @@ def main():
             skipped_no_dgo += 1
             continue
         marker_line, landed = landed_offset_and_text(raw)
-        stripped_landed = strip_comments(landed)
-        direct_hits = find_call_sites(stripped_landed, unresolved)
-        indirect_hits = find_indirect_call_sites(stripped_landed, unresolved)
+        scan_text = strip_comments(mask_strings(landed))
+        direct_hits = find_call_sites(scan_text, unresolved)
+        indirect_hits = find_indirect_call_sites(scan_text, unresolved)
         for name in set(direct_hits) | set(indirect_hits):
             decl_note = "declared in %s" % ", ".join(sorted(set(decl_files[name])))
             entries = [
