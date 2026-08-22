@@ -364,17 +364,60 @@
 ;; definition (debug) for function find-instance-by-index
 ;; ERROR: function has no type analysis. Cannot decompile.
 
-;; definition (debug) for function prototype-bucket-type
-;; ERROR: function has no type analysis. Cannot decompile.
+(defun-debug prototype-bucket-type ((arg0 prototype-bucket))
+  (case (-> arg0 geometry 1 type)
+    ((prototype-shrubbery shrubbery)
+     instance-shrubbery
+     )
+    ((prototype-tie prototype-tie tie-fragment)
+     instance-tie
+     )
+    )
+  )
 
-;; definition (debug) for function prototype-bucket-recalc-fields
-;; ERROR: function has no type analysis. Cannot decompile.
+(defun-debug prototype-bucket-recalc-fields ((arg0 prototype-bucket))
+  (case (prototype-bucket-type arg0)
+    ((instance-shrubbery)
+     (set! (-> arg0 rdists x) (/ 1.0 (- (-> arg0 dists w) (-> arg0 dists x))))
+     )
+    (else
+      (set! (-> arg0 dists z) (+ (-> arg0 dists x) (* 0.33333334 (- (-> arg0 dists w) (-> arg0 dists x)))))
+      (set! (-> arg0 rdists x) (/ 1.0 (- (-> arg0 dists z) (-> arg0 dists x))))
+      )
+    )
+  (set! (-> arg0 rdists z) (/ 1.0 (- (-> arg0 dists w) (-> arg0 dists z))))
+  (set! (-> arg0 dists y) (/ (-> arg0 dists x) 2))
+  (set! (-> arg0 rdists y) (/ 1.0 (-> arg0 dists y)))
+  arg0
+  )
 
+;; og:preserve-this stays held (heldarms rung): a fresh scoped decode of drawable.o
+;; (allowed_objects: ["debug","drawable"], this worktree's own all-types.gc) takes
+;; both past the old "no type analysis" placeholder to real op-level failures, but
+;; neither converges. print-prototype-list walks *level*'s drawable-tree-array
+;; twice, once per subtype (drawable-tree-instance-shrub at op 22-26, drawable-
+;; tree-instance-tie at op ~108-112), loading the same base pointer's offset+4 in
+;; each branch; the decompiler only ever types that pointer as the common base
+;; drawable-tree from the array's own element type, so the load at op 26
+;; ("Could not figure out load: (set! v1 (l.wu (+ v1 4)))") never resolves to
+;; drawable-tree-instance-shrub's info field, and everything downstream of both
+;; branches stays <uninitialized> for the rest of the (large) function. This is
+;; the same union-by-runtime-type-tag class already fixed once in this file for
+;; prototypes-game-visible-set! (see that function's own note above), but the
+;; jak3-twin-attempted precedent for the structurally identical method 9 of
+;; collide-cache (collide-debug.gc) already tried and reverted per-op
+;; type_casts.jsonc casts here: each fix shifted the decompiler's own op
+;; numbering enough to break a previously-working site elsewhere in the same
+;; function, never converging to zero errors. print-prototype-intersection-list
+;; fails the same way (op 203, same load shape) walking the same structures.
+;; Retirement condition: a decompiler-side fix for narrowing a union pointer
+;; per-branch on a runtime type-tag check (not a per-op type_casts.jsonc patch),
+;; or a hand port citing the jak3 twin body line-for-line once one exists.
 ;; definition (debug) for function print-prototype-intersection-list
-;; ERROR: function has no type analysis. Cannot decompile.
+;; ERROR: failed type prop at 203: Could not figure out load: (set! a0 (l.w (+ s4 2)))
 
 ;; definition (debug) for function print-prototype-list
-;; ERROR: function has no type analysis. Cannot decompile.
+;; ERROR: failed type prop at 26: Could not figure out load: (set! v1 (l.wu (+ v1 4)))
 
 ;; definition (debug) for function draw-instance-info
 ;; ERROR: function has no type analysis. Cannot decompile.

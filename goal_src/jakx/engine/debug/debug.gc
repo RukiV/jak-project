@@ -20,6 +20,12 @@
 ;; the global function without this signature in scope first.
 (define-extern draw-string (function string dma-buffer font-context draw-string-result))
 
+;; og:preserve-this forward extern (heldarms rung): debug-set-camera-pos-rot!
+;; (engine/camera/cam-debug.gc) isn't built ahead of debug.gc in jakx's object
+;; order, so dma-timeout-cam's own call below needs this signature in scope
+;; first, same class as draw-string above.
+(define-extern debug-set-camera-pos-rot! (function vector matrix vector))
+
 (def-mips2c debug-line-clip? (function vector vector vector vector symbol))
 
 ;; WARN: Return type mismatch pointer vs symbol.
@@ -337,12 +343,45 @@
 
 (set! (-> *debug-text-3d-trk* allocated-length) 512)
 
+;; og:preserve-this landed for real (heldarms rung): decode-clean, unblocks
+;; debug-reset-prim-buffer below (its own og:preserve-this note explains why
+;; that extern was already activated ahead of a real body). The extern
+;; declaration for this symbol already carries a retype note (was int, now
+;; prim-strip); this is the actual zero-initialized-pointer define the retype
+;; note anticipated.
+(define *debug-prims* (the-as prim-strip 0))
+
 (dotimes (gp-0 (-> *debug-text-3d-trk* allocated-length))
   ;; og:preserve-this allocate larger strings for 3d text
   (set! (-> *debug-text-3ds* gp-0 str) (new 'debug 'string (#if PC_BIG_MEMORY 255 80) (the-as string #f)))
   )
 
 )
+
+;; og:preserve-this landed for real (heldarms rung, scoped decode of debug.o
+;; against this worktree's own all-types.gc): the extern above already carried
+;; independent evidence (collide-debug.gc's method 9 note, zero args, unused
+;; return, no jak1/jak2/jak3 twin); this is that body, decode-clean apart from a
+;; cosmetic "Return type mismatch int vs none" the (none) at the end already
+;; resolves. Positioned here (not disasm-adjacent to add-debug-flat-triangle
+;; above) because *debug-prims* is only defined once the *debug-segment* block
+;; just above closes; goalc processes top-level forms in file order and errors
+;; "looked up as a global variable, but it does not exist" if this precedes it.
+(defun-debug debug-reset-prim-buffer ()
+  (when (zero? *debug-prims*)
+    (set! *debug-prims*
+          (new 'debug 'prim-strip 1500 (new 'static 'texture-id :index #x3 :page #x1) (the-as string #f))
+          )
+    (set! (-> *debug-prims* data0) (new 'static 'gs-test :zte #x1 :ztst (gs-ztest always)))
+    (set! (-> *debug-prims* adnops 0 cmds) (gs-reg64 test-1))
+    )
+  (when (nonzero? *debug-prims*)
+    (set! (-> *debug-prims* num-verts) (the-as uint 0))
+    0
+    )
+  (none)
+  )
+
 (defun-debug get-debug-line ()
   "Allocate a record for a debug line.
    This is used to persist debug drawing for paused objects."
@@ -590,6 +629,35 @@
   #f
   )
 
+(defun-debug add-debug-sphere-with-transform ((arg0 symbol) (arg1 bucket-id) (arg2 vector) (arg3 meters) (arg4 matrix) (arg5 rgba))
+  (rlet ((acc :class vf)
+         (vf0 :class vf)
+         (vf1 :class vf)
+         (vf2 :class vf)
+         (vf3 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         )
+    (init-vf0-vector)
+    (when (and arg0 (or (not *display-capture-mode*) (-> *setting-control* user-current unknown-usd-748)))
+      (.lvf vf5 (&-> arg2 quad))
+      (.lvf vf1 (&-> arg4 rvec quad))
+      (.lvf vf2 (&-> arg4 uvec quad))
+      (.lvf vf3 (&-> arg4 fvec quad))
+      (.lvf vf4 (&-> arg4 trans quad))
+      (.mul.w.vf acc vf4 vf0)
+      (.add.mul.x.vf acc vf1 vf5 acc)
+      (.add.mul.y.vf acc vf2 vf5 acc)
+      (.add.mul.z.vf vf5 vf3 vf5 acc)
+      (let ((a2-1 (new 'stack-no-clear 'vector)))
+        (.svf (&-> a2-1 quad) vf5)
+        (add-debug-sphere arg0 arg1 a2-1 arg3 arg5)
+        )
+      )
+    #f
+    )
+  )
+
 (defun-debug add-debug-sphere ((enable symbol) (bucket bucket-id) (pos vector) (radius meters) (color rgba))
   "Draw a debug sphere."
   (if (and enable (not *display-capture-mode*))
@@ -602,6 +670,18 @@
   "Draw a debug sphere with a text label."
   (add-debug-sphere enable bucket pos radius color)
   (add-debug-text-3d enable bucket text pos (font-color default) (the-as vector2h #f))
+  #f
+  )
+
+(defun-debug add-debug-spheres ((arg0 symbol) (arg1 bucket-id) (arg2 (inline-array vector)) (arg3 int) (arg4 rgba))
+  (when (and arg0 (or (not *display-capture-mode*) (-> *setting-control* user-current unknown-usd-748)))
+    (let ((s4-0 (-> arg2 0)))
+      (countdown (s3-0 arg3)
+        (add-debug-sphere #t arg1 s4-0 (-> s4-0 w) arg4)
+        (&+! s4-0 16)
+        )
+      )
+    )
   #f
   )
 
@@ -669,6 +749,70 @@
   (none)
   )
 
+(defun-debug add-debug-circle ((arg0 symbol) (arg1 bucket-id) (arg2 vector) (arg3 float) (arg4 rgba) (arg5 matrix))
+  (rlet ((vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         )
+    (init-vf0-vector)
+    "note: you may pass #f for orientation"
+    (if (not (or arg0 *display-capture-mode*))
+        (return #f)
+        )
+    (let ((f30-0 0.0)
+          (s1-0 (new-stack-vector0))
+          (s0-0 (new-stack-vector0))
+          (sv-48 0)
+          )
+      (while (< sv-48 12)
+        (let ((sv-64 s1-0))
+          (set! (-> sv-64 x) (* arg3 (cos f30-0)))
+          (set! (-> sv-64 y) 0.0)
+          (set! (-> sv-64 z) (* arg3 (sin f30-0)))
+          (set! (-> sv-64 w) 1.0)
+          )
+        (set! f30-0 (+ 5461.3335 f30-0))
+        (let ((sv-80 s0-0))
+          (set! (-> sv-80 x) (* arg3 (cos f30-0)))
+          (set! (-> sv-80 y) 0.0)
+          (set! (-> sv-80 z) (* arg3 (sin f30-0)))
+          (set! (-> sv-80 w) 1.0)
+          )
+        (when arg5
+          (vector-matrix*! s1-0 s1-0 arg5)
+          (vector-matrix*! s0-0 s0-0 arg5)
+          )
+        (let ((a1-3 s1-0))
+          (let ((v1-17 s1-0)
+                (a0-7 arg2)
+                )
+            (.lvf vf4 (&-> v1-17 quad))
+            (.lvf vf5 (&-> a0-7 quad))
+            )
+          (.mov.vf.w vf6 vf0)
+          (.add.vf.xyz vf6 vf4 vf5)
+          (.svf (&-> a1-3 quad) vf6)
+          )
+        (let ((a1-4 s0-0))
+          (let ((v1-18 s0-0)
+                (a0-8 arg2)
+                )
+            (.lvf vf4 (&-> v1-18 quad))
+            (.lvf vf5 (&-> a0-8 quad))
+            )
+          (.mov.vf.w vf6 vf0)
+          (.add.vf.xyz vf6 vf4 vf5)
+          (.svf (&-> a1-4 quad) vf6)
+          )
+        (add-debug-line #t arg1 s1-0 s0-0 arg4 #f (the-as rgba -1))
+        (+! sv-48 1)
+        )
+      )
+    #f
+    )
+  )
+
 (defun-debug add-debug-vector ((enable symbol) (bucket bucket-id) (base vector) (dir vector) (len-scale meters) (color rgba))
   "Draw a vector."
   (if (not (or enable *display-capture-mode*))
@@ -710,6 +854,132 @@
   (none)
   )
 
+(defun-debug add-debug-cspace ((enable symbol) (bucket bucket-id) (cs cspace))
+  (add-debug-matrix enable bucket (-> cs bone transform) (meters 2))
+  cs
+  )
+
+(defun-debug add-debug-curve ((arg0 symbol)
+                    (arg1 bucket-id)
+                    (arg2 (inline-array vector))
+                    (arg3 int)
+                    (arg4 (pointer float))
+                    (arg5 int)
+                    (arg6 rgba)
+                    )
+  (if (not (or arg0 *display-capture-mode*))
+      (return #f)
+      )
+  (let ((s0-0 (new-stack-vector0))
+        (sv-48 (new 'stack-no-clear 'vector))
+        )
+    (set! (-> sv-48 quad) (the-as uint128 0))
+    (let ((sv-64 (* arg3 4)))
+      (curve-evaluate! sv-48 (-> arg4 0) arg2 arg3 arg4 arg5)
+      (let ((sv-80 0))
+        (while (< sv-80 sv-64)
+          (set! (-> s0-0 quad) (-> sv-48 quad))
+          (curve-evaluate! sv-48 (/ (the float (+ sv-80 1)) (the float sv-64)) arg2 arg3 arg4 arg5)
+          (add-debug-line #t arg1 s0-0 sv-48 arg6 #f (the-as rgba -1))
+          (+! sv-80 1)
+          )
+        )
+      )
+    )
+  #f
+  )
+
+(defun-debug add-debug-curve2 ((arg0 symbol) (arg1 bucket-id) (arg2 curve) (arg3 rgba) (arg4 symbol))
+  (if (and arg0 (or (not *display-capture-mode*) (-> *setting-control* user-current unknown-usd-748)))
+      (add-debug-curve #t arg1 (-> arg2 cverts) (-> arg2 num-cverts) (-> arg2 knots) (-> arg2 num-knots) arg3)
+      )
+  #f
+  )
+
+(defun-debug debug-percent-bar ((arg0 symbol) (arg1 bucket-id) (arg2 int) (arg3 int) (arg4 float) (arg5 rgba) (arg6 int) (arg7 int))
+  (let ((sv-16 arg3)
+        (sv-32 arg4)
+        (s3-0 arg5)
+        (s1-0 arg6)
+        (s2-0 arg7)
+        )
+    (if (not (or arg0 *display-capture-mode*))
+        (return #f)
+        )
+    (with-dma-buffer-add-bucket ((s0-0 (-> *display* frames (-> *display* on-screen) debug-buf))
+                                 arg1
+                                 )
+      (draw-sprite2d-xy s0-0 arg2 sv-16 s1-0 s2-0 (new 'static 'rgba :a #x40) #x3fffff)
+      (draw-sprite2d-xy s0-0 arg2 (+ sv-16 2) (the int (* sv-32 (the float s1-0))) (+ s2-0 -4) s3-0 #x3fffff)
+      )
+    )
+  #f
+  )
+
+(defun-debug add-debug-light ((arg0 symbol) (arg1 bucket-id) (arg2 light) (arg3 vector) (arg4 string))
+  (rlet ((acc :class vf)
+         (vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         (vf7 :class vf)
+         )
+    (init-vf0-vector)
+    (if (not (or arg0 *display-capture-mode*))
+        (return #f)
+        )
+    (when (!= (-> arg2 extra x) 0.0)
+      (add-debug-vector
+        arg0
+        arg1
+        arg3
+        (-> arg2 direction)
+        (meters 3)
+        (new 'static 'rgba :r #xff :g #xff :b #xff :a #x80)
+        )
+      (let ((s2-0 (new-stack-vector0)))
+        (let ((v1-4 (-> arg2 direction)))
+          (let ((a0-3 (* 12288.0 (-> arg2 extra x))))
+            (.mov vf7 a0-3)
+            )
+          (.lvf vf5 (&-> v1-4 quad))
+          )
+        (.lvf vf4 (&-> arg3 quad))
+        (.add.x.vf.w vf6 vf0 vf0)
+        (.mul.x.vf.xyz acc vf5 vf7)
+        (.add.mul.w.vf.xyz vf6 vf4 vf0 acc)
+        (.svf (&-> s2-0 quad) vf6)
+        (let ((s1-1 (logior (logior (logior (shr (shl (the int (* 128.0 (-> arg2 color w))) 56) 32)
+                                            (shr (shl (the int (* 128.0 (-> arg2 color z))) 56) 40)
+                                            )
+                                    (shr (shl (the int (* 128.0 (-> arg2 color y))) 56) 48)
+                                    )
+                            (shr (shl (the int (* 128.0 (-> arg2 color x))) 56) 56)
+                            )
+                    )
+              )
+          (format (clear *temp-string*) "~S ~,,2f" arg4 (-> arg2 extra x))
+          (let ((t0-2 *temp-string*))
+            (add-debug-text-sphere arg0 arg1 s2-0 (* 2048.0 (-> arg2 extra x)) t0-2 (the-as rgba s1-1))
+            )
+          )
+        )
+      )
+    #f
+    )
+  )
+
+(defun-debug add-debug-lights ((arg0 symbol) (arg1 bucket-id) (arg2 (inline-array light)) (arg3 vector))
+  (if (not (or arg0 *display-capture-mode*))
+      (return #f)
+      )
+  (add-debug-light arg0 arg1 (-> arg2 0) arg3 "dir0")
+  (add-debug-light arg0 arg1 (-> arg2 1) arg3 "dir1")
+  (add-debug-light arg0 arg1 (-> arg2 2) arg3 "dir2")
+  (add-debug-light arg0 arg1 (-> arg2 3) arg3 "ambi")
+  #f
+  )
+
 (defun-debug drawable-frag-count ((arg0 drawable))
   (let ((gp-0 0))
     (cond
@@ -727,3 +997,128 @@
     gp-0
     )
   )
+
+(defun-debug history-init ((arg0 pos-history) (arg1 int))
+  (set! (-> arg0 num-points) arg1)
+  (set! (-> arg0 points) (the-as (inline-array vector) #f))
+  arg0
+  )
+
+(defun-debug history-draw-and-update ((arg0 pos-history) (arg1 symbol) (arg2 vector))
+  (if (and arg1 (not (-> arg0 points)))
+      (set! (-> arg0 points) (the-as (inline-array vector) (malloc 'debug (* (-> arg0 num-points) 16))))
+      )
+  (when (-> arg0 points)
+    (set! (-> arg0 points (-> arg0 h-first) quad) (-> arg2 quad))
+    (+! (-> arg0 h-first) 1)
+    (when (>= (-> arg0 h-first) (-> arg0 num-points))
+      (set! (-> arg0 h-first) 0)
+      0
+      )
+    )
+  (when (and arg1 (or (not *display-capture-mode*) (-> *setting-control* user-current unknown-usd-748)))
+    (dotimes (s5-1 (+ (-> arg0 num-points) -1))
+      (if (!= (+ s5-1 1) (-> arg0 h-first))
+          (add-debug-line
+            #t
+            (bucket-id bucket785)
+            (-> arg0 points s5-1)
+            (-> arg0 points (+ s5-1 1))
+            (new 'static 'rgba :r #x80 :g #xc0 :b #x80 :a #x80)
+            #f
+            (the-as rgba -1)
+            )
+          )
+      )
+    )
+  #f
+  )
+
+(defun-debug dma-timeout-cam ()
+  (let ((a0-0 (new-stack-vector0))
+        (a1-0 (new-stack-matrix0))
+        )
+    (set! (-> a0-0 x) -666764.4)
+    (set! (-> a0-0 y) 21102.984)
+    (set! (-> a0-0 z) 51613.348)
+    (set! (-> a0-0 w) 1.0)
+    (set! (-> a1-0 rvec x) -0.911)
+    (set! (-> a1-0 rvec y) 0.0)
+    (set! (-> a1-0 rvec z) 0.4122)
+    (set! (-> a1-0 rvec w) 0.0)
+    (set! (-> a1-0 uvec x) -0.0984)
+    (set! (-> a1-0 uvec y) 0.971)
+    (set! (-> a1-0 uvec z) -0.2174)
+    (set! (-> a1-0 uvec w) 0.0)
+    (set! (-> a1-0 fvec x) -0.4003)
+    (set! (-> a1-0 fvec y) -0.2387)
+    (set! (-> a1-0 fvec z) -0.8847)
+    (set! (-> a1-0 fvec w) 0.0)
+    (set! (-> a1-0 trans x) 0.0)
+    (set! (-> a1-0 trans y) 0.0)
+    (set! (-> a1-0 trans z) 0.0)
+    (set! (-> a1-0 trans w) 1.0)
+    (debug-set-camera-pos-rot! a0-0 a1-0)
+    )
+  )
+
+(defun-debug display-file-info ()
+  (when (and *display-file-info* (!= *master-mode* 'menu))
+    (dotimes (gp-0 (-> *level* length))
+      (let ((v1-7 (-> *level* level gp-0)))
+        (when (= (-> v1-7 status) 'active)
+          (let ((s5-0 (-> v1-7 bsp)))
+            (format *stdcon* "file name: ~S~%" (-> s5-0 info file-name))
+            (format *stdcon* "version: ~D.~D~%" (-> s5-0 info major-version) (-> s5-0 info minor-version))
+            (format *stdcon* "maya file: ~S~%" (-> s5-0 info maya-file-name))
+            (format *stdcon* "mdb file: ~S~%" (-> s5-0 info mdb-file-name))
+            (format *stdcon* "~S" (-> s5-0 info tool-debug))
+            )
+          )
+        )
+      )
+    )
+  0
+  )
+
+;; og:preserve-this stays held (heldarms rung): a fresh scoped decode of debug.o
+;; (allowed_objects: ["debug","drawable"], this worktree's own all-types.gc)
+;; landed the 14 functions above cleanly; the remaining 13 of jak3's 46
+;; defun-debugs still absent from this file do not decode clean and stay held,
+;; grouped by the failure class the decompiler reported (op numbers are this
+;; rung's own scoped-decode run, reproducible via the recipe in
+;; docs/jakx-bringup-quickstart.md's "Scratch-only scoped decodes" section):
+;;
+;; - Full expression-builder failure ("function was not converted to
+;;   expressions. Cannot decompile.", no body at all): add-debug-arc,
+;;   add-debug-points.
+;; - Raw MIPS/VU fallback (decompiler gives up on expression-building partway
+;;   through and dumps local-vars plus rlet register soup, most of the body
+;;   typed <uninitialized>): add-debug-cross, debug-pad-display (also "failed
+;;   type prop at 46" and "Failed to guess label use for L288"),
+;;   add-debug-cursor (also "Failed to guess stack use for 16").
+;; - Single bad memory access at a specific op, otherwise structured output
+;;   (candidate for a bounded type_casts.jsonc fix, not attempted this rung):
+;;   add-debug-point ("Failed load" at op 142), add-debug-triangle-normal
+;;   ("Failed to guess stack use for 16"), add-debug-line2d ("Failed load" at
+;;   op 105), add-boundary-shader ("Failed load" at op 25),
+;;   add-debug-bound-internal (multiple: failed type prop at 119, "Failed to
+;;   guess label use for L270", four "Unsupported inline assembly instruction
+;;   kind" srl hits), add-debug-bound (two "Failed store" hits, ops 91 and 97).
+;; - Stack-slot size mismatch (declared size 4, actual access size 16, three
+;;   separate sites all at offset 32): add-debug-yrot-vector.
+;; - Clean body, but its only callee is itself unlanded: bugfix? decodes
+;;   clean and calls only qword-read-time, which does not (COP0 performance
+;;   counter reads via "mfc0 v1, Count" / "mfc0 a1, Count", flagged
+;;   "Unsupported inline assembly instruction kind", the same class as the
+;;   already-extern-only cpu-delay). Landing bugfix? without a real
+;;   qword-read-time body would be the e2 class (a definition whose only
+;;   callee still links to 0), so it stays held with its callee.
+;;
+;; Retirement condition per class: the first two classes need a hand port
+;; citing a twin (add-debug-arc has one in jak3; add-debug-points and
+;; qword-read-time/cpu-delay's COP0 reads do not) or a mips2c port for the
+;; COP0-register pair; the "single bad memory access" class is a real
+;; candidate for a future bounded type_casts.jsonc pass, not attempted here
+;; to keep this rung's config-editing effort scoped to the functions it
+;; actually landed.
