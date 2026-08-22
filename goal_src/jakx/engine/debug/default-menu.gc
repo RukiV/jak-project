@@ -175,8 +175,18 @@
 (define-extern task-node-closed? (function game-task-node symbol))
 (define-extern task-node-open? (function game-task-node symbol))
 
+;; og:preserve-this debug-segment guard (runtime-falsified, tip smoke): same
+;; class as editable-player.gc's own *editable-menu-context* guard (see that
+;; file's og:preserve-this note for the full C++ citation) - the 'debug
+;; kheap this constructor allocates its font sub-object on only exists when
+;; booted with -debug (game/kernel/jakx/kmachine.cpp:296-302), and
+;; *debug-segment* itself reads back the identical flag
+;; (game/kernel/jakx/kscheme.cpp:1924-1929), so it is the correct guard, not
+;; a redundant one. *menu-hook* below is patched to match, since it
+;; dereferences this context every frame regardless of debug-segment.
+;;
 ;; definition for symbol *debug-menu-context*, type debug-menu-context
-(define *debug-menu-context* (new 'debug 'debug-menu-context))
+(define *debug-menu-context* (when *debug-segment* (new 'debug 'debug-menu-context)))
 
 ;; definition for symbol *dm-cam-mode-interpolation*, type object
 (define *dm-cam-mode-interpolation* (the-as object 0))
@@ -6284,8 +6294,12 @@
   arg0
   )
 
+;; og:preserve-this debug-segment guard (runtime-falsified, tip smoke): same
+;; class as *debug-menu-context* above; see editable-player.gc's
+;; *editable-menu-context* note for the full C++ citation.
+;;
 ;; definition for symbol *popup-menu-context*, type debug-menu-context
-(define *popup-menu-context* (new 'debug 'debug-menu-context))
+(define *popup-menu-context* (when *debug-segment* (new 'debug 'debug-menu-context)))
 
 ;; definition for function popup-menu-context-make-default-menus
 (defun popup-menu-context-make-default-menus ((arg0 debug-menu-context))
@@ -6389,11 +6403,20 @@
   arg0
   )
 
-;; failed to figure out what this is:
-(debug-menu-context-make-default-menus *debug-menu-context*)
+;; og:preserve-this debug-segment guard (runtime-falsified, tip smoke): both
+;; calls below build their whole menu tree by allocating debug-menu and
+;; debug-menu-item-* objects on the 'debug kheap (same class as the two
+;; context constructions above; see editable-player.gc's
+;; *editable-menu-context* note for the full C++ citation), unconditionally
+;; and regardless of arg0's own value, so guarding just the two contexts
+;; above is not enough on its own; skipped entirely on a non-debug boot.
+(when *debug-segment*
+  ;; failed to figure out what this is:
+  (debug-menu-context-make-default-menus *debug-menu-context*)
 
-;; failed to figure out what this is:
-(popup-menu-context-make-default-menus *popup-menu-context*)
+  ;; failed to figure out what this is:
+  (popup-menu-context-make-default-menus *popup-menu-context*)
+  )
 
 ;; definition for function menu-respond-to-pause
 (defun menu-respond-to-pause ()
@@ -6427,8 +6450,21 @@
   )
 
 ;; definition for function *menu-hook*
+;; og:preserve-this debug-segment guard (runtime-falsified, tip smoke): this
+;; hook runs every frame regardless of debug-segment (main.gc's own
+;; (*menu-hook*) call carries no guard of its own), and
+;; debug-menus-handler's own body dereferences its argument unconditionally
+;; ((-> arg0 is-active), goal_src/jakx/engine/debug/menu.gc:1659), so calling
+;; it with either context now possibly #f (see this file's own
+;; *debug-menu-context*/*popup-menu-context* guards above) needs a truthiness
+;; check here rather than inside debug-menus-handler itself, which is
+;; unowned by this rung and shared with jak3's identical twin.
 (defun *menu-hook* ()
-  (debug-menus-handler *debug-menu-context*)
-  (debug-menus-handler *popup-menu-context*)
+  (when *debug-menu-context*
+    (debug-menus-handler *debug-menu-context*)
+    )
+  (when *popup-menu-context*
+    (debug-menus-handler *popup-menu-context*)
+    )
   )
 

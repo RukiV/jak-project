@@ -17,6 +17,27 @@
 ;; unbound symbol and crashes goal-0 (the #115 class). This object (498) builds
 ;; ahead of default-menu (504), so the definition exists before default-menu needs
 ;; it.
-(define *editable-menu-context* (new 'debug 'debug-menu-context))
-(set! (-> *editable-menu-context* joypad-number) 1)
+;;
+;; og:preserve-this debug-segment guard (runtime-falsified, tip smoke): the
+;; *debug-menu-context* type's own new method (goal_src/jakx/engine/debug/
+;; menu.gc:92) allocates its font sub-object on the 'debug kheap, and that
+;; kheap only exists when the C++ runtime's DebugSegment flag is set
+;; (game/kernel/jakx/kmachine.cpp:296-302, "if no debug, we make the
+;; kheapinfo structure NULL so GOAL knows not to use it"); the same flag is
+;; what *debug-segment* itself reads back as (game/kernel/jakx/kscheme.cpp:
+;; 1924-1929), so *debug-segment* is NOT unconditionally true the way an
+;; earlier campaign note assumed, only true when booted with -debug. A
+;; default (non-debug) boot leaves kdebugheap.offset at 0, and this line was
+;; the first place in the whole campaign to attempt a 'debug allocation from
+;; an object's own top-level (as opposed to from a function body invoked
+;; later, well after boot); the crash was a near-null read at offset 0x10
+;; inside that allocation chain, rip in unmapped code, matching exactly.
+;; Guarded the same way debug.gc and debug-sphere.gc already guard their own
+;; debug-segment-only top-level content ((when *debug-segment* ...)); on a
+;; -debug boot this constructs the real context exactly as before, and on a
+;; default boot it binds #f instead of crashing goal-0.
+(define *editable-menu-context* (when *debug-segment* (new 'debug 'debug-menu-context)))
+(when *editable-menu-context*
+  (set! (-> *editable-menu-context* joypad-number) 1)
+  )
 
