@@ -1791,4 +1791,36 @@
   // tracked-obj 8, track-immediately? 16), so this is a named-type match,
   // not a guess.
   "(anon-function 59 wvehicle-weapons-proj)": [[16, "light-trail-tracker-spawn-params"]],
-  "(anon-function 99 wvehicle-weapons-proj)": [[16, "light-trail-tracker-spawn-params"]]}
+  "(anon-function 99 wvehicle-weapons-proj)": [[16, "light-trail-tracker-spawn-params"]],
+  // light-trails rung: jak3 twin transplant, translated for jakx's own slot
+  // numbering (this rung's own all-types.gc correction: build-prim-strip! is
+  // jakx's method 9, not jak3's method 12; expire-old-points! is jakx's
+  // method 15, not jak3's method 14; light-trail-tracker-init-by-other is
+  // unshifted, a plain defbehavior name). Sizes verified against this rung's
+  // own scoped decode stack headers before landing: method 9's frame is
+  // 0x1b0/296 stack_vars bytes (jak3's own footprint, 16 + array(int32,4) +
+  // 160-vector + 176-vector + 32-rgbaf + 48-vector + 112-vector +
+  // 208-inline-array(vector,5) + 288-rgbaf, comfortably inside 296); method
+  // 15's frame is 0x80/24 stack_vars bytes, comfortably fitting a single
+  // 16-byte light-trail-breadcrumb at offset 16;
+  // light-trail-tracker-init-by-other's own error (Unsupported inline
+  // assembly instruction kind - sllv, the handle->process idiom) matches
+  // jak3's own documented need for a stack vector at 16.
+  "light-trail-tracker-init-by-other": [[16, "vector"]],
+  "(method 9 light-trail)": [
+    [16, ["array", "int32", 4]],
+    [160, "vector"],
+    [176, "vector"],
+    [32, "rgbaf"],
+    [48, "vector"],
+    [112, "vector"],
+    [208, ["inline-array", "vector", 5]],
+    [288, "rgbaf"]
+  ],
+  "(method 15 light-trail)": [[16, "light-trail-breadcrumb"]],
+  // add-crumb! is jakx's method 12 (jak3's method 11); same translation
+  // rationale as the entries above. Verified: this rung's own scoped decode
+  // error was "Failed store: (s.f! (+ a1-5 12) f0-7)" against the sp+16
+  // stack var, matching light-trail-breadcrumb's own birth-time field at
+  // +12 exactly.
+  "(method 12 light-trail)": [[16, "light-trail-breadcrumb"]]}

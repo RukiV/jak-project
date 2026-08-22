@@ -48,3 +48,153 @@
   :flag-assert         #x900000091
   )
 
+;; og:preserve-this light-trails rung: the rest of the family, landed from a
+;; scoped decode against this worktree's own corrected all-types.gc (issue
+;; the census cites: light-trails-h was 1-type-landed, light-trails.gc was a
+;; state stub, 77 ir2 markers). Before this rung, all-types.gc's method table
+;; for light-trail/weapon-trail/tread-trail carried jak3's method NAMES
+;; pasted onto jak3's own slot NUMBERS, never independently checked against
+;; jakx's own compiled bodies; this rung's scoped decode proves by direct
+;; body content that jakx's own numbering differs (build-prim-strip! moved
+;; to slot 9, overriding prim-client's own abstract draw hook, and
+;; setup!/reset!/add-crumb!/common-trans!/expire-old-points!/
+;; add-vert-to-prim-strip!/add-tri-pair-to-prim!/calc-vertex-pos!/
+;; crumb-age-out-callback/reset-crumbs!/replace-last-crumb! all shift +1
+;; behind it, with one genuine jakx-only insertion at slot 13). See this
+;; rung's own all-types.gc for the full evidence trail, one note per type.
+;; light-trail-tracker and its descendants (weapon-trail-tracker,
+;; tread-trail-tracker, light-trail-tracker-water,
+;; light-trail-tracker-projectile) are NOT landed this rung: the same defect
+;; class is visible there too (should-track?/should-end?/should-draw?/
+;; add-crumb!/get-tracked-object-pos each one slot off, plus a `die` state
+;; missing from :state-methods entirely), but this rung could not resolve
+;; the deftype parser's slot-assignment rule for :state-methods vs :methods
+;; with confidence in the time available; fixing light-trail's own table
+;; required removing a redundant slot-9 override that double-counted against
+;; prim-client's own method-count-assert, and a first attempt at the tracker
+;; table hit an analogous but unresolved miscount. Land light-trail-tracker
+;; and its descendants, plus light-trail-tracker-init-by-other below, in a
+;; follow-up rung once that mechanism is nailed down empirically.
+
+(deftype color-array (inline-array-class)
+  ((data  rgbaf  :inline :dynamic)
+   )
+  )
+
+(deftype light-trail-breadcrumb (structure)
+  ((pos         vector  :inline)
+   (birth-time  uint32  :overlay-at (-> pos data 3))
+   )
+  )
+
+(deftype breadcrumb-array (inline-array-class)
+  ((data  light-trail-breadcrumb  :dynamic)
+   )
+  )
+
+;; og:preserve-this light-trails rung: :methods corrected against this rung's
+;; own scoped decode (see all-types.gc's own note on this type for the full
+;; per-slot evidence). build-prim-strip! genuinely overrides the inherited
+;; prim-client-method-9 slot rather than getting its own declared name here:
+;; slot 9 is already counted by prim-client's own method-count-assert 10, and
+;; a redundant sub-parent-count :methods entry double-counts under this
+;; file's deftype parser (the same class of defect the placement-gate wave's
+;; own commit message documents for save-memcard/nav-graph-editor/etc). The
+;; landed camera-facing-quad.gc (goal_src/jakx/levels/common) is direct
+;; precedent for this exact prim-client shape: its own comment states
+;; "camera-facing-quad simply inherits prim-client's own real no-op method 9
+;; (prim-h.gc, already landed)", confirming prim-client-method-9 is the
+;; live, correct name for the inherited slot rather than an invented one.
+(deftype light-trail (prim-client)
+  ((crumb-array             (array uint8)             :offset-assert 4) ;; guessed by decompiler
+   (crumb-size              uint8                     :offset-assert 8)
+   (crumb-count             int16                     :offset-assert 10)
+   (max-crumb-count         int16                     :offset-assert 12)
+   (appearance              light-trail-composition   :offset-assert 16)
+   (start-marker            uint64                    :offset-assert 24)
+   (end-marker              uint64                    :offset-assert 32)
+   (decision                uint64                    :offset-assert 40) ;; light-trail-decision
+   (total-distance-traveled float                     :offset-assert 48)
+   (strip                   prim-strip                :offset-assert 52) ;; guessed by decompiler
+   (strip2                  prim-strip                :offset-assert 56) ;; guessed by decompiler
+   (cache-vector            vector                  4 :inline :offset-assert 64) ;; guessed by decompiler
+   )
+  :method-count-assert 23
+  :size-assert         #x80
+  :flag-assert         #x1700000080
+  (:methods
+    (setup! (_type_ light-trail-composition int) none) ;; 10
+    (reset! (_type_) none) ;; 11
+    (add-crumb! (_type_ vector time-frame) int) ;; 12
+    (light-trail-method-13 (_type_) none) ;; 13, jakx-only, no jak3 analog: registers with *prim-client-engine* (same shape as camera-facing-quad-method-11, already landed)
+    (common-trans! (_type_) int) ;; 14
+    (expire-old-points! (_type_) none) ;; 15
+    (light-trail-method-16 () none) ;; 16
+    (add-vert-to-prim-strip! (_type_ prim-strip vector rgba float float) none) ;; 17
+    (add-tri-pair-to-prim! (_type_ vector rgba float vector float) symbol) ;; 18
+    (calc-vertex-pos! (_type_ light-trail-breadcrumb int vector vector) none) ;; 19
+    (crumb-age-out-callback (_type_ float int) none) ;; 20
+    (reset-crumbs! (_type_) none) ;; 21
+    (replace-last-crumb! (_type_ vector) none) ;; 22
+    )
+  )
+
+(deftype weapon-trail-crumb (light-trail-breadcrumb)
+  ((offset  vector  :inline)
+   )
+  )
+
+;; og:preserve-this light-trails rung: same +1-shift correction as
+;; light-trail's own table above. add-crumb-with-offset is jakx's method 23
+;; (jak3's 22); the real, still-unnamed weapon-trail-method-23 is jakx's
+;; method 24 (jak3's 23), matching jak3's own convention of leaving it
+;; generic. Argument types corrected object/object -> vector/vector per the
+;; decoded body (both slots operate on vector args throughout).
+(deftype weapon-trail (light-trail)
+  ()
+  :method-count-assert 25
+  :size-assert         #x80
+  :flag-assert         #x1900000080
+  (:methods
+    (add-crumb-with-offset (_type_ vector vector) light-trail-breadcrumb) ;; 23
+    (weapon-trail-method-24 (_type_ vector vector) none) ;; 24
+    )
+  )
+
+(deftype tread-trail-crumb (light-trail-breadcrumb)
+  ((normal  vector  :inline)
+   )
+  )
+
+;; og:preserve-this light-trails rung: same +1-shift correction as
+;; weapon-trail's own table above.
+(deftype tread-trail (light-trail)
+  ()
+  :method-count-assert 25
+  :size-assert         #x80
+  :flag-assert         #x1900000080
+  (:methods
+    (add-crumb-with-offset (_type_ vector vector) none) ;; 23
+    (tread-trail-method-24 (_type_ vector vector) none) ;; 24
+    )
+  )
+
+(deftype light-trail-tracker-spawn-params (structure)
+  ((appearance         light-trail-composition  :offset-assert 0)
+   (max-num-crumbs     int32                    :offset-assert 4)
+   (tracked-obj        uint64                   :offset-assert 8) ;; handle
+   (track-immediately? symbol                   :offset-assert 16) ;; guessed by decompiler
+   )
+  :method-count-assert 9
+  :size-assert         #x14
+  :flag-assert         #x900000014
+  )
+
+(deftype weapon-trail-tracker-spawn-params (light-trail-tracker-spawn-params)
+  ((joint0 int16  :offset-assert 20)
+   (joint1 int16  :offset-assert 22)
+   )
+  :method-count-assert 9
+  :size-assert         #x18
+  :flag-assert         #x900000018
+  )
