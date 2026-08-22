@@ -2192,6 +2192,70 @@
   this
   )
 
+;; og:preserve-this bring-up sweep (issue 602): retail's authored want-sets and
+;; entity lifecycle keep a level-typed process from ever outliving the level that
+;; linked its deftype, so retail never needed this -- jak3's own landed unload!
+;; (goal_src/jak3/engine/level/level.gc, this same case-on-status shape) carries
+;; no such sweep either, confirmed by direct comparison, not assumed. The
+;; bring-up driver's window swaps break the invariant retail relied on:
+;; pusher-init (collide-shape.gc:41-53) change-parent's a level actor's process
+;; into the global *pusher-pool*, a plain child of *active-pool* with no link
+;; back to the level that spawned it. If that level dies before the process
+;; does, execute-process-tree goes on dispatching run-logic? every frame on a
+;; process whose type pointer now sits inside the level's rewound heap, until
+;; something else reuses that memory (receiver dump, issue 602: tag 0x22f2d44,
+;; method slot 12 holding linked-code bytes matching rip exactly, first
+;; reproduced on the junglew-to-havjungw window swap). This sweep is the belt:
+;; entity-birthed processes already die through the
+;; get-callback-symbol-value-by-slot! entity-teardown callback above; this
+;; catches everything else, e.g. pusher-init's change-parent'ed props.
+;; Bounds-only comparison on purpose: never dereference -> type itself, since a
+;; process that already leaked past an *earlier* level's unload may be pointing
+;; at memory that is no longer a valid type object, only a raw address that
+;; used to be one. search-process-tree plus a restart-on-kill loop is the same
+;; idiom kill-by-type uses (kernel/gkernel.gc); it tolerates removal because
+;; each hit restarts the walk from *active-pool* instead of continuing through
+;; a tree the kill just mutated, matching how deactivate itself walks a
+;; process's own children (kernel/gkernel.gc, (defmethod deactivate ((this
+;; process))), caching the next-brother pointer before recursing). Retire this
+;; sweep if/when level-typed process spawning is fully routed through the
+;; entity lifecycle, matching retail's want-set discipline.
+(define *level-sweep-heap-base* 0)
+(define *level-sweep-heap-top* 0)
+
+(defun kill-level-typed-processes ((lev level))
+  "Deactivate every live process whose type pointer falls inside lev's heap
+   range. Belt-and-suspenders for issue 602: catches level-typed processes
+   (e.g. pusher-init props) that the entity-teardown callback above does not
+   own. Logs a format-0 line per process killed, naming it for the record."
+  (local-vars (a0-1 process))
+  (set! *level-sweep-heap-base* (the-as int (-> lev heap base)))
+  (set! *level-sweep-heap-top* (the-as int (-> lev heap top-base)))
+  (while (begin
+           (set! a0-1
+                 (search-process-tree
+                   *active-pool*
+                   (lambda ((arg0 process))
+                     (let ((type-addr (the-as int (-> arg0 type))))
+                       (and (>= type-addr *level-sweep-heap-base*)
+                            (< type-addr *level-sweep-heap-top*)
+                            )
+                       )
+                     )
+                   )
+                 )
+           a0-1
+           )
+    (format 0 "level-sweep ~A: killing level-typed process ~A type #x~X~%"
+            (-> lev name)
+            (-> a0-1 name)
+            (the-as int (-> a0-1 type))
+            )
+    (deactivate a0-1)
+    )
+  (none)
+  )
+
 ;; definition for method 10 of type level
 (defmethod unload! ((this level))
   ((method-of-type entity-more-perm-hash entity-more-perm-hash-method-14)
@@ -2337,6 +2401,10 @@
     ;; for the *part-id-table* sibling scrub and the full deviation note.
     (unlink-part-by-heap (-> this heap))
     (unlink-lightning-spec-by-heap (-> this heap))
+    ;; og:preserve-this issue 602: sweep processes whose type lives in this
+    ;; level's heap before anything can reuse it; see kill-level-typed-processes
+    ;; above for the full deviation note.
+    (kill-level-typed-processes this)
     (particle-adgif-cache-flush)
     (dotimes (v1-115 11)
       (set! (-> this texture-page-dir v1-115 page) #f)
