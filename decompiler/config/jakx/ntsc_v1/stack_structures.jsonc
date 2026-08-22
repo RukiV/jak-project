@@ -1710,5 +1710,27 @@
   // (anon-function 32 task-control) above. The raw stack address's own
   // type never resolved on its own ("Failed to guess stack use for 16 in
   // play-task:50").
-  "play-task": [[16, "event-message-block"]]
-}
+  "play-task": [[16, "event-message-block"]],
+  // add-debug-triangle-normal (debug-draw-walls rung): a scoped decode of
+  // debug.o (allowed_objects: ["debug"], this worktree's own all-types.gc)
+  // fails "Failed to guess stack use for 16 in add-debug-triangle-normal:13"
+  // -- two on-stack vector locals (a triangle-normal work vector and the
+  // point it gets drawn from) that the decompiler cannot size on its own.
+  // jak1 and jak2 hit the identical wall on their own add-debug-triangle-
+  // normal and both fix it with the same two-entry stack_structures pin
+  // (jak3 needs nothing here, so its own config carries no entry); reused
+  // verbatim since jakx's function is the same source.
+  "add-debug-triangle-normal": [
+    [16, "vector"],
+    [32, "vector"]
+  ],
+  // add-debug-bound (debug-draw-walls rung): a scoped decode of debug.o
+  // (allowed_objects: ["debug"], this worktree's own all-types.gc) fails
+  // two stores off a pointer repeatedly reloaded from the same on-stack
+  // dma-packet local (offset 16): "Failed store: (s.w! (+ a0-15 8) 0) at
+  // op 91" and "Failed store: (s.w! (+ v1-25 12) a0-17) at op 97". jak3's
+  // own add-debug-bound hits the same wall and pins the identical stack
+  // slot to dma-packet (its own type_casts.jsonc carries this as a
+  // "_stack_" offset-16 entry; jakx's decompiler build resolves the same
+  // fix through stack_structures.jsonc instead, so it is expressed here).
+  "add-debug-bound": [[16, "dma-packet"]]}

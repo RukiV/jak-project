@@ -26,6 +26,28 @@
 ;; first, same class as draw-string above.
 (define-extern debug-set-camera-pos-rot! (function vector matrix vector))
 
+;; og:preserve-this forward extern (debug-draw-walls rung): close-sky-buffer
+;; (engine/gfx/sky/sky-tng.gc) isn't built ahead of debug.gc in jakx's
+;; object order either, same class as draw-string and
+;; debug-set-camera-pos-rot! above; add-debug-bound's own call below needs
+;; this signature in scope first. Signature matches jak3's own forward
+;; extern for it (engine/gfx/sky/sky-h.gc).
+(define-extern close-sky-buffer (function dma-buffer none))
+
+;; og:preserve-this forward extern (debug-draw-walls rung): add-debug-bound
+;; below calls add-debug-bound-internal, which stays held (see this file's
+;; own consolidated hold note further down: it needs a mips2c port of a
+;; related COP0/vf27 helper before it can decode clean, out of scope for
+;; this rung's bounded config work). Without a real defun-debug for it,
+;; goalc would auto-add a loosely-typed forward ref here on its own;
+;; declaring the real signature explicitly instead matches the
+;; task-control-h precedent. add-debug-bound's own call site guards this
+;; with a runtime-link check (nonzero? (the-as int ...)) rather than
+;; calling it unconditionally, since an unlanded symbol still links as 0
+;; and 0 is truthy in GOAL -- retire the guard once add-debug-bound-internal
+;; lands for real.
+(define-extern add-debug-bound-internal (function dma-buffer (inline-array vector) int rgba rgba int none))
+
 (def-mips2c debug-line-clip? (function vector vector vector vector symbol))
 
 ;; WARN: Return type mismatch pointer vs symbol.
@@ -1081,13 +1103,446 @@
   0
   )
 
+;; og:preserve-this landed (debug-draw-walls rung): a scoped decode of debug.o
+;; (allowed_objects: ["debug"], this worktree's own all-types.gc) failed type
+;; prop at op 142, "Could not figure out load: (set! t0-24 (l.d (+ a0-6 8)))"
+;; -- a0-6 is the dma-buffer's raw base pointer, walked byte-by-byte to patch
+;; the dma tag's count field once the point's real vertex total is known,
+;; and plain pointer carries no field for that load to resolve against.
+;; jak1, jak2 and jak3 all hit this same class on their own add-debug-point;
+;; jak3 fixes it with seven type_casts entries at op numbers that match this
+;; worktree's own body exactly (36, 45, 65, 85, 102, 122 line up one for
+;; one), so jak3's entry is reused verbatim rather than re-derived (see
+;; type_casts.jsonc's own "add-debug-point" entry). With those casts in
+;; place the decode is clean and byte-for-byte identical to jak3's landed
+;; body; the docstring and the enable/bucket/pt argument names below are
+;; ported from jak3 too, since neither survives compilation for the
+;; decompiler to recover on its own.
+(defun-debug add-debug-point ((enable symbol) (bucket bucket-id) (pt vector))
+  "Draw a point."
+  (if (not (or enable *display-capture-mode*))
+      (return #f)
+      )
+  (let ((s5-0 (new 'stack 'vector4w-2))
+        (a1-2 (new 'stack-no-clear 'vector))
+        )
+    (set! (-> a1-2 quad) (-> pt quad))
+    (set! (-> a1-2 w) 1.0)
+    (when (transform-point-qword! (-> s5-0 vector 0) a1-2)
+      (with-dma-buffer-add-bucket ((v1-11 (-> *display* frames (-> *display* on-screen) debug-buf))
+                                   bucket
+                                   )
+        (let ((a0-6 (-> v1-11 base)))
+          (let* ((a1-3 v1-11)
+                 (a3-0 (the-as dma-packet (-> a1-3 base)))
+                 )
+            (set! (-> a3-0 dma) (new 'static 'dma-tag :id (dma-tag-id cnt)))
+            (set! (-> a3-0 vif0) (new 'static 'vif-tag))
+            (set! (-> a3-0 vif1) (new 'static 'vif-tag :cmd (vif-cmd direct) :msk #x1))
+            (set! (-> a1-3 base) (the-as pointer (&+ a3-0 16)))
+            )
+          (let* ((a1-4 v1-11)
+                 (a3-2 (the-as gs-gif-tag (-> a1-4 base)))
+                 )
+            (set! (-> a3-2 tag) (new 'static 'gif-tag64
+                                  :nloop #x1
+                                  :eop #x1
+                                  :pre #x1
+                                  :prim (new 'static 'gs-prim :prim (gs-prim-type tri-strip) :iip #x1 :abe #x1)
+                                  :nreg #x8
+                                  )
+                  )
+            (set! (-> a3-2 regs) (new 'static 'gif-tag-regs
+                                   :regs0 (gif-reg-id rgbaq)
+                                   :regs1 (gif-reg-id xyzf2)
+                                   :regs2 (gif-reg-id rgbaq)
+                                   :regs3 (gif-reg-id xyzf2)
+                                   :regs4 (gif-reg-id rgbaq)
+                                   :regs5 (gif-reg-id xyzf2)
+                                   :regs6 (gif-reg-id rgbaq)
+                                   :regs7 (gif-reg-id xyzf2)
+                                   )
+                  )
+            (set! (-> a1-4 base) (the-as pointer (&+ a3-2 16)))
+            )
+          (set! (-> s5-0 vector 1 x) 255)
+          (set! (-> s5-0 vector 1 y) 128)
+          (set! (-> s5-0 vector 1 z) 128)
+          (set! (-> s5-0 vector 1 w) 128)
+          (+! (-> s5-0 vector 0 y) 288)
+          (let* ((a1-11 v1-11)
+                 (a3-4 (the-as vector4w-2 (-> a1-11 base)))
+                 )
+            (set! (-> a3-4 vector 0 quad) (-> s5-0 vector 1 quad))
+            (set! (-> a3-4 vector 1 quad) (-> s5-0 vector 0 quad))
+            (set! (-> a1-11 base) (the-as pointer (&+ a3-4 32)))
+            )
+          (+! (-> s5-0 vector 0 x) -256)
+          (+! (-> s5-0 vector 0 y) -288)
+          (set! (-> s5-0 vector 1 x) 128)
+          (set! (-> s5-0 vector 1 y) 255)
+          (let* ((a1-18 v1-11)
+                 (a3-6 (the-as vector4w-2 (-> a1-18 base)))
+                 )
+            (set! (-> a3-6 vector 0 quad) (-> s5-0 vector 1 quad))
+            (set! (-> a3-6 vector 1 quad) (-> s5-0 vector 0 quad))
+            (set! (-> a1-18 base) (the-as pointer (&+ a3-6 32)))
+            )
+          (+! (-> s5-0 vector 0 x) 512)
+          (set! (-> s5-0 vector 1 y) 128)
+          (set! (-> s5-0 vector 1 z) 255)
+          (let* ((a1-23 v1-11)
+                 (a3-8 (the-as vector4w-2 (-> a1-23 base)))
+                 )
+            (set! (-> a3-8 vector 0 quad) (-> s5-0 vector 1 quad))
+            (set! (-> a3-8 vector 1 quad) (-> s5-0 vector 0 quad))
+            (set! (-> a1-23 base) (the-as pointer (&+ a3-8 32)))
+            )
+          (+! (-> s5-0 vector 0 x) -256)
+          (+! (-> s5-0 vector 0 y) -288)
+          (set! (-> s5-0 vector 1 x) 255)
+          (set! (-> s5-0 vector 1 y) 128)
+          (let* ((a3-10 v1-11)
+                 (a1-30 (the-as vector4w-2 (-> a3-10 base)))
+                 )
+            (set! (-> a1-30 vector 0 quad) (-> s5-0 vector 1 quad))
+            (set! (-> a1-30 vector 1 quad) (-> s5-0 vector 0 quad))
+            (set! (-> a3-10 base) (the-as pointer (&+ a1-30 32)))
+            )
+          (let ((a3-14 (/ (the-as int (+ (- -16 (the-as int a0-6)) (the-as int (-> v1-11 base)))) 16)))
+            (cond
+              ((nonzero? a3-14)
+               (logior! (-> (the-as (pointer uint64) a0-6) 0) (shr (shl a3-14 48) 48))
+               (logior! (-> (the-as (pointer uint64) a0-6) 1) (shl (shr (shl a3-14 48) 48) 32))
+               )
+              (else
+                (set! (-> v1-11 base) a0-6)
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  #f
+  )
+
+;; og:preserve-this landed (debug-draw-walls rung): a scoped decode of debug.o
+;; (allowed_objects: ["debug"], this worktree's own all-types.gc) failed type
+;; prop at op 105, "Could not figure out load: (set! a2-13 (l.d (+ a0-18
+;; 8)))" -- the same dma-tag byte-patch shape add-debug-point hit above.
+;; jak3's own add-debug-line2d hits the identical wall at matching op
+;; numbers (61, 70, 79, 87 all line up one for one against this worktree's
+;; body), so jak3's type_casts entry is reused verbatim (see
+;; type_casts.jsonc's own "add-debug-line2d" entry); the decode is then
+;; clean and byte-for-byte identical to jak3's landed body, whose docstring
+;; and enable/bucket/p0/p1/color argument names are ported below for the
+;; same reason as add-debug-point's.
+(defun-debug add-debug-line2d ((enable symbol) (bucket bucket-id) (p0 vector4w) (p1 vector4w) (color vector4w))
+  "Draw a screen-space line."
+  (if (not (or enable *display-capture-mode*))
+      (return #f)
+      )
+  (with-dma-buffer-add-bucket ((s4-0 (-> *display* frames (-> *display* on-screen) debug-buf))
+                               bucket
+                               )
+    (let ((s2-0 (new 'stack 'vector4w))
+          (v1-10 (new 'stack 'vector4w))
+          )
+      (set! (-> s2-0 quad) (-> p0 quad))
+      (set! (-> v1-10 quad) (-> p1 quad))
+      (set! (-> s2-0 x) (* (+ (-> s2-0 x) 2048) 16))
+      (set! (-> s2-0 y) (* -16 (- 2048 (-> s2-0 y))))
+      (set! (-> s2-0 z) #x7fffff)
+      (set! (-> v1-10 x) (* (+ (-> v1-10 x) 2048) 16))
+      (set! (-> v1-10 y) (* -16 (- 2048 (-> v1-10 y))))
+      (set! (-> v1-10 z) #x7fffff)
+      (let ((a0-18 (-> s4-0 base)))
+        (let* ((a1-7 s4-0)
+               (a2-3 (the-as dma-packet (-> a1-7 base)))
+               )
+          (set! (-> a2-3 dma) (new 'static 'dma-tag :id (dma-tag-id cnt)))
+          (set! (-> a2-3 vif0) (new 'static 'vif-tag))
+          (set! (-> a2-3 vif1) (new 'static 'vif-tag :cmd (vif-cmd direct) :msk #x1))
+          (set! (-> a1-7 base) (the-as pointer (&+ a2-3 16)))
+          )
+        (let* ((a1-8 s4-0)
+               (a2-5 (the-as gs-gif-tag (-> a1-8 base)))
+               )
+          (set! (-> a2-5 tag) (new 'static 'gif-tag64
+                                :nloop #x1
+                                :eop #x1
+                                :pre #x1
+                                :prim (new 'static 'gs-prim :prim (gs-prim-type line) :iip #x1 :abe #x1)
+                                :nreg #x4
+                                )
+                )
+          (set! (-> a2-5 regs) (new 'static 'gif-tag-regs
+                                 :regs0 (gif-reg-id rgbaq)
+                                 :regs1 (gif-reg-id xyzf2)
+                                 :regs2 (gif-reg-id rgbaq)
+                                 :regs3 (gif-reg-id xyzf2)
+                                 )
+                )
+          (set! (-> a1-8 base) (the-as pointer (&+ a2-5 16)))
+          )
+        (let* ((a1-9 s4-0)
+               (a2-7 (the-as vector4w-2 (-> a1-9 base)))
+               )
+          (set! (-> a2-7 vector 0 quad) (-> color quad))
+          (set! (-> a2-7 vector 1 quad) (-> s2-0 quad))
+          (set! (-> a1-9 base) (the-as pointer (&+ a2-7 32)))
+          )
+        (let* ((a1-10 s4-0)
+               (a2-9 (the-as vector4w-2 (-> a1-10 base)))
+               )
+          (set! (-> a2-9 vector 0 quad) (-> color quad))
+          (set! (-> a2-9 vector 1 quad) (-> v1-10 quad))
+          (set! (-> a1-10 base) (the-as pointer (&+ a2-9 32)))
+          )
+        (let ((a1-14 (/ (the-as int (+ (- -16 (the-as int a0-18)) (the-as int (-> s4-0 base)))) 16)))
+          (cond
+            ((nonzero? a1-14)
+             (logior! (-> (the-as (pointer uint64) a0-18) 0) (shr (shl a1-14 48) 48))
+             (logior! (-> (the-as (pointer uint64) a0-18) 1) (shl (shr (shl a1-14 48) 48) 32))
+             )
+            (else
+              (set! (-> s4-0 base) a0-18)
+              )
+            )
+          )
+        )
+      )
+    )
+  #f
+  )
+
+;; og:preserve-this landed (debug-draw-walls rung): a scoped decode of debug.o
+;; (allowed_objects: ["debug"], this worktree's own all-types.gc) failed type
+;; prop at op 25, "Could not figure out load: (set! v1-5 (l.d (+ s5-0 16)))"
+;; -- s5 is an adgif-shader whose fields the decompiler cannot resolve
+;; through a plain pointer. jak3's own add-boundary-shader hits the
+;; identical wall at matching op numbers (6 and 14 both line up), so jak3's
+;; type_casts entry is reused verbatim (see type_casts.jsonc's own
+;; "add-boundary-shader" entry). The decode is then byte-for-byte identical
+;; to jak3's landed body -- including its own preserved "Return type
+;; mismatch pointer vs none." warning, which jak3 lands as-is too, and no
+;; docstring or friendly argument names, since jak3 carries neither for
+;; this one.
+(defun-debug add-boundary-shader ((arg0 texture-id) (arg1 dma-buffer))
+  (let ((a1-1 (lookup-texture-by-id arg0)))
+    (when a1-1
+      (let* ((v1-0 arg1)
+             (a0-1 (the-as object (-> v1-0 base)))
+             )
+        (set! (-> (the-as gs-gif-tag a0-1) tag) (new 'static 'gif-tag64 :nloop #x1 :nreg #x5))
+        (set! (-> (the-as gs-gif-tag a0-1) regs) (new 'static 'gif-tag-regs
+                                                   :regs0 (gif-reg-id a+d)
+                                                   :regs1 (gif-reg-id a+d)
+                                                   :regs2 (gif-reg-id a+d)
+                                                   :regs3 (gif-reg-id a+d)
+                                                   :regs4 (gif-reg-id a+d)
+                                                   )
+              )
+        (set! (-> v1-0 base) (&+ (the-as pointer a0-1) 16))
+        )
+      (let ((s5-0 (the-as adgif-shader (-> arg1 base))))
+        (adgif-shader<-texture-simple! s5-0 a1-1)
+        (set! (-> s5-0 alpha) (new 'static 'gs-miptbp :tbp1 #x44))
+        (set! (-> s5-0 tex0 tfx) 0)
+        (set! (-> s5-0 tex1 mmag) 0)
+        (set! (-> s5-0 clamp) (new 'static 'gs-clamp))
+        )
+      0
+      (&+! (-> arg1 base) 80)
+      )
+    )
+  (none)
+  )
+
+;; og:preserve-this landed (debug-draw-walls rung): a scoped decode of debug.o
+;; (allowed_objects: ["debug"], this worktree's own all-types.gc) originally
+;; failed "Failed to guess stack use for 16" (jak1 and jak2 hit the identical
+;; wall on their own add-debug-triangle-normal and both fix it with the same
+;; two-entry stack_structures pin, reused verbatim -- jak3 needs nothing
+;; here, so its own config carries no entry). Fixing that stack slot
+;; exposed a second, jakx-specific wall with no twin precedent: jakx
+;; compiles vector+!/vector-float/! inline here where jak1/jak2/jak3 all
+;; call them out of line, and every zero-offset re-copy of the stack vector
+;; ("daddu Rd, r0, s3") comes back typed (pointer float), which is fine for
+;; the s.vf!/sqc2 stores that follow but fails the l.vf/lqc2 loads; two
+;; register casts (type_casts.jsonc's own "add-debug-triangle-normal"
+;; entry, found one at a time as each cast unblocked the next) clear it.
+;; The result keeps a real jakx-only branch jak3's twin does not have: the
+;; *setting-control* user-current unknown-usd-748 flag lets this draw even
+;; during capture mode. unknown-usd-748 is transcribed as-is (all-types.gc
+;; already carries it under that provisional name, used the same way by
+;; display-sync/frame-start/update-sound-banks) rather than guessed at.
+(defun-debug add-debug-triangle-normal ((enable symbol) (bucket bucket-id) (p0 vector) (p1 vector) (p2 vector) (color rgba))
+  (rlet ((vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         )
+    (init-vf0-vector)
+    (when (and enable (or (not *display-capture-mode*) (-> *setting-control* user-current unknown-usd-748)))
+      (let ((s3-0 (new 'stack-no-clear 'vector)))
+        (vector-3pt-cross! (&+ s3-0 16) p0 p1 p2)
+        (vector-float/! (&+ s3-0 16) (&+ s3-0 16) (* 0.00024414062 (vector-length (&+ s3-0 16))))
+        (let ((v1-7 (-> s3-0 data)))
+          (.lvf vf4 (&-> p0 quad))
+          (.lvf vf5 (&-> p1 quad))
+          (.mov.vf.w vf6 vf0)
+          (.add.vf.xyz vf6 vf4 vf5)
+          (.svf (the-as (pointer uint128) (&-> v1-7 0)) vf6)
+          )
+        (let ((a0-3 (-> s3-0 data)))
+          (.lvf vf4 (&-> (the-as vector (-> s3-0 data)) quad))
+          (.lvf vf5 (&-> p2 quad))
+          (.mov.vf.w vf6 vf0)
+          (.add.vf.xyz vf6 vf4 vf5)
+          (.svf (the-as (pointer uint128) (&-> a0-3 0)) vf6)
+          )
+        (vector-float/! (the-as vector (-> s3-0 data)) (the-as vector (-> s3-0 data)) 3.0)
+        (let ((a1-4 (&+ s3-0 16)))
+          (let ((v1-9 (&+ s3-0 16))
+                (a0-5 (the-as object (-> s3-0 data)))
+                )
+            (.lvf vf4 (&-> v1-9 quad))
+            (.lvf vf5 (&-> (the-as vector a0-5) quad))
+            )
+          (.mov.vf.w vf6 vf0)
+          (.add.vf.xyz vf6 vf4 vf5)
+          (.svf (&-> a1-4 quad) vf6)
+          )
+        (add-debug-line #t bucket (the-as vector (-> s3-0 data)) (&+ s3-0 16) color #f (the-as rgba -1))
+        )
+      )
+    #f
+    )
+  )
+
+;; og:preserve-this landed (debug-draw-walls rung): a scoped decode of debug.o
+;; (allowed_objects: ["debug"], this worktree's own all-types.gc) originally
+;; failed two "Failed store" hits at ops 91 and 97, both on a pointer
+;; repeatedly reloaded from the same on-stack dma-packet local (offset 16).
+;; jak3's own add-debug-bound hits the same wall and pins the identical
+;; stack slot to dma-packet (stack_structures.jsonc's own "add-debug-bound"
+;; entry, expressed there rather than as jak3's "_stack_" type_casts form
+;; since that is what this worktree's decompiler build resolves); the two
+;; register casts on top of it are re-derived from this worktree's own op
+;; numbering (type_casts.jsonc's own "add-debug-bound" entry), since jakx
+;; reloads the slot into a0 then v1 where jak3 reuses a single v1 across
+;; both stores. The result carries a real jakx-only divergence from jak3's
+;; twin: jak3 hardcodes a static gs-zbuf, jakx instead reads
+;; *viewport-array*'s current-viewport-index zbuf-on field both times,
+;; consistent with Jak X's split-screen support; transcribed as decoded,
+;; not silently reverted to jak3's simpler form.
+;;
+;; Calls add-debug-bound-internal, which stays held in this same rung (see
+;; this file's consolidated hold note below); the call is guarded with a
+;; runtime-link check per AGENTS.md's rule 5 rather than left unconditional,
+;; since an unlanded symbol still links as 0 and 0 is truthy in GOAL. Retire
+;; the guard once add-debug-bound-internal lands for real.
+;;
+;; WARN: Function add-debug-bound has a return type of none, but the
+;; expression builder found a return statement.
+(defun-debug add-debug-bound ((arg0 bucket-id) (arg1 (inline-array vector)) (arg2 int) (arg3 rgba) (arg4 rgba) (arg5 int))
+  (let ((sv-32 arg4)
+        (s1-0 arg5)
+        )
+    (if (< arg2 3)
+        (return 0)
+        )
+    (with-dma-buffer-add-bucket ((s2-0 (-> *display* frames (-> *display* on-screen) global-buf))
+                                 arg0
+                                 )
+      (let* ((v1-7 *viewport-array*)
+             (v1-8 (-> v1-7 data (-> v1-7 current-viewport-index)))
+             )
+        (dma-buffer-add-gs-set s2-0
+                               (zbuf-1 (-> v1-8 zbuf-on))
+                               (test-1 (new 'static 'gs-test :zte #x1 :ztst (gs-ztest greater-equal)))
+                               (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1))
+                               )
+        )
+      (let ((sv-16 (-> s2-0 base)))
+        (&+! (-> s2-0 base) 16)
+        (add-boundary-shader (new 'static 'texture-id :index #x3 :page #x1) s2-0)
+        (if (nonzero? (the-as int add-debug-bound-internal))
+            (add-debug-bound-internal s2-0 arg1 arg2 arg3 sv-32 s1-0)
+            )
+        (close-sky-buffer s2-0)
+        (let ((v1-22 (/ (the-as int (+ (- -16 (the-as int sv-16)) (the-as int (-> s2-0 base)))) 16)))
+          (set! (-> (the-as (pointer uint64) sv-16)) (logior #x10000000 (shr (shl v1-22 48) 48)))
+          (set! (-> (the-as dma-packet sv-16) vif0) (new 'static 'vif-tag))
+          (set! (-> (the-as dma-packet sv-16) vif1) (new 'static 'vif-tag :cmd (vif-cmd direct) :msk #x1 :imm v1-22))
+          )
+        )
+      (let* ((v1-26 *viewport-array*)
+             (v1-27 (-> v1-26 data (-> v1-26 current-viewport-index)))
+             )
+        (dma-buffer-add-gs-set s2-0
+                               (zbuf-1 (-> v1-27 zbuf-on))
+                               (test-1 (new 'static 'gs-test :zte #x1 :ztst (gs-ztest greater-equal)))
+                               (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1))
+                               )
+        )
+      (let ((s1-1 (if (= s1-0 1)
+                      (the-as int (the-as uint #x80ffffff))
+                      #x60606060
+                      )
+                  )
+            (s0-1 (/ arg2 4))
+            )
+        (add-debug-line #t arg0 (-> arg1 0) (-> arg1 1) (the-as rgba s1-1) #f (the-as rgba -1))
+        (add-debug-line #t arg0 (-> arg1 0) (-> arg1 2) (the-as rgba s1-1) #f (the-as rgba -1))
+        (add-debug-line #t arg0 (-> arg1 (+ arg2 -1)) (-> arg1 (+ arg2 -2)) (the-as rgba s1-1) #f (the-as rgba -1))
+        (let ((sv-48 0))
+          (while (< sv-48 s0-1)
+            (let* ((a2-15 (+ (* sv-48 2) 1))
+                   (v1-43 (+ a2-15 2))
+                   (sv-64 (+ a2-15 1))
+                   (sv-80 (+ sv-64 2))
+                   )
+              (if (< sv-64 arg2)
+                  (add-debug-line #t arg0 (-> arg1 a2-15) (-> arg1 v1-43) (the-as rgba s1-1) #f (the-as rgba -1))
+                  )
+              (if (< sv-80 arg2)
+                  (add-debug-line #t arg0 (-> arg1 sv-64) (-> arg1 sv-80) (the-as rgba s1-1) #f (the-as rgba -1))
+                  )
+              )
+            (+! sv-48 1)
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
+
 ;; og:preserve-this stays held (heldarms rung): a fresh scoped decode of debug.o
 ;; (allowed_objects: ["debug","drawable"], this worktree's own all-types.gc)
-;; landed the 14 functions above cleanly; the remaining 13 of jak3's 46
-;; defun-debugs still absent from this file do not decode clean and stay held,
-;; grouped by the failure class the decompiler reported (op numbers are this
-;; rung's own scoped-decode run, reproducible via the recipe in
-;; docs/jakx-bringup-quickstart.md's "Scratch-only scoped decodes" section):
+;; landed the 14 functions above cleanly. The debug-draw-walls rung then
+;; took the "single bad memory access" class from below (candidate for a
+;; bounded type_casts.jsonc/stack_structures.jsonc fix, not attempted in
+;; the heldarms rung) and landed 5 of its 6: add-debug-point,
+;; add-debug-line2d and add-boundary-shader each needed only jak3's own
+;; type_casts entry reused verbatim (op numbers matched one for one);
+;; add-debug-triangle-normal needed jak1/jak2's stack_structures pin plus
+;; two new register casts for a jakx-only inlined vector+!/vector-float/!
+;; wall neither twin carries a precedent for; add-debug-bound needed a
+;; stack_structures dma-packet pin (jak3's own fix, carried in
+;; type_casts.jsonc there under a "_stack_" pseudo-register this worktree's
+;; decompiler build does not resolve the same way) plus two register casts
+;; re-derived from this worktree's own op numbering. add-debug-bound-internal
+;; alone stays held in that class -- see below, it needs more than config.
+;; The remaining 8 of jak3's 46 defun-debugs still absent from this file do
+;; not decode clean and stay held, grouped by the failure class the
+;; decompiler reported (op numbers are this rung's own scoped-decode run,
+;; reproducible via the recipe in docs/jakx-bringup-quickstart.md's
+;; "Scratch-only scoped decodes" section):
 ;;
 ;; - Full expression-builder failure ("function was not converted to
 ;;   expressions. Cannot decompile.", no body at all): add-debug-arc,
@@ -1097,14 +1552,19 @@
 ;;   typed <uninitialized>): add-debug-cross, debug-pad-display (also "failed
 ;;   type prop at 46" and "Failed to guess label use for L288"),
 ;;   add-debug-cursor (also "Failed to guess stack use for 16").
-;; - Single bad memory access at a specific op, otherwise structured output
-;;   (candidate for a bounded type_casts.jsonc fix, not attempted this rung):
-;;   add-debug-point ("Failed load" at op 142), add-debug-triangle-normal
-;;   ("Failed to guess stack use for 16"), add-debug-line2d ("Failed load" at
-;;   op 105), add-boundary-shader ("Failed load" at op 25),
+;; - Single bad memory access, but not a simple register/stack re-type:
 ;;   add-debug-bound-internal (multiple: failed type prop at 119, "Failed to
 ;;   guess label use for L270", four "Unsupported inline assembly instruction
-;;   kind" srl hits), add-debug-bound (two "Failed store" hits, ops 91 and 97).
+;;   kind" srl hits). jak3's own twin needs no type_casts/stack_structures
+;;   entry at all because it sidesteps the wall entirely -- it uses raw
+;;   vf27-class rlet register access plus a dedicated mips2c port
+;;   (set-sky-vf27, itself needed because add-debug-bound-internal "sneaks
+;;   an extra value in vf27") and further mips2c ports for its
+;;   draw-boundary-polygon/render-boundary-quad/render-boundary-tri
+;;   callees. That is a mips2c-port undertaking (issue #133's gates), not a
+;;   config pass, so it is out of scope for this rung's bounded config work
+;;   and stays held with a from-scratch op cite above rather than a stale
+;;   one.
 ;; - Stack-slot size mismatch (declared size 4, actual access size 16, three
 ;;   separate sites all at offset 32): add-debug-yrot-vector.
 ;; - Clean body, but its only callee is itself unlanded: bugfix? decodes
@@ -1118,7 +1578,7 @@
 ;; Retirement condition per class: the first two classes need a hand port
 ;; citing a twin (add-debug-arc has one in jak3; add-debug-points and
 ;; qword-read-time/cpu-delay's COP0 reads do not) or a mips2c port for the
-;; COP0-register pair; the "single bad memory access" class is a real
-;; candidate for a future bounded type_casts.jsonc pass, not attempted here
-;; to keep this rung's config-editing effort scoped to the functions it
-;; actually landed.
+;; COP0-register pair; add-debug-bound-internal needs the mips2c-port chain
+;; described above; add-debug-yrot-vector's stack-slot mismatch and
+;; bugfix?/qword-read-time are unchanged from the heldarms rung's own
+;; assessment.

@@ -35,6 +35,13 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this hand-added (debug-draw-walls rung): jak2 and jak3 both
+;; define this macro at the same spot, right after DECOMP BEGINS, purely so
+;; vis-cull below can address the PC "fake scratchpad" the same way the PS2
+;; original addressed real scratchpad memory. Not itself decoded from
+;; anything; it is source-level sugar the decompiler never sees.
+(defmacro spr-work ()
+  `(the work-area *fake-scratchpad-data*))
 
 ;; definition for function sphere-cull
 ;; ERROR: function has no type analysis. Cannot decompile.
@@ -220,7 +227,35 @@
   )
 
 ;; definition for function vis-cull
-;; ERROR: function has no type analysis. Cannot decompile.
+;; og:preserve-this hand-ported (debug-draw-walls rung): a scoped decode of
+;; drawable.o (allowed_objects: ["debug","drawable"], this worktree's own
+;; all-types.gc) does not reproduce the stale "no type analysis" comment
+;; above -- with drawable-h.gc's own vis-cull extern in scope it gets far
+;; enough to hit a real wall instead: "failed type prop at 3: Could not
+;; figure out load: (set! v1 (l.b (+ v1 #x3800)))". v1 there is built from
+;; the raw literal #x70000000 (the PS2 scratchpad base) plus (id >> 3), not
+;; a symbol, so no type_casts or stack_structures entry can reach it -- there
+;; is no register to re-type, only an untyped absolute address. jak1, jak2
+;; and jak3 all hit this identical wall on their own vis-cull and none of
+;; them landed it from a decode either; jak2 and jak3 hand-port an identical
+;; body reading (spr-work) background vis-list, ported verbatim below. The
+;; #x3800 immediate above is an exact byte match against jakx's own
+;; background-area (subdivide-h.gc), which already places vis-list at
+;; offset 14336 (#x3800), so this is a transcription of a proven twin, not
+;; a guess. Landed because tfrag-methods.gc:943 dispatches vis-cull as a
+;; zero symbol for every strip-lines/collision-mesh toggle -- 17 of the
+;; menu's 39 RED-ARMED items, and the proven zero behind the collision
+;; -render crash.
+(defun vis-cull ((id int))
+  "Is this thing visible in the precomputed visiblity data? By draw-node id.
+   Assumes the scratchpad has the vis-list loaded."
+  (let* ((vis-byte (-> (spr-work) background vis-list (/ id 8))) ;; vis byte
+         (shift-amount (+ 56 (logand id 7)))
+         (shifted (shl vis-byte shift-amount))
+         )
+    (< (the-as int shifted) 0)
+    )
+  )
 
 ;; definition (debug) for function vis-cull-debug
 ;; ERROR: function has no type analysis. Cannot decompile.

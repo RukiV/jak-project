@@ -10553,5 +10553,81 @@
   "play-task": [
     [77, "v1", "pair"],
     [114, "v1", "pair"]
-  ]
+  ],
+  // add-debug-point (debug-draw-walls rung): a scoped decode of debug.o
+  // (allowed_objects: ["debug"], this worktree's own all-types.gc) fails
+  // type prop at op 142, "Could not figure out load: (set! t0-24 (l.d (+
+  // a0-6 8)))" -- a0-6 is the dma-buffer's raw pointer base, walked byte-
+  // by-byte to patch the dma tag's count field once the point's actual
+  // vertex total is known, and plain pointer carries no field to resolve
+  // that load against. jak3's own add-debug-point hits the identical wall
+  // (same op numbers throughout: 36, 45, 65, 85, 102, 122 all match this
+  // worktree's own op numbering exactly, which is why jak3's type_casts
+  // entry for "add-debug-point" is reused verbatim rather than re-derived)
+  // and fixes it with these seven casts: a3 through the four DMA-block
+  // writers (dma-packet for the initial tag, gs-gif-tag for the GIF tag,
+  // vector4w-2 for the three vertex-quad stores), a1 for the fourth quad
+  // store (the source alternates which register carries the running dma
+  // pointer between blocks), and a0 through the tail's tag-count patch as
+  // (pointer uint64).
+  "add-debug-point": [
+    [[36, 43], "a3", "dma-packet"],
+    [[45, 52], "a3", "gs-gif-tag"],
+    [[65, 73], "a3", "vector4w-2"],
+    [[85, 93], "a3", "vector4w-2"],
+    [[102, 110], "a3", "vector4w-2"],
+    [[122, 130], "a1", "vector4w-2"],
+    [[129, 148], "a0", "(pointer uint64)"]
+  ],
+  // add-debug-line2d (debug-draw-walls rung): a scoped decode of debug.o
+  // (allowed_objects: ["debug"], this worktree's own all-types.gc) fails
+  // type prop at op 105, "Could not figure out load: (set! a2-13 (l.d (+
+  // a0-18 8)))" -- same shape as add-debug-point's wall, a raw dma-buffer
+  // pointer walked byte-by-byte to patch the dma tag's count field. jak3's
+  // own add-debug-line2d hits the identical wall at op numbers that match
+  // this worktree's own body exactly (61, 70, 79, 87 all line up one for
+  // one), so jak3's type_casts entry is reused verbatim.
+  "add-debug-line2d": [
+    [[61, 68], "a2", "dma-packet"],
+    [[70, 77], "a2", "gs-gif-tag"],
+    [[79, 85], "a2", "vector4w-2"],
+    [[87, 93], "a2", "vector4w-2"],
+    [[97, 111], "a0", "(pointer uint64)"]
+  ],
+  // add-boundary-shader (debug-draw-walls rung): a scoped decode of
+  // debug.o (allowed_objects: ["debug"], this worktree's own all-types.gc)
+  // fails type prop at op 25, "Could not figure out load: (set! v1-5 (l.d
+  // (+ s5-0 16)))" -- s5 is an adgif-shader whose tex1/clamp fields the
+  // decompiler cannot resolve through a plain pointer. jak3's own
+  // add-boundary-shader hits the identical wall at matching op numbers (6
+  // and 14 both line up), so jak3's type_casts entry is reused verbatim.
+  "add-boundary-shader": [
+    [[6, 12], "a0", "gs-gif-tag"],
+    [[14, 31], "s5", "adgif-shader"]
+  ],
+  // add-debug-bound (debug-draw-walls rung): the wall itself is a stack
+  // slot (see stack_structures.jsonc's own "add-debug-bound" entry for the
+  // "_stack_" offset-16 dma-packet pin jak3 carries); jakx's own compiled
+  // body reloads that stack slot into a0 and then v1 (not jak3's single v1
+  // reuse) at the two ops the decompiler fails on -- op 91's store and op
+  // 97's, each right after its own fresh reload of the same stack slot --
+  // so the register side of the fix is re-derived from this worktree's own
+  // op numbering rather than copied from jak3's.
+  "add-debug-bound": [
+    [91, "a0", "dma-packet"],
+    [97, "v1", "dma-packet"]
+  ],
+  // add-debug-triangle-normal (debug-draw-walls rung continued): jakx
+  // compiles vector+! and vector-float/! inline here (jak1/jak2/jak3 all
+  // call them out of line, so none of the three carries a precedent for
+  // this specific wall). Every "daddu Rd, r0, s3" -- a zero-offset re-copy
+  // of the stack-structures-pinned s3 vector -- comes back typed (pointer
+  // float) instead of vector, which is fine for the s.vf!/sqc2 stores that
+  // follow but fails the l.vf/lqc2 loads. Each op below is one of those
+  // load sites; found and fixed one at a time as each cast unblocked the
+  // next (op 39 first, then 53), re-deriving the pattern since no twin
+  // exists to copy from.
+  "add-debug-triangle-normal": [
+    [39, "v1", "vector"],
+    [53, "a0", "vector"]  ]
 }
