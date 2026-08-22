@@ -9,6 +9,7 @@
 
 #include "game/kernel/common/Symbol4.h"
 #include "game/kernel/common/fileio.h"
+#include "game/kernel/common/goal_crash_map.h"
 #include "game/kernel/common/kdsnetm.h"
 #include "game/kernel/common/klink.h"
 #include "game/kernel/common/kmalloc.h"
@@ -1586,6 +1587,11 @@ int InitHeapAndSymbol() {
   SymbolTable2 = symbol_table + 5;
   s7 = symbol_table + 0x8001;
   NumSymbols = 0;
+  // issue #602 step 1: register this table so the crash handler's receiver dump can
+  // resolve a corrupted dispatch receiver's type tag to a type name (goal_crash_map.h's
+  // goal_crash_map_set_symbol_string_base() doc comment has the full indirection). Must
+  // come after s7 is set above: format_receiver() combines this with s7.offset.
+  goal_crash_map_set_symbol_string_base(SymbolString.offset);
   reset_output();
   // empty pair (this is extra confusing).
   *Ptr<u32>(s7.offset + FIX_SYM_EMPTY_CAR - 1) = s7.offset + S7_OFF_FIX_SYM_EMPTY_PAIR;

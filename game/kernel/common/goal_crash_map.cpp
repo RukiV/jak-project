@@ -8,6 +8,7 @@
 
 #include "common/goal_constants.h"
 
+#include "game/kernel/common/kscheme.h"
 #include "game/runtime.h"
 
 #ifdef _WIN32
@@ -32,6 +33,14 @@ struct ObjRec {
 // sorted by start; guarded because link and crash can race in principle
 std::vector<ObjRec> g_objs;
 std::mutex g_objs_mutex;
+
+// issue #602 step 1: the registered game's symbol-string table base, set by
+// goal_crash_map_set_symbol_string_base() (jakx only today; see the doc comment on that
+// declaration in goal_crash_map.h). 0 until registration, which format_receiver() below
+// treats as "skip type-name resolution" rather than a valid table. No lock: written once
+// at kscheme init, long before the fault handler can run, and read-only after that, the
+// same reasoning g_objs's lookup() uses for skipping a lock in the fault path.
+u32 g_symbol_string_base = 0;
 
 // issue #117: two independent fixes over the old "start <= goal_addr, earliest
 // record wins" scan.
@@ -86,6 +95,25 @@ void format_native_rip(const char* module_basename,
                        size_t out_size) {
   std::snprintf(out, out_size, "native: %s+%#llx", module_basename,
                 (unsigned long long)(rip - module_base));
+}
+
+// pure decision for the access-kind word in the exception line (issue #602 step 1).
+// ExceptionInformation[0] is documented (EXCEPTION_RECORD, MSDN) as 0 for a read
+// violation, 1 for a write violation, and 8 for a DEP/execute-prevention violation. The
+// previous code only distinguished write (nonzero) from read (zero), so an execute
+// fault printed "writing" -- misleading for exactly the case this lane adds a receiver
+// dump for: rip landing on the fault address (goal_crash_filter's rip == fault_addr
+// check) is the execute-fault tell regardless of what ExceptionInformation[0] says, but
+// the label printed next to it should say so too, not "writing". Falls back to
+// "reading" for any other value, matching the old default.
+const char* format_access_kind(u64 info0) {
+  if (info0 == 1) {
+    return "writing";
+  }
+  if (info0 == 8) {
+    return "executing";
+  }
+  return "reading";
 }
 
 // pure formatting for one general-purpose register in the crash report. Two readings of
@@ -149,6 +177,153 @@ void format_reg(const char* name,
         break;
       }
     }
+  }
+}
+
+// explicit-bounds-checked reads for the receiver dump below (issue #602 step 1), used
+// instead of (and at the real call site, in addition to) the SEH-guarded
+// safe_read_u32/safe_read_str further down: this needs to be provably safe against a
+// small fabricated test buffer too, and a small buffer overrun is frequently NOT an
+// access violation at all (it just reads adjacent heap memory), so SEH alone would not
+// make "never reads outside the given window" a testable claim. Every read here is
+// preceded by an explicit size check against window_size, with an overflow-safe form of
+// the check (off + n < off catches off wrapping near UINT64_MAX) since off is derived
+// from arithmetic on speculative, possibly-corrupt GOAL values.
+bool bounded_read_u32(const u8* base, u64 window_size, u64 off, u32* out) {
+  if (off + 4 < off || off + 4 > window_size) {
+    return false;
+  }
+  u32 v;
+  std::memcpy(&v, base + off, sizeof(v));
+  *out = v;
+  return true;
+}
+
+bool bounded_read_str(const u8* base, u64 window_size, u64 off, char* out, size_t out_size) {
+  if (off > window_size || out_size == 0) {
+    return false;
+  }
+  size_t i = 0;
+  for (; i + 1 < out_size && off + i < window_size; i++) {
+    char c = (char)base[off + i];
+    if (!c) {
+      break;
+    }
+    out[i] = c;
+  }
+  out[i] = 0;
+  return i > 0;
+}
+
+// issue #602 step 1: the receiver dump for the rip == fault-address dispatch-fault case
+// (an indirect call/jump landed in unmapped or non-code memory: goal_crash_filter's
+// method-dispatch residual, gkdis-F60-execute-process-tree.txt in the issue -- `call r9`
+// where r9 = [[rdi-4] + 0x40] + r15). GOAL method dispatch through a basic object loads
+// the type tag from [receiver - 4], then the method-12 function pointer from
+// [tag + 0x40] -- game/kernel/jakx/kscheme.h's Type struct starts its method table at
+// +0x10 (new_method) with a 4-byte stride per Ptr<Function> slot, so index 12 lands at
+// 0x10 + 12*4 = 0x40 -- adds r15, and calls it with the receiver in rdi (a0). A
+// corrupted a0/a1 is the natural suspect for a fault of this shape, so this reads what
+// each candidate register resolves to: the type tag at [reg - 4], and if that tag itself
+// looks like a plausible basic pointer, the type's name via the same symbol-string-table
+// indirection sym_to_string_ptr() uses (game/kernel/jakx/kscheme.h): symbol_string_base
+// + type->symbol - s7_offset holds a Ptr<String>, whose chars start 4 bytes past its own
+// value (String::len, game/kernel/common/kscheme.h, is the only preceding field).
+// symbol_string_base is 0 (skip name resolution, print the tag only) unless a game has
+// registered one via goal_crash_map_set_symbol_string_base() -- jakx is the only
+// registrant today, see that declaration's doc comment -- so a game that hasn't opted in
+// just gets the tag without a name, never a fault or a wrong-game misread.
+//
+// "Plausible basic pointer" (both for the receiver value and for the type tag) means:
+// nonzero, less than window_size, and (candidate & OFFSET_MASK) == BASIC_OFFSET, i.e.
+// offset mod 8 == 4 -- the same check game/kernel/jakx/kscheme.cpp's own type-validity
+// tests use (e.g. `(type.offset & OFFSET_MASK) != BASIC_OFFSET` => invalid), verified
+// against OFFSET_MASK=7 (game/kernel/common/kscheme.h) and BASIC_OFFSET=4
+// (common/goal_constants.h) rather than assumed.
+//
+// The register value itself is read the same dual way format_reg() above does: an
+// absolute r15-relative pointer first, then a raw 32-bit goal offset, matching how a
+// register can hold either depending on what instruction last wrote it.
+void format_receiver(const char* name,
+                     u64 value,
+                     const u8* base,
+                     u64 window_size,
+                     u32 s7_offset,
+                     u32 symbol_string_base,
+                     u64 rip,
+                     u64 r15,
+                     char* out,
+                     size_t out_size) {
+  int n = std::snprintf(out, out_size, "  recv %-3s %#018llx", name, (unsigned long long)value);
+  if (n < 0 || (size_t)n >= out_size) {
+    return;
+  }
+  auto append = [&](const char* fmt, auto... args) {
+    if ((size_t)n < out_size) {
+      int m = std::snprintf(out + n, out_size - n, fmt, args...);
+      if (m > 0) {
+        n += m;
+      }
+    }
+  };
+
+  u32 candidate = 0;
+  bool have_candidate = false;
+  if (r15 && value >= r15 && value < r15 + window_size) {
+    candidate = (u32)(value - r15);
+    have_candidate = true;
+  } else if (value < window_size) {
+    candidate = (u32)value;
+    have_candidate = true;
+  }
+  if (!have_candidate || (candidate & OFFSET_MASK) != BASIC_OFFSET) {
+    append("%s", "  (not a plausible basic pointer)");
+    return;
+  }
+  append(" (goal %#x)", candidate);
+
+  u32 tag = 0;
+  if (!bounded_read_u32(base, window_size, (u64)candidate - 4, &tag)) {
+    append("%s", "  (type tag out of window)");
+    return;
+  }
+  bool tag_plausible = tag != 0 && tag < window_size && (tag & OFFSET_MASK) == BASIC_OFFSET;
+  append("  tag %#x%s", tag, tag_plausible ? "" : " (not a plausible type pointer)");
+  if (!tag_plausible) {
+    return;
+  }
+
+  u32 symbol_offset = 0;
+  bool have_name = false;
+  char type_name[64] = {0};
+  if (bounded_read_u32(base, window_size, (u64)tag, &symbol_offset) && symbol_string_base) {
+    s64 name_ptr_addr = (s64)symbol_string_base + (s64)symbol_offset - (s64)s7_offset;
+    if (name_ptr_addr >= 0) {
+      u32 str_ptr = 0;
+      if (bounded_read_u32(base, window_size, (u64)name_ptr_addr, &str_ptr) && str_ptr &&
+          str_ptr < window_size) {
+        have_name =
+            bounded_read_str(base, window_size, (u64)str_ptr + 4, type_name, sizeof(type_name));
+      }
+    }
+  }
+  if (have_name) {
+    append(" type-name \"%s\"", type_name);
+  } else {
+    append("%s", " (type name unresolved)");
+  }
+
+  // method index implied by the faulting dispatch (issue #602 step 1): [tag + 0x40] is
+  // method slot 12 (see the function doc comment above); when it equals rip - r15, this
+  // register's tag is confirmed as the actual dispatching receiver, not just a
+  // plausible-looking bystander value.
+  u32 slot_val = 0;
+  if (bounded_read_u32(base, window_size, (u64)tag + 0x40, &slot_val)) {
+    u64 rip_rel = (r15 && rip >= r15) ? (rip - r15) : 0;
+    bool match = r15 && rip >= r15 && slot_val == (u32)rip_rel;
+    append("  method slot +0x40 (index 12): %#x vs rip-r15 %#llx%s", slot_val,
+           (unsigned long long)rip_rel,
+           match ? " <- MATCH (this is the dispatching receiver)" : "");
   }
 }
 
@@ -251,6 +426,10 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
 
   fprintf(stderr, "\n-------- GOAL CRASH REPORT --------\n");
   fprintf(stderr, "exception %#lx at rip=%#llx", er->ExceptionCode, (unsigned long long)rip);
+  // hoisted to function scope (was block-local): the register block below and the
+  // receiver dump further down both need it, and the register block no longer
+  // recomputes its own copy.
+  u64 fault_addr = 0;
   if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && er->NumberParameters >= 2) {
     // issue #122: Windows reports a #GP-class fault (a misaligned SSE access, e.g. a
     // movaps against an 8-byte-aligned pointer, is the common cause) as an access
@@ -267,8 +446,12 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
               (unsigned long long)er->ExceptionInformation[0],
               (unsigned long long)er->ExceptionInformation[1]);
     } else {
-      fprintf(stderr, " (%s %#llx)", er->ExceptionInformation[0] ? "writing" : "reading",
-              (unsigned long long)er->ExceptionInformation[1]);
+      fault_addr = (u64)er->ExceptionInformation[1];
+      // issue #602 step 1: ExceptionInformation[0] is 0/1/8 (read/write/execute-DEP),
+      // not a bool; format_access_kind() names all three instead of folding execute
+      // into "writing".
+      fprintf(stderr, " (%s %#llx)", format_access_kind((u64)er->ExceptionInformation[0]),
+              (unsigned long long)fault_addr);
     }
   }
   fprintf(stderr, "\n");
@@ -281,11 +464,6 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   // themselves; the rest is what the faulting instruction was actually working with.
   {
     const u64 base_addr_r = (u64)(uintptr_t)base;
-    u64 fault_addr = 0;
-    if (er->ExceptionCode == EXCEPTION_ACCESS_VIOLATION && er->NumberParameters >= 2 &&
-        er->ExceptionInformation[1] != (ULONG_PTR)-1) {
-      fault_addr = (u64)er->ExceptionInformation[1];
-    }
     struct {
       const char* name;
       u64 value;
@@ -298,6 +476,33 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
     for (const auto& r : regs) {
       format_reg(r.name, r.value, base ? base_addr_r : 0, mem_size, fault_addr, line, sizeof(line));
       fprintf(stderr, "%s\n", line);
+    }
+  }
+
+  // receiver dump (issue #602 step 1): rip == fault_addr means an indirect call/jump
+  // landed in unmapped or non-code memory -- the execute-fault tell regardless of what
+  // ExceptionInformation[0] said -- which is exactly the shape of the method-dispatch
+  // residual this issue tracks (see format_receiver()'s doc comment above for the full
+  // dispatch shape). Dump what a0/a1 (rdi/rsi) resolve to as candidate receivers.
+  // __try here even though format_receiver() is already bounds-checked internally: this
+  // is the one call site working against the real 128MB mapping instead of a fabricated
+  // test buffer, and the rest of this handler wraps its own speculative reads the same
+  // belt-and-suspenders way.
+  if (base && fault_addr && rip == fault_addr) {
+    fprintf(stderr, "receiver dump (rip == fault address, indirect dispatch):\n");
+    struct {
+      const char* name;
+      u64 value;
+    } cand_regs[] = {{"rdi", ctx->Rdi}, {"rsi", ctx->Rsi}};
+    char rline[256];
+    for (const auto& r : cand_regs) {
+      __try {
+        format_receiver(r.name, r.value, base, mem_size, s7.offset, g_symbol_string_base, rip,
+                        ctx->R15, rline, sizeof(rline));
+      } __except (EXCEPTION_EXECUTE_HANDLER) {
+        std::snprintf(rline, sizeof(rline), "  recv %-3s (receiver dump faulted)", r.name);
+      }
+      fprintf(stderr, "%s\n", rline);
     }
   }
 
@@ -410,6 +615,28 @@ void goal_crash_map_format_reg_for_test(const char* name,
                                         size_t out_size) {
   std::lock_guard<std::mutex> lock(g_objs_mutex);
   format_reg(name, value, base_addr, mem_size, fault_addr, out, out_size);
+}
+
+const char* goal_crash_map_format_access_kind_for_test(u64 info0) {
+  return format_access_kind(info0);
+}
+
+void goal_crash_map_format_receiver_for_test(const char* name,
+                                             u64 value,
+                                             const u8* base,
+                                             u64 window_size,
+                                             u32 s7_offset,
+                                             u32 symbol_string_base,
+                                             u64 rip,
+                                             u64 r15,
+                                             char* out,
+                                             size_t out_size) {
+  format_receiver(name, value, base, window_size, s7_offset, symbol_string_base, rip, r15, out,
+                  out_size);
+}
+
+void goal_crash_map_set_symbol_string_base(u32 symbol_string_base) {
+  g_symbol_string_base = symbol_string_base;
 }
 
 void goal_crash_map_install() {

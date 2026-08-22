@@ -7,10 +7,30 @@
 // process-global record set (which only grows; there is no reset seam) can't let one
 // test's records leak into another's lookups.
 
+#include <cstring>
 #include <string>
+#include <vector>
 
 #include "game/kernel/common/goal_crash_map.h"
 #include "gtest/gtest.h"
+
+namespace {
+// little-endian helpers for building a fake GOAL-memory window (issue #602 step 1's
+// receiver-dump tests below): the real window is g_ee_main_mem, a raw byte buffer
+// addressed the same way regardless of host endianness assumptions, so tests build one
+// explicitly rather than relying on struct layout/aliasing.
+void write_u32(std::vector<u8>& buf, u64 off, u32 v) {
+  buf[off + 0] = (u8)(v >> 0);
+  buf[off + 1] = (u8)(v >> 8);
+  buf[off + 2] = (u8)(v >> 16);
+  buf[off + 3] = (u8)(v >> 24);
+}
+
+void write_cstr(std::vector<u8>& buf, u64 off, const char* s) {
+  size_t len = std::strlen(s);
+  std::memcpy(buf.data() + off, s, len + 1);  // include the terminator
+}
+}  // namespace
 
 TEST(GoalCrashMap, AttributesInsideExtent) {
   const u32 base = 0x00100000;
@@ -205,4 +225,170 @@ TEST(GoalCrashMap, FormatRegOutsideGoalMemoryHasNoAnnotation) {
   goal_crash_map_format_reg_for_test("rcx", 0x7ff6deadbeefull, base_addr, mem_size, 0, line,
                                      sizeof(line));
   EXPECT_STREQ(line, "  rcx 0x00007ff6deadbeef");
+}
+
+// issue #602 step 1: ExceptionInformation[0] is 0 (read), 1 (write), or 8 (DEP/execute).
+// The previous code folded 8 into "writing" because it only checked truthiness.
+TEST(GoalCrashMap, FormatAccessKindMapsReadWriteExecute) {
+  EXPECT_STREQ(goal_crash_map_format_access_kind_for_test(0), "reading");
+  EXPECT_STREQ(goal_crash_map_format_access_kind_for_test(1), "writing");
+  EXPECT_STREQ(goal_crash_map_format_access_kind_for_test(8), "executing");
+}
+
+// undocumented values fall back to the old default rather than asserting or printing
+// garbage; nothing in the codebase should ever pass one, but the crash handler is not
+// the place to assume that.
+TEST(GoalCrashMap, FormatAccessKindFallsBackToReadingForUnknownValues) {
+  EXPECT_STREQ(goal_crash_map_format_access_kind_for_test(2), "reading");
+  EXPECT_STREQ(goal_crash_map_format_access_kind_for_test(0xffffffffull), "reading");
+}
+
+// issue #602 step 1: the receiver dump. A fake GOAL-memory window is built by hand
+// (write_u32/write_cstr above), reproducing the same indirection sym_to_string_ptr()
+// uses (game/kernel/jakx/kscheme.h): symbol_string_base + type->symbol - s7_offset holds
+// a Ptr<String> whose chars start 4 bytes past its own value. The receiver register
+// value is passed as a raw goal-relative offset (r15 is set far outside the window, so
+// the absolute-pointer reading in format_receiver() cannot match and it falls through to
+// the raw-offset reading, exactly like a `mov r9d, [...]` 32-bit load would leave in a
+// register).
+TEST(GoalCrashMap, FormatReceiverResolvesValidTypeAndConfirmsMethodSlot) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 receiver = 0x1004;  // candidate & 7 == 4: plausible basic pointer
+  const u32 tag = 0x1804;       // same alignment: plausible type pointer
+  const u32 symbol_offset = 0x50;
+  const u32 s7_offset = 0x10;
+  const u32 symbol_string_base = 0x900;
+  // sym_to_string_ptr()'s formula: symbol_string_base + symbol_offset - s7_offset
+  const u32 name_ptr_addr = symbol_string_base + symbol_offset - s7_offset;  // 0x940
+  const u32 str_ptr = 0x1200;
+  const u32 slot_val = 0x3000;  // method-12 function's raw goal offset
+  const u64 r15 = 0x5000000000ull;
+  const u64 rip = r15 + slot_val;  // call landed exactly at [tag+0x40] + r15
+
+  write_u32(mem, receiver - 4, tag);       // type tag at [receiver - 4]
+  write_u32(mem, tag + 0, symbol_offset);  // Type::symbol at [tag + 0]
+  write_u32(mem, name_ptr_addr, str_ptr);  // the symbol-string-table slot
+  write_cstr(mem, str_ptr + 4, "process-tree");
+  write_u32(mem, tag + 0x40, slot_val);  // Type::get_method(12) at [tag + 0x40]
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, s7_offset,
+                                          symbol_string_base, rip, r15, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("recv rdi"), std::string::npos) << line;
+  EXPECT_NE(line.find("(goal 0x1004)"), std::string::npos) << line;
+  EXPECT_NE(line.find("tag 0x1804"), std::string::npos) << line;
+  EXPECT_NE(line.find("type-name \"process-tree\""), std::string::npos) << line;
+  EXPECT_NE(line.find("method slot +0x40 (index 12): 0x3000 vs rip-r15 0x3000"), std::string::npos)
+      << line;
+  EXPECT_NE(line.find("MATCH"), std::string::npos) << line;
+}
+
+// a register value that is not itself a plausible basic pointer (misaligned here: 0x1000
+// & 7 == 0, not BASIC_OFFSET's 4) must produce a graceful label and read nothing past
+// [receiver - 4], since it never gets that far.
+TEST(GoalCrashMap, FormatReceiverRejectsImplausibleRegisterValue) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rsi", 0x1000, mem.data(), window_size, 0x10, 0x900, 0,
+                                          0x5000000000ull, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("(not a plausible basic pointer)"), std::string::npos) << line;
+  EXPECT_EQ(line.find("tag"), std::string::npos) << line;
+}
+
+// the receiver value is plausible but the type tag it points at is not (misaligned):
+// must stop after printing the tag, never attempt name resolution.
+TEST(GoalCrashMap, FormatReceiverRejectsImplausibleTypeTag) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 receiver = 0x1004;
+  write_u32(mem, receiver - 4, 0x1805);  // 0x1805 & 7 == 5: not a plausible type pointer
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, 0x10, 0x900, 0,
+                                          0x5000000000ull, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("tag 0x1805"), std::string::npos) << line;
+  EXPECT_NE(line.find("(not a plausible type pointer)"), std::string::npos) << line;
+  EXPECT_EQ(line.find("type-name"), std::string::npos) << line;
+}
+
+// the symbol-string-table indirection resolves to an address at or past window_size:
+// bounded_read_u32's explicit size check (off + 4 > window_size) must reject it rather
+// than reading past the fabricated window, and the receiver dump degrades to "type name
+// unresolved" instead of a wrong or out-of-bounds read.
+TEST(GoalCrashMap, FormatReceiverNameLookupPastWindowIsGraceful) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 receiver = 0x1004;
+  const u32 tag = 0x1804;
+  const u32 symbol_offset = 0x50;
+  const u32 s7_offset = 0x10;
+  // symbol_string_base chosen so name_ptr_addr = 0x1ff0 + 0x50 - 0x10 = 0x2030, which is
+  // past window_size (0x2000): the very last valid 4-byte read starts at 0x1ffc.
+  const u32 symbol_string_base = 0x1ff0;
+
+  write_u32(mem, receiver - 4, tag);
+  write_u32(mem, tag + 0, symbol_offset);
+  // deliberately nothing written at 0x2030: it is outside mem's 0x2000 bytes and would
+  // be a heap-buffer overflow to even address, let alone write
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, s7_offset,
+                                          symbol_string_base, 0, 0x5000000000ull, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("tag 0x1804"), std::string::npos) << line;
+  EXPECT_NE(line.find("(type name unresolved)"), std::string::npos) << line;
+  EXPECT_EQ(line.find("type-name"), std::string::npos) << line;
+}
+
+// symbol_string_base of 0 means "no game has registered a table" (every game but jakx,
+// or jakx before InitHeapAndSymbol() runs): must skip name resolution entirely rather
+// than treating 0 as a real table base and reading near the start of GOAL memory.
+TEST(GoalCrashMap, FormatReceiverSkipsNameResolutionWhenNoTableRegistered) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 receiver = 0x1004;
+  const u32 tag = 0x1804;
+  write_u32(mem, receiver - 4, tag);
+  write_u32(mem, tag + 0, 0x50);  // a symbol offset that would otherwise resolve
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, 0x10,
+                                          /*symbol_string_base=*/0, 0, 0x5000000000ull, out,
+                                          sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("(type name unresolved)"), std::string::npos) << line;
+  EXPECT_EQ(line.find("type-name"), std::string::npos) << line;
+}
+
+// the method-slot cross-check must report a mismatch (no "MATCH") when rip - r15 does
+// not equal the value at [tag + 0x40] -- e.g. a different register held the actual
+// dispatching receiver, or the fault was not a dispatch fault at all.
+TEST(GoalCrashMap, FormatReceiverMethodSlotMismatchIsNotReportedAsMatch) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 receiver = 0x1004;
+  const u32 tag = 0x1804;
+  const u64 r15 = 0x5000000000ull;
+  write_u32(mem, receiver - 4, tag);
+  write_u32(mem, tag + 0x40, 0x3000);
+  const u64 rip = r15 + 0x4000;  // does not match the 0x3000 slot value
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rsi", receiver, mem.data(), window_size, 0x10, 0, rip,
+                                          r15, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("method slot +0x40 (index 12): 0x3000 vs rip-r15 0x4000"), std::string::npos)
+      << line;
+  EXPECT_EQ(line.find("MATCH"), std::string::npos) << line;
 }
