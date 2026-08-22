@@ -2259,6 +2259,29 @@
 ;; has not been audited for this sweep and is deliberately left unswept
 ;; rather than risk a crash inside the sweep itself -- see the issue 602
 ;; thread before extending to it.
+;; og:preserve-this both-zero-and-#f guard, issue 602 layer three: the layer-
+;; two doc comment above claimed "-> part ... process-owned fields safe on
+;; any live process of these two types," which assumed a live process's part
+;; field is always either a real sparticle-launch-control or explicit #f.
+;; That assumption broke on a captured route (six display/discard swaps in
+;; seconds across junglef/jungleg/havenb/havenc; gk-falconshow.err.log): rip
+;; landed at level+0x728e inside this function's part-spawner arm, pp
+;; "display", r9 = raw 0 (not s7/#f) with the fault address logged as r9+0xc
+;; -- exactly (-> ctrl group) dereferencing a `part` field that was never set.
+;; `part` is a plain object-typed field with no default; a part-spawner or
+;; part-tracker freshly on *active-pool* but not yet past its own init code
+;; (plausible mid-churn, when kill-level-typed-processes runs off an unrelated
+;; level's unload while a new level's processes are still being born) reads
+;; back as literal 0 from zeroed process memory, not #f. `(if ctrl ...)` only
+;; catches #f (s7's address, itself nonzero); it does not catch a raw-zero
+;; field. Both arms below now use the standard (and ctrl (nonzero? ctrl))
+;; idiom already established elsewhere in this file (level.gc:308, :406) for
+;; exactly this s7-vs-raw-zero distinction. Not a retail decode: this whole
+;; sweep is jakx bring-up only (kill-level-typed-processes, in-level-sweep-
+;; range?, this function) -- confirmed by direct comparison, not assumed:
+;; goal_src/jak3/engine/level/level.gc has no occurrence of any of these three
+;; names, so there is no twin to adjudicate against; the guard is a bring-up
+;; deviation like the eviction-discipline fix a few hundred lines below.
 (defun captured-part-group-addr ((proc process))
   "Returns the raw address of proc's captured sparticle-launch-group pointer
    for the part-tracker/part-spawner family, or 0 for every other process
@@ -2270,13 +2293,13 @@
   (cond
     ((type? proc part-tracker)
      (let ((ctrl (-> (the-as part-tracker proc) part)))
-       (if ctrl (the-as int (-> ctrl group)) 0)
+       (if (and ctrl (nonzero? ctrl)) (the-as int (-> ctrl group)) 0)
        )
      )
     ((type? proc part-spawner)
      (let* ((ps (the-as part-spawner proc))
             (ctrl (-> ps part))
-            (ctrl-addr (if ctrl (the-as int (-> ctrl group)) 0))
+            (ctrl-addr (if (and ctrl (nonzero? ctrl)) (the-as int (-> ctrl group)) 0))
             )
        (if (in-level-sweep-range? ctrl-addr)
            ctrl-addr
