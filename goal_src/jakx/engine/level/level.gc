@@ -8067,6 +8067,44 @@ would close more of those and is deliberately not added here."
                     )
                   )
                 (when (or family-changed slid)
+                  ;; og:preserve-this eviction-mid-login guard (follow-up rung, acceptance
+                  ;; repro 82d585bc8): pushing a new want array here (want-levels below)
+                  ;; makes update! (this file) discard any currently-resident level not in
+                  ;; the new set on its very next call, with no exception for a level still
+                  ;; 'loading/'loading-bt/'loading-done/'login -- unload! (this file) has no
+                  ;; case clause for 'login at all, so a level torn down mid-login gets
+                  ;; neither the loading-cancel path nor the alive/active/loaded entity
+                  ;; teardown, which is what the acceptance crash's drawable-tree walk read
+                  ;; through (jungles was still logging in when this exact push evicted it).
+                  ;; Scoped fix: skip this tick's recompute outright whenever any resident
+                  ;; level is mid-login, and retry next 30-frame tick once it settles. The
+                  ;; general fix (making update!'s own discard eligibility, level.gc ~9753
+                  ;; and ~9786, honor these statuses for every caller, not just this one)
+                  ;; stays a recorded follow-up, not built here.
+                  (let ((login-lev (the level #f))
+                        (login-status (the symbol #f))
+                        )
+                    (dotimes (i 18)
+                      (when (not login-lev)
+                        (let ((lv (-> *level* level i)))
+                          (when (or (= (-> lv status) 'loading)
+                                    (= (-> lv status) 'loading-bt)
+                                    (= (-> lv status) 'loading-done)
+                                    (= (-> lv status) 'login)
+                                    )
+                            (set! login-lev lv)
+                            (set! login-status (-> lv status))
+                            )
+                          )
+                        )
+                      )
+                    (when login-lev
+                      (format 0 "want-driver: deferring recompute, ~A still ~A~%"
+                              (-> login-lev name) login-status
+                              )
+                      (return 0)
+                      )
+                    )
                   (let ((cand-names (new 'stack-no-clear 'array 'symbol 3)))
                     (set! (-> cand-names 0) (-> best-center name))
                     (set! (-> cand-names 1) cand-tiny0-name)
