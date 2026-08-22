@@ -7,6 +7,126 @@
 
 ;; DECOMP BEGINS
 
+;; definition for method 225 of type wvehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod wvehicle-method-225 ((this wvehicle))
+  (set! (-> this idle-throttle) 0.0)
+  0
+  (none)
+  )
+
+;; og:preserve-this winit rung: rigid-body-object-method-68's own base
+;; declaration ((_type_ object object), all-types.gc:48999) leaves arg0
+;; and the process-drawable chain it wires up untyped; type_casts.jsonc
+;; now casts arg0 to rigid-body-vehicle-constants (every offset it reads
+;; matches that type's own engine/physics-model fields), the ppointer-
+;; chase-to-handle fold in the wheel loop resolves the same way method
+;; 220's own precedent above does (process-drawable at the offset-184/
+;; declared-188 root field), and stack_structures.jsonc adds the two
+;; scratch buffers (sp+16 a plain vector for the per-wheel root-scale
+;; write, sp+32 two contiguous vectors for the max-rpm quadratic). The
+;; four wheel-info stores at the top duplicate method 213's own
+;; wheel-spawn-null hoist (wvehicle-physics.gc) rather than replacing it:
+;; that hoist runs once, before this method is ever called with real
+;; constants, so removing it would leave the first spawn unwired again.
+;; Landing both leaves the redundancy in place for a follow-up to fold,
+;; per this rung's own call; retire this note alongside that hoist's own
+;; if a later rung consolidates them. Method 225 above is landed here too
+;; only because this method's own suspension-geometry tail calls it
+;; directly and it had no defmethod anywhere in the tree (e2 clearance);
+;; its own body is a two-line, zero-hazard idle-throttle reset with no
+;; wall of its own.
+;; definition for method 68 of type wvehicle
+;; INFO: Used lq/sq
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-68 ((this wvehicle) (arg0 object) (arg1 object))
+  (call-parent-method this arg0 arg1)
+  (let ((v1-0 (-> (the-as rigid-body-vehicle-constants arg0) physics-model)))
+    (set! (-> this wheel 0 info) (the-as vehicle-wheel-info v1-0))
+    (set! (-> this wheel 1 info) (the-as vehicle-wheel-info v1-0))
+    )
+  (let ((v1-1 (-> (the-as rigid-body-vehicle-constants arg0) physics-model rear-wheel)))
+    (set! (-> this wheel 2 info) v1-1)
+    (set! (-> this wheel 3 info) v1-1)
+    )
+  (when arg1
+    (let ((v1-3 (new 'stack-no-clear 'vector)))
+      (dotimes (a0-3 4)
+        (let* ((a3-0 (-> this wheel a0-3))
+               (a1-6 (-> a3-0 info))
+               (a2-2 (-> a3-0 handle))
+               (a2-3
+                 (and (nonzero? (l32-false-check a2-2)) (let ((t0-2 (-> (the-as (pointer process) (-> a2-2 process)) 0)))
+                                                          (if (= (-> a2-2 pid) (-> t0-2 pid))
+                                                              t0-2
+                                                              )
+                                                          )
+                      )
+                 )
+               )
+          (when a2-3
+            (let ((a2-5 (the-as basic (-> (the-as process-drawable a2-3) root))))
+              (let ((t0-5 (-> v1-3 data)))
+                (set! (-> t0-5 0) (* (-> a3-0 x-scale) (-> a1-6 x-scale)))
+                (set! (-> t0-5 1) 1.0)
+                (set! (-> t0-5 2) 1.0)
+                (set! (-> t0-5 3) 1.0)
+                )
+              (vector-float*! (the-as vector (-> v1-3 data)) (the-as vector (-> v1-3 data)) (-> a1-6 scale))
+              (set! (-> (the-as trsqv a2-5) scale quad) (-> (the-as vector (-> v1-3 data)) quad))
+              )
+            )
+          )
+        )
+      )
+    (set! (-> this f-track-width)
+          (* 2.0
+             (+ (-> (the-as rigid-body-vehicle-constants arg0) physics-model front-wheel local-pos x)
+                (-> (the-as rigid-body-vehicle-constants arg0) physics-model front-wheel susp-arm-length)
+                (-> (the-as rigid-body-vehicle-constants arg0) physics-model front-wheel steer-arm-length)
+                )
+             )
+          )
+    (set! (-> this r-track-width)
+          (* 2.0
+             (+ (-> (the-as rigid-body-vehicle-constants arg0) physics-model rear-wheel local-pos x)
+                (-> (the-as rigid-body-vehicle-constants arg0) physics-model rear-wheel susp-arm-length)
+                (-> (the-as rigid-body-vehicle-constants arg0) physics-model rear-wheel steer-arm-length)
+                )
+             )
+          )
+    (set! (-> this wheelbase)
+          (- (-> (the-as rigid-body-vehicle-constants arg0) physics-model front-wheel local-pos z)
+             (-> (the-as rigid-body-vehicle-constants arg0) physics-model rear-wheel local-pos z)
+             )
+          )
+    (let ((v1-9 (-> this draw shadow-ctrl)))
+      (set! (-> v1-9 settings shadow-dir w) (-> this info setup shadow-locus-dist))
+      (set! (-> v1-9 settings top-plane w) 0.0)
+      (set! (-> v1-9 settings bot-plane w) (- (-> this info setup shadow-bot-clip)))
+      )
+    (wvehicle-method-225 this)
+    (let ((v1-13 (new 'stack-no-clear 'inline-array 'vector 2)))
+      (set! (-> v1-13 0 w) (-> (the-as rigid-body-vehicle-constants arg0) engine powerband-width-rpm))
+      (set! (-> v1-13 1 x) (-> (the-as rigid-body-vehicle-constants arg0) engine peak-torque-rpm))
+      (set! (-> v1-13 1 y) (-> (the-as rigid-body-vehicle-constants arg0) engine drag))
+      (set! (-> v1-13 1 z) (/ 1.0 (square (-> v1-13 0 w))))
+      (set! (-> v1-13 0 x) (* -1.0 (-> v1-13 1 z)))
+      (set! (-> v1-13 0 y) (- (* 2.0 (-> v1-13 1 z) (-> v1-13 1 x)) (/ (-> v1-13 1 y) (-> v1-13 1 x))))
+      (set! (-> v1-13 0 z) (- 1.0 (* (square (-> v1-13 1 x)) (-> v1-13 1 z))))
+      (set! (-> v1-13 1 w)
+            (/ (- (- (-> v1-13 0 y)) (sqrtf (- (square (-> v1-13 0 y)) (* 4.0 (-> v1-13 0 z) (-> v1-13 0 x)))))
+               (* 2.0 (-> v1-13 0 x))
+               )
+            )
+      (set! (-> (the-as rigid-body-vehicle-constants arg0) engine max-rpm) (-> v1-13 1 w))
+      )
+    0
+    )
+  0
+  (none)
+  )
+
 ;; definition for method 69 of type wvehicle
 ;; WARN: Return type mismatch int vs none.
 (defmethod rigid-body-object-method-69 ((this wvehicle))

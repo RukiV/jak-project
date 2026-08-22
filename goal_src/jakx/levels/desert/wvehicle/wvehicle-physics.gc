@@ -244,6 +244,17 @@
     ;; falcon that exposed it. Retire this note if a real (method 64
     ;; wvehicle) or alloc-rbody-control! override ever lands and takes over
     ;; the wiring.
+    ;;
+    ;; og:preserve-this winit rung addendum: (method 68 wvehicle)
+    ;; (wvehicle-util.gc) has since landed and writes this same four-slot
+    ;; wheel-info wiring from its own arg0 (a rigid-body-vehicle-constants
+    ;; passed in whenever constants are reapplied), not from (-> this
+    ;; info) as this hoist does. The two are not fully interchangeable:
+    ;; this hoist runs once, before vehicle-wheel-spawn ever runs and
+    ;; before method 68 could have anything valid to write from, so it
+    ;; cannot simply be deleted in favor of method 68. Left as a known
+    ;; redundant write for a follow-up to fold once the two call sites'
+    ;; relative timing across the full spawn chain is mapped.
     (set! (-> this wheel 0 info) (-> this info physics-model front-wheel))
     (set! (-> this wheel 1 info) (-> this info physics-model front-wheel))
     (set! (-> this wheel 2 info) (-> this info physics-model rear-wheel))

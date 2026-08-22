@@ -829,12 +829,39 @@
 ;; ancestor's own default running. Parked in hacks.jsonc's
 ;; no_type_analysis_functions_by_name.
 
-;; og:preserve-this wvehicle-core rung (held): (method 64 wvehicle) reads a
-;; field at s5+312 plus five sllv ppointer-chase-to-handle folds (the same
-;; decoder gap already hand-folded elsewhere in this tree, see
-;; generic-obs.gc's 'mirror case and rigid-body-debug.gc). Overrides an
-;; inherited slot, so holding it just leaves the ancestor's own default
-;; running. Parked in hacks.jsonc's no_type_analysis_functions_by_name.
+;; og:preserve-this winit rung (held, rationale replaces the stale
+;; wvehicle-core note below): (method 64 wvehicle)'s original "s5+312"
+;; wall is solved. s5 is arg0 (register-allocated off a1 at op 1, never
+;; reassigned until op 506 repurposes it for something unrelated) and
+;; casting it to rigid-body-vehicle-constants clears op 191's l.b (+ s5
+;; 312) (that type's transmission gear-count, transmission :inline at
+;; 264, gear-count at transmission+48) and op 194's l.f (+ s5 220)
+;; (engine idle-rpm, engine :inline at 208, idle-rpm at engine+12) --
+;; the same arg0-is-the-constants-pointer shape as (method 68 wvehicle),
+;; landed above (wvehicle-util.gc). The fix (type_casts.jsonc, commented
+;; out rather than active since the function stays muted) runs type
+;; prop 210 ops further before it hits a second, unrelated wall at op
+;; 401: a call to gunmount-drawable-init-by-other via
+;; run-function-in-process, spawning a gunmount-generic-drawable
+;; (declared, wvehicle-weapons-h.gc, but that init callback has no
+;; defun anywhere in the corpus; op 439 repeats the same call). That is
+;; a missing-callee wall, not a config gap -- landing it would mean
+;; standing up the whole gunmount-drawable init chain first, out of
+;; this rung's scope -- and inventing a define-extern for it would be
+;; the issue-376 extern-no-defun bomb class. The five sllv folds the
+;; original note counted never got individually classified because
+;; type prop halts at the first unresolved op each run and never
+;; reached them again once s5 cleared; whoever lands the gunmount
+;; chain should re-derive them fresh rather than trust this count.
+;; Still parked in hacks.jsonc's no_type_analysis_functions_by_name.
+;;
+;; og:preserve-this wvehicle-core rung (held, superseded by the winit
+;; rung note above): (method 64 wvehicle) reads a field at s5+312 plus
+;; five sllv ppointer-chase-to-handle folds (the same decoder gap
+;; already hand-folded elsewhere in this tree, see generic-obs.gc's
+;; 'mirror case and rigid-body-debug.gc). Overrides an inherited slot,
+;; so holding it just leaves the ancestor's own default running. Parked
+;; in hacks.jsonc's no_type_analysis_functions_by_name.
 
 ;; og:preserve-this wvehicle-core rung (held): plot-engine-torque-curve is
 ;; debug-only (behind *debug-segment*, only called when it is #t); its own

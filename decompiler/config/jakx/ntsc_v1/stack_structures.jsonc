@@ -1316,6 +1316,17 @@
   // address's own type never resolved on its own ("Failed to guess stack
   // use for 16").
   "(method 213 wvehicle)": [[16, "vehicle-wheel-init-params"]],
+  // (method 68 wvehicle), winit rung: sp+16 is a plain vector, the
+  // per-wheel root-scale scratch built at ops 41-57 (x from a wheel-info
+  // float product, y/z/w hardcoded 1.0, then scaled by vector-float*!2)
+  // and quad-copied into the spawned wheel process's root+44 at ops
+  // 59-61; the raw stack address's own type never resolved on its own.
+  // sp+32 is a second scratch area for the suspension-geometry math (the
+  // arg0+236 write at the tail of the method): 32 bytes touched at
+  // offsets 0/4/8/12/16/20/24/28, i.e. two contiguous vectors back to
+  // back (the first one seeded from arg0's own w/244, x/240, y/216 at its
+  // own offsets 12/16/20).
+  "(method 68 wvehicle)": [[16, "vector"], [32, ["inline-array", "vector", 2]]],
   // plot-x-with-transform, wvehicle-core rung: sp+16 is four contiguous
   // vectors (a zero-initialized scratch at +0/+16, transformed points at
   // +32/+48 fed straight to draw-debug-line), the same

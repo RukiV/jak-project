@@ -10843,13 +10843,57 @@
     [62, "a0", "(pointer process)"]
   ],
   "(method 68 wvehicle)": [
-    [32, "t0", "(pointer process)"]
+    // rigid-body-object-method-68's own (_type_ object object) signature
+    // (all-types.gc:48999) leaves arg0 (gp, register-allocated off a1 at
+    // op 1 and never reassigned through op 170) typed plain object, and
+    // op 12's (+ a1-0 2816) is the first of fourteen ops (12/15, then
+    // 68/69/71/77/78/80/84/85/108/110/112/170) that read it as
+    // rigid-body-vehicle-constants; every offset in that set matches a
+    // field this rung's own (method 68 vehicle) template already reads
+    // off the same declared type.
+    [[12, 173], "gp", "rigid-body-vehicle-constants"],
+    [32, "t0", "(pointer process)"],
+    // op 39's l.wu (+ a2 184) reads the same process-drawable-inherited
+    // offset method 220's own precedent above already casts through
+    // (root, machine offset 184 = declared offset 188 net of the
+    // basic-tag +4); a2 holds the ppointer-chase-resolved process from
+    // ops 31-38, same fold as that precedent.
+    [[39, 58], "a2", "process-drawable"],
+    // op 60's plain lq (whole-vector quad copy into the spawned wheel's
+    // root+44) reads through the same sp+16 vector as ops 54/55's
+    // vector-float*!2 args, but that idiom's own (pointer float)
+    // inference for a bare "+0" address doesn't support a raw lq; force
+    // the quad-copy read back to vector.
+    [60, "a1", "vector"]
   ],
   "(method 180 wvehicle)": [
     [21, "a0", "(pointer process)"],
     [318, "a0", "(pointer process)"],
     [468, "a0", "(pointer process)"]
   ],
+  // (method 64 wvehicle), winit rung: this cast is verified-correct but
+  // the function stays muted below (no_type_analysis_functions_by_name)
+  // because a second, unrelated wall sits right behind it. arg0 (s5,
+  // register-allocated off a1 at op 1, never reassigned until op 506
+  // repurposes s5 for an unrelated load) was the hold note's original
+  // "s5+312" wall: op 191's l.b (+ s5 312) and op 194's l.f (+ s5 220)
+  // are rigid-body-vehicle-constants's own gear-count (transmission+48,
+  // transmission :inline at 264) and engine idle-rpm (engine+12, engine
+  // :inline at 208), the same declared type (and the same
+  // arg0-is-the-constants-pointer shape) as (method 68 wvehicle) above.
+  // With this cast applied, type prop clears op 191 and runs 210 ops
+  // further before failing at op 401 on "Unknown symbol:
+  // gunmount-drawable-init-by-other", a run-function-in-process init
+  // callback with no defun anywhere in the corpus (gunmount-drawable and
+  // gunmount-generic-drawable are declared, wvehicle-weapons-h.gc, but
+  // never given this function; op 439 repeats the same call). That is a
+  // missing-callee wall, not a config gap, and inventing a define-extern
+  // for it would be the issue-376 extern-no-defun bomb class. Left here
+  // so the arg0 fix does not need re-deriving once gunmount-drawable
+  // lands.
+  // "(method 64 wvehicle)": [
+  //   [[2, 461], "s5", "rigid-body-vehicle-constants"]
+  // ],
   // (method 71 turbodash-seeker): the same downstream cascade as the
   // wvehicle-weapons-family lane's other handle->process fold sites (no
   // sllv of its own in this rung's scoped decode, but a raw process-typed
