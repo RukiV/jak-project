@@ -7920,6 +7920,22 @@ would close more of those and is deliberately not added here."
                 (best-center (the jakx-level-bound #f))
                 (best-center-d 1000000000000000000.0)
                 )
+            ;; og:preserve-this diagnostic (follow-up rung, acceptance repro 82d585bc8):
+            ;; a boot showed this recompute scoring the ice family on the tick right
+            ;; after cam-warp-tick's own "released at <jungle coords>" print, evicting
+            ;; junglew/jungles it had just released onto. Static reading ruled out a
+            ;; units mismatch (this table and the pin both use raw fixed-point units,
+            ;; not meters; ~m only converts for display, proven by the release print
+            ;; matching the arm print exactly) and a combiner :exit handler resetting
+            ;; trans (cam-combiner-active has none). It did not find what else, if
+            ;; anything, writes (-> mc trans) between the pin and this read. One-line
+            ;; proof of what this recompute actually sampled, directly comparable
+            ;; against the cam-warp release print's own ~m units; cheap (once per
+            ;; 30-frame recompute). Remove once a boot confirms which side is wrong.
+            (format 0 "want-driver: scorer sampled cam <~m ~m ~m> (raw ~f ~f ~f)~%"
+                    (-> cam x) (-> cam y) (-> cam z)
+                    (-> cam x) (-> cam y) (-> cam z)
+                    )
             ;; pass 1 (issue 581 fix, see the docstring above): score the family a
             ;; candidate member belongs to, not the tiny-center row directly, then take
             ;; that family's own nearest built tiny-center as best-center. Restricting
