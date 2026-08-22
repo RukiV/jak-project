@@ -220,6 +220,34 @@
     (set! (-> s5-0 level) (the-as symbol (-> this level)))
     (set! (-> s5-0 radius) 4096.0)
     (&-> s5-0 vehicle)
+    ;; og:preserve-this wheel-spawn-null rung: (method 213 wvehicle)'s own
+    ;; wheel-info wiring, not this rung's own scoped decode of this
+    ;; function (wvehicle-physics.o's compiled body, falclcrash-dis.py
+    ;; against wvehicle-physics+0xa2e, has no write to any wheel's info
+    ;; slot anywhere in this method; the crash itself is r9=0 read from
+    ;; (-> this wheel 0 info) before vehicle-wheel-spawn ever runs, PP
+    ;; "vehicle", first-ever execution once the falcon's wheel art group
+    ;; resolved, PR 619). jak3's own structurally-identical spawn-wheels!
+    ;; (goal_src/jak3/levels/desert/wvehicle/wvehicle-util.gc:505-551)
+    ;; reads (-> sv-96 info scale/radius/settle-pos) the same way, guarded
+    ;; upstream by (method 37 wvehicle)'s own override (same file, lines
+    ;; 30-37) wiring wheel 0/1 to (-> this info physics-model front-wheel)
+    ;; and wheel 2/3 to rear-wheel, called from alloc-rbody-control! before
+    ;; spawn-wheels! ever runs. jakx has consolidated that whole chain into
+    ;; (method 64 rigid-body-object) (rigid-body-object.gc, this rung's own
+    ;; read of its full body), which carries no wheel-specific step at all,
+    ;; and no wvehicle override of method 64 or any equivalent exists yet,
+    ;; so nothing else in the landed corpus performs this wiring. Landed
+    ;; here, once, ahead of the loop that reads it, rather than as a new
+    ;; vtable override: every wcar-*.gc family shares this same method, so
+    ;; the fix covers all 15 vehicle types' first spawn, not just the
+    ;; falcon that exposed it. Retire this note if a real (method 64
+    ;; wvehicle) or alloc-rbody-control! override ever lands and takes over
+    ;; the wiring.
+    (set! (-> this wheel 0 info) (-> this info physics-model front-wheel))
+    (set! (-> this wheel 1 info) (-> this info physics-model front-wheel))
+    (set! (-> this wheel 2 info) (-> this info physics-model rear-wheel))
+    (set! (-> this wheel 3 info) (-> this info physics-model rear-wheel))
     (dotimes (s4-1 4)
       (let ((s3-0 (-> this wheel s4-1)))
         (set! (-> s5-0 radius) (* 1.3 (-> s3-0 info scale) (-> s3-0 info radius)))
