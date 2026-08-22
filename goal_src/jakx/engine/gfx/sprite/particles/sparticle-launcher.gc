@@ -432,6 +432,38 @@
   0
   )
 
+;; definition for function unlink-part-by-heap
+;; og:preserve-this issue 595: sibling scrub for unlink-part-group-by-heap above,
+;; same idiom against *part-id-table* instead of *part-group-id-table*. This is a
+;; deliberate deviation from retail, not a decode: retail (jak3 included, which
+;; carries the identical gap) only ever scrubbed the group table on level unload,
+;; never the individual-launcher table, because authored want-sets never churned
+;; levels the way the bring-up driver does, so retail never hit the dangling
+;; entry. Without this, a defpart launcher statically homed in a freed level
+;; heap stays behind in *part-id-table*; a later launch-particles on that id
+;; feeds sp-init-fields! a freed spec, landing garbage in sp-func for the
+;; mips2c block processor to call (the jungle fire crash, issue 595). Retire
+;; this scrub if the bring-up driver is ever replaced by retail want-set
+;; arming; at that point it becomes harmless redundancy, not a behavior change.
+(defun unlink-part-by-heap ((arg0 kheap))
+  (let* ((v1-0 *part-id-table*)
+         (a2-0 (-> v1-0 length))
+         (a1-0 (-> arg0 base))
+         (a0-1 (-> arg0 top-base))
+         )
+    (while (nonzero? a2-0)
+      (+! a2-0 -1)
+      (let ((a3-2 (-> v1-0 a2-0)))
+        (when (and (>= (the-as int a3-2) (the-as int a1-0)) (< (the-as int a3-2) (the-as int a0-1)))
+          (set! (-> v1-0 a2-0) (the-as sparticle-launcher 0))
+          0
+          )
+        )
+      )
+    )
+  0
+  )
+
 ;; definition for function sp-init-fields!
 ;; INFO: function output is handled by mips2c
 (def-mips2c sp-init-fields! (function (pointer float) (inline-array sp-field-init-spec) sp-field-id sp-field-id symbol (inline-array sp-field-init-spec)))
