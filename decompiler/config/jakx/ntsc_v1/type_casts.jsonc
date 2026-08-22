@@ -1,6 +1,20 @@
 {
   "vehicle-spawn": [[186, "s5", "vehicle"], [187, "a0", "vehicle"]],
 
+  // vinit2 rung: (method 10 vehicle-section)'s op 70 re-derives a3 as
+  // (+ s4-0 0) off the newly stack_structures.jsonc-declared matrix at
+  // sp+16, but the decompiler's own +0 identity op downgrades the result to
+  // vector, so the unrolled four-quad copy into vehicle-section-info's own
+  // matrix field two ops later ("Could not figure out load: (set! a1 (l.q
+  // (+ a3 16)))") reads past a plain vector's 16-byte span. a3 is s4-0
+  // itself, unmodified; casting it back to matrix at op 70 matches its real
+  // type.
+  "(method 10 vehicle-section)": [
+    [72, "a3", "matrix"],
+    [73, "a3", "matrix"],
+    [74, "a3", "matrix"]
+  ],
+
   // load-game-text-info (text-record-wall rung): arg1 is (pointer object), the
   // same signature jak3 carries, so the previously-loaded game-text-info it
   // points at comes back typed object and the language-id (machine 4) and

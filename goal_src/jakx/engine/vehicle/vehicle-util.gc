@@ -39,14 +39,30 @@
 ;; is one of (method 64 vehicle)'s own zero-slot dispatch targets (offset
 ;; 56 = 16 + 4*10, called via the vehicle-section type symbol directly on
 ;; a freshly-initialized section, vehicle_ir2.asm ops 249-252). Confirmed
-;; still HELD, not stale: the decode carries "ERROR: Failed to guess
-;; stack use for 16 in (method 10 vehicle-section):55", a genuine stack-
-;; layout wall (a local 4x4 matrix built on the raw stack via
-;; matrix-4x4-inverse!/matrix*!, the same sp+16 scratch idiom the
+;; still HELD at that time, not stale: the decode carried "ERROR: Failed
+;; to guess stack use for 16 in (method 10 vehicle-section):55", a
+;; genuine stack-layout wall (a local 4x4 matrix built on the raw stack
+;; via matrix-4x4-inverse!/matrix*!, the same sp+16 scratch idiom the
 ;; decompiler also cannot resolve in method 64 itself), not a config gap
-;; this rung's tools can clear. Landing it would require either a
-;; decompiler-side stack-inference fix or a fully hand-verified
-;; transcription against the raw asm; out of this rung's scope.
+;; that rung's tools could clear.
+;;
+;; og:preserve-this vinit2 rung: retired the hold above. A
+;; stack_structures.jsonc entry alone ([16,"matrix"]) cleared the first
+;; wall but exposed a second: op 70's plain-pointer re-derivation of the
+;; matrix base (`(daddu a3, r0, s4)`) downgrades to vector in the
+;; decompiler's own type propagation, so the four-quad unrolled copy two
+;; ops later reads past a 16-byte vector ("Could not figure out load:
+;; (set! a1 (l.q (+ a3 16)))"). Three type_casts.jsonc entries (ops 72-74,
+;; each iteratively discovered the same way (method 10 rigid-body-queue)'s
+;; own six-cast entry was, per that entry's own comment) recast a3 back to
+;; matrix at each of the three remaining reads and the function decodes
+;; fully clean, folding the raw quad copy into a plain `matrix-copy!`
+;; call. The true footprint is two adjacent matrices (128 bytes, this
+;; function's own "stack_vars: 136 bytes at 8" frame comment), the same
+;; register-spill-overrun class this rung's own commit (e94d259a9)
+;; catalogued -- stack_structures.jsonc now declares the full
+;; [16,["inline-array","matrix",2]] span, and the landing below allocates
+;; it the same way to match.
 
 ;; definition for method 9 of type vehicle-section
 (defmethod vehicle-section-method-9 ((this vehicle-section) (arg0 vehicle) (arg1 art-group) (arg2 int))
@@ -147,13 +163,13 @@
   )
 
 ;; og:preserve-this vehicle-util rung (method 13 landed below, 10/11/12
-;; bodies still held, all four signatures now landed): vehicle-section
-;; methods 10, 11, 12 and 13 all have evidence-backed argument types in
-;; all-types.gc as of the vehicle structural rung (R3) -- method 10's
-;; second argument reads offsets 188/192 (process-drawable's inherited
-;; root/node-list, unshifted) and 284 raw / 288 landed (car-info, the
-;; vehicle-own +4-corrected region); only vehicle carries all three, so it
-;; is typed vehicle, not the previously-claimed unproven construction/
+;; bodies still held at that time, all four signatures already landed):
+;; vehicle-section methods 10, 11, 12 and 13 all have evidence-backed
+;; argument types in all-types.gc as of the vehicle structural rung (R3)
+;; -- method 10's second argument reads offsets 188/192 (process-drawable's
+;; inherited root/node-list, unshifted) and 284 raw / 288 landed (car-info,
+;; the vehicle-own +4-corrected region); only vehicle carries all three, so
+;; it is typed vehicle, not the previously-claimed unproven construction/
 ;; spawn-params struct. Method 11 takes the spawning vehicle (its call site
 ;; only resolves once R2's vehicle-spawn externs are landed). Method 12's
 ;; second argument reads offset 228 (also unshifted, a process-drawable-
@@ -161,18 +177,52 @@
 ;; typed vehicle too. Method 13's first argument is a raw float bit-pattern
 ;; passed in a gpr (the gpr->fpr mtc1 idiom), typed float -- with that one
 ;; retype method 13 decodes completely cleanly (a scoped decode after
-;; landing the signature, zero error markers) and lands below. The other
-;; three bodies do not land this rung: method 10's own scoped decode is now
-;; clean through its first (if) branch but its (else) branch still carries
-;; unresolved raw pointer arithmetic (a matrix-identity!/matrix-4x4-
-;; inverse! cascade this rung did not fully trace); method 11 is still a
-;; CFG building failure (no expression tree, unaffected by the retype);
-;; method 12 still fails type prop, now at a different op (157, "add
+;; landing the signature, zero error markers) and lands below. Method 11
+;; is still a CFG building failure (no expression tree, unaffected by the
+;; retype); method 12 still fails type prop at a different op (157, "add
 ;; failed: <uninitialized> <integer 0>") past an sllv handle-style idiom
 ;; (the same inlined-macro class rigid-body-queue.gc's own held methods
 ;; hit), with the originally-cited offset-228 failure itself resolved by
-;; the retype. Re-derive the remaining three bodies from the framework's
-;; own dump (offline-test -f vehicle-util -d) in a future rung.
+;; the retype. Both stay held; re-derive from the framework's own dump
+;; (offline-test -f vehicle-util -d) in a future rung.
+;;
+;; og:preserve-this vinit2 rung: method 10 lands here too, retiring the
+;; hold the paragraph above and the file's own top note left on it. Its
+;; own decode wall (a matrix pointer aliased through a plain +0 register
+;; copy losing its type) is a decompiler config gap, not the raw-asm wall
+;; assumed earlier; see the top-of-file note and this rung's
+;; stack_structures.jsonc/type_casts.jsonc entries for the full citation.
+
+;; definition for method 10 of type vehicle-section
+(defmethod vehicle-section-method-10 ((this vehicle-section) (arg0 vehicle))
+  (logior! (-> this flags) 1)
+  (set! (-> this car-info) (-> arg0 car-info))
+  (set! (-> this draw lights) (-> arg0 draw lights))
+  (set! (-> this draw lod-set lod 0 dist) (-> arg0 draw lod-set lod 0 dist))
+  (set! (-> this draw lod-set lod 1 dist) (-> arg0 draw lod-set lod 1 dist))
+  (set! (-> this draw lod-set lod 2 dist) (-> arg0 draw lod-set lod 2 dist))
+  (logior! (-> this draw status) (draw-control-status force-vu1))
+  (set! (-> this debris) (the-as uint #f))
+  (vehicle-section-method-15 this)
+  (cond
+    ((>= 3 (-> this node-index))
+     (set! (-> this parent-node-index) 3)
+     (matrix-identity! (-> this info joint-local))
+     )
+    (else
+      (let ((s5-1 (-> arg0 node-list data (-> this node-index))))
+        (set! (-> this parent-node-index) (+ (-> s5-1 parent joint number) 1))
+        (let ((s4-0 (new 'stack-no-clear 'inline-array 'matrix 2)))
+          (matrix-4x4-inverse! (-> s4-0 1) (-> s5-1 parent bone transform))
+          (matrix*! (-> s4-0 0) (-> s5-1 bone transform) (-> s4-0 1))
+          (matrix-copy! (-> this info joint-local) (-> s4-0 0))
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
 
 ;; definition for method 13 of type vehicle-section
 ;; WARN: Return type mismatch float vs none.
@@ -499,24 +549,34 @@
   (none)
   )
 
-;; og:preserve-this method 69 (rigid-body-object-method-69): HELD, not
-;; landed. Scoped decode against this worktree's own config
-;; (--config-override allowed_objects ["vehicle-util"], levels_extract
-;; false, ntsc_v1) is clean: (call-parent-method this) then
-;; (vehicle-method-100 this). Zero-slot: vehicle never overrode this
-;; slot, so (method 69 wvehicle) (wvehicle-util.gc:12)'s own
-;; call-parent-method lands straight on rigid-body-object's base body
-;; (rigid-body-object.gc:51), skipping vehicle-level init entirely --
-;; the bug this rung's investigation traced. But landing it as-is trades
-;; that bug for a worse one: vehicle-method-100 has no base-vehicle
-;; override, and while most wcar-* leaf types do override it
-;; (wcar-cheetah.gc and 14 siblings), v-drone does not -- wcar-drone.gc's
-;; (deftype v-drone (wcar-base)) chain (wcar-base.gc, wvehicle-util.gc)
-;; carries no vehicle-method-100 override anywhere, and v-drone is a
-;; live traffic-vehicle-type (traffic-h.gc:68/146-147, car-info-h.gc:54,
-;; *v-drone-constants* in wcar.gc), not dead code. Worse, the reachable
-;; path is live today: rigid-body-object's own base method 64
-;; (rigid-body-object.gc:161-173) unconditionally calls
+;; og:preserve-this method 69 (rigid-body-object-method-69): the vinit rung
+;; held this on vehicle-method-100 having no base-vehicle override (v-drone
+;; is the uncovered leaf, see that hold's own citation trail, retained
+;; below for provenance). vinit2 rung: retired. A scoped decode of this
+;; worktree's own vehicle-util object turned up jakx's own base
+;; vehicle-method-100 body (landed immediately below, distinct from any
+;; wcar-* leaf override), so method 69's own call-parent-method +
+;; vehicle-method-100 dispatch now resolves everywhere, including on
+;; v-drone. Landing order matters here: method-100 must land first so this
+;; method's own dispatch never sees a zero slot.
+;;
+;; former vinit-rung hold text, kept for the record: Scoped decode against
+;; this worktree's own config (--config-override allowed_objects
+;; [vehicle-util], levels_extract false, ntsc_v1) is clean:
+;; (call-parent-method this) then (vehicle-method-100 this). Zero-slot:
+;; vehicle never overrode this slot, so (method 69 wvehicle)
+;; (wvehicle-util.gc:12)'s own call-parent-method lands straight on
+;; rigid-body-object's base body (rigid-body-object.gc:51), skipping
+;; vehicle-level init entirely -- the bug this rung's investigation traced.
+;; But landing it as-is trades that bug for a worse one: vehicle-method-100
+;; has no base-vehicle override, and while most wcar-* leaf types do
+;; override it (wcar-cheetah.gc and 14 siblings), v-drone does not --
+;; wcar-drone.gc's (deftype v-drone (wcar-base)) chain (wcar-base.gc,
+;; wvehicle-util.gc) carries no vehicle-method-100 override anywhere, and
+;; v-drone is a live traffic-vehicle-type (traffic-h.gc:68/146-147,
+;; car-info-h.gc:54, *v-drone-constants* in wcar.gc), not dead code.
+;; Worse, the reachable path is live today: rigid-body-object's own base
+;; method 64 (rigid-body-object.gc:161-173) unconditionally calls
 ;; (rigid-body-object-method-69 this) on every spawned rigid-body-object
 ;; that has not overridden method 64 itself, which v-drone (and
 ;; wcar-base) do not, so v-drone still uses that base method 64. Landing
@@ -524,23 +584,153 @@
 ;; through wvehicle's override into vehicle's new one into
 ;; vehicle-method-100 on a v-drone instance -- a zero vtable slot, a new
 ;; crash this rung would introduce rather than fix (AGENTS.md section 5).
-;; Retire this hold once vehicle-method-100 has either a base-vehicle
-;; landing or a v-drone-specific override.
 
-;; og:preserve-this method 110 (vehicle-method-110): HELD, not landed.
-;; Scoped decode against this worktree's own config (--config-override
-;; allowed_objects ["vehicle-util"], levels_extract false, ntsc_v1)
-;; proves the earlier wall stale -- the corpus copy of this function
-;; failed type prop at op 34 ("Unknown symbol: rigid-body-control"),
-;; which is now fully defined and the decode advances to a complete,
-;; syntactically clean body. But that body calls (vehicle-method-153
-;; this), declared (vehicle-h.gc:1185) with no defmethod anywhere in
-;; this worktree or on any wcar-* leaf type -- a genuine zero vtable
-;; slot at every real call site, not just the base. Landing method 110
-;; as-is would trade one falcon-crash callee for another the first time
-;; a spawned vehicle reaches this path. vehicle-method-153 is itself not
-;; landable this rung either: its own scoped decode carries "ERROR:
-;; Unsupported inline assembly instruction kind - [srl v1, v1, 24]", a
-;; genuine decompiler wall, not a config gap. Retire this hold once a
-;; future rung lands vehicle-method-153 (or the decompiler gains srl/24
-;; support for it).
+;; og:preserve-this method 100 (vehicle-method-100): vinit2 rung, the base
+;; landing that unblocks method 69 above. Scoped decode of this worktree's
+;; own vehicle-util object (lane-decompwall's own build of decompiler.exe,
+;; see this rung's report -- the primary checkout's prebuilt binary
+;; predates the srl fold and is stale for this whole file) turns up a
+;; distinct, clean base body: recomputes root-prim's own local-sphere
+;; radius from every child prim's local-sphere (max of length + w), then
+;; resets and rewrites it. This is NOT jak3's own vehicle-method-100
+;; (city/traffic/vehicle/vehicle-util.gc:952, a shadow-ctrl disable-draw
+;; toggle) -- that number collides across the two corpora without being
+;; the same method; jakx's own decode is the only evidence used here.
+;; definition for method 100 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-100 ((this vehicle))
+  (let ((v1-1 (-> this root root-prim))
+        (f0-0 0.0)
+        )
+    (dotimes (a0-1 (the-as int (-> v1-1 specific 0)))
+      (let ((a1-3 (-> (the-as collide-shape-prim-group v1-1) child a0-1 local-sphere)))
+        (set! f0-0 (fmax f0-0 (+ (vector-length a1-3) (-> a1-3 w))))
+        )
+      )
+    (vector-reset! (-> v1-1 local-sphere))
+    (set! (-> v1-1 local-sphere w) f0-0)
+    )
+  0
+  (none)
+  )
+
+;; definition for method 69 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod rigid-body-object-method-69 ((this vehicle))
+  (call-parent-method this)
+  (vehicle-method-100 this)
+  (none)
+  )
+
+;; og:preserve-this methods 182/183 (vehicle-method-182/183): vinit2 rung,
+;; landed as vehicle-method-153's own callees below. Both signatures were
+;; already corrected to (_type_ float) none by an earlier rung's scoped
+;; decode (vehicle-h.gc's own "arg0 promoted object -> float" notes on
+;; these two slots); this rung's decode confirms both bodies clean and
+;; terminal (no further unlanded callees).
+;; definition for method 182 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-182 ((this vehicle) (arg0 float))
+  (set! (-> this speed-factor) (* arg0
+                                  (-> *game-info* global-speed-factor)
+                                  (+ 0.86 (* 0.032 (the float (shr (shl (-> this car-info tuning) 56) 56))))
+                                  )
+        )
+  0
+  (none)
+  )
+
+;; definition for method 183 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-183 ((this vehicle) (arg0 float))
+  (let ((f0-1 (* arg0 (+ 1.0 (* 0.089999996 (the float (shr (shl (-> this car-info tuning) 40) 56)))))))
+    (set! (-> this damage-factor) (/ 1.0 f0-1))
+    )
+  0
+  (none)
+  )
+
+;; og:preserve-this method 153 (vehicle-method-153): vinit2 rung. Held by
+;; the vinit rung on "ERROR: Unsupported inline assembly instruction kind -
+;; [srl v1, v1, 24]", a genuine decompiler wall; PR 645/647's decompiler
+;; fold (folding a bare srl into a shr form) clears it -- this rung's own
+;; scoped decode, run against lane-decompwall's own build of decompiler.exe
+;; (the primary checkout's prebuilt binary predates the fold), decodes the
+;; former raw asm line as a clean `(the float (shr (-> this car-info
+;; tuning) 24))` writing unknown-float-720, matching this file's own
+;; already-landed field declaration (vehicle-h.gc) exactly.
+;; definition for method 153 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-153 ((this vehicle))
+  (vehicle-method-182 this 1.0)
+  (vehicle-method-183 this (-> this info damage hit-points))
+  (set! (-> this unknown-float-720)
+        (/ 1.0 (+ 4.0 (* 0.22500001 (the float (shr (-> this car-info tuning) 24)))))
+        )
+  (set! (-> this torque-scale) (+ 1.0 (* 0.05 (the float (shr (shl (-> this car-info tuning) 48) 56)))))
+  0
+  (none)
+  )
+
+;; og:preserve-this method 110 (vehicle-method-110): the vinit rung held
+;; this on vehicle-method-153 having no defmethod anywhere (retained below
+;; for provenance). vinit2 rung: retired now that method 153 lands above.
+;; The scoped decode's one raw store, "(s.f! (+ this 856) f0-1)" (ERROR:
+;; Failed store, op 30), is the wvehicle.gc method-220 class: the
+;; decompiler prints a bare `+` on a basic-typed `this` where only `&+`
+;; compiles ("Cannot do math on a" the type, same substitution
+;; wvehicle.gc:503's own og:preserve-this note already documents). Offset
+;; 856 is this file's own already-landed `water-height` field
+;; (vehicle-h.gc); kept as the compile-only `&+` substitution rather than
+;; rewritten to a named field access, matching the established minimal-fix
+;; convention. rigid-body-object-method-69 and rigid-body-object-method-73
+;; are both real dispatches through vehicle's own inheritance chain (69
+;; lands above this rung, 73 is rigid-body-object's own landed base,
+;; rigid-body-object.gc:328); neither is a zero slot.
+;;
+;; former vinit-rung hold text, kept for the record: Scoped decode against
+;; this worktree's own config (--config-override allowed_objects
+;; [vehicle-util], levels_extract false, ntsc_v1) proves the earlier
+;; wall stale -- the corpus copy of this function failed type prop at op 34
+;; (Unknown symbol: rigid-body-control), which is now fully defined and
+;; the decode advances to a complete, syntactically clean body. But that
+;; body calls (vehicle-method-153 this), declared (vehicle-h.gc:1185) with
+;; no defmethod anywhere in this worktree or on any wcar-* leaf type -- a
+;; genuine zero vtable slot at every real call site, not just the base.
+;; Landing method 110 as-is would trade one falcon-crash callee for another
+;; the first time a spawned vehicle reaches this path. vehicle-method-153
+;; is itself not landable this rung either: its own scoped decode carries
+;; "ERROR: Unsupported inline assembly instruction kind - [srl v1, v1,
+;; 24]", a genuine decompiler wall, not a config gap. Retire this hold
+;; once a future rung lands vehicle-method-153 (or the decompiler gains
+;; srl/24 support for it).
+;; definition for method 110 of type vehicle
+;; WARN: Return type mismatch int vs none.
+(defmethod vehicle-method-110 ((this vehicle))
+  (logand! (-> this flags) (the-as uint #xffffdffffc7e4151))
+  (set! (-> this v-flags-2) (-> this flags))
+  (logior! (-> this rbody flags) 16)
+  (logclear! (-> this focus-status) (focus-status disable dead inactive))
+  (rigid-body-object-method-69 this)
+  (rigid-body-object-method-73 this)
+  (set! (-> this health) 1.0)
+  (let ((f0-1 0.0))
+    (s.f! (&+ this 856) f0-1)
+    )
+  (if (< 1 *view-count*)
+      (logior! (-> this flags) #x2000000)
+      )
+  (vehicle-method-153 this)
+  (set-time! (-> this state-time))
+  (let ((v1-22 (-> this info damage section-mask)))
+    (dotimes (a0-9 12)
+      (when (logtest? v1-22 (ash 1 a0-9))
+        (let ((a1-6 (-> this sections a0-9)))
+          (set! (-> a1-6 damage) 0.0)
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )

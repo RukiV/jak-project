@@ -1,4 +1,20 @@
 {
+  // vinit2 rung: (method 10 vehicle-section) builds two adjacent local 4x4
+  // matrices on the raw stack (the vehicle-h.gc-adjacent hold note's own
+  // "matrix-4x4-inverse!/matrix*!" citation) and the decompiler cannot guess
+  // the base slot's type on its own ("Failed to guess stack use for 16 in
+  // (method 10 vehicle-section):55"); same shape as (method 51 helmet-garage)
+  // above. A single [16,"matrix"] hint is enough for the decode itself to
+  // clear (matrix-4x4-inverse!'s destination is reached through plain
+  // pointer arithmetic, (&+ s4-0 64), which the decompiler accepts without a
+  // second declared slot), but the true footprint is 128 bytes (this
+  // function's own "stack_vars: 136 bytes at 8" frame comment, vehicle-
+  // util_ir2.asm), the round-four register-spill-overrun class this same
+  // rung's own commit (e94d259a9) catalogued: a landed `(new 'stack-no-clear
+  // 'matrix)` only reserves 64 bytes, so the second matrix write at offset
+  // 64 would overrun straight past it. Declared here as the full two-matrix
+  // span so the hint matches what goal_src must actually allocate.
+  "(method 10 vehicle-section)": [[16, ["inline-array", "matrix", 2]]],
   // issue 571 R10c: jak3 twin transplant. jak3 wires the same shapes at its
   // own methods 149 (wvehicle-stack-type2) and 173 (wvehicle-stack-type1);
   // jakx's ids for the same two vtable slots are 177 and 230. Both land
