@@ -74,10 +74,82 @@
   )
 
 ;; definition for function title-control-init
-;; ERROR: function was not converted to expressions. Cannot decompile.
+(defbehavior title-control-init title-control ((arg0 symbol))
+  (stack-size-set! (-> self main-thread) 2048)
+  (logclear! (-> self mask) (process-mask freeze pause menu progress actor-pause))
+  (setting-control-method-15 *setting-control* self 'allow-pause #f 0 0)
+  (setting-control-method-15 *setting-control* self 'allow-progress #f 0 0)
+  (setting-control-method-15 *setting-control* self 'allow-timeout #f 0 0)
+  (setting-control-method-15 *setting-control* self 'allow-error #f 0 0)
+  (setting-control-method-23 *setting-control*)
+  (dotimes (s5-0 2)
+    (set! (-> self buffer s5-0) (new
+                                  'process
+                                  'external-art-buffer
+                                  s5-0
+                                  (lambda ((arg0 external-art-buffer))
+                                    (let ((gp-0 (-> arg0 heap)))
+                                      (set! (-> gp-0 base) (dma-get-named-buffer 'title-control 0 0))
+                                      (set! (-> gp-0 current) (-> gp-0 base))
+                                      (set! (-> gp-0 top-base) (&+ (-> gp-0 base) #xd0000))
+                                      (set! (-> gp-0 top) (-> gp-0 top-base))
+                                      )
+                                    0
+                                    )
+                                  #f
+                                  )
+          )
+    )
+  (dotimes (v1-19 2)
+    (set! (-> self want v1-19) -1)
+    (set! (-> self have v1-19) -1)
+    )
+  (set! (-> self draw) -1)
+  (set! (-> self active) #f)
+  (set! *title-control* (the-as title-control (process->ppointer self)))
+  (set! (-> *game-info* controller 0) (process->handle self))
+  (cond
+    ((= arg0 #t)
+     (go-virtual splash-screen)
+     )
+    ((= arg0 #f)
+     (go-virtual control-spec)
+     )
+    ((= arg0 'thx-dolby)
+     (go-virtual thx-dolby)
+     )
+    ((= arg0 'scrap-book1)
+     enter-state
+     1
+     (go-virtual scrap-book)
+     )
+    ((= arg0 'scrap-book2)
+     enter-state
+     2
+     (go-virtual scrap-book)
+     )
+    ((= arg0 'scrap-book3)
+     enter-state
+     3
+     (go-virtual scrap-book)
+     )
+    )
+  )
 
 ;; definition for function title-control-spawn
-;; ERROR: function was not converted to expressions. Cannot decompile.
+;; WARN: Return type mismatch int vs object.
+(defbehavior title-control-spawn title-control ((arg0 symbol))
+  (kill-by-type title-control *active-pool*)
+  (ppointer->handle (process-spawn
+                      title-control
+                      :init title-control-init
+                      arg0
+                      :name "title-control"
+                      :to *entity-pool*
+                      :stack-size 4096
+                      )
+                    )
+  )
 
 ;; definition for function title-screen-change
 (defbehavior title-screen-change title-control ((arg0 string) (arg1 int) (arg2 string) (arg3 int) (arg4 symbol) (arg5 symbol))

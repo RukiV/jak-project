@@ -62518,13 +62518,21 @@
 ;; after the bare function typing left title-control-init/spawn and
 ;; title-screen-change with "no type analysis" (their bodies never got
 ;; args to work with).
-;; title-control-init's own body references this global (bad register
-;; dependency on a0 traced back to an unknown-symbol warning on this
-;; name); a bare process-pointer global, matching the *target*/*camera*
-;; convention for a level's singleton active-process handle.
+;; title-control-init's own body references this global; a bare
+;; process-pointer global, matching the *target*/*camera* convention for
+;; a level's singleton active-process handle.
 (define-extern *title-control* title-control)
-(define-extern title-control-init (function object :behavior title-control))
-(define-extern title-control-spawn (function object :behavior title-control))
+;; arg0 (both functions): titleobs lane re-derivation. The scoped decode's
+;; own register trace shows title-control-spawn reading its own a0 at
+;; function entry (before any call clobbers it), then forwarding the exact
+;; same value as run-function-in-process's extra arg into title-control-init,
+;; which in turn conds on it against #t/#f/'thx-dolby/'scrap-book1/2/3 to
+;; pick the entry sub-state -- a genuine caller-supplied mode selector, not
+;; an unset-register residual (unlike this file's target-title :enter,
+;; whose corpus-wide caller check found zero args ever passed). symbol
+;; covers every literal the cond compares against, #t/#f included.
+(define-extern title-control-init (function symbol object :behavior title-control))
+(define-extern title-control-spawn (function symbol object :behavior title-control))
 (define-extern title-screen-change (function string int string int symbol symbol int :behavior title-control))
 (define-extern title-progress (function symbol int))
 (define-extern title-fade-out (function float int))

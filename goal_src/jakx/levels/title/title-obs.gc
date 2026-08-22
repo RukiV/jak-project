@@ -35,6 +35,19 @@
     )
   )
 
+;; og:preserve-this: not decoder output. title-control-init (below) sets
+;; this symbol but goalc has no other declaration of it anywhere in
+;; goal_src -- jakx's own build never emitted one because title-control-init
+;; was stubbed out (raw ERROR comment, no body) until this lane landed it.
+;; jak3's own title-obs.gc twin declares the identical singleton
+;; (goal_src/jak3/levels/title/title-obs.gc:9) as `(pointer title-control)`
+;; right after its own deftype; jakx's decoded (set! *title-control* (the-as
+;; title-control (process->ppointer self))) casts to bare title-control
+;; rather than a pointer type, so the extern here matches that cast instead
+;; of jak3's declared type, following the *target*/*camera* convention this
+;; file's own all-types.gc citation already names.
+(define-extern *title-control* title-control)
+
 ;; definition for method 3 of type title-control
 (defmethod inspect ((this title-control))
   (when (not this)
@@ -83,10 +96,99 @@
   )
 
 ;; definition for function title-control-init
-;; ERROR: function was not converted to expressions. Cannot decompile.
+;; og:preserve-this: arg0 (symbol) was re-derived by this lane, not decoded
+;; as-is. The retail body reads a0 at function entry before any call
+;; clobbers it (the decompiler's raw trace: "or gp, a0, r0" as instruction
+;; 0), and title-control-spawn (below) forwards its own arg0 into this
+;; function's a0 via run-function-in-process's extra-arg slot -- a genuine
+;; caller-supplied mode selector, not an unset-register residual like this
+;; file's own target-title :enter. The pre-authored all-types.gc extern
+;; declared zero args; retyping it to (function symbol object :behavior
+;; title-control) is what let this body convert. Also fixed in the same
+;; change: anonymous_function_types.jsonc's title-obs index 30 (the
+;; external-art-buffer init-heap callback below) was typed (function object
+;; object), a placeholder too generic for its own `(+ a0 28)` field access
+;; to type-prop; retyped to (function external-art-buffer object), matching
+;; external-art-buffer's own declared init-heap field type. Together these
+;; two config fixes are what unparked this function and title-control-spawn
+;; from decompiler/config/jakx/ntsc_v1/hacks.jsonc's asm_functions_by_name
+;; list; see that file's own comment for the full account.
+(defbehavior title-control-init title-control ((arg0 symbol))
+  (stack-size-set! (-> self main-thread) 2048)
+  (logclear! (-> self mask) (process-mask freeze pause menu progress actor-pause))
+  (setting-control-method-15 *setting-control* self 'allow-pause #f 0 0)
+  (setting-control-method-15 *setting-control* self 'allow-progress #f 0 0)
+  (setting-control-method-15 *setting-control* self 'allow-timeout #f 0 0)
+  (setting-control-method-15 *setting-control* self 'allow-error #f 0 0)
+  (setting-control-method-23 *setting-control*)
+  (dotimes (s5-0 2)
+    (set! (-> self buffer s5-0) (new
+                                  'process
+                                  'external-art-buffer
+                                  s5-0
+                                  (lambda ((arg0 external-art-buffer))
+                                    (let ((gp-0 (-> arg0 heap)))
+                                      (set! (-> gp-0 base) (dma-get-named-buffer 'title-control 0 0))
+                                      (set! (-> gp-0 current) (-> gp-0 base))
+                                      (set! (-> gp-0 top-base) (&+ (-> gp-0 base) #xd0000))
+                                      (set! (-> gp-0 top) (-> gp-0 top-base))
+                                      )
+                                    0
+                                    )
+                                  #f
+                                  )
+          )
+    )
+  (dotimes (v1-19 2)
+    (set! (-> self want v1-19) -1)
+    (set! (-> self have v1-19) -1)
+    )
+  (set! (-> self draw) -1)
+  (set! (-> self active) #f)
+  (set! *title-control* (the-as title-control (process->ppointer self)))
+  (set! (-> *game-info* controller 0) (process->handle self))
+  (cond
+    ((= arg0 #t)
+     (go-virtual splash-screen)
+     )
+    ((= arg0 #f)
+     (go-virtual control-spec)
+     )
+    ((= arg0 'thx-dolby)
+     (go-virtual thx-dolby)
+     )
+    ((= arg0 'scrap-book1)
+     enter-state
+     1
+     (go-virtual scrap-book)
+     )
+    ((= arg0 'scrap-book2)
+     enter-state
+     2
+     (go-virtual scrap-book)
+     )
+    ((= arg0 'scrap-book3)
+     enter-state
+     3
+     (go-virtual scrap-book)
+     )
+    )
+  )
 
 ;; definition for function title-control-spawn
-;; ERROR: function was not converted to expressions. Cannot decompile.
+;; WARN: Return type mismatch int vs object.
+(defbehavior title-control-spawn title-control ((arg0 symbol))
+  (kill-by-type title-control *active-pool*)
+  (ppointer->handle (process-spawn
+                      title-control
+                      :init title-control-init
+                      arg0
+                      :name "title-control"
+                      :to *entity-pool*
+                      :stack-size 4096
+                      )
+                    )
+  )
 
 ;; definition for function title-screen-change
 (defbehavior title-screen-change title-control ((arg0 string) (arg1 int) (arg2 string) (arg3 int) (arg4 symbol) (arg5 symbol))

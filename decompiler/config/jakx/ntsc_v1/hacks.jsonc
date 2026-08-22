@@ -553,14 +553,29 @@
     // doubleword load off its own symbol-slot address with no in-band
     // evidence for the surrounding stack shape.
     "end-end-credits",
-    // title-control-init/title-control-spawn/draw-language-select: each
-    // decodes to seemingly complete GOAL text ("may read a0" was the only
-    // decode-time flag) but fails real compilation with a raw label leak
-    // (an unresolved anon-function, e.g. L215 in title-control-init's
-    // dma-get-named-buffer call) or return-type mismatches that trace back
-    // to the same unresolved inner lambda; parked as asm.
-    "title-control-init",
-    "title-control-spawn",
+    // title-control-init/title-control-spawn: UNPARKED (titleobs lane). The
+    // original raw-label-leak (L215 in title-control-init's
+    // external-art-buffer callback) is gone now that dma-get-named-buffer
+    // has a real defun (goal_src/jakx/engine/dma/lobby-dma.gc, landed since
+    // this park was written) and anonymous_function_types.jsonc's title-obs
+    // index 30 is retyped from the placeholder (function object object) to
+    // (function external-art-buffer object), matching the field type
+    // external-art-buffer's own init-heap slot already declares. The
+    // remaining "Bad register dependency on a0" on both functions was not a
+    // second raw-label defect: the register trace shows title-control-spawn
+    // reading a genuine caller-supplied a0 at function entry and forwarding
+    // it into title-control-init via run-function-in-process, so both
+    // externs gained a real (symbol) arg0 instead of the zero-arg
+    // placeholder. Both now decode with zero warnings (title-control-spawn
+    // keeps one pre-existing, harmless "Return type mismatch int vs
+    // object", the same class already accepted elsewhere in this file, e.g.
+    // relocate's "process vs title-control").
+    // draw-language-select: decodes to seemingly complete GOAL text ("may
+    // read a0" was the only decode-time flag) but fails real compilation
+    // with a raw label leak (an unresolved anon-function) or return-type
+    // mismatches that trace back to the same unresolved inner lambda;
+    // parked as asm. Out of this lane's scope (title-control-spawn's own
+    // band does not call it).
     "draw-language-select",
     // desarena-obs: desarena-activate/deactivate never decoded at all
     // ("no type analysis"), no in-band call-site evidence (nothing in
