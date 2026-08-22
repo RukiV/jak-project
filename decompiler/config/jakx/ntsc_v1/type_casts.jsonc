@@ -9640,6 +9640,25 @@
   "(anon-function 31 lobby-adventure)": [
     [3, "a3", "event-message-block"]
   ],
+  // lobby rung 2: *lobby-menu-manager* is declared basic in game-info.gc/
+  // main.gc for build-order reasons (og:preserve-this at game-info.gc:265),
+  // not because its real type is unknown, so the global stays basic; these
+  // two anon-functions read the global then dispatch its own vtable slot
+  // 185 (756 = 16 + 185*4, and lobby-menu-manager's method-count-assert is
+  // already 196, confirming rung one's "unconfirmed" candidate), which
+  // fails against basic's own much smaller method table. Cast at each
+  // consuming -4(reg) read, same idiom as the lobby-buddies self-casts
+  // above; (anon-function 24)'s first site is self (s6) losing its type
+  // across a branch merge rather than the global itself.
+  "(anon-function 18 lobby-adventure)": [
+    [95, "a0", "lobby-menu-manager"],
+    [116, "a0", "lobby-menu-manager"]
+  ],
+  "(anon-function 24 lobby-adventure)": [
+    [102, "s6", "lobby-menu-manager"],
+    [114, "a0", "lobby-menu-manager"],
+    [135, "a0", "lobby-menu-manager"]
+  ],
   "(anon-function 0 lobby-clans)": [
     [3, "a3", "event-message-block"]
   ],

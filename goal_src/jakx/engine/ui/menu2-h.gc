@@ -841,9 +841,21 @@
   this
   )
 
+;; definition of type dropdown-string-slot
+;; lobby rung 2: string-menu's own "strings" array element. Only the string
+;; field at offset 12 is evidenced (two independent dropdown subtypes'
+;; clear/format call sites in a scoped decode); the remaining bytes of the
+;; 0x50-byte stride are unread in this rung's scope and left as padding.
+(deftype dropdown-string-slot (structure)
+  ((pad0 uint8 12)
+   (str  string)
+   (pad1 uint8 64)
+   )
+  )
+
 ;; definition of type string-menu
 (deftype string-menu (prim-strip-menu)
-  ((strings   basic)
+  ((strings   (inline-array dropdown-string-slot))
    (text-ids  basic)
    )
   (:methods

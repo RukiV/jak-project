@@ -59571,10 +59571,28 @@
   )
 
 
+;; lobby rung 2: string-menu's own "strings" array element, recovered from
+;; two independent dropdown subtypes in the same scoped decode. (method 62
+;; dropdown-task) clears/formats items at strings+12/172/252/332 and
+;; (method 67 dropdown-city) clears/formats items at strings+12/92/172/252;
+;; both sequences land exactly on 12 + 80*i for consecutive i, an 0x50-byte
+;; stride, and each clear call's own known signature ((function string
+;; string)) proves the item-offset-12 field is a string. Only that one field
+;; is evidenced; the rest of the 80 bytes is unread in this rung's scope.
+(deftype dropdown-string-slot (structure)
+  ((pad0 uint8 12 :offset-assert 0)  ;; unconfirmed; no site in this rung's scope reads it
+   (str  string    :offset-assert 12)
+   (pad1 uint8 64 :offset-assert 16) ;; unconfirmed; sized only from the 0x50 index stride
+   )
+  :method-count-assert 9
+  :size-assert         #x50
+  :flag-assert         #x900000050
+  )
+
 ;; all-types.gc:50482 (dead)
 (deftype string-menu (prim-strip-menu)
-  ((strings  basic  :offset-assert 552)
-   (text-ids basic  :offset-assert 556)
+  ((strings  (inline-array dropdown-string-slot)  :offset-assert 552)
+   (text-ids basic  :offset-assert 556) ;; held: no read/write site for text-ids in this rung's two objects
    )
   :method-count-assert 69
   :size-assert         #x230
@@ -83905,7 +83923,14 @@
 ;; (define-extern *logo-menu-info* object)
 ;; (define-extern *logo-subtitle-menu-info* object)
 ;; (define-extern *base-menu-info* object)
-;; (define-extern *single-event-menu-info* object)
+;; lobby rung 2: (method 71 lobby-menu-manager)'s single-event-menu state
+;; handler (op 30 in its own body) compares its own offset-248 field (the
+;; same base-menu-info pointer slot every dropdown/menu subtype carries,
+;; e.g. (method 62 dropdown-task)'s own "(-> this 248)" read) directly
+;; against *single-event-menu-info*, so the global is the same base-menu-
+;; info-family pointer, not a bare object; typed to the common ancestor
+;; since no site in this rung's scope narrows it to a specific leaf.
+(define-extern *single-event-menu-info* base-menu-info)
 ;; (define-extern *options-menu-info* object)
 ;; (define-extern *video-options-menu-info* object)
 ;; (define-extern *video-options-menu-info-europe* object)
@@ -83952,16 +83977,35 @@
 ;; (define-extern *thrash-level-loader* object)
 ;; (define-extern *lan-crap-last-time* object)
 ;; (define-extern check-lan-crap function)
-;; (define-extern lobby-default-post function)
+;; lobby rung 2: zero explicit GOAL args (no a0-a3 read before being set);
+;; self (s6) only, ending pulse-new-font-color/update-camera/seek/set-
+;; garage-switched! calls against self's own float fields (376/380, the
+;; same fields lobby-menu-manager-init-by-other seeds), the standard
+;; defstate :post-handler shape; one path explicitly returns #f (v0-0).
+(define-extern lobby-default-post (function symbol :behavior lobby-menu-manager))
 ;; lobby rung: tail-called from (method 71 lobby-menu-manager)'s own event
 ;; handler body with zero explicit arg setup, forwarding a0-a3 straight
 ;; through; same default-handler-behind-an-event-handler idiom
 ;; net-enemy-default-handler already documents above.
 (define-extern lobby-menu-manager-default-handler (function process int symbol event-message-block object :behavior lobby-menu-manager))
-;; (define-extern filter-events-for-readyroom function)
-;; (define-extern lmm-make-background-menu function)
-;; (define-extern lmm-make-logo-menu function)
-;; (define-extern kill-logo-menu function)
+;; lobby rung 2: zero explicit args (gp/s1-s5 only, no a0-a3 read before
+;; being overwritten); loops *game-info*'s own offset-1152 array and
+;; *menu-events-info-all*/*menu-events-info-array*, accumulating a count in
+;; gp that becomes the return value (the tail (set! v0 gp)).
+(define-extern filter-events-for-readyroom (function int))
+;; lobby rung 2: takes one explicit arg (a0, used directly as "this" with
+;; no s6/self reference), reading its own offset-220/236 fields (matching
+;; lobby-menu-manager's own large-offset layout); returns int (explicit
+;; (set! v0 0) before ret-value). lmm-make-background-menu and lmm-make-
+;; logo-menu are the same shape one offset apart (220 vs 236).
+(define-extern lmm-make-background-menu (function lobby-menu-manager int))
+(define-extern lmm-make-logo-menu (function lobby-menu-manager int))
+;; lobby rung 2: takes one explicit arg (a0, offset-236/228 fields, same
+;; shape as lmm-make-logo-menu) but ALSO reads s6/self directly for its own
+;; send-event-function 'die call, so self must independently be a
+;; lobby-menu-manager too; :behavior typed for that reason. Returns int
+;; (explicit (set! v0 0)).
+(define-extern kill-logo-menu (function lobby-menu-manager int :behavior lobby-menu-manager))
 ;; (define-extern *lobby-error-accept* object)
 ;; (define-extern *lobby-error-cancel* object)
 ;; (define-extern *lobby-error-action* object)
@@ -83974,16 +84018,36 @@
 ;; (define-extern prev-language function)
 ;; (define-extern *video-change* object)
 ;; (define-extern *join-wait-prev-state-name* object)
-;; (define-extern go-confirm-net-quit function)
+;; lobby rung 2: zero explicit args (only *net-mgr*/*lobby-generic-*
+;; globals and self/s6 touched); tail-calls enter-state and returns its
+;; result directly ((set! v0 v0) off the call, then ret-value), so the
+;; return type mirrors enter-state's own generic object return.
+(define-extern go-confirm-net-quit (function object))
 ;; (define-extern filter-highscore-venues function)
 ;; (define-extern set-driver-license-info function)
-;; (define-extern jak-selection-clear? function)
+;; lobby rung 2: two explicit int args (a0 compared against 15/16/17, a1
+;; carried through to a loop-count check against an accumulator); each
+;; net-world method-280 lookup call and the "?" name match the existing
+;; predicate convention in this file, so the return is typed symbol even
+;; though this rung's own body only proves an explicit int-0 return path.
+(define-extern jak-selection-clear? (function int int symbol))
 ;; (define-extern jak-owner function)
 (define-extern *timetrial-ghost-time-string* string)
-;; (define-extern lobby-menu-manager-init-by-other function)
+;; lobby rung 2: zero explicit args (only s6/self touched, seeding self's
+;; own offset 148-400ish fields exactly like lobby-menu-manager's own
+;; layout, the standard process init-by-other shape run via
+;; run-function-in-process); tail-calls enter-state and returns its result.
+(define-extern lobby-menu-manager-init-by-other (function object :behavior lobby-menu-manager))
 ;; title-obs (anon-function 11) calls this directly.
-(define-extern lobby-start function)
-;; (define-extern flash-game-started function)
+;; lobby rung 2: zero explicit args (a0-a3 never read before being set);
+;; spawns lobby-menu-manager through *default-dead-pool* then run-function-
+;; in-process's lobby-menu-manager-init-by-other, returning int (explicit
+;; (set! v0 0) before ret-value, both fall-through paths).
+(define-extern lobby-start (function int))
+;; lobby rung 2: zero explicit args (only *pending-op*/*lobby-menu-manager*/
+;; *net-mgr-pending-behavior-valid* globals and the kernel (suspend) touched);
+;; returns int (explicit (set! v0 0) before ret-value).
+(define-extern flash-game-started (function int))
 ;; (define-extern update-lobby-camera function)
 (define-extern cam-lobby (state camera-slave)) ;; parent assumed; jakx-new state
 ;; (define-extern text-id-for-vehicle-type function)
@@ -85256,19 +85320,39 @@
 (define-extern *cup2-extra* array)
 (define-extern *cup3-extra* array)
 (define-extern *cup4-extra* array)
-;; (define-extern *adventure-cup* object)
+;; lobby rung 2: top-level-login (ops 80/81) stores the same kind of literal
+;; rodata array address into *adventure-cup* immediately after the cup1-4
+;; septet above, identical lui/ori-then-sw idiom; no independent read site
+;; in this rung's scope narrows the element type further, so typed array
+;; to match the cup1-4 precedent rather than guessed.
+(define-extern *adventure-cup* array)
 ;; (define-extern get-next-training-task function)
 ;; (define-extern setup-cup-menu-score function)
-;; (define-extern *adventure-top-bottom* object)
-;; (define-extern *grand-prix-medal* object)
+;; lobby rung 2: same literal-array-store idiom as *adventure-cup* (op 169);
+;; read sites elsewhere in this object load it into a1 without a further
+;; deref before the next branch, consistent with array but not narrowing
+;; the element type past that.
+(define-extern *adventure-top-bottom* array)
+;; lobby rung 2: op 232 stores the same literal-array-address idiom, but
+;; (anon-function ...) read sites index it with a 4-byte shift (dsll by 2)
+;; and store directly at the computed address with no further dereference
+;; (e.g. "(s.w! (+ *grand-prix-medal* (* idx 4)) v)"), the flat C-style
+;; array shape, not a GOAL basic array with a header.
+(define-extern *grand-prix-medal* (pointer int32))
 ;; (define-extern *adventure-map* object)
 ;; (define-extern adventure-map-update function)
 ;; (define-extern update-adventure-map-data function)
-;; (define-extern *list-task-medals* array)
+;; lobby rung 2: same literal-array-store idiom as *adventure-cup* (op 260);
+;; multiple read sites elsewhere load it into a0/a1 without narrowing the
+;; element type further within this rung's scope.
+(define-extern *list-task-medals* array)
 (define-extern *adventure-venue-info-array* array)
 (define-extern *adventure-venue* object)
 ;; (define-extern adventure-venue-init function)
-;; (define-extern *adventure-task-sprite-info-array* array)
+;; lobby rung 2: same literal-array-store idiom as *adventure-cup* (op 316);
+;; read sites elsewhere load it into a0 without narrowing the element type
+;; further within this rung's scope.
+(define-extern *adventure-task-sprite-info-array* array)
 ;; *adventure-task-info-array*: (anon-function 8 lobby-adventure) and
 ;; (anon-function 15 lobby-adventure) both index this array by
 ;; *lobby-adv-selected-task* (a scaled *4 index added to the array's own
@@ -85281,7 +85365,14 @@
 ;; already declared/used elsewhere in this same object, both traffic in
 ;; game-task-node-info too.
 (define-extern *adventure-task-info-array* (array game-task-node-info))
-;; (define-extern *task-medals* array)
+;; lobby rung 2: same literal-array-store idiom as *adventure-cup* (op 320,
+;; right after *adventure-task-sprite-info-array* and *adventure-task-info-
+;; array* in the same back-to-back init sequence); read sites elsewhere
+;; index it by a byte offset (not shifted by element size) then store a
+;; single byte at +12 from the result, an addressing shape this rung's
+;; scope does not resolve to a specific packed struct, so left at the
+;; cup1-4 precedent's bare array rather than guessed.
+(define-extern *task-medals* array)
 ;; (define-extern *grand-prix-locked* object)
 (define-extern *adventure-task* object)
 (define-extern *map-screen* object)
