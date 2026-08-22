@@ -21549,11 +21549,7 @@
     ;; "get-current-continue-forced ()" guess does not match the arg count; fixed the
     ;; same way R2 fixed method 27.
     (game-info-method-18 (_type_ string) string) ;; 18
-    ;; og:preserve-this signature fix, net-start rung (issue 571): landed for real in
-    ;; game-info.gc this rung, mirroring goal_src/jakx/engine/game/game-info-h.gc's own
-    ;; citation. net-start.gc's listener-continue decode proves the one-string-arg call
-    ;; shape (vtable offset 92 = 16 + 4*19); the true return is a continue-point.
-    (get-continue-by-name (_type_ string) continue-point) ;; 19
+    (game-info-method-19 () none) ;; 19 ;; (get-continue-by-name (_type_ string) continue-point)
     (set-continue! (_type_ basic int) continue-point) ;; 20 ;; jakx: third arg is player index, jak3 had symbol
     (game-info-method-21 () none) ;; 21 ;; (game-info-method-21 (_type_) none)
     (game-info-method-22 (_type_ object object object) none) ;; 22 ;; (save-game (_type_ object object object) game-save)
@@ -61612,85 +61608,35 @@
 ;; net-start                      ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
-;; og:preserve-this net-start rung: typed from net-start's own top-level-login decode
-;; (net-start_ir2.asm op 0-1), a literal-1 store at load time.
-(define-extern *net-start-view-ct* int)
-;; og:preserve-this net-start rung: typed from listener-continue's own decode
-;; (net-start_ir2.asm op 24, s.w! *listener-cpt* gp-0 where gp-0 is (method 18
-;; game-info)'s string-typed return); top-level-login only ever stores #f into it
-;; otherwise.
-(define-extern *listener-cpt* string)
+;; (define-extern *net-start-view-ct* object)
+;; (define-extern *listener-cpt* object)
 (define-extern *net-hw-initted* object)
-;; og:preserve-this net-start rung: both typed int from top-level-login's literal-0
-;; stores (net-start_ir2.asm op 4-5); net-hw-config-id is reassigned from a field read
-;; off knet-eenet-get-config-list's return in (anon-function 1 net-start), net-hw-last-
-;; error from net-hw-start-part1/net-hw-start-part2's own hardware error codes. Typed
-;; plain int, not int32, matching the plain-literal-define convention this codebase
-;; already uses elsewhere (*max-dma*, *cached-car-level-index*).
-(define-extern *net-hw-config-id* int)
-(define-extern *net-hw-last-error* int)
-;; og:preserve-this net-start rung: all three always return a plain symbol (#t/#f),
-;; proven from their own decodes (net-hw-stop, net-hw-start-part1, net-hw-start-part2).
-(define-extern net-hw-stop (function symbol))
-(define-extern net-hw-start-part1 (function symbol))
-(define-extern net-hw-start-part2 (function symbol))
-;; og:preserve-this net-start rung: refined from net-start's own decode. arg0 is
-;; tested truthily and always called with literal #t at both call sites in this
-;; object (symbol, not the previous generic object); the body's own return is always
-;; the literal int 0 (int, not object). lobby rung: called with one arg (#f at this
-;; site), return discarded -- that call site still compiles under the narrower type.
-(define-extern hack-reset-state (function symbol int))
-;; og:preserve-this net-start rung: refined from net-start's own decode. Every return
-;; path is a plain symbol (#t/#f), not the previous generic object. lobby rung: called
-;; with one arg (#t at this site), return discarded.
-(define-extern net-mgr-start-hardware-already-done (function symbol symbol))
-;; lobby-menu-manager rung: zero args at every call site; return unused,
-;; immediately overwritten by the next instruction.
-(define-extern hack-start-local-game (function none))
-(define-extern artist-clean-up-net-mgr (function none))
-(define-extern *artist-continue-busy* symbol)
-;; og:preserve-this net-start rung: NOT landed with a real body (held, see net-start.gc's
-;; own og:preserve-this note on this defun). Signature is STRONG not PROVEN: the two
-;; landed call sites disagree on arg0's exact type (listener-continue passes
-;; *listener-cpt*, a string; listener-task passes #f, a symbol), so arg0 is declared the
-;; common supertype object; arg1 is int at both sites (net-start_ir2.asm: listener-
-;; continue passes literal -1, listener-task forwards its own int arg0). Return is
-;; object, matching the #f/0 values seen on every exit path.
-(define-extern artist-continue (function object int object))
+;; (define-extern *net-hw-config-id* object)
+;; (define-extern *net-hw-last-error* object)
+;; (define-extern net-hw-stop function)
+;; (define-extern net-hw-start-part1 function)
+;; (define-extern net-hw-start-part2 function)
+;; lobby rung: called with one arg (#f at this site), return discarded.
+(define-extern hack-reset-state (function object object))
+;; lobby rung: called with one arg (#t at this site), return discarded.
+(define-extern net-mgr-start-hardware-already-done (function symbol object))
+;; (define-extern hack-start-local-game function)
+;; (define-extern artist-clean-up-net-mgr function)
+;; (define-extern *artist-continue-busy* object)
+;; (define-extern artist-continue function)
 ;; default-menu rung: called with a single string arg, return unused.
 (define-extern listener-continue (function string object))
-;; og:preserve-this net-start rung: arg0 is forwarded straight through to
-;; artist-continue's own int arg1 (net-start_ir2.asm op 25, set-to-run's a3); no
-;; landed caller exists in this tree to corroborate further, so this is STRONG not
-;; PROVEN.
-(define-extern listener-task (function int int))
-;; og:preserve-this type fix, R3a (#122), net-start rung: game-info_ir2.asm (anon-function 14
+;; (define-extern listener-task function)
+;; og:preserve-this type fix, R3a (#122): game-info_ir2.asm (anon-function 14
 ;; game-info) op 70-78 calls this with the view index (int) and feeds the result into
-;; the same slot start's continue-point argument occupies. Landed for real in
-;; net-start.gc this rung; the caller-side runtime-link guard retires alongside it
-;; (game-info.gc's own anon-function-14-game-info).
+;; the same slot start's continue-point argument occupies; guarded the same way start
+;; is, since neither this global nor its home object are landed. Retirement: whichever
+;; leg lands the object that defines select-continue-point for real.
 (define-extern select-continue-point (function int basic))
 ;; default-menu rung: called with a single arg, (sra handle-value 3) (the
 ;; standard handle-to-process-index shift), no return usage seen.
 (define-extern set-local-vehicle (function int none))
-;; og:preserve-this net-start rung: two string args (username, password) forwarded
-;; verbatim to (anon-function 1 net-start) as its own spawned process's entry
-;; arguments (net-start_ir2.asm op 20-22); return is the spawned process's ppointer,
-;; typed loosely as object to match qo's own callers, none of which are landed in
-;; this tree.
-(define-extern qo (function object object object))
-
-;; og:preserve-this net-start rung: PS2 EE-net kernel calls. A grep of game/ for
-;; "eenet" turns up zero matches (checked 2026-08-21), the same class as the
-;; knet-dopen/knet-file-erase family above -- declared for the decompiler's benefit
-;; only, no native binding exists in this runtime. Every net-start caller of these
-;; guards the call with nonzero? (og:preserve-this notes at each call site).
-(define-extern knet-eenet-get-config-list (function object))
-(define-extern knet-eenet-poll-is-started (function int int))
-(define-extern knet-eenet-set-filter (function int int))
-(define-extern knet-eenet-start-hw (function int))
-(define-extern knet-eenet-shutdown (function none))
-(define-extern knet-eenet-poll-is-shutdown (function int))
+;; (define-extern qo function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-process-mgr                ;;
@@ -87575,12 +87521,6 @@
 (define-extern *lock-stream* object) ;; provisional: call-site evidence only
 (define-extern *mc-ghost-idx* object) ;; provisional: call-site evidence only
 (define-extern *medius-account-name* object) ;; provisional: call-site evidence only
-;; og:preserve-this net-start rung: needed for (anon-function 1 net-start)'s login
-;; decode (net-start_ir2.asm op 27-30, copy-string<-string source arg), which was
-;; unresolvable before this since no real declaration existed for this symbol
-;; anywhere in the tree. Typed object to match its sibling *medius-account-name*
-;; above, same provisional-evidence class.
-(define-extern *medius-account-password* object)
 (define-extern *medius-buddies* object) ;; provisional: call-site evidence only
 ;; *medius-clan-cache*: net-mgr-medius-clans-h top-level-login stores a
 ;; medius-cache-typed static into it, then immediately reads it back typed
@@ -87691,6 +87631,7 @@
 ;; with id 45 of type object could not be found"); a weaker, later-in-file
 ;; object typing shadowed what the type system already knew.
 (define-extern *net-game-mgr* net-game-mgr)
+(define-extern *net-hw-config-id* object) ;; provisional: call-site evidence only
 (define-extern *net-keypair-valid* object) ;; provisional: call-site evidence only
 (define-extern *net-log-buf* object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier, more specific *net-log-tmp-header* extern (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
@@ -87768,6 +87709,7 @@
 ;; (define-extern *net-process-class-info-time-freeze-short* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-vehicle* object) ;; provisional: call-site evidence only
 (define-extern *net-process-table* (array process-nettable))
+(define-extern *net-start-view-ct* object) ;; provisional: call-site evidence only
 (define-extern *net-universe-is-ngs* object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed net-world.gc's boxed-array define of *net-world-load-levels* and broke its array access in JakXTypeConsistency
 (define-extern *no-net-hw-warning-shown* object) ;; provisional: call-site evidence only
@@ -88103,6 +88045,9 @@
 (define-extern get-player-clan-info (function object int)) ;; provisional: call-site evidence only
 (define-extern ghost-file object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier green-room-game-info-menu deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
+;; lobby-menu-manager rung: zero args at every call site; return unused,
+;; immediately overwritten by the next instruction.
+(define-extern hack-start-local-game (function none)) ;; provisional: call-site evidence only
 (define-extern hidden object) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier hud-vehicle deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier idle-control deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
@@ -88281,6 +88226,7 @@
 (define-extern spawn-hud-race-stats (function object)) ;; mechanical-arity fixpoint
 (define-extern wrong-way-linebot-spawn (function object object)) ;; mechanical-arity fixpoint
 (define-extern print-intro-text (function object none)) ;; mechanical-arity fixpoint
+(define-extern net-hw-start-part2 (function object)) ;; mechanical-arity fixpoint
 (define-extern race-banner-spawn (function object object)) ;; mechanical-arity fixpoint
 (define-extern v-wpn-choose-random (function object object object object)) ;; mechanical-arity fixpoint
 (define-extern flag-at-base? (function object)) ;; mechanical-arity fixpoint
@@ -88338,6 +88284,7 @@
 (define-extern anim-tester-save-object-seqs (function object object)) ;; mechanical-arity fixpoint
 (define-extern anim-tester-stop (function none)) ;; mechanical-arity fixpoint
 (define-extern anim-tester-update-anim-info (function object none)) ;; mechanical-arity fixpoint
+(define-extern artist-clean-up-net-mgr (function none)) ;; mechanical-arity fixpoint
 (define-extern award-overall-score (function object object)) ;; mechanical-arity fixpoint
 (define-extern bm-equal (function object object none)) ;; mechanical-arity fixpoint
 (define-extern can-start-clan-challenge (function none)) ;; mechanical-arity fixpoint
