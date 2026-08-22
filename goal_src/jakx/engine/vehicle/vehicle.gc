@@ -197,3 +197,32 @@
   (-> arg0 player-id)
   )
 
+;; definition for method 64 of type vehicle
+;; og:preserve-this vehicle shadow-ctrl rung (falcon post-spawn crash): partial
+;; landing of retail's method 64, ops 13-26 only (vehicle_ir2.asm:2499 in the
+;; jak3 twin corpus). Retail allocates this vehicle's shadow-control and
+;; stores it at draw+144 BEFORE dispatching the base rigid-body-object-
+;; method-64 body, whose own base method 68 call writes into this same
+;; shadow-ctrl; the allocation must precede call-parent-method to preserve
+;; that ordering for a future method-68 landing. Without this, wvehicle.gc's
+;; shadow block (wvehicle.gc:472, `(-> this draw shadow-ctrl settings)`)
+;; dereferences the process-drawable.gc:672 #f default unguarded, and #f plus
+;; offset 28 gives the unaligned 0x147d3d that faults vector+float*!'s first
+;; aligned load. (shadow-flags shdf03) is bit 3 = 8, matching retail's addiu
+;; t2, r0, 8 (shadow-cpu-h.gc:9-21); the shadow-control new method
+;; (shadow-cpu-h.gc:227-248, landed) initializes shadow-dir aligned, so this
+;; alone clears the fault. Do not null-guard the wvehicle.gc dereference
+;; instead: retail always allocates before that read, so a guard would
+;; silently kill vehicle shadows and dead-end method 68's future stores. The
+;; full retail body also dispatches vehicle-method-99/110/50/51, vehicle-
+;; section-method-10 and collide-shape-method-46, all still zero slots; the
+;; verbatim landing is a future priced rung once those callees land.
+(defmethod rigid-body-object-method-64 ((this vehicle) (arg0 object))
+  (set! (-> this draw shadow-ctrl)
+        (new 'process 'shadow-control -61440.0 -2048.0 69632.0 (-> this root trans) (shadow-flags shdf03) 245760.0)
+        )
+  (call-parent-method this arg0)
+  0
+  (none)
+  )
+
