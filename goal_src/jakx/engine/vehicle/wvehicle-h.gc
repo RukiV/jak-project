@@ -336,8 +336,21 @@
    (wpn-bulldog-gun                uint64                            :offset-assert 4552)
    ;; og:preserve-this dropped "wpn-drawables" (captured UNKNOWN 2), a
    ;; duplicate alias for the same span wpn-drawable-left/right cover.
-   (wpn-drawable-left              uint64                            :offset-assert 4560)
-   (wpn-drawable-right             uint64                            :offset-assert 4568)
+   ;;
+   ;; og:preserve-this decompwall rung: retyped uint64 -> handle. Every
+   ;; documented reader (rapid-fire-control-initialize-from-vehicle's own
+   ;; note, wvehicle-weapons.gc's own build-time-deviation notes, the
+   ;; anon-function 42/56 wvehicle-weapons precedents in type_casts.jsonc)
+   ;; already treats these as handles and either hand-casts `(the-as handle
+   ;; ...)` at the read or casts the deref result to `(pointer process)`
+   ;; downstream, the same class light-trail-tracker's tracked-object field
+   ;; fixed (collision-editor's own (proc) field, all-types.gc, is the
+   ;; original precedent). No usage anywhere in this corpus treats either
+   ;; field as a plain scalar. This lets the decompiler's own
+   ;; push_asm_sllv_to_stack (decompiler/IR2/FormExpressionAnalysis.cpp)
+   ;; bitfield fold apply directly instead of leaving raw `.asm.sllv.r0`.
+   (wpn-drawable-left              handle                            :offset-assert 4560)
+   (wpn-drawable-right             handle                            :offset-assert 4568)
    (wpn-spin-done-left             int32                             :offset-assert 4576)
    (wpn-spin-done-right            int32                             :offset-assert 4580)
    (prev-wpn-sync                  wvehicle-weapon-sync-blob :inline :offset-assert 4584)

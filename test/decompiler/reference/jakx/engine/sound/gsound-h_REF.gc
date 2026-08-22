@@ -1021,23 +1021,11 @@
 ;; definition for method 0 of type ambient-sound
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch object vs ambient-sound.
-;; ERROR: Unsupported inline assembly instruction kind - [srl v1, v1, 24]
-;; ERROR: Unsupported inline assembly instruction kind - [srl v1, v1, 24]
-;; ERROR: Unsupported inline assembly instruction kind - [srl v1, v1, 24]
-;; ERROR: Unsupported inline assembly instruction kind - [srl a0, a0, 24]
-;; ERROR: Unsupported inline assembly instruction kind - [srl a0, a0, 24]
-;; ERROR: Unsupported inline assembly instruction kind - [srl v1, v1, 24]
-;; ERROR: Unsupported inline assembly instruction kind - [srl a0, a0, 24]
-;; ERROR: Unsupported inline assembly instruction kind - [srl a1, a1, 24]
 (defmethod new ambient-sound ((allocation symbol) (type-to-make type) (arg0 basic) (arg1 vector) (arg2 float))
   "Set up ambient-sound. Can use an entity-actor (grabs from lump), sound-spec, or name as a string."
   (local-vars
     (r0-0 uint128)
     (v1-10 uint128)
-    (v1-64 int)
-    (v1-65 int)
-    (v1-67 int)
-    (v1-68 int)
     (v1-126 uint128)
     (v1-131 uint128)
     (v1-139 uint128)
@@ -1045,9 +1033,7 @@
     (v1-152 uint128)
     (v1-157 uint128)
     (v1-165 uint128)
-    (v1-166 int)
     (v1-169 uint128)
-    (v1-170 int)
     (v1-176 uint128)
     (v1-181 uint128)
     (v1-189 uint128)
@@ -1056,10 +1042,6 @@
     (v1-207 uint128)
     (v1-215 uint128)
     (v1-219 uint128)
-    (a0-58 int)
-    (a0-59 int)
-    (a0-61 int)
-    (a0-62 int)
     (a0-110 uint128)
     (a0-113 uint128)
     (a0-118 uint128)
@@ -1067,7 +1049,6 @@
     (a0-126 uint128)
     (a0-129 uint128)
     (a0-134 uint128)
-    (a0-135 int)
     (a0-136 uint128)
     (a0-141 uint128)
     (a0-144 uint128)
@@ -1081,7 +1062,6 @@
     (a1-22 uint128)
     (a1-30 uint128)
     (a1-38 uint128)
-    (a1-39 int)
     (a1-45 uint128)
     (a1-53 uint128)
     (a1-61 uint128)
@@ -1199,19 +1179,12 @@
                             )
                        (set! sv-32 (logior (logand sv-32 -16711681) (shr (shl (+ (shr (shl sv-32 40) 56) 32) 56) 40)))
                        )
-                   (.srl v1-65 v1-64 24)
-                   (when (and (nonzero? v1-65)
-                              (begin (.srl v1-68 v1-67 24) (>= (the-as uint v1-68) (the-as uint 65)))
-                              (let ((v1-69 90))
-                                (.srl a0-59 a0-58 24)
-                                (>= (the-as uint v1-69) (the-as uint a0-59))
-                                )
-                              )
-                     (let ((v1-72 (logand sv-32 (the-as uint #xffffffff00ffffff))))
-                       (.srl a0-62 a0-61 24)
-                       (set! sv-32 (logior v1-72 (shr (shl (+ a0-62 32) 56) 32)))
+                   (if (and (nonzero? (shr sv-32 24))
+                            (>= (the-as uint (shr sv-32 24)) (the-as uint 65))
+                            (>= (the-as uint 90) (the-as uint (shr sv-32 24)))
+                            )
+                       (set! sv-32 (logior (logand sv-32 (the-as uint #xffffffff00ffffff)) (shr (shl (+ (shr sv-32 24) 32) 56) 32)))
                        )
-                     )
                    (if (and (nonzero? (shr (shl sv-32 24) 56))
                             (>= (the-as uint (shr (shl sv-32 24) 56)) (the-as uint 65))
                             (>= (the-as uint 90) (the-as uint (shr (shl sv-32 24) 56)))
@@ -1341,21 +1314,18 @@
                    (let ((v1-164 (the-as uint128 sv-32)))
                      (.pcpyud v1-165 v1-164 r0-0)
                      )
-                   (.srl v1-166 (the-as int v1-165) 24)
-                   (when (and (nonzero? v1-166)
+                   (when (and (nonzero? (shr (the-as int v1-165) 24))
                               (begin
                                 (let ((v1-168 (the-as uint128 sv-32)))
                                   (.pcpyud v1-169 v1-168 r0-0)
                                   )
-                                (.srl v1-170 (the-as int v1-169) 24)
-                                (>= (the-as uint v1-170) (the-as uint 65))
+                                (>= (the-as uint (shr (the-as int v1-169) 24)) (the-as uint 65))
                                 )
                               (let ((v1-171 90))
                                 (let ((a0-133 (the-as uint128 sv-32)))
                                   (.pcpyud a0-134 a0-133 r0-0)
                                   )
-                                (.srl a0-135 (the-as int a0-134) 24)
-                                (>= (the-as uint v1-171) (the-as uint a0-135))
+                                (>= (the-as uint v1-171) (the-as uint (shr (the-as int a0-134) 24)))
                                 )
                               )
                      (let ((v1-173 (the-as uint128 sv-32)))
@@ -1364,8 +1334,12 @@
                          (let ((a1-37 (the-as uint128 sv-32)))
                            (.pcpyud a1-38 a1-37 r0-0)
                            )
-                         (.srl a1-39 (the-as int a1-38) 24)
-                         (set! sv-32 (the-as int (make-u128 (logior a0-137 (shr (shl (+ a1-39 32) 56) 32)) (the-as int v1-173))))
+                         (set! sv-32
+                               (the-as
+                                 int
+                                 (make-u128 (logior a0-137 (shr (shl (+ (shr (the-as int a1-38) 24) 32) 56) 32)) (the-as int v1-173))
+                                 )
+                               )
                          )
                        )
                      )

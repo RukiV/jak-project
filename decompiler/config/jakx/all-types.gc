@@ -47723,7 +47723,7 @@
 (deftype light-trail-tracker-spawn-params (structure)
   ((appearance         light-trail-composition  :offset-assert 0)
    (max-num-crumbs     int32                    :offset-assert 4)
-   (tracked-obj        uint64                   :offset-assert 8) ;; handle
+   (tracked-obj        handle                   :offset-assert 8)
    (track-immediately? symbol                   :offset-assert 16) ;; guessed by decompiler
    )
   :method-count-assert 9
@@ -47743,7 +47743,7 @@
 #|
 (deftype light-trail-tracker (process)
   ((trail                light-trail  :offset-assert 144) ;; guessed by decompiler
-   (tracked-object       uint64       :offset-assert 152) ;; handle
+   (tracked-object       handle       :offset-assert 152)
    (offscreen?           symbol       :offset-assert 160) ;; guessed by decompiler
    (offscreen-start-time uint64       :offset-assert 168) ;; time-frame
    (next-line-check-time uint64       :offset-assert 176) ;; time-frame
@@ -47825,9 +47825,14 @@
 ;; textually first wins the lower slots, full stop; apply the same check to
 ;; any other resurrected type whose :state-methods/:methods blocks were
 ;; reordered or padded without a scoped-decode confirmation.
+;;
+;; og:preserve-this decompwall rung: tracked-object retyped uint64 -> handle,
+;; matching goal_src/jakx/engine/gfx/sprite/particles/light-trails-h.gc's own
+;; note (this file must stay in sync with the landed deftype per the
+;; JakXTypeConsistency CI gate). Evidence there.
 (deftype light-trail-tracker (process)
   ((trail                light-trail  :offset-assert 144) ;; guessed by decompiler
-   (tracked-object       uint64       :offset-assert 152) ;; handle
+   (tracked-object       handle       :offset-assert 152)
    (offscreen?           symbol       :offset-assert 160) ;; guessed by decompiler
    (offscreen-start-time uint64       :offset-assert 168) ;; time-frame
    (next-line-check-time uint64       :offset-assert 176) ;; time-frame
@@ -54315,6 +54320,12 @@
    ;; wvehicle)'s own acceleration body (a straight multiplier into the same
    ;; kind of output); named by usage pattern across both, not by an inspect
    ;; method (support-level evidence, not proof).
+   ;;
+   ;; og:preserve-this decompwall rung: pad-pre-behavior narrows again, 12 to
+   ;; 8, to carve out unknown-float-720, matching
+   ;; goal_src/jakx/engine/vehicle/vehicle-h.gc's own note (this file must
+   ;; stay in sync with the landed deftype per the JakXTypeConsistency CI
+   ;; gate). Evidence there.
    (controls                        vehicle-controls                    :inline :offset 484)
    (prev-controls                   vehicle-controls                    :inline :offset 508)
    ;; og:preserve-this unknown-flags-528 (raw capture 528, +4-corrected offset
@@ -54338,7 +54349,8 @@
    (speed-factor                    float                                       :offset 700)
    (unknown-float-700               float                                       :offset 704)
    (unknown-float-704               float                                       :offset 708)
-   (pad-pre-behavior                uint8                                12    :offset 712)
+   (pad-pre-behavior                uint8                                8     :offset 712)
+   (unknown-float-720               float                                       :offset 720)
    (torque-scale                    float                                       :offset 724)
    (behavior                        uint64                                      :offset-assert 728)
    (cam-view                        int8                                        :offset-assert 736)
@@ -56442,8 +56454,13 @@
    (wpn-bulldog-gun                uint64                            :offset-assert 4552)
    ;; og:preserve-this dropped "wpn-drawables" (captured UNKNOWN 2), a
    ;; duplicate alias for the same span wpn-drawable-left/right cover.
-   (wpn-drawable-left              uint64                            :offset-assert 4560)
-   (wpn-drawable-right             uint64                            :offset-assert 4568)
+   ;;
+   ;; og:preserve-this decompwall rung: retyped uint64 -> handle, matching
+   ;; goal_src/jakx/engine/vehicle/wvehicle-h.gc's own note (this file must
+   ;; stay in sync with the landed deftype per the JakXTypeConsistency CI
+   ;; gate). Evidence there.
+   (wpn-drawable-left              handle                            :offset-assert 4560)
+   (wpn-drawable-right             handle                            :offset-assert 4568)
    (wpn-spin-done-left             int32                             :offset-assert 4576)
    (wpn-spin-done-right            int32                             :offset-assert 4580)
    (prev-wpn-sync                  wvehicle-weapon-sync-blob :inline :offset-assert 4584)

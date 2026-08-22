@@ -190,7 +190,7 @@
 (deftype light-trail-tracker-spawn-params (structure)
   ((appearance         light-trail-composition  :offset-assert 0)
    (max-num-crumbs     int32                    :offset-assert 4)
-   (tracked-obj        uint64                   :offset-assert 8) ;; handle
+   (tracked-obj        handle                   :offset-assert 8)
    (track-immediately? symbol                   :offset-assert 16) ;; guessed by decompiler
    )
   :method-count-assert 9
@@ -218,9 +218,28 @@
 ;; the five :methods entries are the ones this rung's scoped decode content-
 ;; matched by body (see light-trails.gc for the landed four and the one held
 ;; slot).
+;;
+;; og:preserve-this decompwall rung: tracked-object retyped uint64 -> handle.
+;; A scoped decode of should-draw? (real slot 20) showed the compiler's own
+;; canonical sllv/lwu/dsra32 handle->process split reading this field
+;; (machine offset 148, declared 152 per the +4 basics trap): op 5 (sllv a0,
+;; v1, r0) extracts the low 32 bits as a process pointer, op 6 (l.wu 0(a0))
+;; dereferences it, op 8 (dsra32 v1, v1, 0) extracts the pid for the
+;; re-validation compare. The decompiler's own push_asm_sllv_to_stack
+;; (decompiler/IR2/FormExpressionAnalysis.cpp) only folds this shift into a
+;; real expression when the source register's type resolves to a bitfield
+;; (collision-editor's own (proc) field, all-types.gc, is the exact same
+;; class); declared uint64 here, it did not, and op 6's chained deref then
+;; failed too ("Could not figure out load: (set! a0 (l.wu a0))"), producing
+;; should-draw?'s own "Unsupported inline assembly instruction kind - [sllv
+;; a0, v1, r0]". Retyping to handle (this field's own semantic type, per the
+;; now-removed trailing comment) lets both ops resolve automatically. This is
+;; the "same handle-dereference wall" the note above and light-trail-
+;; tracker-init-by-other's own note below both cite; retire those two once
+;; tracking/die and init-by-other are re-tried against this fix.
 (deftype light-trail-tracker (process)
   ((trail                light-trail  :offset-assert 144) ;; guessed by decompiler
-   (tracked-object       uint64       :offset-assert 152) ;; handle
+   (tracked-object       handle       :offset-assert 152)
    (offscreen?           symbol       :offset-assert 160) ;; guessed by decompiler
    (offscreen-start-time uint64       :offset-assert 168) ;; time-frame
    (next-line-check-time uint64       :offset-assert 176) ;; time-frame
