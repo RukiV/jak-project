@@ -102,15 +102,59 @@
   ;; anywhere in net-world.o. Named net-world-state-N per this campaign's own
   ;; convention for a slot with no recoverable retail name (light-trail-
   ;; tracker-state-15 precedent, 0f11ed85d). All three state bodies stay
-  ;; held: state 43's :code (anon-function 69, the full title/attract
-  ;; handoff already read out in the bootlad dossier) fails "Failed to guess
-  ;; stack use for 96"; state 43's :exit (anon-function 68) is the only
-  ;; handler that decodes clean, a trivial `'()`, not landable on its own
-  ;; without :code; state 42's :event (anon-function 70) fails "Could not
-  ;; figure out load: (set! v1 (l.d (+ gp 16)))"; state 42's :code
-  ;; (anon-function 71) fails on the untyped extern *medius-enemy-clan-id*;
-  ;; state 44's :code (anon-function 67) fails "Called a function, but we do
-  ;; not know its type".
+  ;; held, now for a deeper reason than the raw errors below: the networld-
+  ;; bodies rung (feat/jakx-networld-bodies) re-scoped-decoded net-world.o
+  ;; against this worktree's own types and found every one of the four
+  ;; handler bodies compounds past its first-reported wall into a genuine
+  ;; unlanded callee once the reported wall itself is cleared:
+  ;;
+  ;; state 43's :code (anon-function 69, the full title/attract handoff
+  ;; already read out in the bootlad dossier): "Failed to guess stack use
+  ;; for 96" is a decompiler-config gap only -- a second dma-try-alloc
+  ;; result scratch at sp+96, past the 72-byte want-list array at sp+16,
+  ;; same (method 10 load-state) idiom. A stack_structures.jsonc entry (this
+  ;; rung) produces a fully clean decode, but the body's very next call is
+  ;; title-control-spawn, which has no defun/defbehavior anywhere in
+  ;; goal_src and whose own containing object (title-obs.o) fails "not
+  ;; converted to expressions" even under a full decode. Held on that
+  ;; callee, not the stack guess.
+  ;;
+  ;; state 43's :exit (anon-function 68) is still the only handler that
+  ;; decodes clean, a trivial `'()`, not landable on its own without :code.
+  ;;
+  ;; state 42's :event (anon-function 70): retyping anonymous_function_-
+  ;; types.jsonc's net-world index 70 to the standard proc/argc/message/
+  ;; event-message-block shape (this rung, the lobby-menu-manager
+  ;; precedent) clears the original "Could not figure out load: (set! v1
+  ;; (l.d (+ gp 16)))", but the body goes on to fail "Failed to guess stack
+  ;; use for 16" and "Could not figure out load: (set! v1 (l.bu (+ v1 5)))"
+  ;; further in, and calls encode-green-room-stats, which has no defun
+  ;; anywhere (all-types.gc carries only a mechanical-arity-fixpoint
+  ;; signature, no body). Held on that callee.
+  ;;
+  ;; state 42's :code (anon-function 71): the untyped extern
+  ;; *medius-enemy-clan-id* write is real but not the first wall -- the
+  ;; function fails earlier, at op 9, calling is-late-join?, which has no
+  ;; defun anywhere in goal_src. Held on that callee; the extern's own type
+  ;; evidence is also weak on its own, since it derives from
+  ;; *medius-my-clan*, itself still a "provisional: call-site evidence
+  ;; only" object typing from an earlier rung, not a confirmed struct.
+  ;;
+  ;; state 44's :code (anon-function 67): "Called a function, but we do not
+  ;; know its type" is check-start-load, which IS landed (net-world.gc's
+  ;; own defun) -- a scoped-decode ordering artifact, not an unlanded
+  ;; callee, since the decompiler cannot self-infer a zero-arg function's
+  ;; own type from an isolated object decode. A diagnostic-only local type
+  ;; override (this rung, reverted, not committed) confirms the wall moves
+  ;; one call later to fmv-player-run, which has no defun anywhere (issue
+  ;; 569's FMV road: no decoder exists in any game for this format). Held
+  ;; on that callee.
+  ;;
+  ;; All four hazards are the same class this file's own check-start-load
+  ;; and jakx-wait-for-levels-boot notes document and the phase-1 landing
+  ;; pipeline memory names: hold on unlanded callees, never add-connection a
+  ;; never-activated process. Retires per-state as title-control-spawn,
+  ;; encode-green-room-stats/is-late-join?, and fmv-player-run each land.
   (:state-methods
     net-world-state-42 ;; 42
     net-world-state-43 ;; 43

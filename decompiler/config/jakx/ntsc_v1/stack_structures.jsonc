@@ -346,6 +346,19 @@
   // jakx-only car-load section in update!: dma-try-alloc writes its two result
   // pointers at sp+16/sp+20 (jak3's update! has no such section)
   "(method 10 load-state)": [[16, ["array", "pointer", 2]]],
+  // networld-bodies rung (net-world-state-43's :code, THE PRIZE per the lane
+  // brief): a scoped decode of net-world.o against this worktree's own types
+  // ("Failed to guess stack use for 96 in (anon-function 69 net-world):34")
+  // shows a second, non-overlapping dma-try-alloc result scratch at sp+96
+  // (the want-list array at sp+16 spans 72 bytes, 16..87, leaving 96 free);
+  // same (method 10 load-state) idiom, t0/t1 = base+0/+4. Confirmed this
+  // clears the stack-guess error and produces a fully clean decode, but the
+  // function's next call is the unlanded title-control-spawn (title-obs.o's
+  // whole top level fails "not converted to expressions" in a real decode;
+  // no defun anywhere in goal_src), so the state body itself stays held per
+  // doctrine. Landed here as a verified, reusable fact for whichever rung
+  // lands title-control-spawn next; not exercised by any landed source yet.
+  "(anon-function 69 net-world)": [[96, ["array", "pointer", 2]]],
   "vis-dist-additional-ok?": [[16, ["array", "int32", 1]]],
   "add-a-bunch": [[16, "vector"]],
   "(method 9 joint-control)": [[16, "vector"]],
