@@ -6,6 +6,12 @@
 #include "game/kernel/common/kmalloc.h"
 
 namespace jakx {
+// Distinguishes an OpenGOAL-toolchain object file (this repo's own goalc output,
+// v3 link format) from an original retail object file (v5 link format, not yet
+// decompiled). Exposed here so kdgo.cpp can make the same call link_control::
+// jakx_begin makes, without duplicating the one-word sniff.
+bool is_opengoal_object(void* data);
+
 Ptr<uint8_t> link_and_exec(Ptr<uint8_t> data,
                            const char* name,
                            int32_t size,

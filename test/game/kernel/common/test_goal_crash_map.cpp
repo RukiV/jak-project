@@ -95,6 +95,58 @@ TEST(GoalCrashMap, RecordOrderIndependenceForBounds) {
   }
 }
 
+// issue #594/#595 generalization: a reused level heap can place a new, larger
+// object's start at or below several old objects' starts while still
+// overlapping them (no removal step exists yet for a freed level heap). The
+// pre-#594 tie-break ("highest start address wins") let a stale record with a
+// higher start beat a fresher record that starts lower but still covers the
+// query address. Recency (push order), not start address, must decide.
+TEST(GoalCrashMap, RecencyBeatsHigherStaleStartOnReuse) {
+  const u32 base = 0x00800000;
+  goal_crash_map_record(base, "old-obj1", 0x100);          // stale: [base, base+0x100)
+  goal_crash_map_record(base + 0x100, "old-obj2", 0x100);  // stale: [base+0x100, base+0x200)
+  goal_crash_map_record(base, "new-obj", 0x300);           // fresh, reused heap: [base, base+0x300)
+
+  // base+0x150 falls inside both the stale old-obj2 and the fresh new-obj; the
+  // fresh record must win even though old-obj2's start address is higher.
+  EXPECT_STREQ(goal_crash_map_lookup_for_test(base + 0x150), "new-obj");
+  EXPECT_STREQ(goal_crash_map_lookup_for_test(base + 0x50), "new-obj");
+  EXPECT_STREQ(goal_crash_map_lookup_for_test(base + 0x250), "new-obj");
+}
+
+// issue #595: the debug segment gets a second, independently-addressed record
+// per object, distinguished only by the "(debug)" name suffix jakx_finish
+// appends (klink.cpp) when code_infos[DEBUG_SEGMENT] is non-empty. The map
+// itself has no special-casing for this: it is just two ordinary,
+// non-overlapping records (main segment on the level/global heap, debug
+// segment on kdebugheap, a different address range entirely) that must
+// resolve independently.
+TEST(GoalCrashMap, DebugSegmentRecordIsIndependentOfMainSegment) {
+  const u32 main_base = 0x00900000;
+  const u32 debug_base = 0x00a00000;  // stands in for a kdebugheap address
+  goal_crash_map_record(main_base, "menu", 0x200);
+  goal_crash_map_record(debug_base, "menu(debug)", 0x1000);
+
+  EXPECT_STREQ(goal_crash_map_lookup_for_test(main_base + 0x10), "menu");
+  EXPECT_STREQ(goal_crash_map_lookup_for_test(debug_base + 0x10), "menu(debug)");
+  // an address between the two heaps' regions matches neither.
+  EXPECT_EQ(goal_crash_map_lookup_for_test(main_base + 0x200), nullptr);
+}
+
+// issue #594: an object whose main segment allocates nothing (kdgo.cpp no
+// longer records anything for it pre-link, and jakx_finish only records
+// main/debug segments when code_infos[...].size is nonzero) must produce no
+// record at all, not a phantom whole-file-sized one. This is the map-level
+// half of that contract: recording nothing for such an object means a lookup
+// anywhere near where it would have loaded matches nothing.
+TEST(GoalCrashMap, ZeroSizeMainSegmentProducesNoRecordToLookUp) {
+  const u32 base = 0x00b00000;
+  // deliberately not recording anything for "empty-main-segment" object here,
+  // mirroring jakx_finish's `if (main_seg.size) { record(...) }` guard.
+  EXPECT_EQ(goal_crash_map_lookup_for_test(base), nullptr);
+  EXPECT_EQ(goal_crash_map_lookup_for_test(base + 0x1000), nullptr);
+}
+
 // issue #122: format_native_rip() is the pure half of the "rip is not GOAL code"
 // reporting path (goal_crash_map.cpp), split out from the Windows-only module
 // resolution (GetModuleHandleExW et al) specifically so this arithmetic-and-snprintf

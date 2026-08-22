@@ -200,10 +200,22 @@ void load_and_link_dgo_from_c(const char* name,
     lg::debug("[link and exec] {:18s} {} {:6d} heap-use {:8d} {:8d}: 0x{:x}", objName,
               lastObjectLoaded, objSize, kheapused(kglobalheap),
               kdebugheap.offset ? kheapused(kdebugheap) : 0, heap->current.offset);
+    // Crash-map recording for opengoal-format (decompiled) objects now happens
+    // precisely in link_control::jakx_finish (klink.cpp), keyed off the linker's
+    // own code_infos (real code start/size) rather than this whole object-file
+    // size, and covers this call path as well as GOAL's own dgo-load-link path
+    // used by level DGOs (issue #594, #595). Objects not yet decompiled (retail
+    // v5-format) have no code_infos-equivalent tracked by the linker, so they
+    // keep this whole-file record as a "something beats nothing" fallback; an
+    // imprecise extent for a not-yet-decompiled object is not a regression this
+    // fix causes, since there is no source there to misattribute a crash into.
+    //
     // Record the target heap's cursor, not kglobalheap: level-heap links would
     // otherwise record a stale global offset and produce misattributed crash maps
     // (issue #58).
-    goal_crash_map_record(heap->current.offset, objName, objSize);
+    if (!jakx::is_opengoal_object(obj.c())) {
+      goal_crash_map_record(heap->current.offset, objName, objSize);
+    }
     {
       auto p = scoped_prof(fmt::format("link-{}", objName).c_str());
       link_and_exec(obj, objName, objSize, heap, linkFlag, jump_from_c_to_goal);  // link now!

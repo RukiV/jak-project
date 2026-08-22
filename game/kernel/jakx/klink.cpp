@@ -5,6 +5,7 @@
 #include "common/symbols.h"
 
 #include "game/kernel/common/fileio.h"
+#include "game/kernel/common/goal_crash_map.h"
 #include "game/kernel/common/klink.h"
 #include "game/kernel/common/kprint.h"
 #include "game/kernel/common/memory_layout.h"
@@ -14,12 +15,15 @@
 
 #include "fmt/format.h"
 
-namespace {
+namespace jakx {
 bool is_opengoal_object(void* data) {
   u32 first_word;
   memcpy(&first_word, data, 4);
   return first_word != 0 && first_word != UINT32_MAX;
 }
+}  // namespace jakx
+
+namespace {
 constexpr bool link_debug_printfs = false;
 }  // namespace
 
@@ -28,7 +32,7 @@ void link_control::jakx_begin(Ptr<uint8_t> object_file,
                               int32_t size,
                               Ptr<kheapinfo> heap,
                               uint32_t flags) {
-  if (is_opengoal_object(object_file.c())) {
+  if (jakx::is_opengoal_object(object_file.c())) {
     m_opengoal = true;
     // save data from call to begin
     m_object_data = object_file;
@@ -751,6 +755,42 @@ void link_control::jakx_finish(bool jump_from_c_to_goal) {
 
   // printf("finish %s\n", m_object_name);
   if (m_opengoal) {
+    // Crash-map recording (issue #594, #595): jakx_finish is the single choke
+    // point every opengoal-format (decompiled) object passes through on its way
+    // to execution, whether the caller was load_and_link_dgo_from_c's C++ loop
+    // (kdgo.cpp, used for boot/menu/common DGOs) or GOAL's own dgo-load-link,
+    // which calls link-begin/link-resume directly (goal_src/jakx/engine/load/
+    // load-dgo.gc, driven per-frame from level.gc's load-continue) and never
+    // touches kdgo.cpp at all. That is why every level-heap rip printed
+    // "unmapped object" before this: level DGOs were never recorded anywhere.
+    // code_infos is finalized during jakx_work_opengoal's state 0 and untouched
+    // afterward, so it is safe to read here, before the heap-top reset below
+    // reclaims the top-allocated scratch (link-block, top-level-segment) that
+    // m_link_block_ptr may currently sit inside of.
+    //
+    // Record the MAIN segment's real allocated code start/size, not the whole
+    // object-file size kdgo.cpp used to record pre-link: an object whose main
+    // segment is empty (menu.o, issue #594) now correctly produces no record
+    // instead of a phantom ~40KB region that contains no code from that object.
+    // The debug segment, when present (only on -debug boots or
+    // LINK_FLAG_FORCE_DEBUG; all of menu.gc and default-menu.gc load and
+    // execute there, issue #595), gets its own record tagged "(debug)" so the
+    // crash report can print "obj(debug)+offset" instead of dropping that code
+    // from attribution entirely (goal_crash_map.cpp's range logic has no notion
+    // of a second region per object otherwise).
+    {
+      ObjectFileHeader* ofh_done = m_link_block_ptr.cast<ObjectFileHeader>().c();
+      const auto& main_seg = ofh_done->code_infos[MAIN_SEGMENT];
+      if (main_seg.size) {
+        goal_crash_map_record(main_seg.offset, m_object_name, main_seg.size);
+      }
+      const auto& debug_seg = ofh_done->code_infos[DEBUG_SEGMENT];
+      if (debug_seg.size) {
+        auto debug_name = fmt::format("{}(debug)", m_object_name);
+        goal_crash_map_record(debug_seg.offset, debug_name.c_str(), debug_seg.size);
+      }
+    }
+
     // setup mips2c functions
     const auto& it = Mips2C::gMips2CLinkCallbacks[GameVersion::JakX].find(m_object_name);
     if (it != Mips2C::gMips2CLinkCallbacks[GameVersion::JakX].end()) {

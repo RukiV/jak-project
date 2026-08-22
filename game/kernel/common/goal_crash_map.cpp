@@ -42,25 +42,31 @@ std::mutex g_objs_mutex;
 //    segment) no longer matches that object. A record with extent 0 is a strict
 //    side effect of this: goal_addr < start + 0 can never hold, so such a record
 //    can never match anything.
-//  - latest-wins tie-break: changed from "r.start > best->start" to
-//    "r.start >= best->start", so on a shared start address the later-pushed
-//    record beats the earlier one instead of losing to it. This is the fix for
-//    the #115 stub collision: target-death, gun-util and menu are bring-up stubs
-//    that allocate nothing, so each logs the same heap cursor as whatever loads
-//    next; drawable loaded right after them at that same cursor, and the old
-//    earliest-wins rule let the first stub steal every drawable frame. Chosen over
-//    an explicit "skip zero-extent records" filter because it also covers the
-//    case where a stub's logged extent is a small nonzero administrative size (its
-//    own link header/table, with no code data) rather than exactly 0: either way,
-//    whatever was pushed last at a given cursor is what is actually resident
-//    there, so it should always win the tie, not just when extent happens to be 0.
+//  - latest-wins tie-break: among every record whose range contains goal_addr,
+//    the one pushed most recently always wins. g_objs is append-only in push
+//    order, so a plain "last match found during the forward scan wins" is
+//    exactly "most recently recorded" (issue #594/#595, level-heap reuse: a
+//    level heap that gets freed and reused for a different level has no
+//    removal step yet, so its old objects' records are still in g_objs when the
+//    new level's objects get recorded on top of them). This originally shipped
+//    (#117) as "r.start >= best->start", which only shadows correctly on an
+//    exact shared start address: the #115 stub collision (target-death,
+//    gun-util and menu are bring-up stubs that allocate nothing, so each logs
+//    the same heap cursor as whatever loads next; drawable loaded right after
+//    them at that same cursor) is such a case. But a reused heap's new object
+//    does not have to share its stale predecessors' exact start address to
+//    overlap them: a smaller old record sitting at a HIGHER start than a
+//    larger new record that also covers it would win under "highest start
+//    wins" even though it is the stale one. Preferring recency over start
+//    address handles both the exact-tie case and this general one the same
+//    way, since whatever was pushed last at an address is what is actually
+//    resident there.
 const ObjRec* lookup(u32 goal_addr) {
   // callable from the crash handler: no locking (a torn read of a vector that only
   // grows is survivable here, and taking a lock inside a fault handler is worse)
   const ObjRec* best = nullptr;
   for (const auto& r : g_objs) {
-    if (r.start <= goal_addr && goal_addr < r.start + r.extent &&
-        (!best || r.start >= best->start)) {
+    if (r.start <= goal_addr && goal_addr < r.start + r.extent) {
       best = &r;
     }
   }
