@@ -213,15 +213,34 @@
 ;; the init/playing/die reading order the design doc lists them in.
 
 ;; og:preserve-this
+;; FMV debug-text clobber (issue 569's white-lines closure). The frame upload
+;; at the sentinel TBP (fmv-get-tbp, shared by fmv-draw-quad and both states
+;; below) lands in the same VRAM the font tpage samples, so the three
+;; *display-camera-info* debug lines (targ pos / cam pos / string info,
+;; cam-update.gc:553-591) render as solid bars for the duration of playback --
+;; the video itself is correct since the quad fix. *display-camera-info* is
+;; the single flag gating all three print sites (main-h.gc:5883, no per-line
+;; gate exists), so blank it for exactly the playing state's lifetime instead
+;; of touching the print sites: playing saves the caller's setting and clears
+;; it the instant :code starts, die restores it. die is the only (go die)
+;; target from playing -- both the pad-skip and the duration-timeout exits
+;; route through it -- so it is the single place the restore needs to live.
+(define *fmv-saved-display-camera-info* #f)
+
+;; og:preserve-this
 ;; Emits one stop=1 record so handle_fmv_frame closes the C++ reader, then
 ;; falls off the end of :code -- the credits-obs self-termination shape
 ;; (credits-obs.gc:668-674, confirmed at design 5d): a :code behavior returning
 ;; naturally kills the process with no self-deactivate needed. No draw call
 ;; here, so this is also the frame FMV output stops appearing. width/height/
 ;; movie-id are set for record symmetry but are moot: handle_fmv_frame checks
-;; stop before it ever reads them (design 3c step 2).
+;; stop before it ever reads them (design 3c step 2). Restoring
+;; *display-camera-info* here first (see the debug-text-clobber note above
+;; playing's :code) undoes the overlay blank for both of playing's exits,
+;; since both route through this state.
 (defstate die (fmv-player)
   :code (behavior ()
+    (set! *display-camera-info* *fmv-saved-display-camera-info*)
     (let ((tbp (fmv-get-tbp)))
       (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
                                    (bucket-id tex-lcom-sky-pre)
@@ -263,6 +282,8 @@
       )
     )
   :code (behavior ()
+    (set! *fmv-saved-display-camera-info* *display-camera-info*)
+    (set! *display-camera-info* #f)
     (until #f
       (let* ((elapsed-ticks (- (current-time) (the-as time-frame (-> self start-time))))
              (elapsed-ms (the int (/ (* elapsed-ticks 10) 3)))
