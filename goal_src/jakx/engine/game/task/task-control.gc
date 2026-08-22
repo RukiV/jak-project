@@ -229,14 +229,66 @@
   0
   )
 
-;; og:preserve-this hold (S-stage task-control rung): play-task's own decode fails type
-;; prop twice (op 77, "Could not figure out load: (set! v0 (l.w (+ v1 -2)))") and separately
-;; fails to guess stack use for its 16-byte frame slot at op 50; the raw decode is a giant
-;; local-vars soup of the setting-control volume-fade calls, the kiosk/split continuation
-;; dispatch, and a task-node-open! call, none of it recoverable without the load/stack-use
-;; walls clearing first. Nothing in the current codebase calls play-task (its own extern
-;; already exists, unreferenced). Retirement condition: clear the two type-prop walls (a
-;; scoped decode config fix, likely var_names/stack_structures) and re-decode.
+;; og:preserve-this landing (play-arm rung): retires the S-stage hold above. Both
+;; walls were config-only. The sp+16 slot (op 50, "Failed to guess stack use for
+;; 16") is an event-message-block built and reused across both kiosk branches
+;; (process at +8, num-params at +68, 'change at +64, 'hour/7 at +16/+24), the
+;; same idiom (anon-function 32 task-control) already carries in
+;; decompiler/config/jakx/ntsc_v1/stack_structures.jsonc; a matching "play-task"
+;; entry there clears it. The op-77 load (op 114 too, a second instance two
+;; branches down) is game-task-info's kiosk-play-continue/kiosk-online-play-
+;; continue fields (object/basic, both already declared) read through a
+;; decompiler-recognized pair? check and then car'd with a raw (l.w (+ v1 -2));
+;; a "play-task" entry in decompiler/config/jakx/ntsc_v1/type_casts.jsonc casts
+;; v1 to pair at each of the two car ops, the same single-op treatment
+;; (method 10 idle-control) and update-sound-banks already use for this class.
+;; No all-types.gc change: every field this function touches (kiosk-play-node,
+;; kiosk-play-continue, kiosk-online-play-continue, play-node, play-continue,
+;; split-continue) was already named. Nothing in the current codebase calls
+;; play-task yet (its own extern already exists, unreferenced); this rung only
+;; lands the body.
+
+;; definition for function play-task
+;; WARN: Return type mismatch object vs string.
+(defun play-task ((arg0 game-task) (arg1 symbol) (arg2 symbol))
+  (setting-control-method-14 *setting-control* 'fail-music-volume 1500 'music-volume 'abs 0.0 0)
+  (setting-control-method-14 *setting-control* 'fail-sfx-volume 1500 'sfx-volume 'abs 0.0 0)
+  (setting-control-method-14 *setting-control* 'fail-dialog-volume 1500 'dialog-volume 'abs 0.0 0)
+  (play-clean arg1)
+  (let ((gp-1 (-> *game-info* play-list arg0)))
+    (the-as string (cond
+                     ((and (= arg2 'kiosk) (-> gp-1 kiosk-play-continue))
+                      (send-event (ppointer->process *time-of-day*) 'change 'hour 7)
+                      (task-node-open! (the-as game-task-node (-> gp-1 kiosk-play-node)) 'event)
+                      (if (pair? (-> gp-1 kiosk-play-continue))
+                          (-> (the-as pair (-> gp-1 kiosk-play-continue)) car)
+                          (-> gp-1 kiosk-play-continue)
+                          )
+                      )
+                     ((and (= arg2 'kiosk) (-> gp-1 kiosk-online-play-continue))
+                      (send-event (ppointer->process *time-of-day*) 'change 'hour 7)
+                      (task-node-open! (the-as game-task-node (-> gp-1 kiosk-play-node)) 'event)
+                      (if (pair? (-> gp-1 kiosk-online-play-continue))
+                          (-> (the-as pair (-> gp-1 kiosk-online-play-continue)) car)
+                          (-> gp-1 kiosk-online-play-continue)
+                          )
+                      )
+                     ((and (= arg2 'split) (-> gp-1 split-continue))
+                      (if (-> gp-1 play-continue)
+                          (task-node-open! (the-as game-task-node (-> gp-1 play-node)) 'menu)
+                          )
+                      (-> gp-1 split-continue)
+                      )
+                     (else
+                       (if (-> gp-1 play-continue)
+                           (task-node-open! (the-as game-task-node (-> gp-1 play-node)) 'menu)
+                           )
+                       (-> gp-1 play-continue)
+                       )
+                     )
+            )
+    )
+  )
 
 (defun task-node-by-name ((arg0 string))
   (let ((s5-0 (-> *game-info* sub-task-list)))

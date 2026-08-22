@@ -10535,5 +10535,23 @@
   ],
   "(method 65 vehicle-wheel)": [
     [1, "a1", "vehicle-wheel-init-params"]
+  ],
+  // play-task (play-arm rung): game-task-info's kiosk-play-continue (object,
+  // declared offset 36) and kiosk-online-play-continue (basic, declared
+  // offset 40) are both read through a pair? check (already recognized by
+  // the decompiler, see the built (pair? v1-18)/(pair? v1-30) forms in this
+  // rung's own scoped decode) and then car'd with a raw (l.w (+ v1 -2))
+  // when the check passes, the standard pair-access idiom this corpus casts
+  // elsewhere (e.g. (method 10 idle-control), update-sound-banks). Op 77 is
+  // the kiosk-play-continue car (machine offset 32 off gp, +4 trap for
+  // declared offset 36); op 114 is the identical car for
+  // kiosk-online-play-continue two branches down (machine offset 36,
+  // declared offset 40). Neither field's own declared type changes; only
+  // the op that performs the car load needs the cast, the same single-op
+  // shape (method 10 idle-control) and update-sound-banks use, since
+  // neither site is a loop back-edge.
+  "play-task": [
+    [77, "v1", "pair"],
+    [114, "v1", "pair"]
   ]
 }

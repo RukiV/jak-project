@@ -78,12 +78,12 @@
 ;;     name follows this enum's own existing rs1 placeholder convention,
 ;;     since dm-play-race switches on this value with no recovered symbolic
 ;;     name either.
-;;   - dm-play-task-with-continue is a ninth, distinct hold: the fresh decode
-;;     does not convert it to expressions at all (no partial body of any
-;;     kind), so there is nothing to transcribe; it stays an unlanded extern
-;;     (forward-declared below, next to this file's other unlanded callback
-;;     externs) that dm-play-task and dm-play-race (both landed below, both
-;;     call it by name) resolve at call time.
+;;   - dm-play-task-with-continue was a ninth, distinct hold (the fresh
+;;     decode did not convert it to expressions at all, no partial body of
+;;     any kind): landed by the play-arm rung once play-task's own CFG-
+;;     unrelated walls cleared showed the real blocker was a degenerate
+;;     branch-to-fallthrough CFG failure, not a type-prop gap; see that
+;;     function's own og:preserve-this note below for the config fix.
 ;;   - the "Nav Graph" submenu is a discovery beyond the scoping plan's own
 ;;     error tally: every item in it decodes clean (no ERROR marker at all),
 ;;     but it calls nav-graph-editor-method-N by number and depends on
@@ -116,8 +116,7 @@
 ;; (bug-report-start/stop, loader-test-command, net-race-start/stop,
 ;; spawn-hostile: their call sites reach subsystems retail never wires
 ;; live); traffic-start/traffic-kill back the "Traffic Start"/"Traffic Kill"
-;; menu items landed below; dm-play-task-with-continue backs dm-play-task and
-;; dm-play-race (both landed below); editable-player-init and
+;; menu items landed below; editable-player-init and
 ;; nav-mesh-editor-init are the :init behaviors of two processes whose own
 ;; files build their -h/data but not yet that behavior; the rest back plain
 ;; menu-item callbacks, debug utilities or globals with no further chase
@@ -147,7 +146,9 @@
 ;; cam-interface.gc's own entity-by-name precedent)
 (define-extern debug-actor (function string none))
 (define-extern debug-reset-prim-buffer (function none))
-(define-extern dm-play-task-with-continue (function game-task string object))
+;; og:preserve-this forward-extern retire (play-arm rung): dm-play-task-with-
+;; continue now has a landed home in this same file, just above dm-play-task
+;; (its own body's original object-file position, and its only two callers).
 (define-extern dm-set-veh-leco (function int none))
 ;; arg1 declared int here, not all-types.gc's own int32: goalc's typecheck
 ;; rejects a bare int literal, a (the-as int32 N) cast, and a (the int32 N)
@@ -3249,15 +3250,60 @@
     )
   )
 
-;; og:preserve-this no body (issue 571's UX successor): the fresh decode does
-;; not convert dm-play-task-with-continue to expressions at all ("function
-;; was not converted to expressions. Cannot decompile."), with no partial
-;; asm dump either, so there is nothing to transcribe or hand-fold. It is
-;; already carried as an extern in all-types.gc (function game-task string
-;; object) and stays unlanded here, same treatment as this file's other
-;; unlanded callback externs: dm-play-task and dm-play-race (both landed
-;; below) call it by name, and it resolves at call time rather than blocking
-;; compilation.
+;; og:preserve-this landing (play-arm rung): retires the "no body" hold
+;; above. The wall was not type-prop, it was CFG: "CFG building failed:
+;; Could not fully resolve CFG" / "Function dm-play-task-with-continue has
+;; unknown type", with no partial asm dump for the whole function (not the
+;; "not converted to expressions" shape this rung's task-control walls were;
+;; this one never built a CFG at all). Cause: block 6 (L592) ends with
+;; "beq s7, s5, L593", a branch whose taken and fallthrough targets are the
+;; same address (both land at L593), which the CFG structurer cannot fold
+;; into a cond. decompiler/config/jakx/ntsc_v1/hacks.jsonc's
+;; blocks_ending_in_asm_branch already carries this exact class for other
+;; objects (see (method 23 gui-control) and its neighbors); a
+;; "dm-play-task-with-continue": [6] entry forces that block's branch to
+;; asm, and the rest of the function decodes clean. The forced block
+;; survives transcription as an explicit (b! ... cfg-7 :delay ...)/(label
+;; cfg-7) pair, the same shape jak3's own landed twin functions keep for
+;; this identical CFG-failure class (hacks.jsonc's own (method 66 collide-
+;; shape-moving) note) rather than a structured cond. play-task, kiosk/
+;; split/pre-play button dispatch and the game-task-node lookup below all
+;; resolve to already-landed symbols (play-task, cpad-hold?, listener-task).
+;; No all-types.gc change; the declared (function game-task string object)
+;; signature already matched (the body's own "Return type mismatch int vs
+;; object" warning is the usual int-into-object widening, not a wall).
+
+;; definition for function dm-play-task-with-continue
+;; WARN: Return type mismatch int vs object.
+(defun dm-play-task-with-continue ((arg0 game-task) (arg1 string))
+  (let ((t9-0 play-task)
+        (a0-1 arg0)
+        (a1-1 'debug)
+        (a2-0 (cond
+                ((cpad-hold? 0 l1)
+                 'pre-play
+                 )
+                ((cpad-hold? 0 r1)
+                 'kiosk
+                 )
+                ((cpad-hold? 0 l2)
+                 'split
+                 )
+                )
+              )
+        )
+    (t9-0 a0-1 a1-1 a2-0)
+    )
+  (b! (not arg1) cfg-7 :delay (empty-form))
+  (label cfg-7)
+  (let ((v1-18 (-> *game-info* play-list arg0)))
+    (let ((a0-5 (-> *game-info* sub-task-list)))
+      (-> a0-5 (-> v1-18 play-node))
+      )
+    (listener-task (the-as int (-> v1-18 play-node)))
+    )
+  0
+  )
 
 ;; definition for function dm-play-task
 (defun dm-play-task ((arg0 game-task))
