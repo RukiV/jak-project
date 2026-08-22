@@ -67,6 +67,7 @@ written is read-only by design and not a finding.
 | `*display-camera-last-attacker*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-collision-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-color-bars*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*display-file-info*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-gui-control*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-iop-info*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-memcard-info*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -126,7 +127,6 @@ written is read-only by design and not a finding.
 | `*display-collide-history*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-deci-count*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-edge-collision-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*display-file-info*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-geo-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-ground-stats*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-hipri-collision-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
