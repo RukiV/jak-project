@@ -411,7 +411,21 @@
   // no defun anywhere in goal_src), so the state body itself stays held per
   // doctrine. Landed here as a verified, reusable fact for whichever rung
   // lands title-control-spawn next; not exercised by any landed source yet.
-  "(anon-function 69 net-world)": [[96, ["array", "pointer", 2]]],
+  //
+  // title-handoff rung addendum: the offset-16 want-list array itself (72
+  // bytes, the show-level precedent's own shape two lines above) has no
+  // entry here and the decompiler's error-free scoped decode still prints it
+  // as raw `(the-as uint sp-0)` pointer arithmetic with numeric `(-> a1-1 N)`
+  // indexing -- zero ERROR markers at decode time, but goalc rejects it for
+  // real ("Cannot access array of type uint"), the documented "scoped decode
+  // never attempts compilation" gap (phase-1 landing pipeline memory). Adding
+  // this entry is what makes the decompiler print the same
+  // (new 'stack-no-clear 'array 'symbol 18) idiom show-level already gets,
+  // which does compile; re-verified by a fresh scoped decode plus (mi).
+  "(anon-function 69 net-world)": [
+    [16, ["array", "symbol", 18]],
+    [96, ["array", "pointer", 2]]
+  ],
   "vis-dist-additional-ok?": [[16, ["array", "int32", 1]]],
   "add-a-bunch": [[16, "vector"]],
   "(method 9 joint-control)": [[16, "vector"]],

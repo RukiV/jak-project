@@ -676,3 +676,135 @@
     )
   (none)
   )
+
+;; og:preserve-this landed for real, title-handoff rung (net-world-h.gc's per-state
+;; note carries the full evidence chain; this is the short version). net-world-h.gc's
+;; own :state-methods block reserves slot 43 with no recoverable retail name
+;; (find_defstates matches zero top-level `(set! SYMBOL (new 'static 'state ...))`
+;; forms anywhere in net-world.o; retail installs this state anonymously straight from
+;; method-set!), so this is net-world-state-N per this campaign's convention for that
+;; case (light-trail-tracker-state-15 precedent, 0f11ed85d). :virtual #t is
+;; load-bearing, not style (issue 595 / c67be2884, the region driver's zero-slot kill
+;; assertion): net-world-state-43 lives in a fresh :state-methods slot kscheme
+;; zero-fills, and without :virtual the defstate would bind a global symbol instead of
+;; installing into that slot.
+;;
+;; :exit and :code below are anon-function 68 and anon-function 69 of net-world.o,
+;; transcribed verbatim from a scoped decode of this worktree's own types
+;; (allowed_objects: [net-world], decompiler/config/jakx/ntsc_v1/stack_structures.jsonc
+;; already carries the sp+96 entry this body needs, landed by f3b373ab2): zero ERROR
+;; markers on either handler (net-world_ir2.asm:19862-20276 of that scoped run).
+;; :code is the retail title/attract handoff: a viewport reset, a want-levels 'menu2
+;; arm, a dma-try-alloc retry loop that arms the title-control DMA buffer, spawning
+;; title-control (title-control-spawn, landed real by 862ffe3ef, which is what expired
+;; this state's hold), a 3000-frame (10 second) attract wait, a settings fade through
+;; bg-a/title-control-scene when the user has not already set a render preference,
+;; dma-release, a further blackout-frame sequence, `(start 'play "menu2-start" 0)`,
+;; and a tail transition into net-world-state-42 -- verbatim including the bare
+;; `enter-state` statement immediately before the `go-virtual`, the same decoded shape
+;; already landed in title-control-init's own cond arms (title-obs.gc, 862ffe3ef).
+;;
+;; That tail is a landmine of its own: `(go-virtual net-world-state-42)` resolves
+;; net-world's own slot 42 at runtime, and slot 42's real body stays held on its own
+;; unlanded callees (is-late-join?, encode-green-room-stats; see net-world-h.gc's
+;; per-state note, unchanged by this rung). Landing 43 alone would ship a go-virtual
+;; into a slot kscheme zero-fills, the same kill-assertion class as the region driver
+;; (gstate.gc:337, c67be2884) one layer later. The minimal stub immediately below arms
+;; slot 42 without claiming any of its real behavior, the same shape as
+;; logic-target.gc's target-continue (#122): a live sleeping process is the quiet
+;; option over a fabricated one.
+(defstate net-world-state-43 (net-world)
+  :virtual #t
+  :exit (behavior ()
+    '()
+    )
+  :code (behavior ()
+    (viewport-array-method-9 *viewport-array* (the-as viewport 0))
+    (set-blackout-frames (seconds 0.015))
+    (let ((a1-1 (new 'stack-no-clear 'array 'symbol 18)))
+      (set! (-> a1-1 17) #f)
+      (set! (-> a1-1 16) #f)
+      (set! (-> a1-1 15) #f)
+      (set! (-> a1-1 14) #f)
+      (set! (-> a1-1 13) #f)
+      (set! (-> a1-1 12) #f)
+      (set! (-> a1-1 11) #f)
+      (set! (-> a1-1 10) #f)
+      (set! (-> a1-1 9) #f)
+      (set! (-> a1-1 8) #f)
+      (set! (-> a1-1 7) #f)
+      (set! (-> a1-1 6) #f)
+      (set! (-> a1-1 5) #f)
+      (set! (-> a1-1 4) #f)
+      (set! (-> a1-1 3) #f)
+      (set! (-> a1-1 2) #f)
+      (set! (-> a1-1 1) #f)
+      (set! (-> a1-1 0) 'menu2)
+      (want-levels *load-state* a1-1)
+      )
+    (until #f
+      (let ((v1-5 (new 'stack-no-clear 'array 'pointer 2)))
+        (when (dma-try-alloc #xd2800 #xd2800 'title-control 0 (&-> v1-5 0) (&-> v1-5 1) #f)
+          (suspend)
+          (suspend)
+          (goto cfg-5)
+          )
+        )
+      (suspend)
+      0
+      )
+    #f
+    (label cfg-5)
+    (title-control-spawn #t)
+    (suspend-for (seconds 10)
+      )
+    (when (not (-> *setting-control* user-current render))
+      (let* ((a0-5 *setting-control*)
+             (t9-5 (method-of-object a0-5 setting-control-method-15))
+             (a2-1 'bg-a)
+             (a3-1 'abs)
+             (t0-1 #x3f800000)
+             )
+        (t9-5 a0-5 self a2-1 a3-1 t0-1 0)
+        (setting-control-method-23 *setting-control*)
+        (while (!= (-> *setting-control* user-current bg-a) 1.0)
+          (suspend)
+          )
+        (setting-control-method-17
+          *setting-control*
+          'title-control-scene
+          'render
+          (the-as none a3-1)
+          (the-as none t0-1)
+          )
+        )
+      (setting-control-method-16 *setting-control* self 'render)
+      (setting-control-method-23 *setting-control*)
+      (set-blackout-frames (seconds 100000))
+      )
+    (set-blackout-frames (seconds 100000))
+    (setting-control-method-16 *setting-control* self 'bg-a)
+    (dma-release 'title-control)
+    (set-blackout-frames (seconds 3.335))
+    (start 'play (game-info-method-18 *game-info* "menu2-start") 0)
+    enter-state
+    (go-virtual net-world-state-42)
+    )
+  )
+
+;; og:preserve-this bring-up stub, same rung as net-world-state-43 above: arms the
+;; :state-methods slot 42 vtable entry ONLY so state 43's own landed
+;; `(go-virtual net-world-state-42)` tail does not dispatch a zero code pointer (the
+;; region-driver kill-assertion class, issue 595 / c67be2884 / gstate.gc:337). The
+;; real state-42 body (anon-function 71 :code, anon-function 70 :event) stays held on
+;; unlanded callees is-late-join? and encode-green-room-stats (net-world-h.gc's
+;; per-state note, f3b373ab2, unchanged by this rung). sleep-code is the established
+;; minimal-stub shape (logic-target.gc's target-continue, #122): a live sleeping
+;; process is the quiet option over a fabricated behavior; :code is a state's only
+;; required slot, every other slot defaults to a real, zeroed #f rather than
+;; uninitialized memory once the object genuinely exists. Retires when the real
+;; state-42 handlers land.
+(defstate net-world-state-42 (net-world)
+  :virtual #t
+  :code sleep-code
+  )
