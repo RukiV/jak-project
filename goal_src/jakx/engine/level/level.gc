@@ -2843,6 +2843,13 @@
 ;; (this file, position 267 in game.gd, compiles before cam-start.gc at 290).
 ;; Retires alongside the warp helpers above, same real camera start chain.
 (define-extern jakx-cam-pin-view! (function vector matrix none))
+;; og:preserve-this bring-up extern (follow-up rung, want-driver re-arm ordering):
+;; jakx-goto-level below reads *jakx-cam-warp-level* directly (rather than only
+;; calling into cam-start.gc) to tell whether the warp it just attempted actually
+;; armed, so it knows whether to re-arm *jakx-want-driver* itself or leave that to
+;; jakx-cam-warp-tick's own exit paths. Same forward-reference reason as the
+;; functions above; retires with them.
+(define-extern *jakx-cam-warp-level* level)
 
 ;; og:preserve-this bring-up helper: look up a continue point by name across every
 ;; level-load-info's continues list, jak3 get-continue-by-name's walk without the
@@ -3085,7 +3092,36 @@ drives the same clear/drain/bg/wait sequence."
           )
       )
     )
-  (set! *jakx-want-driver* #t)
+  ;; og:preserve-this want-driver re-arm ordering (follow-up rung to the cam-warp-tick
+  ;; hardening in cam-start.gc): re-arming *jakx-want-driver* here unconditionally used
+  ;; to race the warp it just (maybe) armed. jakx-want-driver-tick (this file) scores
+  ;; its want-window purely off the math-camera's CURRENT position
+  ;; (view-get-math-camera 0), and the warp only moves that position on the combiner's
+  ;; own later ticks (cam-start.gc jakx-cam-warp-tick), a different call site that has
+  ;; not run yet at this point in the same frame. Re-arming immediately let the driver
+  ;; recompute against the still-stale pre-jump position, pick the OLD family, and evict
+  ;; the level this function just spent its whole wait loop making resident (repro: the
+  ;; junglew/jungle-wide-start crash this and the prior rung fixed, "want-driver: window
+  ;; = icew icec iced" printing while junglew/jungles were still displayed).
+  ;;
+  ;; Fix: only re-arm here when no warp actually got armed above (nothing else will ever
+  ;; flip the flag back on in that case, since nothing is ticking). When a warp WAS
+  ;; armed, *jakx-want-driver* stays off and jakx-cam-warp-tick re-arms it itself, from
+  ;; both of its own exit paths (the 600-frame release and the dead-target retire added
+  ;; alongside this rung), so the driver's first recompute always happens from wherever
+  ;; the camera actually ends up, never from wherever it was when the warp armed.
+  ;;
+  ;; DGO staging gap (found diagnosing the crash this hardens against, not a code
+  ;; defect): junglea/jungleb (JGA.DGO/JGB.DGO) are listed in
+  ;; decompiler/config/jakx/ntsc_v1/inputs.jsonc's levels_to_extract and in the
+  ;; generated *jakx-built-levels* table below, but out/jakx/iso has no JGA.DGO/JGB.DGO
+  ;; as of this rung -- a goto into junglew's a/b track sections will 404 on the DGO
+  ;; load itself, not on anything in this function. The orchestrator is re-running
+  ;; extraction separately; this is staging, not a code bug.
+  (if *jakx-cam-warp-level*
+      (format 0 "jakx-goto-level: warp armed for ~A, want-driver re-arm deferred to combiner exit~%" level-name)
+      (set! *jakx-want-driver* #t)
+      )
   0
   (none)
   )

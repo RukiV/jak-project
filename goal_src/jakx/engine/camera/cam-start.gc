@@ -262,6 +262,14 @@ reading through it."
         (set! *jakx-cam-warp-level* (the level #f))
         (set! *jakx-cam-warp-frames* 0)
         (set! *jakx-cam-warp-rot-valid* #f)
+        ;; og:preserve-this want-driver re-arm (follow-up rung, level.gc
+        ;; jakx-goto-level): the goto that armed this warp deliberately left the
+        ;; driver off rather than re-arm it against the pre-jump camera position;
+        ;; this is one of its two exit paths (the other is the frame-exhaustion
+        ;; release below), and both must re-arm it or the driver is left off for
+        ;; good the moment a target dies mid-warp.
+        (set! *jakx-want-driver* #t)
+        (format 0 "cam-warp: want-driver re-armed (target lost)~%")
         (return 0)
         )
       )
@@ -380,6 +388,14 @@ reading through it."
         (set! *jakx-cam-warp-level* (the level #f))
         ;; the seed itself stays in *save-camera-inv-rot*; only the pin ends here
         (set! *jakx-cam-warp-rot-valid* #f)
+        ;; og:preserve-this want-driver re-arm (follow-up rung, level.gc
+        ;; jakx-goto-level): the other of the two exit paths that must re-arm the
+        ;; driver (see the dead-target retire above for the other). The camera has
+        ;; just spent this whole tick pinned at `warp`, so the driver's first
+        ;; recompute (jakx-want-driver-tick, level.gc) now scores the actual
+        ;; destination instead of the pre-jump position.
+        (set! *jakx-want-driver* #t)
+        (format 0 "cam-warp: want-driver re-armed (released)~%")
         )
       )
     )
