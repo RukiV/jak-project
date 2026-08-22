@@ -7941,7 +7941,32 @@ would close more of those and is deliberately not added here."
             ;; that family's own nearest built tiny-center as best-center. Restricting
             ;; the family scan to members whose family owns a built tiny-center avoids
             ;; ever landing on a family with none to select below.
-            (let ((best-family (the int32 -1)) (best-family-d 1000000000000000000.0))
+            ;; og:preserve-this giant-sphere tie fix (follow-up rung, acceptance repro
+            ;; 82d585bc8/4, scorer diagnostic confirmed empirically): jakx-level-bound-dist
+            ;; clamps to 0 for any point inside a sphere, so two families whose spheres
+            ;; both contain the camera tie at exactly 0 regardless of which sphere is
+            ;; tighter. Hand-computed against the failing sample (raw <8590300 794343
+            ;; -11244078>, the jungle-wide-start continue's own camera-trans): icec's
+            ;; cluster 4 (radius 3783047 raw / 923.6m, center-distance 3395665 raw /
+            ;; 829.0m) and junglea's cluster 0 (radius 1936709 raw / 472.8m,
+            ;; center-distance 467892 raw / 114.2m) both clamp to 0, and icec (family
+            ;; 159, ice) sorts earlier in *jakx-level-bounds* than junglea (family 127,
+            ;; jungle), so the strict < comparison below let table order alone decide the
+            ;; tie every time -- ice, unconditionally, whenever an ice cluster's
+            ;; (deliberately generous, K-means-clustered) sphere happens to reach into
+            ;; jungle territory (this file's own docstring above already documents these
+            ;; families overlapping in coordinate space). Families are genuinely
+            ;; overlapping map regions here (icec's own sound/track geometry sits close to
+            ;; the jungle continue in world space), so the fix is not to reject the tie as
+            ;; bad data, just to break it toward the tighter, more localized attribution:
+            ;; on equal (clamped) distance, prefer the row whose winning sphere has the
+            ;; smaller radius. This inlines jakx-level-bound-dist's own per-sphere min
+            ;; scan (unchanged, still used everywhere else in this function) instead of
+            ;; adding an out-parameter to it, so nothing outside this loop changes.
+            (let ((best-family (the int32 -1))
+                  (best-family-d 1000000000000000000.0)
+                  (best-family-r 0.0)
+                  )
               (dotimes (i (-> *jakx-level-bounds* length))
                 (let ((lb (-> *jakx-level-bounds* i)))
                   (when (and (or (= (-> lb memory-mode) 'tiny) (= (-> lb memory-mode) 'tiny-center))
@@ -7959,10 +7984,31 @@ would close more of those and is deliberately not added here."
                           )
                         )
                       (when has-center
-                        (let ((d (jakx-level-bound-dist lb cam)))
-                          (when (< d best-family-d)
-                            (set! best-family-d d)
-                            (set! best-family fam)
+                        (let ((d 1000000000000000000.0) (r 0.0))
+                          (dotimes (k (-> lb sphere-count))
+                            (let* ((s (-> lb spheres k))
+                                   (dx (- (-> s x) (-> cam x)))
+                                   (dy (- (-> s y) (-> cam y)))
+                                   (dz (- (-> s z) (-> cam z)))
+                                   (sd (- (sqrtf (+ (* dx dx) (* dy dy) (* dz dz))) (-> s w)))
+                                   )
+                              (when (< sd d)
+                                (set! d sd)
+                                (set! r (-> s w))
+                                )
+                              )
+                            )
+                          (set! d (fmax 0.0 d))
+                          (cond
+                            ((< d best-family-d)
+                             (set! best-family-d d)
+                             (set! best-family fam)
+                             (set! best-family-r r)
+                             )
+                            ((and (= d best-family-d) (< r best-family-r))
+                             (set! best-family fam)
+                             (set! best-family-r r)
+                             )
                             )
                           )
                         )
