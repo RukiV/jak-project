@@ -36,6 +36,58 @@
 ;; directly and it had no defmethod anywhere in the tree (e2 clearance);
 ;; its own body is a two-line, zero-hazard idle-throttle reset with no
 ;; wall of its own.
+;; og:preserve-this handleinit rung (falcon attempt-5 crash): partial landing
+;; of retail's (method 64 wvehicle), wheel-handle arming only. wvehicle
+;; currently has no method-64 slot of its own, so the vtable resolves
+;; straight to vehicle's own landed shadow partial (vehicle.gc:252, #633)
+;; and on to rigid-body-object's base method 64, whose body virtually
+;; dispatches (method 68 wvehicle) below over this instance's wheel array.
+;; That per-wheel loop (this file, line 57 below) reads each wheel's
+;; `handle` field and passes it through the l32-false-check nonzero gate
+;; (goal-symbol-slots-are-32-bit class) before dereferencing it at line 59;
+;; with no arming, the field holds process-heap garbage that survives the
+;; gate and faults on `(-> a2-2 process)`.
+;;
+;; Retail's own wvehicle:64 (scoped decode, C:\Users\alex\AppData\Local\
+;; Temp\claude\D--jak-project\1cf767c4-bde0-470a-8f68-8f6160452efd\
+;; scratchpad\vfr3-m64-wvehicle.asm) arms this before ever reaching that
+;; dispatch: instructions [58]-[66] (asm lines 115-127) are a 4-iteration
+;; loop over `a0-0 + 2476 + 288*i` (288 = vehicle-wheel-state's own
+;; :size-assert #x120; machine base 2476 + 4 basic-bias = declared 2480,
+;; matching `wheel vehicle-wheel-state 4 :inline :offset-assert 2480`)
+;; storing #f at +8 (`handle`, wvehicle-h.gc:29, already handle-typed) and
+;; +280 (`tread-tracker`, wvehicle-h.gc:61, declared uint64 with a "; handle"
+;; comment -- not retyped this rung, armed via the established (the-as
+;; uint64 (the-as handle #f)) idiom, game-info.gc:782-786 precedent). This
+;; loop is instructions [58]-[66], strictly before retail's own single
+;; call-parent-method dispatch at instructions [77]-[84] (asm lines 144-
+;; 157), so the ordering this partial reproduces (arm both fields for all
+;; four wheels, then call-parent-method) matches retail's.
+;;
+;; NOTE: an earlier read of the same scratch asm misidentified a *different*
+;; 12-field #f-store block at declared offsets 4472-4568 (asm lines 558-
+;; 728, the wpn-current-target/wpn-left/wpn-right/wpn-shield/wpn-drone/
+;; wpn-oil/wpn-turbo/wpn-bulldog-gun/wpn-drawable-left/wpn-drawable-right
+;; weapon-slot handles) as the crash's cause. Method 68's own landed body
+;; below proves that block is unrelated -- it never touches any wpn-*
+;; field, only `(-> this wheel i handle)` -- so it is left alone here;
+;; those weapon-slot fields still want their own arming, but that is a
+;; separate rung against a verified caller, not this crash.
+;;
+;; The rest of retail's method 64 body (particle-subsampler seeding,
+;; rigid-body-control flag bits, per-wheel quaternion/extent setup,
+;; particle-group-id wiring, the weapon-slot arming above, gunmount spawn)
+;; stays held; this partial closes only the wheel-handle gap.
+(defmethod rigid-body-object-method-64 ((this wvehicle) (arg0 object))
+  (dotimes (i 4)
+    (set! (-> this wheel i handle) (the-as handle #f))
+    (set! (-> this wheel i tread-tracker) (the-as uint64 (the-as handle #f)))
+    )
+  (call-parent-method this arg0)
+  0
+  (none)
+  )
+
 ;; definition for method 68 of type wvehicle
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch int vs none.
