@@ -312,9 +312,30 @@
         (set! (-> prim specific 9) (the-as uint (+ i 2)))
         )
       )
+    ;; og:preserve-this bring-up guard (falcon-spawn crash, gk-falcon-
+    ;; repaint.err.log: wvehicle-util+0xccd, GOAL code [0x1232000,+0x1744),
+    ;; "reading r15 minus 4" off rdi=0 -- a type-tag fetch on a null object
+    ;; inside create-launch-control's own virtual method-9 dispatch). No
+    ;; defpartgroup anywhere in the landed tree sets *part-group-id-table*
+    ;; 226 or 227 (nor 273/280 below); retail's own ops call create-launch-
+    ;; control on them unconditionally (this is not a missed branch to
+    ;; restore), so this is the bring-up-absent-asset class rather than a
+    ;; transcription gap, the same class generic-obs.gc's own bring-up-
+    ;; guard note documents for the identical create-launch-control-on-an-
+    ;; unset-table-entry hazard. Guard the table read, not the call's
+    ;; result: an unset entry now leaves the launcher field #f instead of
+    ;; dereferencing it.
     (dotimes (i 4)
-      (s.w! (&+ this (+ 4604 (* i 4))) (create-launch-control (-> *part-group-id-table* 227) this))
-      (s.w! (&+ this (+ 4620 (* i 4))) (create-launch-control (-> *part-group-id-table* 226) this))
+      (let ((group-227 (-> *part-group-id-table* 227))
+            (group-226 (-> *part-group-id-table* 226))
+            )
+        (s.w! (&+ this (+ 4604 (* i 4)))
+              (if group-227 (create-launch-control group-227 this) (the-as sparticle-launch-control #f))
+              )
+        (s.w! (&+ this (+ 4620 (* i 4)))
+              (if group-226 (create-launch-control group-226 this) (the-as sparticle-launch-control #f))
+              )
+        )
       )
     (dotimes (i 16)
       (set! (-> this attached-array i) (the-as handle #f))
@@ -364,9 +385,21 @@
     ;; vehicle-antenna-init-params shape.
     )
   (set! (-> this wpn-current-target) (the-as uint64 (the-as handle #f)))
-  (set! (-> this dark-seeking-me) (create-launch-control (-> *part-group-id-table* 280) this))
+  ;; og:preserve-this bring-up guard: same class and same crash citation as
+  ;; the wheel-launcher note above (*part-group-id-table* 280/273, neither
+  ;; ever set by a landed defpartgroup); this pair is the byte-offset-
+  ;; identified crash site itself (the op map for this rung's own scoped
+  ;; decode places wvehicle-util+0xccd here, not at the wheel-launcher
+  ;; loop above), landing sequentially with only the trivial dark-suck-
+  ;; sound-pending reset between them, so both need the guard even though
+  ;; only one is reached first.
+  (let ((group-280 (-> *part-group-id-table* 280)))
+    (set! (-> this dark-seeking-me) (if group-280 (create-launch-control group-280 this) (the-as basic #f)))
+    )
   (set! (-> this dark-suck-sound-pending) 0)
-  (set! (-> this turbo-suppressor-particle) (create-launch-control (-> *part-group-id-table* 273) this))
+  (let ((group-273 (-> *part-group-id-table* 273)))
+    (set! (-> this turbo-suppressor-particle) (if group-273 (create-launch-control group-273 this) (the-as sparticle-launch-control #f)))
+    )
   (let ((local-space (the-as particle-local-space-info
                               (add-connection *part-local-space-engine* this local-space-proc-joint 0 0 0)
                               )
