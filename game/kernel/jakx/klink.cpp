@@ -305,6 +305,79 @@ namespace jakx {
 void ultimate_memcpy(void* dst, void* src, uint32_t size);
 }
 
+namespace {
+/*!
+ * og:preserve-this menu2-landing rung round 12 (issue 699): common/klink.cpp's c_symlink2 only
+ * ever writes a full 0xffffffff-sentinel word (the ABSOLUTE pointer case) and ASSERT(false)s on
+ * anything else. Every V5 raw copy landed before round 12 (342 single-segment objects, all
+ * retail LEVEL DATA) only ever hits that case, so the gap never showed. menu2 is jakx's first
+ * multi-segment V5 raw copy that actually carries EE machine code (a widget engine, not level
+ * geometry), and its MAIN_SEGMENT symbol table genuinely contains the OTHER legal V2/V5
+ * symbol-link encoding: decompiler/ObjectFile/LinkedObjectFileCreation.cpp's own c_symlink2
+ * (~line 140) documents it as "offset link - replace lower 16 bits with symbol table offset"
+ * and asserts exactly the sentinel test used below (low 16 bits 0x0000 or 0xffff). Confirmed
+ * against the raw file (decompiler_out/jakx/raw_obj/menu2-GAME.go, MAIN_SEGMENT, symbol
+ * *entity-pool* at file offset 7284): the word there is 0x8ee5ffff, low half 0xffff - a real
+ * lui/ori-style symbol-table load waiting on its offset, not corruption, and exactly the value
+ * the round-11 crash's "val is 0x8ee5ffff" printed. This mirrors symlink_v3's
+ * LINK_SYM_NO_OFFSET_FLAG branch below (same subtract-one convention) but patches only the low
+ * 16 bits, matching the decompiler's model instead of the V3 format's full-word write. Kept
+ * local to this file rather than added to common/klink.cpp: every other c_symlink2 caller
+ * (jak1/jak2/jak3's linkers, and jakx's own single-segment V5 path immediately below) only ever
+ * links pure data and has never once hit this branch, so widening the shared function's
+ * contract for one code-bearing object is not worth the blast radius across every game's
+ * kernel.
+ */
+Ptr<u8> jakx_v5_symlink2(Ptr<u8> objData, Ptr<u8> linkObj, Ptr<u8> relocTable) {
+  u8* relocPtr = relocTable.c();
+  Ptr<u8> objPtr = objData;
+
+  do {
+    u8 table_value = *relocPtr;
+    u32 result = table_value;
+    u8* next_reloc = relocPtr + 1;
+
+    if (result & 3) {
+      result = (relocPtr[1] << 8) | table_value;
+      next_reloc = relocPtr + 2;
+      if (result & 2) {
+        result = (relocPtr[2] << 16) | result;
+        next_reloc = relocPtr + 3;
+        if (result & 1) {
+          result = (relocPtr[3] << 24) | result;
+          next_reloc = relocPtr + 4;
+        }
+      }
+    }
+
+    relocPtr = next_reloc;
+    objPtr = objPtr + (result & 0xfffffffc);
+    u32 objValue = *(objPtr.cast<u32>());
+    if (objValue == 0xffffffff) {
+      *(objPtr.cast<u32>()) = linkObj.offset;
+    } else if ((objValue & 0xffff) == 0 || (objValue & 0xffff) == 0xffff) {
+      // offset link: patch only the low 16 bits with the symbol's offset from the symbol
+      // table register (s7). A low half of 0xffff additionally asks for offset-minus-one, same
+      // convention as symlink_v3's LINK_SYM_NO_OFFSET_FLAG below.
+      bool subtract_one = (objValue & 0xffff) == 0xffff;
+      s32 sym_offset = linkObj.cast<u32>() - s7;
+      if (subtract_one) {
+        sym_offset -= 1;
+      }
+      *(objPtr.cast<u16>()) = (u16)sym_offset;
+    } else {
+      // I don't think we should hit this ever.
+      // if this is hit - there's a good chance something has overwritten the object file data
+      // after linking has started.
+      printf("val is 0x%x ptr %p\n", objValue, relocPtr - 1);
+      ASSERT(false);
+    }
+  } while (*relocPtr);
+
+  return make_ptr(relocPtr + 1);
+}
+}  // namespace
+
 uint32_t link_control::jakx_work_v5() {
   if (m_state == 0) {
     // here, we change length_to_get_to_link to an actual pointer to the link table.
@@ -452,7 +525,7 @@ uint32_t link_control::jakx_work_v5() {
     // pointer and symbol linking, per segment. For n_segments == 1 this loop runs exactly
     // once over segment 0 with base_ptr equal to what m_object_data is about to be set to
     // below, so it is the same code the single-segment case always ran, just addressed
-    // through a local instead of the member field (c_symlink2 takes objData as a plain
+    // through a local instead of the member field (jakx_v5_symlink2 takes objData as a plain
     // Ptr<u8> argument, so passing base_ptr instead of m_object_data is equivalent - it is
     // the same value). A segment whose .data fixed up to 0 (no data, or a disabled debug
     // segment) is skipped entirely, same as jakx_work_opengoal skips segments whose
@@ -539,7 +612,7 @@ uint32_t link_control::jakx_work_v5() {
             link_ptr.offset += strlen(sname) + 1;
             // printf("linking symbol %s\n", sname);
             auto goalObj = jakx::intern_from_c(-1, 0, sname);
-            link_ptr = c_symlink2(base_ptr, goalObj.cast<u8>(), link_ptr);
+            link_ptr = jakx_v5_symlink2(base_ptr, goalObj.cast<u8>(), link_ptr);
 
           } else if ((reloc & 0x3f) == 0x3f) {
             ASSERT(false);  // todo, does this ever get hit?
@@ -555,7 +628,7 @@ uint32_t link_control::jakx_work_v5() {
             // printf("linking type %s\n", sname);
             link_ptr.offset += strlen(sname) + 1;
             auto goalObj = jakx::intern_type_from_c(-1, 0, sname, n_methods);
-            link_ptr = c_symlink2(base_ptr, goalObj.cast<u8>(), link_ptr);
+            link_ptr = jakx_v5_symlink2(base_ptr, goalObj.cast<u8>(), link_ptr);
           }
 
           sub_link_ptr = link_ptr;
