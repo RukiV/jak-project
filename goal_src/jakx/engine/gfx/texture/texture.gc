@@ -1277,6 +1277,19 @@
               )
             (upload-vram-data s3-0 (the-as int (* v1-3 64)) a2-1 (the-as int (* s5-0 32)) 128)
             (dma-buffer-add-gs-set s3-0 (texflush 1))
+            ;; og:preserve-this PC port (issue 687 item 4), mirrors
+            ;; upload-vram-pages's own PC_PORT branch (texture.gc:1219-
+            ;; 1226): hand the page to the C++ TextureUploadHandler as a
+            ;; pc-port packet (page pointer + mode); the GS bitbltbuf DMA
+            ;; above is not parsed on PC. This function always uploads the
+            ;; whole page (arg1 size, above, not a segment-limited slice),
+            ;; the same case tex-upload-mode seg0-1-2 selects in
+            ;; upload-vram-pages, so that is the mode value sent.
+            (#when PC_PORT
+              (dma-buffer-add-cnt-vif2 s3-0 1 (new 'static 'vif-tag :cmd (vif-cmd pc-port)) (the-as vif-tag 3))
+              (dma-buffer-add-uint64 s3-0 arg1)
+              (dma-buffer-add-uint64 s3-0 (tex-upload-mode seg0-1-2))
+              )
             )
           )
         )
