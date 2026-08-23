@@ -34,6 +34,7 @@ written is read-only by design and not a finding.
 | `*jakx-build-overlay*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*jakx-racer*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*jakx-region-driver-enable*` | 1 | `goal_src/jakx/engine/level/level.gc`, `goal_src/jakx/engine/level/region-driver.gc` |
+| `*jakx-want-driver-load-radius*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*last-cash-game-mgr-for-player-0*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
