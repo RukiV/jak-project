@@ -612,6 +612,19 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     init_bucket_renderer<Sprite3>("particles-v0", BucketCategory::SPRITE, 769);
     init_bucket_renderer<Sprite3>("particles-v1", BucketCategory::SPRITE, 772);
 
+    // Shadow (issue #663): jakx registered no shadow-bucket renderer at all, so vehicle
+    // shadows never draw. The landed *bucket-map* (foreground-h.gc) carries shadow
+    // destinations at bucket-id-16 shadow2/shadow3 (vu1-user-h.gc: 572/573), each appearing
+    // 6 times at fixed (level, sprite-category, viewport 1) slots, a shared/global pair
+    // rather than per-level, same tail-sharing shape as anti-alias and tex-warp in that
+    // region. bucket-id shadow (350) never appears as a *bucket-map* destination; it is
+    // reused as a :tfrag-scissor-trans-bucket value (tfrag-methods.gc:561), so it gets no
+    // renderer here. Raw ids, same mechanical *bucket-map* extraction as kMercBuckets above.
+    // Shadow2's constructor needs only the name and bucket id, jak3 parity
+    // (OpenGLRenderer.cpp:411-412).
+    init_bucket_renderer<Shadow2>("shadow2", BucketCategory::OTHER, 572);
+    init_bucket_renderer<Shadow2>("shadow3", BucketCategory::OTHER, 573);
+
     // Per-level texture buckets (#110): upload-textures walks *texture-page-translate*
     // and emits each draw level's tpage uploads plus its fixed-anim payloads (pc codes
     // 79+) into that row's tex bucket, so without a TextureUploadHandler the composite
