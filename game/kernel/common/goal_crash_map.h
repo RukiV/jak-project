@@ -69,6 +69,17 @@ void goal_crash_map_set_process_pool_root(u32 process_pool_root);
 // disables the check, since a real table is never zero-width.
 void goal_crash_map_set_symbol_table_region(u32 lo, u32 hi);
 
+// issue #716 round 4: register the goal-relative address of the running game's
+// `process` type (e.g. jakx::intern_from_c(-1, 0, "process")->value(), read at the same
+// point/call site as goal_crash_map_set_process_pool_root()). Lets the crash handler's
+// heap scan (heap_scan_processes() in goal_crash_map.cpp) identify a process object by
+// its type tag resolving to `process` or a descendant, walking Type::parent -- this
+// finds a process regardless of whether it is currently linked into *active-pool*'s
+// tree, closing the blind spot dump_process_pool_threads() above has for a process
+// mid-teardown, sitting in a dead pool, or otherwise unlinked. 0 (the default) means
+// "not registered", the scan's own no-op guard.
+void goal_crash_map_set_process_type(u32 process_type_addr);
+
 // test seam (issue #117): runs the same bounded, latest-wins lookup the crash handler
 // uses internally against the recorded objects, so test_goal_crash_map.cpp can exercise
 // it directly without a live fault. Returns the matching record's name, or nullptr if
@@ -169,3 +180,39 @@ bool goal_crash_map_format_symbol_slot_for_test(u32 candidate,
                                                 u32 symbol_string_base,
                                                 char* out,
                                                 size_t out_size);
+
+// test seam (issue #716 round 4): forwards to the crash handler's pure type-hierarchy
+// walk (type_is_process_subtype() in goal_crash_map.cpp): does tag, or any of its
+// Type::parent ancestors (bounded, cycle-safe), equal process_addr? No g_objs access, no
+// mutex needed. No behavior change from the crash-handler path.
+bool goal_crash_map_type_is_process_subtype_for_test(u32 tag,
+                                                     const u8* base,
+                                                     u64 window_size,
+                                                     u32 process_addr);
+
+// test seam (issue #716 round 4): forwards to the crash handler's pure rreg-line
+// formatter (format_rreg_line() in goal_crash_map.cpp): one line naming all 7 of a
+// cpu-thread's saved general-purpose registers, each classified against the real object
+// map (hence the g_objs_mutex, like goal_crash_map_format_reg_for_test()), the
+// registered symbol-table region, or flagged bare "(ZERO)" for a raw zero that resolves
+// to neither. rreg must point to CPU_THREAD_RREG_COUNT (7) u64 values.
+void goal_crash_map_format_rreg_line_for_test(const u64* rreg,
+                                              u64 base_addr,
+                                              u64 mem_size,
+                                              u32 symtab_lo,
+                                              u32 symtab_hi,
+                                              char* out,
+                                              size_t out_size);
+
+// test seam (issue #716 round 4): forwards to the crash handler's pure GOAL-range
+// attribution for one raw stack quadword (format_stack_goal_attribution() in
+// goal_crash_map.cpp), the (a) half of the raw stack window's two attributions -- the
+// (b) host-module half (resolve_native_address()) is Windows-only module resolution,
+// untestable without a live loaded module, the same posture format_native_rip's own
+// module-resolution half already has. g_objs_mutex held, like the other lookup()-backed
+// seams.
+bool goal_crash_map_format_stack_goal_attribution_for_test(u64 value,
+                                                           u64 base_addr,
+                                                           u64 mem_size,
+                                                           char* out,
+                                                           size_t out_size);

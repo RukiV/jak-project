@@ -51,6 +51,15 @@ u32 g_process_pool_root = 0;
 u32 g_symtab_lo = 0;
 u32 g_symtab_hi = 0;
 
+// issue #716 round 4: the running game's `process` type address, set by
+// goal_crash_map_set_process_type() (see the header doc comment). Lets the crash
+// handler's heap scan identify a process object by its type tag resolving to `process`
+// or a descendant, instead of relying on the object being linked into *active-pool*'s
+// tree -- a process mid-teardown or sitting in a dead pool has a live, correctly-tagged
+// object with no tree link at all. Same posture as g_process_pool_root: 0 means
+// "not registered", the scan's own no-op guard.
+u32 g_process_type_addr = 0;
+
 // issue #117: two independent fixes over the old "start <= goal_addr, earliest
 // record wins" scan.
 //
@@ -411,10 +420,33 @@ constexpr u64 PROCESS_TREE_MASK_OFF = 0x4;      // process-tree :offset-assert 8
 constexpr u64 PROCESS_TREE_CHILD_OFF = 0x18;    // process-tree :offset-assert 28
 constexpr u64 PROCESS_TREE_BROTHER_OFF = 0x14;  // process-tree :offset-assert 24
 constexpr u64 PROCESS_NAME_OFF = 0x0;           // process-tree :offset-assert 4
+constexpr u64 PROCESS_STATUS_OFF = 0x2C;        // process :offset-assert 48
 constexpr u64 PROCESS_MAIN_THREAD_OFF = 0x34;   // process :offset-assert 56
 constexpr u64 PROCESS_TOP_THREAD_OFF = 0x38;    // process :offset-assert 60
 constexpr u64 THREAD_PC_OFF = 0x14;             // thread pc, 6th field after the type tag
 constexpr u64 THREAD_SP_OFF = 0x18;             // thread sp, 7th field after the type tag
+// cpu-thread extends thread (9 fields, ending at pointer-relative 0x24) with
+// `(rreg uint64 7)`: the 7 general-purpose registers thread-suspend's asm body backs up
+// wholesale (goal_src/*/kernel/gkernel.gc: `(set! (-> this rreg N) temp)` x7) and
+// thread-resume restores wholesale on the way back into user code. Round 1's sweep only
+// covered pc/sp; a bad value here is what actually lands in a real x86-64 register on
+// resume.
+constexpr u64 CPU_THREAD_RREG_OFF = 0x24;
+constexpr int CPU_THREAD_RREG_COUNT = 7;
+
+// a Type's `parent` field, C++-side game/kernel/jakx/kscheme.h's `Type::parent` at
+// struct offset 4 (right after `symbol` at 0) -- the SAME layout the GOAL side's
+// `deftype`s always use once you're already holding a basic pointer (a type's own
+// address IS a basic pointer: format_receiver() above already asserts
+// `(tag & OFFSET_MASK) == BASIC_OFFSET` before trusting it as one).
+constexpr u64 TYPE_PARENT_OFF = 0x4;
+// bounds the ancestor walk below against a corrupt or cyclic type chain; jakx's real
+// type hierarchy is nowhere near this deep.
+constexpr int MAX_TYPE_PARENT_HOPS = 24;
+// caps how many heap-scan matches get a full per-process/per-thread dump, so a
+// corrupted or unusually large heap can't flood the report; the total match count is
+// still printed either way.
+constexpr int MAX_HEAP_SCAN_REPORTS = 48;
 
 // process-mask bit 8 (goal_src/*/kernel/gkernel-h.gc's `(process-tree 8)` defenum entry):
 // set on a pool/container node (*active-pool*, *camera-pool*, ...), clear on a leaf
@@ -601,6 +633,224 @@ void dump_process_pool_threads(u32 root,
   }
 }
 
+// issue #716 round 4: does `tag`'s own type, or any ancestor of it, equal
+// process_addr? Climbs Type::parent (TYPE_PARENT_OFF) up to MAX_TYPE_PARENT_HOPS times.
+// Every dereference is the same bounded read the rest of this file already trusts
+// against a fabricated or real window; a corrupt/cyclic chain just runs out its hop
+// budget and returns false rather than looping the fault handler. A self-parented node
+// (the root of the hierarchy, `object`/`basic`, whose own parent field either points to
+// itself or is otherwise not making progress) also stops the climb, since one more hop
+// would just repeat the same non-match forever.
+bool type_is_process_subtype(u32 tag, const u8* base, u64 window_size, u32 process_addr) {
+  if (!process_addr) {
+    return false;
+  }
+  u32 cur = tag;
+  for (int hop = 0; hop < MAX_TYPE_PARENT_HOPS; hop++) {
+    if (!cur || cur >= window_size || (cur & OFFSET_MASK) != BASIC_OFFSET) {
+      return false;
+    }
+    if (cur == process_addr) {
+      return true;
+    }
+    u32 parent = 0;
+    if (!bounded_read_u32(base, window_size, (u64)cur + TYPE_PARENT_OFF, &parent)) {
+      return false;
+    }
+    if (parent == cur) {
+      return false;
+    }
+    cur = parent;
+  }
+  return false;
+}
+
+// issue #716 round 4: one compact line naming every one of a cpu-thread's 7 saved
+// general-purpose registers (rreg), each classified the same way format_reg() above
+// classifies a live register: dual reading (an absolute r15-relative pointer, or a raw
+// 32-bit goal offset), then lookup() against the real object map, then the registered
+// symbol-table region, then a bare "== 0" flag for a raw zero that resolves to neither
+// (a plausible "code pointer that was never set" reading distinct from #f, since #f is
+// s7 -- a nonzero address -- not 0; see is_present_ptr()'s doc comment above). This is
+// what thread-resume actually restores into real registers on resume, so it is the
+// direct completion of round 1's pc/sp-only coverage.
+void format_rreg_line(const u64* rreg,
+                      u64 base_addr,
+                      u64 mem_size,
+                      u32 symtab_lo,
+                      u32 symtab_hi,
+                      char* out,
+                      size_t out_size) {
+  int n = std::snprintf(out, out_size, "  rreg:");
+  if (n < 0 || (size_t)n >= out_size) {
+    return;
+  }
+  auto append = [&](const char* fmt, auto... args) {
+    if ((size_t)n < out_size) {
+      int m = std::snprintf(out + n, out_size - n, fmt, args...);
+      if (m > 0) {
+        n += m;
+      }
+    }
+  };
+  for (int i = 0; i < CPU_THREAD_RREG_COUNT; i++) {
+    u64 value = rreg[i];
+    append(" [%d]=%#018llx", i, (unsigned long long)value);
+    u32 candidate = 0;
+    bool have_candidate = false;
+    if (base_addr && value >= base_addr && value < base_addr + mem_size) {
+      candidate = (u32)(value - base_addr);
+      have_candidate = true;
+    } else if (value && value < mem_size) {
+      candidate = (u32)value;
+      have_candidate = true;
+    }
+    if (!have_candidate) {
+      if (value == 0) {
+        append("%s", "(ZERO)");
+      }
+      continue;
+    }
+    const ObjRec* o = lookup(candidate);
+    if (o) {
+      append("(%s+%#x)", o->name, candidate - o->start);
+    } else if (candidate >= symtab_lo && candidate < symtab_hi) {
+      append("%s", "(SYMBOL TABLE, FLAG)");
+    } else {
+      append("%s", "(UNMAPPED, FLAG)");
+    }
+  }
+}
+
+// issue #716 round 4: pure GOAL-range attribution for one raw stack quadword (the raw
+// stack window below prints every slot, unlike the older stack-scan section above which
+// only prints ones that resolve). Returns false (out untouched) if value is not a
+// plausible absolute GOAL address; the caller falls back to host-module attribution in
+// that case.
+bool format_stack_goal_attribution(u64 value,
+                                   u64 base_addr,
+                                   u64 mem_size,
+                                   char* out,
+                                   size_t out_size) {
+  if (!base_addr || value < base_addr || value >= base_addr + mem_size) {
+    return false;
+  }
+  u32 g = (u32)(value - base_addr);
+  const ObjRec* o = lookup(g);
+  if (o) {
+    std::snprintf(out, out_size, "%s+%#x [%#x,+%#x) (goal %#x)", o->name, g - o->start, o->start,
+                  o->extent, g);
+  } else {
+    std::snprintf(out, out_size, "(goal %#x, unmapped)", g);
+  }
+  return true;
+}
+
+// issue #716 round 4: dump every process-typed object found by scanning GOAL memory
+// directly for a type tag that resolves to `process` or a subtype (type_is_process_subtype()
+// above), rather than by following *active-pool*'s tree links the way
+// dump_process_pool_threads() above does. This is what closes round 1's two blind spots
+// at once: a process the tree walk can't reach (mid-teardown, still in a dead pool, or
+// simply never linked) still has a live, correctly-tagged object sitting in memory, and
+// this scan finds it regardless; and it dumps the full rreg array (format_rreg_line()
+// above), not just pc/sp. Every 8-byte-aligned position in the 128MB window is a
+// candidate type-tag slot (a valid basic pointer's tag sits 4 bytes before it, so the
+// candidate object address is always tag_addr + 4, itself 8-aligned exactly when the
+// scan position is); this is O(window_size / 8) bounded reads, no different in kind from
+// the stack scan above, just over a much larger range.
+void heap_scan_processes(const u8* base,
+                         u64 window_size,
+                         u64 base_addr,
+                         u32 process_type_addr,
+                         u32 symtab_lo,
+                         u32 symtab_hi,
+                         u32 false_addr) {
+  if (!process_type_addr) {
+    return;
+  }
+  fprintf(stderr, "heap scan (process objects found by type tag, not tree-linked):\n");
+  int found = 0;
+  int reported = 0;
+  for (u64 p = 0; p + 4 <= window_size; p += 8) {
+    u32 tag = 0;
+    if (!bounded_read_u32(base, window_size, p, &tag)) {
+      continue;
+    }
+    if (!tag || !type_is_process_subtype(tag, base, window_size, process_type_addr)) {
+      continue;
+    }
+    u32 node = (u32)p + 4;
+    found++;
+    if (reported >= MAX_HEAP_SCAN_REPORTS) {
+      continue;
+    }
+    reported++;
+
+    char pname[48] = "?";
+    u32 name_ptr = 0;
+    if (bounded_read_u32(base, window_size, node + PROCESS_NAME_OFF, &name_ptr) &&
+        is_present_ptr(name_ptr, false_addr) && name_ptr < window_size) {
+      bounded_read_str(base, window_size, (u64)name_ptr + 4, pname, sizeof(pname));
+    }
+    u32 status = 0;
+    bool have_status = bounded_read_u32(base, window_size, node + PROCESS_STATUS_OFF, &status);
+    char status_slot[96] = {0};
+    bool status_named =
+        have_status && is_present_ptr(status, false_addr) &&
+        format_symbol_slot(status, base, window_size, symtab_lo, symtab_hi, false_addr,
+                           g_symbol_string_base, status_slot, sizeof(status_slot));
+
+    fprintf(stderr, "  process %#010x \"%s\" status %s\n", node, pname,
+            status_named ? status_slot : (have_status ? "(unresolved)" : "(unreadable)"));
+
+    u32 main_thread = 0;
+    u32 top_thread = 0;
+    bool have_main =
+        bounded_read_u32(base, window_size, node + PROCESS_MAIN_THREAD_OFF, &main_thread);
+    bool have_top = bounded_read_u32(base, window_size, node + PROCESS_TOP_THREAD_OFF, &top_thread);
+    struct {
+      const char* role;
+      u32 addr;
+      bool valid;
+    } threads[2] = {
+        {"main-thread", main_thread, have_main && is_present_ptr(main_thread, false_addr)},
+        {"top-thread", top_thread,
+         have_top && is_present_ptr(top_thread, false_addr) && top_thread != main_thread},
+    };
+    for (const auto& t : threads) {
+      if (!t.valid || t.addr >= window_size || (t.addr & OFFSET_MASK) != BASIC_OFFSET) {
+        continue;
+      }
+      u32 pc = 0;
+      u32 sp = 0;
+      bounded_read_u32(base, window_size, (u64)t.addr + THREAD_PC_OFF, &pc);
+      bounded_read_u32(base, window_size, (u64)t.addr + THREAD_SP_OFF, &sp);
+      u64 ra = 0;
+      bool have_ra = is_present_ptr(sp, false_addr) && bounded_read_u64(base, window_size, sp, &ra);
+      char line[256];
+      format_thread_line(pname, t.role, pc, sp, have_ra, ra, base_addr, window_size, symtab_lo,
+                         symtab_hi, line, sizeof(line));
+      fprintf(stderr, "%s\n", line);
+
+      u64 rreg[CPU_THREAD_RREG_COUNT] = {0};
+      bool have_all_rreg = true;
+      for (int i = 0; i < CPU_THREAD_RREG_COUNT; i++) {
+        if (!bounded_read_u64(base, window_size, (u64)t.addr + CPU_THREAD_RREG_OFF + (u64)i * 8,
+                              &rreg[i])) {
+          have_all_rreg = false;
+          break;
+        }
+      }
+      if (have_all_rreg) {
+        char rline[512];
+        format_rreg_line(rreg, base_addr, window_size, symtab_lo, symtab_hi, rline, sizeof(rline));
+        fprintf(stderr, "  %s %s\n", t.role, rline);
+      }
+    }
+  }
+  fprintf(stderr, "  (%d process object(s) found, %d printed)\n", found, reported);
+}
+
 #ifdef _WIN32
 
 // SEH-guarded reads so a corrupt pointer chain cannot re-fault inside the handler.
@@ -629,31 +879,30 @@ bool safe_read_str(const u8* base, u64 off, char* out, size_t out_size) {
   }
 }
 
-// resolve rip to its containing module and print "native: <basename>+0xOFFSET" when it
-// is not GOAL code (issue #122: previously every native fault, e.g. one landing inside
-// gk.exe itself or a system DLL, printed nothing past the raw rip). Static, fixed-size
-// buffers only, matching the rest of this handler; no dynamic allocation.
-// GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT so a fault handler never perturbs the
-// module refcount. No SEH guard here (unlike the raw GOAL-heap reads above): these
-// calls walk loader/PEB bookkeeping, not memory a wild GOAL pointer could have
-// corrupted, so they are not expected to re-fault the way a corrupt GOAL pointer chain
-// could.
-void print_native_rip(u64 rip) {
+// resolve addr to its containing module and write "native: <basename>+0xOFFSET" via
+// format_native_rip() (issue #122; factored out for issue #716 round 4's raw stack
+// window below, which needs this same resolution for up to 32 addresses, not just rip).
+// Static, fixed-size buffers only, matching the rest of this handler; no dynamic
+// allocation. GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT so a fault handler never
+// perturbs the module refcount. No SEH guard here (unlike the raw GOAL-heap reads
+// elsewhere in this file): these calls walk loader/PEB bookkeeping, not memory a wild
+// GOAL pointer could have corrupted, so they are not expected to re-fault the way a
+// corrupt GOAL pointer chain could. Returns false (out untouched) if addr is not inside
+// any currently-loaded module.
+bool resolve_native_address(u64 addr, char* out, size_t out_size) {
   HMODULE mod = nullptr;
   if (!GetModuleHandleExW(
           GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-          (LPCWSTR)(uintptr_t)rip, &mod) ||
+          (LPCWSTR)(uintptr_t)addr, &mod) ||
       !mod) {
-    fprintf(stderr, "native: unresolved\n");
-    return;
+    return false;
   }
 
   MODULEINFO mod_info;
   wchar_t path[MAX_PATH];
   if (!K32GetModuleInformation(GetCurrentProcess(), mod, &mod_info, sizeof(mod_info)) ||
       !GetModuleFileNameW(mod, path, MAX_PATH)) {
-    fprintf(stderr, "native: unresolved\n");
-    return;
+    return false;
   }
 
   // basename only: walk to the last path separator
@@ -671,8 +920,16 @@ void print_native_rip(u64 rip) {
   }
   narrow_name[i] = 0;
 
+  format_native_rip(narrow_name, (u64)(uintptr_t)mod_info.lpBaseOfDll, addr, out, out_size);
+  return true;
+}
+
+void print_native_rip(u64 rip) {
   char line[128];
-  format_native_rip(narrow_name, (u64)(uintptr_t)mod_info.lpBaseOfDll, rip, line, sizeof(line));
+  if (!resolve_native_address(rip, line, sizeof(line))) {
+    fprintf(stderr, "native: unresolved\n");
+    return;
+  }
   fprintf(stderr, "%s\n", line);
 }
 
@@ -893,12 +1150,58 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
     }
   }
 
+  // issue #716 round 4: raw stack window. The stack scan above is a filtered view (GOAL
+  // addresses only, first match wins the line); this prints every one of the next 32
+  // quadwords unconditionally, with BOTH attributions tried -- GOAL-range (b) and, when
+  // that misses, host-module (native module + RVA, resolve_native_address() above) --
+  // since a return address into a mips2c or kernel C++ trampoline is exactly the kind of
+  // frame the GOAL-only filter above was hiding (round 3's own false lead, gkernel+0xf54,
+  // came from over-trusting that filtered view). Bounded to a fixed 32-slot read, each
+  // one SEH-guarded independently so one bad page stops the window rather than the
+  // report.
+  if (base) {
+    fprintf(stderr, "raw stack window (32 quadwords at rsp):\n");
+    for (int i = 0; i < 32; i++) {
+      u64 d = (u64)i * 8;
+      u64 v = 0;
+      bool ok = false;
+      __try {
+        v = *(const u64*)(ctx->Rsp + d);
+        ok = true;
+      } __except (EXCEPTION_EXECUTE_HANDLER) {
+        ok = false;
+      }
+      if (!ok) {
+        fprintf(stderr, "  [rsp+%#llx] (unreadable)\n", (unsigned long long)d);
+        break;
+      }
+      char attrib[160] = {0};
+      if (format_stack_goal_attribution(v, base_addr, mem_size, attrib, sizeof(attrib))) {
+        fprintf(stderr, "  [rsp+%#llx] %#018llx  %s\n", (unsigned long long)d,
+                (unsigned long long)v, attrib);
+      } else if (resolve_native_address(v, attrib, sizeof(attrib))) {
+        fprintf(stderr, "  [rsp+%#llx] %#018llx  %s\n", (unsigned long long)d,
+                (unsigned long long)v, attrib);
+      } else {
+        fprintf(stderr, "  [rsp+%#llx] %#018llx\n", (unsigned long long)d, (unsigned long long)v);
+      }
+    }
+  }
+
   // issue #716/#723: suspended-thread sweep. g_process_pool_root is 0 (the walk's own
   // no-op guard) unless the running game registered one (jakx only today, same posture
   // as g_symbol_string_base above).
   if (base && g_process_pool_root) {
     dump_process_pool_threads(g_process_pool_root, base, mem_size, base_addr, g_symtab_lo,
                               g_symtab_hi, s7.offset);
+  }
+
+  // issue #716 round 4: heap scan. g_process_type_addr is 0 (no-op guard) unless the
+  // running game registered one; unlike the sweep above, this does not depend on
+  // reachability from *active-pool* at all, so it is not gated on g_process_pool_root.
+  if (base && g_process_type_addr) {
+    heap_scan_processes(base, mem_size, base_addr, g_process_type_addr, g_symtab_lo, g_symtab_hi,
+                        s7.offset);
   }
 
   fprintf(stderr, "-----------------------------------\n");
@@ -994,6 +1297,33 @@ bool goal_crash_map_format_symbol_slot_for_test(u32 candidate,
                             symbol_string_base, out, out_size);
 }
 
+bool goal_crash_map_type_is_process_subtype_for_test(u32 tag,
+                                                     const u8* base,
+                                                     u64 window_size,
+                                                     u32 process_addr) {
+  return type_is_process_subtype(tag, base, window_size, process_addr);
+}
+
+void goal_crash_map_format_rreg_line_for_test(const u64* rreg,
+                                              u64 base_addr,
+                                              u64 mem_size,
+                                              u32 symtab_lo,
+                                              u32 symtab_hi,
+                                              char* out,
+                                              size_t out_size) {
+  std::lock_guard<std::mutex> lock(g_objs_mutex);
+  format_rreg_line(rreg, base_addr, mem_size, symtab_lo, symtab_hi, out, out_size);
+}
+
+bool goal_crash_map_format_stack_goal_attribution_for_test(u64 value,
+                                                           u64 base_addr,
+                                                           u64 mem_size,
+                                                           char* out,
+                                                           size_t out_size) {
+  std::lock_guard<std::mutex> lock(g_objs_mutex);
+  return format_stack_goal_attribution(value, base_addr, mem_size, out, out_size);
+}
+
 void goal_crash_map_set_symbol_string_base(u32 symbol_string_base) {
   g_symbol_string_base = symbol_string_base;
 }
@@ -1005,6 +1335,10 @@ void goal_crash_map_set_process_pool_root(u32 process_pool_root) {
 void goal_crash_map_set_symbol_table_region(u32 lo, u32 hi) {
   g_symtab_lo = lo;
   g_symtab_hi = hi;
+}
+
+void goal_crash_map_set_process_type(u32 process_type_addr) {
+  g_process_type_addr = process_type_addr;
 }
 
 void goal_crash_map_install() {

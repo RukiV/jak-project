@@ -593,3 +593,146 @@ TEST(GoalCrashMap, FormatSymbolSlotGracefulWhenNamePastWindow) {
                                                           symtab_lo, symtab_hi, s7_offset,
                                                           symbol_string_base, out, sizeof(out)));
 }
+
+// issue #716 round 4: the heap scan's type-hierarchy walk. A tag equal to process_addr
+// itself matches immediately, before any parent read -- proven by leaving the parent
+// field un-populated (zeroed) and still getting a match.
+TEST(GoalCrashMap, TypeIsProcessSubtypeDirectMatch) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  const u32 process_addr = 0x1004;
+  EXPECT_TRUE(goal_crash_map_type_is_process_subtype_for_test(process_addr, mem.data(), window_size,
+                                                              process_addr));
+}
+
+// a genuine subtype (child -> mid -> process, three hops) must be found by climbing
+// Type::parent.
+TEST(GoalCrashMap, TypeIsProcessSubtypeViaParentChain) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  const u32 process_addr = 0x1004;
+  const u32 mid_addr = 0x1104;
+  const u32 child_addr = 0x1204;
+  write_u32(mem, child_addr + 4, mid_addr);    // child.parent = mid
+  write_u32(mem, mid_addr + 4, process_addr);  // mid.parent = process
+
+  EXPECT_TRUE(goal_crash_map_type_is_process_subtype_for_test(child_addr, mem.data(), window_size,
+                                                              process_addr));
+}
+
+// a chain that never reaches process_addr (terminates at a self-parented root, the
+// hierarchy's own convention for "no more ancestors") must return false, not loop.
+TEST(GoalCrashMap, TypeIsProcessSubtypeUnrelatedChainNoMatch) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  const u32 process_addr = 0x1004;
+  const u32 root_addr = 0x1304;
+  const u32 leaf_addr = 0x1404;
+  write_u32(mem, leaf_addr + 4, root_addr);  // leaf.parent = root
+  write_u32(mem, root_addr + 4, root_addr);  // root.parent = root (self-parented root)
+
+  EXPECT_FALSE(goal_crash_map_type_is_process_subtype_for_test(leaf_addr, mem.data(), window_size,
+                                                               process_addr));
+}
+
+// a 2-cycle that never reaches process_addr must not hang the walk; MAX_TYPE_PARENT_HOPS
+// bounds it and the walk returns false once the budget runs out.
+TEST(GoalCrashMap, TypeIsProcessSubtypeCycleIsBounded) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  const u32 process_addr = 0x1004;
+  const u32 a_addr = 0x1504;
+  const u32 b_addr = 0x1604;
+  write_u32(mem, a_addr + 4, b_addr);  // a.parent = b
+  write_u32(mem, b_addr + 4, a_addr);  // b.parent = a (2-cycle, never reaches process_addr)
+
+  EXPECT_FALSE(goal_crash_map_type_is_process_subtype_for_test(a_addr, mem.data(), window_size,
+                                                               process_addr));
+}
+
+// process_addr == 0 means "not registered" and must disable the check unconditionally,
+// even for a tag that would otherwise match trivially.
+TEST(GoalCrashMap, TypeIsProcessSubtypeDisabledWhenProcessAddrIsZero) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  EXPECT_FALSE(goal_crash_map_type_is_process_subtype_for_test(0x1004, mem.data(), window_size, 0));
+}
+
+// issue #716 round 4: the rreg line. Each of the 7 slots is classified independently:
+// a raw zero flags "(ZERO)"; a value resolving (absolute or raw-offset) to a recorded
+// object prints its name; one landing in the registered symbol-table region is flagged;
+// one that resolves to neither is flagged "UNMAPPED".
+TEST(GoalCrashMap, FormatRregLineClassifiesEachSlot) {
+  const u32 obj = 0x00f00000;
+  goal_crash_map_record(obj, "cpu-thread-owner", 0x100);
+  const u64 base_addr = 0x3000000000ull;
+  const u64 mem_size = 0x8000000ull;
+  const u32 symtab_lo = 0x180000;
+  const u32 symtab_hi = 0x190000;
+
+  u64 rreg[7] = {
+      0,                       // [0] ZERO
+      base_addr + obj + 0x10,  // [1] resolves via lookup() (absolute reading)
+      0x185000,                // [2] in symbol-table region (raw-offset reading)
+      0x00c50000,              // [3] plausible GOAL address, unmapped (disjoint from every
+                               //     other test's recorded ranges in this file)
+      obj + 0x50,              // [4] resolves via lookup() (raw-offset reading)
+      0,                       // [5] ZERO again
+      0x185500,                // [6] in symbol-table region again
+  };
+
+  char out[512];
+  goal_crash_map_format_rreg_line_for_test(rreg, base_addr, mem_size, symtab_lo, symtab_hi, out,
+                                           sizeof(out));
+  std::string line(out);
+  // don't assert the exact zero-padded hex text for value 0 (printf's alternate-form
+  // "0x" prefix is specifically suppressed at value 0, per the same C99 7.19.6.1p6
+  // convention already documented for %#x elsewhere in this file); just confirm the
+  // flag landed right after the "[0]=" slot marker.
+  EXPECT_NE(line.find("[0]="), std::string::npos) << line;
+  EXPECT_NE(line.find("(ZERO)"), std::string::npos) << line;
+  EXPECT_NE(line.find("[1]="), std::string::npos) << line;
+  EXPECT_NE(line.find("(cpu-thread-owner+0x10)"), std::string::npos) << line;
+  EXPECT_NE(line.find("(SYMBOL TABLE, FLAG)"), std::string::npos) << line;
+  EXPECT_NE(line.find("(UNMAPPED, FLAG)"), std::string::npos) << line;
+  EXPECT_NE(line.find("(cpu-thread-owner+0x50)"), std::string::npos) << line;
+}
+
+// issue #716 round 4: the raw stack window's GOAL-range half. A value inside a recorded
+// object's extent names it; a value in GOAL range but past every recorded extent still
+// reports as GOAL space, just unmapped; a value outside [base_addr, base_addr+mem_size)
+// is not a plausible GOAL address at all and the function returns false (the caller
+// falls back to host-module attribution in that case).
+TEST(GoalCrashMap, FormatStackGoalAttributionResolvesRecordedObject) {
+  const u32 obj = 0x00d10000;
+  goal_crash_map_record(obj, "gkernel", 0x100);
+  const u64 base_addr = 0x4000000000ull;
+  const u64 mem_size = 0x8000000ull;
+
+  char out[160];
+  EXPECT_TRUE(goal_crash_map_format_stack_goal_attribution_for_test(
+      base_addr + obj + 0x20, base_addr, mem_size, out, sizeof(out)));
+  std::string line(out);
+  EXPECT_NE(line.find("gkernel+0x20 [0xd10000,+0x100) (goal 0xd10020)"), std::string::npos) << line;
+}
+
+TEST(GoalCrashMap, FormatStackGoalAttributionUnmappedStillInGoalRange) {
+  const u64 base_addr = 0x4000000000ull;
+  const u64 mem_size = 0x8000000ull;
+
+  char out[160];
+  EXPECT_TRUE(goal_crash_map_format_stack_goal_attribution_for_test(
+      base_addr + 0x00e20000, base_addr, mem_size, out, sizeof(out)));
+  std::string line(out);
+  EXPECT_NE(line.find("(goal 0xe20000, unmapped)"), std::string::npos) << line;
+}
+
+TEST(GoalCrashMap, FormatStackGoalAttributionFalseOutsideGoalRange) {
+  const u64 base_addr = 0x4000000000ull;
+  const u64 mem_size = 0x8000000ull;
+
+  char out[160] = "untouched";
+  EXPECT_FALSE(goal_crash_map_format_stack_goal_attribution_for_test(0x7ff600000000ull, base_addr,
+                                                                     mem_size, out, sizeof(out)));
+  EXPECT_STREQ(out, "untouched");
+}

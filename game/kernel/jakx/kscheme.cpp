@@ -1989,6 +1989,13 @@ int InitHeapAndSymbol() {
   // (freshly created, still-zero) symbol slot rather than failing, so this registers 0 --
   // the sweep's own no-op guard -- instead of misreading an address that was never set.
   goal_crash_map_set_process_pool_root(intern_from_c(-1, 0, "*active-pool*")->value());
+  // issue #716 round 4: register the `process` type's own address for the crash
+  // handler's heap scan (goal_crash_map.h's goal_crash_map_set_process_type() doc
+  // comment). A type's symbol value IS the Type object's address (the same convention
+  // get_fixed_type_symbol()/u32_in_fixed_sym() above rely on for the built-in fixed
+  // types); `process` is declared by gkernel-h.gc, part of the same kernel DGO loaded
+  // above, so it is already defined by this point.
+  goal_crash_map_set_process_type(intern_from_c(-1, 0, "process")->value());
 
   protoBlock.deci2count = intern_from_c(-1, 0, "*deci-count*").cast<s32>() - 1;
   InitListener();
