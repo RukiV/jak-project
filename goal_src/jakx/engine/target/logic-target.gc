@@ -17,6 +17,28 @@
 ;; is no longer needed.
 (define *jakx-view-target* #t)
 
+;; og:preserve-this bring-up lever (camera-teardown regression, reported
+;; 2026-08-23): target-continue's own :code runs a teardown pair, (set!
+;; *external-cam-mode* #f) and (cam-stop), guarded only by a no-blackout
+;; continue-flag test that is vacuous in this corpus (zero continue-points
+;; in the tree set that flag), plus a matching (cam-start #t) /
+;; (cam-master-activate-slave #t) pair further down guarded the same way.
+;; cam-stop nulls view 0's camera AND camera-combiner slots, but the
+;; bring-up free-flight camera is update-camera's pad-fallback arm
+;; (cam-update.gc:532), which needs the camera-master LIVE and the
+;; combiner ABSENT; cam-free-floating-input's own guard
+;; (cam-states-dbg.gc:245-249) needs that same live master for every pad
+;; read. Left running, this pair kills the master and the controller stops
+;; moving the free-flight camera. This lever gates both blocks as a unit
+;; (gating only one would leave either a registered combiner beating the
+;; pad arm, or a dead master with nothing live to replace it) and defaults
+;; #f to keep the pad-driven free-flight camera alive. Retires, flipping
+;; its default to #t, when the real camera start chain (the one
+;; *jakx-cam-start* and the math-camera model already track) is brought up
+;; and this teardown/start pair can run against a live result instead of
+;; tearing down the bring-up fallback.
+(define *jakx-continue-cam-takeover* #f)
+
 ;; og:preserve-this forward-decl, R5a (#122): reset-target-state below guards a call to
 ;; this function (unlanded; raw_obj link-table grep shows it referenced from four
 ;; objects, including target-death.go, none of which is landed yet); the compiler
@@ -397,12 +419,14 @@
       )
     (rot->dir-targ! (-> self root))
     (vector-reset! (-> self root transv))
-    (if (not (string= (-> arg0 name) "default"))
-        (set! *external-cam-mode* #f)
-        )
-    (if (not (logtest? (-> arg0 flags) (continue-flags no-blackout)))
-        (cam-stop)
-        )
+    (when *jakx-continue-cam-takeover*
+      (if (not (string= (-> arg0 name) "default"))
+          (set! *external-cam-mode* #f)
+          )
+      (if (not (logtest? (-> arg0 flags) (continue-flags no-blackout)))
+          (cam-stop)
+          )
+      )
     (suspend)
     (let ((a0-23 (lookup-level-info (-> arg0 vis-nick))))
       (set! (-> *load-state* vis-nick) (if a0-23
@@ -535,30 +559,32 @@
     ;; (the same camera-start chain this rung's own og:preserve-this notes on
     ;; *jakx-cam-start* and the math-camera model already track), not
     ;; specifically tied to rung 3b.
-    (when (not (logtest? (-> arg0 flags) (continue-flags no-blackout)))
-      (cam-start #t)
-      (suspend)
-      (when (not (string= (-> arg0 name) "default"))
-        (set! camera-combiner-live? (nonzero? (view-get-active-camera-combiner)))
-        (when camera-combiner-live?
-          (set! (-> (the-as camera-combiner (view-get-active-camera-combiner)) trans quad) (-> arg0 camera-trans quad))
-          (let ((s5-6 (-> (the-as camera-combiner (view-get-active-camera-combiner)) inv-camera-rot))
-                (s4-2 (-> arg0 camera-rot))
-                )
-            (matrix-identity! s5-6)
-            (set! (-> s5-6 rvec x) (* 0.00003051851 (the float (-> s4-2 0))))
-            (set! (-> s5-6 rvec y) (* 0.00003051851 (the float (-> s4-2 1))))
-            (set! (-> s5-6 rvec z) (* 0.00003051851 (the float (-> s4-2 2))))
-            (set! (-> s5-6 uvec x) (* 0.00003051851 (the float (-> s4-2 3))))
-            (set! (-> s5-6 uvec y) (* 0.00003051851 (the float (-> s4-2 4))))
-            (set! (-> s5-6 uvec z) (* 0.00003051851 (the float (-> s4-2 5))))
-            (set! (-> s5-6 fvec x) (* 0.00003051851 (the float (-> s4-2 6))))
-            (set! (-> s5-6 fvec y) (* 0.00003051851 (the float (-> s4-2 7))))
-            (set! (-> s5-6 fvec z) (* 0.00003051851 (the float (-> s4-2 8))))
+    (when *jakx-continue-cam-takeover*
+      (when (not (logtest? (-> arg0 flags) (continue-flags no-blackout)))
+        (cam-start #t)
+        (suspend)
+        (when (not (string= (-> arg0 name) "default"))
+          (set! camera-combiner-live? (nonzero? (view-get-active-camera-combiner)))
+          (when camera-combiner-live?
+            (set! (-> (the-as camera-combiner (view-get-active-camera-combiner)) trans quad) (-> arg0 camera-trans quad))
+            (let ((s5-6 (-> (the-as camera-combiner (view-get-active-camera-combiner)) inv-camera-rot))
+                  (s4-2 (-> arg0 camera-rot))
+                  )
+              (matrix-identity! s5-6)
+              (set! (-> s5-6 rvec x) (* 0.00003051851 (the float (-> s4-2 0))))
+              (set! (-> s5-6 rvec y) (* 0.00003051851 (the float (-> s4-2 1))))
+              (set! (-> s5-6 rvec z) (* 0.00003051851 (the float (-> s4-2 2))))
+              (set! (-> s5-6 uvec x) (* 0.00003051851 (the float (-> s4-2 3))))
+              (set! (-> s5-6 uvec y) (* 0.00003051851 (the float (-> s4-2 4))))
+              (set! (-> s5-6 uvec z) (* 0.00003051851 (the float (-> s4-2 5))))
+              (set! (-> s5-6 fvec x) (* 0.00003051851 (the float (-> s4-2 6))))
+              (set! (-> s5-6 fvec y) (* 0.00003051851 (the float (-> s4-2 7))))
+              (set! (-> s5-6 fvec z) (* 0.00003051851 (the float (-> s4-2 8))))
+              )
             )
           )
+        (cam-master-activate-slave #t)
         )
-      (cam-master-activate-slave #t)
       )
     (send-event self 'level-enter (-> arg0 level))
     (dotimes (v1-176 (-> *level* length))
