@@ -162,6 +162,63 @@ void* RPC_Player(unsigned int, void* msg, int size) {
     base_cmd->command = TranslateJakXSoundCommand(base_cmd->command);
     switch (((const Rpc_Player_Base_Cmd*)m_ptr)->command) {
       case SoundCommand::PLAY: {
+        if (g_game_version == GameVersion::JakX) {
+          // jakx's sound-rpc-play carries name@16 and a 10-byte sound-play-params
+          // (mask/group/volume/pitch-mod/bend/pan) at offset 32
+          // (decompiler/config/jakx/all-types.gc), not jak3's 32-byte
+          // SoundPlayParams at the same offset. jakx also does falloff and ear/pan
+          // math EE-side (see the set-globals note on TranslateJakXSoundCommand
+          // above), so its volume and pan are already final values: push them
+          // straight through instead of recomputing via
+          // CalculateFalloffVolume/CalculateAngle.
+          //
+          // jakx's volume is a 0..1024 Q10 multiplier
+          // (goal_src/jakx/engine/sound/gsound.gc:
+          // (max 0 (min 1024 (the int (* volume volumef))))), exactly what
+          // snd_PlaySoundByNameVolPanPMPB's vol argument expects: play_vol =
+          // (sfx_default_vol * vol) >> 10, so 1024 is unity gain against the sfx
+          // block's own default volume and 0 is explicit silence
+          // (game/sound/989snd/blocksound_handler.cpp:32-69). jakx's pan is
+          // already a 0-360 degree angle
+          // (goal_src/jakx/engine/sound/gsound.gc's update-pan-angle scaled by
+          // 360/65536), the same units CalculateAngle returns for jak3. Neither
+          // needs rescaling, just the right offsets.
+          const auto* cmd = (const JakXPlayCmd*)m_ptr;
+          ovrld_log(LogCategory::PLAYER_RPC, "[Player RPC] command PLAY {} id {}", cmd->name.data,
+                    cmd->sound_id);
+          s32 id = cmd->sound_id;
+          if (id) {
+            auto* sound = LookupSound(id);
+            bool is_new = !sound;
+            if (is_new) {
+              ovrld_log(LogCategory::PLAYER_RPC, "[Player RPC] allocating a new one");
+              sound = AllocateSound();
+            }
+            if (sound) {
+              strcpy_toupper(sound->name.data, cmd->name.data);
+              sound->params.mask = cmd->params.mask;
+              sound->params.group = cmd->params.group;
+              sound->params.volume = cmd->params.volume;
+              sound->params.pitch_mod = cmd->params.pitch_mod;
+              sound->params.bend = cmd->params.bend;
+              sound->auto_time = 0;
+              s32 vol = cmd->params.volume;
+              s32 pan = cmd->params.pan;
+              if (is_new) {
+                auto handle = snd_PlaySoundByNameVolPanPMPB(0, 0, sound->name.data, vol, pan,
+                                                            (int)cmd->params.pitch_mod,
+                                                            (int)cmd->params.bend);
+                sound->id = id;
+                sound->sound_handle = handle;
+              } else {
+                snd_SetSoundVolPan(sound->sound_handle, vol, pan);
+                snd_SetSoundPitchModifier(sound->sound_handle, (int)cmd->params.pitch_mod);
+                snd_SetSoundPitchBend(sound->sound_handle, (int)cmd->params.bend);
+              }
+            }
+          }
+          break;
+        }
         const auto* cmd = (const Rpc_Player_Play_Cmd*)m_ptr;
         ovrld_log(LogCategory::PLAYER_RPC, "[Player RPC] command PLAY {} id {}", cmd->name.data,
                   cmd->sound_id);
@@ -327,6 +384,77 @@ void* RPC_Player(unsigned int, void* msg, int size) {
         }
       } break;
       case SoundCommand::SET_PARAM: {
+        if (g_game_version == GameVersion::JakX) {
+          // jakx's sound-rpc-set-param has params@16, auto-time@28 and
+          // auto-from@32 (decompiler/config/jakx/all-types.gc), not jak3's
+          // params@8/auto_time@40/auto_from@44; JakXSetParamCmd mirrors it. jakx's
+          // params only cover mask/group/volume/pitch-mod/bend (no
+          // trans/fo_min/fo_max/fo_curve/priority/reg - it does falloff EE-side,
+          // same as PLAY above), and the volume update pushes straight through via
+          // snd_SetSoundVolPan instead of UpdateVolume's
+          // CalculateFalloffVolume, for the same reason PLAY bypasses it.
+          const auto* cmd = (const JakXSetParamCmd*)m_ptr;
+          ovrld_log(LogCategory::PLAYER_RPC, "[RPC Player] SET_PARAM Sound ID {}", cmd->sound_id);
+          if (cmd->sound_id) {
+            auto* sound = LookupSound(cmd->sound_id);
+            if (sound) {
+              ovrld_log(LogCategory::PLAYER_RPC,
+                        "[RPC Player] Found matching Sound {} to SET_PARAM", sound->name.data);
+              auto& params = cmd->params;
+              u16 mask = params.mask;
+              s32 atime = cmd->auto_time;
+              s32 afrom = cmd->auto_from;
+              if ((mask & 1) != 0) {
+                if ((mask & 0x10) == 0) {
+                  sound->params.volume = params.volume;
+                  snd_SetSoundVolPan(sound->sound_handle, sound->params.volume, -2);
+                } else {
+                  sound->auto_time = atime;
+                  sound->new_volume = params.volume;
+                }
+              }
+              if ((mask & 2) != 0) {
+                auto pitch_mod = params.pitch_mod;
+                sound->params.pitch_mod = pitch_mod;
+                if ((mask & 0x10) == 0) {
+                  snd_SetSoundPitchModifier(sound->sound_handle, params.pitch_mod);
+                } else {
+                  snd_AutoPitch(sound->sound_handle, pitch_mod, atime, afrom);
+                }
+              }
+              if ((mask & 4) != 0) {
+                auto bend = params.bend;
+                sound->params.bend = bend;
+                if ((mask & 0x10) == 0) {
+                  snd_SetSoundPitchBend(sound->sound_handle, params.bend);
+                } else {
+                  snd_AutoPitchBend(sound->sound_handle, (int)bend, atime, afrom);
+                }
+              }
+              if ((mask & 8) != 0) {
+                sound->params.group = params.group;
+              }
+            } else {
+              auto* vag = FindVagStreamId(cmd->sound_id);
+              if (vag) {
+                ovrld_log(LogCategory::PLAYER_RPC,
+                          "[RPC Player] Found matching VAG {} to SET_PARAM", vag->name);
+                auto& params = cmd->params;
+                auto mask = params.mask;
+                if ((mask & 2) != 0) {
+                  SetVAGStreamPitch(cmd->sound_id, params.pitch_mod);
+                }
+                if ((mask & 8) != 0) {
+                  vag->play_group = params.group;
+                }
+                if ((mask & 1) != 0) {
+                  vag->play_volume = params.volume;
+                }
+              }
+            }
+          }
+          break;
+        }
         const auto* cmd = (const Rpc_Player_Set_Param_Cmd*)m_ptr;
         ovrld_log(LogCategory::PLAYER_RPC, "[RPC Player] SET_PARAM Sound ID {}", cmd->sound_id);
         if (cmd->sound_id) {
@@ -586,6 +714,29 @@ void* RPC_Loader(unsigned int, void* msg, int size) {
       } break;
 
       case SoundCommand::UNLOAD_BANK: {
+        if (g_game_version == GameVersion::JakX) {
+          // jakx's sound-rpc-unload-bank has no bank name on the wire at all - it
+          // sends the bank's mode at offset 4 (goal_src/jakx/engine/sound/gsound.gc
+          // sound-bank-unload, all-types.gc sound-rpc-unload-bank), so it has to
+          // resolve against AllocateBankName's stamped gBanks[i]->mode instead of
+          // LookupBank's name compare.
+          auto* cmd = (const JakXUnloadBankCmd*)m_ptr;
+          ovrld_log(LogCategory::PLAYER_RPC, "[RPC Loader] Got bank unload command: mode {}",
+                    cmd->mode);
+          SoundBankInfo* ifno = LookupBankByMode(cmd->mode);
+          if (ifno) {
+            auto snd_handle = ifno->snd_handle;
+            ifno->snd_handle = nullptr;
+            if (ifno->unk0 == 0) {
+              ifno->in_use = 0;
+            }
+            ifno->mode = 0;
+            ifno->loaded = 0;
+            snd_UnloadBank(snd_handle);
+            snd_ResolveBankXREFS();
+          }
+          break;
+        }
         auto* cmd = (const Rpc_Loader_Bank_Cmd*)m_ptr;
         ovrld_log(LogCategory::PLAYER_RPC, "[RPC Loader] Got bank load unload command: {}",
                   cmd->bank_name.data);

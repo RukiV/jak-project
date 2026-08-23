@@ -24,6 +24,7 @@ struct SoundBankInfo {
 void jak3_overlord_init_globals_sbank();
 void InitBanks();
 SoundBankInfo* LookupBank(const char* name);
+SoundBankInfo* LookupBankByMode(u32 mode);
 SoundBankInfo* AllocateBankName(const char* name, u32 mode);
 void PrintBanks();
 extern SoundBankInfo* gBanks[8];

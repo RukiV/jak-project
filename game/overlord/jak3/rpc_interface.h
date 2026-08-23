@@ -1,5 +1,7 @@
 #pragma once
 
+#include <cstddef>
+
 #include "common/common_types.h"
 
 /*!
@@ -283,5 +285,45 @@ static_assert(sizeof(Rpc_Loader_Set_Mirror_Mode) == 6);
 
 constexpr int kPlayerCommandStride = 0x50;
 constexpr int kLoaderCommandStride = 0x50;
+
+// Jak X reshaped these commands and shrank the RPC element stride to 48 bytes
+// (kJakXCommandStride in srpc.cpp; TranslateJakXSoundCommand handles the renumbered
+// SoundCommand enum). The overlays below mirror the jakx GOAL layouts
+// (decompiler/config/jakx/all-types.gc: sound-play-params, sound-rpc-play,
+// sound-rpc-set-param, sound-rpc-unload-bank) rather than the jak3 Rpc_Player_*
+// shapes above; do not conflate the two.
+
+struct JakXSoundPlayParams {
+  u8 mask;
+  u8 group;
+  s16 volume;
+  s16 pitch_mod;
+  s16 bend;
+  s16 pan;
+};
+static_assert(sizeof(JakXSoundPlayParams) == 0xa);
+
+struct JakXPlayCmd : public Rpc_Player_Sound_Cmd {
+  s32 pad[2];
+  SoundName name;
+  JakXSoundPlayParams params;
+};
+static_assert(offsetof(JakXPlayCmd, name) == 16);
+static_assert(offsetof(JakXPlayCmd, params) == 32);
+
+struct JakXSetParamCmd : public Rpc_Player_Sound_Cmd {
+  s32 pad[2];
+  JakXSoundPlayParams params;
+  s32 auto_time;
+  s32 auto_from;
+};
+static_assert(offsetof(JakXSetParamCmd, params) == 16);
+static_assert(offsetof(JakXSetParamCmd, auto_time) == 28);
+static_assert(offsetof(JakXSetParamCmd, auto_from) == 32);
+
+struct JakXUnloadBankCmd : public Rpc_Player_Base_Cmd {
+  u32 mode;
+};
+static_assert(offsetof(JakXUnloadBankCmd, mode) == 4);
 
 }  // namespace jak3

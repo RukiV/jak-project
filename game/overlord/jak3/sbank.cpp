@@ -164,6 +164,19 @@ SoundBankInfo* LookupBank(const char* name) {
   return nullptr;
 }
 
+// Jak X sends UNLOAD_BANK with a mode value, not a bank name (its
+// sound-rpc-unload-bank wire struct has no name field at all), so it has to be
+// resolved against the mode AllocateBankName stamped on the bank rather than by
+// LookupBank's name compare.
+SoundBankInfo* LookupBankByMode(u32 mode) {
+  for (int i = kNumBanks; i-- > 0;) {
+    if (gBanks[i]->in_use && gBanks[i]->mode == mode) {
+      return gBanks[i];
+    }
+  }
+  return nullptr;
+}
+
 int GetFalloffCurve(int x) {
   if (x < 0) {
     return 1;
