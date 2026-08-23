@@ -350,6 +350,54 @@ void format_receiver(const char* name,
   }
 }
 
+// issue #716 round 2: name a symbol-table slot address, the same string-table
+// indirection format_receiver() above uses for a type's name (symbol_string_base +
+// candidate - s7_offset holds a Ptr<String>, chars starting 4 bytes past its own value --
+// jakx::sym_to_string_ptr()). Round 1's stack-of-blocks arithmetic (0x147d21 + 0x400e0 =
+// 0x187e01, the #716 crash constant across both the garage-turntable and the "target"
+// occurrence families) named 0x147d21 as this build's s7 and 0x400e0 as a stable
+// slot-relative offset, meaning the crash's real target is not a random unmapped address
+// but a SPECIFIC symbol slot -- this is the one-line verdict that names it: "jump target
+// = symbol slot 'NAME' (bound|unbound)".
+//
+// Bound-ness: a GOAL symbol's value lives at candidate-1 (Symbol4<T>::value(), the same
+// byte-precise -1 convention every other symbol read/write in this codebase already uses,
+// e.g. kscheme.cpp's `ds_symbol->value() = ...`). An interned-but-never-`(define)`d
+// symbol's value defaults to its OWN address as the VM's unbound sentinel (not 0), so
+// "bound" is exactly "the value slot holds something other than the slot's own address".
+bool format_symbol_slot(u32 candidate,
+                        const u8* base,
+                        u64 window_size,
+                        u32 symtab_lo,
+                        u32 symtab_hi,
+                        u32 s7_offset,
+                        u32 symbol_string_base,
+                        char* out,
+                        size_t out_size) {
+  if (candidate < symtab_lo || candidate >= symtab_hi || !symbol_string_base) {
+    return false;
+  }
+  s64 name_ptr_addr = (s64)symbol_string_base + (s64)candidate - (s64)s7_offset;
+  if (name_ptr_addr < 0) {
+    return false;
+  }
+  u32 str_ptr = 0;
+  if (!bounded_read_u32(base, window_size, (u64)name_ptr_addr, &str_ptr) || !str_ptr ||
+      str_ptr >= window_size) {
+    return false;
+  }
+  char name[64] = {0};
+  if (!bounded_read_str(base, window_size, (u64)str_ptr + 4, name, sizeof(name))) {
+    return false;
+  }
+  u32 value = 0;
+  bool have_value =
+      (candidate >= 1) && bounded_read_u32(base, window_size, (u64)candidate - 1, &value);
+  bool bound = have_value && value != candidate;
+  std::snprintf(out, out_size, "symbol slot '%s' (%s)", name, bound ? "bound" : "unbound");
+  return true;
+}
+
 // issue #716/#723: field offsets for the GOAL process-pool walk below, all "the
 // deftype's :offset-assert value minus 4" -- the same conversion the existing pp fields
 // just above (pp+0 is process-tree's `name`, offset-assert 4; pp+0x70 is process's
@@ -683,13 +731,48 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   fprintf(stderr, "\n");
   fprintf(stderr, "rsp: %#llx (rsp mod 16 = %llu)\n", (unsigned long long)ctx->Rsp,
           (unsigned long long)(ctx->Rsp % 16));
+  // issue #716 round 2: print s7 itself, not just registers derived from it -- every
+  // "symbol slot" line below is only interpretable relative to this value (s7+0 is #f
+  // itself, per common/symbols.h's FIX_SYM_FALSE = 0 convention), and the round-1/round-2
+  // arithmetic hinges on knowing this build's actual s7, not an assumed one.
+  fprintf(stderr, "s7: goal %#x [%#x, %#x)\n", s7.offset, g_symtab_lo, g_symtab_hi);
+
+  // issue #716 round 2: hoisted above the register loop (was declared just before the
+  // rip symbolization further down) so the loop can use it too, for the same dual
+  // absolute/raw-offset reading format_reg() already does internally -- resolving each
+  // register to a candidate symbol-table slot needs that resolved address, and
+  // format_symbol_slot() itself is deliberately kept pure (no register-ABI knowledge), so
+  // that resolution is redone here rather than threaded through format_reg()'s signature.
+  const u64 base_addr = (u64)(uintptr_t)base;
+  auto append_symbol_slot = [&](u64 value, char* line_buf, size_t line_buf_size) {
+    u32 candidate = 0;
+    bool have_candidate = false;
+    if (base_addr && value >= base_addr && value < base_addr + mem_size) {
+      candidate = (u32)(value - base_addr);
+      have_candidate = true;
+    } else if (value && value < mem_size) {
+      candidate = (u32)value;
+      have_candidate = true;
+    }
+    if (!have_candidate) {
+      return;
+    }
+    size_t n = std::strlen(line_buf);
+    if (n >= line_buf_size) {
+      return;
+    }
+    char slot[96];
+    if (format_symbol_slot(candidate, base, mem_size, g_symtab_lo, g_symtab_hi, s7.offset,
+                           g_symbol_string_base, slot, sizeof(slot))) {
+      std::snprintf(line_buf + n, line_buf_size - n, "  <- %s", slot);
+    }
+  };
 
   // general-purpose registers, each read both as an absolute pointer and as a raw goal
   // offset, with the one that carries the faulting address marked (issue #376). r15 is
   // the GOAL base and r13 the current process in this ABI, so both symbolize as
   // themselves; the rest is what the faulting instruction was actually working with.
   {
-    const u64 base_addr_r = (u64)(uintptr_t)base;
     struct {
       const char* name;
       u64 value;
@@ -698,9 +781,12 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
                 {"r9", ctx->R9},   {"r10", ctx->R10}, {"r11", ctx->R11}, {"r12", ctx->R12},
                 {"r13", ctx->R13}, {"r14", ctx->R14}, {"r15", ctx->R15}};
     fprintf(stderr, "registers:\n");
-    char line[160];
+    char line[224];
     for (const auto& r : regs) {
-      format_reg(r.name, r.value, base ? base_addr_r : 0, mem_size, fault_addr, line, sizeof(line));
+      format_reg(r.name, r.value, base ? base_addr : 0, mem_size, fault_addr, line, sizeof(line));
+      // issue #716 round 2: name the symbol slot a register resolves to, if any (e.g. the
+      // 0x187e01/0x147d21 constant-callee bystanders across every #716 occurrence).
+      append_symbol_slot(r.value, line, sizeof(line));
       fprintf(stderr, "%s\n", line);
     }
   }
@@ -741,7 +827,7 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   // bytes on the #115 main.o, 0 on every other object in that capture (the cursor
   // was already 16-aligned). This is a small, bounded skew (0-15 bytes), not a
   // lookup bug; it is not corrected here, only documented so it is not re-derived.
-  const u64 base_addr = (u64)(uintptr_t)base;
+  // base_addr itself is hoisted above the register loop now (issue #716 round 2).
   if (base && rip >= base_addr && rip < base_addr + mem_size) {
     u32 goal_ip = (u32)(rip - base_addr);
     const ObjRec* o = lookup(goal_ip);
@@ -750,6 +836,15 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
               o->start, o->extent, goal_ip);
     } else {
       fprintf(stderr, "GOAL code: unmapped object (goal %#x)\n", goal_ip);
+    }
+    // issue #716 round 2: the one-line verdict. Round 1's arithmetic showed the crash's
+    // real target is a specific symbol-table slot, not a random unmapped address; this
+    // names it directly off the same rip this block just symbolized, e.g. "jump target =
+    // symbol slot 'teleport' (unbound)".
+    char slot[96];
+    if (format_symbol_slot(goal_ip, base, mem_size, g_symtab_lo, g_symtab_hi, s7.offset,
+                           g_symbol_string_base, slot, sizeof(slot))) {
+      fprintf(stderr, "jump target = %s\n", slot);
     }
   } else {
     print_native_rip(rip);
@@ -884,6 +979,19 @@ void goal_crash_map_format_thread_line_for_test(const char* proc_name,
   std::lock_guard<std::mutex> lock(g_objs_mutex);
   format_thread_line(proc_name, role, pc, sp, have_ra, ra, base_addr, mem_size, symtab_lo,
                      symtab_hi, out, out_size);
+}
+
+bool goal_crash_map_format_symbol_slot_for_test(u32 candidate,
+                                                const u8* base,
+                                                u64 window_size,
+                                                u32 symtab_lo,
+                                                u32 symtab_hi,
+                                                u32 s7_offset,
+                                                u32 symbol_string_base,
+                                                char* out,
+                                                size_t out_size) {
+  return format_symbol_slot(candidate, base, window_size, symtab_lo, symtab_hi, s7_offset,
+                            symbol_string_base, out, out_size);
 }
 
 void goal_crash_map_set_symbol_string_base(u32 symbol_string_base) {

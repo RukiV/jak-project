@@ -489,3 +489,107 @@ TEST(GoalCrashMap, FormatReceiverMethodSlotMismatchIsNotReportedAsMatch) {
       << line;
   EXPECT_EQ(line.find("MATCH"), std::string::npos) << line;
 }
+
+// issue #716 round 2: the symbol-slot namer. A candidate inside [symtab_lo, symtab_hi)
+// resolves its name through the same symbol_string_base + candidate - s7_offset
+// indirection sym_to_string_ptr()/format_receiver() use, and is reported "bound" when its
+// own value slot (candidate - 1, Symbol4<T>::value()'s byte-precise convention) holds
+// something other than the slot's own address -- the VM's unbound-symbol sentinel.
+TEST(GoalCrashMap, FormatSymbolSlotNamesBoundSlot) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 symtab_lo = 0x1000;
+  const u32 symtab_hi = 0x1900;
+  const u32 s7_offset = 0x1500;
+  const u32 symbol_string_base = 0x1000;
+  const u32 candidate = 0x1600;  // inside [symtab_lo, symtab_hi)
+  const u32 name_ptr_addr = symbol_string_base + candidate - s7_offset;  // 0x1100
+  const u32 str_ptr = 0x1200;
+
+  write_u32(mem, name_ptr_addr, str_ptr);
+  write_cstr(mem, str_ptr + 4, "teleport");
+  write_u32(mem, candidate - 1, 0x12345678);  // bound: value != candidate
+
+  char out[128];
+  bool ok = goal_crash_map_format_symbol_slot_for_test(candidate, mem.data(), window_size,
+                                                       symtab_lo, symtab_hi, s7_offset,
+                                                       symbol_string_base, out, sizeof(out));
+  ASSERT_TRUE(ok);
+  EXPECT_STREQ(out, "symbol slot 'teleport' (bound)");
+}
+
+// an interned-but-never-assigned symbol's own value defaults to its own address (the
+// VM's unbound sentinel, not 0): the namer must report that as "unbound", not crash on
+// the self-referential read or misreport it as bound.
+TEST(GoalCrashMap, FormatSymbolSlotNamesUnboundSlot) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 symtab_lo = 0x1000;
+  const u32 symtab_hi = 0x1900;
+  const u32 s7_offset = 0x1500;
+  const u32 symbol_string_base = 0x1000;
+  const u32 candidate = 0x1600;
+  const u32 name_ptr_addr = symbol_string_base + candidate - s7_offset;
+  const u32 str_ptr = 0x1200;
+
+  write_u32(mem, name_ptr_addr, str_ptr);
+  write_cstr(mem, str_ptr + 4, "some-unbound-sym");
+  write_u32(mem, candidate - 1, candidate);  // unbound: value == candidate (self-reference)
+
+  char out[128];
+  bool ok = goal_crash_map_format_symbol_slot_for_test(candidate, mem.data(), window_size,
+                                                       symtab_lo, symtab_hi, s7_offset,
+                                                       symbol_string_base, out, sizeof(out));
+  ASSERT_TRUE(ok);
+  EXPECT_STREQ(out, "symbol slot 'some-unbound-sym' (unbound)");
+}
+
+// a candidate outside the registered symbol-table region (including the [0,0) disabled
+// default) is not a symbol slot at all -- must not attempt the string-table indirection.
+TEST(GoalCrashMap, FormatSymbolSlotOutsideRegionReturnsFalse) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  char out[128] = "untouched";
+
+  EXPECT_FALSE(goal_crash_map_format_symbol_slot_for_test(
+      0x1950, mem.data(), window_size, 0x1000, 0x1900, 0x1500, 0x1000, out, sizeof(out)));
+  EXPECT_FALSE(goal_crash_map_format_symbol_slot_for_test(0x1600, mem.data(), window_size,
+                                                          /*symtab_lo=*/0, /*symtab_hi=*/0, 0x1500,
+                                                          0x1000, out, sizeof(out)));
+  EXPECT_STREQ(out, "untouched");
+}
+
+// symbol_string_base of 0 means no game has registered a table (every game but jakx, or
+// jakx before InitHeapAndSymbol() runs): must skip resolution entirely, matching
+// format_receiver()'s own posture for the same 0 default.
+TEST(GoalCrashMap, FormatSymbolSlotNoTableRegisteredReturnsFalse) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  char out[128];
+
+  EXPECT_FALSE(goal_crash_map_format_symbol_slot_for_test(
+      0x1600, mem.data(), window_size, 0x1000, 0x1900, 0x1500,
+      /*symbol_string_base=*/0, out, sizeof(out)));
+}
+
+// the string-table indirection resolving past window_size must degrade gracefully (no
+// out-of-bounds read), mirroring FormatReceiverNameLookupPastWindowIsGraceful above.
+TEST(GoalCrashMap, FormatSymbolSlotGracefulWhenNamePastWindow) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 symtab_lo = 0x1000;
+  const u32 symtab_hi = 0x1ff0;
+  const u32 s7_offset = 0x1000;
+  // symbol_string_base chosen so name_ptr_addr = 0x1ff0 + 0x50 - 0x10... simpler: push it
+  // straight past window_size.
+  const u32 symbol_string_base = 0x1ff0;
+  const u32 candidate = 0x1050;  // name_ptr_addr = 0x1ff0 + 0x1050 - 0x1000 = 0x2040 > window
+
+  char out[128];
+  EXPECT_FALSE(goal_crash_map_format_symbol_slot_for_test(candidate, mem.data(), window_size,
+                                                          symtab_lo, symtab_hi, s7_offset,
+                                                          symbol_string_base, out, sizeof(out)));
+}

@@ -152,3 +152,20 @@ void goal_crash_map_format_thread_line_for_test(const char* proc_name,
                                                 u32 symtab_hi,
                                                 char* out,
                                                 size_t out_size);
+
+// test seam (issue #716 round 2): forwards to the crash handler's pure symbol-slot namer
+// (format_symbol_slot() in goal_crash_map.cpp): "symbol slot '<name>' (bound|unbound)"
+// when candidate falls inside [symtab_lo, symtab_hi) and its string-table indirection
+// resolves; false/untouched out otherwise. No g_objs access, so unlike
+// goal_crash_map_format_reg_for_test() this seam takes no mutex. No behavior change from
+// the crash-handler path (both the rip line and each register line call the same
+// function against the real 128MB mapping).
+bool goal_crash_map_format_symbol_slot_for_test(u32 candidate,
+                                                const u8* base,
+                                                u64 window_size,
+                                                u32 symtab_lo,
+                                                u32 symtab_hi,
+                                                u32 s7_offset,
+                                                u32 symbol_string_base,
+                                                char* out,
+                                                size_t out_size);
