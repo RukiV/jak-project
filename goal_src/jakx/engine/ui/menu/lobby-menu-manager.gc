@@ -2686,6 +2686,41 @@
   4033
   )
 
+;; menu-road rung 3 post-boot audit (issue 699): a -debug acceptance boot
+;; crashed with gk's own "attempting to run nullptr function!" trap, pp =
+;; lobby-menu-manager, inside the go/enter-state dispatch machinery
+;; (stack carrying gstate.gc's own enter-state, which calls a state's own
+;; :code field completely unconditionally, no #f guard the way :enter/
+;; :trans get one). Root cause: pre-game-type-menu and waiting-for-cd
+;; (both landed in lobby-net-startup.gc, menu-road rung 3) go-virtual
+;; into three numbered lobby-menu-manager state slots on their own normal,
+;; unconditional-on-a-fresh-boot control flow (54, 55, and 140); none of
+;; the three had ever been installed by any defstate or method-set!
+;; anywhere in the corpus, so the type system's own :state-methods
+;; declaration reserves and types the slot (satisfying go-hook's own
+;; compile-time "incomplete type" check) but its runtime vtable entry is
+;; never written, leaving it at whatever the type's own initial method
+;; table fill is -- raw 0, not #f, since state dispatch only tests
+;; against #f and 0 slips through as "callable." These three minimal
+;; inert stubs close exactly the slots the confirmed critical path
+;; reaches; the other ~30 states menu-road rung 3's own PARTIAL cut
+;; documented (slots 51-75 minus these two, 92, 121, 195) are not on this
+;; boot's own path and stay uninstalled.
+(defstate lobby-menu-manager-state-54 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate lobby-menu-manager-state-55 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate lobby-menu-manager-state-140 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
 
 
 

@@ -118,14 +118,24 @@
       )
     (when *net-hw-initted*
       (format 0 "resetting net-mgr~%")
-      ;; lobby rung 3: the scoped decode's own pretty-printer leaves these
-      ;; two tokens as bare, unparenthesized statements rather than a real
-      ;; call (op 49-54's own single jalr shows zero live call args once
-      ;; register allocation settles, unlike the six-arg enter-state call
-      ;; above); landed exactly as printed rather than guessing a padded
-      ;; arg list goalc would reject.
-      enter-state
-      'pre-game-type-menu
+      ;; lobby rung 3, corrected in the post-boot audit (issue 699): the
+      ;; scoped decode's own pretty-printer prints "enter-state" and
+      ;; "'pre-game-type-menu" as two bare, unparenthesized tokens ahead
+      ;; of a seemingly zero-arg (go-virtual lobby-menu-manager-state-54),
+      ;; but op 50 sets a0 to 'pre-game-type-menu immediately before the
+      ;; identical vtable-read/next-state-store/enter-state-call sequence
+      ;; every other go-virtual in this file compiles to (ops 51-54): this
+      ;; is go-virtual's own documented &rest args forwarding (gstate.gc's
+      ;; own (defmacro go-virtual (state-name &key (proc self) &rest
+      ;; args))), not two orphaned statements, so retail's own call reads
+      ;; (go-virtual lobby-menu-manager-state-54 'pre-game-type-menu). The
+      ;; original landing left the tokens bare (a no-op) instead, which
+      ;; silently dropped the argument, not the crash itself (state 54 was
+      ;; unfilled either way). state-54's own real body is still unlanded;
+      ;; this rung's own crash-fix stub (lobby-menu-manager.gc, :code
+      ;; sleep-code) is zero-arg, so the extra argument goalc would reject
+      ;; against that stub's own inferred type is dropped here rather than
+      ;; guessed at. Whoever lands state-54 for real should re-add it.
       (go-virtual lobby-menu-manager-state-54)
       )
     (hack-reset-state #f)
