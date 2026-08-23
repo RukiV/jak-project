@@ -64,7 +64,7 @@ InputManager::InputManager(SDL_Window* window)
     }
     m_command_binds = CommandBindingGroups();
     refresh_device_list();
-    ignore_background_controller_events(false);
+    ignore_background_controller_events(m_settings->ignore_background_controller_events);
     hide_cursor(m_auto_hide_mouse);
   }
 }
@@ -155,7 +155,7 @@ void InputManager::enqueue_ignore_background_controller_events(const bool ignore
 }
 
 void InputManager::ignore_background_controller_events(const bool ignore) {
-  m_ignore_background_controller_events = ignore;
+  m_settings->ignore_background_controller_events = ignore;
   // TODO - ignoring return value (atleast log it)
   SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, ignore ? "0" : "1");
 }
@@ -345,6 +345,17 @@ void InputManager::register_command(const CommandBinding::Source source,
 std::optional<std::shared_ptr<PadData>> InputManager::get_current_data(const int port) const {
   if (m_data.find(port) == m_data.end()) {
     return {};
+  }
+  // If the window doesn't have input focus, controller-mapped ports report a neutral pad
+  // instead of whatever was last latched. The SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS toggle
+  // in `ignore_background_controller_events` stops new controller state from arriving while
+  // backgrounded, but it can't retroactively release a button that was already held at the
+  // moment focus was lost -- this is what actually guarantees that. Ports with no controller
+  // mapped (keyboard/mouse only) are untouched: SDL resets keyboard state on a focus loss on its
+  // own, so there's nothing here to override.
+  if (!m_window_has_focus && m_settings->ignore_background_controller_events &&
+      m_controller_port_mapping.find(port) != m_controller_port_mapping.end()) {
+    return m_neutral_pad_data;
   }
   return m_data.at(port);
 }

@@ -116,6 +116,16 @@ void DisplayManager::process_sdl_event(const SDL_Event& event) {
       case SDL_EVENT_WINDOW_MOUSE_LEAVE:
         m_input_manager.value()->hide_cursor(false);
         break;
+      case SDL_EVENT_WINDOW_FOCUS_GAINED:
+        if (m_input_manager) {
+          m_input_manager.value()->set_window_focused(true);
+        }
+        break;
+      case SDL_EVENT_WINDOW_FOCUS_LOST:
+        if (m_input_manager) {
+          m_input_manager.value()->set_window_focused(false);
+        }
+        break;
     }
   } else if (event_type >= SDL_EVENT_DISPLAY_FIRST && event_type <= SDL_EVENT_DISPLAY_LAST) {
     // https://wiki.libsdl.org/SDL3/SDL_DisplayEvent

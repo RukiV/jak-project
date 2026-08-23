@@ -84,6 +84,10 @@ struct InputSettings {
   bool keyboard_enabled = false;
   bool enable_trigger_effects = false;
   bool enable_pressure_sensitivity = false;
+  // require the window to have input focus before game-controller state reaches the game; while
+  // unfocused the game sees a neutral pad instead of whatever was last held. default on so that
+  // running multiple sessions side-by-side doesn't let one controller drive all of them.
+  bool ignore_background_controller_events = true;
   float axis_scale = 1.33f;     // multiplies analog stick axis input after reading from drivers.
   float pressure_scale = 1.0f;  // trigger and pressure sensitivity values.
   // not saved or restored, flips on if no controllers are detected

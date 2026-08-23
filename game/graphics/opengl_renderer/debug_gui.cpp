@@ -161,6 +161,14 @@ void OpenGlDebugGui::draw(const DmaStats& dma_stats) {
                           &is_keyboard_enabled)) {
         Display::GetMainDisplay()->get_input_manager()->enable_keyboard(is_keyboard_enabled);
       }
+      auto ignore_background_controller_events = Display::GetMainDisplay()
+                                                     ->get_input_manager()
+                                                     ->are_background_controller_events_ignored();
+      if (ImGui::Checkbox("Require Window Focus for Controller Input",
+                          &ignore_background_controller_events)) {
+        Display::GetMainDisplay()->get_input_manager()->enqueue_ignore_background_controller_events(
+            ignore_background_controller_events);
+      }
       for (int port = 0; port < 1; port++) {
         const auto label = fmt::format("Selected Controller (Port {})", port);
         if (ImGui::TreeNode(label.c_str())) {

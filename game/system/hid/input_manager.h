@@ -124,6 +124,13 @@ class InputManager {
   int controller_send_rumble(const int port, const u8 low_intensity, const u8 high_intensity);
 
   void enable_keyboard(const bool enabled);
+  // Called from the display manager's SDL event pump whenever the window gains or loses input
+  // focus. Drives the neutral-pad override in `get_current_data` -- see the comment there for why
+  // this is a second layer on top of the SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS toggle below.
+  void set_window_focused(const bool focused) { m_window_has_focus = focused; }
+  bool are_background_controller_events_ignored() {
+    return m_settings->ignore_background_controller_events;
+  }
   bool get_waiting_for_bind() const { return m_waiting_for_bind.has_value(); }
   void set_wait_for_bind(const InputDeviceType device_type,
                          const bool for_analog,
@@ -177,7 +184,14 @@ class InputManager {
   int m_skip_polling_for_n_frames = 0;
   bool m_auto_hide_mouse = true;
   bool m_mouse_currently_hidden = false;
-  bool m_ignore_background_controller_events = false;
+  /// Whether the window currently has input focus, tracked via SDL_EVENT_WINDOW_FOCUS_GAINED/LOST
+  /// (see `set_window_focused`). Assumed true at startup since a freshly created window normally
+  /// has focus.
+  bool m_window_has_focus = true;
+  /// Returned by `get_current_data` in place of the real pad data for controller-mapped ports
+  /// while the window is unfocused. A default-constructed PadData is already neutral (buttons
+  /// released, sticks centered, pressures zero).
+  std::shared_ptr<PadData> m_neutral_pad_data = std::make_shared<PadData>();
 
   /// No inputs will be processed while in this mode the first input detected from the relevant
   /// device type will be used to set the bind and clear the flag
