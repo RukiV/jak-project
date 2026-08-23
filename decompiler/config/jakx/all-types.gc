@@ -42553,10 +42553,14 @@
 ;; (define-extern shadow-add-double-edges function) ;; function
 (define-extern debug-draw-settings (function shadow-settings symbol))
 ;; engine-quick-tier-9: uncommented to land shadow-cpu.gc's own
-;; shadow-execute-all, which calls this def-mips2c function; matches jak3's
-;; own declaration verbatim (goal_src/jak3/engine/gfx/foreground/
-;; shadow-cpu.gc:636, decompiler/config/jak3/all-types.gc:31269).
-(define-extern shadow-execute (function shadow-dma-packet pointer pointer))
+;; shadow-execute-all, which calls this def-mips2c function. THREE arguments,
+;; diverging from jak3's two: jakx's retail shadow-execute-all loads a2 from
+;; the viewport before the jalr (op [125], "or a2, s5, r0") and the callee
+;; reads (-> viewport math-camera) at +176 through it; the earlier jak3-copied
+;; 2-arg declaration made the decompiler drop that argument from the rendered
+;; call, and the landed 2-arg call fed the mips2c stale register residue
+;; (the shadow685j native crash).
+(define-extern shadow-execute (function shadow-dma-packet pointer viewport pointer))
 (define-extern shadow-vu0-upload (function none))
 ;; takes no arguments: it derives the current viewport's own global-buf from
 ;; *viewport-array*/*display* internally rather than from a caller-supplied

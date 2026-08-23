@@ -4234,6 +4234,16 @@
   ;; write viewport 1's state while the renderers consume viewport 0's. That was
   ;; the frozen-visibility bug: the per-frame all-visible refresh landed in
   ;; vis-bits[1] and vis-bits[0] never changed after boot.
+  ;; og:preserve-this the per-frame *shadow-globals* chain-head reset, wired
+  ;; live: foreground-initialize-engines landed with its only call site inside
+  ;; the commented-out real-main-draw-hook decode, so nothing ever reset the
+  ;; shadow buckets' first/next between frames. first is only written when
+  ;; zero (foreground.gc's fragment append), so from frame 2 the chain head
+  ;; pointed into the PREVIOUS frame's dma-buffer and the emulated chain walk
+  ;; would read rewritten memory. jak3 calls this in the same pre-foreground
+  ;; position (its drawable.gc:1571, ";; reset foreground"). Once per frame,
+  ;; before the viewport loop: the six buckets span both viewports.
+  (foreground-initialize-engines)
   (let ((prev-vp (-> *viewport-array* current-viewport-index)))
     (dotimes (vp-idx (-> *viewport-array* num-viewports))
       (view-push-context vp-idx)

@@ -519,7 +519,15 @@
     )
   )
 
-(def-mips2c shadow-execute (function shadow-dma-packet pointer pointer))
+;; og:preserve-this THREE arguments, not jak3's two: jakx's own retail asm
+;; loads a2 from the viewport before the jalr (shadow-execute-all op [125],
+;; "or a2, s5, r0"), and the mips2c body reads (-> viewport math-camera) at
+;; +176 through it (shadow-init-vars is fed from the same register). The
+;; decompiler rendered the call with two args because this extern carried
+;; jak3's signature verbatim; with only two passed, a2 held stale register
+;; residue and the camera read walked wild (the shadow685j native crash,
+;; gk.exe+0x3d22c1, fault = residue+176).
+(def-mips2c shadow-execute (function shadow-dma-packet pointer viewport pointer))
 
 (defun shadow-vu0-upload ()
   ;; og:preserve-this PC_PORT guard, jak3's own landed shape (its shadow-cpu.gc
@@ -624,7 +632,9 @@
                   (shadow-vu1-init-buffer s0-0 s3-1 (the-as math-camera s5-1))
                   (flush-cache 0)
                   (let ((sv-32 (shadow-dma-init s0-0 s5-1)))
-                    (set! (-> s0-0 base) (shadow-execute (the-as shadow-dma-packet sv-16) (-> s0-0 base)))
+                    (set! (-> s0-0 base)
+                          (shadow-execute (the-as shadow-dma-packet sv-16) (-> s0-0 base) (the-as viewport s5-1))
+                          )
                     (let ((a2-4 (nonzero? (-> (scratchpad-object shadow-dcache) ptr-dual-verts)))
                           (a1-12 (logior (shl #x3f800000 32) (shr (shl (the-as int (the-as uint32 (-> s2-0 shadow-color))) 32) 32)))
                           )
