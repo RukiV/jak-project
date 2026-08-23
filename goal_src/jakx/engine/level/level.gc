@@ -2261,6 +2261,10 @@
 ;; entity lifecycle, matching retail's want-set discipline.
 (define *level-sweep-heap-base* 0)
 (define *level-sweep-heap-top* 0)
+;; og:preserve-this issue 709 (R3 of the heap-residue family): scratch counter for
+;; the forall-particles kill-callback below; only meaningful while that walk is
+;; running, same lifetime discipline as the heap-base/heap-top pair above.
+(define *level-sweep-live-particle-kill-count* 0)
 
 (defun in-level-sweep-range? ((addr int))
   "Bounds check shared by both kill-level-typed-processes predicates below.
@@ -2550,6 +2554,73 @@
     ;; *part-group-id-table*; see unlink-part-by-heap in sparticle-launcher.gc
     ;; for the *part-id-table* sibling scrub and the full deviation note.
     (unlink-part-by-heap (-> this heap))
+    ;; og:preserve-this issue 709 (R3 of the heap-residue family, closing 697's
+    ;; class): the two scrubs above only clear the id tables; they cannot reach
+    ;; a particle that is already live and has copied a launcher pointer out of
+    ;; this heap into its own cpuinfo. canyon-part.gc:104 writes a raw
+    ;; *part-id-table* pointer straight into a LIVE particle's next-launcher
+    ;; (`(set! (-> arg1 next-launcher) (-> *part-id-table* 1449))`), and
+    ;; sparticle.gc:62 copies sp-func the same way on every spawn/relaunch
+    ;; (structure-copy in method 0 of sparticle-cpuinfo). Neither consumer has
+    ;; a GOAL dispatch point a birth!-style guard could gate -- both are read
+    ;; straight off the cpuinfo by the mips2c particle processor -- so this has
+    ;; to be a scrub, not a guard. Reuses forall-particles and sparticle-kill-it
+    ;; (sparticle.gc) rather than hand-rolling the cpuinfo-table walk;
+    ;; *level-sweep-heap-base*/*level-sweep-heap-top* are set here (and again,
+    ;; harmlessly, by kill-level-typed-processes below for the same level) so
+    ;; this walk and the queue filter after it can reuse in-level-sweep-range?
+    ;; like every other heap-scoped sweep in this file.
+    (set! *level-sweep-heap-base* (the-as int (-> this heap base)))
+    (set! *level-sweep-heap-top* (the-as int (-> this heap top-base)))
+    (set! *level-sweep-live-particle-kill-count* 0)
+    (forall-particles
+      (lambda ((arg0 sparticle-system) (arg1 sparticle-cpuinfo) (arg2 pointer))
+        (when (or (in-level-sweep-range? (the-as int (-> arg1 next-launcher)))
+                  (in-level-sweep-range? (the-as int (-> arg1 sp-func)))
+                  )
+          (sparticle-kill-it arg0 arg1)
+          (+! *level-sweep-live-particle-kill-count* 1)
+          )
+        (none)
+        )
+      #t
+      #t
+      )
+    (format 0 "level-sweep ~A: killing ~D live particles with launcher in unloading heap~%"
+            (-> this name)
+            *level-sweep-live-particle-kill-count*
+            )
+    ;; og:preserve-this issue 709: sp-queue-launch (sparticle-launcher.gc) stages
+    ;; a launch for next frame's sp-clear-queue drain (sparticle-launcher.gc:
+    ;; 986-1003 shows the drain shape: dotimes over in-use, launch-particles,
+    ;; then reset in-use to 0). A launch queued this frame against a
+    ;; sparticle-launcher homed in the heap being unloaded right now would
+    ;; otherwise survive to feed launch-particles a freed spec on the very next
+    ;; frame. Compact the 256 inline entries in place rather than draining
+    ;; early -- draining here would launch particles mid-unload, not just
+    ;; discard the dangerous ones.
+    (let ((s5-7 *sp-launch-queue*)
+          (keep-count 0)
+          (drop-count 0)
+          )
+      (dotimes (src-idx (-> s5-7 in-use))
+        (let ((entry (-> s5-7 queue src-idx)))
+          (if (in-level-sweep-range? (the-as int (-> entry sp-launcher)))
+              (+! drop-count 1)
+              (begin
+                (when (!= keep-count src-idx)
+                  (set! (-> s5-7 queue keep-count sp-system) (-> entry sp-system))
+                  (set! (-> s5-7 queue keep-count sp-launcher) (-> entry sp-launcher))
+                  (set! (-> s5-7 queue keep-count pos quad) (-> entry pos quad))
+                  )
+                (+! keep-count 1)
+                )
+              )
+          )
+        )
+      (set! (-> s5-7 in-use) keep-count)
+      (format 0 "level-sweep ~A: dropping ~D queued particle launches~%" (-> this name) drop-count)
+      )
     (unlink-lightning-spec-by-heap (-> this heap))
     ;; og:preserve-this issue 697, layer three: a borrow-load level can register a
     ;; texture-anim-array whose defining static ships only in a window level's own
