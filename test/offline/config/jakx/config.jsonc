@@ -867,7 +867,24 @@
     // expression, so the fresh decompile text offline-test's own
     // compile pass uses still lacks it). The decomp-vs-REF diff still
     // gates the whole object.
-    "scene"
+    "scene",
+    // lobby-menu-manager-h rung 1: restore-selection-index dispatches
+    // *lobby-menu-manager*'s own method 185 (declared basic for the
+    // game-info.gc/main.gc build-order idiom) then, on that call's own
+    // return, method 65 on selection-menu-manager; type_casts.jsonc casts
+    // each consuming -4(reg) read so the object decodes at zero ir2
+    // errors and (mi) links the whole worktree clean, but the pretty-
+    // printer collapses each cast register back to its bare source
+    // variable at the call's own argument position (the same class the
+    // "scene" entry above documents for an inlined dynamic dispatch), so
+    // the fresh decompile text offline-test's own compile pass uses still
+    // calls (lobby-menu-manager-method-185 *lobby-menu-manager* ...) and
+    // (selection-menu-manager-method-65 a0-1 ...) uncast. goal_src carries
+    // the same two calls with explicit (the-as lobby-menu-manager ...) and
+    // (the-as selection-menu-manager ...) wrappers instead, proven via a
+    // clean full-project (mi) build; the decomp-vs-REF diff still gates
+    // the rest of the object.
+    "lobby-menu-manager-h"
   ],
   "skip_compile_functions": [
     // rigid-body-debug (rigid-body-object rung): four rb-debugger methods inline
