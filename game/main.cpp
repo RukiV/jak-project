@@ -110,9 +110,10 @@ int main(int argc, char** argv) {
   app.add_flag("--version", show_version, "Display the built revision");
   app.add_option("-g,--game", game_name, "The game name: 'jak1' or 'jak2'");
   app.add_flag("-v,--verbose", verbose_logging, "Enable verbose logging on stdout");
-  app.add_flag(
+  app.add_option(
       "--port", port_number,
-      "Specify port number for listener connection (default is 8112 for Jak 1 and 8113 for Jak 2)");
+      "Specify port number for listener connection (default is 8112 + game index: jak1=8112, "
+      "jak2=8113, jak3=8114, jakx=8115)");
   app.add_flag("--no-avx2", disable_avx2, "Disable AVX2 for testing");
   app.add_flag("--no-display", disable_display, "Disable video display");
   app.add_flag("--profile", enable_profiling, "Enables profiling immediately from startup");
