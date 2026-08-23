@@ -25,6 +25,7 @@
 #include "common/util/crc32.h"
 #include "common/util/dgo_util.h"
 #include "common/util/json_util.h"
+#include "common/util/string_util.h"
 
 #include "decompiler/Function/BasicBlocks.h"
 #include "decompiler/config.h"
@@ -789,6 +790,18 @@ std::string ObjectFileDB::process_tpages(TextureDB& tex_db,
     } else if (data.name_in_dgo == "dir-tpages") {
       result = process_dir_tpages(data).to_source();
       tpage_dir_count++;
+    } else if (str_util::ends_with(data.record.name, "-ag")) {
+      // jakx's car art-groups embed their texture pages directly instead of shipping them as
+      // standalone tpage-* objects; the runtime finds them by walking the art-group's element
+      // array (level.gc's jakx-only art-group tpage registration branch, around login-begin).
+      // find_embedded_tpages does the same walk.
+      for (auto tpage_word_offset : find_embedded_tpages(data)) {
+        auto statistics = process_embedded_tpage(data, tex_db, output_path, cfg.animated_textures,
+                                                 cfg.save_texture_pngs, tpage_word_offset);
+        total += statistics.total_textures;
+        success += statistics.successful_textures;
+        total_px += statistics.num_px;
+      }
     }
   });
 

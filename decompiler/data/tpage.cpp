@@ -22,6 +22,7 @@
 #include "common/versions/versions.h"
 
 #include "decompiler/ObjectFile/ObjectFileDB.h"
+#include "decompiler/util/goal_data_reader.h"
 
 #include "fmt/format.h"
 
@@ -229,6 +230,26 @@ int label_to_word_offset(DecompilerLabel l, bool basic) {
   return result;
 }
 
+/*!
+ * Find the word index just past the end of a run of raw (unrelocated) data words, starting at
+ * first_word. Raw texture pixel data is always plain data with no link info, so the first word
+ * carrying any kind of link info (a pointer, symbol, or type tag) marks the start of whatever
+ * GOAL placed next in the object file, bounding the raw data that came before it.
+ *
+ * A standalone tpage-* file doesn't need this: its raw texture data always runs to the end of
+ * the file. This is for a texture-page embedded inside a much bigger object (jakx's car
+ * art-groups), where other objects can follow the tpage's raw data in the same file.
+ */
+int find_end_of_raw_data(const std::vector<LinkedWord>& words, int first_word) {
+  int i = first_word;
+  for (; i < (int)words.size(); i++) {
+    if (words.at(i).kind() != LinkedWord::PLAIN_DATA) {
+      break;
+    }
+  }
+  return i;
+}
+
 std::string get_type_tag(const LinkedWord& word) {
   ASSERT(word.kind() == LinkedWord::TYPE_PTR);
   return word.symbol_name();
@@ -329,6 +350,13 @@ FileInfo read_file_info(ObjectFileData& data, const std::vector<LinkedWord>& wor
 
 /*!
  * Read a texture-page object.
+ * end is the word index the header + texture pointer array is expected to end at, used only as
+ * a consistency check, or -1 to skip that check. Every field is otherwise read either at a fixed
+ * relative offset or via its own label, so end is never needed for correctness: it just catches
+ * a texture-page whose static data doesn't look like what the tpage converter tool normally
+ * produces. -1 is for a texture-page embedded inside a bigger object (jakx's car art-groups),
+ * where unlike a standalone tpage-* file, there's no cheap way to tell whether the next file-info
+ * tag in the file belongs to this texture-page or to some other embedded object.
  */
 TexturePage read_texture_page(ObjectFileData& data,
                               const std::vector<LinkedWord>& words,
@@ -424,42 +452,51 @@ TexturePage read_texture_page(ObjectFileData& data,
     offset++;
   }
 
-  auto aligned_end = (offset + 3) & (~3);
-  ASSERT(aligned_end == end);
+  if (end != -1) {
+    auto aligned_end = (offset + 3) & (~3);
+    ASSERT(aligned_end == end);
+  }
 
   return tpage;
 }
 
-}  // namespace
-
 /*!
  * Process a texture page.
+ * word_offset is the index of the texture-page's type tag word in segment 0. It's 0 for a
+ * standalone tpage-* file (the whole file is the texture-page), and nonzero for a texture-page
+ * embedded inside a bigger object, found via find_objects_with_type. See find_end_of_raw_data
+ * for why the two cases need different raw-data bounds.
  * TODO - document
  */
-TPageResultStats process_tpage(ObjectFileData& data,
-                               TextureDB& texture_db,
-                               const fs::path& output_path,
-                               const std::unordered_set<std::string>& animated_textures,
-                               bool save_pngs) {
+TPageResultStats process_tpage_impl(ObjectFileData& data,
+                                    TextureDB& texture_db,
+                                    const fs::path& output_path,
+                                    const std::unordered_set<std::string>& animated_textures,
+                                    bool save_pngs,
+                                    int word_offset) {
   TPageResultStats stats;
   auto& words = data.linked_data.words_by_seg.at(0);
   const auto& level_names = data.dgo_names;
 
-  // at the beginning there's a texture-page object.
-  // find the size first.
+  // For a standalone tpage-* file, the texture-page is the only thing in the file, so the first
+  // file-info tag we find (its own nested info field) doubles as a cheap consistency check on
+  // where its header + texture pointer array ends. That doesn't hold once other objects can
+  // share the file (an embedded texture-page): some other embedded object's file-info could sit
+  // before this texture-page's own, so skip the check rather than risk matching the wrong one.
   int end_of_texture_page = -1;
-  for (size_t i = 0; i < words.size(); i++) {
-    if (is_type_tag(words.at(i), "file-info")) {
-      end_of_texture_page = i;
-      break;
+  if (word_offset == 0) {
+    for (size_t i = word_offset; i < words.size(); i++) {
+      if (is_type_tag(words.at(i), "file-info")) {
+        end_of_texture_page = i;
+        break;
+      }
     }
+    ASSERT(end_of_texture_page != -1);
+    // todo check it's not too small.
   }
 
-  ASSERT(end_of_texture_page != -1);
-  // todo check it's not too small.
-
   // Read the texture_page struct
-  TexturePage texture_page = read_texture_page(data, words, 0, end_of_texture_page);
+  TexturePage texture_page = read_texture_page(data, words, word_offset, end_of_texture_page);
   bool ignore_animated = texture_page.name == "sewesc-vis-pris";
   if (ignore_animated) {
     lg::warn(
@@ -472,7 +509,8 @@ TPageResultStats process_tpage(ObjectFileData& data,
   // Get raw data for textures.
   std::vector<u32> tex_data;
   auto tex_start = label_to_word_offset(texture_page.segments[0].block_data_label, false);
-  auto tex_size = int(words.size()) - int(tex_start);
+  auto tex_size = word_offset == 0 ? int(words.size()) - int(tex_start)
+                                   : find_end_of_raw_data(words, tex_start) - int(tex_start);
   ASSERT(tex_size > 0);
   tex_data.resize(tex_size);
   for (int i = 0; i < tex_size; i++) {
@@ -840,5 +878,69 @@ TPageResultStats process_tpage(ObjectFileData& data,
     }
   }
   return stats;
+}
+
+}  // namespace
+
+TPageResultStats process_tpage(ObjectFileData& data,
+                               TextureDB& texture_db,
+                               const fs::path& output_path,
+                               const std::unordered_set<std::string>& animated_textures,
+                               bool save_pngs) {
+  return process_tpage_impl(data, texture_db, output_path, animated_textures, save_pngs, 0);
+}
+
+TPageResultStats process_embedded_tpage(ObjectFileData& data,
+                                        TextureDB& texture_db,
+                                        const fs::path& output_path,
+                                        const std::unordered_set<std::string>& animated_textures,
+                                        bool save_pngs,
+                                        int word_offset) {
+  return process_tpage_impl(data, texture_db, output_path, animated_textures, save_pngs,
+                            word_offset);
+}
+
+std::vector<int> find_embedded_tpages(ObjectFileData& data) {
+  // Mirrors level.gc's jakx-only art-group tpage registration branch (login-begin): walk each
+  // art-group's element array and collect the elements that are a texture-page, the same check
+  // (type? (-> s3-0 data s2-0) texture-page) does at runtime. This is more work than a
+  // whole-file type-tag scan, but a plain scan turns up "texture-page" type-tag words that
+  // aren't actually an art-group element (measured on ashelin-ag, a non-car object where the
+  // runtime never runs this branch at all), so scoping to the actual element array like the
+  // runtime does is what avoids that.
+  //
+  // (deftype art-group (art) ((info file-info :offset 4) (data art-element :dynamic :offset 32)))
+  // (deftype art (basic) ((name string :offset 8) (length int32 :offset-assert 12) ...))
+  // art-group's own fixed header is exactly 0x20 (32) bytes (its :flag-assert), matching data
+  // starting right at word 8 relative to the type tag; length is art's own field, word 3.
+  constexpr int kLengthWord = 3;
+  constexpr int kDataStartWord = 8;
+
+  std::vector<int> result;
+  auto& words = data.linked_data.words_by_seg.at(0);
+  for (auto art_group_offset : find_objects_with_type(data.linked_data, "art-group")) {
+    auto& length_word = words.at(art_group_offset + kLengthWord);
+    if (length_word.kind() != LinkedWord::PLAIN_DATA) {
+      continue;
+    }
+    auto length = get_word<s32>(length_word);
+    for (int i = 0; i < length; i++) {
+      size_t elt_idx = art_group_offset + kDataStartWord + i;
+      if (elt_idx >= words.size()) {
+        break;
+      }
+      auto& elt = words.at(elt_idx);
+      if (elt.kind() != LinkedWord::PTR) {
+        // #f (no art in this slot) or something else that isn't a labeled object.
+        continue;
+      }
+      auto target = label_to_word_offset(get_label(data, elt), true);
+      if (target >= 0 && (size_t)target < words.size() &&
+          is_type_tag(words.at(target), "texture-page")) {
+        result.push_back(target);
+      }
+    }
+  }
+  return result;
 }
 }  // namespace decompiler
