@@ -54,6 +54,20 @@
 ;; call resolves ahead of that later landing.
 (define-extern lobby-start (function int))
 
+;; og:preserve-this menu-road rung 3 round 8 (issue 699): lever for the
+;; (lobby-start) call armed below. lobby-start's own chain reaches
+;; base-menu-init-by-other, which lives in engine/ui/menu2.gc; that object
+;; is landed and compiles but its own game.gd row was never added (the
+;; widget-engine landing rung, queued separately, has to clean menu2.gc's
+;; 107 raw gpr->fpr decompiler artifacts first, see menu2.gc's own header
+;; history). Until that lands, the base-menu process spawns with a null
+;; init function and the enriched trap in run-function-in-process halts
+;; the boot on purpose (the menuboot3 evidence line: "attempting to run
+;; nullptr function! in process base-menu ... all five spawn sites pass
+;; base-menu-init-by-other, which no landed object in any built DGO
+;; defines"). Flip this to #t only once menu2.o has a row in game.gd.
+(define *jakx-menu-road-armed* #f)
+
 ;; definition for method 3 of type title-control
 (defmethod inspect ((this title-control))
   (when (not this)
@@ -1006,7 +1020,12 @@
         )
       (send-event (ppointer->process (-> *setting-control* user-current movie)) 'abort)
       )
-    (lobby-start)
+    ;; og:preserve-this menu-road rung 3 round 8: gated by *jakx-menu-road-
+    ;; armed* (see its own definition above) until menu2.o has a game.gd
+    ;; row; #f here makes this identical to the pre-rung-3 og-stub boot.
+    (when *jakx-menu-road-armed*
+      (lobby-start)
+      )
     )
   :exit (behavior ()
     '()
