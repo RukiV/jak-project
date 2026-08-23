@@ -2024,5 +2024,46 @@
   // single compound type resolves the whole region; see
   // rapid-fire-control-init-scratch (all-types.gc) for the field-by-field
   // evidence.
-  "rapid-fire-control-initialize-from-vehicle": [[16, "rapid-fire-control-init-scratch"]]
+  "rapid-fire-control-initialize-from-vehicle": [[16, "rapid-fire-control-init-scratch"]],
+  // lobby rung 2: (code init-state)'s own dma-try-alloc call (ops 18-27)
+  // writes its two result pointers at sp+16/sp+20, the identical shape
+  // (method 10 load-state) already documents above ("jakx-only car-load
+  // section in update!: dma-try-alloc writes its two result pointers at
+  // sp+16/sp+20"); dma-try-alloc's own declared signature (all-types.gc)
+  // types t0/t1 as (pointer pointer), matching a two-element pointer array.
+  // sp+32 is a single-symbol want-sound-banks scratch (a raw 'menu1 store,
+  // matching that method's own declared (pointer symbol) arg); the
+  // decompiler's own error-free scoped decode still prints raw
+  // (the-as uint sp-0) pointer arithmetic here with numeric (-> a1-1 0)
+  // indexing (zero ERROR markers at decode time), but goalc rejects that
+  // for real ("Cannot access array of type uint"), the same title-handoff
+  // rung addendum class documented below; the landed source carries an
+  // explicit (the-as (pointer symbol) ...) wrapper at this let-binding
+  // instead, since a pointer typed hint here does not by itself change
+  // the printed form.
+  "(code init-state lobby-menu-manager)": [[16, ["array", "pointer", 2]]],
+  // lobby rung 2: kill-logo-menu builds a plain send-event-function
+  // event-message-block at sp+16 twice in sequence (die to the logo-
+  // subtitle handle, then die to the logo-main handle), the same shape
+  // used pervasively across this corpus (e.g. (method 25 level) above);
+  // the raw stack address's own type never resolved on its own ("Failed to
+  // guess stack use for 16 in kill-logo-menu:1").
+  "kill-logo-menu": [[16, "event-message-block"]],
+  // lobby rung 2: adventure-map-fade-out's own dma-try-alloc call (op 73
+  // onward) is the identical shape to (code init-state) above; same
+  // two-pointer out-array at sp+16/sp+20.
+  "adventure-map-fade-out": [[16, ["array", "pointer", 2]]],
+  // lobby rung 2: update-lobby-camera builds a matrix at sp+16 (four
+  // consecutive lq/sq quad copies, ops 32-39), passed to matrix->quaternion/
+  // quaternion->matrix as both source and destination throughout; the raw
+  // stack address's own type never resolved on its own ("Failed to guess
+  // stack use for 16").
+  // update-lobby-camera's own sp+80 slot is computed (op 13) but never
+  // dereferenced (dead, overwritten before use); the decompiler's own
+  // slot-type guesser still requires a hint for any address it sees taken,
+  // matching the wvehicle-weapons-vein rung 5 precedent above for an
+  // unguessable, address-only dead slot.
+  // sp+112 is the same class as sp+80 above: computed (op 25) but never
+  // dereferenced.
+  "update-lobby-camera": [[16, "matrix"], [80, "vector"], [112, "vector"]]
 }

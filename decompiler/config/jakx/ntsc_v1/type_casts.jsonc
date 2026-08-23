@@ -9963,6 +9963,39 @@
   "lobby-check-buttons": [
     [17, "a0", "lobby-menu-manager"]
   ],
+  // lobby rung 2: lobby-menu-manager-init-by-other's own op 71 reads
+  // *menu-events-info-array*'s (selection-cache) "state" field raw
+  // (basic, selection-cache's own declared field type), then op 72 adds
+  // a word-scaled index before op 73's own offset-12 element load, the
+  // standard (array X) data-start-at-12 convention; casting the state
+  // value at its own op-72 consuming read lets the index arithmetic
+  // resolve as a real element access instead of raw, untyped pointer
+  // math ("Failed load" at op 73).
+  "lobby-menu-manager-init-by-other": [
+    [72, "a0", "(array uint32)"]
+  ],
+  // lobby rung 2: update-lobby-camera's own op 17 reads *lobby-menu-manager*
+  // (declared basic for the game-info.gc/main.gc build-order forward-ref
+  // idiom) raw at offset 352, which by the all-types N+4 convention
+  // resolves to the field placed at offset-assert 356, lobby-menu-manager's
+  // own cam-string field; cast at the consuming read.
+  // lobby rung 2: update-lobby-camera reads/writes *lobby-menu-manager*
+  // (declared basic) raw three more times: op 90 and op 147 at offset 360
+  // (N+4 = offset-assert 364, interpolate-camera?), op 149 at offset 400
+  // (N+4 = offset-assert 404, override-fov, confirmed by the very next
+  // op's own "OVERRIDE FOV" debug string).
+  "update-lobby-camera": [
+    [17, "v1", "lobby-menu-manager"],
+    [90, "v1", "lobby-menu-manager"],
+    [147, "v1", "lobby-menu-manager"],
+    [149, "v1", "lobby-menu-manager"],
+    // op 74's own call is (res-lump-struct s5-0 'trans-offset structure),
+    // requesting the generic "structure" interpretation, but op 80 reads
+    // the result through a VU quad load (.lvf); cast to vector at the
+    // consuming read, matching op 79's own entity-offset-28 vector read
+    // immediately above it.
+    [80, "a1", "vector"]
+  ],
   // lobby-menu-manager-h rung 1: restore-selection-index reads
   // *lobby-menu-manager*, declared basic for the game-info.gc/main.gc
   // build-order forward-ref idiom (same precedent as af786d70a's method-185

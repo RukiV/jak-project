@@ -60592,12 +60592,30 @@
   ((game-type                  uint32    :offset-assert 144)
    (menu-handles               handle  8 :offset-assert 152)
    (in-focus-index             int8      :offset-assert 216)
-   (menu-handle-1              uint64    :offset 152)
-   (menu-handle-2              uint64    :offset 160)
-   (menu-handle-popup          uint64    :offset 168)
-   (menu-handle-background     uint64    :offset 224)
-   (menu-handle-logo-main      uint64    :offset 232)
-   (menu-handle-logo-subtitle  uint64    :offset 240)
+   ;; lobby rung 2: retyped uint64 -> handle, the same af786d70a class already
+   ;; applied to vehicle-handle above; (method 182 lobby-menu-manager)'s own
+   ;; raw offset loads through these three fields (aliases into the
+   ;; menu-handles array immediately above) feed the standard sllv/dsra32
+   ;; handle->process split; uint64 left it unresolvable ("Unsupported
+   ;; inline assembly instruction kind - sllv").
+   (menu-handle-1              handle    :offset 152)
+   (menu-handle-2              handle    :offset 160)
+   (menu-handle-popup          handle    :offset 168)
+   ;; lobby rung 2: retyped uint64 -> handle, the same af786d70a class already
+   ;; applied to vehicle-handle above. lmm-make-background-menu's own raw
+   ;; offset-220 load (this field, via the all-types N+4 basic-load
+   ;; convention) feeds the standard sllv/dsra32 handle->process split;
+   ;; uint64 left it unresolvable ("Unsupported inline assembly instruction
+   ;; kind - sllv").
+   (menu-handle-background     handle    :offset 224)
+   ;; lobby rung 2: retyped uint64 -> handle, the same af786d70a class already
+   ;; applied to vehicle-handle above. kill-logo-menu's own raw offset-228
+   ;; and offset-236 loads (through this field and menu-handle-logo-subtitle
+   ;; below, both via the all-types N+4 basic-load convention) feed the
+   ;; standard sllv/dsra32 handle->process split; uint64 left it unresolvable
+   ;; ("Unsupported inline assembly instruction kind - sllv").
+   (menu-handle-logo-main      handle    :offset 232)
+   (menu-handle-logo-subtitle  handle    :offset 240)
    (local-players              int32     :offset-assert 248)
    (refresh-time               uint32    :offset-assert 252)
    (game-connection-type       uint8     :offset-assert 256)
@@ -60840,26 +60858,34 @@
     (lobby-menu-manager-method-165 (_type_ object object) none) ;; 165
     (lobby-menu-manager-method-166 (_type_) none) ;; 166
     (lobby-menu-manager-method-167 (_type_) none) ;; 167
-    (lobby-menu-manager-method-168 () none) ;; 168
-    (lobby-menu-manager-method-169 () none) ;; 169
+    (lobby-menu-manager-method-168 (_type_ object) none) ;; 168
+    (lobby-menu-manager-method-169 (_type_ object) none) ;; 169
     (lobby-menu-manager-method-170 () none) ;; 170
-    (lobby-menu-manager-method-171 () none) ;; 171
+    (lobby-menu-manager-method-171 (_type_) none) ;; 171
     (lobby-menu-manager-method-172 (_type_ object) none) ;; 172
     (lobby-menu-manager-method-173 (_type_ object) none) ;; 173
     (lobby-menu-manager-method-174 (_type_ object) none) ;; 174
     (lobby-menu-manager-method-175 (_type_ object) none) ;; 175
     (lobby-menu-manager-method-176 (_type_) none) ;; 176
-    (lobby-menu-manager-method-177 () none) ;; 177
-    (lobby-menu-manager-method-178 () none) ;; 178
+    (lobby-menu-manager-method-177 (_type_) none) ;; 177
+    (lobby-menu-manager-method-178 (_type_) none) ;; 178
     (lobby-menu-manager-method-179 (_type_) none) ;; 179
     (lobby-menu-manager-method-180 (_type_ object object) none) ;; 180
     (lobby-menu-manager-method-181 (_type_) none) ;; 181
     (lobby-menu-manager-method-182 (_type_ object object) none) ;; 182
-    (lobby-menu-manager-method-183 (_type_ object object) none) ;; 183
+    ;; lobby rung 2: retyped none -> object; the body's own two (return #f)
+    ;; early exits and the decompiler's own "Return type mismatch object
+    ;; vs none" WARN agree, and every call site in this corpus uses the
+    ;; result as a truthy/falsy condition.
+    (lobby-menu-manager-method-183 (_type_ object object) object) ;; 183
     (lobby-menu-manager-method-184 (_type_) base-menu) ;; 184
     (lobby-menu-manager-method-185 (_type_ object) process) ;; 185
-    (lobby-menu-manager-method-186 (_type_) none) ;; 186
-    (lobby-menu-manager-method-187 () none) ;; 187
+    ;; lobby rung 2: retyped none -> symbol; the body's own (return #f)
+    ;; early exit and the decompiler's own "Return type mismatch symbol
+    ;; vs none" WARN agree, and its own call site uses the result as a
+    ;; truthy/falsy condition.
+    (lobby-menu-manager-method-186 (_type_) symbol) ;; 186
+    (lobby-menu-manager-method-187 (_type_) none) ;; 187
     (lobby-menu-manager-method-188 (_type_ int32 int32) none) ;; 188
     (lobby-menu-manager-method-189 (_type_ object) none) ;; 189
     (lobby-menu-manager-method-190 (_type_) none) ;; 190
@@ -61541,7 +61567,13 @@
 ;; (define-extern get-all-clan-stats function)
 ;; (define-extern make-new-score function)
 ;; (define-extern post-game-clan-stats-adjust function)
-;; (define-extern apply-clan-deltas function)
+;; lobby rung 2: called with zero explicit args from (code init-state)'s own
+;; op 70 (no register loaded between the t9 fetch and the call), its own
+;; return value dead-stored and never read; landed as a minimal bring-up
+;; stub in this symbol's own natural home, goal_src/jakx/engine/net/
+;; net-mgr-medius-clans.gc (otherwise still a 9-line stub), since a bare
+;; define-extern with no defun would link the call to 0.
+(define-extern apply-clan-deltas (function none))
 ;; (define-extern pre-game-clan-stats-adjust function)
 ;; (define-extern get-clans-in-challenge-info function)
 
@@ -84397,7 +84429,6 @@
   )
 
 
-(define-extern *interface-cam* object)
 ;; both init-by-other bodies open with (process-entity-set! self <arg0>),
 ;; then garage-cinema-init-by-other reads arg0's own offset-28 field as a
 ;; vector (entity's own trans field, offset-assert 28); single explicit
@@ -87922,7 +87953,12 @@
 (define-extern *aux-voice-last-startup* object) ;; provisional: call-site evidence only
 (define-extern *aux-voice-last-update* object) ;; provisional: call-site evidence only
 (define-extern *aux-voice-mgr* object) ;; provisional: call-site evidence only
-(define-extern *background-menu-info* object) ;; provisional: call-site evidence only
+;; lobby rung 2: lmm-make-background-menu forwards this global straight
+;; into run-function-in-process's own info-ptr arg alongside base-menu-
+;; init-by-other, the identical base-menu-info-family pointer shape
+;; *single-event-menu-info* above already resolves for the same reason
+;; (no narrowing leaf type evidenced in this rung's own scope).
+(define-extern *background-menu-info* base-menu-info)
 (define-extern *beam-info* beam-info) ;; confirmed: gun-util's own top-level type-new evidence (#x900000004, method-count 9, size 4) and jak3's twin (goal_src/jak3/engine/target/gun/gun-util.gc:119, (new 'static 'beam-info)); was provisional: call-site evidence only; the gun-util section's own dead comment for this symbol stays dead, this is its one active declaration
 (define-extern *body-parts-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *boss-hud* (array hud-item))
@@ -88194,6 +88230,9 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier *explosion-debug-sphere* extern (explosion rung, scripts/check_alltypes_shadowing.py)
 (define-extern *fake-msg-count* object) ;; provisional: call-site evidence only
 (define-extern *fake-msg-read* object) ;; provisional: call-site evidence only
+;; lobby rung 2: lmm-make-logo-menu's own (string= "logo.ipu" *fmv-m2v-
+;; name*) comparison (op 130-131) evidences a plain string, not object.
+(define-extern *fmv-m2v-name* string)
 (define-extern *fmv-work* object) ;; provisional: call-site evidence only
 (define-extern *foreground-to-level-translate* object) ;; provisional: call-site evidence only
 (define-extern *freeze-hangtime* object) ;; provisional: call-site evidence only
@@ -88487,6 +88526,14 @@
 ;; *instance-shrub-menu* stays declared debug-menu (default-menu rung,
 ;; evidence above); stale object-typed duplicate removed, same
 ;; later-define-extern-wins-at-compile reason noted elsewhere in this file.
+;; lobby rung 2: the real landed global (goal_src/jakx/engine/ui/menu/
+;; 3d-menu-elements.gc) stays declared object; a process-drawable retype
+;; here would fight that file's own (define *interface-cam* (the-as
+;; object #f)) under JakXTypeConsistency. update-lobby-camera's own op 7
+;; raw offset-188 load ("Could not figure out load") is resolved at its
+;; own consuming reads instead via an explicit (the-as process-drawable
+;; ...) wrapper in the landed source (this file's own N+4 offset-188
+;; convention still applies once cast).
 (define-extern *interface-cam* object) ;; provisional: call-site evidence only
 (define-extern *intro-hud-view* object) ;; provisional: call-site evidence only
 (define-extern *intro-hud-view-proc* object) ;; provisional: call-site evidence only
@@ -88583,6 +88630,16 @@
 (define-extern *lobby-results-enabled* object) ;; provisional: call-site evidence only
 (define-extern *lobby-timetrial-lock-mode* object) ;; provisional: call-site evidence only
 (define-extern *lock-stream* object) ;; provisional: call-site evidence only
+;; lobby rung 2: lmm-make-logo-menu forwards this global straight into
+;; run-function-in-process's own info-ptr arg alongside base-menu-init-by-
+;; other, the same base-menu-info-family pointer shape *single-event-menu-
+;; info*/*background-menu-info* above already resolve for the same reason
+;; (no narrowing leaf type evidenced in this rung's own scope).
+(define-extern *logo-menu-info* base-menu-info)
+;; lobby rung 2: same base-menu-info-family pointer shape as *logo-menu-
+;; info* immediately above, lmm-make-logo-menu's own second, subtitle-
+;; specific run-function-in-process call.
+(define-extern *logo-subtitle-menu-info* base-menu-info)
 (define-extern *mc-ghost-idx* object) ;; provisional: call-site evidence only
 (define-extern *medius-account-name* object) ;; provisional: call-site evidence only
 ;; og:preserve-this net-start rung: needed for (anon-function 1 net-start)'s login
@@ -88621,6 +88678,15 @@
 (define-extern *medius-mas-default-hostname* object) ;; provisional: call-site evidence only
 (define-extern *medius-mas-port* object) ;; provisional: call-site evidence only
 (define-extern *medius-my-clan* object) ;; provisional: call-site evidence only
+;; lobby rung 2: the real landed global (goal_src/jakx/levels/common/
+;; in-game-menu-hud2.gc) stays declared object; a medius-cached-info-
+;; player retype here would fight that file's own define-extern under
+;; JakXTypeConsistency's WithBuildFirst check. (code init-state)'s own
+;; op 62 load (offset 364, N+4 = offset-assert 368, medius-cached-info-
+;; player's own ladder-stats field, the commented-out original at this
+;; section's own dead-block, line 52661, already names it) is resolved
+;; at its own consuming read instead via an explicit (the-as medius-
+;; cached-info-player ...) wrapper in the landed source.
 (define-extern *medius-my-player* object) ;; provisional: call-site evidence only
 (define-extern *medius-new-account-password* object) ;; provisional: call-site evidence only
 ;; *medius-player-cache*: net-mgr-medius-players-h top-level-login stores a
@@ -89414,7 +89480,13 @@
 (define-extern check-for-kill-player (function none)) ;; mechanical-arity fixpoint
 (define-extern check-for-player-dead (function none)) ;; mechanical-arity fixpoint
 (define-extern check-game-on-me (function object)) ;; mechanical-arity fixpoint
-(define-extern check-lan-crap (function object none)) ;; mechanical-arity fixpoint
+;; lobby rung 2: the function's own scoped decode reads no a0-a3 registers
+;; before its own 0x30 stack frame is set up (a genuine zero-arg function,
+;; not the "mechanical-arity fixpoint" one-object-arg guess); the body
+;; itself never converts (a top-level "invalid vector subscript" failure,
+;; the decompiler's own let-insertion pass rejecting a return-type
+;; mismatch it cannot resolve), so this rung lands a minimal stub instead.
+(define-extern check-lan-crap (function none))
 (define-extern chicken-drone-2-spawn (function object object object object)) ;; mechanical-arity fixpoint
 (define-extern chicken-drone-spawn (function object object object object)) ;; mechanical-arity fixpoint
 (define-extern clan-allowed-to-join-game (function object none)) ;; mechanical-arity fixpoint
@@ -89634,7 +89706,13 @@
 (define-extern update-adventure-map-data (function none)) ;; mechanical-arity fixpoint
 (define-extern update-client-state (function object object object object)) ;; mechanical-arity fixpoint
 (define-extern update-high-scores (function object object)) ;; mechanical-arity fixpoint
-(define-extern update-lobby-camera (function object none)) ;; mechanical-arity fixpoint
+;; lobby rung 2: (defstate cam-lobby (camera-slave))'s own :code calls this
+;; with self, a camera-slave; the function's own raw offset-140/220/236/252
+;; loads then match camera-slave's own trans (offset-assert 144) and
+;; tracking (offset-assert 224, cam-rotation-tracker :inline) fields via the
+;; all-types N+4 basic-load convention, narrowing the "mechanical-arity
+;; fixpoint" object placeholder to its real caller-evidenced type.
+(define-extern update-lobby-camera (function camera-slave none))
 (define-extern update-local-net-entities (function object none)) ;; mechanical-arity fixpoint
 (define-extern update-stored-network-account (function object none)) ;; mechanical-arity fixpoint
 (define-extern v-wpn-choose-increasing-lethality (function object object object)) ;; mechanical-arity fixpoint
