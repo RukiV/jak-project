@@ -116,6 +116,59 @@
   :out '("$OUT/obj/menu2.o"))
 (hash-table-set! *file-entry-map* "menu2.o" #f)
 
+;; og:preserve-this menu2-landing rung round 10 link-order audit (issue 699):
+;; one correction and two blind spots to record before anyone lands the real
+;; source over this raw copy.
+;;
+;; Correction: "it does not [exist]" above (referring to goal_src/jakx/.../
+;; menu2.gc) is not quite right. goal_src/jakx/engine/ui/menu2.gc DOES exist,
+;; landed well before this rung as a raw/uncleaned decode (107 unresolved
+;; gpr->fpr sites, its own dedicated leisure-pace landing rung, tracked
+;; separately) - it was simply never referenced by any .gd, so it never
+;; compiled as part of (mi) at all. Verified directly: after this defstep, a
+;; full (mi) build log still never mentions goal_src/jakx/engine/ui/menu2.gc,
+;; confirming the *file-entry-map* pre-mark above suppresses the normal
+;; goal-src-sequence lookup for the "menu2.o" slot even though a same-named
+;; .gc file is sitting right there; no "multiple ways to make output"
+;; collision between the defstep and the dead source, because the dead
+;; source was never wired into any build target to begin with.
+;;
+;; Link order: menu2-h.o (the landed base-menu deftype header, linked early
+;; via game.gd) defines nothing but `inspect` (method 3, debug-only) on
+;; base-menu and its whole family. The raw menu2.o's own top-level (visible
+;; in a scoped decode) installs retail's real vtable via (method-set! base-
+;; menu 50..57 ...), (method-set! map-menu ...), (method-set! sprite-menu
+;; ...), and so on for every base-menu subtype menu2-GAME defines - real
+;; gameplay methods 50-64 and states 51/52/56, disjoint from menu2-h.o's
+;; inspect-only slot. So today there is no collision to resolve: nothing
+;; landed defines a method the raw top-level's re-execution would wipe. The
+;; dead goal_src/jakx/engine/ui/menu2.gc ALSO defines methods 58-62 across
+;; the same type family (confirmed by grep), which WOULD collide with the
+;; raw object's own installs if it were ever compiled and linked over this
+;; slot - whoever lands it for real must either retire this defstep first or
+;; verify the landed methods are function-identical to retail's, since link
+;; order between a real menu2.o and this raw-copy menu2.o is not something
+;; either mechanism currently arbitrates (they claim the same $OUT slot by
+;; construction, so a real compile would have to replace this defstep
+;; outright, not coexist with it).
+;;
+;; Checker blind spot: check_type_singlehome.py scans goal_src .gc text for
+;; `deftype` forms; a raw-copied .go carries no such text, so a real menu2.gc
+;; later defining base-menu-family types a second time (however unlikely,
+;; since base-menu is already declared in menu2-h.gc) would NOT be caught by
+;; that checker as a duplicate the way two .gc-declared deftypes would be.
+;; Recorded here since nothing currently checks it.
+;;
+;; check_method_slots.py side effect measured this same round: it classifies
+;; a dispatch site's DGO membership by matching the containing .gc file's own
+;; "name in dgo" header against what's actually packed, not by whether that
+;; file was compiled. Landing this defstep makes "menu2" a real packed member
+;; of GAME.CGO, so every method/state dispatch inside the still-dead
+;; goal_src/jakx/engine/ui/menu2.gc (whose header says "name in dgo: menu2")
+;; flips from invisible to a game-DGO FAIL - +17 FAILs, all prefixed
+;; "FAIL: menu2:", none a behavioral regression (that source still is not
+;; compiled or linked by anything).
+
 (cgo-file "game.gd" '("$OUT/obj/gcommon.o" "$OUT/obj/gstate.o" "$OUT/obj/gstring.o" "$OUT/obj/gkernel.o"))
 
 ;; note: some of these dependencies are slightly wrong because cgo-file doesn't really handle
