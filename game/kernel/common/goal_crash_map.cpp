@@ -1231,9 +1231,28 @@ DWORD WINAPI heap_scan_thread_proc(LPVOID param) {
   // then has whatever heap_scan_processes() got through before the timeout).
   heap_scan_buffer_append_line("[heap-scan-thread: started]");
   const auto* args = (const HeapScanThreadArgs*)param;
-  heap_scan_processes(args->base, args->window_size, args->base_addr, args->process_type_addr,
-                      args->symtab_lo, args->symtab_hi, args->false_addr);
-  heap_scan_buffer_append_line("[heap-scan-thread: finished]");
+  // issue #716 round 6 postmortem (crashdump11/12): the lock-free buffer fixed the
+  // "output never appears" symptom (the "heap scan: attempting" marker, printed and
+  // flushed by the HANDLER thread before this thread even starts, now reliably reaches
+  // the log), but the process still dies with nothing past that marker -- no buffer
+  // content, no timeout message, nothing. That is not a stdio lock (this thread does no
+  // stdio at all); it is a real fault on THIS thread taking the WHOLE PROCESS down.
+  // goal_crash_filter()'s own VEH sees g_in_heap_scan_thread and correctly declines to
+  // recurse into a second report, but VEH declining is not the same as the fault being
+  // HANDLED -- Windows' default behavior for a truly unhandled exception is to
+  // terminate the whole process, not just this thread, which kills the handler thread
+  // sitting in WaitForSingleObject before it can ever print this buffer. A __try here
+  // gives frame-based SEH a chance to actually catch it (VEH runs first, declines, then
+  // frame-based SEH on this thread's own stack -- this __try -- runs next), turning
+  // "the whole process vanishes" into "this thread returns early and the buffer, however
+  // far it got, still gets printed."
+  __try {
+    heap_scan_processes(args->base, args->window_size, args->base_addr, args->process_type_addr,
+                        args->symtab_lo, args->symtab_hi, args->false_addr);
+    heap_scan_buffer_append_line("[heap-scan-thread: finished]");
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    heap_scan_buffer_append_line("[heap-scan-thread: FAULTED mid-scan, caught here]");
+  }
   g_in_heap_scan_thread = false;
   return 0;
 }
