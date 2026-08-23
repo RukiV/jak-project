@@ -742,6 +742,40 @@
   ;; entered target-continue against whatever continue net-world/the boot path had
   ;; last staged in *jakx-want-driver-cp*, not the continue-point start actually
   ;; passed to this spawn.
+  ;;
+  ;; og:preserve-this bring-up init (title-continue chain, sixth boot smoke):
+  ;; self game was never set anywhere on this path, and target-continue's real
+  ;; :code (landed this same rung) reads it unconditionally at its own first
+  ;; step, (game-info-method-18 (-> self game) (-> arg0 name)) -- a vtable
+  ;; dispatch that reads self game's own type tag at offset -4, faulting on a
+  ;; null base exactly as the sixth boot smoke's crash register dump showed
+  ;; (a -4 type-tag read of a NULL object). A marker sweep (six format prints
+  ;; bracketing every candidate block between the collide-shape cluster and
+  ;; move-to-point!, tmp commit 5482a02bd, since reverted) proved the crash
+  ;; sits in this exact block, matching a rigorous object-relative address
+  ;; map (logic-target+0x3bb resolves to this dispatch, cross-checked against
+  ;; the +0x370 site one fix earlier and the 75-byte delta the intervening
+  ;; collide-shape guard accounts for). target-init's own decode is already
+  ;; established 100% clean with zero errors (the note above), so this write
+  ;; is not something the landed decode dropped -- it genuinely is not part
+  ;; of this function. jak3's own twin confirms where retail actually sets
+  ;; it: target-init! (jak3/engine/target/logic-target.gc:2797), a much
+  ;; larger, unlanded method ("(set! (-> this game) *game-info*)", one write
+  ;; among roughly forty field inits jakx's own minimal target-init does not
+  ;; yet carry), not target-init itself. Since that method is landed
+  ;; machinery this bring-up bypasses wholesale, restoring the single write
+  ;; in-band here rather than landing the whole method is the minimal fix,
+  ;; and *game-info* is the right value on two independent kinds of
+  ;; evidence: jak3's own retail assignment, and every already-landed jakx
+  ;; call site of game-info-method-18 passing *game-info* as this (net-
+  ;; world.gc:789, "(game-info-method-18 *game-info* \"menu2-start\")"). A
+  ;; guard here would be wrong instead of a fix: game-info-method-18's own
+  ;; continue-name resolution is target-continue's whole job on every
+  ;; continue this state ever runs, title included, and skipping it would
+  ;; silently break continue-arrival rather than close a bring-up gap.
+  ;; Retires when target-init! lands for real and this field init moves
+  ;; there with the rest of retail's own initialization.
+  (set! (-> self game) *game-info*)
   (go target-continue (the-as continue-point arg0))
   (none)
   )
