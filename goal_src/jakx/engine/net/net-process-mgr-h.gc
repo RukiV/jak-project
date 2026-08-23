@@ -85,7 +85,7 @@
     (net-process-mgr-method-43 (_type_ object object object object) none)
     (net-process-mgr-method-44 (_type_) none)
     (net-process-mgr-method-45 (_type_) none)
-    (net-process-mgr-method-46 (_type_ object) none)
+    (net-process-mgr-method-46 (_type_ int) process-nettable)
     (net-process-mgr-method-47 (_type_ object object) none)
     (net-process-mgr-method-48 (_type_) none)
     (net-process-mgr-method-49 (_type_ object object) none)
@@ -158,16 +158,35 @@
   (none)
   )
 
-;; og:preserve-this handle-fns fast-follow: HELD, not landed. read-handle's
-;; own body decodes clean up to its own op 11 ("Could not figure out load:
-;; (set! v1 (l.wu (+ a0 28)))"), which is net-process-mgr-method-46's own
-;; return flowing into a process->ppointer/handle->process-style field
-;; read; net-process-mgr-method-46 is declared (_type_ object) none here
-;; but evidently returns something process-shaped, the exact wall PR 658's
-;; own mine-a-method-35 note already flagged ("the same defect class as
-;; write-handle/read-handle above, but on a shared corpus type with a much
-;; wider blast radius to retype", wvehicle-weapons-proj.gc). Its own body
-;; is not landed anywhere in the corpus either (net-process-mgr.gc's own
-;; bring-up-stub note: "the net leg" is future work, not this rung's
-;; scope), so retyping the return here would be guessed from one call site
-;; rather than proven; left held, matching that prior call.
+;; og:preserve-this handle-fns fast-follow: read-handle lands here, closing
+;; the (e2) extern-no-defun risk on this file's own read-handle extern
+;; above, whose landed caller is mine-b's own process-nettable-method-17
+;; (wvehicle-weapons-proj.gc). issue 669 retires the HELD note this
+;; replaces: net-process-mgr-method-46's true signature, (_type_ int)
+;; process-nettable, is proven rather than guessed from that one call
+;; site, by a falsification control (substituting process for
+;; process-nettable in the signature measurably reddens the decode, while
+;; process-nettable does not) plus in-band evidence the HELD note lacked:
+;; the callee's own body is a two-line lookup, (if (= arg0 #xffff) #f (->
+;; *net-process-table* arg0)), the boxed-array's own :type process-nettable
+;; is literal in the object's static data, and all four table stores write
+;; process-nettable or #f. mem-buffer-method-37 stays untouched (declared
+;; (_type_) none, retyping it measured net-neutral and only adds
+;; warnings, the parked mem-buffer family stays parked); binding its
+;; none-typed result through a let* var hits goalc's own "get_preferred_
+;; reg_class called on NullType" (confirmed here), the same wall write-
+;; process-as-handle/write-handle's own neighbors and wvehicle-weapons-
+;; proj.gc:480 already worked around, so its result is inline-cast to int
+;; directly in the call position instead.
+
+;; definition for function read-handle
+(defun read-handle ((arg0 mem-buffer))
+  (let* ((a0-2 (net-process-mgr-method-46 *net-process-mgr* (the-as int (mem-buffer-method-37 arg0))))
+         )
+    (the-as uint (if a0-2
+                      (process->handle a0-2)
+                      (the-as int #f)
+                      )
+            )
+    )
+  )
