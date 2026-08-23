@@ -247,25 +247,42 @@ void DisplayManager::set_display_mode(game_settings::DisplaySettings::DisplayMod
   switch (mode) {
     case game_settings::DisplaySettings::DisplayMode::Windowed:
       if (SDL_SetWindowFullscreen(m_window, false)) {
-        lg::info("[DISPLAY] windowed mode - resizing window to {}x{}", window_width, window_height);
-        if (!SDL_SetWindowSize(m_window, window_width, window_height)) {
-          sdl_util::log_error("unable to change window size");
+        // SDL already restores its own pre-fullscreen window geometry on leaving fullscreen, and
+        // SDL_SetWindowSize hard-rejects a width/height <= 0, so this manual resize is
+        // belt-and-braces only and must be skipped when we don't have a real size to request.
+        if (window_width > 0 && window_height > 0) {
+          lg::info("[DISPLAY] windowed mode - resizing window to {}x{}", window_width,
+                   window_height);
+          if (!SDL_SetWindowSize(m_window, window_width, window_height)) {
+            sdl_util::log_error("unable to change window size");
+            result = 1;
+          }
         }
         // if we are changing from fullscreen/borderless back to windowed - make sure it's not
         // annoyingly at the edge of the screen
         if (m_display_settings.display_mode !=
-                game_settings::DisplaySettings::DisplayMode::Windowed &&
-            !SDL_SetWindowPosition(m_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED)) {
-          sdl_util::log_error(fmt::format("unable to move window to center"));
-          break;
+            game_settings::DisplaySettings::DisplayMode::Windowed) {
+          if (!SDL_SyncWindow(m_window)) {
+            sdl_util::log_error(
+                fmt::format("failed waiting to leave fullscreen before centering window"));
+            result = 1;
+            break;
+          }
+          if (!SDL_SetWindowPosition(m_window, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED)) {
+            sdl_util::log_error(fmt::format("unable to move window to center"));
+            result = 1;
+            break;
+          }
         }
       } else {
         sdl_util::log_error("unable to change window to windowed mode");
+        result = 1;
       }
       break;
     case game_settings::DisplaySettings::DisplayMode::Fullscreen: {
       if (m_current_display_modes.size() <= get_active_display_index()) {
         lg::error("Display index out of range, cannot switch to fullscreen");
+        result = 1;
         break;
       }
       const auto current_display_mode = SDL_GetDesktopDisplayMode(
@@ -273,14 +290,17 @@ void DisplayManager::set_display_mode(game_settings::DisplaySettings::DisplayMod
       if (!current_display_mode) {
         sdl_util::log_error(fmt::format("unable to get current display mode for display index {}",
                                         get_active_display_index()));
+        result = 1;
         break;
       }
       if (!SDL_SetWindowFullscreenMode(m_window, current_display_mode)) {
         sdl_util::log_error(fmt::format("unable to set fullscreen display mode"));
+        result = 1;
         break;
       }
       if (!SDL_SetWindowFullscreen(m_window, true)) {
         sdl_util::log_error(fmt::format("unable to enable fullscreen mode on window"));
+        result = 1;
         break;
       }
       break;
@@ -294,23 +314,28 @@ void DisplayManager::set_display_mode(game_settings::DisplaySettings::DisplayMod
         sdl_util::log_error(
             fmt::format("unable to get display bounds for display index: {}, display id {}",
                         m_display_settings.display_id, sdl_display_id));
+        result = 1;
         break;
       } else if (!SDL_SetWindowPosition(m_window, rect.x, rect.y)) {
         sdl_util::log_error(
             fmt::format("unable to move window before enabling borderless windowed mode"));
+        result = 1;
         break;
       }
       if (!SDL_SyncWindow(m_window)) {
         sdl_util::log_error(
             fmt::format("failed waiting to move window before enabling borderless windowed mode"));
+        result = 1;
         break;
       }
       if (!SDL_SetWindowFullscreenMode(m_window, NULL)) {
         sdl_util::log_error(fmt::format("unable to set borderless fullscreen display mode"));
+        result = 1;
         break;
       }
       if (!SDL_SetWindowFullscreen(m_window, true)) {
         sdl_util::log_error(fmt::format("unable to enable borderless fullscreen mode on window"));
+        result = 1;
         break;
       }
       break;
@@ -338,11 +363,15 @@ void DisplayManager::toggle_display_mode() {
     case game_settings::DisplaySettings::DisplayMode::Borderless:
       lg::info("Fullscreen/Borderless\n");
       lg::info("Switching to Windowed mode...\n");
-      enqueue_set_window_display_mode(game_settings::DisplaySettings::DisplayMode::Windowed, 0, 0);
+      enqueue_set_window_display_mode(game_settings::DisplaySettings::DisplayMode::Windowed,
+                                      m_windowed_width, m_windowed_height);
       break;
 
     case game_settings::DisplaySettings::DisplayMode::Windowed:
       lg::info("Windowed\n");
+      // Capture the real windowed size at the moment of leaving Windowed mode; the return
+      // path passes it to SDL instead of falling back to the 640x480 creation size.
+      SDL_GetWindowSize(m_window, &m_windowed_width, &m_windowed_height);
       if (m_previous_fullscreen_display_mode ==
           game_settings::DisplaySettings::DisplayMode::Fullscreen) {
         lg::info("Switching to Fullscreen mode...\n");

@@ -116,6 +116,11 @@ class DisplayManager {
   int m_window_ypos = 0;
   int m_window_width = 0;
   int m_window_height = 0;
+  // Last known size of the window while actually in Windowed mode; the exit from
+  // Fullscreen/Borderless passes this to SDL (SDL_SetWindowSize rejects a width/height <= 0,
+  // so 0,0 can't serve as a "keep current size" sentinel).
+  int m_windowed_width = 640;
+  int m_windowed_height = 480;
   int m_window_game_width = 0;
   int m_window_game_height = 0;
   float m_window_scale_x = 1.0;
