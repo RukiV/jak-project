@@ -2747,9 +2747,37 @@
     ;; reload -- etype is a linker-patched constant, never re-resolved
     ;; (entity-h.gc:154) -- so the outcome here is a missing prop, not a
     ;; crash and not a silent respawn either.
+    ;;
+    ;; og:preserve-this smoke triangulation (issue 709, smoke-residue.log): a
+    ;; first landing of this walk crashed reading r10+0x38 off a level mid-load
+    ;; (level+0x85ae, "Discarding level iced" while the ICES DGO was in flight),
+    ;; the five data registers still carrying the old 0x187e01-shaped garbage --
+    ;; this walk reading the very entity records the original bug used to call.
+    ;; Root cause: (-> lev entity) is allocated by birth (bsp-header)
+    ;; (entity.gc:907-930), called from birth (level)'s ('loaded) case
+    ;; (level.gc:1965-1988), which drives status all the way from 'loaded
+    ;; through 'alive to 'active inside that one synchronous call. A level
+    ;; observed sitting at exactly 'loaded (or earlier: 'loading, 'loading-bt,
+    ;; 'login) from OUTSIDE birth's own call has not been birthed yet this
+    ;; cycle, so its entity table -- and the DGO-streamed heap the table's
+    ;; entries point into -- is not yet trustworthy even when the pointer
+    ;; fields happen to look nonzero. The #697 texanim walk just above never
+    ;; needed this gate because texture-anim-array is a fixed inline array on
+    ;; the level struct itself, never a pointer into the other level's own
+    ;; streamed heap. Restrict to the same {'alive, 'active} set birth (level)
+    ;; itself is the only site that ever leaves a level sitting in once its own
+    ;; call returns, then two-sided guard bsp (same idiom bsp-name uses at
+    ;; level.gc:308) and the entity array pointer as a belt against a
+    ;; partially-torn state even inside that status set.
     (dotimes (s5-8 19)
       (let ((a1-31 (-> *level* level s5-8)))
-        (when (!= a1-31 this)
+        (when (and (!= a1-31 this)
+                   (or (= (-> a1-31 status) 'alive) (= (-> a1-31 status) 'active))
+                   (-> a1-31 bsp)
+                   (nonzero? (-> a1-31 bsp))
+                   (-> a1-31 entity)
+                   (nonzero? (-> a1-31 entity))
+                   )
           (dotimes (v1-136 (-> a1-31 entity length))
             (let* ((link (-> a1-31 entity data v1-136))
                    (ent (the-as entity-actor (-> link entity)))
