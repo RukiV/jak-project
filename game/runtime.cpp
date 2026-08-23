@@ -112,8 +112,10 @@ void deci2_runner(SystemThreadInterface& iface) {
 
   // create and register server
   // must bind g_server_port (flag-aware, set at exec_runtime before this thread starts), not
-  // recompute the default here and silently ignore --port
-  Deci2Server server(shutdown_callback, g_server_port);
+  // recompute the default here and silently ignore --port; -1 means no caller chose a port
+  // (embedded callers like the test runner never set one), which keeps the per-game default
+  Deci2Server server(shutdown_callback,
+                     g_server_port > 0 ? g_server_port : DECI2_PORT - 1 + (int)g_game_version);
   ee::LIBRARY_sceDeci2_register(&server);
 
   // now its ok to continue with initialization
