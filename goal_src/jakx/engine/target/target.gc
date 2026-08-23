@@ -51,10 +51,13 @@
         (set! i (+ i 1))
         )
       )
-    ;; og:preserve-this root guard, rung 2 (#164): target-init (logic-target.gc) never
-    ;; builds a root, and the kernel's activate zeroes the whole subclass field block,
-    ;; so root reads GOAL 0 here, which is truthy; the raw decode's (if found ...) alone
-    ;; lets a root-less target through and derefs (-> found root trans) into that zero.
+    ;; og:preserve-this root guard, rung 2 (#164): at the time this guard landed,
+    ;; target-init (logic-target.gc) built no root at all; rung 3a (#164, 9fc9ce893)
+    ;; later gave it a bare trsqv, but the kernel's activate still zeroes the whole
+    ;; subclass field block before target-init's own root-construction line runs,
+    ;; so root can still read GOAL 0 here in that window, which is truthy; the raw
+    ;; decode's (if found ...) alone lets a root-less target through and derefs
+    ;; (-> found root trans) into that zero.
     ;; This sits on a per-frame path (the sky's time-of-day update calls
     ;; level-get-target-inside twice per frame), so a root-less registered target
     ;; crashes almost immediately. Treating a root-less target as no target at all

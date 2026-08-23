@@ -154,6 +154,32 @@
 ;; by citation, not the whole handler. Retires when the real target-continue
 ;; :exit lands (movement, physics, camera-framing logic; same leg as target-
 ;; method-59's retirement condition).
+;;
+;; og:preserve-this want-copy finding (title-continue chain, this rung): a fresh
+;; scoped decode of target-death (scratch, --config-override allowed_objects
+;; ["target-death"], this worktree's own types) settles whether the held :code
+;; above touches wants before it hits its own wall, further than the existing
+;; hold note above needed to go. It does. Raw ops 228/231/239 (`lb`/`lwu` at
+;; gp+97/gp+100, gp holding the continue-point arg) read want-count and the want
+;; array's base pointer -- raw load offset N binds to the field placed at
+;; :offset-assert N+4 for a basic (all-types.gc: want-count 101, want 104), so
+;; these are exactly continue-point's own want-count/want fields, not a
+;; mistyped read. Ops 233-245 copy each entry's name (+0) and second word (+4)
+;; into *load-state* at i*32 for i < want-count; ops 247-260 clear the same two
+;; words to #f for the remaining slots up to 6, and two more trailing words
+;; (+8/+12) are zeroed unconditionally every iteration. A second, one-shot loop
+;; (ops 270-282, raw gp+104 = want-sound's own :offset-assert 108) copies
+;; want-sound into *load-state*+1944 and writes a constant 4 into +1948. This is
+;; a genuine want-copy, the same structural shape as jak3's own landed
+;; target-continue :code. It is a separate mechanism from the want-driver
+;; docstring above jakx-want-driver-tick (level.gc:7998): that note is about
+;; level-update's per-frame continue block and net-world's race-window staging,
+;; which it shows do not touch wants; this is target-continue's own one-time
+;; continue-arrival copy, and the two do not contradict each other. Recorded
+;; here because it bears on this stub's eventual retirement: whatever replaces
+;; sleep-code needs to either perform this copy or prove it is already
+;; redundant with the net-world path before dropping it. Retires with the same
+;; condition as the :code hold above.
 (defstate target-continue (target)
   :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
     (case message
@@ -202,11 +228,22 @@
       )
   (set! (-> self event-hook) (-> target-continue event))
   (logior! (-> self focus-status) (focus-status teleporting))
-  ;; og:preserve-this arg widened to match target-continue's now-real arity
-  ;; ((target-continue continue-point), target-h.gc :states, R5b): reuses
-  ;; *jakx-want-driver-cp*, the same continue-point this function already seeds
-  ;; root trans from a few lines above, rather than inventing a second source.
-  (go target-continue *jakx-want-driver-cp*)
+  ;; og:preserve-this arg0 restored (title-continue chain, this rung): R5b's
+  ;; *jakx-want-driver-cp* substitution above was an invented stand-in, made when
+  ;; target-continue's arity was widened and never itself decoded; a fresh scoped
+  ;; decode of this object (logic-target_ir2.asm, worktree's own types, this rung)
+  ;; shows target-init itself decodes 100% clean with zero errors, and its own op
+  ;; 19 (`jalr ra, t9` through `t9 = enter-state`, `a0 = arg0`) is the real
+  ;; enter-state dispatch the `go` macro sugars over, with `self+76` (the state
+  ;; slot) set to target-continue two ops earlier (op 18) -- retail passes
+  ;; target-init's own arg0, cast to continue-point, not the want-driver global.
+  ;; jak3's twin (jak3/engine/target/logic-target.gc:3056, `(go target-continue
+  ;; arg0)`) shows the same shape with no fallback, corroborating but not the
+  ;; proof; the jakx decode itself is. Dropping arg0 here meant every target spawn
+  ;; entered target-continue against whatever continue net-world/the boot path had
+  ;; last staged in *jakx-want-driver-cp*, not the continue-point start actually
+  ;; passed to this spawn.
+  (go target-continue (the-as continue-point arg0))
   (none)
   )
 
