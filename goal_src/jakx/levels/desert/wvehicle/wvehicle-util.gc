@@ -491,10 +491,24 @@
     ;; method, not a missed branch to restore. Fetch the slot explicitly
     ;; via method-of-type and check it before calling through it, the same
     ;; shape method-call syntax alone cannot express.
-    (when (nonzero? (-> this turbo-suppressor-particle))
-      (let ((info-setter (method-of-object (-> this turbo-suppressor-particle) set-local-space-info)))
-        (when (nonzero? info-setter)
-          (info-setter (-> this turbo-suppressor-particle) local-space)
+    ;; og:preserve-this BOTH sentinels, not one: this field holds raw 0 (never
+    ;; written), #f (the guarded create-launch-control above arms it with
+    ;; (the-as sparticle-launch-control #f) when *part-group-id-table* 273 is
+    ;; unset), or a real launch-control. The previous guard tested nonzero?
+    ;; alone, and #f is NONZERO (it is s7's address), so method-of-object ran
+    ;; on #f and read the type tag from [s7-4], the bytes just before the
+    ;; symbol table: layout-dependent garbage that sometimes chained to 0
+    ;; (inner guard caught it, boot survived) and sometimes to a live-looking
+    ;; value (call r9 executed garbage, the heisenbug spawn crash pinned by
+    ;; disasm at m64+0xF70, rdi == r14 == s7 in the crash registers). A field
+    ;; can need the truthiness test AND the nonzero? test whenever its writers
+    ;; use both sentinel representations.
+    (let ((tsp (-> this turbo-suppressor-particle)))
+      (when (and (nonzero? tsp) tsp)
+        (let ((info-setter (method-of-object tsp set-local-space-info)))
+          (when (nonzero? info-setter)
+            (info-setter tsp local-space)
+            )
           )
         )
       )
