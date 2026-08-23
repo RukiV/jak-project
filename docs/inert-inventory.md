@@ -38,7 +38,7 @@ written is read-only by design and not a finding.
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (187)
+### Never written (186)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -155,7 +155,6 @@ written is read-only by design and not a finding.
 | `*dma-disasm*` | 1 | `goal_src/jakx/engine/dma/dma-disasm.gc` |
 | `*dnas-is-running*` | 1 | `goal_src/jakx/engine/sound/gsound.gc` |
 | `*eligible-for-body-part-award*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
-| `*first-boot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*flip-blend*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
 | `*flip-speed*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
 | `*generate-actor-vis*` | 1 | `goal_src/jakx/engine/entity/entity-h.gc` |
