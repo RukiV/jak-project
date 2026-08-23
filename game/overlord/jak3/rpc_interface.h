@@ -59,6 +59,40 @@ static_assert(sizeof(SoundIOPInfo) == 0x2d0);
 
 // static_assert(sizeof(SoundIOPInfo) == 288);
 
+// Jak X's overlord DMA-copies this struct's bytes [0, 0x2c0) onto the EE's own
+// *sound-iop-info* as a byte-identity map: the destination address comes straight
+// from GOAL's own (&-> *sound-iop-info* freemem) (gsound.gc:237), so byte N here
+// lands on byte N there. jakx's GOAL sound-iop-info is a (structure), so field
+// placement equals machine offset (no +4 basic-header shift, gsound-h.gc:373-392);
+// this struct mirrors that layout field-for-field rather than reusing jak3's own
+// SoundIOPInfo above, which agrees with this one on exactly one field, chinfo at
+// 16 (issue #698).
+struct JakXSoundIOPInfo {
+  u32 freemem;                     // 0
+  u32 freemem2;                    // 4
+  u32 nocd;                        // 8
+  u32 dirtycd;                     // 12
+  u8 chinfo[48];                   // 16
+  u32 id_info[48];                 // 64
+  u32 pad0[2];                     // 256
+  u32 music_position;              // 264
+  u32 music_status;                // 268
+  SoundStreamName music_name;      // 272
+  u32 stream_position[4];          // 320
+  u32 stream_status[4];            // 336
+  SoundStreamName stream_name[4];  // 352
+  u32 stream_id[4];                // 544
+  char sound_banks[8][16];         // 560
+  u32 pad1[4];                     // 688
+};
+static_assert(offsetof(JakXSoundIOPInfo, chinfo) == 16);
+static_assert(offsetof(JakXSoundIOPInfo, stream_position) == 320);
+static_assert(offsetof(JakXSoundIOPInfo, stream_status) == 336);
+static_assert(offsetof(JakXSoundIOPInfo, stream_name) == 352);
+static_assert(offsetof(JakXSoundIOPInfo, stream_id) == 544);
+static_assert(offsetof(JakXSoundIOPInfo, sound_banks) == 560);
+static_assert(sizeof(JakXSoundIOPInfo) == 0x2c0);
+
 // Common
 
 enum RpcId {
