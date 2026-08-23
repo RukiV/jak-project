@@ -709,6 +709,26 @@
 ;; reasons noted there, but target-init's own call is real.
 (defbehavior target-init target ((arg0 basic))
   (target-method-59 self arg0 #f)
+  ;; og:preserve-this bring-up init (title-continue chain, seventh boot smoke):
+  ;; the target thread never had its own stack size set anywhere on this path,
+  ;; so it ran at whatever default a fresh process-spawn gives a main-thread;
+  ;; landing this rung's real :code (which suspends mid-work, unlike the old
+  ;; sleep-code stub that never did) hit it immediately: "ERROR: suspend
+  ;; called without enough stack in proc: #<target target running :state
+  ;; target-continue :stack 0/256 ...> Stack: 576/256", starving the suspend
+  ;; at 576 bytes needed against a 256-byte stack. jak3's own twin sets this
+  ;; explicitly in target-init! (jak3/engine/target/logic-target.gc:2819),
+  ;; "(stack-size-set! (-> this main-thread) 2048)", the SAME unlanded, much
+  ;; larger method the game-field bring-up init above already cites as
+  ;; bypassed wholesale; 2048 is comfortably above the 576 this rung's own
+  ;; boot proved is needed, and it is retail's own value, not a guessed
+  ;; precedent. stack-size-set!'s own contract (gkernel.gc:217-218) requires
+  ;; calling it "before any process allocations" or it errors instead of
+  ;; resizing; placed here, immediately after target-method-59 (a plain field
+  ;; write, no allocation of its own) and before the first (new ...) call
+  ;; below (the trsqv root), satisfies that. Retires under the same condition
+  ;; as the game-field bring-up init above: when target-init! lands for real.
+  (stack-size-set! (-> self main-thread) 2048)
   ;; og:preserve-this bare trsqv root, rung 3a (#164): mirrors manipy-init's arg3=#f
   ;; path verbatim (generic-obs.gc, the (else ...) cond branch of its root
   ;; construction) - the same safe shape here, a bare trsqv with no collide-shape and
