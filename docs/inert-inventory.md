@@ -38,7 +38,7 @@ written is read-only by design and not a finding.
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (181)
+### Never written (190)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -105,6 +105,7 @@ written is read-only by design and not a finding.
 | `*bot-record-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*capture-tga-temp*` | 1 | `goal_src/jakx/engine/util/capture.gc` |
 | `*city-mode*` | 1 | `goal_src/jakx/engine/level/level-h.gc` |
+| `*class-mode*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
 | `*col-timer-enable*` | 1 | `goal_src/jakx/engine/collide/collide-shape.gc` |
 | `*collide-hash-fragments*` | 1 | `goal_src/jakx/engine/spatial-hash/collide-hash-h.gc` |
 | `*collide-hash-fragments-instance*` | 1 | `goal_src/jakx/engine/spatial-hash/collide-hash-h.gc` |
@@ -155,6 +156,7 @@ written is read-only by design and not a finding.
 | `*display-water-marks*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*dma-disasm*` | 1 | `goal_src/jakx/engine/dma/dma-disasm.gc` |
 | `*dnas-is-running*` | 1 | `goal_src/jakx/engine/sound/gsound.gc` |
+| `*eligible-for-body-part-award*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
 | `*first-boot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*flip-blend*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
 | `*flip-speed*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
@@ -180,16 +182,20 @@ written is read-only by design and not a finding.
 | `*kernel-boot-level*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*keybd-hold-ct*` | 1 | `goal_src/jakx/engine/ps2/pad.gc` |
 | `*keybd-last-key*` | 1 | `goal_src/jakx/engine/ps2/pad.gc` |
-| `*keybd-ungetc*` | 1 | `goal_src/jakx/engine/ps2/pad.gc` |
 | `*last-loado-debug-usage*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*last-loado-global-usage*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*last-loado-length*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*list-all-scenes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*lobby-last-selected-task-index*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
+| `*lobby-menu-manager-game-connection-type*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
+| `*lobby-reset-mode*` | 1 | `goal_src/jakx/engine/game/game-info.gc` |
 | `*manual-sample-point*` | 1 | `goal_src/jakx/engine/camera/cam-update-h.gc` |
 | `*merc-vu1-init-ready*` | 1 | `goal_src/jakx/engine/gfx/foreground/merc/merc.gc` |
 | `*music-volume-ducked-by-sound*` | 1 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*music-volume-during-speech*` | 1 | `goal_src/jakx/engine/sound/speech-h.gc` |
 | `*net-hw-last-error*` | 1 | `goal_src/jakx/engine/net/net-start.gc` |
+| `*pending-op-arg-ct*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
+| `*pending-op-serial*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
 | `*plow-ignore-if-above*` | 1 | `goal_src/jakx/levels/common/plow.gc` |
 | `*preload-spool-anims*` | 1 | `goal_src/jakx/engine/load/loader.gc` |
 | `*previous-angle*` | 1 | `goal_src/jakx/levels/desert/wvehicle/wvehicle-race.gc` |
@@ -200,6 +206,8 @@ written is read-only by design and not a finding.
 | `*profile-w*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*profile-x*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*rb-raw-time-val*` | 1 | `goal_src/jakx/engine/physics/rigid-body-queue.gc` |
+| `*ready-room-ai-ct*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
+| `*ready-room-host-id*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
 | `*record-fma-low-res*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*scert-function-id*` | 1 | `goal_src/jakx/engine/net/scert-funcs.gc` |
 | `*sfx-volume-during-speech*` | 1 | `goal_src/jakx/engine/sound/speech-h.gc` |
@@ -216,6 +224,7 @@ written is read-only by design and not a finding.
 | `*sync-dma*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*target-rc-board-controls*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*tfrag-display-stats*` | 1 | `goal_src/jakx/engine/gfx/background/tfrag/tfrag.gc` |
+| `*this-create-menu-state-name*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
 | `*tmp-was-allocated*` | 1 | `goal_src/jakx/levels/common/net-simple-destruct.gc` |
 | `*total-length*` | 1 | `goal_src/jakx/engine/gfx/sprite/particles/light-trails.gc` |
 | `*update-leaf-when-outside-bsp*` | 1 | `goal_src/jakx/engine/camera/cam-update.gc` |
