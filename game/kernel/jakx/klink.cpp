@@ -323,149 +323,257 @@ uint32_t link_control::jakx_work_v5() {
              m_link_segments_table[i].magic);
     }
     */
-    // for now, only supporting 1 segment
-    ASSERT(m_n_segments == 1);
 
-    // fixup the relocs/data offsets into addresses (again, offsets from g_ee_main_mem)
-    // relocs is relative to this link data
-    m_link_segments_table[0].relocs += (link_data - g_ee_main_mem);
-    // data is relative to usual object_data
-    m_link_segments_table[0].data += m_object_data.offset;
-    ASSERT(m_link_segments_table[0].magic == 1);
+    // og:preserve-this menu2-landing rung round 11 (issue 699): V5 raw objects come in two
+    // shapes. Every raw copy landed before this rung (342 of them) is retail level data:
+    // n_segments == 1, and this branch is the ORIGINAL, untouched single-segment code -
+    // verified byte-identical below. The motivating vector for the second shape is
+    // menu2-GAME (decompiler_out/jakx/raw_obj/menu2-GAME.go, GAME.CGO's raw-copied menu2
+    // widget engine, wired in the prior commit): its own header measures n_segments == 3,
+    // matching the decompiler's own V5 parser (decompiler/ObjectFile/LinkedObjectFileCreation.cpp
+    // link_v5(), which is the authoritative in-repo reference for this format - it is the
+    // only other code in this repo that has ever parsed a 3-segment V5 object) and this
+    // kernel's own already-working multi-segment linker for the OTHER "3" (jakx_work_opengoal
+    // above, m_version == 3, used for every compiled GOAL object in the game): segment 0 is
+    // main (53480 bytes here), segment 1 is debug (92 bytes), segment 2 is top-level (3920
+    // bytes) - same MAIN_SEGMENT=0/DEBUG_SEGMENT=1/TOP_LEVEL_SEGMENT=2 convention
+    // jakx_work_opengoal already uses, confirmed two ways: the sizes only make sense in that
+    // order (main >> top-level >> debug), and the byte ranges are exactly contiguous
+    // (align16(seg[i].data + seg[i].size) == seg[i+1].data for i in 0,1, and
+    // align16(seg[2].data + seg[2].size) == file size), matching the decompiler's own asserts
+    // for this exact object.
+    if (m_n_segments == 1) {
+      // fixup the relocs/data offsets into addresses (again, offsets from g_ee_main_mem)
+      // relocs is relative to this link data
+      m_link_segments_table[0].relocs += (link_data - g_ee_main_mem);
+      // data is relative to usual object_data
+      m_link_segments_table[0].data += m_object_data.offset;
+      ASSERT(m_link_segments_table[0].magic == 1);
 
-    // see if there's even data
-    if (m_link_segments_table[0].size == 0) {
-      // no data.
-      m_link_segments_table[0].data = 0;
-    } else {
-      // check if we need to move the main segment.
-      if (!m_moved_link_block ||
-          ((m_link_hdr->link_length + 0x50) <= m_link_hdr->length_to_get_to_code)) {
-        // printf(" v5 linker allocating for main segment... (%d)\n", m_moved_link_block);
-        auto old_data_offset = m_link_segments_table[0].data;  // 25
-        auto new_data = kmalloc(m_heap, m_link_segments_table[0].size, 0, "main-segment");
-        m_link_segments_table[0].data = new_data.offset;
-        if (!new_data.offset) {
-          MsgErr("dkernel: unable to malloc %d bytes for main-segment\n",
-                 m_link_segments_table[0].size);
-          return 1;
-        }
-        jakx::ultimate_memcpy(new_data.c(), old_data_offset + g_ee_main_mem,
-                              m_link_segments_table[0].size);
+      // see if there's even data
+      if (m_link_segments_table[0].size == 0) {
+        // no data.
+        m_link_segments_table[0].data = 0;
       } else {
-        m_heap->current = m_object_data + m_code_size;
-        if (m_heap->top.offset <= m_heap->current.offset) {
-          MsgErr("dkernel: heap overflow\n");
-          return 1;
+        // check if we need to move the main segment.
+        if (!m_moved_link_block ||
+            ((m_link_hdr->link_length + 0x50) <= m_link_hdr->length_to_get_to_code)) {
+          // printf(" v5 linker allocating for main segment... (%d)\n", m_moved_link_block);
+          auto old_data_offset = m_link_segments_table[0].data;  // 25
+          auto new_data = kmalloc(m_heap, m_link_segments_table[0].size, 0, "main-segment");
+          m_link_segments_table[0].data = new_data.offset;
+          if (!new_data.offset) {
+            MsgErr("dkernel: unable to malloc %d bytes for main-segment\n",
+                   m_link_segments_table[0].size);
+            return 1;
+          }
+          jakx::ultimate_memcpy(new_data.c(), old_data_offset + g_ee_main_mem,
+                                m_link_segments_table[0].size);
+        } else {
+          m_heap->current = m_object_data + m_code_size;
+          if (m_heap->top.offset <= m_heap->current.offset) {
+            MsgErr("dkernel: heap overflow\n");
+            return 1;
+          }
         }
       }
+    } else if (m_n_segments == 3) {
+      // multi-segment path: mirror jakx_work_opengoal's per-segment-kind allocation
+      // (same heap, same kmalloc flags, same DebugSegment gate, same reverse iteration
+      // order) instead of the single-segment "move vs reuse in place" optimization above -
+      // that optimization only makes sense for the level-data use case the decompiler's own
+      // comment documents (a lone segment loaded as the LAST object straight onto the heap),
+      // which does not apply to a 3-segment code object.
+      for (int seg_id = m_n_segments - 1; seg_id >= 0; seg_id--) {
+        m_link_segments_table[seg_id].relocs += (link_data - g_ee_main_mem);
+        m_link_segments_table[seg_id].data += m_object_data.offset;
+        ASSERT(m_link_segments_table[seg_id].magic == 1);
+
+        if (seg_id == DEBUG_SEGMENT) {
+          if (!DebugSegment) {
+            // not linking the debug segment outside debug mode, same as jakx_work_opengoal.
+            m_link_segments_table[seg_id].data = 0;
+          } else if (m_link_segments_table[seg_id].size == 0) {
+            m_link_segments_table[seg_id].data = 0;
+          } else {
+            auto old_data_offset = m_link_segments_table[seg_id].data;
+            auto new_data =
+                kmalloc(kdebugheap, m_link_segments_table[seg_id].size, 0, "debug-segment");
+            m_link_segments_table[seg_id].data = new_data.offset;
+            if (!new_data.offset) {
+              MsgErr("dkernel: unable to malloc %d bytes for debug-segment\n",
+                     m_link_segments_table[seg_id].size);
+              return 1;
+            }
+            jakx::ultimate_memcpy(new_data.c(), old_data_offset + g_ee_main_mem,
+                                  m_link_segments_table[seg_id].size);
+          }
+        } else if (seg_id == MAIN_SEGMENT) {
+          if (m_link_segments_table[seg_id].size == 0) {
+            m_link_segments_table[seg_id].data = 0;
+          } else {
+            auto old_data_offset = m_link_segments_table[seg_id].data;
+            auto new_data = kmalloc(m_heap, m_link_segments_table[seg_id].size, 0, "main-segment");
+            m_link_segments_table[seg_id].data = new_data.offset;
+            if (!new_data.offset) {
+              MsgErr("dkernel: unable to malloc %d bytes for main-segment\n",
+                     m_link_segments_table[seg_id].size);
+              return 1;
+            }
+            jakx::ultimate_memcpy(new_data.c(), old_data_offset + g_ee_main_mem,
+                                  m_link_segments_table[seg_id].size);
+          }
+        } else if (seg_id == TOP_LEVEL_SEGMENT) {
+          if (m_link_segments_table[seg_id].size == 0) {
+            m_link_segments_table[seg_id].data = 0;
+          } else {
+            auto old_data_offset = m_link_segments_table[seg_id].data;
+            auto new_data = kmalloc(m_heap, m_link_segments_table[seg_id].size, KMALLOC_TOP,
+                                    "top-level-segment");
+            m_link_segments_table[seg_id].data = new_data.offset;
+            if (!new_data.offset) {
+              MsgErr("dkernel: unable to malloc %d bytes for top-level-segment\n",
+                     m_link_segments_table[seg_id].size);
+              return 1;
+            }
+            jakx::ultimate_memcpy(new_data.c(), old_data_offset + g_ee_main_mem,
+                                  m_link_segments_table[seg_id].size);
+          }
+        }
+      }
+    } else {
+      ASSERT_MSG(false, fmt::format("jakx_work_v5: unsupported segment count {}", m_n_segments));
+      return 1;
     }
 
     m_segment_process = 0;
     m_state = 1;
-    m_object_data.offset = m_link_segments_table[0].data;
 
-    Ptr<u8> base_ptr(m_link_segments_table[0].data);
-    Ptr<u8> data_ptr = base_ptr - 4;
-    Ptr<u8> link_ptr(m_link_segments_table[0].relocs);
+    // pointer and symbol linking, per segment. For n_segments == 1 this loop runs exactly
+    // once over segment 0 with base_ptr equal to what m_object_data is about to be set to
+    // below, so it is the same code the single-segment case always ran, just addressed
+    // through a local instead of the member field (c_symlink2 takes objData as a plain
+    // Ptr<u8> argument, so passing base_ptr instead of m_object_data is equivalent - it is
+    // the same value). A segment whose .data fixed up to 0 (no data, or a disabled debug
+    // segment) is skipped entirely, same as jakx_work_opengoal skips segments whose
+    // code_infos offset is 0.
+    for (int seg_id = 0; seg_id < m_n_segments; seg_id++) {
+      if (m_link_segments_table[seg_id].data == 0) {
+        continue;
+      }
 
-    bool fixing = false;
-    if (*link_ptr) {
-      // we have pointers
-      while (true) {
+      Ptr<u8> base_ptr(m_link_segments_table[seg_id].data);
+      Ptr<u8> data_ptr = base_ptr - 4;
+      Ptr<u8> link_ptr(m_link_segments_table[seg_id].relocs);
+
+      bool fixing = false;
+      if (*link_ptr) {
+        // we have pointers
         while (true) {
-          if (!fixing) {
-            // seeking
-            data_ptr.offset += 4 * (*link_ptr);
-          } else {
-            // fixing.
-            for (uint32_t i = 0; i < *link_ptr; i++) {
-              // uint32_t old_code = *(const uint32_t*)(&data.at(data_ptr));
-              u32 old_code = *data_ptr.cast<u32>();
-              if ((old_code >> 24) == 0) {
-                // printf("modifying pointer at 0x%x (old 0x%x) : now ", data_ptr.offset,
-                //      *data_ptr.cast<u32>());
-                *data_ptr.cast<u32>() += base_ptr.offset;
-                // printf("0x%x\n", *data_ptr.cast<u32>());
-              } else {
-                ASSERT_NOT_REACHED();
-                /*
-                f.stats.v3_split_pointers++;
-                auto dest_seg = (old_code >> 8) & 0xf;
-                auto lo_hi_offset = (old_code >> 12) & 0xf;
-                ASSERT(lo_hi_offset);
-                ASSERT(dest_seg < 3);
-                auto offset_upper = old_code & 0xff;
-                uint32_t low_code = *(const uint32_t*)(&data.at(data_ptr + 4 * lo_hi_offset));
-                uint32_t offset = low_code & 0xffff;
-                if (offset_upper) {
-                  offset += (offset_upper << 16);
+          while (true) {
+            if (!fixing) {
+              // seeking
+              data_ptr.offset += 4 * (*link_ptr);
+            } else {
+              // fixing.
+              for (uint32_t i = 0; i < *link_ptr; i++) {
+                // uint32_t old_code = *(const uint32_t*)(&data.at(data_ptr));
+                u32 old_code = *data_ptr.cast<u32>();
+                if ((old_code >> 24) == 0) {
+                  // printf("modifying pointer at 0x%x (old 0x%x) : now ", data_ptr.offset,
+                  //      *data_ptr.cast<u32>());
+                  *data_ptr.cast<u32>() += base_ptr.offset;
+                  // printf("0x%x\n", *data_ptr.cast<u32>());
+                } else {
+                  ASSERT_NOT_REACHED();
+                  /*
+                  f.stats.v3_split_pointers++;
+                  auto dest_seg = (old_code >> 8) & 0xf;
+                  auto lo_hi_offset = (old_code >> 12) & 0xf;
+                  ASSERT(lo_hi_offset);
+                  ASSERT(dest_seg < 3);
+                  auto offset_upper = old_code & 0xff;
+                  uint32_t low_code = *(const uint32_t*)(&data.at(data_ptr + 4 * lo_hi_offset));
+                  uint32_t offset = low_code & 0xffff;
+                  if (offset_upper) {
+                    offset += (offset_upper << 16);
+                  }
+                  f.pointer_link_split_word(seg_id, data_ptr - base_ptr,
+                                            data_ptr + 4 * lo_hi_offset - base_ptr, dest_seg,
+                  offset);
+                  */
                 }
-                f.pointer_link_split_word(seg_id, data_ptr - base_ptr,
-                                          data_ptr + 4 * lo_hi_offset - base_ptr, dest_seg, offset);
-                */
+                data_ptr.offset += 4;
               }
-              data_ptr.offset += 4;
+            }
+
+            if (*link_ptr != 0xff)
+              break;
+            link_ptr.offset++;
+            if (*link_ptr == 0) {
+              link_ptr.offset++;
+              fixing = !fixing;
             }
           }
 
-          if (*link_ptr != 0xff)
-            break;
           link_ptr.offset++;
-          if (*link_ptr == 0) {
-            link_ptr.offset++;
-            fixing = !fixing;
-          }
+          fixing = !fixing;
+          if (*link_ptr == 0)
+            break;
         }
+      }
+      link_ptr.offset++;
 
-        link_ptr.offset++;
-        fixing = !fixing;
-        if (*link_ptr == 0)
-          break;
+      // symbol linking.
+      if (*link_ptr) {
+        auto sub_link_ptr = link_ptr;
+
+        while (true) {
+          auto reloc = *sub_link_ptr;
+          auto next_link_ptr = sub_link_ptr + 1;
+          link_ptr = next_link_ptr;
+
+          if ((reloc & 0x80) == 0) {
+            link_ptr = sub_link_ptr + 3;  //
+            const char* sname = link_ptr.cast<char>().c();
+            link_ptr.offset += strlen(sname) + 1;
+            // printf("linking symbol %s\n", sname);
+            auto goalObj = jakx::intern_from_c(-1, 0, sname);
+            link_ptr = c_symlink2(base_ptr, goalObj.cast<u8>(), link_ptr);
+
+          } else if ((reloc & 0x3f) == 0x3f) {
+            ASSERT(false);  // todo, does this ever get hit?
+          } else {
+            int n_methods_base = reloc & 0x3f;
+            int n_methods = n_methods_base * 4;
+            if (n_methods_base) {
+              n_methods += 3;
+            }
+            link_ptr.offset +=
+                2;  // ghidra misses some aliasing here and would have you think this is +1!
+            const char* sname = link_ptr.cast<char>().c();
+            // printf("linking type %s\n", sname);
+            link_ptr.offset += strlen(sname) + 1;
+            auto goalObj = jakx::intern_type_from_c(-1, 0, sname, n_methods);
+            link_ptr = c_symlink2(base_ptr, goalObj.cast<u8>(), link_ptr);
+          }
+
+          sub_link_ptr = link_ptr;
+          if (!*sub_link_ptr)
+            break;
+        }
       }
     }
-    link_ptr.offset++;
 
-    // symbol linking.
-    if (*link_ptr) {
-      auto sub_link_ptr = link_ptr;
-
-      while (true) {
-        auto reloc = *sub_link_ptr;
-        auto next_link_ptr = sub_link_ptr + 1;
-        link_ptr = next_link_ptr;
-
-        if ((reloc & 0x80) == 0) {
-          link_ptr = sub_link_ptr + 3;  //
-          const char* sname = link_ptr.cast<char>().c();
-          link_ptr.offset += strlen(sname) + 1;
-          // printf("linking symbol %s\n", sname);
-          auto goalObj = jakx::intern_from_c(-1, 0, sname);
-          link_ptr = c_symlink2(m_object_data, goalObj.cast<u8>(), link_ptr);
-
-        } else if ((reloc & 0x3f) == 0x3f) {
-          ASSERT(false);  // todo, does this ever get hit?
-        } else {
-          int n_methods_base = reloc & 0x3f;
-          int n_methods = n_methods_base * 4;
-          if (n_methods_base) {
-            n_methods += 3;
-          }
-          link_ptr.offset +=
-              2;  // ghidra misses some aliasing here and would have you think this is +1!
-          const char* sname = link_ptr.cast<char>().c();
-          // printf("linking type %s\n", sname);
-          link_ptr.offset += strlen(sname) + 1;
-          auto goalObj = jakx::intern_type_from_c(-1, 0, sname, n_methods);
-          link_ptr = c_symlink2(m_object_data, goalObj.cast<u8>(), link_ptr);
-        }
-
-        sub_link_ptr = link_ptr;
-        if (!*sub_link_ptr)
-          break;
-      }
+    if (m_n_segments == 3) {
+      // multi-segment: the entry point is always the top-level segment's code, same as
+      // jakx_work_opengoal's "all done, can set the entry point to the top-level."
+      m_entry = Ptr<u8>(m_link_segments_table[TOP_LEVEL_SEGMENT].data) + 4;
+    } else {
+      // single-segment: unchanged from the original code - the one segment IS the object.
+      m_object_data.offset = m_link_segments_table[0].data;
+      m_entry = m_object_data + 4;
     }
-    m_entry = m_object_data + 4;
     return 1;
   } else {
     ASSERT_NOT_REACHED();
