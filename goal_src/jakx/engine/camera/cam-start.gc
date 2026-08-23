@@ -46,20 +46,30 @@
 ;; 'start-tracking through a real game flow yet (no target/entity chain), so after
 ;; the ring's boot settle the combiner trans freezes at the origin and cam-update
 ;; copies it over the math-camera every frame, frustum-culling the whole level away
-;; (brdroom sits ~400 m out). A one-shot warp at play time gets undone by the ring's
-;; settle (the master's early 'set-slave / 'start-tracking pulls the combiner back
-;; toward the origin-parked slave), so play arms a warp that display-loop-main
-;; re-applies every frame for ~10 s (combiner + current slave + view-0 math-camera),
-;; then releases. Retire with the real camera start chain.
+;; (brdroom sits ~400 m out). A one-shot warp at play time used to get undone by the
+;; ring's settle (the master's early 'set-slave / 'start-tracking pulls the combiner
+;; back toward the origin-parked slave); issue 724 found the real fix is not
+;; refighting that settle every frame but outlasting it: write the target into the
+;; combiner once via the landed debug-set-camera-pos-rot! and hold 'cam-fixed as the
+;; mode-name setting (jakx-cam-warp-tick below), so cam-fixed's own :code
+;; (cam-states.gc:213-215) is what survives the settle, not a per-frame reapply.
+;; Retire with the real camera start chain.
 (define *jakx-cam-warp-level* (the level #f))
 (define *jakx-cam-warp-frames* 0)
 ;; w > 0 marks the target valid; xyz = warp position
 (define *jakx-cam-warp-target* (new 'static 'vector))
-;; orientation override, decoded from a continue point's packed camera-rot. The pad
-;; fallback re-derives the view from *save-camera-inv-rot* every frame (cam-update.gc
-;; move-camera-from-pad), so the tick seeds both it and the math-camera while pinned.
+;; orientation override, decoded from a continue point's packed camera-rot; written
+;; into the camera-combiner once via debug-set-camera-pos-rot! (cam-debug.gc:3147-
+;; 3155) when the pin arms (see jakx-cam-warp-tick below). cam-fixed's own :code
+;; (cam-states.gc:213-215) then holds both position and orientation, so nothing here
+;; needs a per-frame *save-camera-inv-rot* reseed the way the retired combiner-kill
+;; workaround did (issue 724).
 (define *jakx-cam-warp-rot* (new 'static 'matrix))
 (define *jakx-cam-warp-rot-valid* #f)
+;; latches once jakx-cam-warp-tick has fired the one-shot combiner write for the
+;; current arm cycle, so the pin does not refight itself every frame; reset to #f by
+;; both arm entry points below (issue 724 rung 1).
+(define *jakx-cam-warp-pinned* #f)
 
 (defun jakx-cam-warp-to-level ((lev level))
   "og:preserve-this bring-up helper: arm the per-frame camera warp for the level
@@ -119,6 +129,7 @@ the extracted brdroom glb bounds center."
     )
   (set! *jakx-cam-warp-level* lev)
   (set! *jakx-cam-warp-frames* 600)
+  (set! *jakx-cam-warp-pinned* #f)
   0
   (none)
   )
@@ -151,6 +162,7 @@ camera start chain alongside the level warp."
         (set! *jakx-cam-warp-rot-valid* #t)
         (set! *jakx-cam-warp-level* lev)
         (set! *jakx-cam-warp-frames* 600)
+        (set! *jakx-cam-warp-pinned* #f)
         (format 0 "cam-warp: continue ~S target <~m ~m ~m>~%"
                 (-> cp name)
                 (-> cp camera-trans x)
@@ -171,13 +183,15 @@ camera start chain alongside the level warp."
   )
 
 ;; og:preserve-this bring-up helper (#152): the camera-combiner/slave/math-camera
-;; write set below used to live inline in jakx-cam-warp-tick (this file). The racer
-;; chase camera (level.gc) needs to pin the same four destinations every frame to a
-;; computed chase position instead of a fixed warp target, so this is factored out
-;; rather than duplicated. Both callers pass #f for rot when they have no valid
-;; orientation yet (jakx-cam-warp-tick before the continue-point rot decodes;
-;; nothing else currently does), in which case only position is pinned. Retires
-;; with the real camera start chain, same as jakx-cam-warp-tick.
+;; write set below used to live inline in jakx-cam-warp-tick (this file), and until
+;; issue 724 that tick was still its per-frame caller. The racer chase camera
+;; (level.gc) needs to pin the same four destinations every frame to a computed
+;; chase position instead of a fixed warp target, so this stayed factored out
+;; rather than duplicated; jakx-cam-warp-tick is no longer a caller (issue 724
+;; replaced its per-frame pin with a one-shot debug-set-camera-pos-rot! write into
+;; the combiner, cam-debug.gc:3147-3155), leaving level.gc's racer tick as the sole
+;; remaining caller, which still passes #f for rot when it has no valid orientation.
+;; Retires with the real camera start chain.
 (defun jakx-cam-pin-view! ((pos vector) (rot matrix))
   "Write pos into the camera-combiner, camera-master's slave, and view-0 math-
 camera trans; write rot (if non-#f) into the math-camera's inv-camera-rot and
@@ -220,9 +234,20 @@ camera trans; write rot (if non-#f) into the math-camera's inv-camera-rot and
   )
 
 (defun jakx-cam-warp-tick ()
-  "og:preserve-this bring-up helper: while armed, pin the camera ring onto the
-warp target each frame so the ring's boot settle cannot drag it back to the
-origin; release after the counter runs out.
+  "og:preserve-this bring-up helper: while armed, write the warp target into the
+camera-combiner once (debug-set-camera-pos-rot!, cam-debug.gc:3147-3155) and hold
+'cam-fixed as the mode-name setting so cam-fixed's own :code (cam-states.gc:213-
+215) keeps the ring there instead of a per-frame reapply; release the hold after
+the counter runs out (issue 724).
+
+setting-control-method-22 (settings.gc:1354-1357) is add-connection on engine-hi,
+so the mode-name change lands on the NEXT settings pump, one frame after this tick
+fires the write. debug-set-camera-pos-rot!'s own immediate cam-master-activate-
+slave call therefore respawns into whatever mode was active before this tick (not
+yet 'cam-fixed); the pump's own entity-or-mode-changed re-spawn one frame later is
+what actually lands the held cam-fixed slave. Harmless for a hold: the combiner's
+trans is already correct by then (this tick set it directly, and the interim
+slave's own :code would only be able to move it away for that single frame).
 
 og:preserve-this hardening (crash: cam-start+0xca8 reading a stale view field,
 value 0x14001627, repro (jakx-goto-level 'junglew \"jungle-wide-start\") from a
@@ -249,19 +274,20 @@ reading through it."
                        (or (= (-> warp-lev status) 'active) (= (-> warp-lev status) 'alive))
                        )
                  )
-        (format 0 "cam-warp: target ~A no longer resident (status ~A), retiring combiner~%"
+        (format 0 "cam-warp: target ~A no longer resident (status ~A), releasing hold~%"
                 (-> *jakx-cam-warp-level* name)
                 (if warp-lev (-> warp-lev status) 'no-slot)
                 )
-        (kill-by-name "camera-combiner" *active-pool*)
-        (dotimes (i 2)
-          (view-push-context i)
-          (view-set-active-camera-combiner (the-as basic #f))
-          (view-pop-context)
-          )
+        ;; og:preserve-this issue 724: releasing means dropping the 'cam-fixed hold,
+        ;; not killing the combiner or the view slots -- the combiner stays alive and
+        ;; the settings pump's own entity-or-mode-changed re-spawn (settings.gc:2022-
+        ;; 2028) falls back to cam-free-floating the same way dm-cam-mode-default
+        ;; does (default-menu.gc:211-217).
+        (setting-control-method-21 *setting-control* 'mode-name)
         (set! *jakx-cam-warp-level* (the level #f))
         (set! *jakx-cam-warp-frames* 0)
         (set! *jakx-cam-warp-rot-valid* #f)
+        (set! *jakx-cam-warp-pinned* #f)
         ;; og:preserve-this want-driver re-arm (follow-up rung, level.gc
         ;; jakx-goto-level): the goto that armed this warp deliberately left the
         ;; driver off rather than re-arm it against the pre-jump camera position;
@@ -364,30 +390,46 @@ reading through it."
             )
           )
         )
-      (jakx-cam-pin-view! warp (if *jakx-cam-warp-rot-valid*
-                                   *jakx-cam-warp-rot*
-                                   (the-as matrix #f)
-                                   )
-                          )
-      ;; at the end of the pin window the ring has settled ('set-slave storms are
-      ;; boot-time only), so retire the combiner: killing it and clearing the view
-      ;; slots drops update-camera into its no-combiner pad fallback
-      ;; (move-camera-from-pad), the verified-good path that flies the math-camera
-      ;; directly off the pad and never resets it. The combiner branch is not
-      ;; usable yet: it blends through an uninitialized stack matrix on this
-      ;; bring-up, so it never produces a valid view even with a correct trans.
-      (when (zero? *jakx-cam-warp-frames*)
-        (kill-by-name "camera-combiner" *active-pool*)
-        (dotimes (i 2)
-          (view-push-context i)
-          (view-set-active-camera-combiner (the-as basic #f))
-          (view-pop-context)
+      ;; og:preserve-this issue 724: the pin write is one-shot, not per-frame. The
+      ;; investigation falsified the old "combiner blends through an uninitialized
+      ;; stack matrix" theory that justified killing the combiner every release; the
+      ;; real mechanism was frame ordering (update-camera, main.gc:3078, consumes
+      ;; the combiner before this tick, main.gc:3081, writes it, so a same-frame
+      ;; combiner write cannot show up until next frame) plus write ownership (the
+      ;; combiner branch overwrites the math-camera from the combiner every frame,
+      ;; cam-update.gc:521-531). Once the combiner holds the right trans, that
+      ;; branch keeps propagating it on its own, and cam-combiner's own :code
+      ;; (cam-combiner.gc:236) keeps re-deriving the combiner's trans from the
+      ;; active slave, which for 'cam-fixed just replays its saved-pt
+      ;; (cam-states.gc:213-218) -- so once armed, nothing here needs to fight the
+      ;; ring again. debug-set-camera-pos-rot! (cam-debug.gc:3147-3155) is the
+      ;; landed retail primitive that performs this write plus the mode-name arm.
+      (when (not *jakx-cam-warp-pinned*)
+        (let ((cc (the-as camera-combiner (view-get-active-camera-combiner))))
+          (when (and (nonzero? cc) cc)
+            (debug-set-camera-pos-rot! warp
+                                        (if *jakx-cam-warp-rot-valid*
+                                            *jakx-cam-warp-rot*
+                                            (-> cc inv-camera-rot)
+                                            )
+                                        )
+            )
           )
-        (format 0 "cam-warp: released at <~m ~m ~m>, combiner retired~%"
+        (set! *jakx-cam-warp-pinned* #t)
+        )
+      ;; at the end of the pin window release the 'cam-fixed hold instead of
+      ;; retiring the combiner: dropping the mode-name setting (mirroring dm-cam-
+      ;; mode-default, default-menu.gc:211-217) lets the settings pump's own
+      ;; entity-or-mode-changed re-spawn (settings.gc:2022-2028) fall back to
+      ;; cam-free-floating on its own, with the combiner and master both still
+      ;; alive for rung 2's free-flight lever (issue 724).
+      (when (zero? *jakx-cam-warp-frames*)
+        (setting-control-method-21 *setting-control* 'mode-name)
+        (format 0 "cam-warp: released at <~m ~m ~m>, hold released~%"
                 (-> warp x) (-> warp y) (-> warp z))
         (set! *jakx-cam-warp-level* (the level #f))
-        ;; the seed itself stays in *save-camera-inv-rot*; only the pin ends here
         (set! *jakx-cam-warp-rot-valid* #f)
+        (set! *jakx-cam-warp-pinned* #f)
         ;; og:preserve-this want-driver re-arm (follow-up rung, level.gc
         ;; jakx-goto-level): the other of the two exit paths that must re-arm the
         ;; driver (see the dead-target retire above for the other). The camera has
