@@ -25,18 +25,24 @@
 ;; ambient.gc's and part-tester.gc's identical declare-type/define-extern
 ;; pair for the same reason: auto-save is not landed anywhere in this tree
 ;; yet, forward-declared only so the pointer types parse.
-;; RUNTIME HAZARD: auto-save-command links as zero until a real body lands
-;; (the auto-save type itself is not fully defined, landing it is out of this
-;; rung's scope). auto-save-user calls it whenever *kernel-boot-message* is
-;; 'play or 'preview and either *scene-player* is unset or its next-state is
-;; 'release. ambient.gc's talker :enter and :exit handlers already call
-;; auto-save-user unconditionally on the auto-save-on-each-start and
-;; auto-save-once-on-exit flags, so this is the same live single-player path,
-;; not a new one: today that call already links to zero on auto-save-user
-;; itself, so landing auto-save-user only moves the crash one call deeper
-;; rather than making a previously-safe path unsafe.
+;; og:preserve-this bring-up stub: menu-road rung 3 (issue 699). The
+;; landed lobby-menu-manager.gc carries three live call sites reaching
+;; this symbol; a bare define-extern with no defun anywhere would link
+;; every one of them to 0 (check_extern_defun's own FAIL class, the
+;; issue-531 defect this mirror's own doctrine names explicitly). Retired
+;; the previous RUNTIME HAZARD note (auto-save-command linking as zero):
+;; the auto-save type itself is still not fully defined (only the
+;; declare-type forward reference below), so a real body is out of this
+;; rung's own scope too; this stub keeps every call site's own link
+;; target non-zero with the same safe "no auto-save happened" return
+;; auto-save-user's own #f branch above already produces. Retirement
+;; condition: land the real auto-save type and this function's real body
+;; together, then re-decode.
 (declare-type auto-save process)
-(define-extern auto-save-command (function symbol int int process-tree symbol (pointer auto-save)))
+(defun auto-save-command
+  ((arg0 symbol) (arg1 int) (arg2 int) (arg3 process-tree) (arg4 symbol))
+  (the-as (pointer auto-save) #f)
+  )
 
 ;; definition for function auto-save-user
 (defun auto-save-user ()

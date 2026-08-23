@@ -8,9 +8,22 @@
 (define-extern set-graphics-mode (function none))
 (define-extern get-video-mode (function symbol))
 (define-extern get-aspect-ratio (function symbol))
-(define-extern set-progressive-scan (function symbol none))
 
 ;; DECOMP BEGINS
+
+;; og:preserve-this bring-up stub: menu-road rung 3 (issue 699). The
+;; landed lobby-menu-manager.gc carries three live call sites reaching
+;; this symbol; a bare define-extern with no defun anywhere would link
+;; every one of them to 0 (check_extern_defun's own FAIL class, the
+;; issue-531 defect this mirror's own doctrine names explicitly).
+;; RUNTIME HAZARD: no real progressive-scan toggle lands here; this is an
+;; inert no-op standing in for the retail video-mode side effect
+;; (progressive vs interlaced display) until a real body is landed.
+;; Retirement condition: land the real PS2 video-mode-switch body, then
+;; re-decode.
+(defun set-progressive-scan ((arg0 symbol))
+  (none)
+  )
 
 (deftype video-params (structure)
   "Parameters for the framebuffer."

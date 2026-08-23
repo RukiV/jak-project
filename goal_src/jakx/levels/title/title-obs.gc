@@ -48,6 +48,12 @@
 ;; file's own all-types.gc citation already names.
 (define-extern *title-control* title-control)
 
+;; menu-road rung 3 (issue 699): lobby-start's own real defun lands in
+;; lobby-menu-manager.gc, which compiles after this file in DGO build
+;; order; forward-declared here so (enter target-title)'s own newly-armed
+;; call resolves ahead of that later landing.
+(define-extern lobby-start (function int))
+
 ;; definition for method 3 of type title-control
 (defmethod inspect ((this title-control))
   (when (not this)
@@ -955,17 +961,13 @@
   ;; test/decompiler/reference/jakx/levels/title/title-obs_REF.gc:693-718,
   ;; regenerated from the decompiler's own fresh output in that same commit.
   ;;
-  ;; The trailing (lobby-start) call stays stubbed rather than landed:
-  ;; lobby-start's own decode is "ERROR: Function lobby-start has unknown
-  ;; type" (census lobby-menu-manager_ir2.asm:5304), it has no defun anywhere
-  ;; in goal_src (lobby-menu-manager.gc is still the 116-error stub), and its
-  ;; body process-spawns lobby-menu-manager via run-function-in-process
-  ;; against lobby-menu-manager-init-by-other, itself undefined -- the same
-  ;; zero-vtable-slot/nullptr-function crash class jakx-build-toolchain-quirks
-  ;; #5d already named for vehicle-manager-start. Landing the call here would
-  ;; put a nullptr-function crash on the retail boot path. Retirement: the
-  ;; lobby-menu-manager/lobby-adventure screen-flow rung lands lobby-start and
-  ;; lobby-menu-manager-init-by-other for real.
+  ;; The trailing (lobby-start) call was stubbed at landing time: lobby-start
+  ;; had no defun anywhere and its own body process-spawns lobby-menu-manager
+  ;; via lobby-menu-manager-init-by-other, itself undefined, the zero-vtable-
+  ;; slot/nullptr-function crash class jakx-build-toolchain-quirks #5d named
+  ;; for vehicle-manager-start. Both claims are stale as of menu-road rung 2
+  ;; (issue 699): lobby-menu-manager.gc now lands lobby-start and lobby-menu-
+  ;; manager-init-by-other for real, so this rung arms the call for real too.
   ;;
   ;; a0-0 (declared (local-vars (a0-0 none)) by the decompiler, read in the
   ;; (when a0-0 ...) block below) is a genuine register-not-set residual, not
@@ -1004,7 +1006,7 @@
         )
       (send-event (ppointer->process (-> *setting-control* user-current movie)) 'abort)
       )
-    ;; og-stub: (lobby-start), see this state's :enter citation above.
+    (lobby-start)
     )
   :exit (behavior ()
     '()
