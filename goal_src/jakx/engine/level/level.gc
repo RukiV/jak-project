@@ -2541,6 +2541,53 @@
     ;; for the *part-id-table* sibling scrub and the full deviation note.
     (unlink-part-by-heap (-> this heap))
     (unlink-lightning-spec-by-heap (-> this heap))
+    ;; og:preserve-this issue 697, layer three: a borrow-load level can register a
+    ;; texture-anim-array whose defining static ships only in a window level's own
+    ;; DGO. junglee registers *junglee-water-texture-anim-array* out of
+    ;; havjung-effects.o, which ships only in the WINDOW-level DGOs (HAVJUNGW,
+    ;; HAVTOURW, HJX, JGX, JUNGLEW), not in junglee's own DGO. When the window
+    ;; swaps -- havjungw discarded, junglew streaming its DGO into the identical
+    ;; level-heap bank from the base up -- junglee stays 'active holding a slot
+    ;; that points into memory the new window level just overwrote.
+    ;; update-texture-anim (texture-anim.gc) then reads length 0 and
+    ;; array-data[0] tex 0 off that slot and dereferences the zero at tex+0x14.
+    ;; Same class as #193 (:2118-2135) and #602 (:2270-2296, :2301-2323): retail's
+    ;; authored want-sets never let a borrowed pointer outlive the level that
+    ;; defined it, so retail never needed a cross-level scrub; the bring-up
+    ;; window-swap driver breaks that invariant. The texture-anim-array scrub
+    ;; further down this same method (11-slot dotimes, just below) only clears
+    ;; THIS level's own slots, same as unlink-part-group-by-heap/
+    ;; unlink-part-by-heap/unlink-lightning-spec-by-heap right above -- none of
+    ;; them can see a borrow sitting in some OTHER resident level's array. Walk
+    ;; every other resident level's texture-anim-array here, while this level's
+    ;; own heap base/top-base are still valid, and drop any slot whose value
+    ;; falls inside the range this unload is about to overwrite. Two-sided
+    ;; sentinel per slot, same idiom captured-part-group-addr above already
+    ;; uses for the identical s7-vs-raw-zero distinction: #f passes nonzero?
+    ;; and raw 0 passes plain truthiness, so both (nonzero? arr) and arr itself
+    ;; are required.
+    (dotimes (s5-6 19)
+      (let ((a1-30 (-> *level* level s5-6)))
+        (when (!= a1-30 this)
+          (dotimes (v1-135 11)
+            (let ((a2-40 (-> a1-30 texture-anim-array v1-135)))
+              (when (and (nonzero? a2-40) a2-40)
+                (when (and (>= (the-as int a2-40) (the-as int (-> this heap base)))
+                           (< (the-as int a2-40) (the-as int (-> this heap top-base)))
+                           )
+                  (format 0 "level ~A: dropping texture anim array slot ~D into unloading ~A's heap~%"
+                          (-> a1-30 name)
+                          v1-135
+                          (-> this name)
+                          )
+                  (set! (-> a1-30 texture-anim-array v1-135) #f)
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
     ;; og:preserve-this issue 602: sweep processes whose type lives in this
     ;; level's heap before anything can reuse it; see kill-level-typed-processes
     ;; above for the full deviation note.
