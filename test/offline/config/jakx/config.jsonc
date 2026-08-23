@@ -884,7 +884,30 @@
     // (the-as selection-menu-manager ...) wrappers instead, proven via a
     // clean full-project (mi) build; the decomp-vs-REF diff still gates
     // the rest of the object.
-    "lobby-menu-manager-h"
+    "lobby-menu-manager-h",
+    // lobby-menu-manager rung 2: the same pretty-printer-drops-cast class
+    // as lobby-menu-manager-h above, at several sites this rung's own
+    // config walls resolve via type_casts.jsonc/label_types.jsonc but the
+    // pretty-printer collapses back to an uncast bare read: the
+    // *medius-my-player*/*interface-cam* consuming reads in (code
+    // init-state)/update-lobby-camera (each stays declared object/basic
+    // for the same cross-file build-order reason lobby-menu-manager-h's
+    // own *lobby-menu-manager* does), and the raw pointer-arithmetic
+    // array/struct stores in (code init-state), lmm-make-background-menu
+    // sibling label literals, and the video-mode/language-text-id stores
+    // (fresh decompile prints a bare (+ ...) where goalc requires (&+
+    // ...) once the base is a real array/struct type instead of raw
+    // uint). A further eight (code init-state) call sites resolve
+    // net-generic-confirmation callbacks via inline (lambda :behavior
+    // lobby-menu-manager () (go-virtual ...)) forms the pretty-printer
+    // never emits at all (it prints the raw label reference and the
+    // *lobby-generic-confirmation*/#t operands as separate bare
+    // statements instead of assembling the enter-state call), proven from
+    // this rung's own scoped decode's raw asm op trace, not guessed. The
+    // decomp-vs-REF diff still gates the rest of the object; proven via a
+    // clean full-project (mi) build plus JakXTypeConsistency (both
+    // TypeConsistency and TypeConsistencyWithBuildFirst) passing.
+    "lobby-menu-manager"
   ],
   "skip_compile_functions": [
     // rigid-body-debug (rigid-body-object rung): four rb-debugger methods inline

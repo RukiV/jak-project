@@ -38,11 +38,10 @@ written is read-only by design and not a finding.
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (189)
+### Never written (187)
 
 | symbol | reading files | defined in |
 |---|---:|---|
-| `*game-mode*` | 6 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-marks*` | 4 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 4 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -81,7 +80,6 @@ written is read-only by design and not a finding.
 | `*hide-menus*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*ignore-want-load-display*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
-| `*lobby-local-players*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*music-lock*` | 2 | `goal_src/jakx/engine/sound/gsound-h.gc` |
 | `*record-cam-collide-history*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-pal*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -181,13 +179,13 @@ written is read-only by design and not a finding.
 | `*kernel-boot-level*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*keybd-hold-ct*` | 1 | `goal_src/jakx/engine/ps2/pad.gc` |
 | `*keybd-last-key*` | 1 | `goal_src/jakx/engine/ps2/pad.gc` |
+| `*lan-crap-last-time*` | 1 | `goal_src/jakx/engine/ui/menu/lobby-menu-manager.gc` |
 | `*last-loado-debug-usage*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*last-loado-global-usage*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*last-loado-length*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*list-all-scenes*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*lobby-last-selected-task-index*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
 | `*lobby-menu-manager-game-connection-type*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
-| `*lobby-reset-mode*` | 1 | `goal_src/jakx/engine/game/game-info.gc` |
 | `*manual-sample-point*` | 1 | `goal_src/jakx/engine/camera/cam-update-h.gc` |
 | `*merc-vu1-init-ready*` | 1 | `goal_src/jakx/engine/gfx/foreground/merc/merc.gc` |
 | `*music-volume-ducked-by-sound*` | 1 | `goal_src/jakx/engine/sound/gsound-h.gc` |
@@ -223,7 +221,7 @@ written is read-only by design and not a finding.
 | `*sync-dma*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*target-rc-board-controls*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*tfrag-display-stats*` | 1 | `goal_src/jakx/engine/gfx/background/tfrag/tfrag.gc` |
-| `*this-create-menu-state-name*` | 1 | `goal_src/jakx/engine/net/lobby-menu-manager-h.gc` |
+| `*thrash-level-loader*` | 1 | `goal_src/jakx/engine/ui/menu/lobby-menu-manager.gc` |
 | `*tmp-was-allocated*` | 1 | `goal_src/jakx/levels/common/net-simple-destruct.gc` |
 | `*total-length*` | 1 | `goal_src/jakx/engine/gfx/sprite/particles/light-trails.gc` |
 | `*update-leaf-when-outside-bsp*` | 1 | `goal_src/jakx/engine/camera/cam-update.gc` |
