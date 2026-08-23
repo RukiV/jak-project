@@ -9963,6 +9963,36 @@
   "lobby-check-buttons": [
     [17, "a0", "lobby-menu-manager"]
   ],
+  // lobby-menu-manager-h rung 1: restore-selection-index reads
+  // *lobby-menu-manager*, declared basic for the game-info.gc/main.gc
+  // build-order forward-ref idiom (same precedent as af786d70a's method-185
+  // fix), then dispatches its own vtable slot 756 (= 16 + 185*4) with the
+  // 'manager tag; cast at the consuming -4(reg) read. That call's own
+  // return then feeds a second dispatch at offset 276 (= 16 + 65*4) with a
+  // second arg pulled from *selection-cache-array*'s own offset-4
+  // (selection-type) field, the exact "manager tag then id-65 dispatch on
+  // the result with a second symbol-family arg" shape af786d70a's rung 3
+  // note already resolves to selection-menu-manager, the only base-menu
+  // descendant declaring method 65; cast at that read's own -4(reg) op too.
+  // Between the two dispatches sits a plain offset-68 read (process's own
+  // "state" field per the all-types offset convention: a raw machine load
+  // at N resolves the field placed at N+4, so 68 lands on state's own
+  // offset-assert 72, not level's 68; confirmed by the resolved output
+  // itself, "(-> ... state name)"); cast there too, same idiom as
+  // keyboard-control-init-by-other's own offset-68 cast above.
+  "restore-selection-index": [
+    [1, "a0", "lobby-menu-manager"],
+    [19, "a2", "lobby-menu-manager"],
+    [26, "a0", "selection-menu-manager"]
+  ],
+  // lobby-menu-manager-h rung 1: same shape as restore-selection-index
+  // above, reading raw offset 244 off the basic-typed *lobby-menu-manager*
+  // global; by the same N+4 convention this resolves to the field placed
+  // at offset-assert 248, "local-players" (confirmed by the resolved
+  // output, "(-> ... local-players)"), not an adjacent handle field.
+  "get-selected-local-player-count": [
+    [4, "v1", "lobby-menu-manager"]
+  ],
   // lobby rung: *lobby-menu-manager* is landed in main.gc typed bare basic
   // via (the-as basic #f), so its own define-extern must stay basic
   // (retyping it fails JakXTypeConsistency's fresh-build check the same way

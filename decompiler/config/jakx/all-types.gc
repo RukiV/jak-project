@@ -60560,8 +60560,16 @@
 (define-extern keyboard-control-spawn function)
 ;; (define-extern kill-keyboard-control function)
 ;; lobby rung: called with zero args, return is truthy-tested and matches
-;; the running keyboard-control process the sibling functions spawn and poll.
-(define-extern get-keyboard-control (function keyboard-control))
+;; the running keyboard-control process the sibling functions spawn and
+;; poll. lobby rung 1: every call site across this corpus (lobby-menu-
+;; manager-h, lobby-menu-manager, lobby-net-startup) only truthy-tests the
+;; result, never dereferences a field on it, so landing kbd-auto-activate's
+;; own bring-up stub in goal_src/jakx/engine/ps2/keyboard.gc does not need
+;; the keyboard-control type itself landed; loosened to object to match
+;; that stub's own declared type (JakXTypeConsistency requires the two to
+;; agree), the same og:preserve-this trade-off already used for
+;; *lobby-menu-manager* (basic) and *video-mode-change-ids* (array).
+(define-extern get-keyboard-control (function object))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; lobby-menu-manager-h           ;;
@@ -60872,16 +60880,27 @@
 ;; uses raw offset arithmetic instead of the field-name chain for this one
 ;; expression, so the ambiguity does not need resolving here.
 (define-extern *lobby-menu-manager* basic)
-;; (define-extern get-selected-local-player-count function)
+;; lobby rung 1: called with zero explicit args (only *lobby-menu-manager*
+;; touched); returns the int literal 2 when *lobby-menu-manager*'s own
+;; offset-244 field minus 2 is nonzero, else 1 (explicit ret-value of an
+;; int constant on both paths, no symbol/float branch).
+(define-extern get-selected-local-player-count (function int))
 ;; lobby rung: called with zero args, return is truthy-tested.
 (define-extern kiosk-code? (function symbol))
 ;; (define-extern min-max-wrap-around function) ;; (function int int int int)
-;; (define-extern *lobby-last-selected-task-index* object)
+;; lobby rung 1: static init stores the literal 0; lobby-brs's own two
+;; write sites store an explicitly int-typed local ([v1: int]) into it, and
+;; its own read site there is a plain field-free load, so int is evidenced
+;; outside this object too, not just the zero-init here.
+(define-extern *lobby-last-selected-task-index* int)
 ;; (define-extern *last-selected-human-ct* object)
 ;; (define-extern *last-selected-ai-ct* object)
 ;; (define-extern *last-selected-buddy-ct* object)
 ;; (define-extern *last-selected-clan-ct* object)
-;; (define-extern *lobby-menu-manager-game-connection-type* object)
+;; lobby rung 1: static init stores the literal 0; lobby-menu-manager's
+;; own write site stores an unsigned byte read (l.bu) off its own offset-
+;; 252 connection-type field, confirming a plain integer, not object.
+(define-extern *lobby-menu-manager-game-connection-type* int)
 ;; (define-extern *lobby-handling-db-error* object)
 ;; (define-extern *no-net-hw-warning-shown* object)
 ;; (define-extern *ready-room-human-ct* object)
@@ -60890,17 +60909,33 @@
 (define-extern camera-seek-time float)
 (define-extern real-camera-seek-time float)
 ;; (define-extern set-lobby-camera-seek-time! function)
-;; (define-extern *class-mode* object)
+;; lobby rung 1: static init stores the int literal 1, no other site in
+;; this object's own scope reads or writes it further.
+(define-extern *class-mode* int)
 ;; lobby rung: called with zero explicit arg setup and its return value kept;
 ;; a bare "function" here left the call site's own type prop unresolved.
 (define-extern restore-selection-index (function object))
 ;; (define-extern *lobby-timetrial-lock-mode* object)
 ;; (define-extern *vehicle-class-data* (array menu-option-info))
 ;; (define-extern *vehicle-class* object)
-;; (define-extern *time-of-day-data* array)
-;; (define-extern *time-of-day-array* object)
+;; lobby rung 1: static init stores a literal rodata array address whose
+;; own static shape (length/alloc-length header followed by nine
+;; menu-option-info pointers) matches the array-of-menu-option-info idiom
+;; directly, confirming this original hint over the bare "array" fallback.
+(define-extern *time-of-day-data* (array menu-option-info))
+;; lobby rung 1: same wrapper shape as *mirror-mode* (word0 = pointer to
+;; the real (array menu-option-info) *time-of-day-data*, word1 = 0, both
+;; written by explicit separate stores in this object's own top-level, not
+;; read anywhere else in this object); retypes to selection-cache matching
+;; that precedent instead of the bare object placeholder.
+(define-extern *time-of-day-array* selection-cache)
 ;; (define-extern *ready-room-host-id* object)
-;; (define-extern *keyboard-buf* object)
+;; lobby rung 1: static init stores its own address (a raw 128-byte
+;; zero-filled block, no self-describing header) into the symbol; lobby-
+;; buddies and lobby-clans both load it unmodified and pass it straight as
+;; the destination arg to copy-charp<-charp, whose own declared signature
+;; is (function (pointer uint8) (pointer uint8) (pointer uint8)).
+(define-extern *keyboard-buf* (pointer uint8))
 ;; lobby rung: called with zero args, return is truthy-tested.
 (define-extern kbd-auto-activate (function symbol))
 ;; (define-extern *return-to-secrets* object)
@@ -60908,12 +60943,29 @@
 ;; (define-extern *prev-create-menu-state-name* object)
 ;; (define-extern *lobby-fast-connect* object)
 ;; (define-extern *lobby-body-parts-return-state-name* object)
-;; (define-extern *eligible-for-body-part-award* object)
+;; lobby rung 1: static init stores the literal #f; lobby-adventure-awards'
+;; own read site folds it directly into an "and" chain of other truthy-
+;; tested boolean conditions, the standard flag-symbol idiom in this file.
+(define-extern *eligible-for-body-part-award* symbol)
 ;; (define-extern *pending-op* object)
 ;; (define-extern *pending-op-serial* object)
-;; (define-extern *pending-op-arg-ct* object)
-(define-extern *pending-op-args* object)
-;; (define-extern teams-valid-to-start-game? function)
+;; lobby rung 1: static init stores the literal 0, the identical
+;; back-to-back zero-init idiom as *pending-op-serial* immediately above
+;; (a counter pair reset together at login).
+(define-extern *pending-op-arg-ct* int)
+;; lobby rung 1: retyped from the bare object placeholder, which the data
+;; decompiler cannot render at all ("Unimplemented decompile_at_label...
+;; Type: object") once earlier walls in this object's top-level clear and
+;; expose this static ref. lobby-buddies' own "(s.w! v1-142 gp-7)" write at
+;; this global's own offset 0 is a full 32-bit word store, matching
+;; *keyboard-buf*'s sibling raw-buffer idiom at word granularity instead of
+;; byte; sized from this object's own 8-word zero block.
+(define-extern *pending-op-args* (pointer int32))
+;; lobby rung 1: called with zero explicit args (only *net-world* touched);
+;; the "?" name matches this file's own predicate convention, and every
+;; return path sets an explicit #t/#f except one int-0 fallback, the same
+;; symbol-with-int-0-fallback shape already landed for jak-selection-clear?.
+(define-extern teams-valid-to-start-game? (function symbol))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; hostnames                      ;;
@@ -88756,7 +88808,11 @@
 (define-extern *patch-encrypted-size* object) ;; provisional: call-site evidence only
 (define-extern *patch-recv-bytes* object) ;; provisional: call-site evidence only
 (define-extern *pending-op* object) ;; provisional: call-site evidence only
-(define-extern *pending-op-serial* object) ;; provisional: call-site evidence only
+;; lobby rung 1: lobby-menu-manager-h's own top-level zero-inits this as a
+;; plain word; lobby-net-startup and lobby-buddies both read it into a
+;; logand bitmask compare and re-store an offset-36 int32 field read back
+;; into it, confirming a plain int over the provisional object placeholder.
+(define-extern *pending-op-serial* int)
 (define-extern *playback-name* object) ;; provisional: call-site evidence only
 (define-extern *playback-start-time* object) ;; provisional: call-site evidence only
 (define-extern *playback-stream* object) ;; provisional: call-site evidence only
@@ -88950,7 +89006,13 @@
 (define-extern *vehicle-antenna-state* vehicle-antenna-state)
 ;; lobby-menu-manager rung: read into a1/v1 across many call sites with no
 ;; narrower evidence found; kept the original commented guess.
-(define-extern *vehicle-class* object) ;; provisional: call-site evidence only
+;; lobby rung 1: lobby-menu-manager-h's own top-level shows the identical
+;; wrapper shape as *time-of-day-array*/*mirror-mode* (word0 = pointer to
+;; *vehicle-class-data*, the real (array menu-option-info), word1 = 0, both
+;; written by explicit separate stores, not read anywhere else in this
+;; object); retypes to selection-cache over the provisional object
+;; placeholder matching that precedent.
+(define-extern *vehicle-class* selection-cache)
 (define-extern *vehicle-class-data* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-debris-constants* object) ;; provisional: call-site evidence only
 (define-extern *vehicle-headlight-glow-template* object) ;; provisional: call-site evidence only

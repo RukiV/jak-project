@@ -781,5 +781,14 @@
   // expressions entirely while this label stayed an unparseable
   // <static-data L322> placeholder (issue 466's "top level function was
   // not converted to expressions" wall).
-  "nav-mesh": [["L322", "(inline-array vector)", 2]]
+  "nav-mesh": [["L322", "(inline-array vector)", 2]],
+  // lobby-menu-manager-h rung 1: top-level-login's own *keyboard-buf* and
+  // *pending-op-args* zero-inits each self-store their own label address
+  // (the standard raw-buffer idiom, no self-describing header), so once the
+  // symbols themselves retype to (pointer uint8)/(pointer int32) the labels
+  // still need an explicit element count to render as a static. L42 is the
+  // full 128-byte zero block *keyboard-buf* points at; L41 is the 32-byte
+  // (8 word) zero block *pending-op-args* points at, evidenced word-sized
+  // by lobby-buddies' own "(s.w! v1-142 gp-7)" write at its own offset 0.
+  "lobby-menu-manager-h": [["L42", "(pointer uint8)", 128], ["L41", "(pointer int32)", 8]]
 }
