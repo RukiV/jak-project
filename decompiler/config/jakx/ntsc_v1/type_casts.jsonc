@@ -1242,6 +1242,57 @@
     [28, "a1", "pair"],
     [29, "a1", "pair"]
   ],
+  // (event target-continue): op 16 reads event-message-block's own param[1]
+  // (raw offset 24, a structure field, no +4 trap) into a0, the raw process
+  // pointer being process->handle'd in the 'change-mode else-branch
+  // (gkernel-h.gc:463-465). Op 18's own failing load, raw offset 28 off
+  // that a0, is process-tree's own ppointer field (declared 32 via the +4
+  // basics trap), exactly the (-> the-proc ppointer) step inside
+  // process->ppointer (gkernel-h.gc:449-454) that process->handle expands
+  // through. Same shape, same single-op cast convention as (event
+  // othercam-running)'s own a0-at-op-41 entry above (pov-camera.gc's own
+  // 'target case); the rest of the chain (the ppointer dereference at op
+  // 20, the pid read at op 21, both sllv-r0 truncations at ops 22/25)
+  // resolves on its own once a0 is typed here, same as that precedent.
+  "(event target-continue)": [
+    [[18, 19], "a0", "process"]
+  ],
+  // (code target-continue): two calls to view-get-active-camera-combiner
+  // (ops 557 and 562), declared to return plain basic (all-types.gc's own
+  // "basic because camera-combiner parses later" comment). Op 558's own
+  // failing add (raw offset 140, declared 144, trans) and op 564's raw
+  // offset 156 (declared 160, inv-camera-rot) are the same two fields
+  // debug-set-camera-pos-rot! already casts at its own two call sites
+  // above; continue-point's own camera-trans (declared 48, basic +4 trap
+  // gives raw 44) and camera-rot (declared 72, raw 68) fields are copied
+  // into them, matching jak3's own :code (goal_src/jak3/engine/target/
+  // target-death.gc:693-707, the camera-trans/inv-camera-rot copy at
+  // continue-arrival). Cast at the failing op, not the defining call, per
+  // the (code pov-camera-start-playing pov-camera) convention above.
+  // Ops 825-829: self's own root field (raw 184, collide-shape per
+  // process-focusable's override) is read-modify-written at raw offset 284
+  // (declared 288 via the +4 basics trap), the same collide-shape-moving
+  // status field target-generic-event-handler's own [253]/[256] entries
+  // above already cast; a logior of flag 7 into it, guarding the two
+  // reads (826 the load, 828/829 the reload-and-store) the same way.
+  // Ops 844-853: a hand-built event-message-block is sent to self via
+  // send-event-function (stack_structures.jsonc's own [352,
+  // "event-message-block"] entry below), and its param[1] (raw offset 24,
+  // sd at op 855) is self's own mode-param1 field (raw 476, a handle) run
+  // through the exact handle->process shape (method 10 race-state) already
+  // casts to "handle": subu-s7 null check (845), sllv/dsra32 pid-pointer
+  // split (848/851), ppointer dereference and live-pid compare (849/850/
+  // 852) before handing back either the live process or #f (853). Cast at
+  // the defining load (844) through the last read (853), one op past the
+  // (method 10 race-state) convention since that entry's own defining op
+  // sat one op earlier relative to its first use.
+  "(code target-continue)": [
+    [[558, 559], "v0", "camera-combiner"],
+    [[564, 565], "v0", "camera-combiner"],
+    [[826, 827], "v1", "collide-shape-moving"],
+    [[829, 830], "a0", "collide-shape-moving"],
+    [[844, 854], "v1", "handle"]
+  ],
   // canyon-obs (method 11 can-leaves-floor): op 69 stores a freshly (new
   // 'process 'collide-shape ...) instance straight into this's root field
   // (machine offset 184, placement 188), then op 82-84 reads it back and

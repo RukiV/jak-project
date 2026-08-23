@@ -35,6 +35,54 @@
 ;; (a forward-decl for a real, landed function is not itself a hold).
 (define-extern target-generic-event-handler (function process int symbol event-message-block object :behavior target))
 
+;; og:preserve-this forward-decl (title-continue chain, this rung): target-
+;; standard-event-handler is landed and real (target-handler.gc), but that
+;; file compiles after this one in the build order, the same compile-order
+;; class as target-generic-event-handler's own forward-decl above.
+;; target-continue's real :code (below) assigns it straight into self's own
+;; event-hook field on the mode-cache re-dispatch path, evidenced against
+;; all-types.gc's own extern signature (line 49460). Retires under the same
+;; condition as the entry above.
+(define-extern target-standard-event-handler (function process int symbol event-message-block object :behavior target))
+
+;; og:preserve-this forward-decl (title-continue chain, this rung): target-
+;; no-move-post is landed and real, later in this same file (below), but
+;; target-continue's own :post field (its defstate sits earlier in the file)
+;; is a bare symbol reference the compiler resolves immediately, not a
+;; deferred call; "The symbol target-no-move-post was looked up as a global
+;; variable, but it does not exist" is the same single-file forward-reference
+;; class the two entries above solve across file boundaries, just within one
+;; file instead. Retires if target-continue's defstate is ever moved below
+;; target-no-move-post's own definition, or does not retire at all otherwise
+;; (a forward-decl for a real, landed function is not itself a hold).
+(define-extern target-no-move-post (function none :behavior target))
+
+;; og:preserve-this forward-decl (title-continue chain, this rung): reset-
+;; target-state is landed and real, later in this same file (below), but
+;; target-continue's own :code (its defstate sits earlier in the file) calls
+;; it directly; the same single-file forward-reference class as the
+;; target-no-move-post entry above ("No method or function named
+;; reset-target-state for type symbol", the compiler's own fallback reading
+;; of an unresolved call as a method dispatch on the first arg's type).
+;; Retires under the same condition as that entry.
+(define-extern reset-target-state (function symbol target :behavior target))
+
+;; og:preserve-this forward-decl (title-continue chain, this rung): four more
+;; symbols target-continue's own real :code (below) calls or reads, all
+;; landed and real in target-death.gc, which compiles after this file in the
+;; build order (same class as target-generic-event-handler's own forward-decl
+;; above, just against a different file). target-continue-init-art is a
+;; zero-arg bring-up stub (target-death.gc); arrive-at-continue and
+;; next-continue are both landed for real there too; *auto-continue* is a
+;; plain symbol define, hitting the same "looked up as a global variable, but
+;; it does not exist" class the target-no-move-post entry above hit, just
+;; across a file boundary instead of within one. Retires if the build order
+;; ever changes to compile target-death.gc before this file.
+(define-extern target-continue-init-art (function none :behavior target))
+(define-extern arrive-at-continue (function continue-point none :behavior target))
+(define-extern next-continue (function continue-point continue-point))
+(define-extern *auto-continue* symbol)
+
 ;; og:preserve-this stop, landed for real, R4 (#122): transcribed verbatim from the
 ;; R0-corrected decode (logic-target_ir2.asm). arg1 is the view-push-context int the
 ;; original 1-arg signature dropped (R0 RESULTS ADDENDUM item 4; the fix lives on
@@ -88,117 +136,478 @@
   (none)
   )
 
-;; og:preserve-this bring-up state, R10 (#122): target-h.gc's :states list reserves
-;; the symbol target-continue (deftype.cpp's own :states handling creates the global),
-;; but nothing in this tree ever landed a real (defstate target-continue ...); the
-;; symbol existed with no backing state object. target-init's (go target-continue)
-;; call dispatches into the kernel's enter-state machinery (gkernel.gc), which reads
-;; the state object's handler slots to set the process up; with no real object behind
-;; the symbol those slots were whatever memory happened to hold, read as an all-ones
-;; pattern (a native crash reading GOAL address 0xffffffffffffffff, rip inside gk.exe,
-;; not GOAL code: the R10 boot crash, attributed to logic-target+0x62, the return
-;; address of stop's own (view-get-active-target) call sitting on the stack from
-;; start's earlier (stop arg0 arg2), one frame up from the real fault in the kernel's
-;; state-entry code, and to gkernel+0xf54 directly). The real target-continue state
-;; (movement/physics :code, :trans on continue triggers, camera framing) is
-;; substantial, undecoded behavior, not a guard or a stub; the honest minimal fix is
-;; the same shape as generic-obs.gc's bring-up-parked (:code sleep-code only, exactly
-;; the "state exists and is not garbage" precedent this leg has already used twice):
-;; a real, correctly-typed, all-other-slots-#f state object stands in for the racing
-;; continue-arrival behavior. Retirement condition: the real target-continue state
-;; lands (movement, physics, camera-framing logic; a separate leg's scope).
-;; og:preserve-this arity widened to match target-h.gc's :states entry, (target-continue
-;; continue-point): (code target-continue)'s own decode evidence (target-death.gc, R5b)
-;; proves the real state reads a continue-point's name field, so target-h.gc's bare
-;; zero-arg guess was corrected. This stub's :code still wraps sleep-code verbatim,
-;; only now behind a (continue-point) arg to satisfy the widened typecheck; behavior is
-;; unchanged. Retirement condition unchanged from above.
+;; og:preserve-this landed for real (title-continue chain, this rung): the R10
+;; bring-up state, its arity-widened follow-up, the issue-522 'change-mode
+;; stand-in, and the want-copy finding (all formerly here) are retired by this
+;; landing; their history is folded into this one note rather than kept
+;; separately. :code and :event, held raw since 5372bb41e at target-death.gc
+;; (op 558 "add failed: basic <integer 140>", op 486 stack-use guess failure,
+;; op 18 an untyped event-message-block load, plus two unsupported inline sllv
+;; sites), now decode 100% clean. Every wall fell to decompiler-config-only
+;; fixes (type_casts.jsonc/stack_structures.jsonc under decompiler/config/
+;; jakx/ntsc_v1/); no goal_src changes were needed to unblock them:
 ;;
-;; og:preserve-this bring-up 'change-mode stand-in (scene chain, issue 522):
-;; target-continue's own :event slot is still unlanded (the stub note above), so
-;; event-hook never gets set to a live handler and gstate.gc's send-event-function
-;; guard (its own event-hook check) drops every event sent to a target parked here,
-;; including process-grab?'s handshake (generic-obs.gc:1690, sends ('change-mode
-;; 'grab #t) via command-get-process). scene.gc:1110-1116 retries that handshake
-;; every frame until it sees a truthy answer, so the scene-player's wait state never
-;; advances. A fresh scoped decode of target-handler.gc today (target-standard-
-;; event-handler, 2 errors: an unresolved type-prop load and an unsupported inline
-;; sllv) shows its own 'change-mode dispatch only branches on the pilot-mode symbols
-;; and 'normal; a bare 'grab param0 matches neither arm, and both the matched
-;; branch's delay slot and the fallthrough path set v0-0 to #f (L21/L22 in the
-;; disasm), so landing that function once its own decode errors are resolved would
-;; not answer this handshake either. This stand-in answers 'grab truthily without
-;; moving the target into any real grab state; retail's own grab semantics (parking
-;; the target, disabling control) are out of scope here, matching target-title's own
-;; precedent for the same message (title-obs.gc:717). Retirement condition: the real
-;; target-continue state lands its own :event (same condition as the stub note
-;; above).
+;;  1. (event target-continue) op 18: a0 (event-message-block's own param[1],
+;;     the raw process being process->handle'd in the 'change-mode else-arm,
+;;     gkernel-h.gc:463-465) was untyped where it reads process-tree's own
+;;     ppointer field (raw 28, declared 32 via the +4 basics trap). Cast a0 to
+;;     process at that one op; the rest of the chain (the ppointer deref, the
+;;     pid read, both sllv-r0 truncations) resolved with no further casts,
+;;     the same shape as (event othercam-running)'s own a0-at-op-41 entry.
+;;  2. (code target-continue) ops 558/564: two view-get-active-camera-combiner
+;;     results (declared plain basic) read at raw 140/156 (declared 144/160,
+;;     trans/inv-camera-rot). Cast v0 to camera-combiner at both failing ops,
+;;     mirroring debug-set-camera-pos-rot!'s own two-call-site precedent.
+;;  3. (code target-continue) op 826/829: self's own root field re-read at raw
+;;     284 (declared 288), collide-shape-moving's status field, the same one
+;;     target-generic-event-handler's existing [253]/[256] entries already
+;;     cast. Cast v1/a0 to collide-shape-moving at the read and the write.
+;;  4. (code target-continue) op 486/501: two (new 'stack 'script-context ...)
+;;     allocations for (script-eval '(teleport)) and (script-eval (the-as
+;;     pair (-> arg0 on-goto))), matching jak3's own twin call shape
+;;     (target-death.gc:680-681). Added stack_structures.jsonc hints at
+;;     offsets 32 and 192.
+;;  5. (code target-continue) op 849 (surfaced after wall 3 cleared): self's
+;;     own mode-param1 handle field (raw 476) run through the handle->process
+;;     idiom (subu-s7 null check, sllv/dsra32 pid-pointer split, ppointer
+;;     deref, live-pid compare). Cast v1 to handle at ops 844-853, mirroring
+;;     (method 10 race-state)'s own precedent for the identical shape. A
+;;     third, distinct stack allocation at offset 352 (a hand-built
+;;     event-message-block for send-event-function's own 'change-mode
+;;     re-dispatch to self) needed its own stack_structures.jsonc hint too.
 ;;
-;; og:preserve-this partial arming (issue 595, region-mode dossier): the real
-;; :exit's own decoded evidence sits held in target-death.gc's commented block
-;; (:exit line "(set! (-> *setting-control* user-default region-mode) (the-as
-;; basic #t))", held whole since 5372bb41e alongside :code/:event's unrelated
-;; decode failures) and jak3's own landed twin agrees verbatim in shape
-;; (goal_src/jak3/engine/target/target-death.gc:472, "(set! (-> *setting-control*
-;; user-default region-mode) #t)"). start (above in this file, and its jak3 twin
-;; at logic-target.gc:3117) unconditionally clears user-default region-mode to #f
-;; on every level-start, retail-faithful; retail undoes that clear here, on the
-;; continue-arrival this bring-up stub already stands in for. With this stub
-;; carrying no :exit at all, the clear was never undone: region-mode stuck #f
-;; forever post level-start, evidenced live by the jakx-region-driver diagnosis
-;; boot (issue 595) reading user-default AND user-current region-mode #f despite
-;; settings.gc:2056's own init store writing #t, and confirmed self-consistent
-;; (a REPL write to user-default propagated to user-current and armed the whole
-;; region driver gate) rather than an offset defect. Same shape as target-
-;; method-59's own partial arming above: one field of the real body's :exit armed
-;; by citation, not the whole handler. Retires when the real target-continue
-;; :exit lands (movement, physics, camera-framing logic; same leg as target-
-;; method-59's retirement condition).
+;; :exit remains held; see the issue-595 note below, now the only piece of
+;; this state still not landed for real.
 ;;
-;; og:preserve-this want-copy finding (title-continue chain, this rung): a fresh
-;; scoped decode of target-death (scratch, --config-override allowed_objects
-;; ["target-death"], this worktree's own types) settles whether the held :code
-;; above touches wants before it hits its own wall, further than the existing
-;; hold note above needed to go. It does. Raw ops 228/231/239 (`lb`/`lwu` at
-;; gp+97/gp+100, gp holding the continue-point arg) read want-count and the want
-;; array's base pointer -- raw load offset N binds to the field placed at
-;; :offset-assert N+4 for a basic (all-types.gc: want-count 101, want 104), so
-;; these are exactly continue-point's own want-count/want fields, not a
-;; mistyped read. Ops 233-245 copy each entry's name (+0) and second word (+4)
-;; into *load-state* at i*32 for i < want-count; ops 247-260 clear the same two
-;; words to #f for the remaining slots up to 6, and two more trailing words
-;; (+8/+12) are zeroed unconditionally every iteration. A second, one-shot loop
-;; (ops 270-282, raw gp+104 = want-sound's own :offset-assert 108) copies
-;; want-sound into *load-state*+1944 and writes a constant 4 into +1948. This is
-;; a genuine want-copy, the same structural shape as jak3's own landed
-;; target-continue :code. It is a separate mechanism from the want-driver
-;; docstring above jakx-want-driver-tick (level.gc:7998): that note is about
-;; level-update's per-frame continue block and net-world's race-window staging,
-;; which it shows do not touch wants; this is target-continue's own one-time
-;; continue-arrival copy, and the two do not contradict each other. Recorded
-;; here because it bears on this stub's eventual retirement: whatever replaces
-;; sleep-code needs to either perform this copy or prove it is already
-;; redundant with the net-world path before dropping it. Retires with the same
-;; condition as the :code hold above.
+;; Landing the real :event trades away the issue-522 stand-in's 'grab
+;; truthy answer for retail's own: the decoded 'change-mode case returns #f
+;; for both 'grab and 'look-around (matching jak3's own twin verbatim), so
+;; process-grab?'s handshake (generic-obs.gc:1690) will read this as a
+;; refusal for as long as a target sits in target-continue. Real :code no
+;; longer parks here forever (it wants-loads, then arrive-at-continue, then
+;; (go target-float) below), so the window this matters in is bounded to
+;; however long that load takes, not indefinite the way the sleep-code stub
+;; made it; whether scene.gc:1108-1116's own wait loop (issue 522) still
+;; depends on catching a target mid-target-continue is unverified from this
+;; static rung and needs a runtime check, not a hold, since #f-for-'grab is
+;; retail's own decoded behavior, not an invented one.
 (defstate target-continue (target)
   :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (local-vars (v0-0 object))
     (case message
       (('change-mode)
        (case (-> block param 0)
-         (('grab)
-          #t
+         (('grab 'look-around)
+          #f
           )
+         (else
+           (set! (-> self mode-cache) (the-as symbol (-> block param 0)))
+           (set! (-> self mode-param1) (the-as uint (if (>= argc 2)
+                                                        (process->handle (the-as process (-> block param 1)))
+                                                        (the-as int #f)
+                                                        )
+                                               )
+                 )
+           (set! (-> self mode-param2) (-> block param 2))
+           (set! v0-0 (-> block param 3))
+           (set! (-> self mode-param3) (the-as uint v0-0))
+           v0-0
+           )
          )
+       )
+      (('want-continue)
+       (set! v0-0 (-> block param 0))
+       (set! (-> self state-object 0) (the-as uint v0-0))
+       v0-0
        )
       (else
         (target-generic-event-handler proc argc message block)
         )
       )
     )
+  :enter (behavior ((arg0 continue-point))
+    '()
+    )
+  ;; og:preserve-this partial arming (issue 595, region-mode dossier): the
+  ;; real :exit still cannot land. Its own setting-control-method-17 call
+  ;; (retail's region-mode restore) reads two registers, a3 and t0, that
+  ;; :exit's own decode never sets: the vtable slot's declared signature
+  ;; (settings-h.gc:530, four params past self) is correct against the
+  ;; landed method body (settings.gc:1316), which genuinely never reads its
+  ;; own arg2/arg3 -- but that only explains why retail's compiler didn't
+  ;; bother setting a3/t0 here, not what value they actually carried. A
+  ;; sibling call to the same method earlier in :code (op 129-139) shows the
+  ;; retail idiom for this exact situation: a3/t0 left over from an earlier
+  ;; setting-control-method-19 call in the SAME function (a3=#f, t0=0) rather
+  ;; than freshly set. :exit is a separate, independently-analyzed function
+  ;; (ir2_register_usage_pass in ObjectFileDB_IR2.cpp:696-744 checks each
+  ;; function's own register inputs in isolation) with no earlier a3/t0
+  ;; write of its own to inherit from -- gkernel.gc's own exit-state
+  ;; dispatch is a bare zero-arg call, `((-> (the protect-frame cur) exit))`,
+  ;; so whatever a3/t0 held here came from further up a call chain this
+  ;; rung has no way to trace to a single deterministic value. No config
+  ;; mechanism exists to suppress the register-usage check itself. Inventing
+  ;; a3-0/t0-0 values (the shape the decompiler's own emitted local-vars
+  ;; placeholder tempts) would be asserting a retail value with no evidence,
+  ;; so this one call stays held; the rest of the region-mode fix below is
+  ;; unaffected and unchanged from the issue-595 landing. Retires when a
+  ;; future rung finds real evidence for :exit's own a3/t0 (a caller-chain
+  ;; trace, or a config mechanism for this check).
   :exit (behavior ()
     (set! (-> *setting-control* user-default region-mode) (the-as basic #t))
     )
+  :trans (behavior ()
+    '()
+    )
   :code (behavior ((arg0 continue-point))
+    (local-vars (v1-91 symbol) (v1-117 symbol))
+    (let ((v1-1 (-> self root root-prim)))
+      (set! (-> v1-1 prim-core collide-as) (collide-spec))
+      (set! (-> v1-1 prim-core collide-with) (collide-spec))
+      )
+    0
+    (set! *spawn-actors* #f)
+    (set! (-> self state-object 0) (the-as object #f))
+    (set! (-> self mode-cache) #f)
+    (set-time! (-> self state-time))
+    (logior! (-> self focus-status) (focus-status teleporting))
+    (let ((s5-0 (game-info-method-18 (-> self game) (-> arg0 name))))
+      (cond
+        (s5-0
+          (set! (-> self game player-info (view-get-active-index) last-continue) (the-as continue-point s5-0))
+          )
+        ((string= (-> arg0 name) "default")
+         )
+        (else
+          (format 0 "ERROR: TARGET: attempting to goto continue ~A which is not in level-info~%" (-> arg0 name))
+          )
+        )
+      )
+    (if (-> *art-control* reserve-buffer)
+        (reserve-free *art-control* (-> *art-control* reserve-buffer heap))
+        )
+    (setting-control-method-15 *setting-control* self 'region-mode #f 0 0)
+    (setting-control-method-15 *setting-control* self 'border-mode #f 0 0)
+    (setting-control-method-15 *setting-control* self 'allow-continue #f 0 0)
+    (setting-control-method-15 *setting-control* self 'allow-timeout #f 0 0)
+    (setting-control-method-15 *setting-control* self 'speech-control #f 0 0)
+    (setting-control-method-15 *setting-control* self 'allow-pause #f 0 0)
+    (setting-control-method-15 *setting-control* self 'allow-progress #f 0 0)
+    (let* ((a0-13 *setting-control*)
+           (t9-12 (method-of-object a0-13 setting-control-method-15))
+           (a1-11 self)
+           (a2-8 'level-trans-time)
+           (a3-7 #f)
+           (t0-7 0)
+           )
+      (t9-12 a0-13 a1-11 a2-8 a3-7 t0-7 0)
+      (setting-control-method-17
+        *setting-control*
+        'speech-control
+        'speech-control
+        (the-as none a3-7)
+        (the-as none t0-7)
+        )
+      )
+    (set! (-> *setting-control* user-default border-mode) #f)
+    (setting-control-method-23 *setting-control*)
+    (reset-target-state #t)
+    (target-exit)
+    (logior! (-> self focus-status) (focus-status teleporting))
+    (let ((t9-17 quaternion-copy!)
+          (a0-18 (-> self root rot))
+          (a1-13 (new 'stack-no-clear 'quaternion))
+          )
+      (set! (-> a1-13 x) (* 0.00003051851 (the float (-> arg0 quat x))))
+      (set! (-> a1-13 y) (* 0.00003051851 (the float (-> arg0 quat y))))
+      (set! (-> a1-13 z) (* 0.00003051851 (the float (-> arg0 quat z))))
+      (set! (-> a1-13 w) (* 0.00003051851 (the float (-> arg0 quat w))))
+      (t9-17 (the-as quaternion a0-18) a1-13)
+      )
+    (move-to-point! (-> self root) (-> arg0 trans))
+    (rot->dir-targ! (-> self root))
+    (vector-reset! (-> self root transv))
+    (if (not (string= (-> arg0 name) "default"))
+        (set! *external-cam-mode* #f)
+        )
+    (if (not (logtest? (-> arg0 flags) (continue-flags no-blackout)))
+        (cam-stop)
+        )
+    (suspend)
+    (let ((a0-23 (lookup-level-info (-> arg0 vis-nick))))
+      (set! (-> *load-state* vis-nick) (if a0-23
+                                           (-> a0-23 name)
+                                           )
+            )
+      )
+    (dotimes (v1-62 6)
+      (cond
+        ((< v1-62 (-> arg0 want-count))
+         (set! (-> *load-state* want v1-62 name) (-> arg0 want v1-62 name))
+         (set! (-> *load-state* want v1-62 display?) (-> arg0 want v1-62 display?))
+         )
+        (else
+          (set! (-> *load-state* want v1-62 name) #f)
+          (set! (-> *load-state* want v1-62 display?) #f)
+          )
+        )
+      (set! (-> *load-state* want v1-62 force-vis?) #f)
+      (set! (-> *load-state* want v1-62 force-inside?) #f)
+      )
+    (dotimes (v1-65 1)
+      (set! (-> *load-state* want-sound v1-65 name) (-> arg0 want-sound v1-65))
+      (set! (-> *load-state* want-sound v1-65 mode) (sound-bank-mode full))
+      )
+    (when (logtest? (continue-flags race) (-> arg0 flags))
+      (let ((a2-14 (level-name-from-vehicle-type (the-as vehicle-type (-> *game-info* current-vehicle)))))
+        (if a2-14
+            (load-state-method-23 *load-state* 0 a2-14 #f)
+            )
+        )
+      )
+    (add-borrow-levels *load-state*)
+    (when (not (string= (-> arg0 name) "default"))
+      (while (begin
+               (dotimes (s5-3 (-> arg0 want-count))
+                 (when (not (or (not (-> arg0 want s5-3 name))
+                                (not (-> arg0 want s5-3 display?))
+                                (= (level-status? *level* (-> arg0 want s5-3 name) #f) 'active)
+                                )
+                            )
+                   (set! v1-91 #t)
+                   (goto cfg-51)
+                   )
+                 )
+               (let ((s5-4 *load-state*))
+                 (dotimes (s4-1 6)
+                   (when (not (or (not (-> s5-4 want s4-1 name))
+                                  (not (-> s5-4 want s4-1 display?))
+                                  (= (level-status? *level* (-> s5-4 want s4-1 name) #f) 'active)
+                                  )
+                              )
+                     (set! v1-91 #t)
+                     (goto cfg-51)
+                     )
+                   )
+                 )
+               (set! v1-91 #f)
+               (label cfg-51)
+               v1-91
+               )
+        (suspend)
+        )
+      (while (not (string-charp= (-> *sound-bank-string* 0) (the-as (pointer uint8) (-> *sound-iop-info* sound-banks 1))))
+        (suspend)
+        )
+      (while (begin
+               (let ((v1-115 6)
+                     (a0-57 17)
+                     )
+                 (while (>= a0-57 v1-115)
+                   (when (-> *load-state* target v1-115 name)
+                     (when (not (and (= (-> *load-state* target v1-115 name) (-> *level* level v1-115 name))
+                                     (= (-> *level* level v1-115 status) 'active)
+                                     )
+                                )
+                       (set! v1-117 #t)
+                       (goto cfg-68)
+                       )
+                     )
+                   (+! v1-115 1)
+                   )
+                 )
+               (set! v1-117 #f)
+               (label cfg-68)
+               v1-117
+               )
+        (suspend)
+        )
+      )
+    (target-continue-init-art)
+    (setting-control-method-16 *setting-control* self 'music)
+    (setting-control-method-16 *setting-control* self 'music-volume)
+    (let ((s5-5 (-> *level* border?)))
+      (set! (-> *level* border?) (-> *level* play?))
+      (setting-control-method-15 *setting-control* self 'allow-continue #t 0 0)
+      (setting-control-method-15 *setting-control* self 'border-mode #t 0 0)
+      (setting-control-method-23 *setting-control*)
+      (script-eval '(teleport))
+      (script-eval (the-as pair (-> arg0 on-goto)))
+      (setting-control-method-15 *setting-control* self 'allow-continue #f 0 0)
+      (setting-control-method-15 *setting-control* self 'border-mode #f 0 0)
+      (setting-control-method-23 *setting-control*)
+      (set! (-> *level* border?) s5-5)
+      )
+    (set! (-> *ACTOR-bank* birth-max) 1000)
+    (when (not (logtest? (-> arg0 flags) (continue-flags no-blackout)))
+      (cam-start #t)
+      (suspend)
+      (when (not (string= (-> arg0 name) "default"))
+        (set! (-> (the-as camera-combiner (view-get-active-camera-combiner)) trans quad) (-> arg0 camera-trans quad))
+        (let ((s5-6 (-> (the-as camera-combiner (view-get-active-camera-combiner)) inv-camera-rot))
+              (s4-2 (-> arg0 camera-rot))
+              )
+          (matrix-identity! s5-6)
+          (set! (-> s5-6 rvec x) (* 0.00003051851 (the float (-> s4-2 0))))
+          (set! (-> s5-6 rvec y) (* 0.00003051851 (the float (-> s4-2 1))))
+          (set! (-> s5-6 rvec z) (* 0.00003051851 (the float (-> s4-2 2))))
+          (set! (-> s5-6 uvec x) (* 0.00003051851 (the float (-> s4-2 3))))
+          (set! (-> s5-6 uvec y) (* 0.00003051851 (the float (-> s4-2 4))))
+          (set! (-> s5-6 uvec z) (* 0.00003051851 (the float (-> s4-2 5))))
+          (set! (-> s5-6 fvec x) (* 0.00003051851 (the float (-> s4-2 6))))
+          (set! (-> s5-6 fvec y) (* 0.00003051851 (the float (-> s4-2 7))))
+          (set! (-> s5-6 fvec z) (* 0.00003051851 (the float (-> s4-2 8))))
+          )
+        )
+      (cam-master-activate-slave #t)
+      )
+    (send-event self 'level-enter (-> arg0 level))
+    (dotimes (v1-176 (-> *level* length))
+      (let ((a0-84 (-> *level* level v1-176)))
+        (if (= (-> a0-84 status) 'active)
+            (set! (-> a0-84 all-visible?) 'loading)
+            )
+        )
+      )
+    (let ((s5-7 (level-get *level* (-> arg0 level))))
+      (when s5-7
+        (while (and (-> *level* vis?) (-> s5-7 vis-info 0) (= (-> s5-7 all-visible?) 'loading))
+          (suspend)
+          )
+        )
+      )
+    (set! *spawn-actors* #t)
+    (set! *teleport* #t)
+    (set! (-> *ACTOR-bank* birth-max) 1000)
+    (if (not (logtest? (continue-flags no-blackout vehicle) (-> arg0 flags)))
+        (set-blackout-frames (seconds 0.1))
+        )
+    (let* ((s5-8 *game-info*)
+           (s4-3 (method-of-object s5-8 set-continue!))
+           (s3-0 (-> self state-object 0))
+           )
+      (s4-3
+        s5-8
+        (the-as basic (cond
+                        (s3-0
+                          (empty)
+                          s3-0
+                          )
+                        (else
+                          arg0
+                          )
+                        )
+                )
+        (view-get-active-index)
+        #f
+        )
+      )
+    (arrive-at-continue arg0)
+    (let* ((s5-9 *game-info*)
+           (s4-4 (method-of-object s5-9 set-continue!))
+           (s3-1 (-> self state-object 0))
+           )
+      (s4-4
+        s5-9
+        (the-as basic (cond
+                        (s3-1
+                          (empty)
+                          s3-1
+                          )
+                        (else
+                          arg0
+                          )
+                        )
+                )
+        (view-get-active-index)
+        #f
+        )
+      )
+    (when *auto-continue*
+      (let ((gp-1 (next-continue arg0)))
+        (when gp-1
+          (format 0 "~A ~A ~A~%" (-> gp-1 level) (-> gp-1 name) gp-1)
+          (inspect global)
+          (process-spawn-function process (lambda ((arg0 object)) (start 'play (the-as basic arg0) 0)) gp-1)
+          )
+        )
+      )
+    (when (not (-> *setting-control* user-current render))
+      (let* ((a0-102 *setting-control*)
+             (t9-64 (method-of-object a0-102 setting-control-method-15))
+             (a2-41 'bg-a)
+             (a3-22 'abs)
+             (t0-15 #x3f800000)
+             )
+        (t9-64 a0-102 self a2-41 a3-22 t0-15 0)
+        (setting-control-method-23 *setting-control*)
+        (while (!= (-> *setting-control* user-current bg-a) 1.0)
+          (suspend)
+          )
+        (set-blackout-frames (seconds 0.1))
+        (setting-control-method-17
+          *setting-control*
+          'title-control-scene
+          'render
+          (the-as none a3-22)
+          (the-as none t0-15)
+          )
+        )
+      )
+    (suspend)
+    (logior!
+      (-> (the-as collide-shape-moving (-> self root)) status)
+      (collide-status on-surface on-ground touch-surface)
+      )
+    (when (-> self mode-cache)
+      (set! (-> self event-hook) target-standard-event-handler)
+      (let ((a1-73 (new 'stack-no-clear 'event-message-block)))
+        (set! (-> a1-73 from) (process->ppointer self))
+        (set! (-> a1-73 num-params) 4)
+        (set! (-> a1-73 message) 'change-mode)
+        (set! (-> a1-73 param 0) (the-as uint (-> self mode-cache)))
+        (let ((v1-230 (the-as handle (-> self mode-param1))))
+          (set! (-> a1-73 param 1)
+                (the-as
+                  uint
+                  (and (nonzero? (l32-false-check v1-230)) (let ((a0-109 (-> v1-230 process 0)))
+                                                             (if (= (the-as handle (-> v1-230 pid)) (-> a0-109 pid))
+                                                                 a0-109
+                                                                 )
+                                                             )
+                       )
+                  )
+                )
+          )
+        (set! (-> a1-73 param 2) (-> self mode-param2))
+        (set! (-> a1-73 param 3) (-> self mode-param3))
+        (send-event-function self a1-73)
+        )
+      (set! (-> self mode-cache) #f)
+      )
+    (go target-float)
+    )
+  :post target-no-move-post
+  )
+
+;; og:preserve-this bring-up-parked (title-continue chain, this rung): target-
+;; float is target-h.gc's own bare :states entry with no defstate ever landed
+;; behind it, the exact R10 zero-slot class documented above target-continue's
+;; own defstate -- and target-continue's real :code (just landed) reaches
+;; (go target-float) at its own tail for any continue-point without the
+;; title/title-movie/intro/hero-mode/credits/race flags (arrive-at-continue's
+;; own else-arm only suspend-for's 0.05 seconds rather than transitioning
+;; state), making target-float newly, unconditionally reachable on every
+;; ordinary continue-arrival where the previous sleep-code stub never moved
+;; past target-continue at all. jak3's own target-float (target2.gc:1817) is
+;; substantial swim/float physics, well out of this rung's scope; the honest
+;; minimal fix is the same shape target-continue itself carried until this
+;; rung: a real, correctly-typed, sleep-code-only stand-in, closing the
+;; all-ones-handler boot hazard without asserting any of retail's real float
+;; behavior. Retirement condition: the real target-float state lands
+;; (movement/physics, a separate leg's scope).
+(defstate target-float (target)
+  :code (behavior ()
     (sleep-code)
     )
   )

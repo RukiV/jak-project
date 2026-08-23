@@ -14,6 +14,22 @@
   // 'matrix)` only reserves 64 bytes, so the second matrix write at offset
   // 64 would overrun straight past it. Declared here as the full two-matrix
   // span so the hint matches what goal_src must actually allocate.
+  // (code target-continue), title-continue chain rung: two (new 'stack
+  // 'script-context ...) allocations for the retail (script-eval '(teleport))
+  // and (script-eval (the-as pair (-> arg0 on-goto))) calls, matching jak3's
+  // own twin shape (goal_src/jak3/engine/target/target-death.gc:680-681).
+  // The decompiler cannot guess either base slot on its own ("Failed to
+  // guess stack use for 32 in (code target-continue):486"); op 486 computes
+  // sp+32 (the first script-eval's context), op 501 computes sp+192 (the
+  // second, on-goto's own), each immediately fed into script-context's own
+  // "new" vmethod at raw offset 16 two ops earlier in both cases.
+  // Offset 352 is a third, distinct stack allocation in the same function:
+  // a hand-built event-message-block (send-event-function's own explicit
+  // dispatch of 'change-mode to self) rather than a script-context. Fields
+  // set match event-message-block's own layout exactly: offset 8 (from,
+  // self's own process-focusable pointer), 64/68 (message/num-params,
+  // 'change-mode and 4), and the four param slots 16/24/32/40.
+  "(code target-continue)": [[32, "script-context"], [192, "script-context"], [352, "event-message-block"]],
   "(method 10 vehicle-section)": [[16, ["inline-array", "matrix", 2]]],
   // issue 571 R10c: jak3 twin transplant. jak3 wires the same shapes at its
   // own methods 149 (wvehicle-stack-type2) and 173 (wvehicle-stack-type1);

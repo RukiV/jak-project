@@ -81,77 +81,16 @@
   0
   (none)
   )
-;; og:preserve-this held (engine-quick-tier-6): target-continue's :code and
-;; :event handlers do not decode at all, not even into a broken raw form; the
-;; decompiler emits bare label references (:code L1, :event L65) because both
-;; hit hard failures it cannot recover from. :code fails on "add failed: basic
-;; <integer 140>" (daddiu v1, v0, 140 on view-get-active-camera-combiner's
-;; generic basic return, offset 140 not resolvable without a real type for it),
-;; a stack-use guess failure at its own op 486, and an unsupported inline sllv
-;; at op 558 (the raw 64-to-32 handle-truncate idiom, same class as
-;; collision-editor's anon-function-3 this same rung, but here paired with the
-;; other two failures in the same function rather than standing alone). :event
-;; fails the same way: a load through an untyped event-message-block param at
-;; its own op 18, and a second, separate sllv truncate at op 25 on a different
-;; value than the one op 18 loads. :exit decodes into a real form (kept visible
-;; below inside the held block for reference) but its own setting-control-
-;; method-17 call reads two registers (a3, t0) the decompiler cannot prove are
-;; ever set; a sibling call to the same method earlier in :code passes real
-;; zeroes for the equivalent trailing args, but inventing zeroes here for :exit
-;; would be asserting a retail value this rung has no evidence for, so the
-;; whole state is held together rather than landing :exit/:enter/:trans alone
-;; and leaving a state with no :code, which is its own boot hazard
-;; (check_state_inherit.py's class, a defstate reachable at runtime with a
-;; missing handler). Nothing in this file calls (go target-continue ...), so
-;; holding it introduces no dangling reference within target-death.gc itself;
-;; a caller elsewhere in the target family that does would need this state
-;; landed first. Retires when a later rung resolves the camera-combiner offset-
-;; 140 type, the event-message-block param typing, and both sllv sites.
-#|
-;; failed to figure out what this is:
-(defstate target-continue (target)
-  :event L65
-  :enter (behavior ((arg0 continue-point))
-    '()
-    )
-  :exit (behavior ()
-    (local-vars (a3-0 none) (t0-0 none))
-    (set! (-> *level* curr-camera-pos 0 quad) (-> (camera-pos) quad))
-    (set! (-> *level* prev-camera-pos 0 quad) (-> *level* curr-camera-pos 0 quad))
-    (set! (-> *level* curr-target-pos 0 quad) (-> self root trans quad))
-    (set! (-> *level* prev-target-pos 0 quad) (-> *level* curr-target-pos 0 quad))
-    (set! (-> *setting-control* user-default border-mode) (-> *level* play?))
-    (set! (-> *setting-control* user-default region-mode) (the-as basic #t))
-    (setting-control-method-17 *setting-control* 'title-control 'render a3-0 t0-0)
-    (let ((v1-15 (-> self root root-prim)))
-      (set! (-> v1-15 prim-core collide-as) (-> self root backup-collide-as))
-      (set! (-> v1-15 prim-core collide-with) (-> self root backup-collide-with))
-      )
-    (setting-control-method-16 *setting-control* self 'allow-pause)
-    (setting-control-method-16 *setting-control* self 'allow-progress)
-    (setting-control-method-16 *setting-control* self 'allow-timeout)
-    (setting-control-method-16 *setting-control* self 'bg-a)
-    (setting-control-method-16 *setting-control* self 'music-volume)
-    (setting-control-method-16 *setting-control* self 'sfx-volume)
-    (setting-control-method-16 *setting-control* self 'dialog-volume)
-    (setting-control-method-16 *setting-control* self 'ambient-volume)
-    (setting-control-method-16 *setting-control* self 'music)
-    (setting-control-method-16 *setting-control* self 'region-mode)
-    (setting-control-method-16 *setting-control* self 'border-mode)
-    (setting-control-method-16 *setting-control* self 'allow-continue)
-    (setting-control-method-16 *setting-control* self 'level-trans-time)
-    (setting-control-method-16 *setting-control* self 'speech-control)
-    (setting-control-method-23 *setting-control*)
-    (logclear! (-> self focus-status) (focus-status teleporting))
-    (set! (-> self mode-cache) #f)
-    (set! (-> self teleport-time) (the-as uint (current-time)))
-    (set! (-> self game kiosk-timeout) (the-as uint (-> *display* game-clock frame-counter)))
-    0
-    )
-  :trans (behavior ()
-    '()
-    )
-  :code L1
-  :post target-no-move-post
-  )
-|#
+;; og:preserve-this retired (title-continue chain, this rung): the hold below
+;; this note used to cite target-continue's raw, undecoded :code/:event
+;; (bare label references, :code L1/:event L65) and its own decoded-but-held
+;; :exit together, since the camera-combiner offset-140 type, the
+;; event-message-block param typing, and two unsupported inline sllv sites
+;; all blocked in the same function. All three now resolve; see the wall
+;; resolution table on target-continue's own defstate (logic-target.gc,
+;; where the real :code/:event/:enter/:trans/:post are landed). :exit alone
+;; is still held there (its own setting-control-method-17 call reads two
+;; registers, a3/t0, with no recoverable retail value); its citation moved
+;; with it rather than staying split across two files. The raw held block
+;; that used to sit here is gone: it is superseded by the landed source, not
+;; merely duplicated by it.
