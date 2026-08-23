@@ -1140,8 +1140,38 @@
             )
           )
          (else
-           (break!)
-           0
+           ;; og:preserve-this bail (matches the issue-571 bail below, same
+           ;; function, same reasoning): retail asserts here, and this (break!)
+           ;; is retail's own precondition failure, not a data bug -- every
+           ;; retail caller that can reach an alias/borrow-mode level's
+           ;; load-begin (the car and driver spawn chain) always supplies a real
+           ;; slot in [6,11] or [12,17], so this arm is provably dead in a fully
+           ;; wired game. level-get-for-use (this file) unconditionally forces
+           ;; (-> s0-0 slot) to its own arg2, and bg (this file) always calls it
+           ;; with arg2 -1; jakx's bring-up has no landed car/driver spawn chain
+           ;; yet, so a raw (bg 'falcl) from the REPL is currently the only way
+           ;; to load an alias-mode level (:memory-mode (level-memory-mode
+           ;; alias), level-info.gc's falcl entry), and that always violates the
+           ;; slot precondition above. Reproduced twice byte-identically by
+           ;; (bg 'falcl) on a default -debug boot: exception 0xc0000094
+           ;; (SIGFPE) at level+0x35cc, this exact (/ 0 0) (break!'s expansion,
+           ;; goal-lib.gc:206-209), pinned to this line by matching a
+           ;; compile-time :color :disassemble pass byte-for-byte against the
+           ;; crash's raw object offset in level.o (gk-falcon-triple2.err.log,
+           ;; gk-falcon-triple2b.err.log). The issue-571 note below claims this
+           ;; arm is "unreached by jakx's actual level-memory-mode data"; that
+           ;; does not hold for any alias/borrow-mode level loaded via bg, and
+           ;; is corrected here. Same reasoning as issue 571 for bailing over
+           ;; falling through: the caller hands an uninitialized heap to
+           ;; dgo-load-begin otherwise. Retire once a real car/driver spawn
+           ;; chain lands and starts supplying a real slot for alias/borrow-mode
+           ;; levels.
+           (format 0 "ERROR: level ~A memory-mode ~S has no car/driver slot (slot ~D)~%"
+             (-> this name)
+             (level-memory-mode->string (the-as level-memory-mode s5-0))
+             (-> this slot)
+             )
+           (return this)
            )
          )
        )
@@ -1285,9 +1315,12 @@
              ;; 'inactive, so a later attempt just reprints the same ERROR instead of
              ;; re-asserting. Retire this bail once bank allocation itself no longer
              ;; exhausts under a forced switch. The other three break!s in this
-             ;; function are each reasoned separately and untouched here: 1143 and
-             ;; 1239 are unreached by jakx's actual level-memory-mode data, and 1363
-             ;; sits before a real recovery attempt and is its own follow-up rung.
+             ;; function are each reasoned separately: the car/driver else-bail
+             ;; above (originally claimed unreached here) is now its own bailed
+             ;; guard, proven reachable via (bg 'falcl); its own note explains why.
+             ;; 1239 remains unreached by jakx's actual level-memory-mode data
+             ;; and 1363 sits before a real recovery attempt and is its own
+             ;; follow-up rung, both untouched here.
              (return this)
              0
              )
