@@ -1449,6 +1449,19 @@
     // compiles the decompiler's own fresh, uncast output, so it fails this
     // one function regardless.
     "(method 220 wvehicle)",
+    // wvehicle m64 remainder rung: (method 64 wvehicle)'s own fresh
+    // decompile falls into raw local-vars fallback (same rb-debugger/
+    // dirty-eyes class above: five "sllv v1, v1, r0" process->handle
+    // reinterpretations the decoder cannot render as the real macro), and
+    // in that fallback mode the arg0-typed-object parameter is assigned
+    // straight into wvehicle's rigid-body-vehicle-constants-typed `info`
+    // field with no cast at all ("(set! (-> a0-0 info) a1-0)"), which
+    // goalc rejects. The landed goal_src carries the real handle->process
+    // macro at every sllv site and casts arg0 explicitly for the info
+    // write and everywhere else it needs the narrower type. offline-test
+    // always compiles the decompiler's own fresh, uncast output, so it
+    // fails this one function regardless.
+    "(method 64 wvehicle)",
     // default-menu, issue 571's UX successor (R3 of the debug-menu scoping
     // plan): all-texture-tweak-adjust's fresh decompile reads a literal
     // PLACEHOLDER token off a dynamic-array-field-access call, which is not

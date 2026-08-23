@@ -179,6 +179,17 @@
 ;; `(s.w! (&+ this N) ...)` here too rather than retyping a field this
 ;; rung does not otherwise need to touch.
 ;;
+;; Ops [0]-[2] (`(set! (-> this info) arg0)` in the raw decode) open the
+;; method, before op [3]'s particle-subsampler loop; `info` is declared
+;; rigid-body-vehicle-constants (vehicle's own :override of rigid-body-
+;; object's field), so the cast to arg0 here matches every other arg0
+;; read in this body (gear-select/engine-rev, the antenna hold's own pos
+;; source). The raw decode's own fresh-compile of this exact line fails
+;; without a cast ("Typecheck failed... got a 'object' when expecting a
+;; 'rigid-body-vehicle-constants'"), the same skip_compile_functions
+;; class documented on (method 220 wvehicle) above; test/offline/config/
+;; jakx/config.jsonc gets a matching entry for this method.
+;;
 ;; HELD: ops [459]-[487], the antenna spawn. vehicle-antenna-spawn (all-
 ;; types.gc) has no defun and no goal_src declaration anywhere in the
 ;; tree -- an e2 hazard (AGENTS.md section 5): landing the call links it to
@@ -205,6 +216,7 @@
 ;; bound to gunmount-drawable).
 (define-extern gunmount-drawable-init-by-other (function pointer int object object :behavior gunmount-drawable))
 (defmethod rigid-body-object-method-64 ((this wvehicle) (arg0 object))
+  (set! (-> this info) (the-as rigid-body-vehicle-constants arg0))
   (dotimes (i 2)
     (let ((scale (if (logtest? (-> this flags) 1024)
                       1.0
