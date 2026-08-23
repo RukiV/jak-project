@@ -31,6 +31,7 @@ written is read-only by design and not a finding.
 | `*jakx-boot-task*` | 2 | `goal_src/jakx/engine/level/level-h.gc` |
 | `*display-bug-report*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*display-level-border*` | 1 | `goal_src/jakx/engine/game/main.gc` |
+| `*jakx-build-overlay*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*jakx-racer*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*jakx-region-driver-enable*` | 1 | `goal_src/jakx/engine/level/level.gc`, `goal_src/jakx/engine/level/region-driver.gc` |
 | `*last-cash-game-mgr-for-player-0*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |

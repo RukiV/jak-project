@@ -4613,6 +4613,25 @@
 ;;    jak1/engine/game/main.gc:425-426), a video-params field jakx's own
 ;;    video-params type does not have. jak2/jak3's fixed bottom-left (2, 406)
 ;;    font-context origin is what was asked for here, and needs no such field.
+;;  - the bucket is jakx's own bucket794, NOT the (bucket-id debug-no-zbuf2)
+;;    jak2/jak3 use, and that divergence is load-bearing, found by a red boot
+;;    smoke (Generic2::process_dma_prim's direct_setup assert,
+;;    game/graphics/opengl_renderer/foreground/Generic2_DMA.cpp:575). jakx's
+;;    (debug-no-zbuf2 584) entry (vu1-user-h.gc:691) is jak3's numbering
+;;    carried over unadjusted (jak3's own DEBUG_NO_ZBUF2 is 584 too,
+;;    buckets.h:1067) rather than jakx's real bucket layout; jakx's C++ side
+;;    names its actual debug-no-zbuf2 slot 794 (buckets.h:1122, "end-display's
+;;    stdcon text") and registers a DirectRenderer there
+;;    (OpenGLRenderer.cpp:559-560, init_bucket_renderers_jakx), while GOAL
+;;    bucket 584 falls inside the mercneric2 Generic2BucketRenderer range
+;;    (OpenGLRenderer.cpp:688-695) that asserts on non-generic DMA shapes.
+;;    bucket794 is jakx's own already-landed debug-no-zbuf2 analog: it is what
+;;    end-display's *stdcon0*/*stdcon1* text already draws into every frame
+;;    without incident (main.gc:2760, below), so it is proven to reach a
+;;    renderer that parses font/direct DMA in jakx. This is the same class of
+;;    divergence region.gc:32-40 documents for the debug-draw buckets: jakx
+;;    has not renamed 794 to debug-no-zbuf2 in vu1-user-h.gc yet, so the raw
+;;    positional name is used here instead of the stale enum entry.
 (define *jakx-build-overlay* #t) ;; og:preserve-this jakx-local lever standing in
 ;; for jak2/jak3's *display-sha*: on those games it is a bare, self-valued
 ;; (default-on) global flipped by a "Display git commit" debug-menu toggle
@@ -4623,7 +4642,7 @@
 (defun draw-build-revision ()
   "PC-port bottom-left build-hash overlay, mirroring jak2/jak3's draw-build-revision."
   (with-dma-buffer-add-bucket ((buf (-> (current-frame) global-buf))
-                               (bucket-id debug-no-zbuf2))
+                               (bucket-id bucket794))
     ;; reset bucket settings prior to drawing - font won't do this for us, and
     ;; draw-raw-image can sometimes mess them up.
     (dma-buffer-add-gs-set-flusha buf
@@ -4785,9 +4804,9 @@
       ;; og:preserve-this PC-port addition, matching jak2 and jak3's own hook point
       ;; in this same while loop (jak2/engine/game/main.gc:1117-1120,
       ;; jak3/engine/game/main.gc:1703-1707): draw the bottom-left build-hash text
-      ;; every frame. See draw-build-revision above for the *pc-settings* and
-      ;; *display-sha* gap notes; there is no (update *pc-settings*) call to mirror
-      ;; since that struct does not exist here.
+      ;; every frame. See draw-build-revision above for the *pc-settings*,
+      ;; *display-sha*, and bucket794-vs-debug-no-zbuf2 gap notes; there is no
+      ;; (update *pc-settings*) call to mirror since that struct does not exist here.
       (if (and *jakx-build-overlay*
                *debug-segment*
                (or (zero? *screen-shot-work*) (= (-> *screen-shot-work* count) -1))
