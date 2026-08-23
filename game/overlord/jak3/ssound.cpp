@@ -10,6 +10,7 @@
 #include "game/overlord/jak3/spustreams.h"
 #include "game/overlord/jak3/streamlist.h"
 #include "game/overlord/jak3/vag.h"
+#include "game/runtime.h"
 #include "game/sce/iop.h"
 #include "game/sound/sdshim.h"
 #include "game/sound/sndshim.h"
@@ -820,6 +821,11 @@ void UpdateLocation(SoundInfo* sound) {
   if (handle == 0) {
     sound->id = 0;
   } else {
+    if (g_game_version == GameVersion::JakX) {
+      // jakx owns volume and pan EE-side and re-sends them via SET_PARAM; recomputing falloff
+      // from the never-populated trans/curve fields returns 0 and kills the voice.
+      return;
+    }
     auto vol = GetVolume(sound);
     if (vol == 0 && unktable[(int)(sound->params).fo_curve + 0xb0] == 0) {
       snd_StopSound(sound->sound_handle);
