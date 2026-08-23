@@ -38,7 +38,7 @@ written is read-only by design and not a finding.
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (180)
+### Never written (181)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -175,6 +175,7 @@ written is read-only by design and not a finding.
 | `*jakx-campath-record*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*jakx-continue-cam-takeover*` | 1 | `goal_src/jakx/engine/target/logic-target.gc` |
 | `*jakx-view-target*` | 1 | `goal_src/jakx/engine/level/level.gc` |
+| `*jakx-wait-for-sound-banks*` | 1 | `goal_src/jakx/engine/target/logic-target.gc` |
 | `*jakx-want-driver-display-rule*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*kernel-boot-level*` | 1 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*keybd-hold-ct*` | 1 | `goal_src/jakx/engine/ps2/pad.gc` |
