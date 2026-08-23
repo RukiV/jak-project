@@ -26,6 +26,7 @@
 (define-extern execute-cloth-engine (function int))
 (define-extern update-camera (function symbol))
 (define-extern jakx-cam-warp-tick (function none)) ;; og:preserve-this bring-up, home cam-start.gc
+(define-extern dm-cam-externalize (function symbol debug-menu-msg symbol)) ;; og:preserve-this bring-up (#724 rung 2), home default-menu.gc
 (define-extern execute-cam-post-hook-engine (function int))
 (define-extern temp-render-chat-messages (function int))
 (define-extern load-level-text-files (function int none))
@@ -208,6 +209,14 @@
 (define *progress-process* (the-as (pointer process) #f))
 (define *lobby-menu-manager* (the-as basic #f))
 (define *in-game-menu-process* (the-as (pointer process) #f))
+
+;; og:preserve-this bring-up default (issue 724 rung 2): arms the retail external
+;; camera for pad 0 once at the per-frame hook below; *jakx-external-cam-pad0-armed*
+;; is the poll-and-latch flag, not a documented lever, so the REPL should only ever
+;; touch *jakx-external-cam-pad0* itself. Retires when the R1+square cheat (this
+;; file) or a menu-driven picker becomes the sole source of *external-cam-mode*.
+(define *jakx-external-cam-pad0* #t)
+(define *jakx-external-cam-pad0-armed* #f)
 
 ;; definition for function set-master-mode
 ;; WARN: Return type mismatch int vs none.
@@ -3081,6 +3090,30 @@
   (if (nonzero? jakx-cam-warp-tick)
       (jakx-cam-warp-tick)
       )
+  ;; og:preserve-this bring-up default (issue 724 rung 2): arm the retail external
+  ;; camera for pad 0 once, latched the same poll-and-latch shape
+  ;; *jakx-boot-camera-placed* uses for the boot warp (level.gc). This cannot run
+  ;; from cam-start.gc's own top-level: that fires while cam-start.o loads, before
+  ;; default-menu.o (dm-cam-externalize's home, game.gd position 505 vs cam-start.o's
+  ;; 290) has linked, so the symbol would still read 0 there. By the time this
+  ;; per-frame hook first runs, every ENGINE/GAME object is resident, and so is the
+  ;; camera-master cam-free-floating-input's own guard requires (cam-states-dbg.gc:
+  ;; 249), since cam-start.gc's own top-level spawns the ring at kernel boot, well
+  ;; before the first frame ticks. dm-cam-externalize (default-menu.gc:275-301) is
+  ;; the landed retail setter; it no-ops unless arg1 is (debug-menu-msg press) (its
+  ;; own :276 gate). This does not land anything resembling cam-stop (the PR 694
+  ;; recurrence class fixed by 287147a1b, gating title-continue's own cam-stop/
+  ;; cam-start pair on *jakx-continue-cam-takeover*) - the combiner and master both
+  ;; stay alive; only *external-cam-mode* flips, and external-cam-reset!
+  ;; (cam-update.gc:391-412) seeds the free camera from the combiner's own pose, the
+  ;; retail handoff. Retiring condition: the R1+square cheat (this file, PR 172)
+  ;; already re-points *external-cam-mode* to 'pad-1 on its own, and this lever
+  ;; should drop the moment a second pad or a menu-driven picker exists
+  ;; (cam-update.gc:354-356 maps 'pad-1 to pad index 1, anything else to index 0).
+  (when (and *jakx-external-cam-pad0* (not *jakx-external-cam-pad0-armed*) (nonzero? dm-cam-externalize))
+    (dm-cam-externalize 'pad-0 (debug-menu-msg press))
+    (set! *jakx-external-cam-pad0-armed* #t)
+    )
   (execute-cam-post-hook-engine)
   (view-pop-context)
   (temp-render-chat-messages)

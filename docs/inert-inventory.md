@@ -39,7 +39,7 @@ written is read-only by design and not a finding.
 | `*last-cash-game-mgr-for-player-1*` | 1 | `goal_src/jakx/levels/common/hud-cash.gc` |
 | `*progress-cheat*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 
-### Never written (187)
+### Never written (188)
 
 | symbol | reading files | defined in |
 |---|---:|---|
@@ -175,6 +175,7 @@ written is read-only by design and not a finding.
 | `*jakx-cam-start*` | 1 | `goal_src/jakx/engine/camera/cam-start.gc` |
 | `*jakx-campath-record*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*jakx-continue-cam-takeover*` | 1 | `goal_src/jakx/engine/target/logic-target.gc` |
+| `*jakx-external-cam-pad0*` | 1 | `goal_src/jakx/engine/game/main.gc` |
 | `*jakx-menu-road-armed*` | 1 | `goal_src/jakx/levels/title/title-obs.gc` |
 | `*jakx-view-target*` | 1 | `goal_src/jakx/engine/level/level.gc` |
 | `*jakx-want-driver-display-rule*` | 1 | `goal_src/jakx/engine/level/level.gc` |
