@@ -260,53 +260,64 @@
     '()
     )
   :code (behavior ((arg0 continue-point))
-    (local-vars (v1-91 symbol) (v1-117 symbol))
-    ;; og:preserve-this bring-up guard (title-continue chain, smoke crash):
-    ;; retail transcribes unconditionally here (jak3's own twin, target-death.gc:503-506,
-    ;; has no guard either: "(let ((v1-2 (-> self control root-prim))) (set! (-> v1-2
-    ;; prim-core collide-as) (collide-spec)) ...)"), because retail's own target-init
-    ;; always gives self root a real collide-shape-moving with a real root-prim by the
-    ;; time :code runs. jakx's own target-init does not yet: its own og:preserve-this
-    ;; note (rung 3a, #164, below) documents self root as "a bare trsqv with no
-    ;; collide-shape and still no draw-control... Retires when the real vehicle chain
-    ;; gives the target its retail root (rung 3b, a separate later change, out of
-    ;; scope here)". Landing this :code verbatim against that gap crashed the default
-    ;; boot: a compile-time disassembly (asm-file :color :disassemble, no live target)
-    ;; pinned it exactly -- (-> self root root-prim) compiles to a read at root+156,
-    ;; landing at or past the end of trsqv's own much smaller allocation, and reads
-    ;; back 0 on this boot; the very next op, (set! (-> v1-1 prim-core collide-as)
-    ;; ...), compiles to a store at [v1-1+28], matching the crash report byte for
-    ;; byte (exception 0xc0000005 writing goal address 0x1c, GOAL code logic-target+
-    ;; 0x2f1, pp "target").
+    (local-vars (v1-91 symbol) (v1-117 symbol) (root-collide-shape? symbol))
+    ;; og:preserve-this bring-up guard (title-continue chain, three smoke crashes):
+    ;; retail transcribes this whole collide-setup region unconditionally (jak3's own
+    ;; twin, target-death.gc:503-506, has no guard either: "(let ((v1-2 (-> self
+    ;; control root-prim))) (set! (-> v1-2 prim-core collide-as) (collide-spec))
+    ;; ...)"), because retail's own target-init always gives self root a real
+    ;; collide-shape-moving by the time :code runs. jakx's own target-init does not
+    ;; yet: its own og:preserve-this note (rung 3a, #164, below) documents self root
+    ;; as "a bare trsqv with no collide-shape and still no draw-control... Retires
+    ;; when the real vehicle chain gives the target its retail root (rung 3b, a
+    ;; separate later change, out of scope here)". Landing this :code verbatim
+    ;; against that gap smoked three times, each fix uncovering the next op in the
+    ;; same precondition family, all found by compile-time disassembly (asm-file
+    ;; :color :disassemble, no live target needed):
     ;;
-    ;; First attempt at this guard used bare (when v1-1 ...), which re-smoked to the
-    ;; identical crash 12 bytes later in the same function (logic-target+0x2fd,
-    ;; region grown by exactly the inserted branch's own byte count): (when ...)'s
-    ;; truthiness test compiles against the '#f symbol pointer (confirmed against
-    ;; this same file's own (when arg0 ...) in reset-target-state below, "mov r9,
-    ;; r14 (load '#f) / cmp rdi, r9"), not against literal zero, so it never caught
-    ;; v1-1's raw garbage-zero from the out-of-bounds read -- the exact "zero
-    ;; handles are truthy" class this codebase already has a name for. (nonzero?
-    ;; ...) compiles the comparison retail idioms use for this everywhere else in
-    ;; this same file (reset-target-state's own "(if (nonzero? target-exit) ...)",
-    ;; two lines below: "xor r8, r8 (load literal 0) / cmp r9, r8"), and is the
-    ;; correct check here.
+    ;;  1. logic-target+0x2f1: (-> self root root-prim) reads root+156, past the end
+    ;;     of trsqv's own much smaller allocation, and reads back 0; the next op,
+    ;;     (set! (-> v1-1 prim-core collide-as) ...), stores to [v1-1+28] -- exception
+    ;;     0xc0000005 writing goal address 0x1c.
+    ;;  2. logic-target+0x2fd (same function, 12 bytes later, region grown by
+    ;;     exactly the inserted branch's own byte count): the first guard, bare
+    ;;     (when v1-1 ...), compiled its truthiness test against the '#f symbol
+    ;;     pointer (confirmed against this same file's own (when arg0 ...) in
+    ;;     reset-target-state below, "mov r9, r14 (load '#f) / cmp rdi, r9"), not
+    ;;     literal zero, so it never caught v1-1's raw garbage-zero -- the "zero
+    ;;     handles are truthy" class, on a plain pointer. (nonzero? ...) compiles
+    ;;     against literal zero instead (reset-target-state's own "(if (nonzero?
+    ;;     target-exit) ...)", two lines below: "xor r8, r8 / cmp r9, r8") and fixed
+    ;;     this one write cluster, but only this one.
+    ;;  3. logic-target+0x370: the crash moved past the fixed cluster into the next
+    ;;     collide-shape-only op touching self root while it is still a bare trsqv
+    ;;     (move-to-point!, a collide-shape method, and/or the collide-shape-moving
+    ;;     status logior! further down both fit the class; a NULL read at offset -4,
+    ;;     the standard type-tag fetch a virtual dispatch or a type? both use).
     ;;
-    ;; Guarding on v1-1 rather than inventing a collide-shape skips exactly the two
-    ;; writes retail's own precondition would make unreachable here anyway (a null
-    ;; root-prim), asserting nothing new about what those writes should do once
-    ;; rung 3b gives the target its real root. Same structural class (a
-    ;; collide-shape-only method or field touched through self root while it is
-    ;; still a bare trsqv) is also live at (move-to-point! (-> self root) ...) below
-    ;; and at the collide-shape-moving status logior! near this state's own end, but
-    ;; neither dereferences a provably-null object the way root-prim does here:
-    ;; self root itself is never null (target-init always gives it a real, if
-    ;; undersized, trsqv), and this crash never reached either site to prove an
-    ;; out-of-bounds read there resolves to zero rather than adjacent heap data.
-    ;; Left unguarded rather than guessed at; flagged for the next boot attempt.
-    ;; Retires with the same condition as the rung 3a note.
+    ;; Three crashes on one path is the evidence bar for treating this as one
+    ;; precondition rather than patching stores one at a time: self root actually
+    ;; being a collide-shape-moving, checked once into root-collide-shape? and
+    ;; referenced at every collide-shape-dependent op in this state (the root-prim
+    ;; cluster below, move-to-point!, and the status logior! near this state's own
+    ;; end) rather than re-derived per site. (type? (-> self root) collide-shape-
+    ;; moving) is the right check (retail's own precondition is a type, not just a
+    ;; non-null pointer), chained behind (nonzero? (-> self root)) first: type?
+    ;; itself reads its argument's own type tag at offset -4 (confirmed by
+    ;; disassembly, the same -4 read shape as this crash's own NULL fault), so
+    ;; calling it on a value that might itself be zero would just move the fault
+    ;; into type? rather than fixing it. self root itself is never null here
+    ;; (target-init always gives it a real, if undersized, trsqv), so this chain is
+    ;; defensive rather than load-bearing today, but it is the correct shape and
+    ;; costs nothing. rot->dir-targ! and vector-reset! below are NOT part of this
+    ;; guard: both are declared on trsqv itself (rot->dir-targ!, transformq.gc:29;
+    ;; vector-reset! is a plain function touching trsqv's own transv field), so
+    ;; both run unconditionally and correctly against the bare trsqv root exactly
+    ;; as retail's own bytes do. Retires when the real target-continue root lands
+    ;; (rung 3b, the same condition as the rung 3a note below).
+    (set! root-collide-shape? (and (nonzero? (-> self root)) (type? (-> self root) collide-shape-moving)))
     (let ((v1-1 (-> self root root-prim)))
-      (when (nonzero? v1-1)
+      (when root-collide-shape?
         (set! (-> v1-1 prim-core collide-as) (collide-spec))
         (set! (-> v1-1 prim-core collide-with) (collide-spec))
         )
@@ -370,7 +381,9 @@
       (set! (-> a1-13 w) (* 0.00003051851 (the float (-> arg0 quat w))))
       (t9-17 (the-as quaternion a0-18) a1-13)
       )
-    (move-to-point! (-> self root) (-> arg0 trans))
+    (when root-collide-shape?
+      (move-to-point! (-> self root) (-> arg0 trans))
+      )
     (rot->dir-targ! (-> self root))
     (vector-reset! (-> self root transv))
     (if (not (string= (-> arg0 name) "default"))
@@ -601,9 +614,11 @@
         )
       )
     (suspend)
-    (logior!
-      (-> (the-as collide-shape-moving (-> self root)) status)
-      (collide-status on-surface on-ground touch-surface)
+    (when root-collide-shape?
+      (logior!
+        (-> (the-as collide-shape-moving (-> self root)) status)
+        (collide-status on-surface on-ground touch-surface)
+        )
       )
     (when (-> self mode-cache)
       (set! (-> self event-hook) target-standard-event-handler)
