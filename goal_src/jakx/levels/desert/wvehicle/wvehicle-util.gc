@@ -325,15 +325,33 @@
     ;; unset-table-entry hazard. Guard the table read, not the call's
     ;; result: an unset entry now leaves the launcher field #f instead of
     ;; dereferencing it.
+    ;;
+    ;; og:preserve-this: the guard is `(nonzero? entry)`, not a plain `(if
+    ;; entry ...)` truthiness test. The marker round (m64-A..N, dropped
+    ;; from this tree) proved the fault survived the first `if`-based
+    ;; version of this same guard and stayed pinned at the dark-seeking-me
+    ;; block below (*part-group-id-table* 280) even though this wheel-
+    ;; launcher pair's own identical-looking guard never faulted -- the
+    ;; difference is that 227/226 are genuinely populated (real pointers)
+    ;; while 280 is not, and *part-group-id-table*'s own array slots are
+    ;; zero-filled by their `boxed-array` allocation rather than armed
+    ;; with the real `#f` symbol object. `if`/`when` truthiness compiles
+    ;; to a compare against `#f`'s own (non-zero) address, the same class
+    ;; goal-symbol-slots-are-32-bit's own memory documents ("zero handles
+    ;; are truthy"): a raw-zero slot is not equal to `#f` and slips the
+    ;; check straight into create-launch-control's own [-4] type-tag
+    ;; fetch. `nonzero?` compares the raw integer value against 0 instead
+    ;; and catches both representations; every table-entry guard in this
+    ;; method uses it from here on.
     (dotimes (i 4)
       (let ((group-227 (-> *part-group-id-table* 227))
             (group-226 (-> *part-group-id-table* 226))
             )
         (s.w! (&+ this (+ 4604 (* i 4)))
-              (if group-227 (create-launch-control group-227 this) (the-as sparticle-launch-control #f))
+              (if (nonzero? group-227) (create-launch-control group-227 this) (the-as sparticle-launch-control #f))
               )
         (s.w! (&+ this (+ 4620 (* i 4)))
-              (if group-226 (create-launch-control group-226 this) (the-as sparticle-launch-control #f))
+              (if (nonzero? group-226) (create-launch-control group-226 this) (the-as sparticle-launch-control #f))
               )
         )
       )
@@ -391,19 +409,30 @@
   ;; trivial dark-suck-sound-pending reset between them, so both need the
   ;; guard even though only one is reached first. gk-falcon-repaint.err.log
   ;; (wvehicle-util+0xccd) landed close enough to this pair to name it the
-  ;; suspect at the time; gk-spawnguard.err.log, taken after this guard was
-  ;; in place, proved the actual op-478-era wall was one hop further down
-  ;; (+0xd04, the set-local-space-info dispatch below reading this same
-  ;; turbo-suppressor-particle field back out) -- this pair's own guard is
-  ;; still correct and still needed (dark-seeking-me/turbo-suppressor-
-  ;; particle would otherwise dereference the same unset table entries
-  ;; directly), it just was not the byte-exact first fault.
+  ;; suspect at the time; gk-spawnguard.err.log and gk-spawnguard2.err.log,
+  ;; taken after successive guard attempts, both stayed pinned at
+  ;; +0xd04 -- the marker round (m64-A..N, dropped from this tree) proved
+  ;; the fault sits in this exact dark-seeking-me block (A-H all printed,
+  ;; I never did). The first `if group-280`-shaped guard here was not
+  ;; wrong in principle but wrong in comparison: it tests the loaded entry
+  ;; against the `#f` symbol object, and *part-group-id-table*'s own
+  ;; unpopulated slots are zero-filled by their `boxed-array` allocation
+  ;; rather than armed with that symbol, so a raw-zero (never-set) slot is
+  ;; not equal to `#f` and slipped the check straight into create-launch-
+  ;; control's own [-4] type-tag fetch -- the same "zero handles are
+  ;; truthy" class goal-symbol-slots-are-32-bit's own memory documents.
+  ;; 227/226 above never faulted only because both happen to already be
+  ;; populated (real pointers) in this bring-up; 280 is not. `nonzero?`
+  ;; compares the raw integer against 0 and catches both representations;
+  ;; turbo-suppressor-particle below and the wheel-launcher pair above are
+  ;; all switched to it together rather than leaving a guard that only
+  ;; happens to work for whichever slots are populated today.
   (let ((group-280 (-> *part-group-id-table* 280)))
-    (set! (-> this dark-seeking-me) (if group-280 (create-launch-control group-280 this) (the-as basic #f)))
+    (set! (-> this dark-seeking-me) (if (nonzero? group-280) (create-launch-control group-280 this) (the-as basic #f)))
     )
   (set! (-> this dark-suck-sound-pending) 0)
   (let ((group-273 (-> *part-group-id-table* 273)))
-    (set! (-> this turbo-suppressor-particle) (if group-273 (create-launch-control group-273 this) (the-as sparticle-launch-control #f)))
+    (set! (-> this turbo-suppressor-particle) (if (nonzero? group-273) (create-launch-control group-273 this) (the-as sparticle-launch-control #f)))
     )
   (let ((local-space (the-as particle-local-space-info
                               (add-connection *part-local-space-engine* this local-space-proc-joint 0 0 0)
@@ -430,16 +459,17 @@
         )
     ;; og:preserve-this bring-up guard: gk-spawnguard.err.log's own crash
     ;; (wvehicle-util+0xd04, same "reading r15 minus 4"/rdi=0 type-tag-off-
-    ;; null signature as the create-launch-control pair above) is this
-    ;; exact call: (-> this turbo-suppressor-particle) reads back the field
-    ;; the guarded create-launch-control above leaves #f whenever
-    ;; *part-group-id-table* 273 is unset, and set-local-space-info's own
-    ;; virtual dispatch dereferences its receiver's type unconditionally
-    ;; with no null check of its own. Guarding the create-launch-control
-    ;; call alone was not enough; this read-back-and-dispatch needed its
-    ;; own guard too. local-space's own setup above is unrelated (built
-    ;; from add-connection, not this table) and runs regardless.
-    (when (-> this turbo-suppressor-particle)
+    ;; null signature as the create-launch-control pair above) named this
+    ;; exact call as a suspect: (-> this turbo-suppressor-particle) reads
+    ;; back the field the guarded create-launch-control above leaves #f
+    ;; whenever *part-group-id-table* 273 is unset, and set-local-space-
+    ;; info's own virtual dispatch dereferences its receiver's type
+    ;; unconditionally with no null check of its own; the marker round
+    ;; later pinned the actual fault one cluster earlier (dark-seeking-me,
+    ;; see the note above), but this read-back is the same representation
+    ;; hazard on the same field and needs the same `nonzero?` guard rather
+    ;; than a plain truthiness test, so it stays fixed here too.
+    (when (nonzero? (-> this turbo-suppressor-particle))
       (set-local-space-info (-> this turbo-suppressor-particle) local-space)
       )
     )
