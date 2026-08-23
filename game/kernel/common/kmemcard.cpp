@@ -91,6 +91,24 @@ const char* filename_jak3[12] = {
     "BASCUS-97330AYBABTU!/bank4.bin", "BASCUS-97330AYBABTU!/bank5.bin",
     "BASCUS-97330AYBABTU!/bank6.bin", "BASCUS-97330AYBABTU!/bank7.bin"};
 
+// og:preserve-this folder/member split, issue #695 wall 2 root cause: the
+// folder "BASCUS-97429JakXSave" is retail-evidenced, the uncompressed string
+// "/BASCUS-97429JakXSave/patch.bin" sits in iso_data/jakx/SCUS_974.29 at file
+// offset 0x6b0e9 (the retail patch loader). The member filenames below
+// (icon.sys, icon.ico, the self-named save descriptor, bank0..7.bin) are NOT
+// retail fidelity: they are this port's own convention, carried over
+// unchanged from the jak1/jak2/jak3 tables above. Retail's actual member
+// names live only in the compressed ELF payload and were never
+// decompressed/evidenced, so nobody should later mistake them for retail
+// fidelity.
+const char* filename_jakx[12] = {
+    "BASCUS-97429JakXSave",           "BASCUS-97429JakXSave/icon.sys",
+    "BASCUS-97429JakXSave/icon.ico",  "BASCUS-97429JakXSave/BASCUS-97429JakXSave",
+    "BASCUS-97429JakXSave/bank0.bin", "BASCUS-97429JakXSave/bank1.bin",
+    "BASCUS-97429JakXSave/bank2.bin", "BASCUS-97429JakXSave/bank3.bin",
+    "BASCUS-97429JakXSave/bank4.bin", "BASCUS-97429JakXSave/bank5.bin",
+    "BASCUS-97429JakXSave/bank6.bin", "BASCUS-97429JakXSave/bank7.bin"};
+
 const char* mc_get_filename_no_dir(GameVersion version, int ndx) {
   const char** filenames = nullptr;
   switch (version) {
@@ -103,6 +121,23 @@ const char* mc_get_filename_no_dir(GameVersion version, int ndx) {
     case GameVersion::Jak3:
       filenames = filename_jak3;
       break;
+    case GameVersion::JakX:
+      filenames = filename_jakx;
+      break;
+  }
+  // og:preserve-this UB guard, issue #695 wall 2 root cause: the compiler
+  // lowered this switch into a 3-entry pointer table and legally assumed
+  // every GameVersion case was handled. With no case for JakX, filenames
+  // stayed nullptr, but the optimized tail read table[version - 1] anyway:
+  // GameVersion::JakX (4) landed one slot past filename_jak3, on the
+  // adjacent .rdata float constants 10.0f/0.5f, and dereferenced that bit
+  // pattern as a const char** (#GP, gk.exe+0xafdd2, no faulting address).
+  // Fail loud instead of returning nullptr/UB so the next missing version
+  // dies here with a message instead of a lookup-table #GP three frames
+  // away. Retires never: this guards the version switch for good.
+  if (!filenames) {
+    ASSERT_NOT_REACHED_MSG(
+        fmt::format("mc_get_filename_no_dir: unhandled GameVersion {}", (int)version));
   }
   return filenames[ndx];
 }
