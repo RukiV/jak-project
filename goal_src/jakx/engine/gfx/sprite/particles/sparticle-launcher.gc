@@ -1157,23 +1157,79 @@
 
 ;; definition for function sp-relaunch-particle-2d
 ;; WARN: Return type mismatch int vs none.
+;; og:preserve-this issue 709/691 choke-point guard (famaccept1/2/3): three
+;; static fixes upstream of here (the sp-kill-particle retirement fix, the
+;; R2 status gate, the sparticle-respawn-heights/timer guard) each closed a
+;; real defect and each left this exact crash byte-identical, because none
+;; of them sit on the road that actually reaches it. This function -- along
+;; with sp-relaunch-particle-3d below -- is the single choke point every
+;; timer-expired "relaunch myself" path funnels a launcher through before
+;; sp-relaunch-setup-fields -> sp-init-fields! resolve a birth-func and its
+;; sparticle-launchinfo scratch struct (sparticle-h.gc's own doc calls that
+;; struct "a temporary thing consumed by the assembly particle code" -- the
+;; mips2c sp-launch-particles-var and sp-process-block-2d/3d dispatch it,
+;; per game/mips2c/jakx_functions/sparticle_launcher.cpp and sparticle.cpp).
+;; Dozens of call sites reach this function with a raw, unchecked
+;; (-> *part-id-table* N) read as arg1 -- part-jungle-bird1-path in
+;; jungle-part2.gc:96 (and its identically-shaped twins in havjung-part.gc,
+;; havtour-part.gc, cliffs-part.gc and menumap-part.gc, ten ids each, none
+;; of them gated) is the representative case: `(sp-kill-particle arg0 arg1)
+;; (sp-relaunch-particle-2d arg0 (-> *part-id-table* 1202) arg1 ...)` with
+;; no check at all. unlink-part-by-heap (issue 595) scrubs a discarded
+;; level's *part-id-table* entries to 0 on unload; any one of these dozens
+;; of callers hitting that scrubbed id after the level is gone hands this
+;; function a null launcher, and everything downstream inherits it. Rather
+;; than chase the exact low-level jalr in machine-translated code with no
+;; way to boot-verify a hand edit there, guard the one GOAL-side place every
+;; one of those callers already funnels through. Two-sided idiom (0 is
+;; truthy in GOAL): skip the relaunch entirely and log every field the
+;; guard holds -- system, launcher, this particle's own sp-func (still
+;; valid; it is not what is null), and key/group if bound -- rather than
+;; let a null launcher reach sp-relaunch-setup-fields. The launcher's own
+;; *part-id-table* index is not recoverable here: none of these callers
+;; pass it through, only the resolved pointer.
 (defun sp-relaunch-particle-2d ((arg0 object) (arg1 sparticle-launcher) (arg2 sparticle-cpuinfo) (arg3 sprite-vec-data-2d))
-  (sp-relaunch-setup-fields arg0 arg1 arg2 (the-as sprite-vec-data-3d arg3))
-  (when (logtest? (-> arg2 flags) (sp-cpuinfo-flag distort))
-    (set! (-> arg3 r-g-b-a w) 0.0)
-    (set! (-> arg2 fade w) 0.0)
-    (logclear! (-> arg2 flags) (sp-cpuinfo-flag sp-cpuinfo-flag-2))
-    )
-  (when (logtest? (sp-cpuinfo-flag aux-glow) (-> arg2 flags))
-    )
+  (if (and arg1 (nonzero? arg1))
+      (begin
+        (sp-relaunch-setup-fields arg0 arg1 arg2 (the-as sprite-vec-data-3d arg3))
+        (when (logtest? (-> arg2 flags) (sp-cpuinfo-flag distort))
+          (set! (-> arg3 r-g-b-a w) 0.0)
+          (set! (-> arg2 fade w) 0.0)
+          (logclear! (-> arg2 flags) (sp-cpuinfo-flag sp-cpuinfo-flag-2))
+          )
+        (when (logtest? (sp-cpuinfo-flag aux-glow) (-> arg2 flags))
+          )
+        )
+      (format 0 "sp-relaunch-guard: sp-relaunch-particle-2d skipped, launcher #x~X invalid, system ~A sp-func #x~X key #x~X~%"
+              (the-as int arg1)
+              arg0
+              (the-as int (-> arg2 sp-func))
+              (the-as int (-> arg2 key))
+              )
+      )
   0
   (none)
   )
 
 ;; definition for function sp-relaunch-particle-3d
 ;; WARN: Return type mismatch int vs none.
+;; og:preserve-this issue 709/691 choke-point guard: sibling of the guard on
+;; sp-relaunch-particle-2d above -- same mechanism (a null launcher reaching
+;; sp-relaunch-setup-fields from an unguarded caller), same fix, same
+;; reason. See the note above for the full evidence trail.
 (defun sp-relaunch-particle-3d ((arg0 object) (arg1 sparticle-launcher) (arg2 sparticle-cpuinfo) (arg3 sprite-vec-data-3d))
   (local-vars (v1-9 float) (v1-10 float))
+  (if (not (and arg1 (nonzero? arg1)))
+      (begin
+        (format 0 "sp-relaunch-guard: sp-relaunch-particle-3d skipped, launcher #x~X invalid, system ~A sp-func #x~X key #x~X~%"
+                (the-as int arg1)
+                arg0
+                (the-as int (-> arg2 sp-func))
+                (the-as int (-> arg2 key))
+                )
+        (return 0)
+        )
+      )
   (rlet ((vf0 :class vf)
          (vf1 :class vf)
          (vf2 :class vf)
