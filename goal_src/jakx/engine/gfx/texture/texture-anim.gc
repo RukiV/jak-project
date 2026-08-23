@@ -1848,6 +1848,45 @@ placeholder payload instead would fail the C++ size assert."
   (none)
   )
 
+;; og:preserve-this issue 697, site B (defence in depth): jak3's landed twin
+;; (goal_src/jak3/engine/gfx/texture/texture-anim.gc:293-345, pc-update-fixed-anim)
+;; bounds its whole walk by (-> anim-array length) and tests tex per element
+;; before ever touching a slot; the jakx PC port hoisted per-dest dispatch out
+;; into update-texture-anim's per-array branches below and lost both checks, so
+;; every one of those branches indexes array-data at a hardcoded literal and
+;; guards only with (if (-> anim tex) ...). That is exactly the mechanism behind
+;; the issue 697 crash (junglee's *junglee-water-texture-anim-array* pointing
+;; into an unloaded window level's overwritten heap, see level.gc's unload!):
+;; length reads back 0 and array-data[idx] reads back a zeroed texture-anim
+;; whose tex field is raw 0, not #f. This helper restores both jak3 guards in
+;; one place so each dispatch site below becomes a single call.
+;;
+;; The tex test is (and (nonzero? tex) tex), not (if tex): GOAL's if only tests
+;; against #f (s7's address), so a raw-zero tex reads as true and the call
+;; falls through into pc-update-fixed-anim, which faults one level deeper on
+;; (-> anim tex dest 0). lookup-level-texture-by-name, the resolver that
+;; populates a texture-anim's tex field, returns literal #f on a genuine miss
+;; (texture.gc:2332, its unconditional fallthrough); a raw 0 in this field can
+;; only be dead/overwritten memory, never a resolved miss, so the stricter
+;; test costs nothing on the real-miss path and catches the dangling one.
+(defun pc-fixed-anim-slot ((bucket bucket-id) (anim-id texture-anim-pc) (arr texture-anim-array) (idx int))
+  "Bounds-and-sentinel-checked wrapper around pc-update-fixed-anim: only dispatches
+slot idx of arr when idx is in range and both the slot itself and its tex field
+pass the two-sided (and (nonzero? x) x) sentinel test."
+  (when (< idx (-> arr length))
+    (let ((anim (-> arr array-data idx)))
+      (when (and (nonzero? anim) anim)
+        (let ((tex (-> anim tex)))
+          (when (and (nonzero? tex) tex)
+            (pc-update-fixed-anim bucket anim-id anim)
+            )
+          )
+        )
+      )
+    )
+  (none)
+  )
+
 ;; definition for function update-texture-anim
 ;; INFO: Used lq/sq
 ;; WARN: Return type mismatch int vs none.
@@ -1998,21 +2037,9 @@ so emitting it a bucket early changes nothing observable."
             )
           )
         )
-      (let ((arrow-anim (-> arg1 array-data 0)))
-        (if (-> arrow-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc this-way-arrow-02) arrow-anim)
-            )
-        )
-      (let ((jumppad-anim (-> arg1 array-data 1)))
-        (if (-> jumppad-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jumppad-arrow) jumppad-anim)
-            )
-        )
-      (let ((train-hanger-anim (-> arg1 array-data 2)))
-        (if (-> train-hanger-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc train-hanger-arrow) train-hanger-anim)
-            )
-        )
+      (pc-fixed-anim-slot arg0 (texture-anim-pc this-way-arrow-02) arg1 0)
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jumppad-arrow) arg1 1)
+      (pc-fixed-anim-slot arg0 (texture-anim-pc train-hanger-arrow) arg1 2)
       )
     ;; og:preserve-this #120: the jungle water level texture-anim leg, junglea (jungle-effects.gc,
     ;; registered by junglex, junglea and jungley). Slot 0 is the drivable canal water, slot 1
@@ -2047,16 +2074,8 @@ so emitting it a bucket early changes nothing observable."
             )
           )
         )
-      (let ((drivable-anim (-> arg1 array-data 0)))
-        (if (-> drivable-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-water-drivable-flowing-01) drivable-anim)
-            )
-        )
-      (let ((waterfall-anim (-> arg1 array-data 1)))
-        (if (-> waterfall-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-waterfall-01) waterfall-anim)
-            )
-        )
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-water-drivable-flowing-01) arg1 0)
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-waterfall-01) arg1 1)
       )
     ;; og:preserve-this #120: jungleb (jungle-effects.gc), the same waterfall dest as junglea
     ;; slot 1 above.
@@ -2086,11 +2105,7 @@ so emitting it a bucket early changes nothing observable."
             )
           )
         )
-      (let ((waterfall-anim (-> arg1 array-data 0)))
-        (if (-> waterfall-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-waterfall-01) waterfall-anim)
-            )
-        )
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-waterfall-01) arg1 0)
       )
     ;; og:preserve-this #120: jungley (jungle-effects.gc), the tunnel/canal flowing water dest
     ;; shared with junglee below (same double-tick property as junglea/jungleb).
@@ -2120,11 +2135,7 @@ so emitting it a bucket early changes nothing observable."
             )
           )
         )
-      (let ((tunnel-canal-anim (-> arg1 array-data 0)))
-        (if (-> tunnel-canal-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-water-tunnel-canal-flowing-01) tunnel-canal-anim)
-            )
-        )
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-water-tunnel-canal-flowing-01) arg1 0)
       )
     ;; og:preserve-this #120: junglee (havjung-effects.gc), the same tunnel/canal dest as
     ;; jungley above.
@@ -2154,11 +2165,7 @@ so emitting it a bucket early changes nothing observable."
             )
           )
         )
-      (let ((tunnel-canal-anim (-> arg1 array-data 0)))
-        (if (-> tunnel-canal-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-water-tunnel-canal-flowing-01) tunnel-canal-anim)
-            )
-        )
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-water-tunnel-canal-flowing-01) arg1 0)
       )
     ;; og:preserve-this #120: havjung (havjung-effects.gc), havjungx's water callback per
     ;; level-info.gc:948 (junglef itself carries only the alpha array). It recombines the
@@ -2192,21 +2199,9 @@ so emitting it a bucket early changes nothing observable."
             )
           )
         )
-      (let ((drivable-anim (-> arg1 array-data 0)))
-        (if (-> drivable-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-water-drivable-flowing-01) drivable-anim)
-            )
-        )
-      (let ((waterfall-anim (-> arg1 array-data 1)))
-        (if (-> waterfall-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-waterfall-01) waterfall-anim)
-            )
-        )
-      (let ((tunnel-canal-anim (-> arg1 array-data 2)))
-        (if (-> tunnel-canal-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-water-tunnel-canal-flowing-01) tunnel-canal-anim)
-            )
-        )
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-water-drivable-flowing-01) arg1 0)
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-waterfall-01) arg1 1)
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-water-tunnel-canal-flowing-01) arg1 2)
       )
     ;; og:preserve-this #120: junglef (havjung-effects.gc), the lava level texture-anim leg.
     ;; Slot 0 is the lava base composite: 3 texture layers plus a fourth layer with func-id
@@ -2240,16 +2235,8 @@ so emitting it a bucket early changes nothing observable."
             )
           )
         )
-      (let ((lava-anim (-> arg1 array-data 0)))
-        (if (-> lava-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-lava-01) lava-anim)
-            )
-        )
-      (let ((lava-spill-anim (-> arg1 array-data 1)))
-        (if (-> lava-spill-anim tex)
-            (pc-update-fixed-anim arg0 (texture-anim-pc jungle-lava-spill-scroll-01) lava-spill-anim)
-            )
-        )
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-lava-01) arg1 0)
+      (pc-fixed-anim-slot arg0 (texture-anim-pc jungle-lava-spill-scroll-01) arg1 1)
       )
     )
   0
