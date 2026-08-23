@@ -3453,6 +3453,40 @@
 (define *jakx-want-driver-cp* (the continue-point #f))
 (define *jakx-want-driver-level* (the symbol #f))
 (define *jakx-want-driver-tiny* (new 'static 'array symbol 2 #f #f))
+;; og:preserve-this bring-up streaming radius levers (owner-observed 2026-08-23,
+;; free-flying: transitions work but the next family's geometry is a visible void
+;; until the camera is already inside its bounding spheres). Matched to source: the
+;; family pass in jakx-want-driver-tick below used to have no distance gate at
+;; all -- it always adopted whichever family's *jakx-level-bounds* sphere set was
+;; globally nearest, argmin, every 30-frame recompute, with zero lead time (the
+;; pass-1 comparison at level.gc:8293 fires the instant a rival family's own
+;; clamped distance beats the active one's) -- while jakx-want-driver-display-tick's
+;; own promotion gate requires exact containment, (= (jakx-level-bound-dist lb cam)
+;; 0.0) (level.gc:8590). Streaming and display were therefore both effectively
+;; triggering at the same ~0-unit boundary, with no runway for the real DGO load to
+;; finish before the camera arrives. *jakx-want-driver-load-radius* now holds the
+;; active family against a nearer rival until the rival's own nearest sphere is
+;; within this distance (so a family starts streaming with real lead time instead
+;; of at the crossover instant); *jakx-want-driver-keep-radius* keeps the current
+;; family resident until it falls outside THIS distance, strictly farther than the
+;; load radius, so boundary flying (hovering right at a crossover) cannot thrash
+;; between two families every tick. Defaults are measured, not guessed: the
+;; densest cluster in the corpus (family 159, ice: icea/iceb/icec/iced's own 8
+;; K-means spheres each) averages a ~742m per-sphere radius (computed directly
+;; from *jakx-level-bounds*' raw w values / 4096, cross-checked against this file's
+;; own icec-cluster-4 worked example at level.gc:8240, 3783047 raw = 923.6m,
+;; matching exactly), rounded to 750m as the representative scale of "how close you
+;; already have to be" today; load-radius is set to ~2.7x that (2000m) and
+;; keep-radius to 1.3x load-radius (2600m). Both are plain defines, not compile-time
+;; constants, specifically so the owner can (set! *jakx-want-driver-load-radius*
+;; (meters N)) live from the REPL while flying and watch the crossover point move.
+;; Units are raw fixed-point, matching *jakx-level-bounds*' own sphere w's and
+;; (-> mc trans): (meters N) converts for readability only, the same convention
+;; *jakx-racer-track-arrive-radius* below uses. Retires when a real proximity
+;; trigger volume (region-driver.gc, *jakx-region-driver-enable*, off by default)
+;; supersedes this bring-up scorer outright.
+(define *jakx-want-driver-load-radius* (meters 2000))
+(define *jakx-want-driver-keep-radius* (meters 2600))
 (define *jakx-boot-camera-placed* #f)
 
 (defun jakx-find-continue-point ((arg0 string))
@@ -8491,10 +8525,13 @@ would close more of those and is deliberately not added here."
             ;; smaller radius. This inlines jakx-level-bound-dist's own per-sphere min
             ;; scan (unchanged, still used everywhere else in this function) instead of
             ;; adding an out-parameter to it, so nothing outside this loop changes.
-            (let ((best-family (the int32 -1))
-                  (best-family-d 1000000000000000000.0)
-                  (best-family-r 0.0)
-                  )
+            (let* ((current-lb (jakx-find-level-bound *jakx-want-driver-level*))
+                   (current-family (if current-lb (-> current-lb family-id) -1))
+                   (best-family (the int32 -1))
+                   (best-family-d 1000000000000000000.0)
+                   (best-family-r 0.0)
+                   (cur-family-d 1000000000000000000.0)
+                   )
               (dotimes (i (-> *jakx-level-bounds* length))
                 (let ((lb (-> *jakx-level-bounds* i)))
                   (when (and (or (= (-> lb memory-mode) 'tiny) (= (-> lb memory-mode) 'tiny-center))
@@ -8538,11 +8575,57 @@ would close more of those and is deliberately not added here."
                              (set! best-family-r r)
                              )
                             )
+                          ;; og:preserve-this streaming-radius tracking (see
+                          ;; *jakx-want-driver-load-radius* above): mirrors
+                          ;; best-family-d's own per-family min-distance scan
+                          ;; above, restricted to whichever family is currently
+                          ;; active, so the hysteresis cond right after this loop
+                          ;; can compare the held family's own distance against
+                          ;; keep-radius without a second table scan.
+                          (when (= fam current-family)
+                            (set! cur-family-d (fmin cur-family-d d))
+                            )
                           )
                         )
                       )
                     )
                   )
+                )
+              ;; og:preserve-this streaming-radius hysteresis (owner-observed
+              ;; 2026-08-23 pop-in; full rationale on *jakx-want-driver-load-radius*
+              ;; above): best-family above is computed as a raw argmin with zero
+              ;; lead time -- a family swap (and the want-levels push that starts
+              ;; its real DGO load, below) never fired until the instant a rival
+              ;; family was already the single globally nearest one, too late for
+              ;; the load to finish before the camera arrived. Hold: stay on
+              ;; current-family outright while its own nearest built sphere is
+              ;; still within keep-radius, even when a rival now scores nearer --
+              ;; this is what stops boundary flying from re-triggering a swap
+              ;; every 30-frame tick. Otherwise adopt best-family (already the
+              ;; true nearest from the scan above) once it is within
+              ;; load-radius; farther than that, fall back to the unconditional
+              ;; argmin exactly as before this lever existed (keeps
+              ;; boot/teleport/far-warp behavior identical: nothing is in range
+              ;; yet, so take whatever is nearest rather than stall the driver).
+              (cond
+                ((and (>= current-family 0) (<= cur-family-d *jakx-want-driver-keep-radius*))
+                 (when (!= current-family best-family)
+                   (format 0 "want-driver: keep-radius holding ~A (d ~m, keep ~m) over nearer rival~%"
+                           (-> current-lb name) cur-family-d *jakx-want-driver-keep-radius*
+                           )
+                   )
+                 (set! best-family current-family)
+                 )
+                ((<= best-family-d *jakx-want-driver-load-radius*)
+                 ;; best-family already set by the scan above; this branch is the
+                 ;; genuine load-radius entry point, nothing further to do.
+                 (none)
+                 )
+                (else
+                 ;; neither held nor within load-radius: unconditional nearest
+                 ;; fallback, unchanged from before this rung.
+                 (none)
+                 )
                 )
               (dotimes (i (-> *jakx-level-bounds* length))
                 (let ((lb (-> *jakx-level-bounds* i)))
