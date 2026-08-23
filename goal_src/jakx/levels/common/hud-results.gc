@@ -88,89 +88,27 @@
 ;; this stays a pure extern like the pointer typing already established.
 (define-extern *net-player-names* (pointer uint8))
 
-;; og:preserve-this hud-results rung: net-game-mgr-race forward-declared
-;; here (full deftype, transcribed verbatim from decompiler/config/jakx/
-;; all-types.gc). (method 24 hud-rank-name-score) and calc-player-rank
-;; both read its own auto-end-time field (declared 360, machine 356 via
-;; the +4 basic-tag trap) off a (the-as net-game-mgr-race *net-game-mgr*)
-;; cast. net-game-mgr-race's own home is net-race-h.gc, still a stub in
-;; this tree and out of this rung's scope. Retire once net-race-h.gc lands
-;; the real definition.
-(deftype net-game-mgr-race (net-game-mgr)
-  ((lap-count       int8       :offset-assert 304)
-   (racer-ct        int8       :offset-assert 305)
-   (racer-ids       uint8 24 :offset-assert 306)
-   (race-count-down int8       :offset-assert 330)
-   (pad-to-banner   uint8 13   :offset-assert 331)
-   (banner          uint64     :offset-assert 344)
-   (hud-clock       uint64     :offset-assert 352)
-   (auto-end-time   int32      :offset-assert 360)
-   )
-  :method-count-assert 88
-  :size-assert         #x16c
-  :flag-assert         #x5800e0016c
-  (:methods
-    (net-game-mgr-race-method-80 () none) ;; 80
-    (net-game-mgr-race-method-81 () none) ;; 81
-    (net-game-mgr-race-method-82 (_type_ object object) none) ;; 82
-    (net-game-mgr-race-method-83 (_type_) none) ;; 83
-    (net-game-mgr-race-method-84 () none) ;; 84
-    (net-game-mgr-race-method-85 (_type_) none) ;; 85
-    (net-game-mgr-race-method-86 () none) ;; 86
-    (net-game-mgr-race-method-87 () none) ;; 87
-    )
-  )
-
-;; og:preserve-this hud-results rung: net-player-race forward-declared here
-;; (full deftype, transcribed verbatim from decompiler/config/jakx/
-;; all-types.gc), the same class as hud-results-base's own family was
-;; before this rung. set-stats-text below needs real field access
-;; (finish-time, its own field) alongside fields net-player-race inherits
-;; from the already-landed net-player-h.gc (score, kills, deaths,
-;; best-power-slide, best-hang-time); net-player-race's own home is
-;; net-race-h.gc, still a stub in this tree and out of this rung's scope.
-;; Retire once net-race-h.gc lands the real definition.
-(deftype net-player-race (net-player)
-  ((last-on-track-pos       vector      :inline :offset-assert 400)
-   (last-on-track-rot       quaternion  :inline :offset-assert 416)
-   (wrong-way-bot           uint64              :offset-assert 432)
-   (finish-time             int32               :offset-assert 440)
-   (last-lap-update-time    int32               :offset-assert 444)
-   (last-on-track-time      int32               :offset-assert 448)
-   (last-slice              int32               :offset-assert 452)
-   (last-slice-change-time  int32               :offset-assert 456)
-   (last-valid-vehicle-time uint64              :offset-assert 464)
-   (rstate                  racer-state         :offset-assert 472)
-   (current-lap             int8                :offset-assert 476)
-   (racer-idx               int8                :offset-assert 477)
-   (current-lap-start-time  int32               :offset-assert 480)
-   (best-lap-time           int32               :offset-assert 484)
-   (speed-factor            float               :offset-assert 488)
-   (max-lap-reached         int32               :offset-assert 492)
-   )
-  :method-count-assert 108
-  :size-assert         #x1f0
-  :flag-assert         #x6c016001f0
-  (:methods
-    (net-player-race-method-98 (_type_) none) ;; 98
-    (net-player-race-method-99 (_type_) none) ;; 99
-    (net-player-race-method-100 (_type_) none) ;; 100
-    (net-player-race-method-101 (_type_ object) none) ;; 101
-    (net-player-race-method-102 (_type_ object object) none) ;; 102
-    (net-player-race-method-103 (_type_) none) ;; 103
-    (net-player-race-method-104 (_type_ object) none) ;; 104
-    (net-player-race-method-105 (_type_ object) none) ;; 105
-    (net-player-race-method-106 (_type_ object) none) ;; 106
-    (net-player-race-method-107 (_type_) none) ;; 107
-    )
-  )
+;; issue 706: net-game-mgr-race and net-player-race retired from here.
+;; Both were forward-declared full deftypes (transcribed verbatim from
+;; decompiler/config/jakx/all-types.gc) standing in for net-race-h.gc while
+;; it was a stub; net-race-h.gc now lands the real definitions (same
+;; fields, same offsets, no reconciliation needed) and links first (link
+;; position 380 vs this file's 537), so these local copies are dead
+;; weight. Worse than dead: check_type_singlehome.py (issue 534) flags
+;; them as active harm, because hud-results.o's later duplicate deftype
+;; execution re-wipes net-race-h.o's already-landed defmethod slots on
+;; link. Neither copy ever hosted a defmethod of its own here (verified:
+;; every reference below is a field read through a (the-as ...)/(as-type
+;; ...) cast, e.g. :650-651, :659-663, :678, :692, :1437, :6420), so
+;; deleting them costs nothing this file itself defined.
 
 ;; og:preserve-this hud-results rung: net-player-time-box forward-declared
 ;; here (full deftype, transcribed verbatim from decompiler/config/jakx/
 ;; all-types.gc); (method 9 hud-medal-results) casts net-players entries
-;; to it directly. Its own home is net-race-h.gc, still a stub in this
-;; tree and out of this rung's scope. Retire once net-race-h.gc lands the
-;; real definition.
+;; to it directly. Its own home is unclear in this tree (no other
+;; goal_src file defines it), so it stays here; its parent net-player-race
+;; now binds to the canonical definition net-race-h.gc lands (issue 706)
+;; instead of a local duplicate.
 (deftype net-player-time-box (net-player-race)
   ((player-timer          float   :offset-assert 496)
    (start-time            uint32  :offset-assert 500)
