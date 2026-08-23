@@ -2408,8 +2408,27 @@
                       (a1-3 (-> *part-id-table* (-> gp-0 s5-1)))
                       (a2-1 *launch-matrix*)
                       )
-                  (set! (-> a2-1 trans quad) (-> s2-0 quad))
-                  (t9-1 a0-2 a1-3 a2-1 (the-as sparticle-launch-state #f) (the-as sparticle-launch-control #f) 1.0)
+                  ;; og:preserve-this issue 709 smoke triangulation
+                  ;; (famaccept1/famaccept2): this read of *part-id-table* had no
+                  ;; check at all before handing the result straight to
+                  ;; sp-launch-particles-var -- unlike the sibling scan at line
+                  ;; ~1853 in this same file, which already guards with (and
+                  ;; launcher (nonzero? launcher)). gp-0 is a static id array
+                  ;; homed in the SAME level heap as the launcher ids it names
+                  ;; (this respawn-heights particle's own sp-func is a common
+                  ;; engine function, sparticle-respawn-heights itself, never
+                  ;; homed in that level's heap, so no per-particle sweep keyed on
+                  ;; next-launcher/sp-func can ever catch this particle); once
+                  ;; unlink-part-by-heap (sparticle-launcher.gc, issue 595) scrubs
+                  ;; the level's entries to 0 on unload, this unconditional read
+                  ;; called a birth-func with a null launchinfo (member 2's road,
+                  ;; jungle-part+0xc9, arg2 = 0). Two-sided guard, same idiom as
+                  ;; line ~1853: 0 is truthy in GOAL, so plain (if a1-3 ...) is
+                  ;; not enough on its own.
+                  (when (and a1-3 (nonzero? a1-3))
+                    (set! (-> a2-1 trans quad) (-> s2-0 quad))
+                    (t9-1 a0-2 a1-3 a2-1 (the-as sparticle-launch-state #f) (the-as sparticle-launch-control #f) 1.0)
+                    )
                   )
                 (+! s5-1 1)
                 )
@@ -2448,8 +2467,13 @@
                         (a1-3 (-> *part-id-table* (-> gp-0 s2-1)))
                         (a2-1 *launch-matrix*)
                         )
-                    (set! (-> a2-1 trans quad) (-> s4-0 quad))
-                    (t9-1 a0-2 a1-3 a2-1 (the-as sparticle-launch-state #f) (the-as sparticle-launch-control #f) 1.0)
+                    ;; og:preserve-this issue 709 smoke triangulation: sibling of
+                    ;; the guard in sparticle-respawn-heights above -- same
+                    ;; unconditional *part-id-table* read, same fix, same reason.
+                    (when (and a1-3 (nonzero? a1-3))
+                      (set! (-> a2-1 trans quad) (-> s4-0 quad))
+                      (t9-1 a0-2 a1-3 a2-1 (the-as sparticle-launch-state #f) (the-as sparticle-launch-control #f) 1.0)
+                      )
                     )
                   (+! s2-1 1)
                   )
