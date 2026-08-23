@@ -177,6 +177,17 @@
 ;;     re-dispatch to self) needed its own stack_structures.jsonc hint too.
 ;;
 ;; :exit remains held; see the issue-595 note below, now the only piece of
+;; og:preserve-this landed for real, R5a (#122): transcribed verbatim, same
+;; quaternion-copy! shape as target-real-post. Defined here, ahead of the
+;; defstate below that names it in :post, because handler fields are runtime
+;; symbol loads in file order (issue 682: the same-file forward reference
+;; captured 0 and the first post dispatch jumped to address 0).
+(defbehavior target-no-move-post target ()
+  (quaternion-copy! (the-as quaternion (-> self root rot)) (-> self root dir-targ))
+  0
+  (none)
+  )
+
 ;; this state still not landed for real.
 ;;
 ;; Landing the real :event trades away the issue-522 stand-in's 'grab
@@ -927,10 +938,11 @@
   (none)
   )
 
-;; og:preserve-this landed for real, R5a (#122): transcribed verbatim, same
-;; quaternion-copy! shape as target-real-post.
-(defbehavior target-no-move-post target ()
-  (quaternion-copy! (the-as quaternion (-> self root rot)) (-> self root dir-targ))
-  0
-  (none)
-  )
+;; og:preserve-this target-no-move-post moved ABOVE target-continue (was after
+;; target-real-post): defstate handler fields compile to runtime symbol loads in
+;; file order, so `:post target-no-move-post` below captured the symbol's
+;; pre-definition value 0, and reset-and-call jumped to 0 on the first post
+;; dispatch (issue 682's "executes 0 on any stack over 256"; the 256 case only
+;; hid it by starving the suspend first). goalc suppresses the missing-require
+;; warning for same-file references (Atoms.cpp:414), so this is silent at
+;; compile time; keep definitions ahead of any defstate naming them.
