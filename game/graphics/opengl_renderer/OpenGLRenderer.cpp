@@ -472,6 +472,12 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
 
     init_bucket_renderer<VisDataHandler>("vis", BucketCategory::OTHER, BucketId::BUCKET_2);
 
+    // Blit (issue 675): bucket 3 had no renderer at all though blit-displays.gc writes
+    // into it twice; jak2/jak3 both register BlitDisplays here with no extra constructor
+    // args (OpenGLRenderer.cpp:179, :721), the same shape adopted below.
+    m_blit_displays =
+        init_bucket_renderer<BlitDisplays>("blit", BucketCategory::OTHER, BucketId::BLIT_START);
+
     // Sky (jak3 pattern; bucket ground truth from sky-tng's dma-bucket-insert-tag calls
     // and the *texture-page-translate* first entry): the cloud/fog textures arrive as
     // TextureAnimator PC DMA in bucket 4, the sky dome draws as direct GIF packets in
@@ -561,6 +567,14 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     init_bucket_renderer<DirectRenderer>("debug-menu", BucketCategory::OTHER, BucketId::DEBUG_MENU,
                                          0x8000);
 
+    // 785 (issue 675): the real debug-draw target, carrying the bulk of the 80 landed
+    // goal_src (bucket-id bucket785) writers (add-debug-box/sphere/matrix and friends),
+    // was falling into SkipRenderer with every draw silently dropped. DirectRenderer is
+    // the sibling shape jak2/jak3 use for their own debug buckets (OpenGLRenderer.cpp:1135
+    // jak2 0x20000, :436 jak3 0x8000); size follows jak2's, matching the 793 registration
+    // just above.
+    init_bucket_renderer<DirectRenderer>("bucket785", BucketCategory::OTHER, 785, 0x20000);
+
     // Merc: the 104 distinct merc-mode destinations read mechanically out of the
     // landed *bucket-map* (foreground-h.gc, vu1-bucket-map(level 0..18, category in
     // {tfrag,pris,shrub,alpha,pris2,water}, viewport 0..1, mode merc)); the jak3-copied
@@ -632,14 +646,34 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     // per-level tex bucket the same way. Raw ids per forge #44, resolved from the
     // *texture-page-translate* rows (texture-h.gc): one tex bucket per draw level 0..5
     // for each category, except warp, which shares one id across all six.
-    static constexpr int kLevelTexBuckets[25] = {
+    // 780 (issue 675) is dropped: the full audit decomposed *bucket-map* by the real
+    // vu1-bucket-map(level, category, viewport, mode) index arithmetic and 780 never
+    // resolves as a mode-3 (texture) destination there, so it is not a genuine
+    // TextureUploadHandler target.
+    static constexpr int kLevelTexBuckets[24] = {
         7,   30,  53,  76,  99,  122,  // tfrag
         259, 280, 301, 322, 343, 364,  // alpha
         513, 522, 531, 540, 549, 558,  // pris
         633, 652, 671, 690, 709, 728,  // water
-        780,                           // warp, all levels
     };
     for (int id : kLevelTexBuckets) {
+      init_bucket_renderer<TextureUploadHandler>(fmt::format("tex-{}", id), BucketCategory::TEX, id,
+                                                 m_texture_animator);
+    }
+
+    // Remaining mode-3 (texture) *bucket-map* destinations (issue 675): the same audit
+    // decomposition that grounds kLevelTexBuckets above found 22 more mode-3 slots with
+    // no TextureUploadHandler at all, so their tpage uploads were dying silently in
+    // SkipRenderer. Shrub's per-level tex bucket sits one below each level's first
+    // shrub renderer slot in kShrubBuckets above (145 = 146 - 1, ... 240 = 241 - 1);
+    // the rest are the pris2 and water tex buckets for the shared levels 6..17 region.
+    static constexpr int kBucketMapTexBuckets[22] = {
+        145, 164, 183, 202, 221, 240,                           // shrub
+        385, 394, 459, 468, 477, 486, 495, 504, 567, 576, 585,  // pris2, l6..17
+        594, 603, 612, 621,                                     // pris2, l6..17 (cont.)
+        747,                                                    // water, l6..17
+    };
+    for (int id : kBucketMapTexBuckets) {
       init_bucket_renderer<TextureUploadHandler>(fmt::format("tex-{}", id), BucketCategory::TEX, id,
                                                  m_texture_animator);
     }
