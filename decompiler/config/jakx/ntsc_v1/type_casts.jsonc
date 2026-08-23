@@ -11455,5 +11455,106 @@
   "(method 23 tire-trail-tracker)": [
     [16, "v1", "process-drawable"],
     [23, "v1", "process-drawable"]
+  ],
+
+  // shadow-cpu rung (issue: foreground shadow emitter): jakx's shadow chain is
+  // split-screen aware where jak3's is not. shadow-invert-z-buf, shadow-dma-init
+  // and shadow-dma-end all gain a second (or, for shadow-dma-end, fifth) argument
+  // carrying the current viewport, read for its precomputed shadow/zbuf/screen GS
+  // state (shadow-invert-frame 336, zbuf-on 200, zbuf-off 208, scissor 216,
+  // tex0-24 232, shadow-dma-tex0 352, shadow-dma 360, frame-a 184, shadow-dma-frame
+  // 344, index 180, screen-maxy 560, screen-sx 564, screen-sy 568; all confirmed
+  // against viewport's existing offset-asserts) instead of jak3's hardcoded
+  // single-viewport literals (408, 512, 1792, 1840, ...). Every offset below
+  // matches an existing viewport field byte-for-byte; none are new fields.
+  "shadow-invert-z-buf": [
+    [23, "a1", "viewport"],
+    [27, "a1", "viewport"],
+    [31, "a1", "viewport"],
+    [62, "a1", "viewport"],
+    [91, "a1", "viewport"]
+  ],
+  // shadow-dma-init additionally returns the dma-buffer's entry base pointer
+  // (op 2, v0, never rewritten before the function's own return) in place of
+  // jak3's global *shadow-dma-invert-call*; shadow-execute-all threads that
+  // return value through the stack into shadow-dma-end's own t1 argument below.
+  "shadow-dma-init": [
+    [0, "a1", "viewport"],
+    [34, "a1", "viewport"],
+    [38, "a1", "viewport"],
+    [42, "a1", "viewport"],
+    [46, "a1", "viewport"],
+    [110, "a1", "viewport"],
+    [176, "a1", "viewport"],
+    [178, "a1", "viewport"],
+    [184, "a1", "viewport"],
+    [186, "a1", "viewport"]
+  ],
+  // shadow-dma-end: jak3's 4-arg (dma-buffer gs-rgbaq symbol int) shape gains a
+  // 5th arg (viewport, register t0, moved into s5 at op 3) and a 6th (t1, the
+  // pointer shadow-dma-init now returns in place of jak3's *shadow-dma-invert-call*
+  // global; written at ops 11/12 and 28/29 mirroring jak3's (cond (arg2 ...) (else
+  // ...)) split).
+  "shadow-dma-end": [
+    [3, "t0", "viewport"],
+    [5, "s5", "viewport"],
+    [34, "s5", "viewport"],
+    [66, "s5", "viewport"],
+    [68, "s5", "viewport"],
+    [72, "s5", "viewport"],
+    [76, "s5", "viewport"],
+    [91, "s5", "viewport"],
+    [117, "s5", "viewport"],
+    [11, "t1", "(pointer uint64)"],
+    [12, "t1", "(pointer uint64)"],
+    [28, "t1", "(pointer uint64)"],
+    [29, "t1", "(pointer uint64)"]
+  ],
+  // foreground-initialize-engines: the per-viewport shadow-globals bucket walk
+  // shared with shadow-execute-all above (same +8 (data field) + outer*64 +
+  // inner*32 addressing); a2 resolves the outer/inner index math to a raw
+  // <shadow-globals + (value x 1)> placeholder that the three field stores
+  // past its first (offset 0, needs no field name since it is the struct's own
+  // base) all fail to resolve without a concrete cast.
+  "foreground-initialize-engines": [
+    [11, "a2", "shadow-bucket"],
+    [22, "a2", "shadow-bucket"],
+    [23, "a2", "shadow-bucket"]
+  ],
+  // shadow-execute-all: *gsf-buffer* is declared as bare object (all-types.gc),
+  // so every field read off it needs its own cast, matching jak3's own explicit
+  // (the-as shadow-dcache *gsf-buffer*) wrapper repeated at every one of its own
+  // access sites (the stats-clear block and the *terrain-stats* tally block). op
+  // 63 is the +48 (stats field) pointer add jak3 folds into its first cast; ops
+  // 212-265 (gp, the second *gsf-buffer* load at op 208) are the tally block's own
+  // stats field reads (num-objects@66, num-single-tris@48, num-double-tris@52,
+  // num-single-edges@56, num-double-edges@60), including the dead (when #f...)
+  // debug-print block the decompiler still type-checks; op 131 reads the VU0
+  // scratchpad ptr-dual-verts field (offset 44) through the same fixed
+  // #x70000000 scratchpad base every other scratchpad-object site in this file
+  // casts.
+  "shadow-execute-all": [
+    [63, "v1", "shadow-dcache"],
+    [131, "v1", "shadow-dcache"],
+    [212, "gp", "shadow-dcache"],
+    [216, "gp", "shadow-dcache"],
+    [220, "gp", "shadow-dcache"],
+    [221, "gp", "shadow-dcache"],
+    [223, "gp", "shadow-dcache"],
+    [225, "gp", "shadow-dcache"],
+    [232, "gp", "shadow-dcache"],
+    [235, "gp", "shadow-dcache"],
+    [238, "gp", "shadow-dcache"],
+    [241, "gp", "shadow-dcache"],
+    [250, "gp", "shadow-dcache"],
+    [255, "gp", "shadow-dcache"],
+    [260, "gp", "shadow-dcache"],
+    [265, "gp", "shadow-dcache"],
+    [78, "a1", "(pointer uint32)"],
+    [96, "s2", "shadow-bucket"],
+    [135, "s2", "shadow-bucket"],
+    [200, "s2", "shadow-bucket"],
+    [136, "a0", "uint32"],
+    [109, "v1", "shadow-dcache"]
   ]
 }

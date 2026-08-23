@@ -42524,13 +42524,17 @@
 
 
 ;; (define-extern *shadow-data* object) ;; shadow-data
-;; jak3's own shadow-cpu.gc lands all five of these with the identical
-;; signature each tentative comment already guessed
-;; (goal_src/jak3/engine/gfx/foreground/shadow-cpu.gc:40/152/328/605/639).
-(define-extern shadow-invert-z-buf (function dma-buffer none))
+;; landed from shadow-cpu.gc's own scoped decode: unlike jak3, jakx's
+;; shadow-invert-z-buf/shadow-dma-init/shadow-dma-end all carry a viewport
+;; argument (the tentative jak3-mirrored signatures below this comment were
+;; guesses made before that decode; see shadow-cpu.gc's own og-notes for the
+;; full evidence). shadow-dma-init additionally returns the pointer
+;; shadow-dma-end now takes as its own extra argument, in place of jak3's
+;; global *shadow-dma-invert-call*.
+(define-extern shadow-invert-z-buf (function dma-buffer viewport none))
 (define-extern shadow-make-invert-buf (function none)) ;;
-(define-extern shadow-dma-init (function dma-buffer none))
-(define-extern shadow-dma-end (function dma-buffer gs-rgbaq symbol int none))
+(define-extern shadow-dma-init (function dma-buffer viewport (pointer uint64)))
+(define-extern shadow-dma-end (function dma-buffer gs-rgbaq symbol int viewport (pointer uint64) none))
 (define-extern shadow-vu0-block vu-function)
 ;; (define-extern shadow-xform-verts function) ;; function
 ;; (define-extern shadow-calc-dual-verts function) ;; function
@@ -42554,7 +42558,11 @@
 ;; shadow-cpu.gc:636, decompiler/config/jak3/all-types.gc:31269).
 (define-extern shadow-execute (function shadow-dma-packet pointer pointer))
 (define-extern shadow-vu0-upload (function none))
-(define-extern shadow-execute-all (function dma-buffer none))
+;; takes no arguments: it derives the current viewport's own global-buf from
+;; *viewport-array*/*display* internally rather than from a caller-supplied
+;; dma-buffer like jak3's 1-arg version (proven from the scoped decode: arg0
+;; is overwritten before any read).
+(define-extern shadow-execute-all (function none))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; shadow-vu1                     ;;

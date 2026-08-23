@@ -22,7 +22,13 @@
 ;; ---shadow-flags
 
 (declare-type shadow-vu1-constants structure)
-(define-extern shadow-execute-all (function dma-buffer none))
+;; og:preserve-this shadow-execute-all takes no arguments in jakx: it recomputes
+;; the current viewport's own global-buf internally (from *viewport-array* and
+;; *display*) instead of taking it from the caller like jak3's 1-arg version.
+;; Proven from the emitter's own scoped decode: the arg0 register is overwritten
+;; before any read, and *every* dma-buffer the body touches is derived fresh
+;; from *display*/*viewport-array*, never from an incoming argument.
+(define-extern shadow-execute-all (function none))
 
 ;; DECOMP BEGINS
 

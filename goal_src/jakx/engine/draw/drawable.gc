@@ -1449,59 +1449,53 @@
 (define *generic-effect-mode* 0)
 
 ;; definition for function foreground-initialize-engines
-;; ERROR: failed type prop at 18: Could not figure out load: (set! a3 (l.wu (+ a3 284)))
-;; WARN: Return type mismatch symbol vs none.
-;; NOTE: decomp still fails; commented out until fixed
-;; (defun foreground-initialize-engines ()
-;;   (local-vars
-;;     (v1-0 shadow-globals)
-;;     (a0-0 int)
-;;     (a1-0 int)
-;;     (a2-0 int)
-;;     (a2-1 int)
-;;     (a2-2 int)
-;;     (a2-3 int)
-;;     (a3-0 int)
-;;     (a3-1 uint)
-;;     (a3-2 int)
-;;     (a3-3 setting-control)
-;;     (a3-4 none)
-;;     )
-;;   (set! v1-0 *shadow-globals*)
-;;   (set! a0-0 0)
-;;   (while (<.si a0-0 3)
-;;     (set! a1-0 0)
-;;     (while (<.si a1-0 2)
-;;       (cond
-;;         ((begin
-;;            (set! a2-0 (sll a1-0 5))
-;;            (set! a2-1 (+ a2-0 8))
-;;            (set! a3-0 (sll a0-0 6))
-;;            (set! a2-2 (+ a2-1 a3-0))
-;;            (set! a2-3 (+ a2-2 v1-0))
-;;            (set! (the-as (pointer int32) (-> (the-as (pointer int32) a2-3))) 0)
-;;            (s.w! (+ a2-3 4) 0)
-;;            (zero? a0-0)
-;;            )
-;;          (set! a3-1 (the-as uint #x80f0f0f0))
-;;          )
-;;         ((begin (set! a3-2 1) (= a0-0 a3-2))
-;;          (set! a3-3 *setting-control*)
-;;          (set! a3-1 (the-as uint (l.wu (+ a3-3 284))))
-;;          )
-;;         (else
-;;           (set! a3-4 (the-as none *setting-control*))
-;;           (set! a3-1 (the-as uint (l.wu (+ a3-4 288))))
-;;           )
-;;         )
-;;       (s.w! (+ a2-3 12) a3-1)
-;;       (s.w! (+ a2-3 16) 0)
-;;       (set! a1-0 (+ a1-0 1))
-;;       )
-;;     (set! a0-0 (+ a0-0 1))
-;;     )
-;;   (ret-none)
-;;   )
+;; og:preserve-this the per-frame chain-head reset for *shadow-globals*'s six
+;; buckets (three shadow-color categories x two split-screen view-slots,
+;; matching shadow-cpu.gc's own addressing); the producer at foreground.gc's
+;; foreground-draw (~line 462-470) only ever writes a bucket's head when it is
+;; still zero, so without this reset each bucket's chain from a prior frame
+;; stays attached forever (a latent stale-chain bug, landed together with the
+;; shadow emitter that is its only consumer). The prior wall ("Could not
+;; figure out load: (set! a3 (l.wu (+ a3 284)))") was the +4 basic-offset trap
+;; (docs/jakx-bringup-quickstart.md): machine offset 284 is declared field
+;; offset 288 (user-current's own offset 16 plus the field's own 272), which
+;; is unknown-usd-16/unknown-usd-17 in the current all-types.gc (settings-h.gc,
+;; already landed) rather than the offsets that name implied; a fresh scoped
+;; decode resolved both loads automatically once that arithmetic was
+;; accounted for. Both fields are written with the shadow bucket's own
+;; #x80f0f0f0 gray-default constant elsewhere in settings.gc, and the
+;; (the-as rgba ...) cast below is the decompiler's own, matching that they
+;; hold color data; renaming them to spotlight-color/highlight-color (jak3's
+;; names for the equivalent fields) is left for a settings-scoped rung, since
+;; that touches settings-h.gc/settings.gc and their own REF fixture, outside
+;; this one's scope.
+(defun foreground-initialize-engines ()
+  (let ((v1-0 *shadow-globals*))
+    (dotimes (a0-0 3)
+      (dotimes (a1-0 2)
+        (let ((a2-3 (the-as object (+ (+ (* a1-0 32) 8 (* a0-0 64)) (the-as int v1-0)))))
+          (set! (-> (the-as (pointer int32) a2-3)) 0)
+          (set! (-> (the-as shadow-bucket a2-3) next) (the-as pointer 0))
+          (set! (-> (the-as shadow-bucket a2-3) shadow-color)
+                (cond
+                  ((zero? a0-0)
+                   (new 'static 'rgba :r #xf0 :g #xf0 :b #xf0 :a #x80)
+                   )
+                  ((= a0-0 1)
+                   (the-as rgba (-> *setting-control* user-current unknown-usd-16))
+                   )
+                  (else
+                    (the-as rgba (-> *setting-control* user-current unknown-usd-17))
+                    )
+                  )
+                )
+          (set! (-> (the-as shadow-bucket a2-3) constants) (the-as shadow-vu1-constants 0))
+          )
+        )
+      )
+    )
+  (none)
+  )
 
 ;; definition for function foreground-execute-cpu-vu0-engines
 (defun foreground-execute-cpu-vu0-engines ()
@@ -1509,18 +1503,16 @@
   (let ((gp-0 (-> *display* frames (-> *display* on-screen) global-buf)))
     (bones-init gp-0)
     (bones-mtx-calc-execute)
-    ;; og:preserve-this bring-up guards: shadow-cpu, lightning and prim are not landed,
-    ;; so their symbols link 0 and an unguarded call jumps to 0. Retail calls all four
-    ;; unconditionally; each guard retires with its leg. generic-merc-execute-all's
-    ;; guard retired at the effects leg's rung 5 with the full pipeline landed; this
-    ;; is retail's unconditional call.
-    (let ((a0-2 gp-0))
-      (generic-merc-execute-all a0-2)
-      (if (nonzero? shadow-execute-all)
-          (shadow-execute-all a0-2)
-          )
-      )
+    (generic-merc-execute-all gp-0)
     )
+  ;; og:preserve-this bring-up guard retired: shadow-cpu is landed (shadow-cpu.gc,
+  ;; the foreground shadow emitter). Retail calls this unconditionally, taking no
+  ;; argument (shadow-execute-all derives its own dma-buffer per-viewport
+  ;; internally; see its own og-note in shadow-cpu.gc).
+  (shadow-execute-all)
+  ;; og:preserve-this bring-up guards: lightning and prim are not landed, so their
+  ;; symbols link 0 and an unguarded call jumps to 0. Retail calls both
+  ;; unconditionally; each guard retires with its own leg.
   (if (nonzero? lightning-draw-all)
       (lightning-draw-all)
       )
