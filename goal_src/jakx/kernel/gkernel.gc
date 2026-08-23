@@ -2104,8 +2104,21 @@
   The function will run until it attempts to change state. At the first attempt to change state,
   this function will return.  The idea is that you use this when you want to initialize a process NOW.
   This will then return the value of the function you called!"
+  ;; og:preserve-this menu-road rung 3 post-boot audit (issue 699): the
+  ;; menuboot1/menuboot2 crashes both traced back to this trap firing with
+  ;; nothing in the log to say WHICH process/spawn hit it (gk's own
+  ;; "attempting to run nullptr function!" is a kernel-wide trampoline
+  ;; message, shared by every dynamic run-function-in-process call site;
+  ;; check_spawn_init.py's own "6 dynamic site(s) skipped" class confirms
+  ;; this one is statically unresolvable, so the trap itself is the only
+  ;; place left that can name the victim). Names the process and its own
+  ;; type; this is a permanent diagnostic, not scratch to this bring-up
+  ;; era, since the trap should always have named its victim.
   (when (zero? func)
-    (format 0 "attempting to run nullptr function!~%")
+    (if (and this (-> this name))
+        (format 0 "attempting to run nullptr function! in process ~A (~A)~%" (-> this name) (-> this type))
+        (format 0 "attempting to run nullptr function! in process <unknown> (this = ~A)~%" this)
+        )
     (break!)
     )
   (rlet ((pp :reg r13 :type process))
