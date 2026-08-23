@@ -7,3 +7,162 @@
 
 ;; DECOMP BEGINS
 
+;; menu-road rung 3 (issue 699): the road needs slots 32 and 33, the states
+;; net-mgr hands the cold boot to. This is a PARTIAL cut of the object's
+;; own top-level, which installs many more numbered method slots on
+;; lobby-menu-manager (the scrolling-netconfig/account/universe list
+;; types, stored-network-account methods, and roughly 30 more state
+;; handlers covering the network/medius/account/password territory, slots
+;; in the 51-75, 92, 121, 195 range). Every one of those other handlers hit
+;; its own unresolved type-prop failure in this rung's own scoped decode
+;; (missing field types on event-message-block-shaped closures, unresolved
+;; vtable method ids, arithmetic on still-untyped globals); deriving and
+;; verifying real content or even a per-slot inert stub for all of them is
+;; out of this rung's own evidence budget, so they are not installed at
+;; all rather than guessed. The two states this rung's own critical path
+;; needs are both individually clean in the scoped decode and are landed
+;; below verbatim; the raw retail state names for both come straight off
+;; their own static data (L616's own name field is 'waiting-for-cd, L898's
+;; is 'pre-game-type-menu), not placeholder numbering.
+;; stays declared object, matching the real landed extern in lobby-menu-
+;; manager.gc (the WithBuildFirst class documented there); *base-menu-
+;; info* is only ever forwarded here as a generic method-182 argument.
+(define-extern *base-menu-info* object)
+(define-extern *lobby-generic-confirmation* base-menu-info)
+(define-extern *lobby-generic-error-text-ids* (array int32))
+(define-extern *lobby-generic-error-bottom-text-ids* (array int32))
+(define-extern *lobby-generic-error-bottom-text-ids2* (array int32))
+(define-extern *lobby-generic-error-bottom-text-ids3* (array int32))
+(define-extern *lobby-generic-error-bottom-text-ids4* (array int32))
+(define-extern *lobby-generic-error-bottom-text-ids5* (array int32))
+(define-extern *no-net-hw-warning-shown* object)
+(define-extern *net-hw-initted* object)
+(define-extern *first-boot* symbol)
+(define-extern *debug-segment* symbol)
+(define-extern *game-mode* symbol)
+(define-extern *ghost-rec* object)
+(define-extern beta? (function symbol))
+(define-extern kiosk? (function symbol))
+(define-extern demo? (function symbol))
+(define-extern hack-reset-state (function symbol int))
+(define-extern knet-dev9-present (function int))
+(define-extern mem-clear!
+               "Basic memory clear. Size in 1-byte units. Not an optimized version."
+               (function pointer int symbol))
+
+;; definition for function lobby-safe-state?
+;; lobby rung 3: zero explicit GOAL args (no a0-a3 read before use), reads
+;; self (s6) directly, so it is landed as a :behavior lobby-menu-manager
+;; function rather than a bare defun.
+(defbehavior lobby-safe-state? lobby-menu-manager ()
+  (if (not *lobby-menu-manager*)
+      (return #f)
+      )
+  (if (or (and (-> *net-mgr* next-state) (= (-> *net-mgr* next-state name) 'playing-game))
+          (nonzero? (-> *net-mgr* game-state connect-handle))
+          )
+      (return #f)
+      )
+  (not (send-event (the-as process-tree *lobby-menu-manager*) 'lobby-unsafe-state?))
+  )
+
+;; menu-road rung 3: waiting-for-cd (method slot 32 on lobby-menu-manager).
+;; net-mgr hands the cold boot here first; its own :code just parks
+;; showing the mc-check UI (method 183, the "waiting for cd" screen toggle)
+;; until *sound-iop-info*'s nocd flag clears, then continues to slot 55.
+(defstate waiting-for-cd (lobby-menu-manager)
+  :virtual #t
+  :code (behavior ()
+    (lobby-menu-manager-method-183 self #t #f)
+    (until (zero? (-> *sound-iop-info* nocd))
+      (suspend)
+      )
+    (go-virtual lobby-menu-manager-state-55)
+    )
+  )
+
+;; menu-road rung 3: pre-game-type-menu (method slot 33 on lobby-menu-
+;; manager). The beta?/net-hw/kiosk/demo/*first-boot*/*debug-segment*
+;; fan-out issue 699 names, ending at enter-state slot 152 = game-type-
+;; menu on every path except the demo? and *first-boot*-without-*debug-
+;; segment* branches. The two enter-state statements below (the beta?
+;; warning popup and the "resetting net-mgr" branch) are landed exactly as
+;; the scoped decode's own raw register evidence shows: the beta? one
+;; carries all six of enter-state's own args (info, trans callback, #f,
+;; #t, #f, #f, the same shape lobby-menu-manager's own landed lan-connect/
+;; internet-connect call sites use); the *net-hw-initted* one sets only its
+;; own first arg (a0 = 'pre-game-type-menu) before the immediately
+;; following go-virtual, so it is landed as the one-arg call the machine
+;; code evidences rather than padded to six.
+(defstate pre-game-type-menu (lobby-menu-manager)
+  :virtual #t
+  :code (behavior ()
+    (when (beta?)
+      (when (and (not *no-net-hw-warning-shown*) (!= (knet-dev9-present) 1))
+        (set! *no-net-hw-warning-shown* #t)
+        (set! (-> *lobby-generic-error-text-ids* 0) 2603)
+        (set! (-> *lobby-generic-error-bottom-text-ids* 0) 1601)
+        (set! (-> *lobby-generic-error-bottom-text-ids2* 0) 1712)
+        (set! (-> *lobby-generic-error-bottom-text-ids3* 0) 1712)
+        (set! (-> *lobby-generic-error-bottom-text-ids4* 0) 1712)
+        (set! (-> *lobby-generic-error-bottom-text-ids5* 0) 1712)
+        (enter-state
+          *lobby-generic-confirmation*
+          (lambda :behavior lobby-menu-manager () (go-virtual lobby-generic-error-menu))
+          #f
+          #t
+          #f
+          #f
+          )
+        )
+      )
+    (when *net-hw-initted*
+      (format 0 "resetting net-mgr~%")
+      ;; lobby rung 3: the scoped decode's own pretty-printer leaves these
+      ;; two tokens as bare, unparenthesized statements rather than a real
+      ;; call (op 49-54's own single jalr shows zero live call args once
+      ;; register allocation settles, unlike the six-arg enter-state call
+      ;; above); landed exactly as printed rather than guessing a padded
+      ;; arg list goalc would reject.
+      enter-state
+      'pre-game-type-menu
+      (go-virtual lobby-menu-manager-state-54)
+      )
+    (hack-reset-state #f)
+    (mem-clear! (the-as pointer *ghost-rec*) 100)
+    (cond
+      ((kiosk?)
+       (cond
+         ((= *game-mode* #f)
+          (lobby-menu-manager-method-182 self *base-menu-info* 0)
+          (go-virtual game-type-menu)
+          )
+         (else
+           (lobby-menu-manager-method-182 self *base-menu-info* 0)
+           (go-virtual game-type-menu)
+           )
+         )
+       )
+      ((demo?)
+       (set! *game-mode* 'adventure)
+       (go-virtual adventure-init)
+       )
+      (*first-boot*
+        (set! *first-boot* #f)
+        (cond
+          (*debug-segment*
+            (lobby-menu-manager-method-182 self *base-menu-info* 0)
+            (go-virtual game-type-menu)
+            )
+          (else
+            (go-virtual lobby-menu-manager-state-140)
+            )
+          )
+        )
+      (else
+        (lobby-menu-manager-method-182 self *base-menu-info* 0)
+        (go-virtual game-type-menu)
+        )
+      )
+    )
+  )
