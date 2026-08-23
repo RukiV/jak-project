@@ -1,6 +1,24 @@
 {
   "vehicle-spawn": [[186, "s5", "vehicle"], [187, "a0", "vehicle"]],
 
+  // (post startup title-control) (titlepost rung, R4): gp is the winning
+  // external-art-buffer found by the immediately preceding find-loop (the
+  // loop's own break path sets gp from (-> self buffer gp-3), the fall-
+  // through/no-match path sets it to #f), but the type carried into this
+  // block's own beql-guarded field read is the literal '#f from the else
+  // edge, not the merged external-art-buffer type from the loop-break edge.
+  // op 151 is the failing read itself (l.wu (+ gp 96), raw; declared 100,
+  // external-art-buffer's own art-group field, +4 basic-tag offset),
+  // matching jak3's twin body's identical (and gp-4 (-> gp-4 art-group))
+  // guard (goal_src/jak3/levels/title/title-obs.gc). op 225 is the same
+  // register's second read a few instructions later, passing the identical
+  // art-group as draw-raw-image's own arg2 (jak3's twin: (a2-5 (-> gp-4
+  // art-group))).
+  "(post startup title-control)": [
+    [151, "gp", "external-art-buffer"],
+    [225, "gp", "external-art-buffer"]
+  ],
+
   // vinit2 rung: (method 10 vehicle-section)'s op 70 re-derives a3 as
   // (+ s4-0 0) off the newly stack_structures.jsonc-declared matrix at
   // sp+16, but the decompiler's own +0 identity op downgrades the result to

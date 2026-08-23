@@ -291,10 +291,122 @@
     )
   :code sleep-code
   ;; og:preserve-this: the retail :post handler decoded as a raw label
-  ;; (L140), an anon-function the decompiler never recognized as a proper
-  ;; function; raw label references are not valid GOAL, so the key is
-  ;; omitted entirely rather than left broken or given an invented stub
-  ;; body, matching the credits-obs precedent for the same defect class.
+  ;; (L140) because the decompiler could not resolve the winning
+  ;; external-art-buffer's type across the find-loop's break/fallthrough
+  ;; merge ("Could not figure out load: (set! v1 (l.wu (+ gp 96)))"); two
+  ;; decompiler/config/jakx/ntsc_v1/type_casts.jsonc casts on (post startup
+  ;; title-control) (ops 151 and 225, both "gp" to external-art-buffer)
+  ;; unparked it. Shape matches jak3's own twin body's (and gp-4 (-> gp-4
+  ;; art-group)) guard (goal_src/jak3/levels/title/title-obs.gc), used only
+  ;; as the reading key rather than a transplant source: jakx's own bytes
+  ;; compute the draw-sprite2d-xy rect from *viewport-array* rather than
+  ;; jak3's hardcoded -208/416, and pass bucket785 rather than jak3's
+  ;; bucket789. arg5 to draw-raw-image below is (-> self level) -- process's
+  ;; own inherited field (all-types.gc process :offset-assert 68), not a
+  ;; field title-control declares itself. jakx's title-control is leaner
+  ;; than jak3's (no level/logo/sprites/selected fields of its own), but
+  ;; this function never reads any of those; it only touches the shared
+  ;; buffer/want/have/draw/draw-name/active fields plus the inherited
+  ;; level.
+  ;;
+  ;; SAFETY, not armed by this change: title-control's two art heaps come
+  ;; from (dma-get-named-buffer 'title-control 0 0) (lobby-dma.gc:337),
+  ;; which returns (the-as pointer #f) on a miss. Spawning title-control
+  ;; without a prior (dma-try-alloc #xd2800 #xd2800 'title-control 0 ...)
+  ;; puts both heaps at the #f symbol's address with a #xd0000 extent -- a
+  ;; symbol-table overwrite, the same defect class this file's own
+  ;; *end-credits-proc* comment documents for a store through a #f-typed
+  ;; cell (title-obs.gc:958-966). This landing does not spawn
+  ;; title-control or change when it spawns; it only wires the :post that
+  ;; was previously omitted, so the arming requirement above is a
+  ;; precondition for the boot probe that exercises this code, not a claim
+  ;; that arming happened here.
+  :post (behavior ()
+    (local-vars (gp-4 external-art-buffer))
+    (dotimes (v1-0 2)
+      (set! (-> self buffer v1-0 frame-lock) #f)
+      (set! (-> self have v1-0) -1)
+      )
+    (dotimes (gp-0 2)
+      (let ((s5-0 (-> self want gp-0))
+            (s4-0 (-> self want-name gp-0))
+            )
+        (when (>= s5-0 0)
+          (dotimes (s3-0 2)
+            (case (file-status (-> self buffer s3-0) s4-0 s5-0)
+              (('locked 'active)
+               (set! (-> self buffer s3-0 frame-lock) #t)
+               (set! (-> self have gp-0) s3-0)
+               )
+              )
+            )
+          )
+        )
+      )
+    (dotimes (gp-1 2)
+      (let ((a2-1 (-> self want gp-1))
+            (a1-4 (-> self want-name gp-1))
+            )
+        (when (and (>= a2-1 0) (< (-> self have gp-1) 0))
+          (dotimes (v1-30 2)
+            (when (not (-> self buffer v1-30 frame-lock))
+              (set-pending-file (-> self buffer v1-30) a1-4 a2-1 (process->handle self) -1.0)
+              (goto cfg-33)
+              )
+            )
+          )
+        )
+      (label cfg-33)
+      )
+    (dotimes (gp-2 2)
+      (update (-> self buffer gp-2))
+      )
+    (set! (-> self active) #f)
+    (when (>= (-> self draw) 0)
+      (dotimes (gp-3 2)
+        (when (file-status (-> self buffer gp-3) (-> self draw-name) (-> self draw))
+          (set! gp-4 (-> self buffer gp-3))
+          (goto cfg-46)
+          )
+        )
+      (set! gp-4 (the-as external-art-buffer #f))
+      (label cfg-46)
+      (when (and gp-4 (-> gp-4 art-group))
+        (with-dma-buffer-add-bucket ((s4-1 (-> *display* frames (-> *display* on-screen) global-buf))
+                                     (bucket-id bucket785)
+                                     )
+          (dma-buffer-add-gs-set s4-1
+                                 (test-1 (new 'static 'gs-test :ate #x1 :afail #x3 :zte #x1 :ztst (gs-ztest always)))
+                                 )
+          (let ((t1-0 (shl #x8000 16)))
+            (draw-sprite2d-xy
+              s4-1
+              -256
+              (- (-> *viewport-array* default screen-hy))
+              512
+              (-> *viewport-array* default screen-sy)
+              (the-as rgba t1-0)
+              #x3fffff
+              )
+            )
+          )
+        (let ((t9-6 draw-raw-image)
+              (a0-31 *blit-displays-work*)
+              (a1-15 785)
+              (a2-5 (-> gp-4 art-group))
+              (a3-7 (new 'static 'vector :data (new 'static 'array float 4 512.0 416.0 0.0 1.0)))
+              (t0-2 (new 'stack-no-clear 'vector))
+              )
+          (set! (-> t0-2 x) (-> *video-params* relative-x-scale))
+          (set! (-> t0-2 y) 1.0)
+          (set! (-> t0-2 z) 0.0)
+          (set! (-> t0-2 w) 1.0)
+          (t9-6 a0-31 (the-as bucket-id a1-15) a2-5 a3-7 t0-2 (-> self level) 8)
+          )
+        (set! (-> self active) #t)
+        )
+      )
+    )
   )
 
 ;; definition for function title-progress
