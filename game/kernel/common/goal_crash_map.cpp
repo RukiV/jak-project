@@ -768,10 +768,27 @@ void heap_scan_processes(const u8* base,
   if (!process_type_addr) {
     return;
   }
-  fprintf(stderr, "heap scan (process objects found by type tag, not tree-linked):\n");
+  // issue #716 round 4 postmortem: a full window_size/8 (~16.7M position) scan measured
+  // on a live crash did not complete -- the process was gone before this function's
+  // first fprintf of a match, on two consecutive attempts, one with this call site's own
+  // __try/__except wrap in place and one without, both truncating at the exact same
+  // point (right after the header line above). That symmetry says the loss is not a
+  // straightforward access violation this function's own SEH wrapper would catch (it
+  // never printed its fallback message either time); the leading suspect is simply
+  // taking too long on the faulting thread while whatever already-crashed state that
+  // thread is in gets torn down from outside this function's control. MAX_SCAN_POSITIONS
+  // bounds the scan to a size that completes fast regardless of cause, at the honest
+  // cost of not covering the full 128MB in one pass -- a partial, always-terminating
+  // scan beats a full one that silently erases the rest of the report.
+  constexpr u64 MAX_SCAN_POSITIONS = 2 * 1024 * 1024;  // 16 MB prefix of the window
+  fprintf(stderr,
+          "heap scan (process objects found by type tag, not tree-linked, first %llu MB):\n",
+          (unsigned long long)(MAX_SCAN_POSITIONS * 8 / (1024 * 1024)));
   int found = 0;
   int reported = 0;
-  for (u64 p = 0; p + 4 <= window_size; p += 8) {
+  u64 positions_scanned = 0;
+  for (u64 p = 0; p + 4 <= window_size && positions_scanned < MAX_SCAN_POSITIONS;
+       p += 8, positions_scanned++) {
     u32 tag = 0;
     if (!bounded_read_u32(base, window_size, p, &tag)) {
       continue;
@@ -1199,9 +1216,21 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   // issue #716 round 4: heap scan. g_process_type_addr is 0 (no-op guard) unless the
   // running game registered one; unlike the sweep above, this does not depend on
   // reachability from *active-pool* at all, so it is not gated on g_process_pool_root.
+  // __try here even though every read inside heap_scan_processes() is already the same
+  // bounded_read_u32/u64 the rest of this file trusts against window_size: this is the
+  // one call site that walks the ENTIRE 128MB window rather than a handful of
+  // already-live pointer-derived addresses, so it is the one place a "bounded against
+  // window_size" read is not the same claim as "bounded against what is actually
+  // committed, mapped memory" -- belt-and-suspenders, matching the receiver dump's own
+  // __try above, and required reading: a crash reporter must never crash itself.
   if (base && g_process_type_addr) {
-    heap_scan_processes(base, mem_size, base_addr, g_process_type_addr, g_symtab_lo, g_symtab_hi,
-                        s7.offset);
+    __try {
+      heap_scan_processes(base, mem_size, base_addr, g_process_type_addr, g_symtab_lo, g_symtab_hi,
+                          s7.offset);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+      fprintf(stderr, "  (heap scan faulted partway through -- aborting, rest of report intact)\n");
+    }
+    fflush(stderr);
   }
 
   fprintf(stderr, "-----------------------------------\n");
