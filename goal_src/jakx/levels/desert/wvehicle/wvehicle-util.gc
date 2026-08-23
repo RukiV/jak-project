@@ -469,8 +469,34 @@
     ;; see the note above), but this read-back is the same representation
     ;; hazard on the same field and needs the same `nonzero?` guard rather
     ;; than a plain truthiness test, so it stays fixed here too.
+    ;;
+    ;; og:preserve-this bring-up guard: gk-spawnguard3.err.log crashed
+    ;; differently once the field-nullness class above was closed --
+    ;; "executing address 0" / "indirect dispatch" (not a read fault), the
+    ;; stack scan's own top return address landing right after this
+    ;; call (the last call this method makes before its epilogue, no other
+    ;; call in the local-space block sits anywhere near it). Re-disassembly
+    ;; confirms it: turbo-suppressor-particle's own type is valid here (the
+    ;; guard above already proved it nonzero, so the [-4] type-tag fetch
+    ;; for this dispatch is not the fault) but the resolved method-20 slot
+    ;; itself -- set-local-space-info (_type_ particle-local-space-info)
+    ;; none, sparticle-launch-control's own declared slot 20, defmethod
+    ;; landed in sparticle-launcher.gc -- reads 0 on this path, the same
+    ;; class the sentinel lesson above applies to function values, not
+    ;; just data pointers ("unlinked" reads as 0 whether the missing thing
+    ;; is a symbol or a vtable slot). Retail's own ops call this
+    ;; unconditionally too (op [567] in this rung's scoped decode: t9-24
+    ;; loaded once via method-of-type, called with no branch), so this is
+    ;; the same bring-up-absent-state class as every other guard in this
+    ;; method, not a missed branch to restore. Fetch the slot explicitly
+    ;; via method-of-type and check it before calling through it, the same
+    ;; shape method-call syntax alone cannot express.
     (when (nonzero? (-> this turbo-suppressor-particle))
-      (set-local-space-info (-> this turbo-suppressor-particle) local-space)
+      (let ((info-setter (method-of-object (-> this turbo-suppressor-particle) set-local-space-info)))
+        (when (nonzero? info-setter)
+          (info-setter (-> this turbo-suppressor-particle) local-space)
+          )
+        )
       )
     )
   (set! (-> this unknown-float-704) 0.0)
