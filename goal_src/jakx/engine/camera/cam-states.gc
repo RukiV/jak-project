@@ -155,9 +155,16 @@
 
 (define-extern *net-mgr* net-mgr)
 (define-extern *net-players* (array net-player))
-(define-extern vehicle-handle->net-player (function handle net-player))
 
 ;; og:preserve-this runtime-link externs: homes not landed yet
+;; menu-road rung 3 post-boot audit (issue 699): vehicle-handle->net-player
+;; has no defun/defbehavior anywhere in the tree (check_extern_defun's own
+;; FAIL class, the static-reference cousin of the e2 class); its own nine
+;; call sites, all in cam-vehicle-shot below, now carry a runtime-link
+;; guard, the same (if (nonzero? sym) (sym ...) ...) idiom math-camera.gc's
+;; own update-math-camera already uses for set-aspect-ratio, its own
+;; identical "extern with no landed home yet" class.
+(define-extern vehicle-handle->net-player (function handle net-player)) ;; net-player-h.gc/net-player.gc, not landed
 (define-extern find-nav-mesh (function object vector float float float collide-cache object)) ;; nav-mesh.gc
 (define-extern spawn-hud-slowmo (function object)) ;; hud-widgets.gc; landed, forward decl stays (compiles after this file)
 (define-extern empty-state (state process)) ;; process-drawable.gc family; linked at runtime
@@ -3035,7 +3042,10 @@
           )
         )
       (send-event
-        (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+        (if (nonzero? vehicle-handle->net-player)
+            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
         'target-cam-stop
         (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
         )
@@ -3058,7 +3068,10 @@
                  )
         (format #t "Akira cam: Abort due to cpad X~%")
         (send-event
-          (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+          (if (nonzero? vehicle-handle->net-player)
+            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
           'target-cam-stop
           (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
           )
@@ -3074,7 +3087,10 @@
         ((not (and gp-1 v1-32))
          (format #t "Akira cam: Abort due no shooter or target~%")
          (send-event
-           (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+           (if (nonzero? vehicle-handle->net-player)
+            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
            'target-cam-stop
            (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
            )
@@ -3084,7 +3100,10 @@
          )
         ((logtest? (-> (the-as vehicle gp-1) flags) 8)
          (send-event
-           (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+           (if (nonzero? vehicle-handle->net-player)
+            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
            'target-cam-stop
            (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
            )
@@ -3155,7 +3174,10 @@
           )
         (else
           (send-event
+            (if (nonzero? vehicle-handle->net-player)
             (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
             'target-cam-stop
             (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
             )
@@ -3213,7 +3235,10 @@
           )
     (format #t "Akira cam: all done!~%")
     (send-event
-      (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+      (if (nonzero? vehicle-handle->net-player)
+            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
       'target-cam-stop
       (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
       )
@@ -3251,7 +3276,10 @@
             ((>= (-> *target-camera-runtime* num-camera-changes) 2)
              (format #t "Akira cam: aborting due to thrash~%")
              (send-event
-               (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+               (if (nonzero? vehicle-handle->net-player)
+            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
                'target-cam-stop
                (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
                )
@@ -3267,7 +3295,10 @@
                )
              (format #t "Akira cam: unable to choose angle~%")
              (send-event
-               (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+               (if (nonzero? vehicle-handle->net-player)
+            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
                'target-cam-stop
                (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
                )
@@ -3285,7 +3316,10 @@
             (else
               (format #t "Akira cam: can't happen~%")
               (send-event
-                (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+                (if (nonzero? vehicle-handle->net-player)
+            (vehicle-handle->net-player (-> (the-as camera-master (view-get-active-camera)) focus handle))
+            (the-as net-player #f)
+            )
                 'target-cam-stop
                 (not (handle->process (-> *target-camera-runtime* vehicle-release-timer)))
                 )
