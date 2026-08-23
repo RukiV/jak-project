@@ -281,6 +281,67 @@
   this
   )
 
+;; menu-lane rung (kill the base-menu nullptr slots): a -debug boot
+;; (menuboot8) crashed with gk's own "attempting to run nullptr function!"
+;; trap, pp = base-menu, inside base-menu-init-by-other's own enter-state
+;; dispatch (goal_src/jakx/engine/ui/menu2.gc:1818-1853, dead/uncompiled
+;; reference text -- see that file's own header history and game.gp's
+;; raw-copy link-order audit). Same class lobby-menu-manager.gc:2709
+;; already stubbed: base-menu's own deftype (this file) reserves method/
+;; state slots 50-64 and 51/52/56, but this file only ever defines method 3
+;; (inspect, above); the real fill is supposed to come entirely from
+;; menu2.o's raw-copied top-level (game.gp's own audit, DGO rank 564),
+;; which links AFTER this file (rank 392-393) -- so these installs are pure
+;; safety nets a working raw copy always overwrites, never a behavior
+;; change if that raw copy links clean.
+;;
+;; base-menu-init-by-other's tail loads a method pointer straight out of
+;; base-menu's own type struct at two fixed byte offsets (216 and 220, 4
+;; bytes apart -- method-table-base + 4*id for ids 50 and 51) and hands it
+;; to enter-state depending on whether info-ptr's trans-info carries a
+;; nonzero enter-delay: nonzero takes slot 50 ("wait-enter", a plain
+;; :methods entry whose real content is a state object, matching the
+;; "(the-as state (method-of-type base-menu base-menu-method-55))" idiom
+;; used throughout menu2.gc's own dead text); zero or absent trans-info
+;; skips straight to slot 51 ("enter", :state-methods). Slot 50's own
+;; :code (fully resolved in the dead text) then unconditionally
+;; go-virtuals into slot 51 regardless, so both branches converge there.
+;; Slot 52 ("running") is the natural next hop after "enter" -- every
+;; base-menu subtype's own inherit-state pulls its own running state from
+;; exactly this slot -- so it is stubbed alongside 50/51 rather than left
+;; for a second boot to discover.
+;;
+;; Methods/states 53 and up are event-triggered (hide/exit/selection), not
+;; on the automatic spawn road, and stay unstubbed per the same reasoning
+;; lobby-menu-manager.gc:2709 already used for its own untouched ~30 slots.
+(method-set!
+  base-menu
+  50
+  (the-as
+    (function none)
+    (new
+      'global
+      'state
+      'wait-enter
+      sleep-code
+      (the-as (function object) #f)
+      (the-as function #f)
+      (the-as (function object) #f)
+      (the-as (function process int symbol event-message-block object) #f)
+      )
+    )
+  )
+
+(defstate base-menu-state-51 (base-menu)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate base-menu-state-52 (base-menu)
+  :virtual #t
+  :code sleep-code
+  )
+
 ;; definition of type jakx-logo-menu
 (deftype jakx-logo-menu (base-menu)
   ()
