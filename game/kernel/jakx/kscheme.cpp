@@ -1592,6 +1592,12 @@ int InitHeapAndSymbol() {
   // goal_crash_map_set_symbol_string_base() doc comment has the full indirection). Must
   // come after s7 is set above: format_receiver() combines this with s7.offset.
   goal_crash_map_set_symbol_string_base(SymbolString.offset);
+  // issue #716/#723: register the symbol table's own [lo, hi) bounds for the crash
+  // handler's suspended-thread sweep (goal_crash_map.h's
+  // goal_crash_map_set_symbol_table_region() doc comment), same [SymbolTable2, LastSymbol)
+  // bounds this file's own symbol lookups already use (find_slot_in_area(),
+  // find_symbol_in_area() above).
+  goal_crash_map_set_symbol_table_region(SymbolTable2.offset, LastSymbol.offset);
   reset_output();
   // empty pair (this is extra confusing).
   *Ptr<u32>(s7.offset + FIX_SYM_EMPTY_CAR - 1) = s7.offset + S7_OFF_FIX_SYM_EMPTY_PAIR;
@@ -1972,6 +1978,17 @@ int InitHeapAndSymbol() {
                (kernel_version >> 3) & 0xffff);
     }
   }
+
+  // issue #716/#723: register the process-tree root for the crash handler's
+  // suspended-thread sweep (goal_crash_map.h's goal_crash_map_set_process_pool_root()
+  // doc comment has the full reasoning). Must come after the kernel DGO load above:
+  // *active-pool* is a GOAL global defined by that DGO's own top-level code
+  // (goal_src/jakx/kernel/gkernel.gc), not something this file sets up itself, and it is
+  // never reassigned afterward, so this one-time read stays correct for the rest of the
+  // process's life. If MasterUseKernel was false, intern_from_c() still returns a
+  // (freshly created, still-zero) symbol slot rather than failing, so this registers 0 --
+  // the sweep's own no-op guard -- instead of misreading an address that was never set.
+  goal_crash_map_set_process_pool_root(intern_from_c(-1, 0, "*active-pool*")->value());
 
   protoBlock.deci2count = intern_from_c(-1, 0, "*deci-count*").cast<s32>() - 1;
   InitListener();

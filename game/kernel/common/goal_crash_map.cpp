@@ -42,6 +42,15 @@ std::mutex g_objs_mutex;
 // same reasoning g_objs's lookup() uses for skipping a lock in the fault path.
 u32 g_symbol_string_base = 0;
 
+// issue #716/#723: the running game's process-tree root and symbol-table bounds, set by
+// goal_crash_map_set_process_pool_root() / goal_crash_map_set_symbol_table_region() (see
+// those declarations in goal_crash_map.h for the full doc comment). Same reasoning as
+// g_symbol_string_base above for skipping a lock: written once, long before the fault
+// handler can run, read-only after that.
+u32 g_process_pool_root = 0;
+u32 g_symtab_lo = 0;
+u32 g_symtab_hi = 0;
+
 // issue #117: two independent fixes over the old "start <= goal_addr, earliest
 // record wins" scan.
 //
@@ -199,6 +208,20 @@ bool bounded_read_u32(const u8* base, u64 window_size, u64 off, u32* out) {
   return true;
 }
 
+// issue #716/#723: same shape as bounded_read_u32 above, for the [sp] "return address
+// slot" read (an 8-byte native x86-64 stack slot, since the thread's `sp` field is the
+// process's own paused native rsp -- see format_thread_line()'s doc comment) instead of a
+// 4-byte GOAL field.
+bool bounded_read_u64(const u8* base, u64 window_size, u64 off, u64* out) {
+  if (off + 8 < off || off + 8 > window_size) {
+    return false;
+  }
+  u64 v;
+  std::memcpy(&v, base + off, sizeof(v));
+  *out = v;
+  return true;
+}
+
 bool bounded_read_str(const u8* base, u64 window_size, u64 off, char* out, size_t out_size) {
   if (off > window_size || out_size == 0) {
     return false;
@@ -324,6 +347,209 @@ void format_receiver(const char* name,
     append("  method slot +0x40 (index 12): %#x vs rip-r15 %#llx%s", slot_val,
            (unsigned long long)rip_rel,
            match ? " <- MATCH (this is the dispatching receiver)" : "");
+  }
+}
+
+// issue #716/#723: field offsets for the GOAL process-pool walk below, all "the
+// deftype's :offset-assert value minus 4" -- the same conversion the existing pp fields
+// just above (pp+0 is process-tree's `name`, offset-assert 4; pp+0x70 is process's
+// `heap-top`, offset-assert 116) already establish: every offset in
+// goal_src/*/kernel/gkernel-h.gc's deftype forms is measured from the object's true
+// start (the type tag, 4 bytes before the conventional basic pointer), while every
+// GOAL-space address this file works with is itself already a basic pointer. thread's
+// pc/sp are not overridden by cpu-thread, so these two offsets apply to both a process's
+// main-thread and its top-thread alike.
+constexpr u64 PROCESS_TREE_MASK_OFF = 0x4;      // process-tree :offset-assert 8
+constexpr u64 PROCESS_TREE_CHILD_OFF = 0x18;    // process-tree :offset-assert 28
+constexpr u64 PROCESS_TREE_BROTHER_OFF = 0x14;  // process-tree :offset-assert 24
+constexpr u64 PROCESS_NAME_OFF = 0x0;           // process-tree :offset-assert 4
+constexpr u64 PROCESS_MAIN_THREAD_OFF = 0x34;   // process :offset-assert 56
+constexpr u64 PROCESS_TOP_THREAD_OFF = 0x38;    // process :offset-assert 60
+constexpr u64 THREAD_PC_OFF = 0x14;             // thread pc, 6th field after the type tag
+constexpr u64 THREAD_SP_OFF = 0x18;             // thread sp, 7th field after the type tag
+
+// process-mask bit 8 (goal_src/*/kernel/gkernel-h.gc's `(process-tree 8)` defenum entry):
+// set on a pool/container node (*active-pool*, *camera-pool*, ...), clear on a leaf
+// `process` instance. gkernel.gc's own search-process-tree tests the identical bit the
+// identical way -- `(not (logtest? (-> tree mask) (process-mask process-tree)))` is "this
+// is a leaf" -- so this walk visits the tree exactly the way the kernel's own dispatcher
+// does, not an approximation of it.
+constexpr u32 PROCESS_TREE_MASK_BIT = 0x100;
+
+// a corrupted tree (or, for that matter, a correct but unusually large one) must not
+// loop or overflow the fixed work stack below inside a fault handler; both the visit
+// budget and the work-stack array share this bound.
+constexpr int MAX_POOL_WALK_NODES = 1024;
+
+// issue #716/#723: format one line of the suspended-thread sweep for a single thread
+// already read off a process's main-thread/top-thread field. pc is classified against
+// the real object map the same way rip is (lookup(), hence this function -- like
+// format_reg() above -- needs g_objs_mutex held by its caller/test seam) and, failing
+// that, against the registered symbol-table region: issue #716's standing hypothesis is
+// exactly a thread whose saved context resumes into that region rather than real code,
+// so distinguishing "known-unpopulated symbol space" from "just never recorded" is the
+// point of this line. The [sp] quadword (a native x86-64 stack slot: a suspended GOAL
+// thread's `sp` is the process's own paused native rsp, the live version of which is
+// exactly what the stack scan further down reads off ctx->Rsp) gets the same
+// classification, but only when it resolves to a plausible absolute GOAL address first --
+// mirroring the stack scan's own selectivity (it silently skips any quadword that isn't
+// in GOAL range rather than flagging it), since most stack slots are not pointers at all
+// and flagging every one would bury the real signal in noise.
+void format_thread_line(const char* proc_name,
+                        const char* role,
+                        u32 pc,
+                        u32 sp,
+                        bool have_ra,
+                        u64 ra,
+                        u64 base_addr,
+                        u64 mem_size,
+                        u32 symtab_lo,
+                        u32 symtab_hi,
+                        char* out,
+                        size_t out_size) {
+  int n = std::snprintf(out, out_size, "  thread %s %s:", proc_name, role);
+  if (n < 0 || (size_t)n >= out_size) {
+    return;
+  }
+  auto append = [&](const char* fmt, auto... args) {
+    if ((size_t)n < out_size) {
+      int m = std::snprintf(out + n, out_size - n, fmt, args...);
+      if (m > 0) {
+        n += m;
+      }
+    }
+  };
+  auto classify = [&](u32 addr) {
+    const ObjRec* o = lookup(addr);
+    if (o) {
+      append(" %s+%#x [%#x,+%#x)", o->name, addr - o->start, o->start, o->extent);
+    } else if (addr >= symtab_lo && addr < symtab_hi) {
+      append("%s", " <- IN SYMBOL TABLE REGION (FLAG)");
+    } else {
+      append("%s", " <- UNMAPPED (FLAG)");
+    }
+  };
+
+  append(" pc (goal %#x)", pc);
+  classify(pc);
+  append("  sp (goal %#x)", sp);
+  if (!have_ra) {
+    append("%s", "  [sp] (out of window)");
+  } else {
+    append("  [sp] %#018llx", (unsigned long long)ra);
+    if (ra >= base_addr && ra < base_addr + mem_size) {
+      u32 g = (u32)(ra - base_addr);
+      append(" (goal %#x)", g);
+      classify(g);
+    }
+  }
+}
+
+// issue #716/#723: walk the live GOAL process pool from its registered root (jakx's
+// *active-pool*, see goal_crash_map_set_process_pool_root()'s doc comment) the same way
+// the kernel's own dispatcher does: recurse child/brother, and a node is a leaf `process`
+// rather than a pool/container exactly when PROCESS_TREE_MASK_BIT is clear. For every
+// leaf with at least one thread, print its main-thread and (if distinct) top-thread saved
+// pc/sp -- issue #716's standing hypothesis in one line per thread. An explicit work
+// stack instead of recursion: a fault handler is the wrong place to trust the C++ call
+// stack has headroom, and MAX_POOL_WALK_NODES bounds it regardless of tree shape. Every
+// read is the same bounds-checked-against-window_size read the rest of this file already
+// uses in the fault path (format_receiver() above), so this needs no additional SEH
+// guarding beyond what bounded_read_u32/bounded_read_u64 already provide.
+// GOAL's #f is not the integer 0: it is the address of the s7 symbol itself
+// (common/symbols.h: "FIX_SYM_FALSE = 0x0 ... this is equal to the $s7 register"). Every
+// process-tree pointer field (parent/brother/child) that `new process-tree` initializes
+// to #f (goal_src/*/kernel/gkernel.gc) therefore stores s7.offset, not 0, and a plain
+// "is this field nonzero" check follows #f as though it were a real node -- reading
+// whatever memory happens to sit near the symbol table and silently derailing the walk.
+// Both sentinels have to be checked.
+bool is_present_ptr(u32 addr, u32 false_addr) {
+  return addr != 0 && addr != false_addr;
+}
+
+void dump_process_pool_threads(u32 root,
+                               const u8* base,
+                               u64 window_size,
+                               u64 base_addr,
+                               u32 symtab_lo,
+                               u32 symtab_hi,
+                               u32 false_addr) {
+  if (!root || root >= window_size || (root & OFFSET_MASK) != BASIC_OFFSET) {
+    return;
+  }
+  fprintf(stderr, "suspended-thread sweep (process pool from *active-pool* = goal %#x):\n", root);
+  u32 work[MAX_POOL_WALK_NODES];
+  int work_count = 0;
+  work[work_count++] = root;
+  int visited = 0;
+  bool printed_any = false;
+  while (work_count > 0 && visited < MAX_POOL_WALK_NODES) {
+    u32 node = work[--work_count];
+    visited++;
+    if (!node || node >= window_size || (node & OFFSET_MASK) != BASIC_OFFSET) {
+      continue;
+    }
+    u32 mask = 0;
+    if (bounded_read_u32(base, window_size, node + PROCESS_TREE_MASK_OFF, &mask) &&
+        !(mask & PROCESS_TREE_MASK_BIT)) {
+      // a leaf process: dump its threads.
+      char pname[48] = "?";
+      u32 name_ptr = 0;
+      if (bounded_read_u32(base, window_size, node + PROCESS_NAME_OFF, &name_ptr) &&
+          is_present_ptr(name_ptr, false_addr) && name_ptr < window_size) {
+        bounded_read_str(base, window_size, (u64)name_ptr + 4, pname, sizeof(pname));
+      }
+      u32 main_thread = 0;
+      u32 top_thread = 0;
+      bool have_main =
+          bounded_read_u32(base, window_size, node + PROCESS_MAIN_THREAD_OFF, &main_thread);
+      bool have_top =
+          bounded_read_u32(base, window_size, node + PROCESS_TOP_THREAD_OFF, &top_thread);
+      struct {
+        const char* role;
+        u32 addr;
+        bool valid;
+      } threads[2] = {
+          {"main-thread", main_thread, have_main && is_present_ptr(main_thread, false_addr)},
+          {"top-thread", top_thread,
+           have_top && is_present_ptr(top_thread, false_addr) && top_thread != main_thread},
+      };
+      for (const auto& t : threads) {
+        if (!t.valid || t.addr >= window_size || (t.addr & OFFSET_MASK) != BASIC_OFFSET) {
+          continue;
+        }
+        u32 pc = 0;
+        u32 sp = 0;
+        bounded_read_u32(base, window_size, (u64)t.addr + THREAD_PC_OFF, &pc);
+        bounded_read_u32(base, window_size, (u64)t.addr + THREAD_SP_OFF, &sp);
+        u64 ra = 0;
+        bool have_ra =
+            is_present_ptr(sp, false_addr) && bounded_read_u64(base, window_size, sp, &ra);
+        char line[256];
+        format_thread_line(pname, t.role, pc, sp, have_ra, ra, base_addr, window_size, symtab_lo,
+                           symtab_hi, line, sizeof(line));
+        fprintf(stderr, "%s\n", line);
+        printed_any = true;
+      }
+    }
+
+    // every node, leaf or pool, still carries child/brother links (search-process-tree
+    // recurses regardless of the mask bit too).
+    u32 child = 0;
+    u32 brother = 0;
+    if (bounded_read_u32(base, window_size, node + PROCESS_TREE_CHILD_OFF, &child) &&
+        is_present_ptr(child, false_addr) && child < window_size &&
+        work_count < MAX_POOL_WALK_NODES) {
+      work[work_count++] = child;
+    }
+    if (bounded_read_u32(base, window_size, node + PROCESS_TREE_BROTHER_OFF, &brother) &&
+        is_present_ptr(brother, false_addr) && brother < window_size &&
+        work_count < MAX_POOL_WALK_NODES) {
+      work[work_count++] = brother;
+    }
+  }
+  if (!printed_any) {
+    fprintf(stderr, "  (no threads found, visited %d node(s))\n", visited);
   }
 }
 
@@ -572,6 +798,14 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
     }
   }
 
+  // issue #716/#723: suspended-thread sweep. g_process_pool_root is 0 (the walk's own
+  // no-op guard) unless the running game registered one (jakx only today, same posture
+  // as g_symbol_string_base above).
+  if (base && g_process_pool_root) {
+    dump_process_pool_threads(g_process_pool_root, base, mem_size, base_addr, g_symtab_lo,
+                              g_symtab_hi, s7.offset);
+  }
+
   fprintf(stderr, "-----------------------------------\n");
   fflush(stderr);
 
@@ -635,8 +869,34 @@ void goal_crash_map_format_receiver_for_test(const char* name,
                   out_size);
 }
 
+void goal_crash_map_format_thread_line_for_test(const char* proc_name,
+                                                const char* role,
+                                                u32 pc,
+                                                u32 sp,
+                                                bool have_ra,
+                                                u64 ra,
+                                                u64 base_addr,
+                                                u64 mem_size,
+                                                u32 symtab_lo,
+                                                u32 symtab_hi,
+                                                char* out,
+                                                size_t out_size) {
+  std::lock_guard<std::mutex> lock(g_objs_mutex);
+  format_thread_line(proc_name, role, pc, sp, have_ra, ra, base_addr, mem_size, symtab_lo,
+                     symtab_hi, out, out_size);
+}
+
 void goal_crash_map_set_symbol_string_base(u32 symbol_string_base) {
   g_symbol_string_base = symbol_string_base;
+}
+
+void goal_crash_map_set_process_pool_root(u32 process_pool_root) {
+  g_process_pool_root = process_pool_root;
+}
+
+void goal_crash_map_set_symbol_table_region(u32 lo, u32 hi) {
+  g_symtab_lo = lo;
+  g_symtab_hi = hi;
 }
 
 void goal_crash_map_install() {

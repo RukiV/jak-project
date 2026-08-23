@@ -42,6 +42,33 @@ void goal_crash_map_install();
 // only" rather than misreading a table that was never set up for that game.
 void goal_crash_map_set_symbol_string_base(u32 symbol_string_base);
 
+// issue #716/#723: register the goal-relative address of the running game's process-tree
+// root (e.g. jakx::intern_from_c(-1, 0, "*active-pool*")->value(), read once after the
+// kernel DGO's top-level code -- which is what actually assigns *active-pool* a value --
+// has run: game/kernel/jakx/kscheme.cpp's InitHeapAndSymbol() is the one call site). The
+// crash handler walks this tree at report time (dump_process_pool_threads() in
+// goal_crash_map.cpp) the same way the kernel's own dispatcher does
+// (goal_src/*/kernel/gkernel.gc's execute-process-tree/search-process-tree: recurse
+// child/brother, a node with process-mask bit 8 clear is a leaf `process`) and prints
+// every leaf's main-thread/top-thread saved pc/sp -- issue #716's standing hypothesis is a
+// suspended thread whose saved context resumes into unpopulated symbol space, so this is
+// meant to name the culprit thread directly from the crash block instead of a follow-up
+// probe. 0 (the default) means "not registered", which the walk treats as "skip the
+// sweep" rather than misreading address 0 as a real tree root. Like
+// goal_crash_map_set_symbol_string_base(), this is the one other jakx-specific
+// touchpoint into this otherwise game-agnostic file; a game that never registers a root
+// just gets no sweep, never a fault.
+void goal_crash_map_set_process_pool_root(u32 process_pool_root);
+
+// issue #716/#723: register the [lo, hi) goal-relative bounds of the running game's
+// symbol table (jakx::SymbolTable2.offset / jakx::LastSymbol.offset, set at the same
+// point InitHeapAndSymbol() sets up s7 -- see that function for why the sweep needs this
+// distinguished from "unmapped" rather than folded into it: the issue's own forensic
+// finding was that the observed garbage pc resolves to unpopulated space specifically
+// *inside* this table, not merely off the GOAL code map). lo == hi (the 0,0 default)
+// disables the check, since a real table is never zero-width.
+void goal_crash_map_set_symbol_table_region(u32 lo, u32 hi);
+
 // test seam (issue #117): runs the same bounded, latest-wins lookup the crash handler
 // uses internally against the recorded objects, so test_goal_crash_map.cpp can exercise
 // it directly without a live fault. Returns the matching record's name, or nullptr if
@@ -102,3 +129,26 @@ void goal_crash_map_format_receiver_for_test(const char* name,
                                              u64 r15,
                                              char* out,
                                              size_t out_size);
+
+// test seam (issue #716/#723): forwards to the crash handler's pure per-thread line
+// formatter (format_thread_line() in goal_crash_map.cpp), taking the values a caller
+// would already have bounded-read out of a thread object's `pc`/`sp` fields (raw
+// goal-relative offsets, like every other struct field this file reads -- pc is never
+// given the register-style dual absolute/raw reading format_reg() and format_receiver()
+// use, since it is read from memory, not a live register) plus the raw quadword sitting
+// at [sp] (have_ra false if that read was out of window). pc, and a [sp] quadword that
+// does resolve to a plausible absolute GOAL address, are both classified against the real
+// object map (lookup(), so this seam takes g_objs_mutex the way
+// goal_crash_map_format_reg_for_test() does) and the registered symbol-table region.
+void goal_crash_map_format_thread_line_for_test(const char* proc_name,
+                                                const char* role,
+                                                u32 pc,
+                                                u32 sp,
+                                                bool have_ra,
+                                                u64 ra,
+                                                u64 base_addr,
+                                                u64 mem_size,
+                                                u32 symtab_lo,
+                                                u32 symtab_hi,
+                                                char* out,
+                                                size_t out_size);

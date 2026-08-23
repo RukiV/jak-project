@@ -370,6 +370,103 @@ TEST(GoalCrashMap, FormatReceiverSkipsNameResolutionWhenNoTableRegistered) {
   EXPECT_EQ(line.find("type-name"), std::string::npos) << line;
 }
 
+// issue #716/#723: the suspended-thread sweep's per-thread line. A pc that resolves
+// through the real object map prints the same "name+offset [start,+extent)" shape the
+// stack scan and rip line already use.
+TEST(GoalCrashMap, FormatThreadLineResolvesPcAgainstObjectMap) {
+  const u32 base = 0x00c00000;
+  goal_crash_map_record(base, "gkernel", 0x5900);
+
+  char out[256];
+  goal_crash_map_format_thread_line_for_test("target", "main-thread", base + 0x54, 0x1000, false, 0,
+                                             /*base_addr=*/0, /*mem_size=*/0, /*symtab_lo=*/0,
+                                             /*symtab_hi=*/0, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("thread target main-thread:"), std::string::npos) << line;
+  EXPECT_NE(line.find("pc (goal 0xc00054) gkernel+0x54 [0xc00000,+0x5900)"), std::string::npos)
+      << line;
+  EXPECT_NE(line.find("sp (goal 0x1000)"), std::string::npos) << line;
+  EXPECT_NE(line.find("[sp] (out of window)"), std::string::npos) << line;
+  EXPECT_EQ(line.find("FLAG"), std::string::npos) << line;
+}
+
+// a pc that lands inside the registered symbol-table region (and matches no recorded
+// object -- the two are not mutually exclusive in general, but the symbol table is never
+// itself a recorded GOAL object) is flagged distinctly from a merely-unmapped address:
+// issue #716's own forensic finding was exactly this distinction.
+TEST(GoalCrashMap, FormatThreadLineFlagsPcInSymbolTableRegion) {
+  char out[256];
+  goal_crash_map_format_thread_line_for_test("garage-turntable-3", "main-thread", 0x187e01, 0,
+                                             false, 0, 0, 0, /*symtab_lo=*/0x180000,
+                                             /*symtab_hi=*/0x190000, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("pc (goal 0x187e01) <- IN SYMBOL TABLE REGION (FLAG)"), std::string::npos)
+      << line;
+}
+
+// a pc that resolves to no recorded object and falls outside the registered symbol-table
+// region (or no region was ever registered, the 0/0 default) is flagged as generically
+// unmapped -- the #716 log's own "goal 0" fault, which sits below the symbol table's real
+// start (SymbolTable2 is never address 0) and so must not be misreported as "in the
+// symbol table" just because it is still unpopulated space.
+TEST(GoalCrashMap, FormatThreadLineFlagsUnmappedPcOutsideSymbolTable) {
+  char out[256];
+  goal_crash_map_format_thread_line_for_test("target", "main-thread", 0, 0, false, 0, 0, 0,
+                                             /*symtab_lo=*/0x180000, /*symtab_hi=*/0x190000, out,
+                                             sizeof(out));
+  std::string line(out);
+  // %#x's alternate form omits the "0x" prefix at value 0 (same C99 7.19.6.1p6 convention
+  // the FormatNativeRip zero-offset test above already covers), so this is "goal 0)", not
+  // "goal 0x0)".
+  EXPECT_NE(line.find("pc (goal 0) <- UNMAPPED (FLAG)"), std::string::npos) << line;
+}
+
+// the [sp] quadword is only classified when it resolves to a plausible absolute GOAL
+// address (base_addr <= ra < base_addr+mem_size); most stack slots are not pointers at
+// all, and the stack scan above this function in the real handler already establishes
+// that convention (it silently skips anything outside that range rather than flagging
+// it) -- this test is the boundary that lets it flag correctly when it IS a pointer.
+TEST(GoalCrashMap, FormatThreadLineClassifiesPlausibleReturnAddressSlot) {
+  const u32 obj = 0x00d00000;
+  goal_crash_map_record(obj, "main", 0x100);
+  const u64 base_addr = 0x2000000000ull;
+  const u64 mem_size = 0x8000000ull;
+
+  char out[256];
+  goal_crash_map_format_thread_line_for_test("target", "top-thread", /*pc=*/0xdeadbe, /*sp=*/0x2000,
+                                             /*have_ra=*/true,
+                                             /*ra=*/base_addr + obj + 0x10, base_addr, mem_size,
+                                             /*symtab_lo=*/0, /*symtab_hi=*/0, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("[sp] 0x0000002000d00010 (goal 0xd00010) main+0x10 [0xd00000,+0x100)"),
+            std::string::npos)
+      << line;
+}
+
+// a [sp] quadword that does not look like an absolute GOAL address at all (ordinary
+// stack noise: a small integer, a native pointer outside the mapping, ...) gets no
+// classification and no flag, matching the stack scan's own selectivity.
+TEST(GoalCrashMap, FormatThreadLineDoesNotClassifyImplausibleReturnAddressSlot) {
+  // pc registered as a real object too, so this test isolates the [sp]/ra behavior: with
+  // pc resolved cleanly, any stray "(goal" or "FLAG" in the line can only have come from
+  // the (implausible) ra reading, not pc's own classification.
+  const u32 obj = 0x00e00000;
+  goal_crash_map_record(obj, "main", 0x100);
+
+  char out[256];
+  goal_crash_map_format_thread_line_for_test("target", "main-thread", /*pc=*/obj + 0x10,
+                                             /*sp=*/0x2000, /*have_ra=*/true, /*ra=*/12,
+                                             /*base_addr=*/0x2000000000ull,
+                                             /*mem_size=*/0x8000000ull, /*symtab_lo=*/0,
+                                             /*symtab_hi=*/0, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("pc (goal 0xe00010) main+0x10 [0xe00000,+0x100)"), std::string::npos) << line;
+  EXPECT_NE(line.find("[sp] 0x000000000000000c"), std::string::npos) << line;
+  // nothing follows the raw [sp] hex value: no "(goal ...)" classification and no FLAG,
+  // since 12 is nowhere near the [base_addr, base_addr+mem_size) window.
+  EXPECT_TRUE(line.ends_with("[sp] 0x000000000000000c")) << line;
+}
+
 // the method-slot cross-check must report a mismatch (no "MATCH") when rip - r15 does
 // not equal the value at [tag + 0x40] -- e.g. a different register held the actual
 // dispatching receiver, or the fault was not a dispatch fault at all.
