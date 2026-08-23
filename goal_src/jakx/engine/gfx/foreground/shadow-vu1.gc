@@ -163,7 +163,14 @@
       (set! (-> v1-1 fog x) (-> (the-as (pointer float) t0-4) 227))
       (set! (-> v1-1 clrs 0 quad) (-> a3-2 clrs 0 quad))
       (set! (-> v1-1 clrs 1 quad) (-> a3-2 clrs 1 quad))
-      (set! (-> v1-1 texoffset quad) (-> (the-as (pointer uint128) (&-> arg2 sprite-2d uvec y)) 0))
+      ;; og:preserve-this aligned row quads, not the decode's (&-> ... uvec y) /
+      ;; (&-> ... fvec y) anchors: PS2's lq masks the low 4 address bits, so
+      ;; retail's +20/+36 reads actually load the 16-aligned uvec/fvec rows;
+      ;; transcribed literally they are misaligned SSE loads on PC and #GP'd
+      ;; on the first vehicle-shadow frame (shadow-vu1+0x493, no faulting
+      ;; address). jak3's twin reads its texoffset/texscale from typed fields
+      ;; for the same reason.
+      (set! (-> v1-1 texoffset quad) (-> arg2 sprite-2d uvec quad))
       (when (not (or (zero? *screen-shot-work*) (= (-> *screen-shot-work* count) -1)))
         (let* ((t0-14 (-> *screen-shot-work* count))
                (t1-11 (-> *screen-shot-work* size))
@@ -175,7 +182,7 @@
           (set! (-> v1-1 texoffset y) (- (-> v1-1 texoffset y) f0-3))
           )
         )
-      (set! (-> v1-1 texscale quad) (-> (the-as (pointer uint128) (&-> arg2 sprite-2d fvec y)) 0))
+      (set! (-> v1-1 texscale quad) (-> arg2 sprite-2d fvec quad))
       (set! (-> v1-1 adgif qword) (-> a3-2 adgif qword))
       (set! (-> v1-1 texflush quad) (-> a3-2 ad quad))
       (set! (-> v1-1 flush quad) (-> a3-2 flush quad))
