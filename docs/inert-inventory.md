@@ -100,7 +100,7 @@ written is read-only by design and not a finding.
 | `*add-sphere*` | 1 | `goal_src/jakx/engine/draw/drawable.gc` |
 | `*artist-error-spheres*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-flip-visible*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*auto-continue*` | 1 | `goal_src/jakx/engine/target/target-death.gc` |
+| `*auto-continue*` | 1 | `goal_src/jakx/engine/target/logic-target.gc` |
 | `*bot-record-path*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*capture-tga-temp*` | 1 | `goal_src/jakx/engine/util/capture.gc` |
 | `*city-mode*` | 1 | `goal_src/jakx/engine/level/level-h.gc` |
