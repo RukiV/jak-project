@@ -57886,12 +57886,25 @@
     )
   )
 
-;; (define-extern net-player-race-init-remote function)
+;; net-race-h rung: matches net-game-mgr-init-remote's own shape above
+;; (net-game-mgr-h.gc:135) exactly: the real defbehavior body decodes
+;; cleanly inside net-race-h itself (not net-race.o, rung 5's still-
+;; stubbed object of a different name), and process-nettable-method-41
+;; calls it via process-spawn in the same file, so this extern types the
+;; forward reference other objects need before net-race-h compiles.
+(define-extern net-player-race-init-remote (function int none :behavior net-player-race))
+;; *msg-map-net-player-race* and *net-process-class-info-net-player-race*
+;; are declared far above in the provisional-sweep list (this rung retypes
+;; them in place there); left commented here so this block still reads as
+;; net-race-h's own local todo list.
 ;; (define-extern *msg-map-net-player-race* array)
 ;; (define-extern *net-process-class-info-net-player-race* object)
-;; (define-extern net-game-mgr-race-init-remote function)
-;; (define-extern *msg-map-net-game-mgr-race* array)
-;; (define-extern *net-process-class-info-net-game-mgr-race* object)
+;; net-race-h rung: same shape/precedent as net-player-race-init-remote
+;; above; same shape too, defbehavior body and its process-nettable-
+;; method-41 caller both land together in net-race-h.
+(define-extern net-game-mgr-race-init-remote (function int none :behavior net-game-mgr-race))
+(define-extern *msg-map-net-game-mgr-race* (array symbol)) ;; net-race-h rung: same precedent family as *msg-map-net-player-race* above
+(define-extern *net-process-class-info-net-game-mgr-race* net-process-class-info) ;; net-race-h rung: matches *net-process-class-info-net-game-mgr* above (net-game-mgr-h precedent), net-race-h top-level-login type-new
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; net-game-modes-h               ;;
@@ -88663,7 +88676,7 @@
 (define-extern *msg-map-net-player* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-player-ctf* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-player-deathmatch* object) ;; provisional: call-site evidence only
-(define-extern *msg-map-net-player-race* object) ;; provisional: call-site evidence only
+(define-extern *msg-map-net-player-race* (array symbol)) ;; net-race-h rung: proven, matching *msg-map-net-world*/*msg-map-net-powerup*'s own citation (net-process-class-info's own msg-map field, offset 0, is declared (array symbol))
 (define-extern *msg-map-net-projectile* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-net-test* object) ;; provisional: call-site evidence only
 (define-extern *msg-map-peak-snowball* object) ;; provisional: call-site evidence only
@@ -88739,7 +88752,7 @@
 (define-extern *net-process-class-info-net-player-deathmatch* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-deathrace* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-king-of-hill* object) ;; provisional: call-site evidence only
-(define-extern *net-process-class-info-net-player-race* object) ;; provisional: call-site evidence only
+(define-extern *net-process-class-info-net-player-race* net-process-class-info) ;; net-race-h rung: matches *net-process-class-info-net-world*/*net-process-class-info-net-powerup*, net-race-h top-level-login type-new
 (define-extern *net-process-class-info-net-player-rushhour* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-time-box* object) ;; provisional: call-site evidence only
 (define-extern *net-process-class-info-net-player-time-trial* object) ;; provisional: call-site evidence only
