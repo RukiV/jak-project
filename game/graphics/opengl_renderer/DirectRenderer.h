@@ -90,7 +90,7 @@ class DirectRenderer : public BucketRenderer {
  protected:
   virtual void handle_frame(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
   void handle_scissor(u64 val);
-  void handle_zbuf1(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
+  virtual void handle_zbuf1(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
   void handle_test1(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
   void handle_alpha1(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof);
   void handle_pabe(u64 val);

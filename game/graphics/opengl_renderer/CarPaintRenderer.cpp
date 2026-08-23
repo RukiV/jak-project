@@ -105,3 +105,25 @@ void CarPaintRenderer::handle_frame(u64 val,
   render_state->texture_pool->move_existing_to_vram(m_gpu_tex, fbp << 5);
   m_offscreen_mode = true;
 }
+
+void CarPaintRenderer::handle_zbuf1(u64 val,
+                                    SharedRenderState* render_state,
+                                    ScopedProfilerNode& prof) {
+  // The car-paint composite configures an offscreen z-buffer at the paint
+  // pages by design (car-info-full-method-16 draws into a texture, not the
+  // screen); DirectRenderer::handle_zbuf1's zbp equality assert
+  // (DirectRenderer.cpp:1079) encodes the single-world-zbuffer assumption
+  // that holds everywhere except this bucket family, so it is dropped here.
+  GsZbuf x(val);
+  ASSERT(x.psm() == TextureFormat::PSMZ24);
+
+  bool write = !x.zmsk();
+  //  ASSERT(write);
+  if (write != m_test_state.depth_writes) {
+    m_stats.flush_from_zbuf++;
+    flush_pending(render_state, prof);
+    m_test_state_needs_gl_update = true;
+    m_prim_gl_state_needs_gl_update = true;
+    m_test_state.depth_writes = write;
+  }
+}

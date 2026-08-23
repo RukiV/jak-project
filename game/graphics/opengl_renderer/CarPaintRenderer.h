@@ -55,6 +55,7 @@ class CarPaintRenderer : public DirectRenderer {
   void init_textures(TexturePool& texture_pool, GameVersion version) override;
   void render(DmaFollower& dma, SharedRenderState* render_state, ScopedProfilerNode& prof) override;
   void handle_frame(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof) override;
+  void handle_zbuf1(u64 val, SharedRenderState* render_state, ScopedProfilerNode& prof) override;
   void pre_render() override;
   void post_render() override;
 
