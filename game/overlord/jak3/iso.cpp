@@ -378,7 +378,7 @@ void IsoPlayMusicStream(ISO_VAGCommand* user_cmd) {
                                      0xBB80, 0xDAC0, 0xAC44, 0x1589, 0x2B11, 0x409A,
                                      0x5622, 0x6BAB, 0x8133, 0x96BC};
 
-          int rate = rates[rate_idx];
+          int rate = rates[rate_idx >> 2];
           if (((internal_cmd->vag_dir_entry->words[1] >> 10) & 1) == 0) {
             rate = rate << 2;
           } else {
@@ -574,7 +574,7 @@ void IsoQueueVagStream(ISO_VAGCommand* user_cmd) {
                                      0xBB80, 0xDAC0, 0xAC44, 0x1589, 0x2B11, 0x409A,
                                      0x5622, 0x6BAB, 0x8133, 0x96BC};
 
-          int rate = rates[rate_idx];
+          int rate = rates[rate_idx >> 2];
           if (((internal_cmd->vag_dir_entry->words[1] >> 10) & 1) == 0) {
             rate = rate << 2;
           } else {
