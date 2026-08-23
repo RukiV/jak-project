@@ -91,6 +91,7 @@ written is read-only by design and not a finding.
 | `*settings-music-seek-speed*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
 | `*settings-music-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
 | `*settings-sfx-volume*` | 2 | `goal_src/jakx/engine/game/settings-h.gc` |
+| `*shadow-debug*` | 2 | `goal_src/jakx/engine/gfx/foreground/shadow-cpu-h.gc` |
 | `*sp-temp*` | 2 | `goal_src/jakx/engine/gfx/sprite/particles/sparticle-launcher.gc` |
 | `*stats-bsp*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-buffer*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -201,7 +202,6 @@ written is read-only by design and not a finding.
 | `*scert-function-id*` | 1 | `goal_src/jakx/engine/net/scert-funcs.gc` |
 | `*sfx-volume-during-speech*` | 1 | `goal_src/jakx/engine/sound/speech-h.gc` |
 | `*shadow*` | 1 | `goal_src/jakx/engine/gfx/foreground/shadow-cpu-h.gc` |
-| `*shadow-debug*` | 1 | `goal_src/jakx/engine/gfx/foreground/shadow-cpu-h.gc` |
 | `*shadow-object*` | 1 | `goal_src/jakx/engine/gfx/foreground/shadow-cpu-h.gc` |
 | `*sky-clouds-clut-ready*` | 1 | `goal_src/jakx/engine/gfx/sky/sky-tng.gc` |
 | `*slow-frame-rate*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
