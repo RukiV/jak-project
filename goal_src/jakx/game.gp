@@ -557,7 +557,32 @@
 ;; MUSIC
 ;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO
+(copy-vag-files "ENG" "INT")
+
+(copy-sbk-files
+  "ATOLL1" "ATOLL2" "ATOLL3" "BADLND1" "BADLND2" "BEAR1"
+  "BEAR2" "BEAR3" "BOBC1" "BOBC2" "BOBC3" "BRUCE"
+  "BRUCE2" "CANYON1" "CANYON2" "CARON" "CHEE1" "CHEE2"
+  "CHEE3" "CLIFF1" "CLIFF2" "CLIFF3" "CLIFF4" "COLISM1"
+  "COLISM2" "COLISM3" "COLISM4" "COMMON" "COUG1" "COUG2"
+  "COUG3" "DAXT1" "DAXT2" "DAXT3" "DESERT1" "DESERT2"
+  "DESERT3" "DESERT4" "DESERT5" "DOCKRA1" "DOCKRA2" "DROME1"
+  "DROME2" "EAST1" "EAST2" "EMPTY0" "EMPTY1" "EMPTY2"
+  "FALC1" "FALC2" "FALC3" "GILA1" "GILA2" "GILA3"
+  "GLAC1" "GLAC2" "HAVEN1" "HAVEN2" "HAVJNG1" "HAVJNG2"
+  "HAVSEW1" "HAVSEW2" "HCITY1" "HCITY2" "ICEBND1" "ICEBND2"
+  "JUNGLE1" "JUNGLE2" "KDOCK1" "KDOCK2" "KRAS1" "KRAS2"
+  "KSHIP1" "KSHIP2" "LEOP1" "LEOP2" "LEOP3" "MENU1"
+  "MENU2" "MENU3" "MONG1" "MONG2" "MONG3" "MOUNT1"
+  "MOUNT2" "MUDPIT1" "MUDPIT2" "MUDPIT3" "MUDPIT4" "NORTH1"
+  "NORTH2" "PANT1" "PANT2" "PANT3" "POSS1" "POSS2"
+  "POSS3" "SEAPRT1" "SEAPRT2" "SEWER1" "SEWER2" "SNAK1"
+  "SNAK2" "SNAK3" "SNOBWL1" "SNOBWL2" "SNOBWL3" "SNOW1"
+  "SNOW2" "SOUTH1" "SOUTH2" "SPARG1" "SPARG2" "SPARGB1"
+  "SPARGB2" "TEMPLE1" "TEMPLE2" "TIGE1" "TIGE2" "TIGE3"
+  "TIMBER1" "TIMBER2" "WASSCORP" "WASSNAKE" "WASTE1" "WASTE2"
+  "WASTE3" "WEST1" "WEST2" "WOLF1" "WOLF2" "WOLF3"
+  "WOMB1" "WOMB2" "WOMB3")
 
 ;; Jak X has no MUS files
 (defstep :in "$ISO/RES/TWEAKVAL.MUS"
@@ -603,12 +628,12 @@
 
 (group-list "iso"
  `(
-  ;;  "$OUT/iso/VAGDIR.AYB"
-  ;;  "$OUT/iso/TWEAKVAL.MUS"
+   "$OUT/iso/VAGDIR.AYB"
+   "$OUT/iso/TWEAKVAL.MUS"
   ;;  ,@(reverse *all-vis*)
    ,@(reverse *all-str*)
-  ;;  ,@(reverse *all-sbk*)
-  ;;  ,@(reverse *all-vag*)
+   ,@(reverse *all-sbk*)
+   ,@(reverse *all-vag*)
    ,@(reverse *all-text*)
    ,@(reverse *all-cgos*))
  )
@@ -624,7 +649,9 @@
 
 (group "engine"
        "$OUT/iso/0COMMON.TXT"
-       "$OUT/iso/0SUBTIX.TXT"
+       ;; was "0SUBTIX.TXT", a typo for the real copy-text-files output; this
+       ;; group could never build until it matched the actual staged name.
+       "$OUT/iso/0SUBTIT.TXT"
        "$OUT/iso/KERNEL.CGO"
        "$OUT/iso/GAME.CGO"
        "$OUT/iso/VAGDIR.AYB"
