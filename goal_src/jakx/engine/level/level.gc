@@ -2531,10 +2531,20 @@
       (unload-page *texture-pool* (-> this loaded-texture-page s5-4))
       )
     (set! (-> this loaded-texture-page-count) 0)
-    (if (and (< (-> this index) 6) (< 17 (-> this index)))
-        (unlink-shaders-in-heap *texture-page-dir* (-> this heap))
-        (unlink-textures-by-level this)
-        )
+    ;; og:preserve-this issue 709: the guard used to read (and (< index 6) (<
+    ;; 17 index)), unsatisfiable for any integer, so unlink-shaders-in-heap
+    ;; never ran and unlink-textures-by-level always did. jak3's own twin
+    ;; (goal_src/jak3/engine/level/level.gc, same unload!) calls
+    ;; unlink-shaders-in-heap unconditionally and has no unlink-textures-by-level
+    ;; at all -- confirmed by direct comparison, not assumed. The two are not
+    ;; interchangeable: unlink-shaders-in-heap splices the per-shader linked
+    ;; lists hanging off *texture-page-dir*'s entries, while
+    ;; unlink-textures-by-level clears the page-dir entries this level itself
+    ;; populated (a jakx-only structure with no jak3 counterpart). Both are
+    ;; needed, unconditionally, every unload; the mutually-exclusive if/else
+    ;; was the bug.
+    (unlink-shaders-in-heap *texture-page-dir* (-> this heap))
+    (unlink-textures-by-level this)
     (unlink-part-group-by-heap (-> this heap))
     ;; og:preserve-this issue 595: unlink-part-group-by-heap above only scrubs
     ;; *part-group-id-table*; see unlink-part-by-heap in sparticle-launcher.gc
