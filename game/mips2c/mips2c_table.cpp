@@ -481,6 +481,22 @@ namespace method_17_collide_cache { extern void link(); }
 namespace collide_probe_node { extern void link(); }
 namespace collide_probe_instance_tie { extern void link(); }
 namespace adgif_shader_texture_with_update { extern void link(); }
+namespace shadow_xform_verts { extern void link(); }
+namespace shadow_calc_dual_verts { extern void link(); }
+namespace shadow_scissor_edges { extern void link(); }
+namespace shadow_scissor_top { extern void link(); }
+namespace shadow_init_vars { extern void link(); }
+namespace shadow_find_facing_single_tris { extern void link(); }
+namespace shadow_find_facing_double_tris { extern void link(); }
+namespace shadow_find_single_edges { extern void link(); }
+namespace shadow_find_double_edges { extern void link(); }
+namespace shadow_add_verts { extern void link(); }
+namespace shadow_add_facing_single_tris { extern void link(); }
+namespace shadow_add_single_edges { extern void link(); }
+namespace shadow_add_double_edges { extern void link(); }
+namespace shadow_add_single_tris { extern void link(); }
+namespace shadow_add_double_tris { extern void link(); }
+namespace shadow_execute { extern void link(); }
 }
 // clang-format on
 
@@ -798,6 +814,15 @@ PerGameVersion<std::unordered_map<std::string, std::vector<void (*)()>>> gMips2C
        jakx::mercneric_convert::link, jakx::mercneric_bittable_asm::link,
        jakx::mercneric_shader_asm::link, jakx::mercneric_matrix_asm::link,
        jakx::generic_merc_init_asm::link}},
+     {"shadow-cpu",
+      {jakx::shadow_xform_verts::link, jakx::shadow_execute::link,
+       jakx::shadow_calc_dual_verts::link, jakx::shadow_scissor_edges::link,
+       jakx::shadow_scissor_top::link, jakx::shadow_init_vars::link,
+       jakx::shadow_find_facing_single_tris::link, jakx::shadow_find_facing_double_tris::link,
+       jakx::shadow_find_single_edges::link, jakx::shadow_find_double_edges::link,
+       jakx::shadow_add_verts::link, jakx::shadow_add_facing_single_tris::link,
+       jakx::shadow_add_single_edges::link, jakx::shadow_add_double_edges::link,
+       jakx::shadow_add_single_tris::link, jakx::shadow_add_double_tris::link}},
      {"texture", {jakx::adgif_shader_texture_with_update::link}}}};
 
 void LinkedFunctionTable::reg(const std::string& name, u64 (*exec)(void*), u32 stack_size) {

@@ -253,6 +253,7 @@ set(RUNTIME_SOURCE
   mips2c/jakx_functions/lights.cpp
   mips2c/jakx_functions/ocean.cpp
   mips2c/jakx_functions/particle_curves.cpp
+  mips2c/jakx_functions/shadow.cpp
   mips2c/jakx_functions/sky.cpp
         mips2c/jakx_functions/sparticle_launcher.cpp
         mips2c/jakx_functions/sparticle.cpp
