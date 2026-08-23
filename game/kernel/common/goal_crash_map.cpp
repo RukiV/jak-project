@@ -1258,6 +1258,17 @@ void run_heap_scan_on_dedicated_thread(const u8* base,
                                        u32 symtab_lo,
                                        u32 symtab_hi,
                                        u32 false_addr) {
+  // issue #716 round 6: printed and flushed from the HANDLER thread, before the scan
+  // thread even exists, and independent of the buffer below -- so this line (and
+  // everything printed above it in the report) is guaranteed to reach the log even if
+  // the scan thread's own fault, hang, or unclean process death means its buffer
+  // contents never get printed at all. Round 5's version only ever had ONE source of
+  // truth (the buffer, printed after the wait); this line means "the scan was at least
+  // attempted" is never lost.
+  fprintf(stderr, "heap scan: attempting (dedicated thread, %lu ms budget)...\n",
+          (unsigned long)HEAP_SCAN_THREAD_TIMEOUT_MS);
+  fflush(stderr);
+
   g_heap_scan_buffer_used = 0;
   g_heap_scan_buffer[0] = 0;
   HeapScanThreadArgs args{base,      window_size, base_addr, process_type_addr,
