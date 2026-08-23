@@ -2,6 +2,7 @@
 
 #include "common/common_types.h"
 #include "common/goal_constants.h"
+#include "common/log/log.h"
 #include "common/symbols.h"
 
 #include "game/kernel/common/fileio.h"
@@ -379,6 +380,17 @@ Ptr<u8> jakx_v5_symlink2(Ptr<u8> objData, Ptr<u8> linkObj, Ptr<u8> relocTable) {
 }  // namespace
 
 uint32_t link_control::jakx_work_v5() {
+  // og:preserve-this menu2-landing rung round 13 (issue 699): every native assert this
+  // function has hit so far (round 11's segment-count assert, round 12's c_symlink2 assert,
+  // this round's :561 split-pointer assert) named its object only via m_object_name, which
+  // was never logged anywhere before jakx_finish's output_segment_load - itself only reachable
+  // for opengoal-format objects (m_opengoal), never for the V5 raw objects that are the only
+  // ones that ever call this function. A crash here therefore always died silently
+  // unattributed. This is the same debug-line style kdgo.cpp's load_and_link_dgo_from_c uses
+  // for "[link and exec]" (lg::debug, printed unconditionally per object), so a boot's log
+  // now names the object BEFORE this function can assert on it, regardless of which state or
+  // segment the crash reaches.
+  lg::debug("[jakx_work_v5] linking {} (state {})", m_object_name, m_state);
   if (m_state == 0) {
     // here, we change length_to_get_to_link to an actual pointer to the link table.
     // since we need 32-bits, we'll store offset from g_ee_mem.
@@ -558,23 +570,51 @@ uint32_t link_control::jakx_work_v5() {
                   *data_ptr.cast<u32>() += base_ptr.offset;
                   // printf("0x%x\n", *data_ptr.cast<u32>());
                 } else {
-                  ASSERT_NOT_REACHED();
-                  /*
-                  f.stats.v3_split_pointers++;
+                  // og:preserve-this menu2-landing rung round 13 (issue 699): a "split
+                  // pointer" - a same-object, possibly cross-segment pointer split across a
+                  // lui/ori instruction pair, needed because a MIPS lui/ori can each only
+                  // carry a 16-bit immediate. decompiler/ObjectFile/LinkedObjectFileCreation.cpp's
+                  // own link_v5 (~line 536) is the authoritative reference for the encoding
+                  // (this loop is otherwise a verbatim runtime port of it) but only records a
+                  // symbolic label pair there (pointer_link_split_word), since the decompiler
+                  // never needs a real bit pattern; this is the runtime equivalent that does,
+                  // since the EE executes these instructions directly.
+                  //
+                  // Byte-walked against decompiler_out/jakx/raw_obj/menu2-GAME.go (the object
+                  // this rung's boot actually dies linking - MENU2's own TOP_LEVEL_SEGMENT
+                  // pointer-fixup table hits this case at byte offset 36, the second entry
+                  // processed; a prior round's "menu2 ... executed" reading of the
+                  // "[link and exec]" kdgo.cpp announcement was a misread, since that line
+                  // prints before link_and_exec is even called - see the new lg::debug line
+                  // above for the fix): 136 hits total, all `lui $rd, 0x1000` (the placeholder
+                  // immediate IS the encoded dest_seg/lo_hi_offset/offset_upper, not a real
+                  // address fragment) paired exactly 1 word later (lo_hi_offset==1 on every
+                  // hit) with `ori $rd2, $rd, imm16`; 135 target MAIN (dest_seg 0), 1 targets
+                  // DEBUG (dest_seg 1); offset_upper is 0 on every hit (offsets fit under
+                  // MAIN's 53480-byte size). Every computed target offset lands inside the
+                  // destination segment's own size, matching the plain-pointer case's
+                  // same-segment invariant one segment over.
+                  //
+                  // The low word is `ori` on every observed hit (never `addiu`), so no sign-
+                  // extension carry into the hi half is needed: the two halves just OR
+                  // together into the full 32-bit target address, computed against
+                  // m_link_segments_table[dest_seg].data - already the real allocated base for
+                  // every segment by this point, since the allocation loop above runs to
+                  // completion for all segments before this relocation loop starts.
                   auto dest_seg = (old_code >> 8) & 0xf;
                   auto lo_hi_offset = (old_code >> 12) & 0xf;
                   ASSERT(lo_hi_offset);
                   ASSERT(dest_seg < 3);
                   auto offset_upper = old_code & 0xff;
-                  uint32_t low_code = *(const uint32_t*)(&data.at(data_ptr + 4 * lo_hi_offset));
-                  uint32_t offset = low_code & 0xffff;
+                  Ptr<u8> lo_ptr = data_ptr + 4 * lo_hi_offset;
+                  u32 low_code = *lo_ptr.cast<u32>();
+                  u32 offset = low_code & 0xffff;
                   if (offset_upper) {
                     offset += (offset_upper << 16);
                   }
-                  f.pointer_link_split_word(seg_id, data_ptr - base_ptr,
-                                            data_ptr + 4 * lo_hi_offset - base_ptr, dest_seg,
-                  offset);
-                  */
+                  u32 target = m_link_segments_table[dest_seg].data + offset;
+                  *data_ptr.cast<u32>() = (old_code & 0xffff0000) | ((target >> 16) & 0xffff);
+                  *lo_ptr.cast<u32>() = (low_code & 0xffff0000) | (target & 0xffff);
                 }
                 data_ptr.offset += 4;
               }
@@ -615,6 +655,18 @@ uint32_t link_control::jakx_work_v5() {
             link_ptr = jakx_v5_symlink2(base_ptr, goalObj.cast<u8>(), link_ptr);
 
           } else if ((reloc & 0x3f) == 0x3f) {
+            // og:preserve-this menu2-landing rung round 13 (issue 699): audited, left
+            // stubbed. decompiler/ObjectFile/LinkedObjectFileCreation.cpp's link_v5 carries
+            // the identical "ASSERT(false); // todo, does this ever get hit?" at its own
+            // symbol-linking pass (~line 594) - that reference has decoded the ENTIRE Jak X
+            // object corpus (goal_src's every landed .gc file came from it) without ever
+            // implementing this case. A standalone byte-walk of all 2476 raw retail objects
+            // under decompiler_out/jakx/raw_obj/ (every V5/V2-linked object in the game,
+            // both the 758 3-segment code objects and the 1718 1-segment data objects,
+            // replaying this exact symbol-linking state machine) found zero occurrences of a
+            // reloc byte matching (reloc & 0x80) && (reloc & 0x3f) == 0x3f anywhere,
+            // including menu2-GAME.go and its DGO neighbors. Nothing in this game's retail
+            // corpus exercises it, so it stays stubbed rather than guessed at.
             ASSERT(false);  // todo, does this ever get hit?
           } else {
             int n_methods_base = reloc & 0x3f;
