@@ -1400,8 +1400,39 @@ load-state-method-23 -- the real filter-look/name/slot writer -- instead of
 the raw add-want-level path this lever used before. Pass #f to clear the
 slot. Retires once convert-load-parts-to-car-info lands and the real retail
 composer (net-world steps 7-8) does the arming."
+  ;; og:preserve-this issue 687 item 5: car-info-full's car-type field has no
+  ;; writer anywhere in the tree (grep-proven) and stays 0 from static init
+  ;; (car-tables.gc:150-175 sets only base-color/stripe-color on
+  ;; *car-level-array*), so method 15's *car-type-names* prefix
+  ;; (car-textures.gc:306) always read "mongoose" while the resident falcl
+  ;; art carries "falcon-" names, sizing nothing. Retail's writer is the
+  ;; unlanded convert-load-parts-to-car-info (all-types.gc:63013, named as
+  ;; the missing piece by this lever's own note above); seed car-type from
+  ;; the same landed derivation the loader already uses for this level
+  ;; (level.gc:1084, car-type-from-level-name, car-info-h.gc:211-265;
+  ;; 'falcl -> 1) until that lands.
+  (let ((ct (car-type-from-level-name level-name)))
+    (when (>= (the-as int ct) 0)
+      (set! (-> *car-level-array* data 0 car-type) (the-as int ct))
+      )
+    )
+  ;; og:preserve-this issue 687 item 5: five of the 11 current-parts slots
+  ;; have no falcon art in FALCL.DGO (decompiler_out/jakx/dgo.txt:1286-1326:
+  ;; FALCL ships chassis + door/hood/r-fender/roof/trunk + wheels only) --
+  ;; current-parts indices 0, 3, 4, 9 and 10, which *car-part-translate-
+  ;; array* (car-info-h.gc:731) feeds to the lf/rf-fender, f-bumper,
+  ;; r-bumper, antenna and helmet destination slots in method 15
+  ;; (car-textures.gc:306-396). Method 15's -1 arm (car-textures.gc:309-314)
+  ;; already nulls those pointers instead of sizing bad names, so seed
+  ;; exactly those five at -1 and leave the other six (plus the wheel slot)
+  ;; at the bring-up default look.
   (dotimes (i 11)
-    (set! (-> *car-level-array* data 0 current-parts i) 1)
+    (set! (-> *car-level-array* data 0 current-parts i)
+          (case i
+            ((0 3 4 9 10) -1)
+            (else 1)
+            )
+          )
     )
   (load-state-method-23 *load-state* 0 level-name #f)
   ;; og:preserve-this issue 687 item 1: no longer re-asserting display? to
