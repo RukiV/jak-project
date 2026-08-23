@@ -400,19 +400,21 @@
         )
       (set! (-> this wpn-drawable-right) (process->handle (ppointer->process (-> proc ppointer))))
       )
-    (set! (-> this antenna)
-          (process->handle
-            (vehicle-antenna-spawn
-              (new 'stack-no-clear 'vehicle-antenna-init-params
-                :pos (-> this hardpoint antenna-attach)
-                :tilt (degrees -20.0)
-                :vehicle this
-                :skel #f
-                :level (-> this level)
-                )
-              )
-            )
-          )
+    ;; og:preserve-this explicit field stores, matching retail ops [459]-[470]
+    ;; one-to-one. The keyword-initializer sugar is UNSAFE here: goalc's
+    ;; compile_stack_new (Type.cpp) silently DISCARDS field arguments for
+    ;; stack-no-clear structures (no constructor call, rest never read), so
+    ;; the params reached vehicle-antenna-init-by-other as uninitialized
+    ;; stack garbage and process->handle dereffed a raw-zero vehicle at
+    ;; ppointer's +0x1c (the marker-localized falcon spawn crash, am:I0).
+    (let ((params (new 'stack-no-clear 'vehicle-antenna-init-params)))
+      (set! (-> params pos quad) (-> this info hardpoint antenna-attach quad))
+      (set! (-> params tilt) (degrees -20.0))
+      (set! (-> params vehicle) (the-as process this))
+      (set! (-> params skel) #f)
+      (set! (-> params level) (-> this level))
+      (set! (-> this antenna) (process->handle (vehicle-antenna-spawn params)))
+      )
     )
   (set! (-> this wpn-current-target) (the-as uint64 (the-as handle #f)))
   ;; og:preserve-this bring-up guard: same class and same crash citation as
