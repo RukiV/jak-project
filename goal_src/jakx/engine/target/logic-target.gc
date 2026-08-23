@@ -277,18 +277,36 @@
     ;; back 0 on this boot; the very next op, (set! (-> v1-1 prim-core collide-as)
     ;; ...), compiles to a store at [v1-1+28], matching the crash report byte for
     ;; byte (exception 0xc0000005 writing goal address 0x1c, GOAL code logic-target+
-    ;; 0x2f1, pp "target"). Guarding on v1-1 rather than inventing a collide-shape
-    ;; skips exactly the two writes retail's own precondition would make unreachable
-    ;; here anyway (a null root-prim), asserting nothing new about what those writes
-    ;; should do once rung 3b gives the target its real root. Same structural class
-    ;; (a collide-shape-only method or field touched through self root while it is
-    ;; still a bare trsqv) is also live, unguarded, and UNVERIFIED at (move-to-point!
-    ;; (-> self root) ...) below and at the collide-shape-moving status logior! near
-    ;; this state's own end; neither has been proven to crash (this boot never
-    ;; reached them), so neither is guarded here -- flagged for the next boot attempt
-    ;; rather than guessed at. Retires with the same condition as the rung 3a note.
+    ;; 0x2f1, pp "target").
+    ;;
+    ;; First attempt at this guard used bare (when v1-1 ...), which re-smoked to the
+    ;; identical crash 12 bytes later in the same function (logic-target+0x2fd,
+    ;; region grown by exactly the inserted branch's own byte count): (when ...)'s
+    ;; truthiness test compiles against the '#f symbol pointer (confirmed against
+    ;; this same file's own (when arg0 ...) in reset-target-state below, "mov r9,
+    ;; r14 (load '#f) / cmp rdi, r9"), not against literal zero, so it never caught
+    ;; v1-1's raw garbage-zero from the out-of-bounds read -- the exact "zero
+    ;; handles are truthy" class this codebase already has a name for. (nonzero?
+    ;; ...) compiles the comparison retail idioms use for this everywhere else in
+    ;; this same file (reset-target-state's own "(if (nonzero? target-exit) ...)",
+    ;; two lines below: "xor r8, r8 (load literal 0) / cmp r9, r8"), and is the
+    ;; correct check here.
+    ;;
+    ;; Guarding on v1-1 rather than inventing a collide-shape skips exactly the two
+    ;; writes retail's own precondition would make unreachable here anyway (a null
+    ;; root-prim), asserting nothing new about what those writes should do once
+    ;; rung 3b gives the target its real root. Same structural class (a
+    ;; collide-shape-only method or field touched through self root while it is
+    ;; still a bare trsqv) is also live at (move-to-point! (-> self root) ...) below
+    ;; and at the collide-shape-moving status logior! near this state's own end, but
+    ;; neither dereferences a provably-null object the way root-prim does here:
+    ;; self root itself is never null (target-init always gives it a real, if
+    ;; undersized, trsqv), and this crash never reached either site to prove an
+    ;; out-of-bounds read there resolves to zero rather than adjacent heap data.
+    ;; Left unguarded rather than guessed at; flagged for the next boot attempt.
+    ;; Retires with the same condition as the rung 3a note.
     (let ((v1-1 (-> self root root-prim)))
-      (when v1-1
+      (when (nonzero? v1-1)
         (set! (-> v1-1 prim-core collide-as) (collide-spec))
         (set! (-> v1-1 prim-core collide-with) (collide-spec))
         )
