@@ -56496,7 +56496,7 @@
    (wpn-spin-done-left             int32                             :offset-assert 4576)
    (wpn-spin-done-right            int32                             :offset-assert 4580)
    (prev-wpn-sync                  wvehicle-weapon-sync-blob :inline :offset-assert 4584)
-   (turbo-suppressor-particle      basic                             :offset-assert 4588)
+   (turbo-suppressor-particle      sparticle-launch-control          :offset-assert 4588)
    (dark-seeking-me                basic                             :offset-assert 4592)
    (dark-suck-sound-pending        int8                              :offset-assert 4596)
    ;; og:preserve-this 3 bytes unaccounted (4597-4600).
@@ -76100,6 +76100,33 @@
   :flag-assert         #x9000002bc
   )
 
+;; wvehicle m64 remainder rung: NOT a resurrected census entry, this
+;; rung's own derivation. (method 64 wvehicle)'s own local sp+48 scratch
+;; (reached only once the extern fix below lets type prop get past op
+;; 478) is the drive-wheel accumulator inside the per-wheel loop at ops
+;; 114-201: val0 is a signed byte counter (`lb`/`sb`, incremented once
+;; per drive wheel), val1 a running float sum of radius*scale over the
+;; same wheels, val2 a per-iteration radius*scale scratch recomputed
+;; every pass, val3 the pre-loop vec3dot weight (set once before the
+;; loop, read every iteration, never rewritten). The already-landed body
+;; for this same op range (wvehicle-util.gc) represents the identical
+;; four values as plain `let`-bound locals rather than this struct (a
+;; hand-authored insertion against a fixed spec, predating this rung, no
+;; struct-inference gap at the time); this hint exists only so the
+;; decompiler can get past this slot while decoding the rest of the
+;; function, and is not itself transcribed into goal_src.
+(deftype wvehicle-method-64-work (structure)
+  ((val0 int8            :offset-assert 0)
+   (pad0 uint8 3          :offset-assert 1)
+   (val1 float            :offset-assert 4)
+   (val2 float            :offset-assert 8)
+   (val3 float            :offset-assert 12)
+   )
+  :method-count-assert 9
+  :size-assert         #x10
+  :flag-assert         #x900000010
+  )
+
 ;; wvehicle-core rung: NOT a resurrected census entry, this rung's own
 ;; derivation. (method 215 wvehicle)'s own local sp+16 scratch ("Failed to
 ;; guess stack use for 16") only ever touches offsets 0, 8, 24 and 28 as
@@ -89419,7 +89446,7 @@
 (define-extern v-wpn-get-selection-table (function object object object)) ;; mechanical-arity fixpoint
 (define-extern v-wpn-mask-selection-table! (function object object object none)) ;; mechanical-arity fixpoint
 (define-extern v-wpn-num-available (function object object none)) ;; mechanical-arity fixpoint
-(define-extern vehicle-antenna-spawn (function object object object)) ;; mechanical-arity fixpoint
+(define-extern vehicle-antenna-spawn (function vehicle-antenna-init-params process))
 (define-extern vehicle-respawn-invul-spawn (function object object)) ;; mechanical-arity fixpoint
 (define-extern vehicle-rev-manager-spawn (function object object object)) ;; mechanical-arity fixpoint
 (define-extern verify-msg (function object none)) ;; mechanical-arity fixpoint

@@ -205,6 +205,22 @@
   // types.gc, a mechanical-arity-fixpoint `(function object object
   // object)` provisional with no landed body and no jak3 twin to derive a
   // real return type from). Still muted here pending that derivation.
+  // wvehicle m64 remainder rung: that derivation is now done. Ops 459-470
+  // (this rung's own scoped decode) build a 32-byte vehicle-antenna-init-
+  // params on the stack at sp+112 (pos/tilt/vehicle/skel/level, all
+  // field-verified against the type's own :offset-asserts; tilt constant
+  // 0xC5638E39 is (degrees -20.0)); ops 476-487 are the standard
+  // process->handle idiom on the call's return, stored to `antenna`
+  // (wvehicle-h.gc:215, machine offset 2148 == declared 2152 with the
+  // usual +4 basic bias). The extern is retyped to `(function vehicle-
+  // antenna-init-params process)`; op 478's wall (the process->handle
+  // load this note names) clears with the real return type in place.
+  // vehicle-antenna-spawn still has no defun anywhere in the tree, so
+  // this rung holds the call itself (an e2 hazard: an unlanded extern
+  // links to zero) and removes (method 64 wvehicle) from the mute list
+  // below, landing everything else. See wvehicle-util.gc's own og-note
+  // on this method for the hold rationale and the antenna-block op
+  // range.
   "no_type_analysis_functions_by_name": [
     "(method 210 wvehicle)",
     "(method 211 wvehicle)",
@@ -219,7 +235,6 @@
     "(method 61 wvehicle)",
     "wv-player-post-move-update",
     "(method 112 wvehicle)",
-    "(method 64 wvehicle)",
     "(method 134 wvehicle)",
     "(method 129 wvehicle)",
     "(method 133 wvehicle)",

@@ -121,21 +121,126 @@
 ;; does not exist in jakx's (method 213 wvehicle) and is not added here; x
 ;; is not negated in method 217 either.
 ;;
-;; Ops [0]-[57] (particle-subsampler seeding, an unrelated 2-iteration
-;; loop), [67]-[75] (a second unrelated 4-iteration #f/0-store loop over
-;; antenna/fire-tracker/power-slide-hud/hang-time-hud/sound-id fields),
-;; [85]-[113] (gear-select's own 1-default, clutch-grab/sound-engine-
-;; envelope resets, a vtable call at slot 916, and the enumerated
-;; susp/jump/turbo/health 1.0 stores plus the rigid-body-control flag
-;; bits), and [202]+ (extent seeding, the section loop, weapon-slot
-;; arming, gunmount spawn) all stay held; retire each from this list only
-;; as a follow-up rung lands it.
+;; og:preserve-this wvehicle m64 remainder rung: lands every op range the
+;; wheelmirror note above still called held -- [3]-[57] (particle-
+;; subsampler seed loop), [67]-[76] (the flat 8-field #f/0 reset, not
+;; actually a loop despite the earlier note's "4-iteration" guess: antenna,
+;; fire-tracker, power-slide-hud, hang-time-hud, hang-time-sound-id, wheel-
+;; fire-sound-id, oil-sound-id, sink-sound-id), [85]-[113] (control-hook,
+;; clutch-grab, sound-engine-envelope, gear-select defaults, the wvehicle-
+;; method-225 call, susp/jump/turbo/health 1.0 stores, rbody flags |=
+;; 4128), [202]-[295] (underside-y/side-x extent from two root-prim child
+;; samples plus the wheel-launcher/wheel-fire-launcher create-launch-
+;; control spawn loop and the 16-slot attached-array reset), [296]-[365]
+;; (eng-pitch-offset from player-id, vehicle-method-182, the wpn-* handle
+;; resets), [366]-[377] (the v-drone type? gate), [378]-[458] (the two
+;; gunmount-generic-drawable spawns for wpn-drawable-left/right), [488]-
+;; [497] (dark-seeking-me), and [498]-[571] (turbo-suppressor-particle,
+;; the local-space-info connection, and the final set-local-space-info
+;; dispatch). Unblocking needed three fixes beyond the extern retype:
+;; `turbo-suppressor-particle` was declared plain `basic` in both
+;; wvehicle-h.gc and all-types.gc (a placeholder); retyped to
+;; sparticle-launch-control in both (type-consistency requires both) once
+;; the tail's own call resolved to method 20 of a 22-method type declaring
+;; exactly `(set-local-space-info (_type_ particle-local-space-info)
+;; none)` at that slot (all-types.gc:39435) -- an exact structural match,
+;; not a guess. `root root-prim` (collide-shape's own field, offset-assert
+;; 160) needed a type_casts.jsonc cast to collide-shape-prim-group for its
+;; own offset-64 `child` field, the same cast every wcar's own (method 100
+;; v-*) already uses (type_casts.jsonc:699, :1117, :3869+). The local-
+;; space record from `(add-connection *part-local-space-engine* this
+;; local-space-proc-joint 0 0 0)` needed a cast to particle-local-space-
+;; info, proven by local-space-proc-joint's own declared signature
+;; (`(function particle-local-space-info none)`, all-types.gc:43411) and
+;; three other call sites in the corpus building the identical shape
+;; (generic-obs.gc:1325-1334, football2.gc:1410-1419, wvehicle-weapons.gc:
+;; 115) -- mat-prev/mat-new/hand/flags at offsets 32/96/160/168 match this
+;; method's own writes exactly. All three fixes are cited in
+;; stack_structures.jsonc, type_casts.jsonc and all-types.gc directly.
+;;
+;; Four spots build a `handle` from a raw process pointer via the compiled
+;; sllv/dsll32/logior expansion of `(process->handle (ppointer->process
+;; ...))` (gkernel-h.gc:440-466; the same nested-macro idiom PS2 Jak 2/3
+;; and jakx alike use for `(process->handle (ppointer->process
+;; (process-spawn ...)))`, e.g. jak3's scorpion-gun.gc:1187): both
+;; gunmount-generic-drawable spawns (wpn-drawable-left/right) and, inside
+;; the local-space block, `this` itself for the local-space record's own
+;; `hand` field (computed twice in the raw decode -- a genuine retry: `(when
+;; (not v1-91) (set! v1-91 ...))`, not a dead-set, so both computations are
+;; transcribed). Two fields the raw decode still cannot resolve to a name
+;; (declared 4472/4480, inside the 16-byte `pad-pre-wpn-current-target`
+;; gap, wvehicle-h.gc:323) are stored via the same `(s.d! (&+ this N) #f)`
+;; raw-offset idiom vehicle-util.gc:718 already uses elsewhere in this
+;; tree, rather than inventing field names the decode does not show.
+;; `wheel-launcher`/`wheel-fire-launcher` are declared `uint8 16` (already
+;; flagged "captured UNKNOWN" above) but this method's own create-launch-
+;; control spawn loop stores four sparticle-launch-control pointers into
+;; each; retyping them is a follow-up's call, so the writes stay raw
+;; `(s.w! (&+ this N) ...)` here too rather than retyping a field this
+;; rung does not otherwise need to touch.
+;;
+;; HELD: ops [459]-[487], the antenna spawn. vehicle-antenna-spawn (all-
+;; types.gc) has no defun and no goal_src declaration anywhere in the
+;; tree -- an e2 hazard (AGENTS.md section 5): landing the call links it to
+;; zero and faults. The extern is retyped this rung to its proven
+;; signature, `(function vehicle-antenna-init-params process)` (ops
+;; [459]-[470] build a 32-byte vehicle-antenna-init-params on the stack:
+;; pos from `(-> arg0 hardpoint antenna-attach)` :inline, tilt the
+;; constant 0xC5638E39 == (degrees -20.0), vehicle self, skel #f, level
+;; from `(-> this level)`; ops [476]-[487] are the same process->handle
+;; idiom above on the call's return, stored to `antenna`, wvehicle-h.gc:
+;; 215/machine offset 2148) so a future rung can land the call the moment
+;; vehicle-antenna-spawn gets a body, without re-deriving the signature.
+;; The block is self-contained: ops [67]-[76] above already arm `antenna`
+;; to #f, and nothing later in this method or its known callers reads it
+;; back, so holding the spawn leaves antenna permanently #f rather than
+;; leaving a half-built struct or a dangling call.
+;;
+;; og:preserve-this: gunmount-drawable-init-by-other has a real defbehavior
+;; (wvehicle-weapons.gc, landed rung 6, not the issue-376 no-defun class);
+;; the forward declaration below exists only because wvehicle-weapons.gc
+;; compiles after this file in the game's own build order, so the symbol
+;; is not yet a known global when this method compiles. The type matches
+;; its own defbehavior header exactly (pointer, int, object -> object,
+;; bound to gunmount-drawable).
+(define-extern gunmount-drawable-init-by-other (function pointer int object object :behavior gunmount-drawable))
 (defmethod rigid-body-object-method-64 ((this wvehicle) (arg0 object))
+  (dotimes (i 2)
+    (let ((scale (if (logtest? (-> this flags) 1024)
+                      1.0
+                      0.5
+                      )
+                 )
+          )
+      (s.w! (&+ this (+ 4596 (* i 4)))
+            (new 'process 'sparticle-subsampler *sp-particle-system-2d* (the uint 263) (* 2.0 scale) #t 0.0)
+            )
+      )
+    )
+  (set! (-> this flags) (logand (lognot 1024) (-> this flags)))
   (dotimes (i 4)
     (set! (-> this wheel i handle) (the-as handle #f))
     (set! (-> this wheel i tread-tracker) (the-as uint64 (the-as handle #f)))
     )
+  (set! (-> this antenna) (the-as uint64 (the-as handle #f)))
+  (set! (-> this fire-tracker) (the-as handle #f))
+  (set! (-> this power-slide-hud) (the-as handle #f))
+  (set! (-> this hang-time-hud) (the-as handle #f))
+  (set! (-> this hang-time-sound-id) (the-as uint 0))
+  (set! (-> this wheel-fire-sound-id) (the-as uint 0))
+  (set! (-> this oil-sound-id) (the-as uint 0))
+  (set! (-> this sink-sound-id) (the-as uint 0))
   (call-parent-method this arg0)
+  (set! (-> this control-hook) #f)
+  (set! (-> this clutch-grab) 0.0)
+  (set! (-> this sound-engine-envelope) 1.0)
+  (set! (-> this gear-select) 1)
+  (wvehicle-method-225 this)
+  (set! (-> this susp-spring-control) 1.0)
+  (set! (-> this jump-control) 0.0)
+  (set! (-> this turbo-ready) 1.0)
+  (set! (-> this health-pickup-multiplier) 1.0)
+  (set! (-> this rbody flags) (logior (-> this rbody flags) 4128))
   (let ((float2 (vector-dot (-> this root transv) (-> this rbody matrix fvec)))
         (byte0 0)
         (float0 0.0)
@@ -169,6 +274,113 @@
       (set! (-> this engine-rev) (* 0.10471976 (-> (the-as rigid-body-vehicle-constants arg0) engine idle-rpm)))
       )
     )
+  (let ((root-prim (the-as collide-shape-prim-group (-> this root root-prim)))
+        (extent (new 'stack-no-clear 'inline-array 'vector 3))
+        )
+    (set! (-> extent 2 x) (the-as float #xff800000))
+    (set! (-> extent 2 y) (the-as float #x7f800000))
+    (set! (-> extent 2 z) (the-as float #xff800000))
+    (set! (-> extent 2 w) (the-as float #x7f800000))
+    (dotimes (i 2)
+      (set! (-> extent 0 quad) (-> (the-as vector (&+ (-> root-prim child) (+ 44 (* i 160)))) quad))
+      (set! (-> extent 1 x) (+ (-> extent 0 y) (* -0.75 (-> extent 0 w))))
+      (set! (-> extent 1 y) (+ (-> extent 0 y) (* -0.25 (-> extent 0 w))))
+      (set! (-> extent 2 x) (fmax (-> extent 2 x) (-> extent 1 x)))
+      (set! (-> extent 2 y) (fmin (-> extent 2 y) (-> extent 1 y)))
+      (set! (-> extent 1 z) (+ (-> extent 0 x) (* 0.25 (-> extent 0 w))))
+      (set! (-> extent 1 w) (+ (-> extent 0 x) (* 0.75 (-> extent 0 w))))
+      (set! (-> extent 2 z) (fmax (-> extent 2 z) (-> extent 1 z)))
+      (set! (-> extent 2 w) (fmin (-> extent 2 w) (-> extent 1 w)))
+      )
+    (set! (-> this underside-y) (* 0.5 (+ (-> extent 2 x) (-> extent 2 y))))
+    (set! (-> this side-x) (* 0.5 (+ (-> extent 2 z) (-> extent 2 w))))
+    (dotimes (i 2)
+      (let ((prim (the-as collide-shape-prim (&+ (-> root-prim child) (* i 80)))))
+        (set! (-> prim specific 8) (the-as uint 1))
+        (set! (-> prim specific 9) (the-as uint (+ i 2)))
+        )
+      )
+    (dotimes (i 4)
+      (s.w! (&+ this (+ 4604 (* i 4))) (create-launch-control (-> *part-group-id-table* 227) this))
+      (s.w! (&+ this (+ 4620 (* i 4))) (create-launch-control (-> *part-group-id-table* 226) this))
+      )
+    (dotimes (i 16)
+      (set! (-> this attached-array i) (the-as handle #f))
+      )
+    (vector-reset! (-> this surface-velocity))
+    )
+  (let ((pid (-> this player-id)))
+    (set! (-> this eng-pitch-offset)
+          (* 0.041666668 (the float (if (and (>= pid 0) (< pid 16))
+                                         (- pid)
+                                         (+ pid -15)
+                                         )
+                                     )
+             )
+          )
+    )
+  (vehicle-method-182 this 1.0)
+  (set! (-> this wpn-left) (the-as uint64 (the-as handle #f)))
+  (set! (-> this wpn-right) (the-as handle #f))
+  (set! (-> this wpn-shield) (the-as uint64 (the-as handle #f)))
+  (set! (-> this wpn-drone) (the-as uint64 (the-as handle #f)))
+  (set! (-> this wpn-oil) (the-as uint64 (the-as handle #f)))
+  (set! (-> this wpn-turbo) (the-as uint64 (the-as handle #f)))
+  (set! (-> this wpn-bulldog-gun) (the-as uint64 (the-as handle #f)))
+  (set! (-> this prev-wpn-sync blob) 0)
+  (s.d! (&+ this 4468) #f)
+  (s.d! (&+ this 4476) #f)
+  (set! (-> this wpn-drawable-left) (the-as handle #f))
+  (set! (-> this wpn-drawable-right) (the-as handle #f))
+  (when (not (type? this v-drone))
+    (let ((proc (the-as process (get-process *default-dead-pool* gunmount-generic-drawable #x4000 1))))
+      (when proc
+        ((method-of-type gunmount-generic-drawable activate) (the-as gunmount-generic-drawable proc) *rigid-body-queue-manager* "gunmount-generic-drawable" (the-as pointer #x70004000))
+        (run-function-in-process proc gunmount-drawable-init-by-other this 0 0 0 0 0)
+        )
+      (set! (-> this wpn-drawable-left) (process->handle (ppointer->process (-> proc ppointer))))
+      )
+    (let ((proc (the-as process (get-process *default-dead-pool* gunmount-generic-drawable #x4000 1))))
+      (when proc
+        ((method-of-type gunmount-generic-drawable activate) (the-as gunmount-generic-drawable proc) *rigid-body-queue-manager* "gunmount-generic-drawable" (the-as pointer #x70004000))
+        (run-function-in-process proc gunmount-drawable-init-by-other this 1 1 0 0 0)
+        )
+      (set! (-> this wpn-drawable-right) (process->handle (ppointer->process (-> proc ppointer))))
+      )
+    ;; HELD: the antenna spawn (ops [459]-[487]). See this method's own
+    ;; og:preserve-this note above for the e2 rationale and the proven
+    ;; vehicle-antenna-init-params shape.
+    )
+  (set! (-> this wpn-current-target) (the-as uint64 (the-as handle #f)))
+  (set! (-> this dark-seeking-me) (create-launch-control (-> *part-group-id-table* 280) this))
+  (set! (-> this dark-suck-sound-pending) 0)
+  (set! (-> this turbo-suppressor-particle) (create-launch-control (-> *part-group-id-table* 273) this))
+  (let ((local-space (the-as particle-local-space-info
+                              (add-connection *part-local-space-engine* this local-space-proc-joint 0 0 0)
+                              )
+                      )
+        )
+    (if local-space
+        (begin
+          (let ((hand (process->handle (ppointer->process (-> this ppointer)))))
+            (when (not hand)
+              (set! hand (process->handle (ppointer->process (-> this ppointer))))
+              )
+            (set! (-> local-space hand) hand)
+            )
+          (matrix-identity! (-> local-space mat-new))
+          (matrix-identity! (-> local-space mat-prev))
+          (set! (-> local-space flags) (part-local-space-flags))
+          )
+        (begin
+          (format 0 "out of local-space connections. ~A~%" this)
+          (format *stdebug* "out of local-space connections. ~A~%" this)
+          (set! local-space #f)
+          )
+        )
+    (set-local-space-info (-> this turbo-suppressor-particle) local-space)
+    )
+  (set! (-> this unknown-float-704) 0.0)
   0
   (none)
   )

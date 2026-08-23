@@ -1423,6 +1423,30 @@
   // back (the first one seeded from arg0's own w/244, x/240, y/216 at its
   // own offsets 12/16/20).
   "(method 68 wvehicle)": [[16, "vector"], [32, ["inline-array", "vector", 2]]],
+  // (method 64 wvehicle), wvehicle m64 remainder rung: four raw `daddiu
+  // reg, sp, N` points (ops 38, 114, 202, 459), each needing its own hint
+  // ("Failed to guess stack use for 16" was the only one visible before
+  // this rung's extern fix; the other three are reached only once type
+  // prop gets past op 478). sp+16 is a plain vector, the per-wheel
+  // quaternion-copy! source scratch (ops 38-43 lq/sq collide-shape+12
+  // straight in; the quaternion destination at sp+32 is reached only via
+  // s4-relative addressing, never a fresh sp-daddiu, so it needs no
+  // second declared slot here, same as (method 68 wvehicle)'s own sp+32
+  // note above). sp+48 is the drive-wheel accumulator (ops 114-201: a
+  // signed byte counter at +0, a running float sum at +4, a per-wheel
+  // radius*scale product at +8, the pre-loop vec3dot weight at +12); a
+  // plain "vector" hint fails ("Could not figure out load: (set! a0
+  // (l.b v1))" at op 179, vector has no byte field), so this rung adds
+  // the new wvehicle-method-64-work scratch (all-types.gc) instead.
+  // sp+64 is the extent/bounding-box scratch (ops 202-271: a quadword
+  // copy at +0, two accumulated floats at +16/+20, then min/max pairs
+  // at +32/+36/+40/+44), 48 bytes across three contiguous vectors.
+  "(method 64 wvehicle)": [
+    [16, "vector"],
+    [48, "wvehicle-method-64-work"],
+    [64, ["inline-array", "vector", 3]],
+    [112, "vehicle-antenna-init-params"]
+  ],
   // plot-x-with-transform, wvehicle-core rung: sp+16 is four contiguous
   // vectors (a zero-initialized scratch at +0/+16, transformed points at
   // +32/+48 fed straight to draw-debug-line), the same
