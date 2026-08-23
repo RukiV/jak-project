@@ -201,10 +201,40 @@ void Shadow2::render(DmaFollower& dma, SharedRenderState* render_state, ScopedPr
       }
     } else if (vif0.kind == VifCode::Kind::FLUSHA && vif1.kind == VifCode::Kind::DIRECT) {
       if (transfer.size_bytes == 560) {
+        // jak3's shadow-dma-end: a hand-built packet whose payload is
+        // gif-tag(nreg=2: PRIM+RGBAQ) + PRIM(8) + RGBAQ(8) + gif-tag(scanline sprites) +
+        // scanline data. RGBAQ sits right after the first gif-tag and PRIM, at byte 24.
         have_color = true;
         memcpy(m_color, transfer.data + 8 * 3, 4);
+      } else if (transfer.size_bytes == 144) {
+        // jakx's shadow-dma-end (goal_src/jakx/engine/gfx/foreground/shadow-cpu.gc:247-287)
+        // builds this packet with dma-buffer-add-gs-set-flusha and 8 standard A+D-format GS
+        // register writes: texflush, test-1, tex0-1, frame-1, zbuf-1, alpha-1, prim, rgbaq
+        // (arg1, shadow-execute-all's time-of-day-modulated shadow color). Each A+D entry is
+        // 16 bytes (8 data + 8 register-select), so rgbaq (8th, last) sits after the gif-tag
+        // (16) plus 7 prior entries (7*16=112), at byte offset 128.
+        have_color = true;
+        memcpy(m_color, transfer.data + 8 * 16, 4);
       }
       // ignore
+    } else if (vif0.kind == VifCode::Kind::NOP && vif1.kind == VifCode::Kind::DIRECT) {
+      // jakx's shadow-dma-init (goal_src/jakx/engine/gfx/foreground/shadow-cpu.gc:152-240)
+      // emits these setup packets as plain NOP+DIRECT (jak3 has no equivalent shape here).
+      // None of the three carry the frame's shadow color -- that comes from shadow-dma-end's
+      // FLUSHA+DIRECT packet handled above.
+      if (transfer.size_bytes == 208) {
+        // first dma-buffer-add-gs-set call (shadow-cpu.gc:163-176): 12 GS register writes,
+        // including a fixed-alpha rgbaq (:a #x60) that is NOT the per-frame shadow color.
+      } else if (transfer.size_bytes == 80) {
+        // second dma-buffer-add-gs-set call (shadow-cpu.gc:224-237): 4 GS register writes
+        // (texflush, test-1, zbuf-1, frame-1), no rgbaq.
+      } else {
+        // hand-rolled scissor-clear scanline packet (shadow-cpu.gc:177-222): a gif-tag
+        // followed by (screen-sx/32) PACKED-mode XYZ2 scanline primitives, no rgbaq. Size is
+        // 16*(1+screen-sx/32) and therefore varies with viewport width (272 bytes observed
+        // at screen-sx=512), so it is matched structurally rather than by exact size.
+      }
+      // ignore all three
     } else if (vif0.kind == VifCode::Kind::NOP && vif1.kind == VifCode::Kind::NOP) {
       // ignore
     }
@@ -221,7 +251,11 @@ void Shadow2::render(DmaFollower& dma, SharedRenderState* render_state, ScopedPr
   while (dma.current_tag_offset() != render_state->next_bucket) {
     auto data = dma.read_and_advance();
     if (data.size_bytes == 560) {
+      // jak3's shadow-dma-end color packet, see the matching case above.
       memcpy(m_color, data.data + 8 * 3, 4);
+    } else if (data.size_bytes == 144) {
+      // jakx's shadow-dma-end color packet, see the matching case above.
+      memcpy(m_color, data.data + 8 * 16, 4);
     }
     transfers++;
   }
