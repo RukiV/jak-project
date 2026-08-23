@@ -482,7 +482,17 @@ jobs:
       # Same fail-safe polarity as the MSVC gate: only the literal string 'false'
       # narrows; anything else runs the full suite.
       - name: Unit tests
+        # Defense in depth against a wedged goalc-test hanging the queue (tonight's
+        # incident: a listener test looped forever, ignored the forge-side cancel,
+        # and starved the single Windows runner for four queued runs). timeout-minutes
+        # is a backstop should the wrapper itself somehow not fire; RUN_TEST below is
+        # the layer that actually protects, since a step-level timeout only asks the
+        # runner worker to cancel, and that is exactly what got ignored. timeout(1)
+        # --kill-after sends SIGKILL after the grace period, which a hung process
+        # cannot ignore the way it ignored the runner's cancel.
+        timeout-minutes: 20
         run: |
+          RUN_TEST="timeout --kill-after=30s 1080s"
           if [ "${{ needs.lint.outputs.cpp_changed }}" = "false" ]; then
             scope="${{ needs.lint.outputs.tc_games }}"
             echo "GOAL-only diff: type-consistency scope '$scope'"
@@ -498,7 +508,7 @@ jobs:
                 # Shared paths (goal_src/common, goal-lib.gc) reach every game,
                 # and an empty scope means the classifier did not run; both get
                 # the full four-game set, keeping the fail-safe polarity.
-                ./build/goalc-test --gtest_color=yes --gtest_filter="*TypeConsistency*"
+                $RUN_TEST ./build/goalc-test --gtest_color=yes --gtest_filter="*TypeConsistency*"
                 ;;
               *)
                 # A jakx-only diff pays 20s here instead of the 180s the full
@@ -516,11 +526,11 @@ jobs:
                   filter="${filter:+$filter:}$t"
                 done
                 echo "narrowed filter: $filter"
-                ./build/goalc-test --gtest_color=yes --gtest_filter="$filter"
+                $RUN_TEST ./build/goalc-test --gtest_color=yes --gtest_filter="$filter"
                 ;;
             esac
           else
-            ./build/goalc-test --gtest_color=yes --gtest_filter="-*MANUAL_TEST*"
+            $RUN_TEST ./build/goalc-test --gtest_color=yes --gtest_filter="-*MANUAL_TEST*"
           fi
 
   # This job deliberately does NOT call .github/workflows/windows-build-msvc.yaml,
@@ -708,12 +718,25 @@ jobs:
 
       - name: Run Tests
         if: needs.lint.outputs.cpp_changed != 'false'
+        # timeout-minutes was already 10 here before tonight's incident and did not
+        # save the runner: a step-level timeout only asks the runner worker to cancel,
+        # and a wedged listener test ignored that cancel and starved this single
+        # Windows runner for four queued runs until someone killed it by hand on the
+        # host. Kept as a backstop; Start-Process/Stop-Process -Force below is the
+        # layer that actually protects, since -Force calls TerminateProcess, an
+        # OS-level kill a hung process gets no say in.
         timeout-minutes: 10
         working-directory: C:\ci\jak-project
         env:
           GTEST_OUTPUT: "xml:opengoal-test-report.xml"
         run: |
-          ./build/bin/goalc-test.exe --gtest_color=yes --gtest_brief=0 --gtest_filter="-*MANUAL_TEST*"
+          $proc = Start-Process -FilePath ".\build\bin\goalc-test.exe" -ArgumentList '--gtest_color=yes','--gtest_brief=0','--gtest_filter=-*MANUAL_TEST*' -NoNewWindow -PassThru
+          if (-not $proc.WaitForExit(480000)) {
+            Write-Host "::error::goalc-test.exe exceeded the 8-minute in-process watchdog; force-killing (runner-hostage guard, tonight's incident)"
+            Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+            exit 1
+          }
+          if ($proc.ExitCode -ne 0) { exit $proc.ExitCode }
 
   # Reports the run once, as the aggregate of every job above. This job's own
   # job.status is its own success, not the run's, so the aggregate is passed in
