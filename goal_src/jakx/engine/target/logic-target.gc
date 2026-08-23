@@ -39,26 +39,6 @@
 ;; tearing down the bring-up fallback.
 (define *jakx-continue-cam-takeover* #f)
 
-;; og:preserve-this bring-up lever (standing actors regression, issue #695 item
-;; 1, reported 2026-08-23): target-continue's own :code below waits here for
-;; the IOP to land a sound bank, `(while (not (string-charp= (-> *sound-bank-
-;; string* 0) (the-as (pointer uint8) (-> *sound-iop-info* sound-banks 1))))
-;; (suspend))`, but nothing on the bring-up processes *load-state* want-sound
-;; into an actual IOP bank load, so the IOP slot's first word reads 0 forever
-;; and the wait never releases (probed live: a session-local mem-copy landing
-;; the bank in that slot was the sole thing that ever unparked it). Every boot
-;; spawns the target (title-continue chain), so this wait parks target-
-;; continue's :code before it ever reaches the #t restore further down,
-;; leaving *spawn-actors* permanently #f and every flame, streetlight glow,
-;; and level actor unborn. This lever gates the wait as a unit, keeping the
-;; decoded loop verbatim inside the gate, and defaults #f to let the bring-up
-;; boot skip straight past the parked IOP handshake. Retires, flipping its
-;; default to #t, when something on the bring-up actually processes want-
-;; sound into a real IOP bank load; MENU1.SBK and the full bank set are
-;; already in the build, so the wait itself does not need a data fix, only a
-;; producer for the slot it is watching.
-(define *jakx-wait-for-sound-banks* #f)
-
 ;; og:preserve-this forward-decl, R5a (#122): reset-target-state below guards a call to
 ;; this function (unlanded; raw_obj link-table grep shows it referenced from four
 ;; objects, including target-death.go, none of which is landed yet); the compiler
@@ -510,10 +490,8 @@
                )
         (suspend)
         )
-      (when *jakx-wait-for-sound-banks*
-        (while (not (string-charp= (-> *sound-bank-string* 0) (the-as (pointer uint8) (-> *sound-iop-info* sound-banks 1))))
-          (suspend)
-          )
+      (while (not (string-charp= (-> *sound-bank-string* 0) (the-as (pointer uint8) (-> *sound-iop-info* sound-banks 1))))
+        (suspend)
         )
       (while (begin
                (let ((v1-115 6)
