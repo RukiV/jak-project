@@ -121,24 +121,37 @@
 ;; bring-up shim structurally (level.gc:2831-2833, "jak3 get-continue-by-name's walk
 ;; without the *game-info* half. Retires when game-info.gc lands.") and start-1's
 ;; own call shape (all-types.gc:48309-48317, the R5a blocker this retires).
+;;
+;; CORRECTION (2026-08-23): the 19-slot *level*-array walk landed above was a
+;; mis-derivation, not the retail shape. It read (-> lev info continues) for
+;; every slot in *level*'s level array with no liveness guard, so an
+;; inactive slot's stale info pointer sent the walk into arbitrary static
+;; data; reproduced live as a crash inside gstring's string=, dereferencing
+;; 0xb, a boxed integer read through a never-loaded slot's info
+;; (logs/status-titlewatch2.json). jak3's own get-continue-by-name
+;; (goal_src/jak3/engine/game/game-info.gc:247-267) never touches *level*
+;; at all: it walks *level-load-list*, the same level-load-info symbol
+;; registry game-info-method-18 above already walks, which only ever holds
+;; real level-load-info data regardless of what is currently resident. This
+;; method now matches that registry walk, verbatim from jak3 apart from
+;; keeping jakx's own early (not name) return.
 (defmethod get-continue-by-name ((this game-info) (name string))
   (when (not name)
     (return (the-as continue-point #f))
     )
-  (dotimes (level-idx 19)
-    (let ((lev (-> *level* level level-idx)))
-      (when lev
-        (let ((conts (-> lev info continues)))
-          (while (not (null? conts))
-            (let ((cp (the-as continue-point (car conts))))
-              (if (string= name (-> cp name))
-                  (return cp)
-                  )
-              )
-            (set! conts (cdr conts))
+  (let ((levels *level-load-list*))
+    (while (not (null? levels))
+      (let ((continues (-> (the-as level-load-info (-> (the-as symbol (-> levels car)) value)) continues)))
+        (while (not (null? continues))
+          (let ((cont (the-as continue-point (-> continues car))))
+            (if (string= name (-> cont name))
+                (return cont)
+                )
             )
+          (set! continues (the-as pair (-> continues cdr)))
           )
         )
+      (set! levels (the-as pair (-> levels cdr)))
       )
     )
   (the-as continue-point #f)
