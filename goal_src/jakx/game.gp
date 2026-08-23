@@ -536,7 +536,22 @@
 ;; ANIMATIONS
 ;;;;;;;;;;;;;;;;;;;;;
 
-;; TODO
+;; The retail STR/ directory has 120 entries, but only 3 carry the .STR
+;; extension: DOSCREEN.STR (the Dolby card), SCBOOK.STR and THSCREEN.STR.
+;; copy-strs (goal_src/jakx/lib/project-lib.gp) hard-codes the ".STR" suffix
+;; the same way jak3's does, so it can only ever reach those 3; the other
+;; 117 entries are M2V/PAL/IPU movie material (43 M2Vs among them) that
+;; belongs to the FMV extraction road instead (scripts/jakx/gen_mjv.py,
+;; issue 569), not this build step. jak3's own copy-strs block (game.gp
+;; around line 434) copies its full STR/ directory (232 of 232) the same
+;; way: an explicit name list, no subset syntax exists in this build system.
+;;
+;; Without these staged into $OUT/iso, CISOCDFileSystem::ReadDirectory
+;; (game/overlord/jakx/iso_cd.cpp:491-502) enumerates only out/jakx/iso and
+;; never finds them, so every RPC_STR art load for these three fails
+;; structurally and the title-control card states (thx-dolby etc.) can
+;; never draw.
+(copy-strs "DOSCREEN" "SCBOOK" "THSCREEN")
 
 ;;;;;;;;;;;;;;;;;;;;;
 ;; MUSIC
@@ -591,7 +606,7 @@
   ;;  "$OUT/iso/VAGDIR.AYB"
   ;;  "$OUT/iso/TWEAKVAL.MUS"
   ;;  ,@(reverse *all-vis*)
-  ;;  ,@(reverse *all-str*)
+   ,@(reverse *all-str*)
   ;;  ,@(reverse *all-sbk*)
   ;;  ,@(reverse *all-vag*)
    ,@(reverse *all-text*)
