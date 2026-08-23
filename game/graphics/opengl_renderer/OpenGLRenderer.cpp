@@ -627,17 +627,29 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     init_bucket_renderer<Sprite3>("particles-v1", BucketCategory::SPRITE, 772);
 
     // Shadow (issue #663): jakx registered no shadow-bucket renderer at all, so vehicle
-    // shadows never draw. The landed *bucket-map* (foreground-h.gc) carries shadow
-    // destinations at bucket-id-16 shadow2/shadow3 (vu1-user-h.gc: 572/573), each appearing
-    // 6 times at fixed (level, sprite-category, viewport 1) slots, a shared/global pair
-    // rather than per-level, same tail-sharing shape as anti-alias and tex-warp in that
-    // region. bucket-id shadow (350) never appears as a *bucket-map* destination; it is
-    // reused as a :tfrag-scissor-trans-bucket value (tfrag-methods.gc:561), so it gets no
-    // renderer here. Raw ids, same mechanical *bucket-map* extraction as kMercBuckets above.
-    // Shadow2's constructor needs only the name and bucket id, jak3 parity
-    // (OpenGLRenderer.cpp:411-412).
-    init_bucket_renderer<Shadow2>("shadow2", BucketCategory::OTHER, 572);
-    init_bucket_renderer<Shadow2>("shadow3", BucketCategory::OTHER, 573);
+    // shadows never draw. The earlier 572/573 reading (bucket-id-16 shadow2/shadow3,
+    // vu1-user-h.gc) was circular: it matched jak3's bucket names, but 572/573 are the
+    // viewport-1 merc-routing counterparts of 568/569 in the *bucket-map* (uniform +4 row
+    // shift, same shape as cat0's 386-393), and 572 is already a kMercBuckets destination
+    // above -- init_bucket_renderer does a plain m_bucket_renderers.at(id) assignment with
+    // no collision check (OpenGLRenderer.h:107), so registering Shadow2 there silently
+    // steals that slot from Merc2BucketRenderer right now, and would carry real merc DMA
+    // into Shadow2's ASSERT at Shadow2.cpp:84 the moment split-screen lights up viewport 1.
+    //
+    // The real destinations are the shadow subsystem's own table, *shadow-globals*
+    // (shadow-cpu-h.gc:130-140, decompiled retail static data): emerc-lcom-pris/
+    // gmerc-lcom-pris (403/404) and bucket774/775/776/777, indexed outer=shadow-type
+    // inner=viewport per the landed producer's arithmetic (foreground.gc:462,
+    // *shadow-globals* + shadow-type*64 + viewport*32 + 8). None of the six ids appear
+    // anywhere in the *bucket-map* (a private destination set), so there is no
+    // merc-routing collision here. They stay empty for now: shadow-execute-all, the
+    // emitter that would fill them, is not yet landed (no defun in jakx's shadow-cpu.gc),
+    // and Shadow2::render's empty-bucket early return (Shadow2.cpp:69-72) keeps that safe
+    // in the meantime.
+    static constexpr int kShadowBuckets[6] = {403, 404, 774, 775, 776, 777};
+    for (int id : kShadowBuckets) {
+      init_bucket_renderer<Shadow2>(fmt::format("shadow-{}", id), BucketCategory::OTHER, id);
+    }
 
     // Per-level texture buckets (#110): upload-textures walks *texture-page-translate*
     // and emits each draw level's tpage uploads plus its fixed-anim payloads (pc codes

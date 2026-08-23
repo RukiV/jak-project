@@ -97,6 +97,11 @@ void CarPaintRenderer::handle_frame(u64 val,
   // claim the car's own VRAM slot with our FBO texture so the merc render of the
   // car body, which samples that same tbp moments later in the same frame, picks
   // up the freshly painted composite instead of the static base texture.
-  render_state->texture_pool->move_existing_to_vram(m_gpu_tex, fbp);
+  // move_existing_to_vram's slot index is a tbp (TexturePool.cpp:94-97, :273
+  // index by dest[0]), but fbp is a word address divided by 32 (GOAL passes
+  // (shr dest 5) as fbp, car-textures.gc:612; same convention as
+  // ProgressRenderer's kMinimapVramAddr 4032 == kMinimapFbp 126 * 32), so it
+  // has to be shifted back up to land in the right slot.
+  render_state->texture_pool->move_existing_to_vram(m_gpu_tex, fbp << 5);
   m_offscreen_mode = true;
 }
