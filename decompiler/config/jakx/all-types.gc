@@ -59348,8 +59348,15 @@
 
 
 ;; all-types.gc:49939 (dead)
+;; lobby rung 3: menu-type retyped basic -> symbol. Every static base-menu-
+;; info instance lobby-menu-data.gc's own top-level-login defines (30 of
+;; them) stores a real type-name symbol here (uniformly 'base-menu, the
+;; menu-family process type these info blocks describe), never a basic
+;; reference; the decompiler's own structure decoder rejects a non-#f
+;; SYM_PTR word against a basic-declared field ("there was unknown data"
+;; at offset 0), the same class the field's own real content resolves.
 (deftype base-menu-info (structure)
-  ((menu-type     basic           :offset-assert 0)
+  ((menu-type     symbol          :offset-assert 0)
    (children      basic           :offset-assert 4)
    (name-symbol   basic           :offset-assert 8)
    (3d-menu-type  basic           :offset-assert 12)
@@ -60692,8 +60699,12 @@
     )
   (:state-methods
     lobby-generic-error-menu ;; 31
-    lobby-menu-manager-state-32 ;; 32
-    lobby-menu-manager-state-33 ;; 33
+    ;; lobby rung 3: renamed from the placeholder lobby-menu-manager-
+    ;; state-32/-33 to the real retail names ('waiting-for-cd,
+    ;; 'pre-game-type-menu), matching the goal_src deftype's own rename
+    ;; (goal_src/jakx/engine/net/lobby-menu-manager-h.gc).
+    waiting-for-cd ;; 32
+    pre-game-type-menu ;; 33
     game-type-menu ;; 34
     pre-choose-event-menu ;; 35
     choose-event-menu ;; 36
@@ -84464,45 +84475,74 @@
 ;; info-family pointer, not a bare object; typed to the common ancestor
 ;; since no site in this rung's scope narrows it to a specific leaf.
 (define-extern *single-event-menu-info* base-menu-info)
-;; (define-extern *options-menu-info* object)
-;; (define-extern *video-options-menu-info* object)
-;; (define-extern *video-options-menu-info-europe* object)
-;; (define-extern *secrets-title-menu-info* object)
-;; (define-extern *psp-secrets-menu-info* object)
-;; (define-extern *center-screen-menu-info* object)
-;; (define-extern *sound-options-menu-info* object)
-(define-extern *game-options-menu-info* object)
-;; (define-extern *internet-connection* object)
-;; (define-extern *join-create-menu* object)
-;; (define-extern *num-local-players-menu* object)
-;; (define-extern *join-game-menu* object)
-;; (define-extern *player-headphones?-color-array* array)
-;; (define-extern *ready-room-host* object)
-;; (define-extern *ready-room* object)
-;; (define-extern *choose-event-menu-info* object)
-;; (define-extern *choose-event-menu-info-local* object)
-;; (define-extern *personal-selection-pop-up* object)
-;; (define-extern *kick-player-info* object)
+;; lobby rung 3: this whole cluster (*options-menu-info* through *local-
+;; highscore-table-info* below) was previously typed symbol by an earlier
+;; pass on weak op-level evidence (an unconstrained lui/ori-loaded value
+;; with no call-site narrowing). lobby-menu-data's own top-level-login
+;; raw label dump (each label's first three words: a "base-menu" type
+;; symbol, a pointer to a further label, then a #f) is byte-for-byte
+;; identical to *background-menu-info*/*logo-menu-info*/*logo-subtitle-
+;; menu-info*/*single-event-menu-info* above (already typed base-menu-
+;; info); every remaining label in this top-level was checked the same
+;; way and matches. Retyped to base-menu-info across the board on that
+;; direct raw-data evidence, per the rung-2 precedent this rung's own
+;; brief points at.
+(define-extern *options-menu-info* base-menu-info)
+(define-extern *video-options-menu-info* base-menu-info)
+(define-extern *video-options-menu-info-europe* base-menu-info)
+(define-extern *secrets-title-menu-info* base-menu-info)
+(define-extern *psp-secrets-menu-info* base-menu-info)
+(define-extern *center-screen-menu-info* base-menu-info)
+(define-extern *sound-options-menu-info* base-menu-info)
+(define-extern *game-options-menu-info* base-menu-info)
+(define-extern *internet-connection* base-menu-info)
+(define-extern *join-create-menu* base-menu-info)
+(define-extern *num-local-players-menu* base-menu-info)
+(define-extern *join-game-menu* base-menu-info)
+;; lobby rung 3: named and grouped like the other "-ids" siblings (*lobby-
+;; generic-error-text-ids* etc. below) already resolved (array int32); op
+;; 36's own raw label (L884) is a genuinely different shape from the
+;; base-menu-info cluster above (a 6-element rgba boxed-array, `.type
+;; rgba` in the raw dump, not the base-menu shape), matching the array
+;; guess the pre-existing dead comment already carried.
+(define-extern *player-headphones?-color-array* (array int32))
+(define-extern *ready-room-host* base-menu-info)
+(define-extern *ready-room* base-menu-info)
+(define-extern *choose-event-menu-info* base-menu-info)
+(define-extern *choose-event-menu-info-local* base-menu-info)
+(define-extern *personal-selection-pop-up* base-menu-info)
+(define-extern *kick-player-info* base-menu-info)
 ;; (define-extern *lobby-generic-error-text-ids* array)
 ;; (define-extern *lobby-generic-error-bottom-text-ids* array)
 ;; (define-extern *lobby-generic-error-bottom-text-ids2* array)
 ;; (define-extern *lobby-generic-error-bottom-text-ids3* array)
 ;; (define-extern *lobby-generic-error-bottom-text-ids4* array)
 ;; (define-extern *lobby-generic-error-bottom-text-ids5* array)
-;; (define-extern *lobby-generic-error-arg* object)
-;; (define-extern *lobby-generic-error* object)
-;; (define-extern *lobby-generic-confirmation* object)
-;; (define-extern *connecting-to-lobby* object)
-;; (define-extern *delete-buddy-confirmation* object)
-;; (define-extern *progressive-warning* object)
-;; (define-extern *progressive-accept* object)
-;; (define-extern *ready-room-options-menu* object)
-;; (define-extern *local-highscore-table-info* object)
+;; lobby rung 3: op 61 stores #f directly (s.w! *lobby-generic-error-arg*
+;; #f, no label at all); #f is valid for any pointer-shaped type, so this
+;; one is typed base-menu-info on the shared cluster shape rather than on
+;; direct label evidence of its own.
+(define-extern *lobby-generic-error-arg* base-menu-info)
+(define-extern *lobby-generic-error* base-menu-info)
+(define-extern *lobby-generic-confirmation* base-menu-info)
+(define-extern *connecting-to-lobby* base-menu-info)
+(define-extern *delete-buddy-confirmation* base-menu-info)
+(define-extern *progressive-warning* base-menu-info)
+(define-extern *progressive-accept* base-menu-info)
+(define-extern *ready-room-options-menu* base-menu-info)
+(define-extern *local-highscore-table-info* base-menu-info)
 ;; lobby rung 4: (anon-function 2 lobby-results) op 15 calls it with one
 ;; arg, *lobby-awards-new-driver* (already typed int), and uses the result
 ;; as an int index into *net-drivers*, shifted left 2 (word-scaled).
 (define-extern get-net-driver-idx-by-type (function int int))
-;; (define-extern get-net-driver-by-type function)
+;; lobby rung 3: get-net-driver-by-type is landed in this same object file
+;; (lobby-menu-data.gc). Its own body (op 0-1) forwards its own arg0
+;; untouched into a tail call on get-net-driver-idx-by-type (already typed
+;; (function int int)); on a hit it re-derefs *net-drivers* at the returned
+;; index and returns the l.wu-loaded element pointer directly (op 7) rather
+;; than get-net-driver-idx-by-type's own further l.bu(+8) byte-field deref,
+;; so the return leaf is the net-driver itself, not its byte field.
+(define-extern get-net-driver-by-type (function int net-driver))
 (define-extern get-driver-flavor-text (function (int32) int))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -86520,6 +86560,32 @@
   )
 |#
 
+;; lobby rung 3: not a dead-block resurrection like its siblings above (no
+;; prior deftype existed anywhere for this symbol at all -- top-level-login
+;; op 491 fails outright with "Unknown symbol: scrolling-universe-item").
+;; Its own runtime type-creation call's trailing data word (L947: 0x1b00238,
+;; 0x45) is byte-for-byte scrolling-netconfig-item's own :size-assert/
+;; :method-count-assert pair (#x238, 69), so this is the same empty,
+;; no-extra-fields scrolling-item subtype as that sibling, just a distinct
+;; type name for the lobby's universe-select list.
+(deftype scrolling-universe-item (scrolling-item)
+  ()
+  :method-count-assert 69
+  :size-assert         #x238
+  :flag-assert         #x4501b00238
+  )
+
+;; lobby rung 3: same class as scrolling-universe-item above; its own
+;; runtime type-creation call's trailing data word (L946: 0x1e00268, 0x4d)
+;; is byte-for-byte scrolling-netconfig-menu's own :size-assert/:method-
+;; count-assert pair (#x268, 77), the same empty scrolling-menu subtype.
+(deftype scrolling-universe-menu (scrolling-menu)
+  ()
+  :method-count-assert 77
+  :size-assert         #x268
+  :flag-assert         #x4d01e00268
+  )
+
 #|
 (deftype scrolling-account-item (scrolling-item)
   ((is-create basic  :offset-assert 568)
@@ -86668,27 +86734,64 @@
 ;; (define-extern update-stored-network-account function)
 (define-extern *edit-account-ids* array)
 (define-extern *delete-account-ids* array)
-;; (define-extern *choose-account* object)
+;; lobby rung 3: top-level-login's own op 191 raw label store gives no
+;; further shape evidence on its own, but the raw data at that label
+;; carries a "state" type tag (the standard GOAL kernel type for a defstate
+;; body), matching *choose-account*'s own sibling quoted-symbol state name
+;; ('choose-account, used elsewhere in this corpus as a split-selection-
+;; prev-state value) and its own two later reads (ops 93/121) passing it
+;; on as a state argument.
+(define-extern *choose-account* state)
 ;; (define-extern start-logging-on function)
 (define-extern *menu-yes-no-array-data* array)
-;; (define-extern *menu-yes-no-array* object)
-;; (define-extern *edit-account* object)
-;; (define-extern *fake-mc-stream* file-stream)
-;; (define-extern *fake-mc-filename* string)
+;; lobby rung 3: op 119 (in the function using this global) reads offset 4
+;; as a plain word, matching selection-cache's own selection-type field
+;; (offset-assert 4); the standard selection-cache/array-data pairing
+;; already used by the *vibration-menu-info*/*crash-cam-menu-info* family
+;; above (this file's own selection-cache section).
+(define-extern *menu-yes-no-array* selection-cache)
+;; lobby rung 3: top-level-login's own op 306 raw label (L736: a "base-menu"
+;; type-symbol, a pointer, then a #f, no preceding basic type-tag) is the
+;; identical structure-not-basic base-menu-info shape as lobby-menu-data's
+;; whole *-menu-info* cluster (decompiler/config/jakx/all-types.gc's own
+;; lobby-menu-data section); this file defines its own parallel family of
+;; base-menu-info screens for the account-editing UI flow.
+(define-extern *edit-account* base-menu-info)
+;; lobby rung 3: uncommented the pre-existing candidate type; top-level-
+;; login stores #f into it, no narrowing evidence of its own in this
+;; rung's scope, but the name and the existing dead-comment candidate
+;; agree with the file-stream family every other *-mc-* fake-memory-card
+;; global in this section already uses.
+(define-extern *fake-mc-stream* file-stream)
+;; lobby rung 3: uncommented the pre-existing candidate type, same class
+;; as *fake-mc-stream* immediately above.
+(define-extern *fake-mc-filename* string)
 ;; (define-extern fake-mc-cmd function)
 (define-extern *lobby-mc-ok-function* object)
 (define-extern *lobby-mc-error-function* object)
 ;; (define-extern *enter-pw-acct-name* object)
-;; (define-extern *entering-password* object)
-;; (define-extern *showing-policy* object)
-;; (define-extern *showing-announcements* object)
-;; (define-extern *changing-password* object)
+;; lobby rung 3: uncommented the pre-existing candidate types (all four
+;; below); top-level-login stores #f into each with no further narrowing
+;; evidence in this rung's own scope, matching the dead-stub default.
+(define-extern *entering-password* object)
+(define-extern *showing-policy* object)
+(define-extern *showing-announcements* object)
+(define-extern *changing-password* object)
 ;; (define-extern *medius-new-account-password* object)
-;; (define-extern *medius-old-account-password* object)
+;; lobby rung 3: uncommented; same #f-store, no-narrowing-evidence class as
+;; its sibling *medius-new-account-password* (already active above).
+(define-extern *medius-old-account-password* object)
 ;; (define-extern do-change-password function)
-;; (define-extern *anti-cheat* object)
+;; lobby rung 3: uncommented; top-level-login stores #f, no narrowing
+;; evidence in this rung's own scope, dead-stub default kept.
+(define-extern *anti-cheat* object)
 ;; (define-extern check-mc-during-error function)
-;; (define-extern lobby-safe-state? function)
+;; lobby rung 3: landed in this file (lobby-net-startup.gc); zero explicit
+;; GOAL args (no a0-a3 read before use), reads self (s6, op 25) directly
+;; as a :behavior lobby-menu-manager function, and returns #t/#f (every
+;; return path in its own body sets v0 to either #f or the literal 4/#t
+;; encoding).
+(define-extern lobby-safe-state? (function symbol :behavior lobby-menu-manager))
 ;; (define-extern lobby-respond-to-msg function)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -87887,6 +87990,23 @@
 ;; lobby-menu-manager rung: loaded into a0 and passed to enter-state, whose
 ;; own declared signature is fully generic object args; kept the original
 ;; guess since enter-state's own typing gives no narrower evidence.
+;; lobby rung 3: lobby-menu-data's own top-level-login writes this global
+;; twice back to back with no branch or other memory access between the two
+;; stores (op 6: (s.w! *base-menu-info* #f), immediately followed by op
+;; 7-8: (s.w! *base-menu-info* <L1504 pointer>)) -- confirmed against the
+;; raw MIPS ops, not just the annotated ir2 form, so this is genuine retail
+;; init, not a decompiler artifact; every sibling define in the same
+;; top-level (*background-menu-info*, *logo-menu-info*, etc.) stores once.
+;; Landed verbatim as the two defines the machine code shows. Stays
+;; declared object here rather than narrowing to base-menu-info like those
+;; siblings: lobby-menu-manager.gc already carries a real landed
+;; (define-extern *base-menu-info* object), and JakXTypeConsistency's
+;; WithBuildFirst check rejects a config-only retype that fights an
+;; already-landed real define-extern elsewhere in goal_src (same class as
+;; *medius-my-player*/*interface-cam* in the lobby-menu-manager rung); the
+;; real base-menu-info value is read back through an explicit (the-as
+;; base-menu-info ...) cast at the landed source's own consuming site
+;; instead, matching that same precedent.
 (define-extern *base-menu-info* object) ;; provisional: call-site evidence only
 (define-extern *capture-tga-temp* int)
 (define-extern *car-part-temp-string* string)
@@ -87992,7 +88112,12 @@
 ;; dsubu comparison against a state-name field in this same file (a state
 ;; named 'center-screen-menu also exists in this object's own state table),
 ;; so symbol fits over the generic guess.
-(define-extern *center-screen-menu-info* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *center-screen-menu-info* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *chat-msg-buffer* object) ;; provisional: call-site evidence only
 (define-extern *chat-room-select* object) ;; provisional: call-site evidence only
 (define-extern *choose-network-config* object) ;; provisional: call-site evidence only
@@ -88026,7 +88151,12 @@
 ;; same call shape *video-options-menu-info-europe* uses with a proven
 ;; dsubu comparison against a state-name field in this same file, so symbol
 ;; fits over the generic guess.
-(define-extern *connecting-to-lobby* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *connecting-to-lobby* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *construction-cone-constants* rigid-body-object-constants)
 ;; og:preserve-this typed from object (2026-08-16 construction-obs-h rung): (method 92
 ;; construction-object) quad-copy!s exactly 4 quadwords (64 bytes) from this global
@@ -88130,7 +88260,18 @@
 ;; order).
 ;; (define-extern *default-nav-mesh* object) ;; provisional: call-site evidence only
 (define-extern *default-vehicle-load-parts* object) ;; provisional: call-site evidence only
-(define-extern *delete-buddy-confirmation* object) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped object -> symbol. lobby-menu-data's own top-level-
+;; login (op 69, raw label L162 store) has no site of its own narrowing
+;; this beyond the raw label; adopted on the same state-name-symbol shape
+;; as its immediate siblings in that same top-level (*connecting-to-lobby*,
+;; *progressive-warning*, *progressive-accept*, all already symbol), since
+;; no call site anywhere in this corpus contradicts it.
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *delete-buddy-confirmation* base-menu-info) ;; provisional: call-site evidence only
 ;; og:preserve-this provisional extern removed: shadowed the earlier *des-cactus-a-explode-params* extern (des-cactus rung, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this net-hud rung: net-hud's top-level-login stores #f into it in
 ;; the same instruction pair as *debug-hud* (also object-typed); no other read
@@ -88543,7 +88684,12 @@
 ;; convention, matching *video-options-menu-info-europe*'s identical
 ;; comparison at the same raw offset in this same file); op 89 passes the
 ;; same global through as the object-typed a1 to that identical vmethod slot.
-(define-extern *join-create-menu* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *join-create-menu* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *join-wait-prev-state-name* object) ;; provisional: call-site evidence only
 (define-extern *kcro-bouncy-tire-a-constants* rigid-body-object-constants)
 (define-extern *kcro-fence-piece-a-debris-params* object) ;; provisional: call-site evidence only
@@ -88556,7 +88702,12 @@
 ;; same call shape *join-create-menu* uses with a proven dsubu comparison
 ;; against a state-name field in this same file, so symbol fits over the
 ;; generic guess.
-(define-extern *kick-player-info* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *kick-player-info* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *ladder-results-offset* object) ;; provisional: call-site evidence only
 (define-extern *ladder-stat-idx-current* object) ;; provisional: call-site evidence only
 ;; lobby-menu-manager rung: stored 0 at one site and a raw gp register value
@@ -88618,7 +88769,20 @@
 ;; lobby-menu-manager rung: loaded into a0 and passed to enter-state, whose
 ;; own declared signature is fully generic object args; kept the original
 ;; guess since enter-state's own typing gives no narrower evidence.
-(define-extern *lobby-generic-confirmation* object) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped object -> symbol. (method 165 lobby-menu-manager)'s
+;; own op 966 sibling call, (lobby-menu-manager-method-182 self *game-
+;; options-menu-info* 0), and lobby-menu-data's own top-level-login (op 65,
+;; raw label L182 store) both land in the same state-name-symbol cluster as
+;; every other enter-state/method-182 target in this corpus (*lobby-
+;; generic-error*, *ready-room-options-menu*, etc., all typed symbol);
+;; enter-state's own generic object signature no longer blocks narrowing
+;; once the sibling cluster's shape is taken as the real evidence.
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *lobby-generic-confirmation* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *lobby-generic-error-bottom-text-ids* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
 (define-extern *lobby-generic-error-bottom-text-ids2* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
 (define-extern *lobby-generic-error-bottom-text-ids3* (array int32)) ;; lobby rung: op-12 sw store, array data offset 12 fits
@@ -88854,7 +89018,12 @@
 ;; same call shape *video-options-menu-info-europe* uses with a proven
 ;; dsubu comparison against a state-name field in this same file, so symbol
 ;; fits over the generic guess.
-(define-extern *num-local-players-menu* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *num-local-players-menu* base-menu-info) ;; provisional: call-site evidence only
 ;; *num-players-info* stays declared menu-range-info (menu2-lists rung,
 ;; evidence above); stale object-typed duplicate removed, same reason.
 (define-extern *ocean-colors-atoll* ocean-colors)
@@ -88876,7 +89045,12 @@
 ;; same call shape *video-options-menu-info-europe* uses with a proven
 ;; dsubu comparison against a state-name field in this same file, so symbol
 ;; fits over the generic guess.
-(define-extern *options-menu-info* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *options-menu-info* base-menu-info) ;; provisional: call-site evidence only
 ;; later-duplicate-wins: superseded by the correctly-typed define-extern
 ;; near the palm-tree family (debris-static-params, not the generic
 ;; provisional-sweep object typing).
@@ -88931,8 +89105,18 @@
 ;; (offset 248, the +4 basics convention); the two states named
 ;; 'progressive-accept and 'progressive-warning already exist in this
 ;; object's own state table, corroborating symbol over the generic guess.
-(define-extern *progressive-accept* symbol) ;; provisional: call-site evidence only
-(define-extern *progressive-warning* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *progressive-accept* base-menu-info) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *progressive-warning* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *r2-press-time* object) ;; provisional: call-site evidence only
 (define-extern *race-banner-subtract* object) ;; provisional: call-site evidence only
 ;; og:preserve-this hud-static-literals rung: later duplicate of the
@@ -88951,7 +89135,12 @@
 ;; same call shape *video-options-menu-info-europe* uses with a proven
 ;; dsubu comparison against a state-name field in this same file, so symbol
 ;; fits over the generic guess.
-(define-extern *ready-room* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *ready-room* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *ready-room-ai-ct* int) ;; provisional: call-site evidence only
 (define-extern *ready-room-human-ct* object) ;; provisional: call-site evidence only
 ;; lobby-menu-manager rung: *ready-room-host* is read then passed straight
@@ -88961,7 +89150,12 @@
 ;; against a state-name field in this same file, so symbol fits over the
 ;; generic guess. *ready-room-host-id* is a plain int counter: (method 190ish
 ;; lobby-menu-manager) stores v1 typed int into it directly.
-(define-extern *ready-room-host* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *ready-room-host* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *ready-room-host-id* int) ;; provisional: call-site evidence only
 (define-extern *real-sm* object) ;; provisional: call-site evidence only
 (define-extern *remove-buddy-id* object) ;; provisional: call-site evidence only
@@ -88998,7 +89192,12 @@
 ;; same call shape *video-options-menu-info-europe* uses with a proven
 ;; dsubu comparison against a state-name field in this same file, so symbol
 ;; fits over the generic guess.
-(define-extern *sound-options-menu-info* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *sound-options-menu-info* base-menu-info) ;; provisional: call-site evidence only
 ;; (define-extern *sparks-work* object) ;; superseded: the real sparks-work-typed extern is declared above in the sparks section
 (define-extern *spartacus-library* object) ;; provisional: call-site evidence only
 (define-extern *special-intro-hud-view* object) ;; provisional: call-site evidence only
@@ -89124,7 +89323,12 @@
 ;; *this-create-menu-state-name* above); op 53 then passes the same global
 ;; through as the object-typed a1 to the identical vmethod slot *join-
 ;; create-menu* uses with the same proven comparison.
-(define-extern *video-options-menu-info-europe* symbol) ;; provisional: call-site evidence only
+;; lobby rung 3: retyped symbol -> base-menu-info. lobby-menu-data's own
+;; top-level-login raw label dump for this global's own static (the same
+;; base-menu type-symbol + pointer + #f shape as every other base-menu-
+;; info-family sibling) overturns the earlier symbol guess; see the
+;; lobby-menu-data section above for the full cluster evidence.
+(define-extern *video-options-menu-info-europe* base-menu-info) ;; provisional: call-site evidence only
 (define-extern *waiting-for-lock* object) ;; provisional: call-site evidence only
 ;; og:preserve-this typed from object (2026-08-17 water-anim rung): (method 54
 ;; water-anim) reads a raw word straight off this symbol's own value (matching a
