@@ -2669,6 +2669,54 @@
           )
         )
       )
+    ;; og:preserve-this issue 709 (R2 of the heap-residue family, closing 697's
+    ;; class): birth!'s own guard (entity.gc:596-631) closes the recurring
+    ;; re-birth path by validating etype and method-table slot 12 every time an
+    ;; entity tries to spawn, but that only helps the NEXT birth attempt. An
+    ;; entity-actor whose etype has already resolved to a type object homed in
+    ;; this level's heap needs disarming here, belt to birth!'s suspenders, or
+    ;; the very next distance-driven birth on that same entity hits the class
+    ;; again before this heap gets reused. Walk every OTHER resident level's
+    ;; entity table (same 19-slot bound and !=-this guard as the texture-anim
+    ;; walk just above) and, for any entity-actor whose etype falls in [this
+    ;; heap base, this heap top-base), set the kill-mask bit birth! already
+    ;; honors at entity.gc:570 (`(when (not (logtest? (-> this extra kill-mask)
+    ;; (task-mask never))) ...)`). kill-mask, never (set! etype #f): #f falls
+    ;; through to birth-viewer (entity.gc:625) and manufactures a viewer
+    ;; process where retail expected nothing. The actor does not come back on
+    ;; reload -- etype is a linker-patched constant, never re-resolved
+    ;; (entity-h.gc:154) -- so the outcome here is a missing prop, not a
+    ;; crash and not a silent respawn either.
+    (dotimes (s5-8 19)
+      (let ((a1-31 (-> *level* level s5-8)))
+        (when (!= a1-31 this)
+          (dotimes (v1-136 (-> a1-31 entity length))
+            (let* ((link (-> a1-31 entity data v1-136))
+                   (ent (the-as entity-actor (-> link entity)))
+                   )
+              (when (and ent (nonzero? ent))
+                (let ((etype-val (-> ent etype)))
+                  (when (and etype-val
+                             (nonzero? etype-val)
+                             (type? etype-val type)
+                             (>= (the-as int etype-val) (the-as int (-> this heap base)))
+                             (< (the-as int etype-val) (the-as int (-> this heap top-base)))
+                             )
+                    (format 0 "level-sweep ~A: disarming entity ~A (etype #x~X) in level ~A~%"
+                            (-> this name)
+                            ent
+                            (the-as int etype-val)
+                            (-> a1-31 name)
+                            )
+                    (logior! (-> ent extra kill-mask) (task-mask never))
+                    )
+                  )
+                )
+              )
+            )
+          )
+        )
+      )
     ;; og:preserve-this issue 602: sweep processes whose type lives in this
     ;; level's heap before anything can reuse it; see kill-level-typed-processes
     ;; above for the full deviation note.
