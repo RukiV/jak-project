@@ -1,12 +1,6 @@
 ;;-*-Lisp-*-
 (in-package goal)
 
-;; name: vehicle-antenna.gc
-;; name in dgo: vehicle-antenna
-;; dgos: COMMON, GAME
-
-;; DECOMP BEGINS
-
 ;; definition of type joint-mod-set-rot-local
 (deftype joint-mod-set-rot-local (joint-mod-base)
   ((rotation  quaternion  :inline)
@@ -63,12 +57,6 @@
   (label cfg-4)
   this
   )
-
-;; og:preserve-this forward declaration: idle's own :event handler (below)
-;; references *vehicle-antenna-state* before its `(define ...)` (this
-;; file's own last form, define-lands-last); the type is real, not a
-;; provisional guess, so the extern carries it rather than `object`.
-(define-extern *vehicle-antenna-state* vehicle-antenna-state)
 
 ;; definition of type vehicle-antenna
 (deftype vehicle-antenna (process-drawable)
@@ -133,6 +121,9 @@
   (none)
   )
 
+;; definition for symbol *vehicle-antenna-state*, type vehicle-antenna-state
+(define *vehicle-antenna-state* (new 'static 'vehicle-antenna-state))
+
 ;; failed to figure out what this is:
 (defstate idle (vehicle-antenna)
   :virtual #t
@@ -187,38 +178,6 @@
   :code (behavior ()
     '()
     )
-  )
-
-;; og:preserve-this (method 52 vehicle-antenna)'s own sp+16 physics work
-;; scratch, field-walked op-by-op against the scoped decode: vec0/vec1 are
-;; the rbody-velocity-query's out/in vector pair, vec2 the attach-local-pos
-;; transformed by the vehicle's rbody matrix, vec3 a spring/velocity
-;; working vector, vec4 the vector-normalize-ret-len! scratch, quat0/quat1
-;; the quaternion-conjugate!/quaternion*! chain, mat0 quaternion->matrix's
-;; output, dt/val0/val1/val2 per-frame scalars, quat2/quat3 the delta-
-;; rotation pair, vec5 the vector-rotate90-around-y! scratch, val3 a single
-;; float constant. See stack_structures.jsonc's own matching note (all-
-;; types.gc) for the full derivation.
-(deftype vehicle-antenna-method-52-work (structure)
-  ((vec0  vector     :inline)
-   (vec1  vector     :inline)
-   (vec2  vector     :inline)
-   (vec3  vector     :inline)
-   (pad0  uint8 16)
-   (vec4  vector     :inline)
-   (quat0 quaternion :inline)
-   (quat1 quaternion :inline)
-   (mat0  matrix      :inline)
-   (dt    float)
-   (val0  float)
-   (val1  float)
-   (val2  float)
-   (quat2 quaternion :inline)
-   (quat3 quaternion :inline)
-   (pad1  uint8 64)
-   (vec5  vector     :inline)
-   (val3  float)
-   )
   )
 
 ;; definition for method 52 of type vehicle-antenna
@@ -469,6 +428,3 @@
     gp-0
     )
   )
-
-;; definition for symbol *vehicle-antenna-state*, type vehicle-antenna-state
-(define *vehicle-antenna-state* (new 'static 'vehicle-antenna-state))

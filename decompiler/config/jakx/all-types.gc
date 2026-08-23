@@ -56369,7 +56369,9 @@
 ;; captured offsets leave unaccounted, each cited individually there.
 (deftype wvehicle (vehicle)
   ((net-extra                      wvehicle-net-extra        :inline :offset-assert 2140)
-   (antenna                        uint64                            :offset-assert 2152)
+   ;; og:preserve-this vehicle-antenna rung: retyped uint64 -> handle, see
+   ;; goal_src/jakx/engine/vehicle/wvehicle-h.gc's own note on this field.
+   (antenna                        handle                            :offset-assert 2152)
    (fire-tracker                   handle                            :offset-assert 2160)
    (race                           race-control              :inline :offset-assert 2168)
    (ai                             wvehicle-ai-state         :inline :offset-assert 2192)
@@ -56721,12 +56723,19 @@
   )
 |#
 ;; resurrected from the dead block above (dead-type sweep)
+;; vehicle-antenna rung: `vehicle` retyped basic -> process. vehicle-
+;; antenna-init-by-other applies the standard process->handle expansion
+;; directly to this field (gkernel-h.gc's own ppointer->process/
+;; ppointer->handle macros: a plain process value, not yet a ppointer,
+;; matching (-> the-proc ppointer) at machine offset 28 within it, then
+;; the usual deref/pid/sllv/logior handle pack), the same idiom class this
+;; rung's own wvehicle-h.gc `vehicle` retype (below) already uses.
 (deftype vehicle-antenna-init-params (structure)
   ((pos     vector :inline :offset-assert 0)
    (tilt    float          :offset-assert 16)
-   (vehicle basic          :offset-assert 20)
+   (vehicle process         :offset-assert 20)
    (skel    basic          :offset-assert 24)
-   (level   basic          :offset-assert 28)
+   (level   level          :offset-assert 28)
    )
   :method-count-assert 9
   :size-assert         #x20
@@ -78122,10 +78131,103 @@
     )
   )
 |#
+;; resurrected from the dead block above: jmod-antenna typed joint-mod-set-
+;; rot-local 4 (element size 32 proven by the neighbor offsets 288/416, a
+;; 128-byte span == 4x sizeof(joint-mod-set-rot-local); the object's own
+;; link table carries joint-mod-set-rot-local in all three segments while
+;; the other two 32-byte joint-mods, joint-mod-rotate-local and joint-mod-
+;; rotate-world, appear in none of them, and every joint-mod init emits its
+;; type symbol, so the absence is load-bearing). sim-state is an alias, not
+;; a union: vehicle-antenna-state :inline :offset-assert 448 (size #x60/96)
+;; exactly covers the six vectors at 448/464/480/496/512/528, which are
+;; landed with plain :offset (not :offset-assert) per the vehicle-
+;; hardpoint-info precedent (vehicle-h.gc:339-345) for an overlay field.
+;; vehicle retyped uint64 -> handle: the init function builds it via the
+;; same sllv/dsll32/logior process->handle expansion this rung's own
+;; wvehicle m64 body uses for antenna/wpn-drawable-left/right (gkernel-
+;; h.gc:440-466), and methods 52/53 both dereference it via the standard
+;; l32-false-check + pid-match idiom (wvehicle method 68's own a2-3
+;; pattern is the twin), the same evidence class as wvehicle-h.gc's own
+;; wpn-right retype.
+(deftype vehicle-antenna (process-drawable)
+  ((vehicle          handle                          :offset-assert 248)
+   (attach-local-pos vector                  :inline :offset-assert 256)
+   (attach-rot       quaternion              :inline :offset-assert 272)
+   (jmod-antenna     joint-mod-set-rot-local 4 :inline :offset-assert 288)
+   (jmod-tail        joint-mod-set-rot-local :inline :offset-assert 416)
+   (sim-state        vehicle-antenna-state   :inline :offset-assert 448)
+   (ant-tip-pos      vector                  :inline :offset 448)
+   (ant-tip-vel      vector                  :inline :offset 464)
+   (spring-pos       vector                  :inline :offset 480)
+   (spring-vel       vector                  :inline :offset 496)
+   (tail-pos         vector                  :inline :offset 512)
+   (tail-vel         vector                  :inline :offset 528)
+   (i-tip-node       int8                            :offset-assert 544)
+   (use-tail?        basic                           :offset-assert 548)
+   )
+  :method-count-assert 55
+  :size-assert         #x228
+  :flag-assert         #x3701a00228
+  (:state-methods
+    idle ;; 50
+    die ;; 51
+    )
+  (:methods
+    (vehicle-antenna-method-52 (_type_) none) ;; 52
+    (vehicle-antenna-method-53 (_type_) none) ;; 53
+    (vehicle-antenna-method-54 (_type_ int int) none) ;; 54
+    )
+  )
 
-;; (define-extern *vehicle-antenna-state* object)
-;; (define-extern vehicle-antenna-init-by-other function)
-;; (define-extern vehicle-antenna-spawn function)
+;; vehicle-antenna rung: all three landed for real. *vehicle-antenna-state*
+;; is `(define ...)`-ed in vehicle-antenna.gc itself (not a define-extern);
+;; vehicle-antenna-init-by-other and vehicle-antenna-spawn both have real
+;; defun/defbehavior bodies there too, with their own proven define-externs
+;; below (this file) and in goal_src (wvehicle-h.gc/wvehicle-util.gc, for
+;; the forward references (method 64 wvehicle) needs).
+
+;; vehicle-antenna rung: NOT a resurrected census entry, this rung's own
+;; derivation. (method 52 vehicle-antenna)'s own local sp+16 scratch
+;; ("Failed to guess stack use for 16") walked op-by-op: vec0/vec1 (0/16)
+;; are the rbody-velocity-query's out/in vector pair; vec2 (32) is the
+;; attach-local-pos transformed by the vehicle's rbody matrix; vec3 (48,
+;; with its own .y sub-write at 52) is a spring/velocity working vector;
+;; 64-79 is untouched padding; vec4 (80) is the vector-normalize-ret-len!
+;; scratch; quat0/quat1 (96/112) feed the quaternion-conjugate!/
+;; quaternion*! chain; mat0 (128, a full 64-byte matrix, its own row-3.z
+;; read at 184 included) is quaternion->matrix's output; dt/val0/val1/val2
+;; (192/196/200/204) are per-frame scalars, the last a vector-normalize-
+;; ret-len! magnitude; quat2/quat3 (208/224, both also read as plain
+;; vectors by the same idiom quat0/quat1 use) are the delta-rotation pair;
+;; 240-303 is untouched padding; vec5 (304) is the vector-rotate90-
+;; around-y! scratch; val3 (320) is a single float constant (~0.381 rad).
+;; This hint exists only so the decompiler can get past this slot while
+;; decoding the rest of the function, and is not itself transcribed into
+;; goal_src (same convention as wvehicle-method-64-work above).
+(deftype vehicle-antenna-method-52-work (structure)
+  ((vec0  vector     :inline :offset-assert 0)
+   (vec1  vector     :inline :offset-assert 16)
+   (vec2  vector     :inline :offset-assert 32)
+   (vec3  vector     :inline :offset-assert 48)
+   (pad0  uint8 16           :offset-assert 64)
+   (vec4  vector     :inline :offset-assert 80)
+   (quat0 quaternion :inline :offset-assert 96)
+   (quat1 quaternion :inline :offset-assert 112)
+   (mat0  matrix      :inline :offset-assert 128)
+   (dt    float               :offset-assert 192)
+   (val0  float               :offset-assert 196)
+   (val1  float               :offset-assert 200)
+   (val2  float               :offset-assert 204)
+   (quat2 quaternion :inline :offset-assert 208)
+   (quat3 quaternion :inline :offset-assert 224)
+   (pad1  uint8 64           :offset-assert 240)
+   (vec5  vector     :inline :offset-assert 304)
+   (val3  float               :offset-assert 320)
+   )
+  :method-count-assert 9
+  :size-assert         #x144
+  :flag-assert         #x900000144
+  )
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; wcar-base                      ;;
@@ -88827,7 +88929,13 @@
 (define-extern *udp-layer* object) ;; provisional: call-site evidence only
 (define-extern *user-accounts-valid* object) ;; provisional: call-site evidence only
 (define-extern *v-drone-headlight-glow-template* object) ;; provisional: call-site evidence only
-(define-extern *vehicle-antenna-state* object) ;; provisional: call-site evidence only
+;; og:preserve-this provisional "object" extern removed: superseded by the
+;; real typed extern below, needed so the decompiler's own fresh pass can
+;; resolve top-level-login's static reference to the zero-filled 96-byte
+;; L49 block as `vehicle-antenna-state`, the same type the two mem-copy!
+;; sites' own evidence already proves (vehicle-antenna.gc's own
+;; `(define ...)` carries the real value).
+(define-extern *vehicle-antenna-state* vehicle-antenna-state)
 ;; lobby-menu-manager rung: read into a1/v1 across many call sites with no
 ;; narrower evidence found; kept the original commented guess.
 (define-extern *vehicle-class* object) ;; provisional: call-site evidence only
@@ -89446,6 +89554,19 @@
 (define-extern v-wpn-get-selection-table (function object object object)) ;; mechanical-arity fixpoint
 (define-extern v-wpn-mask-selection-table! (function object object object none)) ;; mechanical-arity fixpoint
 (define-extern v-wpn-num-available (function object object none)) ;; mechanical-arity fixpoint
+;; vehicle-antenna rung: this rung's own derivation, not a mechanical-arity
+;; guess. The decompiler's own automatic inference leaves this function
+;; "unknown type" (it is only ever reached through run-function-in-process,
+;; never a direct call site), so vehicle-antenna-spawn's own call cannot
+;; type-check it without a declared signature. The body reads exactly one
+;; argument (`(set! gp a0)`, never a1-a3) and operates on `self`
+;; throughout (the vehicle-antenna-init-params fields, the joint-mod-set-
+;; rot-local/jmod-tail inits, the skel-antenna-all lookup), matching
+;; run-function-in-process's own call in vehicle-antenna-spawn
+;; (`a0-0 vehicle-antenna-init-params` as the sole extra arg, 0 0 0 0
+;; padding the rest). No explicit return value is ever set before the
+;; epilogue.
+(define-extern vehicle-antenna-init-by-other (function vehicle-antenna-init-params none :behavior vehicle-antenna))
 (define-extern vehicle-antenna-spawn (function vehicle-antenna-init-params process))
 (define-extern vehicle-respawn-invul-spawn (function object object)) ;; mechanical-arity fixpoint
 (define-extern vehicle-rev-manager-spawn (function object object object)) ;; mechanical-arity fixpoint

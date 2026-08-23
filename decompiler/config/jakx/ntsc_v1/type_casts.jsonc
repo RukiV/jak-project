@@ -11212,6 +11212,32 @@
   // type at that later op than the wide range provides); left as a wall,
   // recorded here so a future rung does not re-propose the same range.
   "(method 71 turbodash-seeker)": [[[48, 101], "a0", "vehicle"]],
+  // vehicle-antenna rung: both methods dereference the object's own
+  // `vehicle` field (wvehicle-h.gc-style retype uint64 -> handle, see this
+  // type's own og:preserve-this note) through the standard handle->process
+  // fold, the same idiom class as (method 71 turbodash-seeker) above. Every
+  // field the resolved process reads (root 188, rbody 232, draw 196) is
+  // process-drawable's own, but the field is named `vehicle` and the
+  // established precedent for this exact idiom already casts to the
+  // narrower `vehicle` type rather than the generic base.
+  "(method 52 vehicle-antenna)": [[[18, 47], "s4", "vehicle"]],
+  "(method 53 vehicle-antenna)": [
+    [[10, 29], "s5", "vehicle"],
+    [23, "a0", "(pointer uint128)"]
+  ],
+  // (event idle vehicle-antenna), vehicle-antenna rung: the 'set-position
+  // branch reads a raw quadword through the event-message-block's own
+  // uint-typed param 0, the same "pointer holds a vector, read it as a
+  // quad" idiom the (pointer uint128) precedents elsewhere in this file
+  // cover.
+  "(event idle vehicle-antenna)": [[31, "v1", "(pointer uint128)"]],
+  // vehicle-antenna-init-by-other, vehicle-antenna rung: reads its
+  // vehicle-antenna-init-params argument's own `vehicle` field (retyped
+  // process, see that type's own og:preserve-this note) and copies one
+  // draw-control field (declared offset 252) straight across into this
+  // object's own draw-control at the same offset, the same "vehicle"
+  // narrowing methods 52/53 above already establish for this idiom class.
+  "vehicle-antenna-init-by-other": [[137, "v1", "vehicle"]],
   "(method 20 car-info-full)": [
     [[28, 31], "v1", "(pointer uint128)"],
     [[36, 47], "s0", "(pointer uint64)"],

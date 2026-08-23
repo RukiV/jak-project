@@ -190,22 +190,21 @@
 ;; class documented on (method 220 wvehicle) above; test/offline/config/
 ;; jakx/config.jsonc gets a matching entry for this method.
 ;;
-;; HELD: ops [459]-[487], the antenna spawn. vehicle-antenna-spawn (all-
-;; types.gc) has no defun and no goal_src declaration anywhere in the
-;; tree -- an e2 hazard (AGENTS.md section 5): landing the call links it to
-;; zero and faults. The extern is retyped this rung to its proven
-;; signature, `(function vehicle-antenna-init-params process)` (ops
+;; UN-HELD, vehicle-antenna rung: ops [459]-[487], the antenna spawn.
+;; vehicle-antenna-spawn now has a real defun (goal_src/jakx/levels/
+;; common/vehicle-antenna.gc), landed alongside the vehicle-antenna type
+;; that proof-typed it. The proven signature from the m64 remainder rung
+;; held exactly: `(function vehicle-antenna-init-params process)` (ops
 ;; [459]-[470] build a 32-byte vehicle-antenna-init-params on the stack:
 ;; pos from `(-> arg0 hardpoint antenna-attach)` :inline, tilt the
 ;; constant 0xC5638E39 == (degrees -20.0), vehicle self, skel #f, level
 ;; from `(-> this level)`; ops [476]-[487] are the same process->handle
 ;; idiom above on the call's return, stored to `antenna`, wvehicle-h.gc:
-;; 215/machine offset 2148) so a future rung can land the call the moment
-;; vehicle-antenna-spawn gets a body, without re-deriving the signature.
-;; The block is self-contained: ops [67]-[76] above already arm `antenna`
-;; to #f, and nothing later in this method or its known callers reads it
-;; back, so holding the spawn leaves antenna permanently #f rather than
-;; leaving a half-built struct or a dangling call.
+;; 215/machine offset 2148, itself retyped uint64 -> handle this rung so
+;; the store collapses to the same sugar the two wpn-drawable stores
+;; above already use). Ops [67]-[76] arming `antenna` to #f earlier in
+;; this method is untouched; this block simply overwrites it once the
+;; vehicle is real.
 ;;
 ;; og:preserve-this: gunmount-drawable-init-by-other has a real defbehavior
 ;; (wvehicle-weapons.gc, landed rung 6, not the issue-376 no-defun class);
@@ -213,8 +212,11 @@
 ;; compiles after this file in the game's own build order, so the symbol
 ;; is not yet a known global when this method compiles. The type matches
 ;; its own defbehavior header exactly (pointer, int, object -> object,
-;; bound to gunmount-drawable).
+;; bound to gunmount-drawable). vehicle-antenna-spawn needs the same
+;; forward treatment: vehicle-antenna.gc compiles after this file too
+;; (game.gd: wvehicle-util.o at 618, vehicle-antenna.o at 635).
 (define-extern gunmount-drawable-init-by-other (function pointer int object object :behavior gunmount-drawable))
+(define-extern vehicle-antenna-spawn (function vehicle-antenna-init-params process))
 (defmethod rigid-body-object-method-64 ((this wvehicle) (arg0 object))
   (set! (-> this info) (the-as rigid-body-vehicle-constants arg0))
   (dotimes (i 2)
@@ -234,7 +236,7 @@
     (set! (-> this wheel i handle) (the-as handle #f))
     (set! (-> this wheel i tread-tracker) (the-as uint64 (the-as handle #f)))
     )
-  (set! (-> this antenna) (the-as uint64 (the-as handle #f)))
+  (set! (-> this antenna) (the-as handle #f))
   (set! (-> this fire-tracker) (the-as handle #f))
   (set! (-> this power-slide-hud) (the-as handle #f))
   (set! (-> this hang-time-hud) (the-as handle #f))
@@ -398,9 +400,19 @@
         )
       (set! (-> this wpn-drawable-right) (process->handle (ppointer->process (-> proc ppointer))))
       )
-    ;; HELD: the antenna spawn (ops [459]-[487]). See this method's own
-    ;; og:preserve-this note above for the e2 rationale and the proven
-    ;; vehicle-antenna-init-params shape.
+    (set! (-> this antenna)
+          (process->handle
+            (vehicle-antenna-spawn
+              (new 'stack-no-clear 'vehicle-antenna-init-params
+                :pos (-> this hardpoint antenna-attach)
+                :tilt (degrees -20.0)
+                :vehicle this
+                :skel #f
+                :level (-> this level)
+                )
+              )
+            )
+          )
     )
   (set! (-> this wpn-current-target) (the-as uint64 (the-as handle #f)))
   ;; og:preserve-this bring-up guard: same class and same crash citation as

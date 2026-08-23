@@ -212,7 +212,12 @@
 ;; these spans; the captured offsets only make sense as inline arrays.
 (deftype wvehicle (vehicle)
   ((net-extra                      wvehicle-net-extra        :inline :offset-assert 2140)
-   (antenna                        uint64                            :offset-assert 2152)
+   ;; og:preserve-this vehicle-antenna rung: retyped uint64 -> handle, the
+   ;; same wpn-right precedent below. Single writer ((method 64 wvehicle),
+   ;; the antenna-spawn block this rung unholds) constructs it via the
+   ;; standard process->handle expansion on vehicle-antenna-spawn's own
+   ;; return; zero readers anywhere in the corpus.
+   (antenna                        handle                            :offset-assert 2152)
    (fire-tracker                   handle                            :offset-assert 2160)
    (race                           race-control              :inline :offset-assert 2168)
    (ai                             wvehicle-ai-state         :inline :offset-assert 2192)
@@ -302,12 +307,13 @@
    (health-pickup-multiplier       float                             :offset-assert 4104)
    ;; og:preserve-this jmod-steering-wheel captured as joint-mod-rotate-local
    ;; :inline (size 0x20/32B). Landed as an extent-true pad of the same
-   ;; width instead of pulling in that type: it extends joint-mod-base,
-   ;; part of the animation/joint system, and neither is landed anywhere in
-   ;; goal_src yet (all-types.gc shows both live, but that file is ahead of
-   ;; goal_src here, not a source (mi) reads). Out of this rung's minimum
-   ;; per the brief's §5 guidance; land the real type once joint-mod-base
-   ;; has a home.
+   ;; width instead of pulling in that type. Stale as of the vehicle-antenna
+   ;; rung: both joint-mod-base and joint-mod-rotate-local already have a
+   ;; real home, goal_src/jakx/engine/anim/joint-mod-h.gc:9/295/327/341/352
+   ;; (deftype, init, attach-callback/remove-callback, the flags enum, and
+   ;; joint-mod-rotate-local's own deftype+init), landed ahead of this rung.
+   ;; Out of this rung's own minimum per the brief's §5 guidance; land the
+   ;; real type here as a follow-up's call, not a landing-blocker.
    ;; og:preserve-this 4 bytes unaccounted (4108-4112).
    (pad-pre-jmod-steering-wheel    uint8                     4         :offset-assert 4108)
    (jmod-steering-wheel            uint8                     32        :offset-assert 4112)
@@ -540,5 +546,25 @@
     (wvehicle-method-270 (_type_ float object) none) ;; 270
     (wvehicle-method-271 (_type_) none) ;; 271
     )
+  )
+
+;; og:preserve-this vehicle-antenna rung: landed here, not vehicle-antenna.gc
+;; itself, so (method 64 wvehicle)'s own antenna-spawn call (wvehicle-
+;; util.gc, compiling far earlier in the game's own build order than
+;; vehicle-antenna.o) can build the params struct and forward-declare
+;; vehicle-antenna-spawn's signature against a real type rather than a
+;; second forward declaration. Field types field-verified against this
+;; rung's own scoped decode of both objects, all four :offset-asserts
+;; matching the already-resurrected all-types.gc dead block byte-exact.
+(deftype vehicle-antenna-init-params (structure)
+  ((pos     vector :inline :offset-assert 0)
+   (tilt    float          :offset-assert 16)
+   (vehicle process         :offset-assert 20)
+   (skel    basic          :offset-assert 24)
+   (level   level          :offset-assert 28)
+   )
+  :method-count-assert 9
+  :size-assert         #x20
+  :flag-assert         #x900000020
   )
 
