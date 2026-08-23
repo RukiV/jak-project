@@ -216,3 +216,21 @@ bool goal_crash_map_format_stack_goal_attribution_for_test(u64 value,
                                                            u64 mem_size,
                                                            char* out,
                                                            size_t out_size);
+
+// test seam (issue #716 round 5): forwards to the crash handler's pure per-field
+// classifier (format_thread_field() in goal_crash_map.cpp), used by the pp thread-field
+// dump for every field of pp's own thread(s) (name, process, previous, suspend-hook,
+// resume-hook, pc, sp, stack-top): tries the real code/object map first (lookup(), hence
+// g_objs_mutex), then the registered symbol-table region (format_symbol_slot(), the
+// discriminator for a hook corrupted to #f or an unbound symbol), then a bare
+// zero/unmapped flag. No behavior change from the crash-handler path.
+void goal_crash_map_format_thread_field_for_test(const char* field_name,
+                                                 u32 value,
+                                                 const u8* base,
+                                                 u64 window_size,
+                                                 u32 symtab_lo,
+                                                 u32 symtab_hi,
+                                                 u32 s7_offset,
+                                                 u32 symbol_string_base,
+                                                 char* out,
+                                                 size_t out_size);

@@ -736,3 +736,67 @@ TEST(GoalCrashMap, FormatStackGoalAttributionFalseOutsideGoalRange) {
                                                                      mem_size, out, sizeof(out)));
   EXPECT_STREQ(out, "untouched");
 }
+
+// issue #716 round 5: the pp thread-field classifier. A raw zero is flagged distinctly
+// (round 1/2's "zero where a code pointer belongs" class); a value resolving through the
+// real object map names it (what a healthy suspend-hook/resume-hook should do); a value
+// resolving through the registered symbol-table region instead is exactly the
+// discriminator this dump exists to catch -- a hook corrupted to #f or another symbol;
+// anything else is flagged unmapped.
+TEST(GoalCrashMap, FormatThreadFieldFlagsZero) {
+  char out[256];
+  goal_crash_map_format_thread_field_for_test("resume-hook", 0, nullptr, 0, 0, 0, 0, 0, out,
+                                              sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("resume-hook"), std::string::npos) << line;
+  EXPECT_NE(line.find("(goal 0)"), std::string::npos) << line;
+  EXPECT_NE(line.find("ZERO"), std::string::npos) << line;
+}
+
+TEST(GoalCrashMap, FormatThreadFieldResolvesRealFunction) {
+  const u32 obj = 0x00b10000;
+  goal_crash_map_record(obj, "gkernel", 0x5900);
+
+  char out[256];
+  goal_crash_map_format_thread_field_for_test("resume-hook", obj + 0x270, nullptr, 0x8000000, 0, 0,
+                                              0, 0, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("resume-hook"), std::string::npos) << line;
+  EXPECT_NE(line.find("gkernel+0x270"), std::string::npos) << line;
+  EXPECT_EQ(line.find("FLAG"), std::string::npos) << line;
+}
+
+// the exact discriminator this feature exists for: a hook field that resolves not to a
+// function but to a named symbol-table slot (e.g. corrupted to hold #f).
+TEST(GoalCrashMap, FormatThreadFieldFlagsSymbolTableSlot) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 symtab_lo = 0x1000;
+  const u32 symtab_hi = 0x1900;
+  const u32 s7_offset = 0x1500;
+  const u32 symbol_string_base = 0x1000;
+  const u32 candidate = 0x1600;
+  const u32 name_ptr_addr = symbol_string_base + candidate - s7_offset;
+  const u32 str_ptr = 0x1200;
+  write_u32(mem, name_ptr_addr, str_ptr);
+  write_cstr(mem, str_ptr + 4, "#f");
+  write_u32(mem, candidate - 1, candidate);  // unbound (self-referential): #f's own shape
+
+  char out[256];
+  goal_crash_map_format_thread_field_for_test("suspend-hook", candidate, mem.data(), window_size,
+                                              symtab_lo, symtab_hi, s7_offset, symbol_string_base,
+                                              out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("suspend-hook"), std::string::npos) << line;
+  EXPECT_NE(line.find("symbol slot '#f'"), std::string::npos) << line;
+}
+
+TEST(GoalCrashMap, FormatThreadFieldFlagsUnmapped) {
+  char out[256];
+  goal_crash_map_format_thread_field_for_test("previous", 0x00c99999, nullptr, 0x8000000, 0, 0, 0,
+                                              0, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("previous"), std::string::npos) << line;
+  EXPECT_NE(line.find("UNMAPPED (FLAG)"), std::string::npos) << line;
+}

@@ -1,6 +1,7 @@
 #include "goal_crash_map.h"
 
 #include <algorithm>
+#include <atomic>
 #include <cstdio>
 #include <cstring>
 #include <mutex>
@@ -425,6 +426,21 @@ constexpr u64 PROCESS_MAIN_THREAD_OFF = 0x34;   // process :offset-assert 56
 constexpr u64 PROCESS_TOP_THREAD_OFF = 0x38;    // process :offset-assert 60
 constexpr u64 THREAD_PC_OFF = 0x14;             // thread pc, 6th field after the type tag
 constexpr u64 THREAD_SP_OFF = 0x18;             // thread sp, 7th field after the type tag
+// issue #716 round 5: the rest of thread's own field layout (goal_src/*/kernel/gkernel-h.gc's
+// `(deftype thread (basic) (name process previous suspend-hook resume-hook pc sp
+// stack-top stack-size))`), same pointer-relative conversion as every other offset in
+// this file. Round 3's disassembly proved the initializers for suspend-hook/resume-hook
+// are parity-correct with jak3 (nothing to restore), which leaves "corrupted after
+// construction" as the live theory; dumping every field directly off pp's own thread(s)
+// -- no scan needed, pp is already in hand as ctx->R13 -- either names the clobbered
+// field or clears all of them.
+constexpr u64 THREAD_NAME_OFF = 0x0;
+constexpr u64 THREAD_PROCESS_OFF = 0x4;
+constexpr u64 THREAD_PREVIOUS_OFF = 0x8;
+constexpr u64 THREAD_SUSPEND_HOOK_OFF = 0xC;
+constexpr u64 THREAD_RESUME_HOOK_OFF = 0x10;
+constexpr u64 THREAD_STACK_TOP_OFF = 0x1C;
+constexpr u64 THREAD_STACK_SIZE_OFF = 0x20;
 // cpu-thread extends thread (9 fields, ending at pointer-relative 0x24) with
 // `(rreg uint64 7)`: the 7 general-purpose registers thread-suspend's asm body backs up
 // wholesale (goal_src/*/kernel/gkernel.gc: `(set! (-> this rreg N) temp)` x7) and
@@ -545,6 +561,132 @@ void format_thread_line(const char* proc_name,
 // Both sentinels have to be checked.
 bool is_present_ptr(u32 addr, u32 false_addr) {
   return addr != 0 && addr != false_addr;
+}
+
+// issue #716 round 5: classify one raw thread/cpu-thread field value for the pp
+// thread-field dump below. A stored field is always a raw goal-relative offset (never a
+// live register), so no register-style dual reading is needed. Tries, in order: the
+// real code/object map (lookup(), what a real function-pointer hook like suspend-hook or
+// resume-hook should resolve to), then the registered symbol-table region
+// (format_symbol_slot(), what a corrupted hook holding #f or an unbound symbol resolves
+// to instead -- this is the exact discriminator the dump exists to surface), then a bare
+// UNMAPPED flag. A raw zero gets its own explicit tag rather than falling through to
+// "unmapped", since 0 is a distinct, meaningful reading (round 1/2's "zero where a code
+// pointer belongs" class, separate from #f).
+void format_thread_field(const char* field_name,
+                         u32 value,
+                         const u8* base,
+                         u64 window_size,
+                         u32 symtab_lo,
+                         u32 symtab_hi,
+                         u32 s7_offset,
+                         u32 symbol_string_base,
+                         char* out,
+                         size_t out_size) {
+  int n = std::snprintf(out, out_size, "    %-14s (goal %#x)", field_name, value);
+  if (n < 0 || (size_t)n >= out_size) {
+    return;
+  }
+  auto append = [&](const char* fmt, auto... args) {
+    if ((size_t)n < out_size) {
+      int m = std::snprintf(out + n, out_size - n, fmt, args...);
+      if (m > 0) {
+        n += m;
+      }
+    }
+  };
+  if (value == 0) {
+    append("%s", " <- ZERO");
+    return;
+  }
+  const ObjRec* o = lookup(value);
+  if (o) {
+    append(" %s+%#x [%#x,+%#x)", o->name, value - o->start, o->start, o->extent);
+    return;
+  }
+  char slot[96];
+  if (format_symbol_slot(value, base, window_size, symtab_lo, symtab_hi, s7_offset,
+                         symbol_string_base, slot, sizeof(slot))) {
+    append(" <- %s", slot);
+    return;
+  }
+  append("%s", " <- UNMAPPED (FLAG)");
+}
+
+// issue #716 round 5: dump every field of pp's own thread(s) directly -- no scan, pp is
+// already in hand as ctx->R13. Round 4's raw stack window showed 256 bytes of zeros
+// under a lone return-into-thread-suspend at [rsp+0]: exactly the shape of a suspended
+// thread's own shallow stack (thread-suspend copies only [sp, stack-top) of the
+// process's own stack, and a freshly-suspended process has used almost none of it), so
+// the standing read is that the kernel dispatcher switched onto some process's saved
+// thread context and called a hook field holding #f instead of resuming through the
+// saved pc. Round 3 already proved the initializers (cpu-thread's `new`, `activate`) are
+// byte-identical to jak3, so if a hook is bad here it was corrupted after construction,
+// not left unset by a missing initializer -- and naming WHICH field is bad is what turns
+// "somewhere a write clobbers this thread" into a targeted hunt for that writer.
+void dump_pp_thread_fields(u32 pp,
+                           const u8* base,
+                           u64 window_size,
+                           u32 symtab_lo,
+                           u32 symtab_hi,
+                           u32 s7_offset,
+                           u32 symbol_string_base,
+                           u32 false_addr) {
+  fprintf(stderr, "pp thread fields (direct from pp, no scan):\n");
+  u32 main_thread = 0;
+  u32 top_thread = 0;
+  bool have_main =
+      bounded_read_u32(base, window_size, (u64)pp + PROCESS_MAIN_THREAD_OFF, &main_thread);
+  bool have_top =
+      bounded_read_u32(base, window_size, (u64)pp + PROCESS_TOP_THREAD_OFF, &top_thread);
+  struct {
+    const char* role;
+    u32 addr;
+    bool valid;
+  } threads[2] = {
+      {"main-thread", main_thread, have_main && is_present_ptr(main_thread, false_addr)},
+      {"top-thread", top_thread,
+       have_top && is_present_ptr(top_thread, false_addr) && top_thread != main_thread},
+  };
+  bool printed_any = false;
+  for (const auto& t : threads) {
+    if (!t.valid || t.addr >= window_size || (t.addr & OFFSET_MASK) != BASIC_OFFSET) {
+      continue;
+    }
+    printed_any = true;
+    fprintf(stderr, "  %s (goal %#x):\n", t.role, t.addr);
+    struct {
+      const char* name;
+      u64 off;
+    } fields[] = {
+        {"name", THREAD_NAME_OFF},
+        {"process", THREAD_PROCESS_OFF},
+        {"previous", THREAD_PREVIOUS_OFF},
+        {"suspend-hook", THREAD_SUSPEND_HOOK_OFF},
+        {"resume-hook", THREAD_RESUME_HOOK_OFF},
+        {"pc", THREAD_PC_OFF},
+        {"sp", THREAD_SP_OFF},
+        {"stack-top", THREAD_STACK_TOP_OFF},
+    };
+    for (const auto& f : fields) {
+      u32 v = 0;
+      if (!bounded_read_u32(base, window_size, (u64)t.addr + f.off, &v)) {
+        fprintf(stderr, "    %-14s (out of window)\n", f.name);
+        continue;
+      }
+      char line[256];
+      format_thread_field(f.name, v, base, window_size, symtab_lo, symtab_hi, s7_offset,
+                          symbol_string_base, line, sizeof(line));
+      fprintf(stderr, "%s\n", line);
+    }
+    u32 stack_size = 0;
+    if (bounded_read_u32(base, window_size, (u64)t.addr + THREAD_STACK_SIZE_OFF, &stack_size)) {
+      fprintf(stderr, "    %-14s %d (decimal)\n", "stack-size", (int)stack_size);
+    }
+  }
+  if (!printed_any) {
+    fprintf(stderr, "  (pp has no valid thread to dump)\n");
+  }
 }
 
 void dump_process_pool_threads(u32 root,
@@ -768,27 +910,19 @@ void heap_scan_processes(const u8* base,
   if (!process_type_addr) {
     return;
   }
-  // issue #716 round 4 postmortem: a full window_size/8 (~16.7M position) scan measured
-  // on a live crash did not complete -- the process was gone before this function's
-  // first fprintf of a match, on two consecutive attempts, one with this call site's own
-  // __try/__except wrap in place and one without, both truncating at the exact same
-  // point (right after the header line above). That symmetry says the loss is not a
-  // straightforward access violation this function's own SEH wrapper would catch (it
-  // never printed its fallback message either time); the leading suspect is simply
-  // taking too long on the faulting thread while whatever already-crashed state that
-  // thread is in gets torn down from outside this function's control. MAX_SCAN_POSITIONS
-  // bounds the scan to a size that completes fast regardless of cause, at the honest
-  // cost of not covering the full 128MB in one pass -- a partial, always-terminating
-  // scan beats a full one that silently erases the rest of the report.
-  constexpr u64 MAX_SCAN_POSITIONS = 2 * 1024 * 1024;  // 16 MB prefix of the window
-  fprintf(stderr,
-          "heap scan (process objects found by type tag, not tree-linked, first %llu MB):\n",
-          (unsigned long long)(MAX_SCAN_POSITIONS * 8 / (1024 * 1024)));
+  // issue #716 round 4 postmortem, round 5 fix: a full window_size/8 (~16.7M position)
+  // scan measured on a live crash did not complete even after bounding it to a 16MB
+  // prefix -- the truncation point never moved, which is the signature of stack
+  // exhaustion, not scan duration (round 4's raw stack window had already shown why:
+  // the crash context is a suspended thread's own shallow stack, and this function's
+  // own frame plus everything it calls does not fit in what is left of it). The real
+  // fix is structural, not a smaller bound: the caller now runs this function on a
+  // freshly-created OS thread with a generous stack (see the CreateThread call site in
+  // goal_crash_filter), so the scan covers the full window again here.
+  fprintf(stderr, "heap scan (process objects found by type tag, not tree-linked):\n");
   int found = 0;
   int reported = 0;
-  u64 positions_scanned = 0;
-  for (u64 p = 0; p + 4 <= window_size && positions_scanned < MAX_SCAN_POSITIONS;
-       p += 8, positions_scanned++) {
+  for (u64 p = 0; p + 4 <= window_size; p += 8) {
     u32 tag = 0;
     if (!bounded_read_u32(base, window_size, p, &tag)) {
       continue;
@@ -953,17 +1087,98 @@ void print_native_rip(u64 rip) {
 thread_local bool g_in_handler = false;
 // (no saved previous filter: the vectored handler coexists with any SEH chain)
 
+// issue #716 round 5: process-wide (NOT thread_local, unlike g_in_handler above) guard
+// for the dedicated heap-scan thread below. VEH is process-wide -- if the scan thread
+// itself ever faults, goal_crash_filter() runs again on THAT thread, where g_in_handler
+// (thread_local) reads false, so without this it would look like a brand-new,
+// unrelated crash and recurse into printing a second full report (and spawning a
+// second scan thread). This flag is best-effort synchronization only (a crash-time
+// "don't recurse" signal, not a correctness-critical data structure), hence a plain
+// atomic bool rather than a lock a fault handler would rather not take.
+std::atomic<bool> g_in_heap_scan_thread{false};
+
+// issue #716 round 5: the heap scan runs here, on a dedicated OS thread with its own,
+// generous stack, instead of inline in goal_crash_filter(). Round 4's raw stack window
+// showed why inline was wrong: 256 bytes of zeros under a lone return into
+// thread-suspend at [rsp+0] is a suspended GOAL thread's own shallow stack (thread-suspend
+// copies only [sp, stack-top) -- often as little as 256 bytes, per the `(new 'process
+// 'cpu-thread arg0 'trans 256 ...)`-style allocations throughout gkernel.gc), and the
+// fault handler runs ON that same native stack (Windows delivers exceptions on the
+// faulting thread). heap_scan_processes()'s own frame plus everything it calls does not
+// reliably fit in what is left of a stack that small -- identical truncation regardless
+// of how the round-4 scan was bounded, and the round-4 __try/__except never firing, both
+// point at stack exhaustion rather than a data-dependent fault. A fresh thread sidesteps
+// this entirely; WaitForSingleObject with a timeout is the belt to CreateThread's own
+// stack-size braces, in case the scan itself hangs rather than crashes.
+struct HeapScanThreadArgs {
+  const u8* base;
+  u64 window_size;
+  u64 base_addr;
+  u32 process_type_addr;
+  u32 symtab_lo;
+  u32 symtab_hi;
+  u32 false_addr;
+};
+
+DWORD WINAPI heap_scan_thread_proc(LPVOID param) {
+  g_in_heap_scan_thread = true;
+  const auto* args = (const HeapScanThreadArgs*)param;
+  heap_scan_processes(args->base, args->window_size, args->base_addr, args->process_type_addr,
+                      args->symtab_lo, args->symtab_hi, args->false_addr);
+  g_in_heap_scan_thread = false;
+  return 0;
+}
+
+// 8 MB: comfortably larger than any GOAL process stack (the largest seen in
+// goal_src/*/kernel/gkernel-h.gc's DPROCESS_STACK_SIZE/PROCESS_STACK_SIZE constants is a
+// few tens of KB) and in line with a normal Win32 thread's default stack, so this is
+// "give it a real stack", not a tuned/fragile number.
+constexpr SIZE_T HEAP_SCAN_THREAD_STACK_SIZE = 8 * 1024 * 1024;
+constexpr DWORD HEAP_SCAN_THREAD_TIMEOUT_MS = 8000;
+
+void run_heap_scan_on_dedicated_thread(const u8* base,
+                                       u64 window_size,
+                                       u64 base_addr,
+                                       u32 process_type_addr,
+                                       u32 symtab_lo,
+                                       u32 symtab_hi,
+                                       u32 false_addr) {
+  HeapScanThreadArgs args{base,      window_size, base_addr, process_type_addr,
+                          symtab_lo, symtab_hi,   false_addr};
+  HANDLE h =
+      CreateThread(nullptr, HEAP_SCAN_THREAD_STACK_SIZE, heap_scan_thread_proc, &args, 0, nullptr);
+  if (!h) {
+    fprintf(stderr, "  (could not create heap scan thread, error %#lx)\n", GetLastError());
+    return;
+  }
+  DWORD wait_result = WaitForSingleObject(h, HEAP_SCAN_THREAD_TIMEOUT_MS);
+  if (wait_result == WAIT_TIMEOUT) {
+    fprintf(stderr,
+            "  (heap scan thread did not finish within %lu ms -- abandoning it, rest of report "
+            "intact)\n",
+            (unsigned long)HEAP_SCAN_THREAD_TIMEOUT_MS);
+  } else if (wait_result != WAIT_OBJECT_0) {
+    fprintf(stderr, "  (heap scan thread wait failed, error %#lx)\n", GetLastError());
+  }
+  CloseHandle(h);
+}
+
 LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   const auto* er = info->ExceptionRecord;
   const auto* ctx = info->ContextRecord;
 
   // only report faults; pass breakpoints/single-steps straight through so
   // debugger workflows (including hardware watchpoints) stay clean, and guard
-  // against re-entry from the handler's own SEH probes
-  if (g_in_handler || (er->ExceptionCode != EXCEPTION_ACCESS_VIOLATION &&
-                       er->ExceptionCode != EXCEPTION_ILLEGAL_INSTRUCTION &&
-                       er->ExceptionCode != EXCEPTION_INT_DIVIDE_BY_ZERO &&
-                       er->ExceptionCode != EXCEPTION_STACK_OVERFLOW)) {
+  // against re-entry from the handler's own SEH probes. g_in_heap_scan_thread (issue
+  // #716 round 5) covers the one case g_in_handler (thread_local) cannot: VEH is
+  // process-wide, so if the dedicated heap-scan thread itself faults, this filter runs
+  // again on THAT thread, where g_in_handler reads false; without the second check it
+  // would look like an unrelated new crash and recurse into a second full report.
+  if (g_in_handler || g_in_heap_scan_thread.load() ||
+      (er->ExceptionCode != EXCEPTION_ACCESS_VIOLATION &&
+       er->ExceptionCode != EXCEPTION_ILLEGAL_INSTRUCTION &&
+       er->ExceptionCode != EXCEPTION_INT_DIVIDE_BY_ZERO &&
+       er->ExceptionCode != EXCEPTION_STACK_OVERFLOW)) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
   g_in_handler = true;
@@ -1139,6 +1354,13 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
     fprintf(stderr, "pp: #x%llx \"%s\" heap-cur #x%x heap-top #x%x (span %lld, used %lld)\n",
             (unsigned long long)pp, pname, heap_cur, heap_top, (long long)((s64)heap_top - (s64)pp),
             (long long)((s64)heap_cur - (s64)pp));
+
+    // issue #716 round 5: dump every field of pp's own thread(s) directly. Cheap and
+    // targeted -- pp is already validated (< mem_size, just used above), so this needs
+    // no scan and no extra guarding beyond the bounded reads dump_pp_thread_fields()
+    // already uses internally.
+    dump_pp_thread_fields((u32)pp, base, mem_size, g_symtab_lo, g_symtab_hi, s7.offset,
+                          g_symbol_string_base, s7.offset);
   }
 
   // GOAL "backtrace": stack quadwords that point into GOAL memory, symbolized
@@ -1213,23 +1435,19 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
                               g_symtab_hi, s7.offset);
   }
 
-  // issue #716 round 4: heap scan. g_process_type_addr is 0 (no-op guard) unless the
+  // issue #716 round 4/5: heap scan. g_process_type_addr is 0 (no-op guard) unless the
   // running game registered one; unlike the sweep above, this does not depend on
   // reachability from *active-pool* at all, so it is not gated on g_process_pool_root.
-  // __try here even though every read inside heap_scan_processes() is already the same
-  // bounded_read_u32/u64 the rest of this file trusts against window_size: this is the
-  // one call site that walks the ENTIRE 128MB window rather than a handful of
-  // already-live pointer-derived addresses, so it is the one place a "bounded against
-  // window_size" read is not the same claim as "bounded against what is actually
-  // committed, mapped memory" -- belt-and-suspenders, matching the receiver dump's own
-  // __try above, and required reading: a crash reporter must never crash itself.
+  // Runs on a dedicated thread (run_heap_scan_on_dedicated_thread() above) rather than
+  // inline: round 4 measured this exact scan failing to complete on THIS thread's own
+  // stack (a suspended GOAL thread's shallow native stack -- see that function's doc
+  // comment), truncating the report before a single result printed, with no SEH
+  // exception ever raised to catch. A fresh thread's own stack sidesteps that; the
+  // timeout inside run_heap_scan_on_dedicated_thread() is the remaining belt in case the
+  // scan hangs instead.
   if (base && g_process_type_addr) {
-    __try {
-      heap_scan_processes(base, mem_size, base_addr, g_process_type_addr, g_symtab_lo, g_symtab_hi,
-                          s7.offset);
-    } __except (EXCEPTION_EXECUTE_HANDLER) {
-      fprintf(stderr, "  (heap scan faulted partway through -- aborting, rest of report intact)\n");
-    }
+    run_heap_scan_on_dedicated_thread(base, mem_size, base_addr, g_process_type_addr, g_symtab_lo,
+                                      g_symtab_hi, s7.offset);
     fflush(stderr);
   }
 
@@ -1351,6 +1569,21 @@ bool goal_crash_map_format_stack_goal_attribution_for_test(u64 value,
                                                            size_t out_size) {
   std::lock_guard<std::mutex> lock(g_objs_mutex);
   return format_stack_goal_attribution(value, base_addr, mem_size, out, out_size);
+}
+
+void goal_crash_map_format_thread_field_for_test(const char* field_name,
+                                                 u32 value,
+                                                 const u8* base,
+                                                 u64 window_size,
+                                                 u32 symtab_lo,
+                                                 u32 symtab_hi,
+                                                 u32 s7_offset,
+                                                 u32 symbol_string_base,
+                                                 char* out,
+                                                 size_t out_size) {
+  std::lock_guard<std::mutex> lock(g_objs_mutex);
+  format_thread_field(field_name, value, base, window_size, symtab_lo, symtab_hi, s7_offset,
+                      symbol_string_base, out, out_size);
 }
 
 void goal_crash_map_set_symbol_string_base(u32 symbol_string_base) {
