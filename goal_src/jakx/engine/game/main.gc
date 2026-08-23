@@ -4595,6 +4595,44 @@
 ;;     )
 ;;   )
 
+;; og:preserve-this jakx PC-port addition, not decoded/retail code: jakx has no
+;; *pc-settings* layer and no pc/ port directory at all, so there is nowhere to
+;; carry jak2 and jak3's own draw-build-revision (jak2/pc/pckernel.gc:876-890,
+;; jak3/pc/pckernel.gc:767-781) verbatim. This mirrors it at the smallest scale
+;; that jakx's landed text API allows:
+;;  - the string needs no new C++ hook. kmachine.cpp's InitMachine_PCPort already
+;;    interns *pc-settings-built-sha* from build_revision() at boot
+;;    (game/kernel/jakx/kmachine.cpp:485-486), the same call gfx.cpp uses to build
+;;    the window title bar (game/graphics/gfx.cpp:79-86).
+;;  - *pc-encoded-temp-string*, the <COLOR_WHITE>-tag scratch buffer jak2/jak3
+;;    route the string through before draw-string-adv, is not landed in jakx, so
+;;    the font-context's own color field is set directly instead (font-color
+;;    white); the drawn text comes out the same color.
+;;  - jak1 draws the same string too, but near the top of the screen via
+;;    (get-video-params) relative-y-scale (jak1/pc/pckernel.gc:520-527,
+;;    jak1/engine/game/main.gc:425-426), a video-params field jakx's own
+;;    video-params type does not have. jak2/jak3's fixed bottom-left (2, 406)
+;;    font-context origin is what was asked for here, and needs no such field.
+(define *jakx-build-overlay* #t) ;; og:preserve-this jakx-local lever standing in
+;; for jak2/jak3's *display-sha*: on those games it is a bare, self-valued
+;; (default-on) global flipped by a "Display git commit" debug-menu toggle
+;; (jak2/pc/debug/default-menu-pc.gc:983, jak3/pc/debug/default-menu-pc.gc:952)
+;; that jakx's menu2 code has no equivalent entry for. This defaults #t the same
+;; way and can be muted with (set! *jakx-build-overlay* #f) from the REPL instead.
+
+(defun draw-build-revision ()
+  "PC-port bottom-left build-hash overlay, mirroring jak2/jak3's draw-build-revision."
+  (with-dma-buffer-add-bucket ((buf (-> (current-frame) global-buf))
+                               (bucket-id debug-no-zbuf2))
+    ;; reset bucket settings prior to drawing - font won't do this for us, and
+    ;; draw-raw-image can sometimes mess them up.
+    (dma-buffer-add-gs-set-flusha buf
+                                  (alpha-1 (new 'static 'gs-alpha :b #x1 :d #x1))
+                                  (tex1-1 (new 'static 'gs-tex1 :mmag #x1 :mmin #x1)))
+    (let ((font-ctx (new 'stack 'font-context *font-default-matrix* 2 406 0.0 (font-color white) (font-flags shadow kerning large))))
+      (set! (-> font-ctx scale) 0.25)
+      (draw-string-adv *pc-settings-built-sha* buf font-ctx))))
+
 ;; definition for function display-loop
 (defbehavior display-loop process ()
   (stack-size-set! (-> self main-thread) 512)
@@ -4744,6 +4782,18 @@
           )
         0
         )
+      ;; og:preserve-this PC-port addition, matching jak2 and jak3's own hook point
+      ;; in this same while loop (jak2/engine/game/main.gc:1117-1120,
+      ;; jak3/engine/game/main.gc:1703-1707): draw the bottom-left build-hash text
+      ;; every frame. See draw-build-revision above for the *pc-settings* and
+      ;; *display-sha* gap notes; there is no (update *pc-settings*) call to mirror
+      ;; since that struct does not exist here.
+      (if (and *jakx-build-overlay*
+               *debug-segment*
+               (or (zero? *screen-shot-work*) (= (-> *screen-shot-work* count) -1))
+               )
+          (draw-build-revision)
+          )
       )
     )
   (set! *dproc* #f)
