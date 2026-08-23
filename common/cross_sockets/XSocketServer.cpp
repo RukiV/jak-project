@@ -72,7 +72,11 @@ bool XSocketServer::init_server(bool failure_may_occur) {
   }
 
   addr.sin_family = AF_INET;
-  addr.sin_addr.s_addr = INADDR_ANY;
+  // Loopback, not INADDR_ANY: every in-tree client connects to 127.0.0.1, a
+  // wildcard bind exposes the debug listener to the LAN for no benefit, and on
+  // Windows a wildcard listener from a new exe path blocks headless runs on
+  // the firewall consent prompt (loopback-only listeners never prompt).
+  addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
   addr.sin_port = htons(tcp_port);
 
   if (bind(listening_socket, (sockaddr*)&addr, sizeof(addr)) < 0) {
