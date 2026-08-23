@@ -134,9 +134,17 @@ struct VagDir {
   int vag_magic_2 = 0;
   int vag_version = 0;
   int num_entries = 0;
-  VagDirEntry entries[4096];
+  // jak3's own VAGDIR.AYB is 32,784 bytes (num_entries fits inside 4096
+  // entries either way), but jakx's VAGDIR.AYB is 65,536 bytes with
+  // num_entries = 4481, so the old 4096-entry buffer both truncated the load
+  // and let FindVAGFile's num_entries-bounded loop (iso_cd.cpp) read past the
+  // end of this global on late lookups. Doubling to 8192 covers jakx's file
+  // with room to spare; the load path already clamps to maxlen (iso.cpp), so
+  // the larger buffer just stops the truncation instead of changing behavior
+  // for jak3.
+  VagDirEntry entries[8192];
 };
-static_assert(sizeof(VagDir) == 0x8010);
+static_assert(sizeof(VagDir) == 0x10010);
 
 constexpr int MUSIC_TWEAK_COUNT = 0x40;
 struct MusicTweaks {
