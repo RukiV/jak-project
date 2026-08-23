@@ -2400,6 +2400,66 @@
   (none)
   )
 
+;; og:preserve-this issue 709 acceptance harness, built for jakx-runtime-observer's
+;; verification pass (this lane never boots, per its own lane rule). Reruns the
+;; exact predicate kill-level-typed-processes and R2/R3's scrubs use, against
+;; whatever heap range the LAST unload! call left latched in
+;; *level-sweep-heap-base*/*level-sweep-heap-top*, and reports -- never kills --
+;; any process that still dispatches through it. Positive control per the issue:
+;; on a pre-R1 tree, a level swap that reproduces 709/716 (member 3: boot,
+;; display iced, goto havjung; member 2: two jungle window swaps then goto ice)
+;; must show at least one survivor here; on this tree, with R1-R3 landed, it must
+;; show zero. A rescan that finds nothing on a known-bad boot means the harness
+;; itself is wrong, not that the defect is gone. Retires if/when this becomes a
+;; standing regression test instead of a one-off acceptance check.
+(define *level-residue-rescan-count* 0)
+
+;; forward declaration so the recursive call inside this function's own body
+;; below resolves as a function call, not a method-dispatch lookup on
+;; process-tree.
+(define-extern level-residue-rescan-walk (function process-tree none))
+
+(defun level-residue-rescan-walk ((tree process-tree))
+  "Non-mutating full visit of every node under tree, same child/brother
+   recursion inspect-process-tree uses (kernel/gkernel.gc), reporting any
+   process whose type still falls inside [*level-sweep-heap-base*,
+   *level-sweep-heap-top*)."
+  (when (not (logtest? (-> tree mask) (process-mask process-tree)))
+    (let ((proc (the-as process tree)))
+      (when (in-level-sweep-range? (the-as int (-> proc type)))
+        (+! *level-residue-rescan-count* 1)
+        (format 0 "level-residue-rescan: SURVIVOR process ~A type #x~X~%"
+                (-> proc name)
+                (the-as int (-> proc type))
+                )
+        )
+      )
+    )
+  (let ((v1-0 (-> tree child)))
+    (while v1-0
+      (level-residue-rescan-walk (-> v1-0 0))
+      (set! v1-0 (-> v1-0 0 brother))
+      )
+    )
+  (none)
+  )
+
+(defun-debug level-residue-rescan ()
+  "Acceptance harness for issue 709. Call right after triggering a level
+   unload, before anything else can reuse the discarded heap:
+   *level-sweep-heap-base*/*level-sweep-heap-top* hold whatever the LAST
+   unload! call recorded. Prints one line per survivor and returns the
+   survivor count."
+  (set! *level-residue-rescan-count* 0)
+  (format 0 "level-residue-rescan: range [#x~X, #x~X)~%"
+          *level-sweep-heap-base*
+          *level-sweep-heap-top*
+          )
+  (level-residue-rescan-walk *active-pool*)
+  (format 0 "level-residue-rescan: ~D survivor(s)~%" *level-residue-rescan-count*)
+  *level-residue-rescan-count*
+  )
+
 ;; definition for method 10 of type level
 (defmethod unload! ((this level))
   ((method-of-type entity-more-perm-hash entity-more-perm-hash-method-14)
