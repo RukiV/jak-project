@@ -476,6 +476,11 @@ constexpr u32 PROCESS_TREE_MASK_BIT = 0x100;
 // loop or overflow the fixed work stack below inside a fault handler; both the visit
 // budget and the work-stack array share this bound.
 constexpr int MAX_POOL_WALK_NODES = 1024;
+// issue #716 round 6: how many leaf process addresses walk_active_pool_dispatch_order()
+// collects into its caller-provided fixed array; comfortably above any realistic live
+// process count for this game, bounding the array itself, not just the tree walk that
+// fills it.
+constexpr int MAX_DISPATCH_ORDER_COLLECT = 512;
 
 // issue #716/#723: format one line of the suspended-thread sweep for a single thread
 // already read off a process's main-thread/top-thread field. pc is classified against
@@ -613,40 +618,46 @@ void format_thread_field(const char* field_name,
   append("%s", " <- UNMAPPED (FLAG)");
 }
 
-// issue #716 round 5: dump every field of pp's own thread(s) directly -- no scan, pp is
-// already in hand as ctx->R13. Round 4's raw stack window showed 256 bytes of zeros
-// under a lone return-into-thread-suspend at [rsp+0]: exactly the shape of a suspended
-// thread's own shallow stack (thread-suspend copies only [sp, stack-top) of the
-// process's own stack, and a freshly-suspended process has used almost none of it), so
-// the standing read is that the kernel dispatcher switched onto some process's saved
-// thread context and called a hook field holding #f instead of resuming through the
-// saved pc. Round 3 already proved the initializers (cpu-thread's `new`, `activate`) are
-// byte-identical to jak3, so if a hook is bad here it was corrupted after construction,
-// not left unset by a missing initializer -- and naming WHICH field is bad is what turns
-// "somewhere a write clobbers this thread" into a targeted hunt for that writer.
-void dump_pp_thread_fields(u32 pp,
-                           const u8* base,
-                           u64 window_size,
-                           u32 symtab_lo,
-                           u32 symtab_hi,
-                           u32 s7_offset,
-                           u32 symbol_string_base,
-                           u32 false_addr) {
-  fprintf(stderr, "pp thread fields (direct from pp, no scan):\n");
+// issue #716 round 5/6: dump every field of a process's own thread(s) directly -- no
+// scan, just the fixed offsets off an already-known process address (pp, or one found
+// by the dispatch-order walk below). Round 4's raw stack window showed 256 bytes of
+// zeros under a lone return-into-thread-suspend at [rsp+0]: exactly the shape of a
+// suspended thread's own shallow stack, consistent with the kernel dispatcher having
+// switched onto some process's saved thread context and called a hook field holding #f
+// instead of resuming through the saved pc. Round 3 already proved the initializers
+// (cpu-thread's `new`, `activate`) are byte-identical to jak3, so if a hook is bad here
+// it was corrupted after construction, not left unset -- naming WHICH field is bad turns
+// "something clobbers this thread" into a targeted hunt for the writer.
+//
+// Round 6: prints BOTH main-thread and top-thread unconditionally, explicitly noting
+// when they are the same address, rather than silently deduplicating (round 5's own
+// version skipped top-thread whenever it matched main-thread, which is an inference,
+// not a verification, of the standing "this codebase's documented reading rule: pp
+// names the PREVIOUS process for a dispatch-time fault, not the one actually
+// mid-dispatch" trap this round is working around).
+void dump_process_thread_fields(u32 proc,
+                                const char* proc_label,
+                                const u8* base,
+                                u64 window_size,
+                                u32 symtab_lo,
+                                u32 symtab_hi,
+                                u32 s7_offset,
+                                u32 symbol_string_base,
+                                u32 false_addr) {
+  fprintf(stderr, "%s thread fields (direct, no scan):\n", proc_label);
   u32 main_thread = 0;
   u32 top_thread = 0;
   bool have_main =
-      bounded_read_u32(base, window_size, (u64)pp + PROCESS_MAIN_THREAD_OFF, &main_thread);
+      bounded_read_u32(base, window_size, (u64)proc + PROCESS_MAIN_THREAD_OFF, &main_thread);
   bool have_top =
-      bounded_read_u32(base, window_size, (u64)pp + PROCESS_TOP_THREAD_OFF, &top_thread);
+      bounded_read_u32(base, window_size, (u64)proc + PROCESS_TOP_THREAD_OFF, &top_thread);
   struct {
     const char* role;
     u32 addr;
     bool valid;
   } threads[2] = {
       {"main-thread", main_thread, have_main && is_present_ptr(main_thread, false_addr)},
-      {"top-thread", top_thread,
-       have_top && is_present_ptr(top_thread, false_addr) && top_thread != main_thread},
+      {"top-thread", top_thread, have_top && is_present_ptr(top_thread, false_addr)},
   };
   bool printed_any = false;
   for (const auto& t : threads) {
@@ -654,7 +665,10 @@ void dump_pp_thread_fields(u32 pp,
       continue;
     }
     printed_any = true;
-    fprintf(stderr, "  %s (goal %#x):\n", t.role, t.addr);
+    fprintf(stderr, "  %s (goal %#x)%s:\n", t.role, t.addr,
+            (t.addr == main_thread && t.addr == top_thread && std::string(t.role) == "top-thread")
+                ? " -- same address as main-thread, verified not inferred"
+                : "");
     struct {
       const char* name;
       u64 off;
@@ -685,8 +699,64 @@ void dump_pp_thread_fields(u32 pp,
     }
   }
   if (!printed_any) {
-    fprintf(stderr, "  (pp has no valid thread to dump)\n");
+    fprintf(stderr, "  (%s has no valid thread to dump)\n", proc_label);
   }
+}
+
+// issue #716 round 6: the standing "pp names the previous process, not the one actually
+// mid-dispatch" reading trap for this codebase. Walks *active-pool* in the SAME pre-order
+// execute-process-tree() itself uses (goal_src/*/kernel/gkernel.gc: visit a node, then
+// recurse fully into its child -- and everything under that child -- before touching its
+// brother). This is the OPPOSITE work-stack push order from dump_process_pool_threads()
+// above (push child then brother, so brother pops first): that function only needs EVERY
+// leaf visited once, in any order, so the mismatch never mattered before now, but finding
+// "the process the dispatcher visits right after pp" needs the real order. Collects up to
+// max_count leaf process addresses into out_processes, in dispatch-visitation order;
+// returns how many were collected (never more than max_count, so a very large or
+// corrupt-and-cyclic tree cannot make this unbounded -- MAX_POOL_WALK_NODES still caps
+// total nodes visited too).
+int walk_active_pool_dispatch_order(u32 root,
+                                    const u8* base,
+                                    u64 window_size,
+                                    u32 false_addr,
+                                    u32* out_processes,
+                                    int max_count) {
+  if (!root || root >= window_size || (root & OFFSET_MASK) != BASIC_OFFSET) {
+    return 0;
+  }
+  u32 work[MAX_POOL_WALK_NODES];
+  int work_count = 0;
+  work[work_count++] = root;
+  int visited = 0;
+  int collected = 0;
+  while (work_count > 0 && visited < MAX_POOL_WALK_NODES && collected < max_count) {
+    u32 node = work[--work_count];
+    visited++;
+    if (!node || node >= window_size || (node & OFFSET_MASK) != BASIC_OFFSET) {
+      continue;
+    }
+    u32 mask = 0;
+    if (bounded_read_u32(base, window_size, node + PROCESS_TREE_MASK_OFF, &mask) &&
+        !(mask & PROCESS_TREE_MASK_BIT)) {
+      out_processes[collected++] = node;
+    }
+    u32 child = 0;
+    u32 brother = 0;
+    bool have_child = bounded_read_u32(base, window_size, node + PROCESS_TREE_CHILD_OFF, &child) &&
+                      is_present_ptr(child, false_addr) && child < window_size;
+    bool have_brother =
+        bounded_read_u32(base, window_size, node + PROCESS_TREE_BROTHER_OFF, &brother) &&
+        is_present_ptr(brother, false_addr) && brother < window_size;
+    // brother pushed first (deeper in the stack) so child pops next: matches
+    // execute-process-tree's own "fully recurse into child before touching brother".
+    if (have_brother && work_count < MAX_POOL_WALK_NODES) {
+      work[work_count++] = brother;
+    }
+    if (have_child && work_count < MAX_POOL_WALK_NODES) {
+      work[work_count++] = child;
+    }
+  }
+  return collected;
 }
 
 void dump_process_pool_threads(u32 root,
@@ -888,18 +958,57 @@ bool format_stack_goal_attribution(u64 value,
   return true;
 }
 
-// issue #716 round 4: dump every process-typed object found by scanning GOAL memory
-// directly for a type tag that resolves to `process` or a subtype (type_is_process_subtype()
-// above), rather than by following *active-pool*'s tree links the way
-// dump_process_pool_threads() above does. This is what closes round 1's two blind spots
-// at once: a process the tree walk can't reach (mid-teardown, still in a dead pool, or
-// simply never linked) still has a live, correctly-tagged object sitting in memory, and
-// this scan finds it regardless; and it dumps the full rreg array (format_rreg_line()
-// above), not just pc/sp. Every 8-byte-aligned position in the 128MB window is a
-// candidate type-tag slot (a valid basic pointer's tag sits 4 bytes before it, so the
-// candidate object address is always tag_addr + 4, itself 8-aligned exactly when the
-// scan position is); this is O(window_size / 8) bounded reads, no different in kind from
-// the stack scan above, just over a much larger range.
+// issue #716 round 6: fixed-size, statically-allocated scratch buffer the heap-scan
+// thread writes its findings into. NO CRT stdio from the scan thread (fprintf/printf
+// take an internal per-FILE lock on the stream; round 5's dedicated-thread fix made the
+// crash survive far longer -- 60+ seconds instead of dying in ~10 -- but the scan's own
+// output, and even its timeout message, never appeared, which is the signature of that
+// lock being contended with the handler thread rather than free) and NO heap allocation
+// (a crash handler's worst possible place to need one). The handler thread is the only
+// one that ever calls fprintf on this data, and only after WaitForSingleObject returns
+// (or times out), entirely off the scan thread's own critical path. Plain (non-atomic)
+// size_t is deliberate: the scan thread is this buffer's sole writer for the life of one
+// scan, and the handler thread only reads it after the scan thread has been joined or
+// abandoned, so there is no concurrent access to synchronize -- adding an atomic here
+// would be the fault-handler equivalent of a lock this fix exists to remove.
+constexpr size_t HEAP_SCAN_BUFFER_SIZE = 64 * 1024;
+char g_heap_scan_buffer[HEAP_SCAN_BUFFER_SIZE];
+size_t g_heap_scan_buffer_used = 0;
+
+// appends text into g_heap_scan_buffer, silently truncating (never past capacity, never
+// undefined behavior, matching this file's "must never crash" posture even for its own
+// scratch space) rather than growing it.
+void heap_scan_buffer_append(const char* text) {
+  size_t len = std::strlen(text);
+  if (g_heap_scan_buffer_used >= HEAP_SCAN_BUFFER_SIZE - 1) {
+    return;
+  }
+  size_t room = HEAP_SCAN_BUFFER_SIZE - 1 - g_heap_scan_buffer_used;
+  size_t n = len < room ? len : room;
+  std::memcpy(g_heap_scan_buffer + g_heap_scan_buffer_used, text, n);
+  g_heap_scan_buffer_used += n;
+  g_heap_scan_buffer[g_heap_scan_buffer_used] = 0;
+}
+
+void heap_scan_buffer_append_line(const char* text) {
+  heap_scan_buffer_append(text);
+  heap_scan_buffer_append("\n");
+}
+
+// issue #716 round 4/6: dump every process-typed object found by scanning GOAL memory
+// directly for a type tag that resolves to `process` or a subtype
+// (type_is_process_subtype() above), rather than by following *active-pool*'s tree links
+// the way dump_process_pool_threads() above does. This is what closes round 1's two
+// blind spots at once: a process the tree walk can't reach (mid-teardown, still in a
+// dead pool, or simply never linked) still has a live, correctly-tagged object sitting
+// in memory, and this scan finds it regardless; and it dumps the full rreg array
+// (format_rreg_line() above), not just pc/sp. Every 8-byte-aligned position in the
+// 128MB window is a candidate type-tag slot (a valid basic pointer's tag sits 4 bytes
+// before it, so the candidate object address is always tag_addr + 4, itself 8-aligned
+// exactly when the scan position is); this is O(window_size / 8) bounded reads, no
+// different in kind from the stack scan above, just over a much larger range. Every
+// line of output goes through heap_scan_buffer_append_line() above, not fprintf --
+// see that function's doc comment for why.
 void heap_scan_processes(const u8* base,
                          u64 window_size,
                          u64 base_addr,
@@ -910,18 +1019,10 @@ void heap_scan_processes(const u8* base,
   if (!process_type_addr) {
     return;
   }
-  // issue #716 round 4 postmortem, round 5 fix: a full window_size/8 (~16.7M position)
-  // scan measured on a live crash did not complete even after bounding it to a 16MB
-  // prefix -- the truncation point never moved, which is the signature of stack
-  // exhaustion, not scan duration (round 4's raw stack window had already shown why:
-  // the crash context is a suspended thread's own shallow stack, and this function's
-  // own frame plus everything it calls does not fit in what is left of it). The real
-  // fix is structural, not a smaller bound: the caller now runs this function on a
-  // freshly-created OS thread with a generous stack (see the CreateThread call site in
-  // goal_crash_filter), so the scan covers the full window again here.
-  fprintf(stderr, "heap scan (process objects found by type tag, not tree-linked):\n");
+  heap_scan_buffer_append_line("heap scan (process objects found by type tag, not tree-linked):");
   int found = 0;
   int reported = 0;
+  char line[512];
   for (u64 p = 0; p + 4 <= window_size; p += 8) {
     u32 tag = 0;
     if (!bounded_read_u32(base, window_size, p, &tag)) {
@@ -951,8 +1052,9 @@ void heap_scan_processes(const u8* base,
         format_symbol_slot(status, base, window_size, symtab_lo, symtab_hi, false_addr,
                            g_symbol_string_base, status_slot, sizeof(status_slot));
 
-    fprintf(stderr, "  process %#010x \"%s\" status %s\n", node, pname,
-            status_named ? status_slot : (have_status ? "(unresolved)" : "(unreadable)"));
+    std::snprintf(line, sizeof(line), "  process %#010x \"%s\" status %s", node, pname,
+                  status_named ? status_slot : (have_status ? "(unresolved)" : "(unreadable)"));
+    heap_scan_buffer_append_line(line);
 
     u32 main_thread = 0;
     u32 top_thread = 0;
@@ -978,10 +1080,9 @@ void heap_scan_processes(const u8* base,
       bounded_read_u32(base, window_size, (u64)t.addr + THREAD_SP_OFF, &sp);
       u64 ra = 0;
       bool have_ra = is_present_ptr(sp, false_addr) && bounded_read_u64(base, window_size, sp, &ra);
-      char line[256];
       format_thread_line(pname, t.role, pc, sp, have_ra, ra, base_addr, window_size, symtab_lo,
                          symtab_hi, line, sizeof(line));
-      fprintf(stderr, "%s\n", line);
+      heap_scan_buffer_append_line(line);
 
       u64 rreg[CPU_THREAD_RREG_COUNT] = {0};
       bool have_all_rreg = true;
@@ -995,11 +1096,13 @@ void heap_scan_processes(const u8* base,
       if (have_all_rreg) {
         char rline[512];
         format_rreg_line(rreg, base_addr, window_size, symtab_lo, symtab_hi, rline, sizeof(rline));
-        fprintf(stderr, "  %s %s\n", t.role, rline);
+        std::snprintf(line, sizeof(line), "  %s %s", t.role, rline);
+        heap_scan_buffer_append_line(line);
       }
     }
   }
-  fprintf(stderr, "  (%d process object(s) found, %d printed)\n", found, reported);
+  std::snprintf(line, sizeof(line), "  (%d process object(s) found, %d printed)", found, reported);
+  heap_scan_buffer_append_line(line);
 }
 
 #ifdef _WIN32
@@ -1122,9 +1225,15 @@ struct HeapScanThreadArgs {
 
 DWORD WINAPI heap_scan_thread_proc(LPVOID param) {
   g_in_heap_scan_thread = true;
+  // issue #716 round 6: written before anything else, so the buffer distinguishes
+  // "thread never ran" (buffer stays whatever run_heap_scan_on_dedicated_thread() reset
+  // it to -- empty) from "thread ran and hung mid-scan" (buffer starts with this line,
+  // then has whatever heap_scan_processes() got through before the timeout).
+  heap_scan_buffer_append_line("[heap-scan-thread: started]");
   const auto* args = (const HeapScanThreadArgs*)param;
   heap_scan_processes(args->base, args->window_size, args->base_addr, args->process_type_addr,
                       args->symtab_lo, args->symtab_hi, args->false_addr);
+  heap_scan_buffer_append_line("[heap-scan-thread: finished]");
   g_in_heap_scan_thread = false;
   return 0;
 }
@@ -1136,6 +1245,12 @@ DWORD WINAPI heap_scan_thread_proc(LPVOID param) {
 constexpr SIZE_T HEAP_SCAN_THREAD_STACK_SIZE = 8 * 1024 * 1024;
 constexpr DWORD HEAP_SCAN_THREAD_TIMEOUT_MS = 8000;
 
+// issue #716 round 6: the ONLY fprintf(stderr, ...) in the whole heap-scan path now
+// happens here, on the handler thread, after the scan thread has been joined or
+// abandoned -- never on the scan thread itself. See heap_scan_buffer_append()'s doc
+// comment for why (round 5's dedicated-thread fix survived far longer but still never
+// printed anything, including its own timeout message, which is the CRT stdio stream
+// lock's signature, not stack exhaustion's).
 void run_heap_scan_on_dedicated_thread(const u8* base,
                                        u64 window_size,
                                        u64 base_addr,
@@ -1143,6 +1258,8 @@ void run_heap_scan_on_dedicated_thread(const u8* base,
                                        u32 symtab_lo,
                                        u32 symtab_hi,
                                        u32 false_addr) {
+  g_heap_scan_buffer_used = 0;
+  g_heap_scan_buffer[0] = 0;
   HeapScanThreadArgs args{base,      window_size, base_addr, process_type_addr,
                           symtab_lo, symtab_hi,   false_addr};
   HANDLE h =
@@ -1152,10 +1269,15 @@ void run_heap_scan_on_dedicated_thread(const u8* base,
     return;
   }
   DWORD wait_result = WaitForSingleObject(h, HEAP_SCAN_THREAD_TIMEOUT_MS);
+  if (g_heap_scan_buffer_used > 0) {
+    fprintf(stderr, "%s", g_heap_scan_buffer);
+  } else {
+    fprintf(stderr, "  (heap scan thread wrote nothing at all -- it never ran)\n");
+  }
   if (wait_result == WAIT_TIMEOUT) {
     fprintf(stderr,
             "  (heap scan thread did not finish within %lu ms -- abandoning it, rest of report "
-            "intact)\n",
+            "intact; the buffer above is a TRUNCATED partial result)\n",
             (unsigned long)HEAP_SCAN_THREAD_TIMEOUT_MS);
   } else if (wait_result != WAIT_OBJECT_0) {
     fprintf(stderr, "  (heap scan thread wait failed, error %#lx)\n", GetLastError());
@@ -1355,12 +1477,50 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
             (unsigned long long)pp, pname, heap_cur, heap_top, (long long)((s64)heap_top - (s64)pp),
             (long long)((s64)heap_cur - (s64)pp));
 
-    // issue #716 round 5: dump every field of pp's own thread(s) directly. Cheap and
-    // targeted -- pp is already validated (< mem_size, just used above), so this needs
-    // no scan and no extra guarding beyond the bounded reads dump_pp_thread_fields()
-    // already uses internally.
-    dump_pp_thread_fields((u32)pp, base, mem_size, g_symtab_lo, g_symtab_hi, s7.offset,
-                          g_symbol_string_base, s7.offset);
+    // issue #716 round 6: this codebase's documented reading trap for dispatch-time
+    // faults -- pp is written once, before the dispatcher calls into a process, and is
+    // NOT updated if the fault actually belongs to whatever got dispatched next; round
+    // 5's finding that pp ("target")'s own thread state is perfectly healthy is exactly
+    // what that trap predicts when pp is the previous, not the faulting, process. So:
+    // walk *active-pool* in dispatch order, find pp in that sequence, and dump the same
+    // per-thread field block for pp AND for the one or two processes the dispatcher
+    // would have visited right after it -- cheap (a handful of tree-node reads, not a
+    // scan) since walk_active_pool_dispatch_order() is bounded the same way the round-1
+    // sweep already is.
+    dump_process_thread_fields((u32)pp, "pp (dispatch-order PREVIOUS -- may not be the fault)",
+                               base, mem_size, g_symtab_lo, g_symtab_hi, s7.offset,
+                               g_symbol_string_base, s7.offset);
+    if (g_process_pool_root) {
+      u32 order[MAX_DISPATCH_ORDER_COLLECT];
+      int n_order = walk_active_pool_dispatch_order(g_process_pool_root, base, mem_size, s7.offset,
+                                                    order, MAX_DISPATCH_ORDER_COLLECT);
+      int pp_index = -1;
+      for (int i = 0; i < n_order; i++) {
+        if (order[i] == (u32)pp) {
+          pp_index = i;
+          break;
+        }
+      }
+      if (pp_index < 0) {
+        fprintf(stderr,
+                "dispatch order: pp not found among %d process(es) walked from *active-pool* "
+                "(mid-teardown, dead-pool, or unlinked)\n",
+                n_order);
+      } else {
+        for (int k = 1; k <= 2; k++) {
+          int idx = pp_index + k;
+          if (idx >= n_order) {
+            fprintf(stderr, "dispatch order: no NEXT #%d after pp (pp was last of %d walked)\n", k,
+                    n_order);
+            break;
+          }
+          char label[64];
+          std::snprintf(label, sizeof(label), "dispatch-order NEXT #%d after pp", k);
+          dump_process_thread_fields(order[idx], label, base, mem_size, g_symtab_lo, g_symtab_hi,
+                                     s7.offset, g_symbol_string_base, s7.offset);
+        }
+      }
+    }
   }
 
   // GOAL "backtrace": stack quadwords that point into GOAL memory, symbolized
@@ -1584,6 +1744,16 @@ void goal_crash_map_format_thread_field_for_test(const char* field_name,
   std::lock_guard<std::mutex> lock(g_objs_mutex);
   format_thread_field(field_name, value, base, window_size, symtab_lo, symtab_hi, s7_offset,
                       symbol_string_base, out, out_size);
+}
+
+int goal_crash_map_walk_active_pool_dispatch_order_for_test(u32 root,
+                                                            const u8* base,
+                                                            u64 window_size,
+                                                            u32 false_addr,
+                                                            u32* out_processes,
+                                                            int max_count) {
+  return walk_active_pool_dispatch_order(root, base, window_size, false_addr, out_processes,
+                                         max_count);
 }
 
 void goal_crash_map_set_symbol_string_base(u32 symbol_string_base) {

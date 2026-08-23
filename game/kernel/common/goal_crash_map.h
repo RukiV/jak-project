@@ -234,3 +234,18 @@ void goal_crash_map_format_thread_field_for_test(const char* field_name,
                                                  u32 symbol_string_base,
                                                  char* out,
                                                  size_t out_size);
+
+// test seam (issue #716 round 6): forwards to the crash handler's pure dispatch-order
+// tree walk (walk_active_pool_dispatch_order() in goal_crash_map.cpp): visits *root* in
+// the SAME pre-order execute-process-tree() itself uses (recurse fully into a node's
+// child, and everything under it, before touching its brother -- the opposite work-stack
+// push order from the round-1 sweep's own walk, a latent mismatch this seam exists to
+// pin down), collecting up to max_count leaf process addresses into out_processes in
+// that visitation order. Returns how many were collected. No g_objs access, no mutex
+// needed. No behavior change from the crash-handler path.
+int goal_crash_map_walk_active_pool_dispatch_order_for_test(u32 root,
+                                                            const u8* base,
+                                                            u64 window_size,
+                                                            u32 false_addr,
+                                                            u32* out_processes,
+                                                            int max_count);

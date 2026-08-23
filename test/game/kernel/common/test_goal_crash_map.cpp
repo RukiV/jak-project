@@ -800,3 +800,78 @@ TEST(GoalCrashMap, FormatThreadFieldFlagsUnmapped) {
   EXPECT_NE(line.find("previous"), std::string::npos) << line;
   EXPECT_NE(line.find("UNMAPPED (FLAG)"), std::string::npos) << line;
 }
+
+// issue #716 round 6: the dispatch-order walk must reproduce execute-process-tree's own
+// pre-order (recurse fully into a node's child, and everything under it, before
+// touching its brother) -- proven against a small hand-built tree where a naive
+// "push child then brother" stack (the round-1 sweep's own order, a latent mismatch
+// this test pins down) would visit these leaves in a different order than the real
+// dispatcher does.
+//
+// tree shape (child/brother links):
+//   root.child = c1;  c1.brother = c2;  c2.brother = c3;  c1.child = c1a
+// root and c1 are pools (mask bit set, not collected); c1a, c2, c3 are leaves.
+// execute-process-tree's own recursion visits: root, then fully into c1's subtree
+// (c1, then c1's own child c1a) before c1's sibling c2, then c2's sibling c3 --
+// collected leaf order: c1a, c2, c3.
+TEST(GoalCrashMap, WalkActivePoolDispatchOrderMatchesExecuteProcessTreePreOrder) {
+  const u64 window_size = 0x3000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 root = 0x1004;
+  const u32 c1 = 0x1104;
+  const u32 c1a = 0x1204;
+  const u32 c2 = 0x1304;
+  const u32 c3 = 0x1404;
+  constexpr u32 MASK_OFF = 0x4;
+  constexpr u32 BROTHER_OFF = 0x14;
+  constexpr u32 CHILD_OFF = 0x18;
+  constexpr u32 PROCESS_TREE_BIT = 0x100;
+
+  write_u32(mem, root + MASK_OFF, PROCESS_TREE_BIT);
+  write_u32(mem, root + CHILD_OFF, c1);
+
+  write_u32(mem, c1 + MASK_OFF, PROCESS_TREE_BIT);
+  write_u32(mem, c1 + CHILD_OFF, c1a);
+  write_u32(mem, c1 + BROTHER_OFF, c2);
+
+  write_u32(mem, c1a + MASK_OFF, 0);  // leaf
+
+  write_u32(mem, c2 + MASK_OFF, 0);  // leaf
+  write_u32(mem, c2 + BROTHER_OFF, c3);
+
+  write_u32(mem, c3 + MASK_OFF, 0);  // leaf
+
+  u32 collected[8] = {0};
+  int n = goal_crash_map_walk_active_pool_dispatch_order_for_test(root, mem.data(), window_size,
+                                                                  /*false_addr=*/0, collected, 8);
+  ASSERT_EQ(n, 3);
+  EXPECT_EQ(collected[0], c1a);
+  EXPECT_EQ(collected[1], c2);
+  EXPECT_EQ(collected[2], c3);
+}
+
+// max_count bounds the OUTPUT array; a corrupt or oversized tree must not overflow it.
+TEST(GoalCrashMap, WalkActivePoolDispatchOrderRespectsMaxCount) {
+  const u64 window_size = 0x3000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 root = 0x2004;
+  const u32 c1 = 0x2104;
+  const u32 c2 = 0x2204;
+  constexpr u32 MASK_OFF = 0x4;
+  constexpr u32 BROTHER_OFF = 0x14;
+  constexpr u32 CHILD_OFF = 0x18;
+
+  write_u32(mem, root + MASK_OFF, 0x100);
+  write_u32(mem, root + CHILD_OFF, c1);
+  write_u32(mem, c1 + MASK_OFF, 0);  // leaf
+  write_u32(mem, c1 + BROTHER_OFF, c2);
+  write_u32(mem, c2 + MASK_OFF, 0);  // leaf
+
+  u32 collected[1] = {0};
+  int n = goal_crash_map_walk_active_pool_dispatch_order_for_test(root, mem.data(), window_size, 0,
+                                                                  collected, 1);
+  EXPECT_EQ(n, 1);
+  EXPECT_EQ(collected[0], c1);
+}
