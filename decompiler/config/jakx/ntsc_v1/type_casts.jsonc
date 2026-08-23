@@ -11304,5 +11304,60 @@
   // call-site proven, not guessed.
   "write-process-as-handle": [
     [3, "a1", "process-nettable"]
+  ],
+  // trailcasts rung (process-narrowing-cast class): should-draw? (method 20
+  // light-trail-tracker) reads the tracked object's own draw field ("Could
+  // not figure out load: (set! a2 (l.wu (+ a1 192)))" at op 17, the same read
+  // repeated at ops 21/30/34) even after PR645 retyped tracked-object to
+  // handle; the sllv/lwu/dsra32 handle->process fold at ops 5/6/8 only
+  // resolves once a1 (the fold's own output) is known to be process-drawable
+  // at each of those four reads, matching jak3's own already-landed twin
+  // (goal_src/jak3/engine/gfx/sprite/particles/light-trails.gc's should-draw?:
+  // "(the-as process-drawable a1-0) draw"). jak3's own type_casts.jsonc entry
+  // for this function ("(method 19 light-trail-tracker)", jak3's own
+  // unshifted slot number) casts the identical four ops (17/21/30/34) on the
+  // identical register (a1); this rung's own scoped decode confirms jakx's
+  // raw body needs the same four ops, unshifted, at jakx's own slot 20.
+  "(method 20 light-trail-tracker)": [
+    [17, "a1", "process-drawable"],
+    [21, "a1", "process-drawable"],
+    [30, "a1", "process-drawable"],
+    [34, "a1", "process-drawable"]
+  ],
+  // trailcasts rung: weapon-trail-tracker's and tread-trail-tracker's own
+  // tracking states hit the same tracked-process-field-narrowing wall in
+  // their :trans handlers, gp holding the fold's tracked-process output
+  // rather than should-draw?'s own a1. tread-trail-tracker's own scoped-
+  // decode error ("Could not figure out load: (set! a0 (l.wu (+ gp 192)))"
+  // at op 27, repeated at op 30) is the same process-drawable draw-field read
+  // should-draw? hits; weapon-trail-tracker's own ("... (+ gp 188) ..." at
+  // op 36, repeated at op 45) is process-drawable's adjacent node-list field
+  // (raw 188 -> declared 192, the +4 basics offset below draw's declared
+  // 196), read for the joint0/joint1 vector<-cspace! calls jak3's own twin
+  // body performs ("(-> (the-as process-drawable gp-0) node-list data (->
+  // self joint0))"). Both op sets match jak3's own type_casts.jsonc entries
+  // for these twins op-for-op ("(trans tracking tread-trail-tracker)": ops
+  // 27/30; "(trans tracking weapon-trail-tracker)": ops 36/45), confirming
+  // the per-field offset rather than a fresh guess.
+  "(trans tracking tread-trail-tracker)": [
+    [27, "gp", "process-drawable"],
+    [30, "gp", "process-drawable"]
+  ],
+  "(trans tracking weapon-trail-tracker)": [
+    [36, "gp", "process-drawable"],
+    [45, "gp", "process-drawable"]
+  ],
+  // trailcasts rung: tire-trail-tracker-method-23 (wvehicle-effects.gc, a
+  // jakx-only method with no jak3 twin) hits the identical process-
+  // drawable draw-field wall via its own local naming ("Could not figure
+  // out load: (set! a1 (l.wu (+ v1 192)))" at op 16, repeated at op 23);
+  // register v1 here plays should-draw?'s own a1 role (the sllv fold's
+  // output). This rung's own scoped decode (allowed_objects: [wvehicle-
+  // effects]) shows the same simple (and v1-1 (nonzero? (-> (the-as
+  // process-drawable v1-1) draw))) shape should-draw?'s own first check
+  // uses, minus the logtest? status masking; casting narrows both reads.
+  "(method 23 tire-trail-tracker)": [
+    [16, "v1", "process-drawable"],
+    [23, "v1", "process-drawable"]
   ]
 }

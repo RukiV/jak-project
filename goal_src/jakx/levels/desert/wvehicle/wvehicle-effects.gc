@@ -40,6 +40,21 @@
 ;; calls the held tire-trail-tracker-method-23 and :post calls the held
 ;; tire-trail-tracker-method-22, so the whole state stays held. Nothing new
 ;; lands in this object this rung.
+;;
+;; og:preserve-this trailcasts rung: tire-trail-tracker-method-23's own
+;; sllv/draw-field wall retires (decompiler/config/jakx/ntsc_v1/
+;; type_casts.jsonc's own "(method 23 tire-trail-tracker)" note carries the
+;; full citation), but the method itself does not land: its own body calls
+;; common-trans! directly (light-trail's own method 14, light-trails.gc),
+;; the same unlanded-callee wall that file's own common-trans! note
+;; describes, now the sole reason this method and the tracking state below
+;; stay held. tire-trail-tracker-method-22 DOES land (below, between the
+;; deftype and tire-trail-tracker-init-by-other, matching this rung's own
+;; scoped decode's natural order): its only callee, light-trail-tracker-
+;; common-post, lands this same rung in light-trails.gc (see that file's
+;; own trailcasts-rung note). tire-trail-tracker's own tracking state stays
+;; held regardless: its :post calls the now-landed method-22, but its
+;; :trans still calls the held method-23.
 
 (deftype tire-trail-crumb (light-trail-breadcrumb)
   ((offset vector :inline :offset-assert 16)
@@ -80,6 +95,15 @@
   (:state-methods
     tracking ;; 15 (override, reuses the inherited slot)
     )
+  )
+
+;; og:preserve-this trailcasts rung: lands clean, its only callee
+;; (light-trail-tracker-common-post) landed this same rung in
+;; light-trails.gc. See this file's own top-of-file note for the full
+;; citation.
+(defmethod tire-trail-tracker-method-22 tire-trail-tracker () (light-trail-tracker-common-post)
+  0
+  (none)
   )
 
 (defbehavior tire-trail-tracker-init-by-other tire-trail-tracker ((arg0 light-trail-tracker-spawn-params))

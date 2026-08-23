@@ -261,6 +261,28 @@
 ;; trailfinal-rung note for weapon-trail-tracker/tread-trail-tracker's
 ;; tracking (same class, different offsets: 188 and 192) and the full
 ;; common-post chain.
+;;
+;; og:preserve-this trailcasts rung: should-draw? retires from the held
+;; list above. Its own remaining wall was the fresh "Could not figure out
+;; load: (set! a2 (l.wu (+ a1 192)))" this note's own trailfinal-rung
+;; paragraph cites, a read of process-drawable's own draw field (raw 192,
+;; declared 196, the +4 basics offset) on a1, the sllv fold's own output.
+;; decompiler/config/jakx/ntsc_v1/type_casts.jsonc now carries a
+;; "(method 20 light-trail-tracker)" entry narrowing a1 to process-drawable
+;; at the four ops that read it (17/21/30/34), matching jak3's own already-
+;; landed twin body's four (the-as process-drawable a1-0) casts
+;; (goal_src/jak3/engine/gfx/sprite/particles/light-trails.gc's own
+;; should-draw?) and jak3's own type_casts.jsonc entry for the same
+;; function ("(method 19 light-trail-tracker)", jak3's own unshifted slot
+;; number) on the identical four ops. The and/or nesting this note blamed
+;; above was never the real blocker; the whole function's fold cascade was
+;; downstream of the one unresolved load, and fixing the load resolves the
+;; sllv fold too. should-draw? and light-trail-tracker-common-post both land
+;; in light-trails.gc this rung (see that file's own trailcasts-rung note
+;; for the full landing-order citation); tracking, die, and every
+;; descendant's own tracking/hang-on state stay held, now solely on
+;; common-trans!'s own unrelated integer-subtract wall against
+;; expire-old-points!, out of this rung's scope.
 (deftype light-trail-tracker (process)
   ((trail                light-trail  :offset-assert 144) ;; guessed by decompiler
    (tracked-object       handle       :offset-assert 152)

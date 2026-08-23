@@ -435,6 +435,26 @@
   (none)
   )
 
+;; og:preserve-this trailcasts rung: clean scoped decode, landed once
+;; should-draw? (below) resolves the same rung. light-trail-method-13 (its
+;; other callee) already landed. See the fresh note further below for the
+;; full retirement citation against this file's own "tracker rung"/
+;; "trailfinal rung" notes.
+(defbehavior light-trail-tracker-common-post light-trail-tracker ()
+  (cond
+    ((should-draw? self)
+     (light-trail-method-13 (-> self trail))
+     )
+    (else
+      (set! (-> self trail strip num-verts) (the-as uint 0))
+      (when (-> self trail strip2)
+        (set! (-> self trail strip2 num-verts) (the-as uint 0))
+        0
+        )
+      )
+    )
+  )
+
 (defmethod relocate ((this light-trail) (offset int))
   (&+! (-> this crumb-array) offset)
   (&+! (-> this strip) offset)
@@ -588,6 +608,37 @@
 ;; should-draw?, and :post is the held common-post regardless. All state
 ;; bodies stay held this rung; only the one self-contained function
 ;; (init-by-other) was clean enough to land.
+;;
+;; og:preserve-this trailcasts rung: should-draw? and light-trail-tracker-
+;; common-post retire from the held list above. should-draw?'s own remaining
+;; wall (the trailfinal rung's own citation: an unresolved sllv fold plus
+;; "Could not figure out load: (l.wu (+ a1 192))" on the tracked process)
+;; resolves with a type_casts.jsonc entry narrowing a1 to process-drawable at
+;; the four ops that read its own draw field (raw 192, declared 196, the
+;; same +4 basics offset the note above already cites for a different
+;; function), matching jak3's own already-landed twin body's four (the-as
+;; process-drawable a1-0) casts op-for-op (light-trails-h.gc's own note on
+;; the light-trail-tracker deftype carries the full citation, including
+;; jak3's own type_casts.jsonc entry for the same four ops). The sllv fold
+;; was never blocked by the and/or nesting itself; the whole function's fold
+;; cascade was blocked by the same unresolved load, and fixing the load
+;; unblocks both in the same pass. should-draw? lands below (between
+;; should-end? and add-crumb!, matching jak3's own file order and the
+;; declared slot table); common-post lands above (right after
+;; reset-crumbs!, also matching jak3's own file order), calling the now-
+;; landed should-draw? and the already-landed light-trail-method-13.
+;; weapon-trail-tracker's and tread-trail-tracker's own tracking :trans
+;; handlers hit the identical process-drawable-field wall (188 and 192
+;; respectively; process-drawable's node-list and draw fields, one basics
+;; word apart) and resolve the same way (type_casts.jsonc, see that file's
+;; own note); both now decode fully clean too, event and trans alike. None
+;; of the state bodies land this rung regardless: die, both trackings, both
+;; hang-ons, and the base tracking's own :trans all call common-trans!
+;; (light-trail's own method 14, this file, above), itself still held on
+;; the unrelated "Couldn't figure out integer subtract: (uint and float)"
+;; wall against expire-old-points! (also this file, above), an out-of-scope
+;; class this rung does not touch. The base tracking state's own :event also
+;; still fails on its own unrelated f2i-on-uint wall, doubly held.
 
 (defmethod get-tracked-object-pos ((this light-trail-tracker) (arg0 process-focusable) (arg1 vector))
   (let ((a0-2 (as-type arg0 process-focusable)))
@@ -608,6 +659,64 @@
 
 (defmethod should-end? ((this light-trail-tracker) (arg0 process-focusable))
   (not arg0)
+  )
+
+;; og:preserve-this trailcasts rung: retires the should-draw? hold this
+;; file's own "tracker rung"/"trailfinal rung" notes above describe. See the
+;; fresh note further above (right after common-trans!/reset-crumbs!) for
+;; the full retirement citation.
+(defmethod should-draw? ((this light-trail-tracker))
+  (let ((a1-0 (handle->process (-> this tracked-object))))
+    #t
+    (let ((v1-4 #t))
+      (let ((a0-4 #f))
+        (if (and a1-0
+                 (nonzero? (-> (the-as process-drawable a1-0) draw))
+                 (logtest? (-> (the-as process-drawable a1-0) draw status)
+                           (draw-control-status no-draw no-draw-temp no-draw-bounds no-draw-bounds2)
+                           )
+                 )
+            (set! v1-4 #f)
+            )
+        (if (and a1-0
+                 (nonzero? (-> (the-as process-drawable a1-0) draw))
+                 (logtest? (-> (the-as process-drawable a1-0) draw status) (draw-control-status on-screen))
+                 )
+            (set! a0-4 #t)
+            )
+        (when v1-4
+          (if (and (-> this offscreen?) (not a0-4))
+              (set! v1-4 #f)
+              )
+          (when (< (the-as time-frame (-> this next-line-check-time)) (current-time))
+            (let ((a0-11 (-> this trail crumb-count)))
+              (when (< 1 a0-11)
+                (let ((v1-8 (&+ (-> this trail crumb-array data) (* (-> this trail crumb-size) 0)))
+                      (a1-19 (&+ (-> this trail crumb-array data) (* (the-as int (-> this trail crumb-size)) (+ a0-11 -1))))
+                      )
+                  (set! v1-4 (line-in-view-frustum? (the-as vector (&+ v1-8 0)) (the-as vector (&+ a1-19 0))))
+                  )
+                )
+              )
+            (set! (-> this next-line-check-time) (the-as uint (current-time)))
+            )
+          )
+        )
+      (when (and (not v1-4) (not (-> this offscreen?)))
+        (set! (-> this offscreen?) #t)
+        (set! (-> this offscreen-start-time) (the-as uint (current-time)))
+        )
+      (if (and v1-4 (-> this offscreen?))
+          (set! (-> this offscreen?) #f)
+          )
+      )
+    )
+  (or (not (-> this offscreen?)) (not (time-elapsed?
+                                        (the-as int (-> this offscreen-start-time))
+                                        (the int (* 0.5 (the float (-> this trail appearance max-age))))
+                                        )
+                                      )
+      )
   )
 
 (defmethod add-crumb! ((this light-trail-tracker) (arg0 vector))
