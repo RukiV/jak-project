@@ -260,7 +260,7 @@
     '()
     )
   :code (behavior ((arg0 continue-point))
-    (local-vars (v1-91 symbol) (v1-117 symbol) (root-collide-shape? symbol))
+    (local-vars (v1-91 symbol) (v1-117 symbol) (root-collide-shape? symbol) (camera-combiner-live? symbol))
     ;; og:preserve-this bring-up guard (title-continue chain, three smoke crashes):
     ;; retail transcribes this whole collide-setup region unconditionally (jak3's own
     ;; twin, target-death.gc:503-506, has no guard either: "(let ((v1-2 (-> self
@@ -498,24 +498,53 @@
       (set! (-> *level* border?) s5-5)
       )
     (set! (-> *ACTOR-bank* birth-max) 1000)
+    ;; og:preserve-this bring-up guard (title-continue chain, preventive sweep
+    ;; after the fifth boot smoke): view-get-active-camera-combiner is declared
+    ;; to return plain basic (all-types.gc's own comment on it: "basic because
+    ;; camera-combiner parses later") specifically because it can return #f
+    ;; when no combiner is registered yet, and the op-558/564 wall-cracking
+    ;; rung that first landed this :code already had to cast its result at two
+    ;; call sites here for exactly that reason. The prior three fixes on this
+    ;; state (root-prim, then the nonzero?-vs-when lesson, then the
+    ;; consolidated collide-shape-moving guard) each closed one crash in a
+    ;; five-deep progression (0x2f1, 0x2fd, 0x370, 0x3bb, and the boot's own
+    ;; report attributes the fifth to this same function past the collide
+    ;; guard); rather than wait for a sixth smoke to prove this exact site,
+    ;; this block is swept preventively on the same evidence class: both
+    ;; view-get-active-camera-combiner call results are dereferenced
+    ;; unconditionally (a direct trans/inv-camera-rot field write through the
+    ;; cast, no null check), the same shape as every other crash this leg has
+    ;; found and fixed. Computed once into camera-combiner-live?, matching
+    ;; root-collide-shape?'s own shape; the block still calls
+    ;; view-get-active-camera-combiner twice more inside the guard, unchanged
+    ;; from the decode, since the accessor is a plain read with no side
+    ;; effect and preserving its retail call count matters more than
+    ;; de-duplicating a bring-up-only check. Retires when target-continue's
+    ;; own boot path reaches a real, live camera-combiner by construction
+    ;; (the same camera-start chain this rung's own og:preserve-this notes on
+    ;; *jakx-cam-start* and the math-camera model already track), not
+    ;; specifically tied to rung 3b.
     (when (not (logtest? (-> arg0 flags) (continue-flags no-blackout)))
       (cam-start #t)
       (suspend)
       (when (not (string= (-> arg0 name) "default"))
-        (set! (-> (the-as camera-combiner (view-get-active-camera-combiner)) trans quad) (-> arg0 camera-trans quad))
-        (let ((s5-6 (-> (the-as camera-combiner (view-get-active-camera-combiner)) inv-camera-rot))
-              (s4-2 (-> arg0 camera-rot))
-              )
-          (matrix-identity! s5-6)
-          (set! (-> s5-6 rvec x) (* 0.00003051851 (the float (-> s4-2 0))))
-          (set! (-> s5-6 rvec y) (* 0.00003051851 (the float (-> s4-2 1))))
-          (set! (-> s5-6 rvec z) (* 0.00003051851 (the float (-> s4-2 2))))
-          (set! (-> s5-6 uvec x) (* 0.00003051851 (the float (-> s4-2 3))))
-          (set! (-> s5-6 uvec y) (* 0.00003051851 (the float (-> s4-2 4))))
-          (set! (-> s5-6 uvec z) (* 0.00003051851 (the float (-> s4-2 5))))
-          (set! (-> s5-6 fvec x) (* 0.00003051851 (the float (-> s4-2 6))))
-          (set! (-> s5-6 fvec y) (* 0.00003051851 (the float (-> s4-2 7))))
-          (set! (-> s5-6 fvec z) (* 0.00003051851 (the float (-> s4-2 8))))
+        (set! camera-combiner-live? (nonzero? (view-get-active-camera-combiner)))
+        (when camera-combiner-live?
+          (set! (-> (the-as camera-combiner (view-get-active-camera-combiner)) trans quad) (-> arg0 camera-trans quad))
+          (let ((s5-6 (-> (the-as camera-combiner (view-get-active-camera-combiner)) inv-camera-rot))
+                (s4-2 (-> arg0 camera-rot))
+                )
+            (matrix-identity! s5-6)
+            (set! (-> s5-6 rvec x) (* 0.00003051851 (the float (-> s4-2 0))))
+            (set! (-> s5-6 rvec y) (* 0.00003051851 (the float (-> s4-2 1))))
+            (set! (-> s5-6 rvec z) (* 0.00003051851 (the float (-> s4-2 2))))
+            (set! (-> s5-6 uvec x) (* 0.00003051851 (the float (-> s4-2 3))))
+            (set! (-> s5-6 uvec y) (* 0.00003051851 (the float (-> s4-2 4))))
+            (set! (-> s5-6 uvec z) (* 0.00003051851 (the float (-> s4-2 5))))
+            (set! (-> s5-6 fvec x) (* 0.00003051851 (the float (-> s4-2 6))))
+            (set! (-> s5-6 fvec y) (* 0.00003051851 (the float (-> s4-2 7))))
+            (set! (-> s5-6 fvec z) (* 0.00003051851 (the float (-> s4-2 8))))
+            )
           )
         )
       (cam-master-activate-slave #t)
