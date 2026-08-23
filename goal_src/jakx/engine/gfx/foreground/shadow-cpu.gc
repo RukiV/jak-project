@@ -522,21 +522,30 @@
 (def-mips2c shadow-execute (function shadow-dma-packet pointer pointer))
 
 (defun shadow-vu0-upload ()
-  (let ((gp-0 *vu0-dma-list*))
-    (let ((v1-0 gp-0))
-      (set! (-> v1-0 base) (-> v1-0 data))
-      (set! (-> v1-0 end) (the-as pointer (+ (+ (-> v1-0 allocated-length) 28) (the-as int v1-0))))
+  ;; og:preserve-this PC_PORT guard, jak3's own landed shape (its shadow-cpu.gc
+  ;; wraps this exact body in the same #unless): this function builds a real
+  ;; VU0 microcode upload chain and dma-buffer-send-chain's it to the VIF0
+  ;; bank at #x10008000, pure PS2 hardware; on PC the mips2c suite's own
+  ;; exec_N helpers ARE the VU0 program, so the upload must not run. Landed
+  ;; unguarded from the raw decode, it faulted in dma-send (dma+0x37 reading
+  ;; goal 0) on the first frame that drew a vehicle shadow.
+  (#unless PC_PORT
+    (let ((gp-0 *vu0-dma-list*))
+      (let ((v1-0 gp-0))
+        (set! (-> v1-0 base) (-> v1-0 data))
+        (set! (-> v1-0 end) (the-as pointer (+ (+ (-> v1-0 allocated-length) 28) (the-as int v1-0))))
+        )
+      (dma-buffer-add-vu-function gp-0 shadow-vu0-block 0)
+      (let* ((v1-1 gp-0)
+             (a0-5 (-> v1-1 base))
+             )
+        (set! (-> (the-as (pointer int64) a0-5)) #x70000000)
+        (set! (-> (the-as (pointer uint64) a0-5) 1) (the-as uint 0))
+        (set! (-> v1-1 base) (&+ a0-5 16))
+        )
+      (.sync.l)
+      (dma-buffer-send-chain (the-as dma-bank-source #x10008000) gp-0)
       )
-    (dma-buffer-add-vu-function gp-0 shadow-vu0-block 0)
-    (let* ((v1-1 gp-0)
-           (a0-5 (-> v1-1 base))
-           )
-      (set! (-> (the-as (pointer int64) a0-5)) #x70000000)
-      (set! (-> (the-as (pointer uint64) a0-5) 1) (the-as uint 0))
-      (set! (-> v1-1 base) (&+ a0-5 16))
-      )
-    (.sync.l)
-    (dma-buffer-send-chain (the-as dma-bank-source #x10008000) gp-0)
     )
   0
   (none)
