@@ -615,12 +615,17 @@
                 (with-dma-buffer-add-bucket ((s0-0 (-> *display* frames (-> *display* on-screen) global-buf))
                                              (-> s2-0 bucket-id)
                                              )
-                  (set! (-> (the-as shadow-dcache #x70000000) ptr-dual-verts) (the-as uint 0))
+                  ;; og:preserve-this scratchpad-object, not the raw #x70000000
+                  ;; the decode emitted: jak3's landed twin uses the macro at this
+                  ;; exact site (its shadow-cpu.gc:715/720), which resolves to the
+                  ;; PC fake-scratchpad on PC_PORT; the raw literal wrote to
+                  ;; unmapped 0x70000000+0x2c on the first vehicle-shadow frame.
+                  (set! (-> (scratchpad-object shadow-dcache) ptr-dual-verts) (the-as uint 0))
                   (shadow-vu1-init-buffer s0-0 s3-1 (the-as math-camera s5-1))
                   (flush-cache 0)
                   (let ((sv-32 (shadow-dma-init s0-0 s5-1)))
                     (set! (-> s0-0 base) (shadow-execute (the-as shadow-dma-packet sv-16) (-> s0-0 base)))
-                    (let ((a2-4 (nonzero? (-> (the-as shadow-dcache #x70000000) ptr-dual-verts)))
+                    (let ((a2-4 (nonzero? (-> (scratchpad-object shadow-dcache) ptr-dual-verts)))
                           (a1-12 (logior (shl #x3f800000 32) (shr (shl (the-as int (the-as uint32 (-> s2-0 shadow-color))) 32) 32)))
                           )
                       (let ((v1-47 (-> *time-of-day-context* current-shadow-color)))
