@@ -261,9 +261,37 @@
     )
   :code (behavior ((arg0 continue-point))
     (local-vars (v1-91 symbol) (v1-117 symbol))
+    ;; og:preserve-this bring-up guard (title-continue chain, smoke crash):
+    ;; retail transcribes unconditionally here (jak3's own twin, target-death.gc:503-506,
+    ;; has no guard either: "(let ((v1-2 (-> self control root-prim))) (set! (-> v1-2
+    ;; prim-core collide-as) (collide-spec)) ...)"), because retail's own target-init
+    ;; always gives self root a real collide-shape-moving with a real root-prim by the
+    ;; time :code runs. jakx's own target-init does not yet: its own og:preserve-this
+    ;; note (rung 3a, #164, below) documents self root as "a bare trsqv with no
+    ;; collide-shape and still no draw-control... Retires when the real vehicle chain
+    ;; gives the target its retail root (rung 3b, a separate later change, out of
+    ;; scope here)". Landing this :code verbatim against that gap crashed the default
+    ;; boot: a compile-time disassembly (asm-file :color :disassemble, no live target)
+    ;; pinned it exactly -- (-> self root root-prim) compiles to a read at root+156,
+    ;; landing at or past the end of trsqv's own much smaller allocation, and reads
+    ;; back 0 on this boot; the very next op, (set! (-> v1-1 prim-core collide-as)
+    ;; ...), compiles to a store at [v1-1+28], matching the crash report byte for
+    ;; byte (exception 0xc0000005 writing goal address 0x1c, GOAL code logic-target+
+    ;; 0x2f1, pp "target"). Guarding on v1-1 rather than inventing a collide-shape
+    ;; skips exactly the two writes retail's own precondition would make unreachable
+    ;; here anyway (a null root-prim), asserting nothing new about what those writes
+    ;; should do once rung 3b gives the target its real root. Same structural class
+    ;; (a collide-shape-only method or field touched through self root while it is
+    ;; still a bare trsqv) is also live, unguarded, and UNVERIFIED at (move-to-point!
+    ;; (-> self root) ...) below and at the collide-shape-moving status logior! near
+    ;; this state's own end; neither has been proven to crash (this boot never
+    ;; reached them), so neither is guarded here -- flagged for the next boot attempt
+    ;; rather than guessed at. Retires with the same condition as the rung 3a note.
     (let ((v1-1 (-> self root root-prim)))
-      (set! (-> v1-1 prim-core collide-as) (collide-spec))
-      (set! (-> v1-1 prim-core collide-with) (collide-spec))
+      (when v1-1
+        (set! (-> v1-1 prim-core collide-as) (collide-spec))
+        (set! (-> v1-1 prim-core collide-with) (collide-spec))
+        )
       )
     0
     (set! *spawn-actors* #f)
