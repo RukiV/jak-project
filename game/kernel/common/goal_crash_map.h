@@ -80,6 +80,46 @@ void goal_crash_map_set_symbol_table_region(u32 lo, u32 hi);
 // "not registered", the scan's own no-op guard.
 void goal_crash_map_set_process_type(u32 process_type_addr);
 
+// issue #716 round 7: the endgame instrument. Arms a hardware execute breakpoint (DR0)
+// on the absolute host address of s7 (the #f slot) -- the crash constant every #716
+// occurrence has named since round 2, and the one address round 6 proved no
+// after-the-fact structure walk can ever explain, because at fault time *active-pool*
+// holds one process and pp is not even in it (the crash lives inside a teardown
+// window). Call once, on the actual GOAL/EE thread, after s7 is finalized (debug
+// registers are per-thread; game/kernel/jakx/kscheme.cpp's InitHeapAndSymbol(), right
+// after s7 = symbol_table + 0x8001, is the call site -- it runs ON that thread as part
+// of normal kernel boot). goal_crash_filter() then receives EXCEPTION_SINGLE_STEP with
+// rip exactly at s7+0, BEFORE a single byte there has executed: a pristine stack and
+// pristine registers, unlike every previous round's reconstruction-after-the-fact.
+// Returns false (and arms nothing) if g_ee_main_mem/s7 are not yet valid or the OS call
+// to set the debug registers fails; a game that never calls this simply never arms,
+// same posture as every other jakx-only touchpoint in this file.
+bool goal_crash_map_arm_symbol_breakpoint();
+
+// test seam (issue #716 round 7): forwards to the crash handler's pure DR7 bit math
+// (compute_dr7_for_dr0_execute() in goal_crash_map.cpp): arms DR0 as a 1-byte EXECUTE
+// breakpoint (L0/G0 set, R/W0=00, LEN0=00 -- the only valid LEN for an execute
+// breakpoint) while preserving whatever bits already belong to DR1-DR3 in
+// existing_dr7. No live thread/CPU state touched. No behavior change from the
+// crash-handler path.
+u64 goal_crash_map_compute_dr7_for_dr0_execute_for_test(u64 existing_dr7);
+
+// test seam (issue #716 round 7): forwards to the crash handler's pure DR7 disarm bit
+// math (compute_dr7_with_dr0_disabled() in goal_crash_map.cpp): clears L0/G0 only,
+// leaving DR1-DR3's bits and DR0's own R/W0/LEN0 fields untouched. No live thread/CPU
+// state touched. No behavior change from the crash-handler path.
+u64 goal_crash_map_compute_dr7_with_dr0_disabled_for_test(u64 existing_dr7);
+
+// test seam (issue #716 round 7): reports whether a given (exception_code, rip) pair
+// would be recognized as OUR armed breakpoint by goal_crash_filter()'s own dispatch --
+// exercises the exact discriminator (EXCEPTION_SINGLE_STEP code AND rip equal to the
+// armed address) without needing a live fault, a real thread, or debug registers at
+// all. armed_host_addr stands in for g_symbol_breakpoint_host_addr (0 means "not
+// armed", matching the real default). No behavior change from the crash-handler path.
+bool goal_crash_map_is_symbol_breakpoint_hit_for_test(unsigned long exception_code,
+                                                      unsigned long long rip,
+                                                      unsigned long long armed_host_addr);
+
 // test seam (issue #117): runs the same bounded, latest-wins lookup the crash handler
 // uses internally against the recorded objects, so test_goal_crash_map.cpp can exercise
 // it directly without a live fault. Returns the matching record's name, or nullptr if

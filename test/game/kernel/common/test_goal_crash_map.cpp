@@ -875,3 +875,54 @@ TEST(GoalCrashMap, WalkActivePoolDispatchOrderRespectsMaxCount) {
   EXPECT_EQ(n, 1);
   EXPECT_EQ(collected[0], c1);
 }
+
+// issue #716 round 7: the DR7 bit math. From a clean (zero) DR7, arming DR0 as an
+// execute breakpoint must set exactly L0 (bit 0) and G0 (bit 1), and leave R/W0
+// (bits 16-17) and LEN0 (bits 18-19) at 00 -- execute, 1 byte, the only valid LEN for
+// an execute breakpoint per the Intel/AMD spec, and the coordinator's own explicit care
+// point.
+TEST(GoalCrashMap, ComputeDr7ForDr0ExecuteSetsExactlyTheRightBits) {
+  const u64 dr7 = goal_crash_map_compute_dr7_for_dr0_execute_for_test(0);
+  EXPECT_EQ(dr7 & 0x3ull, 0x3ull) << "L0 and G0 must both be set";
+  EXPECT_EQ((dr7 >> 16) & 0x3ull, 0ull) << "R/W0 must be 00 (execute-only)";
+  EXPECT_EQ((dr7 >> 18) & 0x3ull, 0ull) << "LEN0 must be 00 (1 byte, the only valid LEN "
+                                           "for an execute breakpoint)";
+}
+
+// arming must not disturb whatever bits already belong to DR1-DR3 (modeled here as the
+// upper/other bits of a nonzero starting DR7).
+TEST(GoalCrashMap, ComputeDr7ForDr0ExecutePreservesOtherDebugRegisterBits) {
+  const u64 existing = 0x0000000Cull;  // stand-in "DR1 already configured" bits
+  const u64 dr7 = goal_crash_map_compute_dr7_for_dr0_execute_for_test(existing);
+  EXPECT_EQ(dr7 & existing, existing) << "pre-existing bits must survive arming DR0";
+  EXPECT_EQ(dr7 & 0x3ull, 0x3ull);
+}
+
+// disarming must clear exactly L0/G0 and nothing else -- DR0's own address (Dr0 itself,
+// not modeled in DR7) and any DR1-DR3 configuration must survive.
+TEST(GoalCrashMap, ComputeDr7WithDr0DisabledClearsOnlyL0G0) {
+  const u64 armed = goal_crash_map_compute_dr7_for_dr0_execute_for_test(0x0000000Cull);
+  const u64 disarmed = goal_crash_map_compute_dr7_with_dr0_disabled_for_test(armed);
+  EXPECT_EQ(disarmed & 0x3ull, 0ull) << "L0 and G0 must both be cleared";
+  EXPECT_EQ(disarmed & 0x0000000Cull, 0x0000000Cull) << "unrelated bits must survive";
+}
+
+// issue #716 round 7: the dispatch discriminator. Only EXCEPTION_SINGLE_STEP (the fixed
+// NTSTATUS 0x80000004) with rip exactly equal to a nonzero armed address counts as
+// "ours" -- proven against the near-miss cases that a real reproduction cannot
+// exercise directly (a different exception code at the armed address; the right code
+// at a different address; the right code and address but never armed at all).
+TEST(GoalCrashMap, IsSymbolBreakpointHitMatchesOnlyExactCodeAndAddress) {
+  constexpr unsigned long kSingleStep = 0x80000004UL;
+  constexpr unsigned long kAccessViolation = 0xC0000005UL;
+  const unsigned long long armed = 0x00007ff600123456ull;
+
+  EXPECT_TRUE(goal_crash_map_is_symbol_breakpoint_hit_for_test(kSingleStep, armed, armed));
+  EXPECT_FALSE(goal_crash_map_is_symbol_breakpoint_hit_for_test(kAccessViolation, armed, armed))
+      << "wrong exception code must not match even at the armed address";
+  EXPECT_FALSE(goal_crash_map_is_symbol_breakpoint_hit_for_test(kSingleStep, armed + 8, armed))
+      << "right code at the wrong address must not match";
+  EXPECT_FALSE(goal_crash_map_is_symbol_breakpoint_hit_for_test(kSingleStep, armed, 0))
+      << "armed_host_addr == 0 means never armed, and must never match, even if some "
+         "real rip happened to be exactly 0";
+}

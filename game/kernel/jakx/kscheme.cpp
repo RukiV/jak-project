@@ -1598,6 +1598,15 @@ int InitHeapAndSymbol() {
   // bounds this file's own symbol lookups already use (find_slot_in_area(),
   // find_symbol_in_area() above).
   goal_crash_map_set_symbol_table_region(SymbolTable2.offset, LastSymbol.offset);
+  // issue #716 round 7: arm the hardware execute breakpoint on s7+0 (goal_crash_map.h's
+  // goal_crash_map_arm_symbol_breakpoint() doc comment has the full reasoning). Must run
+  // HERE, on this thread: InitHeapAndSymbol() executes as part of normal kernel boot on
+  // the actual GOAL/EE thread (not a helper thread), and debug registers are per-thread
+  // state, so arming anywhere else would arm the wrong thread's DR0. s7 is fully set by
+  // this point (the line above) and never reassigned afterward, so this is a one-time,
+  // not a live, registration -- the same posture every other jakx-only touchpoint in
+  // goal_crash_map.cpp already has.
+  goal_crash_map_arm_symbol_breakpoint();
   reset_output();
   // empty pair (this is extra confusing).
   *Ptr<u32>(s7.offset + FIX_SYM_EMPTY_CAR - 1) = s7.offset + S7_OFF_FIX_SYM_EMPTY_PAIR;

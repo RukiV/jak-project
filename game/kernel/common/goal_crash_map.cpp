@@ -61,6 +61,16 @@ u32 g_symtab_hi = 0;
 // "not registered", the scan's own no-op guard.
 u32 g_process_type_addr = 0;
 
+// issue #716 round 7: the ABSOLUTE HOST address of s7 (the #f slot) once a hardware
+// execute breakpoint has been armed on it (goal_crash_map_arm_symbol_breakpoint()), 0
+// otherwise. Round 6 proved every surviving-structure walk comes up empty because the
+// crash lives inside a teardown window (*active-pool* down to one process, pp not even
+// in it) -- nothing left standing after the fact can name the caller. This is the
+// instrument that catches the jump AT instruction zero, before any of it: goal_crash_filter()
+// checks a hit's rip against this address to distinguish "our armed breakpoint fired" from
+// any other EXCEPTION_SINGLE_STEP.
+u64 g_symbol_breakpoint_host_addr = 0;
+
 // issue #117: two independent fixes over the old "start <= goal_addr, earliest
 // record wins" scan.
 //
@@ -1105,6 +1115,52 @@ void heap_scan_processes(const u8* base,
   heap_scan_buffer_append_line(line);
 }
 
+// issue #716 round 7: DR7 bit layout for arming DR0 as a hardware EXECUTE breakpoint
+// (Intel SDM Vol. 3B, 17.2.4 / AMD APM Vol. 2, 13.1.3): bit 0 (L0) and bit 1 (G0) enable
+// DR0 locally and globally; bits 16-17 (R/W0) select the trigger condition, 00 =
+// execute-only (the coordinator's own care point: a data READ of s7+0 must never fire
+// this, and 00 is the only R/W encoding that guarantees that); bits 18-19 (LEN0) must be
+// 00 for an execute breakpoint specifically -- the Intel SDM calls out that any other
+// LEN with R/W=00 is undefined behavior, not just "wrong". Pure bit math, independent of
+// any live thread/CPU state, so it is unit-testable directly; the live half (does the
+// CPU actually honor it) is proven only by the reproduction itself. Preserves whatever
+// bits already belong to DR1-DR3 in existing_dr7, only ever touching the DR0 fields.
+constexpr u64 DR7_L0_BIT = 1ULL << 0;
+constexpr u64 DR7_G0_BIT = 1ULL << 1;
+constexpr u64 DR7_RW0_MASK = 0x3ULL << 16;
+constexpr u64 DR7_LEN0_MASK = 0x3ULL << 18;
+
+u64 compute_dr7_for_dr0_execute(u64 existing_dr7) {
+  u64 dr7 = existing_dr7;
+  dr7 |= (DR7_L0_BIT | DR7_G0_BIT);
+  dr7 &= ~(DR7_RW0_MASK | DR7_LEN0_MASK);  // R/W0 = 00 (execute), LEN0 = 00 (1 byte)
+  return dr7;
+}
+
+// the DR7 bit math that DISARMS DR0 (clears L0/G0 so it can never fire again), used the
+// moment a hit is confirmed (the coordinator's own care point: clear DR0 inside the
+// handler before doing any further work) and by the arm path's own cleanup on failure.
+u64 compute_dr7_with_dr0_disabled(u64 existing_dr7) {
+  return existing_dr7 & ~(DR7_L0_BIT | DR7_G0_BIT);
+}
+
+// issue #716 round 7: the dispatch discriminator goal_crash_filter() uses to tell "our
+// own armed DR0 fired" apart from any other EXCEPTION_SINGLE_STEP (a real debugger's
+// single-step, or a hardware watchpoint someone else set) -- factored out so it is
+// testable without a live fault, a real thread, or debug registers at all.
+// 0x80000004UL is STATUS_SINGLE_STEP/EXCEPTION_SINGLE_STEP, a fixed NTSTATUS value
+// across every Windows SDK version; spelled out numerically here (rather than via the
+// <windows.h> macro) so this function has no Windows-header dependency and can live in
+// this file's portable section next to the DR7 bit math above. armed_host_addr of 0
+// means "not armed" (goal_crash_map_arm_symbol_breakpoint() never ran, or failed), which
+// this correctly never matches since a real rip is never exactly 0.
+constexpr unsigned long EXCEPTION_SINGLE_STEP_CODE = 0x80000004UL;
+
+bool is_symbol_breakpoint_hit(unsigned long exception_code, u64 rip, u64 armed_host_addr) {
+  return exception_code == EXCEPTION_SINGLE_STEP_CODE && armed_host_addr != 0 &&
+         rip == armed_host_addr;
+}
+
 #ifdef _WIN32
 
 // SEH-guarded reads so a corrupt pointer chain cannot re-fault inside the handler.
@@ -1186,6 +1242,43 @@ void print_native_rip(u64 rip) {
   }
   fprintf(stderr, "%s\n", line);
 }
+
+// issue #716 round 7: arm DR0 as a hardware execute breakpoint on host_addr, on the
+// CALLING thread. Debug registers are per-thread state, so this must run on the actual
+// EE/GOAL thread (goal_crash_map_arm_symbol_breakpoint() below documents the call site:
+// kscheme.cpp's InitHeapAndSymbol(), which runs ON that thread as part of normal kernel
+// boot, not from a helper thread). GetCurrentThread() returns a pseudo-handle that
+// Get/SetThreadContext will not reliably accept for debug-register work; DuplicateHandle
+// with DUPLICATE_SAME_ACCESS turns it into a real handle referencing this same thread,
+// which is the standard, documented way to read/write your OWN thread's debug registers
+// without needing to suspend yourself (SetThreadContext on a running thread's own debug
+// registers, called BY that thread, is exactly the "self breakpoint" pattern this is).
+bool arm_dr0_execute_breakpoint_on_current_thread(u64 host_addr) {
+  HANDLE self;
+  if (!DuplicateHandle(GetCurrentProcess(), GetCurrentThread(), GetCurrentProcess(), &self, 0,
+                       FALSE, DUPLICATE_SAME_ACCESS)) {
+    return false;
+  }
+  CONTEXT ctx = {};
+  ctx.ContextFlags = CONTEXT_DEBUG_REGISTERS;
+  bool ok = GetThreadContext(self, &ctx) != 0;
+  if (ok) {
+    ctx.Dr0 = host_addr;
+    ctx.Dr6 = 0;
+    ctx.Dr7 = compute_dr7_for_dr0_execute(ctx.Dr7);
+    ok = SetThreadContext(self, &ctx) != 0;
+  }
+  CloseHandle(self);
+  return ok;
+}
+
+// issue #716 round 7: DR0 gets disarmed by directly mutating the live
+// EXCEPTION_POINTERS context inside handle_symbol_breakpoint_hit() below (the
+// coordinator's own care point: clear DR0 before doing any further work), not by a
+// GetThreadContext/SetThreadContext round trip like the arm path above -- the context
+// Windows hands the handler on a breakpoint hit IS the one restored on
+// EXCEPTION_CONTINUE_EXECUTION, so mutating it in place is both correct and simpler
+// than re-fetching a possibly-stale copy.
 
 thread_local bool g_in_handler = false;
 // (no saved previous filter: the vectored handler coexists with any SEH chain)
@@ -1315,25 +1408,188 @@ void run_heap_scan_on_dedicated_thread(const u8* base,
   CloseHandle(h);
 }
 
+// issue #716 round 7: the instrument itself. Fires when DR0 (armed on s7's absolute host
+// address by goal_crash_map_arm_symbol_breakpoint()) matches the faulting rip exactly --
+// caught BEFORE the CPU executes a single byte at that address, unlike every prior
+// round's report, which only ever reconstructed the crash after the fact from whatever
+// survived the write-fault a few instructions later. Round 6 proved that reconstruction
+// has a hard floor: at fault time *active-pool* holds one process and pp is not even in
+// it, so no walk of surviving structures can name the caller. This is the only path left
+// that can.
+//
+// First action, before anything else, is disarming DR0 by mutating the live
+// EXCEPTION_POINTERS context directly (the coordinator's own care point) -- not calling
+// disarm_dr0_on_current_thread(), which would re-fetch a possibly-stale context via
+// GetThreadContext; the context Windows handed this handler in `info` IS the one that
+// gets restored on EXCEPTION_CONTINUE_EXECUTION, so mutating it directly is both the
+// correct and the only way to guarantee DR0 is off before this thread runs another
+// instruction.
+void handle_symbol_breakpoint_hit(EXCEPTION_POINTERS* info) {
+  auto* ctx = info->ContextRecord;
+  ctx->Dr7 = compute_dr7_with_dr0_disabled(ctx->Dr7);
+  ctx->Dr6 = 0;
+
+  const u8* base = g_ee_main_mem;
+  const u64 mem_size = EE_MAIN_MEM_SIZE;
+  const u64 base_addr = (u64)(uintptr_t)base;
+  const u64 rip = ctx->Rip;
+  const u64 rsp = ctx->Rsp;
+
+  fprintf(stderr, "\n-------- GOAL SYMBOL BREAKPOINT HIT --------\n");
+  fprintf(stderr,
+          "DR0 armed at s7+0 = host %#llx; hit at rip=%#llx (PRISTINE -- no byte at this "
+          "address has executed yet; DR0 disarmed just now, before this line printed)\n",
+          (unsigned long long)g_symbol_breakpoint_host_addr, (unsigned long long)rip);
+  fprintf(stderr, "rsp: %#llx (rsp mod 16 = %llu)\n", (unsigned long long)rsp,
+          (unsigned long long)(rsp % 16));
+
+  // [rsp+0]: if the transfer that landed us here was a CALL, this is the return address
+  // -- the caller, named directly. If it was a JMP, it is still whatever the innermost
+  // live frame is, so it gets attributed either way rather than assumed away.
+  u64 top_of_stack = 0;
+  bool have_top = false;
+  __try {
+    top_of_stack = *(const u64*)rsp;
+    have_top = true;
+  } __except (EXCEPTION_EXECUTE_HANDLER) {
+    have_top = false;
+  }
+  if (!have_top) {
+    fprintf(stderr, "[rsp+0]: (unreadable)\n");
+  } else {
+    char attrib[160] = {0};
+    bool resolved = false;
+    if (base) {
+      resolved =
+          format_stack_goal_attribution(top_of_stack, base_addr, mem_size, attrib, sizeof(attrib));
+    }
+    if (!resolved) {
+      resolved = resolve_native_address(top_of_stack, attrib, sizeof(attrib));
+    }
+    fprintf(stderr, "[rsp+0] (the caller's return address if this was a CALL): %#018llx%s%s\n",
+            (unsigned long long)top_of_stack, resolved ? "  " : "", resolved ? attrib : "");
+  }
+
+  // every register, pristine -- before any of the garbage-decode side effects the
+  // eventual write-fault report captures a few instructions later.
+  fprintf(stderr, "registers (pristine, at the moment of arrival):\n");
+  {
+    struct {
+      const char* name;
+      u64 value;
+    } regs[] = {{"rax", ctx->Rax}, {"rbx", ctx->Rbx}, {"rcx", ctx->Rcx}, {"rdx", ctx->Rdx},
+                {"rsi", ctx->Rsi}, {"rdi", ctx->Rdi}, {"rbp", ctx->Rbp}, {"r8", ctx->R8},
+                {"r9", ctx->R9},   {"r10", ctx->R10}, {"r11", ctx->R11}, {"r12", ctx->R12},
+                {"r13", ctx->R13}, {"r14", ctx->R14}, {"r15", ctx->R15}};
+    for (const auto& r : regs) {
+      char line[224];
+      format_reg(r.name, r.value, base ? base_addr : 0, mem_size, /*fault_addr=*/0, line,
+                 sizeof(line));
+      size_t n = std::strlen(line);
+      if (base && n < sizeof(line)) {
+        u32 candidate = 0;
+        bool have_candidate = false;
+        if (base_addr && r.value >= base_addr && r.value < base_addr + mem_size) {
+          candidate = (u32)(r.value - base_addr);
+          have_candidate = true;
+        } else if (r.value && r.value < mem_size) {
+          candidate = (u32)r.value;
+          have_candidate = true;
+        }
+        if (have_candidate) {
+          char slot[96];
+          if (format_symbol_slot(candidate, base, mem_size, g_symtab_lo, g_symtab_hi, s7.offset,
+                                 g_symbol_string_base, slot, sizeof(slot))) {
+            std::snprintf(line + n, sizeof(line) - n, "  <- %s", slot);
+          }
+        }
+      }
+      fprintf(stderr, "%s\n", line);
+    }
+  }
+
+  // the raw 32-quadword window, pristine, same shape as the round-4 raw stack window.
+  if (base) {
+    fprintf(stderr, "raw stack window (32 quadwords at rsp, pristine):\n");
+    for (int i = 0; i < 32; i++) {
+      u64 d = (u64)i * 8;
+      u64 v = 0;
+      bool ok = false;
+      __try {
+        v = *(const u64*)(rsp + d);
+        ok = true;
+      } __except (EXCEPTION_EXECUTE_HANDLER) {
+        ok = false;
+      }
+      if (!ok) {
+        fprintf(stderr, "  [rsp+%#llx] (unreadable)\n", (unsigned long long)d);
+        break;
+      }
+      char attrib[160] = {0};
+      if (format_stack_goal_attribution(v, base_addr, mem_size, attrib, sizeof(attrib))) {
+        fprintf(stderr, "  [rsp+%#llx] %#018llx  %s\n", (unsigned long long)d,
+                (unsigned long long)v, attrib);
+      } else if (resolve_native_address(v, attrib, sizeof(attrib))) {
+        fprintf(stderr, "  [rsp+%#llx] %#018llx  %s\n", (unsigned long long)d,
+                (unsigned long long)v, attrib);
+      } else {
+        fprintf(stderr, "  [rsp+%#llx] %#018llx\n", (unsigned long long)d, (unsigned long long)v);
+      }
+    }
+  }
+
+  fprintf(stderr,
+          "-----------------------------------\n"
+          "(DR0 disarmed; resuming execution at the same rip -- the standing write-fault a "
+          "few instructions later, if the #716 pattern holds, will still produce the usual "
+          "full GOAL CRASH REPORT below)\n");
+  fflush(stderr);
+}
+
 LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   const auto* er = info->ExceptionRecord;
   const auto* ctx = info->ContextRecord;
 
-  // only report faults; pass breakpoints/single-steps straight through so
-  // debugger workflows (including hardware watchpoints) stay clean, and guard
-  // against re-entry from the handler's own SEH probes. g_in_heap_scan_thread (issue
-  // #716 round 5) covers the one case g_in_handler (thread_local) cannot: VEH is
-  // process-wide, so if the dedicated heap-scan thread itself faults, this filter runs
-  // again on THAT thread, where g_in_handler reads false; without the second check it
-  // would look like an unrelated new crash and recurse into a second full report.
+  // issue #716 round 7: is this EXCEPTION_SINGLE_STEP our own armed DR0, and not some
+  // unrelated single-step/hardware-watchpoint event (a real debugger attached
+  // separately, for instance)? Checked before the general dispatch below so the
+  // existing "pass breakpoints/single-steps straight through" posture is preserved for
+  // every OTHER single-step case -- only an exact rip match against the address this
+  // file itself armed is ours to handle. is_symbol_breakpoint_hit() is the pure,
+  // tested discriminator (EXCEPTION_SINGLE_STEP's numeric value matches
+  // is_symbol_breakpoint_hit()'s own EXCEPTION_SINGLE_STEP_CODE constant; both are the
+  // fixed NTSTATUS 0x80000004).
+  const bool is_our_breakpoint =
+      is_symbol_breakpoint_hit(er->ExceptionCode, ctx->Rip, g_symbol_breakpoint_host_addr);
+
+  // only report faults (plus our own armed breakpoint above); pass every other
+  // breakpoint/single-step straight through so debugger workflows (including hardware
+  // watchpoints) stay clean, and guard against re-entry from the handler's own SEH
+  // probes. g_in_heap_scan_thread (issue #716 round 5) covers the one case
+  // g_in_handler (thread_local) cannot: VEH is process-wide, so if the dedicated
+  // heap-scan thread itself faults, this filter runs again on THAT thread, where
+  // g_in_handler reads false; without the second check it would look like an unrelated
+  // new crash and recurse into a second full report.
   if (g_in_handler || g_in_heap_scan_thread.load() ||
-      (er->ExceptionCode != EXCEPTION_ACCESS_VIOLATION &&
+      (!is_our_breakpoint && er->ExceptionCode != EXCEPTION_ACCESS_VIOLATION &&
        er->ExceptionCode != EXCEPTION_ILLEGAL_INSTRUCTION &&
        er->ExceptionCode != EXCEPTION_INT_DIVIDE_BY_ZERO &&
        er->ExceptionCode != EXCEPTION_STACK_OVERFLOW)) {
     return EXCEPTION_CONTINUE_SEARCH;
   }
   g_in_handler = true;
+
+  if (is_our_breakpoint) {
+    handle_symbol_breakpoint_hit(info);
+    g_in_handler = false;
+    // resume execution: hardware execute breakpoints report rip AT the not-yet-executed
+    // instruction (they are trap-like, not fault-like -- nothing has run yet), so this
+    // continues exactly where the CPU was about to go, now with DR0 disarmed. The
+    // existing write-fault a few instructions later, if the standing #716 pattern
+    // holds, then triggers the normal EXCEPTION_ACCESS_VIOLATION path below via a
+    // separate invocation of this same filter.
+    return EXCEPTION_CONTINUE_EXECUTION;
+  }
 
   const u8* base = g_ee_main_mem;
   const u64 mem_size = EE_MAIN_MEM_SIZE;
@@ -1786,6 +2042,20 @@ int goal_crash_map_walk_active_pool_dispatch_order_for_test(u32 root,
                                          max_count);
 }
 
+u64 goal_crash_map_compute_dr7_for_dr0_execute_for_test(u64 existing_dr7) {
+  return compute_dr7_for_dr0_execute(existing_dr7);
+}
+
+u64 goal_crash_map_compute_dr7_with_dr0_disabled_for_test(u64 existing_dr7) {
+  return compute_dr7_with_dr0_disabled(existing_dr7);
+}
+
+bool goal_crash_map_is_symbol_breakpoint_hit_for_test(unsigned long exception_code,
+                                                      unsigned long long rip,
+                                                      unsigned long long armed_host_addr) {
+  return is_symbol_breakpoint_hit(exception_code, rip, armed_host_addr);
+}
+
 void goal_crash_map_set_symbol_string_base(u32 symbol_string_base) {
   g_symbol_string_base = symbol_string_base;
 }
@@ -1801,6 +2071,25 @@ void goal_crash_map_set_symbol_table_region(u32 lo, u32 hi) {
 
 void goal_crash_map_set_process_type(u32 process_type_addr) {
   g_process_type_addr = process_type_addr;
+}
+
+bool goal_crash_map_arm_symbol_breakpoint() {
+#ifdef _WIN32
+  if (!g_ee_main_mem || !s7.offset) {
+    return false;
+  }
+  const u64 host_addr = (u64)(uintptr_t)g_ee_main_mem + s7.offset;
+  if (!arm_dr0_execute_breakpoint_on_current_thread(host_addr)) {
+    return false;
+  }
+  g_symbol_breakpoint_host_addr = host_addr;
+  fprintf(stderr, "goal-crash-map: DR0 armed on s7+0 (host %#llx, goal-rel %#x)\n",
+          (unsigned long long)host_addr, s7.offset);
+  fflush(stderr);
+  return true;
+#else
+  return false;
+#endif
 }
 
 void goal_crash_map_install() {
