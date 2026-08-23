@@ -612,13 +612,49 @@ No-op if already spawned. Retires with the real vehicle chain."
     (cond
       ((not s4-0)
        )
-      ((begin
-         (set! (-> s4-0 type) s5-1)
-         (and s5-1
-              (valid? s5-1 type (the-as string #f) #f 0)
+      ;; og:preserve-this bring-up guard (issues 691/709/716, the deterministic
+      ;; goto-0/goto-garbage crash that closes 697's class): the type-commit
+      ;; below used to run before either validation, so a discarded level's
+      ;; leftover type object -- still alignment/range/rtype-shaped, just
+      ;; method-table-12 zero or stale because its home heap has been
+      ;; overwritten or mid-linked -- got wired onto s4-0 and handed to
+      ;; execute-process-tree, which dispatches run-logic? through method slot
+      ;; 12 (gkernel-h.gc:267) every frame (gkernel.gc:1469-1493). valid?
+      ;; (gcommon.gc:1465-1501) only proves alignment, range and rtype -- it
+      ;; has no notion of heap residency -- so it cannot catch this on s5-1
+      ;; alone; the method-table-12 check below is what actually proves the
+      ;; dispatch target is live. A bare (nonzero? ...) on that slot is not
+      ;; enough on its own: issue 716's develop-wide smoke crash (rip goal
+      ;; 0x187e03, called value 0x187e01 constant across rax/rcx/r8/r11/r14,
+      ;; pp "target", caller gkernel+0xf54 -- execute-process-tree's own
+      ;; callsite) is a STALE NONZERO method-table entry, not a zeroed one, so
+      ;; it would clear a plain nonzero? gate and still crash. method-table
+      ;; entries are boxed function/state objects, not raw code addresses --
+      ;; method-state (gkernel.gc:1328-1341) walks the identical table doing
+      ;; (the-as basic (-> typ method-table v1-0)) then reading its own `type`
+      ;; field, and this function's own init-from-entity! check two lines down
+      ;; already runs a method-table-derived value through valid? as function
+      ;; -- so slot 12 gets the same treatment here instead of a bare
+      ;; truthiness probe, closing the stale-pointer gap the same way.
+      ;; Reordered so (-> s4-0 type) is only ever set once s5-1 has cleared
+      ;; every check: valid? on s5-1 first because method-of-object's runtime
+      ;; dispatch a few lines down needs a real type to walk, then the slot-12
+      ;; probe, which is exactly the slot the process scheduler will call.
+      ;; entity-actor.etype (entity-h.gc:154) is a raw linker-patched pointer
+      ;; with no re-resolution on level reload (birth!/entity.gc:596-631 is
+      ;; called again on every re-birth), so this guard alone is a per-birth
+      ;; check, not a one-shot scrub -- see level.gc's unload! for the
+      ;; belt-and-suspenders sweep that disarms the entity itself. Retires if
+      ;; entity-actor.etype ever gets re-resolved against the resident level
+      ;; table instead of staying a linker-time constant.
+      ((and s5-1
+            (valid? s5-1 type (the-as string #f) #f 0)
+            (valid? (the-as function (-> s5-1 method-table 12)) function (the-as string #f) #f 0)
+            (begin
+              (set! (-> s4-0 type) s5-1)
               (valid? (method-of-object s4-0 init-from-entity!) function (the-as string #f) #f 0)
               )
-         )
+            )
        (init-entity s4-0 this s5-1)
        )
       (else
