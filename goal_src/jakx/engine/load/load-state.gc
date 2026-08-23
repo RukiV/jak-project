@@ -1374,13 +1374,21 @@
 ;; Method 23 also sets want[slot].display? to 'special (load-state.gc:1274-
 ;; 1278), where this lever previously wrote #f directly via add-want-level.
 ;; Checked before accepting: drawable-tree.gc:15-17's draw() treats 'special
-;; exactly like #f (skips the level's drawable-tree draw call), and level.gc's
-;; update! (landed, runs every frame, level.gc:9494-9497) does propagate
-;; want -> target -> level display?, so 'special is not inert downstream --
-;; it is retail's own "wanted but not rendered" state (level-info.gc's static
-;; want lists carry it ~90 times). That is a display-arming change this rung
-;; is not scoped to make, so the call below re-asserts #f right after method
-;; 23 returns, preserving this lever's prior display behavior; the separate
+;; exactly like #f (skips the level's drawable-tree draw call; car levels
+;; have no world geometry to draw anyway), and level.gc's update! (landed,
+;; runs every frame, level.gc:9494-9497) does propagate want -> target ->
+;; level display?, so 'special is not inert downstream -- it is retail's
+;; own "wanted but not rendered" state (level-info.gc's static want lists
+;; carry it ~90 times).
+;;
+;; og:preserve-this issue 687 item 1: this lever used to re-assert #f right
+;; after method 23 returned, overwriting 'special back to #f "to keep this
+;; lever's prior display behavior" -- but texture.gc:1780-1782's sole caller
+;; of car-info-full-method-16 (the car-paint composite) requires (-> lev
+;; display?) truthy, so that re-assertion silently kept the composite gated
+;; off for every level this lever wants. Since 'special draws identically to
+;; #f (the drawable-tree check above), letting method 23's own 'special
+;; stand arms the composite without changing what renders. The separate
 ;; arm-falcl step still owns flipping display? to 'display for an actual
 ;; render.
 (defun jakx-vehicle-want-level! ((level-name symbol))
@@ -1396,11 +1404,10 @@ composer (net-world steps 7-8) does the arming."
     (set! (-> *car-level-array* data 0 current-parts i) 1)
     )
   (load-state-method-23 *load-state* 0 level-name #f)
-  ;; og:preserve-this: method 23 sets display? to 'special (see the note
-  ;; above); re-assert #f here to keep this lever's prior display behavior,
-  ;; then re-run add-borrow-levels since this is a fresh want mutation after
+  ;; og:preserve-this issue 687 item 1: no longer re-asserting display? to
+  ;; #f here (see the note above) -- method 23's own 'special stands. Still
+  ;; re-run add-borrow-levels since this is a fresh want mutation after
   ;; method 23's own internal add-borrow-levels call.
-  (set! (-> *load-state* want 6 display?) #f)
   (add-borrow-levels *load-state*)
   (none)
   )
