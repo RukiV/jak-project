@@ -131,6 +131,7 @@ void InitVAGCmd(ISO_VAGCommand* cmd, int paused) {
   cmd->m_pBaseFile = nullptr;
   cmd->stereo_sibling = nullptr;
   cmd->dma_iop_mem_ptr = nullptr;
+  cmd->last_deint_ptr = nullptr;
   cmd->pitch_cmd = 0;
   cmd->updated_trans = 0;
   cmd->trans[0] = 0;

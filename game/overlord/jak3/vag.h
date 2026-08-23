@@ -15,6 +15,12 @@ struct ISO_VAGCommand : ISO_Hdr {
   // pointer to IOP memory to DMA to SPU. Points to the data for the next new transfer.
   const u8* dma_iop_mem_ptr = nullptr;  // 56
 
+  // jakx VAGDIR v3 stereo de-interleave (issue 698): the window we last swapped the middle two
+  // 0x1000 blocks of, in ProcessVAGData. DMA_SendToSPUAndSync can fail and leave the same window
+  // to be reprocessed without a UpdateIsoBuffer advance in between (spustreams.cpp), so this
+  // guards against swapping an already-swapped window back to the broken layout.
+  const u8* last_deint_ptr = nullptr;
+
   // the DMA channel to upload to for sceCdVoiceTrans
   int dma_chan = 0;  // 60
 

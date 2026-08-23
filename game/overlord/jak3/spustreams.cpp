@@ -1,5 +1,6 @@
 #include "spustreams.h"
 
+#include <algorithm>
 #include <cstring>
 
 #include "common/log/log.h"
@@ -8,6 +9,7 @@
 #include "game/overlord/jak3/basefile.h"
 #include "game/overlord/jak3/dma.h"
 #include "game/overlord/jak3/iso.h"
+#include "game/overlord/jak3/iso_cd.h"
 #include "game/overlord/jak3/iso_queue.h"
 #include "game/overlord/jak3/ssound.h"
 #include "game/overlord/jak3/streamlist.h"
@@ -140,6 +142,39 @@ EIsoStatus ProcessVAGData(ISO_Hdr* _msg) {
     int status = page->ReleaseRef();
     ASSERT(status >= 0);
     goto exit;
+  }
+
+  // jakx's VAGDIR v3 interleaves stereo streams in 0x1000-byte blocks (L0 R0 L1 R1; both
+  // channel headers verified byte-identical pGAV at wad offsets 0x0000 and 0x1000), while this
+  // reader (inherited from jak3, which ships VAGDIR v2 with 0x2000-byte blocks: L0 L1 R0 R1)
+  // assumes the 0x4000 window below is [L_hdr+L0][L1][R_hdr+R0][R1]. Census over the whole
+  // corpus, decoded from the wads with the port's own name-packing: all 64 jakx stereo entries
+  // have the 0x1000 gap, all 282 jak3 entries have 0x2000, zero exceptions either way, matching
+  // the L/R correlation collapse measured from the decoded audio. Gate on the loaded VAGDIR
+  // version (g_VagDir.vag_version, loaded at iso.cpp:187-190) rather than the game version, since
+  // that is what actually determines the on-disk layout.
+  //
+  // De-interleave in place by swapping the middle two 0x1000 blocks:
+  //   [L_hdr+L0][R_hdr+R0][L1][R1]  ->  [L_hdr+L0][L1][R_hdr+R0][R1]
+  // which is byte-for-byte the jak3 shape this reader already understands, so the loop-marker
+  // writes, unk_spu_mem_offset math, GetVAGStreamPos and page-length logic elsewhere in this file
+  // stay untouched. Both voices set SSA to stream_sram + 0x30 (dma.cpp:348-349), skipping each
+  // channel's own header, so leaving the header at the front of its own half is required.
+  //
+  // This window never straddles a page: kPageSize is 0x8000 (pagemanager.h:31), exactly two
+  // 0x4000 stereo windows, and m_pCurrentData starts page-aligned (basefile.cpp:80) and only ever
+  // advances by 0x4000 (UpdateIsoBuffer, below), so it is always either at the start of a page or
+  // exactly 0x4000 into one.
+  if (sibling && g_VagDir.vag_version >= 3) {
+    // DMA_SendToSPUAndSync returns 0 when snd_GetFreeSPUDMA fails (dma.cpp:543-546), and on that
+    // path this function releases the page and exits at LAB_0001067c below without ever calling
+    // UpdateIsoBuffer, so the same window gets reprocessed on the next call. Without tracking the
+    // last pointer we de-interleaved, a naive swap would flip it right back to the broken layout.
+    if (msg->last_deint_ptr != file->m_Buffer.m_pCurrentData) {
+      u8* p = file->m_Buffer.m_pCurrentData;
+      std::swap_ranges(p + 0x1000, p + 0x2000, p + 0x2000);
+      msg->last_deint_ptr = file->m_Buffer.m_pCurrentData;
+    }
   }
 
   if (got_chunks) {  // if we've already started streaming, all way have to do is update.
