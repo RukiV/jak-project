@@ -2624,12 +2624,33 @@
     ;; (structure-copy in method 0 of sparticle-cpuinfo). Neither consumer has
     ;; a GOAL dispatch point a birth!-style guard could gate -- both are read
     ;; straight off the cpuinfo by the mips2c particle processor -- so this has
-    ;; to be a scrub, not a guard. Reuses forall-particles and sparticle-kill-it
-    ;; (sparticle.gc) rather than hand-rolling the cpuinfo-table walk;
-    ;; *level-sweep-heap-base*/*level-sweep-heap-top* are set here (and again,
-    ;; harmlessly, by kill-level-typed-processes below for the same level) so
-    ;; this walk and the queue filter after it can reuse in-level-sweep-range?
-    ;; like every other heap-scoped sweep in this file.
+    ;; to be a scrub, not a guard. Reuses forall-particles (sparticle.gc) rather
+    ;; than hand-rolling the cpuinfo-table walk.
+    ;;
+    ;; og:preserve-this smoke triangulation (issue 709, gk-famaccept1.err.log):
+    ;; a first landing of this walk called sparticle-kill-it here, which is
+    ;; NOT the same as retiring the slot. sparticle-kill-it only zeroes timer/
+    ;; sp-func and clears binding state; it never calls sp-free-particle
+    ;; (sparticle.gc:171-192), so it never clears the corresponding alloc-table
+    ;; bit, never decrements num-alloc, and never resets valid. Every particle
+    ;; this walk killed that way became a permanent phantom allocation:
+    ;; occupied forever from sp-get-particle's (sparticle.gc:194-287) point of
+    ;; view, since that allocator only skips bits alloc-table still marks
+    ;; in-use. sp-get-particle returns (the-as sparticle-cpuinfo #f) when it
+    ;; scans out of free bits -- exactly the shape of the observed crash (a
+    ;; birth-func invoked with a null launchinfo two seconds and many
+    ;; particle-churn frames after "killing 84 live particles" during the
+    ;; junglew swaps). sp-kill-particle (sparticle.gc:289-309) is the correct
+    ;; call: identical (sparticle-system sparticle-cpuinfo) signature, and it
+    ;; calls sp-free-particle for the normal case (doing everything
+    ;; sparticle-kill-it did, plus the alloc-table/num-alloc/valid retirement),
+    ;; while safely falling back to sparticle-kill-it's own zero-timer-only
+    ;; behavior for the in-scratchpad case (a particle mid-processing this
+    ;; frame, where touching alloc-table directly would race the per-frame
+    ;; simulation pass). *level-sweep-heap-base*/*level-sweep-heap-top* are set
+    ;; here (and again, harmlessly, by kill-level-typed-processes below for
+    ;; the same level) so this walk and the queue filter after it can reuse
+    ;; in-level-sweep-range? like every other heap-scoped sweep in this file.
     (set! *level-sweep-heap-base* (the-as int (-> this heap base)))
     (set! *level-sweep-heap-top* (the-as int (-> this heap top-base)))
     (set! *level-sweep-live-particle-kill-count* 0)
@@ -2638,7 +2659,7 @@
         (when (or (in-level-sweep-range? (the-as int (-> arg1 next-launcher)))
                   (in-level-sweep-range? (the-as int (-> arg1 sp-func)))
                   )
-          (sparticle-kill-it arg0 arg1)
+          (sp-kill-particle arg0 arg1)
           (+! *level-sweep-live-particle-kill-count* 1)
           )
         (none)
