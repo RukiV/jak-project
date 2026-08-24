@@ -17,6 +17,30 @@
 (define-extern fx-copy-buf (function dma-buffer viewport none)) ;; home warp.gc, not landed
 (define-extern hflip-z-buf (function dma-buffer viewport none)) ;; home not landed
 
+;; og:preserve-this PC port, mirroring jak3's blit-displays.gc:39 (issue 761): draw-raw-image's
+;; title-card upload (the Dolby card, DOSCREEN.STR) used upload-vram-data, but that call is a
+;; compiled no-op on PC (texture.gc:1098's (#when PC_PORT (return #f)) guard), so the sprite
+;; sampled tbp 0, which nothing ever wrote, and rendered as a white quad. jak3 replaced the call
+;; with this function, which emits the same GENERIC_UPLOAD texture-anim record that
+;; TextureAnimator::handle_generic_upload already consumes for jakx (texture-anim-funcs.gc:222-231
+;; builds the identical texture-anim-pc-upload record). Not retired: this is the PC-port path,
+;; permanent.
+(defun pc-upload-raw-texture ((dma-buf dma-buffer) (image-data pointer) (width int) (height int) (tbp int))
+  "Added function in the PC port to create a 'raw' texture (no clut)"
+  (pc-texture-anim-flag start-anim-array dma-buf)
+  (pc-texture-anim-flag upload-generic-vram dma-buf :qwc 1)
+  (let ((upload-record (the texture-anim-pc-upload (-> dma-buf base))))
+    (set! (-> upload-record data) image-data)
+    (set! (-> upload-record width) width)
+    (set! (-> upload-record height) height)
+    (set! (-> upload-record dest) tbp)
+    (set! (-> upload-record format) (gs-psm ct32))
+    (set! (-> upload-record force-to-gpu) 1)
+    )
+  (&+! (-> dma-buf base) 16)
+  (pc-texture-anim-flag finish-anim-array dma-buf)
+  )
+
 ;; DECOMP BEGINS
 
 ;; definition for symbol *blit-displays-work*, type blit-displays-work
@@ -871,7 +895,8 @@
          (s1-0 (-> *display* frames (-> *display* on-screen) global-buf))
          (s5-0 (-> s1-0 base))
          )
-    (upload-vram-data s1-0 0 (the-as pointer arg2) (the int (-> arg3 y)) (the int (-> arg3 x)))
+    ; (upload-vram-data s1-0 0 (the-as pointer arg2) (the int (-> arg3 y)) (the int (-> arg3 x)))
+    (pc-upload-raw-texture s1-0 (the pointer arg2) (the int (-> arg3 x)) (the int (-> arg3 y)) 0)
     (let ((sv-32 (+ (log2 (+ (the int (-> arg3 x)) -1)) 1))
           (v1-9 (+ (log2 (+ (the int (-> arg3 y)) -1)) 1))
           )
