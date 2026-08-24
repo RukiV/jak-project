@@ -38,6 +38,7 @@ add_executable(goalc-test
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_types2.cpp
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_find_defpartgroup.cpp
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_bare_srl.cpp
+        ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_movz.cpp
         ${CMAKE_CURRENT_LIST_DIR}/decompiler/test_pointer_stride.cpp
         ${CMAKE_CURRENT_LIST_DIR}/common/formatter/test_formatter.cpp
         ${CMAKE_CURRENT_LIST_DIR}/game/kernel/common/test_goal_crash_map.cpp
