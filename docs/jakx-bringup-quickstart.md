@@ -191,3 +191,17 @@ In-game captures come from the game's own GPU readback (F2, or `(pc-screen-shot)
 from the REPL) and land in `%APPDATA%\OpenGOAL\jakx\screenshots`. Desktop screen
 captures are not evidence; see AGENTS.md rule 6 for which capture answers which
 question and what the caption must name.
+
+## Static gates
+
+**check_debug_segment_calls.py** (wired into the forge lint job) flags a
+main-segment call or dereference that reaches a symbol whose only definition
+is a plain `defun`/`defbehavior`/`defmethod`/`define` inside a whole-file
+`(declare-file (debug))` object; DebugSegment is symbol 0 in every `-boot`
+boot, so that symbol has no `-boot`-time value and an unguarded call into it
+dispatches to goal 0 (issue 745; `defun-debug`-shaped symbols are exempt,
+they always bind to `nothing` under `-boot`). Run it with `python
+scripts/check_debug_segment_calls.py --root . --game jakx`; known
+pre-existing sites are held in `scripts/check_debug_segment_calls_allow.json`,
+keyed by file and callee rather than line, each citing an issue (issue 745,
+issue 749).

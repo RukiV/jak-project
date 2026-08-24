@@ -387,6 +387,28 @@ jobs:
           git show "origin/$BASE:scripts/check_type_singlehome.py" > "$GUARDS/check_type_singlehome.py"
           python3 "$GUARDS/check_type_singlehome.py" --root .
 
+      # DebugSegment is symbol 0 in every -boot boot, so a plain defun/
+      # defbehavior/defmethod/define inside a whole-file (declare-file
+      # (debug)) object has no -boot-time value at all: an unguarded main-
+      # segment call into one dispatches to goal 0 there (issue 745; the
+      # cam-start.gc regression this checker was written against was fixed
+      # by fix/jakx-warp-pin-debug-segment). Same base-ref tooling split as
+      # the steps above so a branch predating the script skips it; the
+      # allowlist JSON is data reviewed with the rest of the diff, so it is
+      # read from HEAD rather than fetched from base.
+      - name: No unguarded main-segment call reaches a debug-only symbol
+        run: |
+          set -eu
+          BASE="${{ github.event.pull_request.base.ref }}"
+          git fetch --no-tags --depth=200 origin "$BASE"
+          if ! git show "origin/$BASE:scripts/check_debug_segment_calls.py" > /dev/null 2>&1; then
+            echo "::notice::This branch's base predates scripts/check_debug_segment_calls.py, so the debug-segment call check is skipped."
+            exit 0
+          fi
+          GUARDS="$(mktemp -d)"
+          git show "origin/$BASE:scripts/check_debug_segment_calls.py" > "$GUARDS/check_debug_segment_calls.py"
+          python3 "$GUARDS/check_debug_segment_calls.py" --root . --allow scripts/check_debug_segment_calls_allow.json
+
       - name: Required checks
         run: |
           python3 ./scripts/ci/lint-trailing-whitespace.py
