@@ -1,0 +1,83 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: menu2-draw.gc
+;; name in dgo: menu2-draw
+;; dgos: GAME
+
+;; menu widget draw rung (issue 759, a2), slice 1: the per-frame draw/alloc
+;; road for the six-row lobby dropdown list, landed from a fresh scoped
+;; redecode of menu2-GAME (allowed_objects ["menu2"], this worktree's own
+;; decompiler/config, scratch --proj-path per the standard recipe; the
+;; worktree's own out/jakx/fr3/GAME.fr3 is untouched, verified byte-identical
+;; before and after). menu2-h.o (game.gd rank 392) and menu2-installs.o
+;; (rank 398, issue 699's own quartet/a1 rungs) already declare and spawn the
+;; base-menu family this file fills in further; this file's own row sits
+;; immediately after menu2-installs.o for the same link-order reason that
+;; file's own header documents (menu2-h.o's deftypes must already exist).
+;;
+;; Landed this slice: menu-clear-strip (the cannot-decompile class, same
+;; treatment as base-menu-event-handler before it - no type analysis exists
+;; anywhere for this function, so its body is hand-wrapped around the raw
+;; register writes the decoder still recovers), base-menu-method-59 on
+;; sprite-menu/prim-strip-menu/string-menu/dropdown-item (the per-spawn
+;; allocation chain base-menu-init-by-other's own tail unconditionally
+;; walks), and dropdown-item's own state-52 install (the per-frame
+;; :trans/:post/:exit driver, harvested from anon-functions 41/42/43 of
+;; menu2-GAME, already typed :behavior dropdown-item at
+;; decompiler/config/jakx/ntsc_v1/anonymous_function_types.jsonc:1710-1712).
+;; selection-menu-manager's own state-52 install (anon-function 10) is held;
+;; see its own citation below.
+;;
+;; Every method-59 body below is transcribed close to verbatim from the
+;; fresh decode, matching the raw-register convention this codebase already
+;; lands elsewhere (goal_src/jakx/engine/load/loader.gc is the clearest
+;; precedent: real, compiling GAME.CGO content built entirely from
+;; l.wu/l.w/l.f/s.w!/s.b!/s.h!/s.f!/(the-as none ...)/(call!)/(ret-value ...)
+;; forms with no attempt to rename every raw offset into a named accessor).
+;; The self argument is renamed a0-0 -> this per this file's own defmethod
+;; convention (matching menu2-installs.gc throughout); every other SSA
+;; temporary keeps its decompiler-assigned name. Three data-label
+;; references the decoder could not resolve symbolically (L940, L942, L962)
+;; are inlined from the object's own .asm data section (a string literal,
+;; a string literal, and a raw color word, respectively - cited at each
+;; site below) since a bare L### token has no meaning as GOAL source; this
+;; is label resolution, not content invention, and each site names its own
+;; evidence.
+;;
+;; Three local-vars gaps the decoder itself left (a dead store whose target
+;; register never made it into the emitted local-vars list, one per
+;; sprite-menu/prim-strip-menu/string-menu/dropdown-item's own method-59 and
+;; three within the harvested anon-functions) are declared here so the
+;; transcription compiles; each is a leftover, unread call-result register
+;; the decoder's own reconstruction still assigns before falling out of
+;; scope, not a change in behavior.
+
+;; menu-clear-strip: cannot-decompile class, issue 759. No type analysis
+;; exists for this function anywhere (menu2.gc:2646-2647's own donor marker:
+;; "function has no type analysis. Cannot decompile."; decompiler/config/
+;; jakx/all-types.gc:68695's own extern citation records an earlier attempt
+;; to type arg0 as prim-strip that only cleared one of four raw stores and
+;; was left unfixed as "a net regression here, same as
+;; base-menu-event-handler above"). This slice's own scoped redecode still
+;; only recovers eight raw MIPS-shaped ops against an untyped arg0, with no
+;; defun/local-vars wrapper attempt at all (unlike every other function this
+;; file transcribes) - the wrapper below is hand-built around that raw
+;; content, typing arg0 as a bare address (int) rather than retyping the
+;; extern, matching the "retyping alone is a net regression" caution already
+;; on record. Every caller in this file (dropdown-item's own method-59
+;; below, and the state-52 :exit/:post handlers) already passes a raw
+;; (the-as none (l.wu ...)) value here, so an int-typed address parameter is
+;; what every call site already produces.
+(defun menu-clear-strip ((a0 int))
+  (local-vars (v1 int) (v0 int))
+  (s.h! (+ a0 82) 0)
+  (set! v1 3)
+  (s.w! a0 v1)
+  (set! v1 71)
+  (s.d! (+ a0 36) v1)
+  (set! v1 #x5126b)
+  (s.d! (+ a0 28) v1)
+  (set! v0 0)
+  (ret-value v0)
+  )

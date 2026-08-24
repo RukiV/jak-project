@@ -396,6 +396,11 @@
   ;; row's own top-level no longer executes at all (klink.cpp's jakx_finish, same
   ;; rung), so this is the only thing that ever installs base-menu 50/51/52.
   "menu2-installs.o"
+  ;; menu widget draw rung (issue 759, a2), slice 1: sits immediately after
+  ;; menu2-installs.o for the same link-order reason that file's own row
+  ;; does - menu2-h.o's deftypes for the whole base-menu family must already
+  ;; exist before this file's method/state installs run.
+  "menu2-draw.o"
   "menu2-lists.o"
   "keyboard.o"
   "lobby-menu-manager-h.o"
