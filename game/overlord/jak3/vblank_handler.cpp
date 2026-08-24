@@ -76,12 +76,10 @@ int VBlankHandler(void*) {
   return 1;
 }
 
-// Set to false before the acceptance boot merges. issue 758's open question is
-// whether position_for_ee actually advances for a music command and which of
-// g_aVagCmds[4]/[5] carries it (spustreams.cpp:365-386 has early-outs that could
-// freeze it); no existing overlord debug lever covers this, so this is a
-// standalone one for this branch.
-static constexpr bool kJakxMusicFillProbe = true;
+// Kept behind this switch for issue 758's residual: a same-track restart every
+// ~228s. Defaults off; the acceptance boot already read vag[4] as the music
+// command and vag[5] as its stereo secondary.
+static constexpr bool kJakxMusicFillProbe = false;
 
 // Fills g_JakXSoundIOPInfo, the jakx-shaped counterpart to the jak3 fill below
 // (issue #698, JakXSoundIOPInfo in rpc_interface.h). Called once the jak3 fill has
