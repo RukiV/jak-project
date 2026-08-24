@@ -39,8 +39,8 @@ not obvious:
 
 ## Booting, and the fresh-checkout assert
 
-`task boot-game` runs `gk -v --game jakx -- -boot -fakeiso -debug` and parks at the
-lever level. On a fresh checkout it dies first at
+`task boot-game` runs `gk -v --game jakx -- -boot -fakeiso -debug`. On a fresh
+checkout it dies first at
 `game/overlord/jak3/iso.cpp:894`, `ASSERT(mbx_cmd->file_def)`: `(mi)` builds no
 soundbanks, and the jak3 overlord that Jak X borrows asserts on the missing `.sbk`.
 
@@ -49,6 +49,65 @@ Cure: copy the sound files into the fakeiso directory. Minimum is one file,
 other sound-adjacent files from a known-good tree's `out/jakx/iso` matches what a
 long-lived checkout accumulates. This is a build-config gap, not a data gap; the
 sound files exist in `iso_data`, nothing copies them.
+
+## Boot modes: retail vs freeroam
+
+Past the soundbank assert, a plain boot no longer parks at the bring-up lever level.
+`*jakx-boot-mode*` (`goal_src/jakx/engine/level/level-h.gc`, issue 699) defaults to
+`'retail`, and `gk -v --game jakx -- -boot -fakeiso` now takes retail's own cold-boot
+road end to end: `fmvlev`, the Dolby card (`DOSCREEN.STR`), the THX and INTRO movies,
+the menu2-start continue, menu2, and the main menu (`lobby-menu-manager-state-140`
+bridges over the still-unlanded profile/memory-card screen). The bring-up want-set
+levers (`*jakx-boot-level*` `'icea`, `*jakx-boot-continue*` "ice-icea-1",
+`*jakx-boot-task*` "ice-race-task") and the want driver (`*jakx-want-driver*`) all go
+dead on a `'retail` boot, and neither the boot-activation camera warp nor main.gc's
+boot-time external-cam arm fires.
+
+The THX and INTRO movies need `out/jakx/fmv/THX.MJV` and `out/jakx/fmv/INTRO.MJV` to
+exist; `out/` is gitignored and no task target produces them. Generate them from the
+disc sources:
+
+```text
+python scripts/jakx/gen_mjv.py iso_data/jakx/STR/THX.M2V   -o out/jakx/fmv/THX.MJV
+python scripts/jakx/gen_mjv.py iso_data/jakx/STR/INTRO.M2V -o out/jakx/fmv/INTRO.MJV
+```
+
+Absent them, `MjvVideoReader::open` just logs `[fmv] <path> not found` and the movie
+never plays; it is not a crash.
+
+Add `-freeroam` after the `--` to opt back into the old bring-up boot: the
+icea/ice-icea-1/ice-race-task want-set load, the want driver armed, the boot-
+activation camera warp, and (under `-debug`) the external cam armed. `-freeroam`
+follows `-cam-fly`'s own shape exactly: kmachine.cpp's `InitParms` sets a C++
+global, `InitMachineScheme` interns it as `*kernel-boot-freeroam*`, and level-h.gc
+reads it once into `*jakx-boot-mode*`.
+
+`-debug` keeps the REPL attached in either mode; on its own it no longer changes
+which level or continue point a boot lands on. The old shortcut that swapped in
+"menu2-start" under `*debug-segment*` (game-info.gc's `initialize!`) is now scoped
+to `'freeroam` boots only, so a `-debug` retail boot still runs the full
+Dolby-card/THX/intro chain, exactly like a non-debug retail boot; on retail,
+`-debug` exists purely to keep the REPL attached for acceptance work.
+
+A REPL harness attached to a retail boot has no `"cam-warp: released"` line to key
+on: that format string only fires from the freeroam want-driver's release path
+(`cam-start.gc`'s `jakx-cam-warp-tick`), which a retail boot never reaches. Key on
+`"GAMEPLAY: enter fmvlev"` instead (`target-handler.gc`'s `'level-enter` handler,
+which fires under either mode on entering the level the event names), or wait out
+the harness's full timeout.
+
+**Acceptance discipline:** a `-debug` boot is not a substitute for the `-boot`
+smoke on camera or debug plumbing, and the reverse holds too. The two runs differ
+in which segments link (DebugSegment is symbol 0 under a plain `-boot` boot,
+linked once `-debug` is added; see the debug-segment call class under Static gates
+below), so a passing `-debug` acceptance run proves nothing about the
+`-boot`-only path.
+
+Known gaps a reader will hit on the retail road: the lobby camera never reaches
+`interface-cam-init-by-other`'s repositioning target (`hanginglamp-part-9` lives
+in `rustyh`, not resident under menu2) and settles on cam-free-floating at the
+main menu (issue 724); the THX and INTRO movies play at about half real-time
+(issue 753).
 
 ## Worktrees: the full recipe
 
