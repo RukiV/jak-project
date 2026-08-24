@@ -239,21 +239,26 @@
   )
 
 ;; og:preserve-this
-;; movie-texture-anim-init (issue 762): retail's real body (fmv-player.asm
-;; L230, this rung's scoped decode) is just (texture-anim-override-size-init
-;; self) followed by zeroing *fmv-work*+48 -- fmv-work's own dma-addr field
-;; (all-types.gc's landed fmv-work deftype, offset-assert 48), a mid-
-;; playback flag movie-texture-anim-func (held, below) also reads. *fmv-
-;; work* itself stays a provisional object-typed extern (all-types.gc,
-;; "call-site evidence only"): no landed code allocates the real struct yet,
-;; so the store goes through the same raw-pointer-store idiom
-;; fmv-draw-quad already uses on other object-typed dma-buffer offsets in
-;; this file, rather than a typed field access.
+;; movie-texture-anim-init (issue 762): port workaround. Retail's
+;; real body (fmv-player.asm L230, this rung's scoped decode)
+;; is (texture-anim-override-size-init self) followed by zeroing
+;; *fmv-work*+48, fmv-work's own dma-addr field (all-types.gc's landed
+;; fmv-work deftype, offset-assert 48) that movie-texture-anim-func (held,
+;; below) also reads. That second half is dropped here: *fmv-work* is
+;; still only a provisional object-typed extern (all-types.gc, "call-site
+;; evidence only") that no landed code allocates, so the store was a
+;; null write through guarded address 0x30 that crashed the MENU2 DGO
+;; link the moment texture-anim's init-textures! walk dispatched this
+;; function as *menu-movie-texture-anim-array* entry 0's :init-func-id
+;; (issue 762). The field is PS2-DMA-only with no PC consumer, the same
+;; rationale that already holds movie-texture-anim-func below. Only
+;; (texture-anim-override-size-init arg0) survives, since it is the
+;; PC-relevant half: it sizes the iscreen-video-dest destination texture
+;; TextureAnimator actually publishes into. Retires alongside a landed
+;; *fmv-work* allocation with a real PS2-DMA consumer, which this port does
+;; not need since TextureAnimator's handle_fmv_frame already replaces it.
 (defun movie-texture-anim-init ((arg0 texture-anim))
   (texture-anim-override-size-init arg0)
-  (let ((v1-1 (the-as object (&+ (the-as pointer *fmv-work*) 48))))
-    (set! (-> (the-as (pointer int32) v1-1)) 0)
-    )
   0
   )
 
