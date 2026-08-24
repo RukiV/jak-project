@@ -410,6 +410,11 @@ class TextureAnimator {
   // moment an incoming frame's movie_id differs from this, rather than only on a
   // stop=1 frame -- covers a movie switch that never gets a clean stop first.
   int m_fmv_open_movie_id = -1;
+  // The dest an incoming FMV frame targets, or -1 before the first frame (issue 762).
+  // handle_fmv_frame sets this every call; the publish loop reads it to know which
+  // m_textures entry to also mirror into m_jakx_logo_movie_output_slot, since that loop
+  // otherwise has no way to tell an FMV destination apart from any other VRAM entry.
+  int m_fmv_current_dest = -1;
 
   struct TempTexture {
     GLuint tex;
@@ -575,6 +580,12 @@ class TextureAnimator {
   int m_jakx_jungle_water_tunnel_canal_anim_array_idx = -1;      // #120
   int m_jakx_jungle_lava_anim_array_idx = -1;                    // #120
   int m_jakx_jungle_lava_spill_scroll_anim_array_idx = -1;       // #120
+  // login logo movie (issue 762): the anim-slot index for the tpage-qualified
+  // "menu2-pris/iscreen-video-dest" key, resolved once in setup_texture_anims_jakx and left
+  // -1 if a config hasn't re-extracted that slot -- Merc2's negative-texture-id branch is the
+  // consumer, not create_fixed_anim_array (its tex_by_name lookup against the common tpage is
+  // fatal for this texture, see the investigation this landed from).
+  int m_jakx_logo_movie_output_slot = -1;
 
   std::vector<FixedAnimArray> m_fixed_anim_arrays;
 

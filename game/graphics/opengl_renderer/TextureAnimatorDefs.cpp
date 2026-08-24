@@ -1,3 +1,5 @@
+#include "common/texture/texture_slots.h"
+
 #include "game/graphics/opengl_renderer/TextureAnimator.h"
 
 /*!
@@ -314,6 +316,25 @@ void TextureAnimator::setup_texture_anims_jakx() {
     layer.set_no_z_write_no_z_test();
 
     m_jakx_jungle_lava_spill_scroll_anim_array_idx = create_fixed_anim_array({lava_spill});
+  }
+
+  // login logo movie (issue 762): resolved directly against the slot table rather than
+  // through output_slot_by_idx, which is fatal on a miss -- consistent with every other
+  // lookup in this function, a config that hasn't re-extracted the qualified slot should
+  // cost a black logo, not a failed boot. Consumed by Merc2's negative-texture-id branch,
+  // not create_fixed_anim_array (its tex_by_name lookup against the common tpage is fatal
+  // for this texture).
+  const auto& jakx_slots = jakx_animated_texture_slots();
+  for (size_t i = 0; i < jakx_slots.size(); i++) {
+    if (jakx_slots[i] == "menu2-pris/iscreen-video-dest") {
+      m_jakx_logo_movie_output_slot = (int)i;
+      break;
+    }
+  }
+  if (m_jakx_logo_movie_output_slot < 0) {
+    lg::warn(
+        "[texture anim] JakX logo movie output slot 'menu2-pris/iscreen-video-dest' is not "
+        "registered, so the login logo will not receive decoded frames.");
   }
 }
 

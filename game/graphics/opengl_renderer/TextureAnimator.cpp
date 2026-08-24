@@ -1568,6 +1568,15 @@ void TextureAnimator::handle_texture_anim_data(DmaFollower& dma,
       continue;
     }
 
+    // login logo movie (issue 762): mirror the FMV frame just decoded for this dest into its
+    // anim slot, the jak2/jak3 idiom Merc2's negative-texture-id branch reads. Guarded on the
+    // slot resolving at all (setup_texture_anims_jakx leaves it -1 if a config hasn't
+    // re-extracted the qualified slot name) and on this entry being the dest handle_fmv_frame
+    // just wrote, not just any GPU texture. copy_private_to_public below publishes it.
+    if (m_jakx_logo_movie_output_slot >= 0 && (int)tbp == m_fmv_current_dest) {
+      m_private_output_slots[m_jakx_logo_movie_output_slot] = entry.tex.value().texture();
+    }
+
     if (std::find(m_skip_tbps.begin(), m_skip_tbps.end(), tbp) != m_skip_tbps.end()) {
       continue;
     }
@@ -2083,6 +2092,10 @@ void TextureAnimator::handle_fmv_frame(const DmaTransfer& tf) {
     lg::warn("[fmv] rejecting out-of-range dest 0x{:x}", rec->dest);
     return;
   }
+
+  // Remembered so the publish loop below can tell this frame's m_textures entry apart from
+  // every other VRAM entry and also mirror it into m_jakx_logo_movie_output_slot (issue 762).
+  m_fmv_current_dest = (int)rec->dest;
 
   if (rec->movie_id != m_fmv_open_movie_id) {
     // A different movie than whatever m_fmv is currently open for (or nothing open
