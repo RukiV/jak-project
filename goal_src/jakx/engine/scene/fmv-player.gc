@@ -7,6 +7,273 @@
 
 ;; DECOMP BEGINS
 
+;; ============================================================================
+;; Menu movie texture-anim arrays (issue 762): the burning-X login warning is
+;; *menu-movie-texture-anim-array* going undefined at menu2's level login --
+;; both arrays are retail top-level statics with no goal_src home until now
+;; (retail fmv-player.o's top-level, this rung's own scoped decode,
+;; allowed_objects: ["fmv-player"], scratch proj-path: labels L259/L260 for
+;; *movie-texture-anim-array*, L265/L266/L272/L276 for
+;; *menu-movie-texture-anim-array*). Both target the movie destination
+;; texture "iscreen-video-dest": *menu-movie-texture-anim-array* array-data 0
+;; is the raw movie frame itself (0 layers; fmv-player-run-texture publishes
+;; into it via TextureAnimator), and *movie-texture-anim-array*'s single
+;; entry composites two decorative layers ("iscreen-video-scan" and
+;; "iscreen-video-noise") over that same destination -- a CRT scanline/static
+;; overlay, not the video content. The other two *menu-movie-texture-anim-
+;; array* entries (environment-interface-screen-02, world-water) are
+;; unrelated menu2 background effects that happen to share retail's array;
+;; transcribed verbatim alongside the movie entry since splitting the array
+;; would not match retail's static shape. end-st-rot 6881280.0 on
+;; *movie-texture-anim-array*'s noise layer is not a decode error: it is an
+;; exact multiple of 65536 (105 full turns), so it wraps to the same angle as
+;; 0 while still giving the interpolation a large, never-repeating-within-
+;; one-cycle rotation count; kept as decoded.
+;; ============================================================================
+(define *movie-texture-anim-array*
+  (new 'static 'texture-anim-array :type texture-anim
+    (new 'static 'texture-anim
+      :num-layers #x2
+      :func-id 'movie-texture-anim-func
+      :init-func-id 'movie-texture-anim-init
+      :mip-func-id 'texture-anim-draw-mips
+      :time-func #f
+      :tex #f
+      :tex-name "iscreen-video-dest"
+      :extra (new 'static 'vector :data (new 'static 'array float 4 256.0 128.0 1.0 0.0))
+      :color (new 'static 'rgba :a #x80)
+      :frame-delta 300.0
+      :frame-mod 150.0
+      :test #x31001
+      :alpha #x44
+      :data (new 'static 'array texture-anim-layer 2
+        (new 'static 'texture-anim-layer
+          :func-id 'default-texture-anim-layer-func
+          :init-func #f
+          :tex #f
+          :end-time 150.0
+          :tex-name "iscreen-video-scan"
+          :test (new 'static 'gs-test :ate #x1 :afail #x3 :zte #x1 :ztst (gs-ztest always))
+          :alpha (new 'static 'gs-alpha :b #x2 :d #x1)
+          :start-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :start-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :start-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :start-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 -1.0))
+          :start-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.0))
+          :start-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :end-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :end-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 -1.0))
+          :end-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 1.0))
+          :end-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          )
+        (new 'static 'texture-anim-layer
+          :func-id 'default-texture-anim-layer-func
+          :init-func #f
+          :tex #f
+          :end-time 150.0
+          :tex-name "iscreen-video-noise"
+          :test (new 'static 'gs-test :ate #x1 :afail #x1 :zte #x1 :ztst (gs-ztest always))
+          :alpha (new 'static 'gs-alpha :b #x2 :d #x1)
+          :start-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :start-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :start-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :start-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 4.0 2.0))
+          :start-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 8.0 0.0))
+          :start-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :end-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :end-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 4.0 2.0))
+          :end-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.0 8.0))
+          :end-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-st-rot 6881280.0
+          )
+        )
+      )
+    )
+  )
+
+(define *menu-movie-texture-anim-array*
+  (new 'static 'texture-anim-array :type texture-anim
+    (new 'static 'texture-anim
+      :func-id 'movie-texture-anim-func
+      :init-func-id 'movie-texture-anim-init
+      :mip-func-id 'texture-anim-draw-mips
+      :time-func #f
+      :tex #f
+      :tex-name "iscreen-video-dest"
+      :extra (new 'static 'vector :data (new 'static 'array float 4 128.0 128.0 1.0 0.0))
+      :color (new 'static 'rgba :a #x80)
+      :frame-delta 300.0
+      :frame-mod 300.0
+      :test #x31001
+      :alpha #x44
+      )
+    (new 'static 'texture-anim
+      :num-layers #x1
+      :func #f
+      :init-func-id 'texture-anim-override-size-init
+      :mip-func-id 'texture-anim-draw-mips
+      :time-func #f
+      :tex #f
+      :tex-name "environment-interface-screen-02-dest"
+      :extra (new 'static 'vector :data (new 'static 'array float 4 64.0 64.0 1.0 0.0))
+      :color (new 'static 'rgba :a #x80)
+      :frame-delta 300.0
+      :frame-mod 1200.0
+      :test #x31001
+      :alpha #x44
+      :clamp #x5
+      :data (new 'static 'array texture-anim-layer 1
+        (new 'static 'texture-anim-layer
+          :func-id 'default-texture-anim-layer-func
+          :init-func #f
+          :tex #f
+          :end-time 1200.0
+          :tex-name "environment-interface-screen-02-src"
+          :test (new 'static 'gs-test :ate #x1 :afail #x1 :zte #x1 :ztst (gs-ztest always))
+          :alpha (new 'static 'gs-alpha :b #x2 :d #x1)
+          :start-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :start-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :start-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :start-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :start-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 1.0 0.5))
+          :start-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :end-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :end-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :end-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.0 0.5))
+          :end-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          )
+        )
+      )
+    (new 'static 'texture-anim
+      :num-layers #x3
+      :func #f
+      :init-func-id 'texture-anim-override-size-init
+      :mip-func-id 'texture-anim-draw-ocean-mips
+      :time-func #f
+      :tex #f
+      :tex-name "world-water-dest"
+      :extra (new 'static 'vector :data (new 'static 'array float 4 128.0 128.0 7.0 0.0))
+      :color (new 'static 'rgba :a #x80)
+      :frame-delta 300.0
+      :frame-mod 4500.0
+      :test #x31001
+      :alpha #x44
+      :clamp #x5
+      :data (new 'static 'array texture-anim-layer 3
+        (new 'static 'texture-anim-layer
+          :func-id 'default-texture-anim-layer-func
+          :init-func #f
+          :tex #f
+          :end-time 4500.0
+          :tex-name "world-water-src"
+          :test (new 'static 'gs-test :ate #x1 :afail #x1 :zte #x1 :ztst (gs-ztest always))
+          :alpha (new 'static 'gs-alpha :b #x2 :d #x1)
+          :start-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :start-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :start-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :start-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 6.0 6.0))
+          :start-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.33 1.33))
+          :start-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :start-st-rot 32768.0
+          :end-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :end-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :end-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 6.0 6.0))
+          :end-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 1.33 0.33))
+          :end-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-st-rot 32768.0
+          )
+        (new 'static 'texture-anim-layer
+          :func-id 'default-texture-anim-layer-func
+          :init-func #f
+          :tex #f
+          :end-time 4500.0
+          :tex-name "world-water-src"
+          :test (new 'static 'gs-test :ate #x1 :afail #x1 :zte #x1 :ztst (gs-ztest always))
+          :alpha (new 'static 'gs-alpha :b #x2 :d #x1)
+          :start-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :start-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :start-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :start-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 4.0 4.0))
+          :start-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 1.67 0.67))
+          :start-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :start-st-rot 16384.0
+          :end-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :end-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :end-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 4.0 4.0))
+          :end-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.67 1.67))
+          :end-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-st-rot 16384.0
+          )
+        (new 'static 'texture-anim-layer
+          :func-id 'default-texture-anim-layer-func
+          :init-func #f
+          :tex #f
+          :end-time 4500.0
+          :tex-name "world-water-src"
+          :test (new 'static 'gs-test :ate #x1 :afail #x1 :zte #x1 :ztst (gs-ztest always))
+          :alpha (new 'static 'gs-alpha :b #x2 :d #x1)
+          :start-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :start-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :start-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :start-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 2.0 2.0))
+          :start-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 1.0))
+          :start-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-color (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          :end-scale (new 'static 'vector2 :data (new 'static 'array float 2 1.0 1.0))
+          :end-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.5))
+          :end-st-scale (new 'static 'vector2 :data (new 'static 'array float 2 2.0 2.0))
+          :end-st-offset (new 'static 'vector2 :data (new 'static 'array float 2 0.5 0.0))
+          :end-qs (new 'static 'vector :data (new 'static 'array float 4 1.0 1.0 1.0 1.0))
+          )
+        )
+      )
+    )
+  )
+
+;; og:preserve-this
+;; movie-texture-anim-init (issue 762): retail's real body (fmv-player.asm
+;; L230, this rung's scoped decode) is just (texture-anim-override-size-init
+;; self) followed by zeroing *fmv-work*+48 -- fmv-work's own dma-addr field
+;; (all-types.gc's landed fmv-work deftype, offset-assert 48), a mid-
+;; playback flag movie-texture-anim-func (held, below) also reads. *fmv-
+;; work* itself stays a provisional object-typed extern (all-types.gc,
+;; "call-site evidence only"): no landed code allocates the real struct yet,
+;; so the store goes through the same raw-pointer-store idiom
+;; fmv-draw-quad already uses on other object-typed dma-buffer offsets in
+;; this file, rather than a typed field access.
+(defun movie-texture-anim-init ((arg0 texture-anim))
+  (texture-anim-override-size-init arg0)
+  (let ((v1-1 (the-as object (&+ (the-as pointer *fmv-work*) 48))))
+    (set! (-> (the-as (pointer int32) v1-1)) 0)
+    )
+  0
+  )
+
+;; og:preserve-this HELD (issue 762): movie-texture-anim-func
+;; (fmv-player.asm/ir2.asm L226-L229, ops 0-21, this rung's scoped decode) is
+;; a raw PS2 GIF/DMA-tag emitter with no PC counterpart -- it reads *fmv-
+;; work*+48 (the same dma-addr flag movie-texture-anim-init clears above) to
+;; decide whether to zero the caller's buffer word for *movie-texture-anim-
+;; array* specifically (ops 3-6), then unconditionally packs a tag word
+;; (#x50000000 logior ((num-layers << 33) >> 1), an EOP+PRE-flagged qword
+;; count) into the caller dma-buffer's own tag slot and advances its cursor
+;; 16 bytes (ops 7-16); the *movie-texture-anim-array*-mismatch fallback
+;; (ops 18-21) just pokes a bare 2 into the buffer instead. TextureAnimator's
+;; own C++ path (handle_fmv_frame) publishes decoded MJV frames directly and
+;; never walks a DMA chain for this array, so there is nothing on the PC
+;; side for this function to drive. Left as a bare :func-id symbol reference
+;; above (the same shape car-texture-anim-layer-func uses in
+;; texture-anim-tables.gc); retires alongside a real PS2-DMA-chain consumer,
+;; which does not exist on this port.
+
 ;; og:preserve-this bring-up stub: fmv-player-run-texture is a declaration-
 ;; side extern with no defun anywhere (the extern-no-defun class, issue 551).
 ;; The live call site is scene.gc:1195, inside (enter wait scene-player)'s

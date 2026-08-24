@@ -42,6 +42,17 @@
 ;; own og:preserve-this comment in fmv-player.gc for the shape and evidence.
 (define-extern fmv-player-run (function string process-tree symbol symbol))
 
+;; og:preserve-this *fmv-work* (issue 762): a forward declaration only,
+;; matching all-types.gc's own provisional entry ("call-site evidence only")
+;; verbatim -- object-typed because no landed code has field-layout evidence
+;; strong enough to allocate the real fmv-work struct yet (fmv-player-run's
+;; own og:preserve-this note above stops at offset 84 for the same reason).
+;; movie-texture-anim-init (fmv-player.gc, this rung) is the first landed
+;; reader/writer of this global, via raw pointer arithmetic rather than a
+;; typed field access, so this extern needs to exist before that function
+;; can compile; retires once a rung lands the real (define *fmv-work* ...).
+(define-extern *fmv-work* object)
+
 ;; DECOMP BEGINS
 
 (deftype m2v-caption (structure)
