@@ -2,6 +2,7 @@
 
 #include <optional>
 #include <set>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -321,6 +322,19 @@ class TextureAnimator {
   const std::vector<GLuint>* slots() { return &m_public_output_slots; }
   void clear_stale_textures(u64 frame_idx);
 
+  // Movie-id -> disc-M2V basename (jakx-fmv-boot-movies rung 2). Mechanical
+  // transcription of *m2v-info*'s own :name field order
+  // (goal_src/jakx/engine/scene/fmv-player-h.gc); fmv-player.gc's
+  // m2v-info-index-by-name computes this same array position as the GOAL-side
+  // "movie index" carried in the spawned process's gui-id field, so the two
+  // sides agree by construction rather than by a duplicated hand-typed order.
+  // Returns an empty string for an out-of-range id rather than asserting: a
+  // bad id from GOAL is data, not a C++ bug, matching handle_fmv_frame's
+  // existing fail-soft posture for every other FMV validation. static (and
+  // public) so unit tests (test_MjvVideoReader.cpp) can call it without a GL
+  // context or a TextureAnimator instance.
+  static std::string fmv_movie_basename(int movie_id);
+
  private:
   void copy_private_to_public();
   void setup_texture_anims_common();
@@ -391,6 +405,11 @@ class TextureAnimator {
   // produces one warn line per play session instead of one every frame.
   MjvVideoReader m_fmv;
   bool m_fmv_open_attempted = false;
+  // Movie id m_fmv is currently open for, or -1 if none has ever been opened
+  // (jakx-fmv-boot-movies rung 2). handle_fmv_frame closes and reopens m_fmv the
+  // moment an incoming frame's movie_id differs from this, rather than only on a
+  // stop=1 frame -- covers a movie switch that never gets a clean stop first.
+  int m_fmv_open_movie_id = -1;
 
   struct TempTexture {
     GLuint tex;

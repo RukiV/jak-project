@@ -2009,12 +2009,42 @@ void TextureAnimator::handle_generic_upload(const DmaTransfer& tf, const u8* ee_
 }
 
 /*!
+ * Movie-id -> disc-M2V basename (jakx-fmv-boot-movies rung 2), used with a ".MJV"
+ * extension to open the transcoded container gen_mjv.py produces under out/jakx/fmv/.
+ * Mechanical transcription of *m2v-info*'s own :name field, in array order
+ * (goal_src/jakx/engine/scene/fmv-player-h.gc); fmv-player.gc's own
+ * m2v-info-index-by-name computes this same array position as the GOAL-side "movie
+ * index" it carries in the spawned process's gui-id field, so the two sides agree by
+ * construction on what id N means rather than by a second hand-typed order that could
+ * drift from the first.
+ */
+std::string TextureAnimator::fmv_movie_basename(int movie_id) {
+  static const char* const kMovieNames[] = {
+      "INTRO",    "INTROB",   "FIRAINTR", "FIRARES",  "DAPOREAL", "JAFARAZE", "BLDERACE",
+      "PECKSHOW", "MEETUR86", "BLEAGADG", "SIRETURN", "URBORAIN", "URBORARE", "JAHANOCH",
+      "KEWATORA", "KLSHUP",   "KLBUBASH", "BLSPBIG",  "JARAONSH", "JUBAINHA", "DAWAJOB",
+      "KLBORAIN", "KLBORACE", "BLFADIED", "KRDIARY",  "JACORAZE", "CAWETRMI", "PEHAINFO",
+      "RAGENAST", "JABERAZO", "MIOFDEAL", "BLFAKILL", "JAKIKREW", "BLBAALL",  "FIBORAIN",
+      "OUTROA",   "OUTROB",   "OUTROC",   "INTROB2",  "BLOOPERS", "MAKINGIN", "HOTCOFFE",
+      "THX",
+  };
+  constexpr int kMovieCount = sizeof(kMovieNames) / sizeof(kMovieNames[0]);
+  static_assert(kMovieCount == 43, "*m2v-info* has 43 entries (fmv-player-h.gc)");
+  if (movie_id < 0 || movie_id >= kMovieCount) {
+    return "";
+  }
+  return std::string(kMovieNames[movie_id]) + ".MJV";
+}
+
+/*!
  * Handle a Jak X FMV frame upload (code 87, TextureAnimPcFmvFrame, issue 569). Unlike
  * handle_generic_upload, the pixel source is never EE memory: MjvVideoReader owns its own
- * RGBA8 decode buffer, decoded straight from out/jakx/fmv/THX.MJV on the render thread (see
- * MjvVideoReader.h for why that needs no synchronization in v1). A missing or corrupt movie
- * file, an unsupported movie-id, or an out-of-range dest is never a bug: each produces one
- * warn line and leaves the quad's texture untouched, never a crash.
+ * RGBA8 decode buffer, decoded straight from out/jakx/fmv/<basename>.MJV on the render
+ * thread (see MjvVideoReader.h for why that needs no synchronization in v1); the basename
+ * is rec->movie_id looked up through fmv_movie_basename (jakx-fmv-boot-movies rung 2), and
+ * m_fmv is closed and reopened the moment movie_id changes, not only on a stop=1 frame. A
+ * missing or corrupt movie file, an out-of-range movie-id, or an out-of-range dest is never
+ * a bug: each produces one warn line and leaves the quad's texture untouched, never a crash.
  */
 void TextureAnimator::handle_fmv_frame(const DmaTransfer& tf) {
   ASSERT(tf.size_bytes == sizeof(TextureAnimPcFmvFrame));
@@ -2026,8 +2056,10 @@ void TextureAnimator::handle_fmv_frame(const DmaTransfer& tf) {
     return;
   }
 
-  if (rec->movie_id != 0) {
-    lg::warn("[fmv] movie-id {} is not supported in v1 (THX only), ignoring frame", rec->movie_id);
+  auto basename = fmv_movie_basename(rec->movie_id);
+  if (basename.empty()) {
+    lg::warn("[fmv] movie-id {} is out of range (*m2v-info* has 43 entries), ignoring frame",
+             rec->movie_id);
     return;
   }
 
@@ -2043,9 +2075,19 @@ void TextureAnimator::handle_fmv_frame(const DmaTransfer& tf) {
     return;
   }
 
+  if (rec->movie_id != m_fmv_open_movie_id) {
+    // A different movie than whatever m_fmv is currently open for (or nothing open
+    // yet): close it (a no-op if already closed, e.g. after a prior stop=1) and reset
+    // the open-attempt latch so the new movie gets its own warn budget instead of
+    // inheriting the previous movie's. Covers a movie switch that never gets a clean
+    // stop=1 frame first, not just the stop=1 path above.
+    m_fmv.close();
+    m_fmv_open_attempted = false;
+    m_fmv_open_movie_id = rec->movie_id;
+  }
   if (!m_fmv.is_open() && !m_fmv_open_attempted) {
     m_fmv_open_attempted = true;
-    auto path = file_util::get_jak_project_dir() / "out" / "jakx" / "fmv" / "THX.MJV";
+    auto path = file_util::get_jak_project_dir() / "out" / "jakx" / "fmv" / basename;
     // MjvVideoReader::open() already lg::warns with the specific reason (missing file,
     // bad magic, truncated table, ...) on failure -- do not warn again here, or a
     // missing/corrupt movie produces two lines instead of the one issue 569 acceptance

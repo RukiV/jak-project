@@ -28,6 +28,7 @@
 #include "common/common_types.h"
 #include "common/util/FileUtil.h"
 
+#include "game/graphics/opengl_renderer/TextureAnimator.h"
 #include "game/graphics/texture/MjvVideoReader.h"
 #include "gtest/gtest.h"
 
@@ -200,6 +201,73 @@ TEST(MjvVideoReader, FrameIndexFollowsFpsAndClampsPastTheEnd) {
   ASSERT_NE(f_past_end, nullptr);
   EXPECT_NEAR(pixel(f_past_end, w, 8, 8)[2], 255, 10);
   EXPECT_EQ(reader.last_index(), 2);  // clamped to frame_count() - 1, not failed
+}
+
+// jakx-fmv-boot-movies rung 2: TextureAnimator::fmv_movie_basename's movie-id ->
+// disc-M2V-basename table. static (declared in TextureAnimator.h) so it is callable
+// with no TextureAnimator instance and no GL context -- TextureAnimator's constructor
+// calls real GL setup, like Sprite3's own (see test_Sprite3.cpp's header comment for
+// the established reason goalc-test never constructs either), so this rung's tests
+// exercise the free function directly rather than a live TextureAnimator.
+TEST(FmvMovieBasename, KnownIdsMapToTheExpectedName) {
+  // First (id 0) and last (id 42) entries of *m2v-info*'s own :name order
+  // (goal_src/jakx/engine/scene/fmv-player-h.gc), plus one from the middle, spot-check
+  // the full 43-entry table without hand-duplicating every row here.
+  EXPECT_EQ(TextureAnimator::fmv_movie_basename(0), "INTRO.MJV");
+  EXPECT_EQ(TextureAnimator::fmv_movie_basename(42), "THX.MJV");
+  EXPECT_EQ(TextureAnimator::fmv_movie_basename(38), "INTROB2.MJV");
+}
+
+TEST(FmvMovieBasename, OutOfRangeIdsReturnEmptyRatherThanAsserting) {
+  // A bad movie-id from GOAL is data, not a C++ bug (handle_fmv_frame's own fail-soft
+  // posture) -- confirm the boundary on both sides rather than just one.
+  EXPECT_EQ(TextureAnimator::fmv_movie_basename(-1), "");
+  EXPECT_EQ(TextureAnimator::fmv_movie_basename(43), "");
+  EXPECT_EQ(TextureAnimator::fmv_movie_basename(1000), "");
+}
+
+// jakx-fmv-boot-movies rung 2: handle_fmv_frame closes and reopens m_fmv (an
+// MjvVideoReader) the moment an incoming frame's movie_id differs from whichever movie
+// is currently open, mirroring a close()-then-open()-on-a-different-file sequence at
+// the MjvVideoReader layer. handle_fmv_frame itself needs a live TextureAnimator (GL
+// setup, see the comment above), so this exercises the layer underneath it that the
+// reopen actually depends on: that a second open() on a different container fully
+// replaces the first movie's state (dimensions, frame count, decoded pixels) rather
+// than leaking or merging with it.
+TEST(MjvVideoReader, ReopensCleanlyWhenTheUnderlyingMovieChanges) {
+  const int wa = 16, ha = 16;
+  auto frame_a = encode_two_band_jpeg(wa, ha, ha, 255, 0, 0, 255, 0, 0);  // solid red
+  auto path_a = pack_mjv("mjv_test_reopen_a.mjv", wa, ha, 10, 1, {frame_a});
+
+  const int wb = 24, hb = 8;  // deliberately different dimensions from movie A
+  auto frame_b0 = encode_two_band_jpeg(wb, hb, hb, 0, 0, 255, 0, 0, 255);  // solid blue
+  auto frame_b1 = encode_two_band_jpeg(wb, hb, hb, 0, 255, 0, 0, 255, 0);  // solid green
+  auto path_b = pack_mjv("mjv_test_reopen_b.mjv", wb, hb, 10, 1, {frame_b0, frame_b1});
+
+  MjvVideoReader reader;
+  ASSERT_TRUE(reader.open(path_a));
+  EXPECT_EQ(reader.width(), wa);
+  EXPECT_EQ(reader.height(), ha);
+  EXPECT_EQ(reader.frame_count(), 1);
+  const u8* a_rgba = reader.frame_rgba_at_ms(0);
+  ASSERT_NE(a_rgba, nullptr);
+  EXPECT_NEAR(pixel(a_rgba, wa, wa / 2, ha / 2)[0], 255, 10);  // movie A is red
+  EXPECT_EQ(reader.last_index(), 0);
+
+  // The reopen TextureAnimator does on a movie_id change: close, then open a
+  // different container.
+  reader.close();
+  EXPECT_FALSE(reader.is_open());
+  ASSERT_TRUE(reader.open(path_b));
+
+  // Every piece of movie A's state must be gone, not merged with movie B's.
+  EXPECT_EQ(reader.width(), wb);
+  EXPECT_EQ(reader.height(), hb);
+  EXPECT_EQ(reader.frame_count(), 2);
+  const u8* b_rgba = reader.frame_rgba_at_ms(150);  // 1.5 frames in at 10fps -> index 1
+  ASSERT_NE(b_rgba, nullptr);
+  EXPECT_NEAR(pixel(b_rgba, wb, wb / 2, hb / 2)[1], 255, 10);  // movie B's frame 1 is green
+  EXPECT_EQ(reader.last_index(), 1);
 }
 
 TEST(MjvVideoReader, RejectsTruncatedFrameTable) {
