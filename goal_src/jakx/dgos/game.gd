@@ -390,6 +390,12 @@
   "net-time-trial-h.o"
   "net-eco-h.o"
   "menu2-h.o"
+  ;; menu2-landing rung round 15 (issue 699): the spawn-road subset compiled for
+  ;; real, linked right after the header that declares its slots and well before
+  ;; the raw "menu2.o" row further down (game.gp's defstep, game.gp:114) - that
+  ;; row's own top-level no longer executes at all (klink.cpp's jakx_finish, same
+  ;; rung), so this is the only thing that ever installs base-menu 50/51/52.
+  "menu2-installs.o"
   "menu2-lists.o"
   "keyboard.o"
   "lobby-menu-manager-h.o"

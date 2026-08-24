@@ -1,0 +1,206 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: menu2-installs.gc
+;; name in dgo: menu2-installs
+;; dgos: GAME
+
+;; menu2-landing rung round 15 (issue 699), part 2: the spawn-road subset of
+;; goal_src/jakx/engine/ui/menu2.gc, compiled for real. That file (cleaned of its
+;; 2,158 register-typing artifacts by the prior commit on this branch) stays dead
+;; and unwired - it is not a member of any .gd, so nothing in it has ever compiled
+;; as part of (mi) - because most of its ~14,000 lines either share base-menu-
+;; family vtable slots with subtypes this rung does not touch, or are themselves
+;; garbled decode (see each stub's own citation below). This file lands only what
+;; lmm-make-background-menu's (goal_src/jakx/engine/ui/menu/lobby-menu-manager.gc)
+;; spawn road actually reaches: base-menu-init-by-other, the init function all
+;; five base-menu spawn sites pass, and the base-menu method/state family (slots
+;; 50/51/52 - wait-enter/enter/running) that init function's own enter-state
+;; dispatch walks into (menu2-h.gc's own round-12 citation, a697acd0a, worked out
+;; that exact road first and stubbed these same three slots with sleep-code; this
+;; file replaces that safety net with the decode's own content wherever the decode
+;; has any).
+;;
+;; Part 1 of this same rung (game/kernel/jakx/klink.cpp) stopped jakx_work_v5's
+;; raw copies from ever executing their own top-level as x86 (they carry retail
+;; MIPS, not compiled GOAL). GAME.CGO's raw "menu2.o" (decompiler_out/jakx/
+;; raw_obj/menu2-GAME.go, wired by game.gp's own defstep, game.gp:114) carries a
+;; second copy of these same method-set!/defstate installs in its own top-level
+;; (game.gp's round-10 link-order audit, game.gp:136-153) - that top-level no
+;; longer runs at all after Part 1, so this file's own top-level (compiled and
+;; linked the ordinary opengoal way) is the only thing that ever writes these
+;; slots. game.gd places this file's row immediately after menu2-h.o and well
+;; before menu2.o's own row for exactly that reason: menu2-h.o declares the
+;; slots, this file fills them, and the raw copy further down is inert data by
+;; construction, not a competing installer.
+
+;; og:preserve-this bring-up stub, issue 699: NOT retail's body. The real
+;; base-menu-init-by-other (goal_src/jakx/engine/ui/menu2.gc:1196-1903, dead/
+;; uncompiled reference text) carries the decompiler's own "ERROR: failed type
+;; prop at 40: Could not figure out load: (set! v1 (l.wu (+ s6 248)))" - the same
+;; class default-base-menu-post hits below, one field access into pp+248
+;; (info-ptr) that the type-propagation pass never recovered a field name for,
+;; poisoning everything downstream: 253 of its 275 declared register locals type
+;; as `none`, versus real recovered types (clock, uint, display, matrix, pointer
+;; uint8) for the handful of locals set before that load. Hand-transcribing 700
+;; lines of raw pp+offset arithmetic against those numeric offsets is exactly the
+;; "invent content the decode does not contain" failure mode this kind of rung is
+;; supposed to avoid, so it stays a stub. The signature matches the extern
+;; already forward-declared in lobby-menu-manager.gc:14 (five base-menu spawn
+;; sites there call this as init), which this defun now resolves for real -
+;; check_extern_defun expects that resolution, not a working body. Retirement
+;; condition: a real landing of this function, most likely alongside a retype of
+;; base-menu-info's own field layout that recovers the pp+248 load.
+(defun base-menu-init-by-other ((a0-0 object) (a1-0 vector) (a2-0 int))
+  (the-as object #f)
+  )
+
+;; og:preserve-this bring-up stub, issue 699: NOT retail's body. menu2.gc:768
+;; carries only "ERROR: function has no type analysis. Cannot decompile." for
+;; base-menu-event-handler - no body of any kind survived decode, not even a
+;; garbled one. Every base-menu-family :event slot in the dead text casts this
+;; symbol through (the-as (function process int symbol event-message-block
+;; object) base-menu-event-handler), so the signature below matches that cast
+;; site exactly. Retirement condition: a real decode of this function turning up
+;; (it would need a different decompiler config or a hand-disassembly pass this
+;; rung does not attempt).
+(defun base-menu-event-handler ((proc process) (argc int) (message symbol) (block event-message-block))
+  (the-as object #f)
+  )
+
+;; og:preserve-this bring-up stub, issue 699: NOT retail's body. Same class as
+;; base-menu-init-by-other above: menu2.gc:46 carries "ERROR: failed type prop at
+;; 2: Could not figure out load: (set! v1 (l.wu (+ s6 248)))" - the failure hits
+;; two ops into the function this time, so essentially nothing downstream
+;; recovered a type (255 of 256 declared register locals are `none`; the sole
+;; exception is a loop-counter int nothing else touches). The recovered code is
+;; ~700 lines of raw pp+offset stores and float math against that same
+;; unresolved info-ptr field, functionally unreviewable. Every base-menu-family
+;; :post slot in the dead text points straight at this symbol with a bare
+;; reference (no cast, since the state type's own post field is plain `function`),
+;; so any callable value satisfies every call site. Retirement condition: same as
+;; base-menu-init-by-other above - the base-menu-info field layout has to be
+;; recovered before either function is worth transcribing for real.
+(defun default-base-menu-post ()
+  (none)
+  )
+
+;; base-menu-method-50 ("wait-enter"): declared in menu2-h.gc as a plain
+;; (:methods (base-menu-method-50 () none)) entry, not a named :state-methods
+;; slot, even though its real content (menu2.gc:880-927, gp-3 in the dead text)
+;; is a state object - menu2-h.gc's own round-12 citation (a697acd0a) worked
+;; this out first and installed the sleep-code stub this replaces the same way:
+;; method-set! on the raw method id, with an explicit (the-as (function none)
+;; ...) cast around the constructed state, because method-set! checks its value
+;; against the slot's declared (function none) typespec and a bare `state` does
+;; not satisfy it. The decode's own (new 'static 'state :name ... :next ... :exit
+;; ...) literal does not compile as written either: it keyword-inits :name/:next/
+;; :exit, and jakx's own (deftype state ...) (goal_src/jakx/kernel/gkernel-h.gc)
+;; declares only parent/code/trans/post/enter/event, six fields, with no :name or
+;; :next at all (jak3's copy of the same deftype is identical - this is not a
+;; jakx-only trim). So this uses state's own :methods (new ...) constructor
+;; instead (the same positional form a697acd0a's stub already proved compiles),
+;; with the decode's real :enter and :code lambdas transcribed verbatim in place
+;; of that round's #f/sleep-code placeholders.
+(method-set!
+  base-menu
+  50
+  (the-as
+    (function none)
+    (new
+      'global
+      'state
+      'wait-enter
+      (lambda :behavior base-menu
+        ()
+        (until (>= (the-as uint (- (current-time) (the-as int (-> self menu-time))))
+                   (-> self info-ptr trans-info enter-delay)
+                   )
+          (suspend)
+          )
+        (go-virtual base-menu-state-51)
+        )
+      (the-as (function object) #f)
+      default-base-menu-post
+      (lambda :behavior base-menu
+        ()
+        (set! (-> self menu-time) (the-as uint (current-time)))
+        (let ((v1-4 (-> self info-ptr trans-info enter-anim)))
+          (when (!= v1-4 -1)
+            (let ((gp-0 (-> self skel root-channel 0)))
+              (joint-control-channel-group-eval!
+                gp-0
+                (the-as art-joint-anim (-> self draw art-group data v1-4))
+                num-func-identity
+                )
+              (set! (-> gp-0 frame-num) 0.0)
+              )
+            )
+          )
+        )
+      (the-as (function process int symbol event-message-block object) base-menu-event-handler)
+      )
+    )
+  )
+
+;; base-menu-state-51 ("enter"): a real :state-methods slot (menu2-h.gc), so this
+;; uses defstate directly, matching a697acd0a's own round-12 stub for the same
+;; slot. The decode (menu2.gc:825-836, gp-1) sets :event and :post to real
+;; values, both landed below, but its own :code is the bare label `L763` - no
+;; corresponding defun anywhere in the file, and nothing else in the dead text
+;; defines an L763 either (grepped). That is a decompiler control-flow miss (an
+;; address it never attributed to any lambda), not a typed-but-messy body like
+;; the two stubs above, so there is nothing to transcribe even garbled: :code
+;; stays sleep-code, carrying the same "safety net a working install would
+;; overwrite" framing a697acd0a used, until L763's actual code is recovered by
+;; some other means.
+(defstate base-menu-state-51 (base-menu)
+  :virtual #t
+  :event (the-as (function process int symbol event-message-block object) base-menu-event-handler)
+  :code sleep-code
+  :post default-base-menu-post
+  )
+
+;; base-menu-state-52 ("running"): a real :state-methods slot. The decode
+;; (menu2.gc:770-823, gp-0) is clean - :event, :code and :post all resolved with
+;; real types, no ERROR/WARN on this block - so all three are transcribed
+;; verbatim below, including the loop shape as decoded (the :code lambda's inner
+;; `(until (< s5-0 0) ...)` only ever increments s5-0 on one branch and
+;; decrements on the other; that is what the decode says, not a typo introduced
+;; here).
+(defstate base-menu-state-52 (base-menu)
+  :virtual #t
+  :event (the-as (function process int symbol event-message-block object) base-menu-event-handler)
+  :code (lambda :behavior base-menu
+          ()
+          (until #f
+            (when (-> self info-ptr trans-info)
+              (let ((gp-0 (-> self info-ptr trans-info running-anim)))
+                (-> self info-ptr trans-info anim-speed)
+                (let ((s5-0 0))
+                  (when (!= gp-0 -1)
+                    (until (< s5-0 0)
+                      (ja :group! (-> self draw art-group data gp-0) :num! (identity (the float s5-0)))
+                      (cond
+                        ((and (!= (-> self info-ptr trans-info running-anim) -1) (not (ja-max? 0)))
+                         (+! s5-0 1)
+                         )
+                        (else
+                          (if (ja-max? 0)
+                              (send-event (ppointer->process (-> self parent)) 'menu-selection-event 'running-anim-finished gp-0)
+                              )
+                          (+! s5-0 -1)
+                          )
+                        )
+                      (suspend)
+                      )
+                    )
+                  )
+                )
+              )
+            (suspend)
+            )
+          #f
+          )
+  :post default-base-menu-post
+  )
