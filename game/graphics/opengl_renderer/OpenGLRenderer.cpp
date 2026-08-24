@@ -567,13 +567,20 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     init_bucket_renderer<DirectRenderer>("debug-menu", BucketCategory::OTHER, BucketId::DEBUG_MENU,
                                          0x8000);
 
-    // 785 (issue 675): the real debug-draw target, carrying the bulk of the 80 landed
-    // goal_src (bucket-id bucket785) writers (add-debug-box/sphere/matrix and friends),
-    // was falling into SkipRenderer with every draw silently dropped. DirectRenderer is
-    // the sibling shape jak2/jak3 use for their own debug buckets (OpenGLRenderer.cpp:1135
-    // jak2 0x20000, :436 jak3 0x8000); size follows jak2's, matching the 793 registration
-    // just above.
-    init_bucket_renderer<DirectRenderer>("bucket785", BucketCategory::OTHER, 785, 0x20000);
+    // 785 (issue 675, corrected by issue 761): the real debug-draw target, carrying the
+    // bulk of the 80 landed goal_src (bucket-id bucket785) writers (add-debug-box/sphere/
+    // matrix and friends) plus draw-raw-image's title-card sprite (the Dolby card,
+    // DOSCREEN.STR). Issue 675 registered it as a plain DirectRenderer, matching jak2/jak3's
+    // "debug" bucket shape (OpenGLRenderer.cpp:1135 jak2 0x20000, :436 jak3 0x8000), but a
+    // plain DirectRenderer walks the DMA chain and draws GIF data without ever looking at
+    // the PC-port texture-anim upload codes, so draw-raw-image's GENERIC_UPLOAD record was
+    // silently swallowed and the sprite sampled tbp 0, which nothing had written: a white
+    // quad. bucket785 is actually jakx's twin of jak2/jak3's debug-no-zbuf1 (the same OTHER,
+    // no-z-buffer debug role), which both register as TextureUploadHandler with
+    // add_direct = true (OpenGLRenderer.cpp:420-421 jak2, :927-928 jak3): the only renderer
+    // that both consumes the upload codes and draws the sprite from the same DMA chain.
+    init_bucket_renderer<TextureUploadHandler>("bucket785", BucketCategory::OTHER, 785,
+                                               m_texture_animator, true);
 
     // Merc: the 104 distinct merc-mode destinations read mechanically out of the
     // landed *bucket-map* (foreground-h.gc, vu1-bucket-map(level 0..18, category in
