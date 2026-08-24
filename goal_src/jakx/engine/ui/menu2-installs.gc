@@ -925,6 +925,42 @@
   (none)
   )
 
+;; og:preserve-this inheritance hazard, issue 759, lobby rung a1's own
+;; STEP audit: game.gd places menu2-h.o (rank 392, where jakx-logo-menu,
+;; selection-menu-manager and dropdown-item's own deftype forms live)
+;; before menu2-installs.o (rank 398, the real method-58 landing just
+;; above), and every deftype compiles to an inline (new 'type ...) call
+;; that runs as part of its own file's top-level (goalc/compiler/
+;; compilation/Type.cpp's "this is new_type in kscheme.cpp" comment).
+;; new_type's own loop (game/kernel/jakx/kscheme.cpp) copies the parent's
+;; CURRENT method array into the child's own, one time, at that exact
+;; moment - "child_slots[i] = parent_slots[i]" for i < parent_num_methods,
+;; no live link back to the parent afterward. Since base-menu's own real
+;; slot 58 (just above) does not exist yet when menu2-h.o's top-level
+;; runs, all three subtypes copy a stale (nullptr) slot 58, and method-
+;; set!/defmethod propagation is off on -boot builds, so nothing fixes
+;; that copy later. dropdown-item and jakx-logo-menu's own info structs
+;; never carry non-#f children in this rung's own landed data (base-menu-
+;; init-by-other's own tail only calls method-58 inside
+;; "(when (-> arg0 children) ...)"), so neither actually dispatches
+;; through the stale slot today, but selection-menu-manager's own info
+;; (the 'manager node, lobby-menu-data.gc's *base-menu-info* tree) does:
+;; it is the one subtype this rung's own acceptance needs a working
+;; method-58 on, to spawn its own six dropdown-item children. Moving
+;; menu2-installs.o ahead of menu2-h.o in game.gd is not a clean fix -
+;; menu2-installs.o's own patches need base-menu's type to already exist,
+;; and base-menu's own deftype lives in the same menu2-h.o top-level as
+;; the three subtypes, ahead of them; splitting that file is out of this
+;; rung's scope. Filling the subtype slots explicitly instead, the same
+;; idiom (method-of-type PARENT method-name) already used elsewhere in
+;; this codebase (jak1/2/3's own crate/bouncer method 12 re-installs).
+;; jakx-logo-menu and dropdown-item are filled too, defensively, against
+;; a future rung landing non-#f children on either without rediscovering
+;; this exact class.
+(method-set! selection-menu-manager 58 (method-of-type base-menu base-menu-method-58))
+(method-set! jakx-logo-menu 58 (method-of-type base-menu base-menu-method-58))
+(method-set! dropdown-item 58 (method-of-type base-menu base-menu-method-58))
+
 ;; base-menu-method-50 ("wait-enter"): declared in menu2-h.gc as a plain
 ;; (:methods (base-menu-method-50 () none)) entry, not a named :state-methods
 ;; slot, even though its real content (menu2.gc:880-927, gp-3 in the dead text)
