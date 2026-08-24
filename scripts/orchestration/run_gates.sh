@@ -73,7 +73,7 @@ echo "== inert ledger"
 python scripts/gen_inert_ledger.py --check 2>&1 | tail -1
 
 echo "== method slots"
-python scripts/check_method_slots.py 2>&1 | tail -1
+python scripts/check_method_slots.py 2>&1 | grep -E "^FAIL|^check_method_slots \("
 
 echo "== spawn init"
 python scripts/check_spawn_init.py 2>&1 | tail -1
