@@ -472,10 +472,25 @@
           (suspend)
           )
         )
+      ;; process-spawn's own value (gstate.gc:33-53) is (the (pointer fmv-player)
+      ;; (-> new-proc ppointer)) -- a pointer TO the process-tree slot holding the
+      ;; process, not the process itself; (-> new-proc 0) is the deref every landed
+      ;; caller uses (lobby-menu-manager.gc's lmm-make-logo-menu: (process->handle
+      ;; (-> v1-9 0)) off the same ppointer-typed local). gui-id is set before
+      ;; *fmv-player* is published: run-now-in-process (inside process-spawn) runs
+      ;; fmv-player-init-by-other synchronously, and init-by-other's own (go playing)
+      ;; only schedules playing's :code for the next kernel dispatch rather than
+      ;; running it inline (go's doc comment, gstate.gc:8-11) -- neither init-by-
+      ;; other nor playing reads gui-id before that next dispatch, so the ordering
+      ;; here is not a race, but publishing gui-id first keeps it that way even if
+      ;; something is added later that reads *fmv-player* the instant it goes
+      ;; non-#f.
       (let ((new-proc (process-spawn fmv-player :init fmv-player-init-by-other :name "fmv-player" :to arg1)))
         (when new-proc
-          (set! *fmv-player* (the-as fmv-player new-proc))
-          (set! (-> (the-as fmv-player new-proc) gui-id) (the uint movie-idx))
+          (let ((proc (-> new-proc 0)))
+            (set! (-> proc gui-id) (the uint movie-idx))
+            (set! *fmv-player* proc)
+            )
           )
         )
       )
