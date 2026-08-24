@@ -2721,6 +2721,51 @@
   :code sleep-code
   )
 
+;; road audit (issue 699, menuboot12 follow-up): the same nullptr-function
+;; trap as the three stubs above, found one to two hops past
+;; pre-game-type-menu rather than on it directly. game-type-menu's own
+;; :event handler (landed, real body, above in this file) go-virtuals into
+;; four more numbered slots on player input -- 97 (customize), 26 (secrets),
+;; 139 (profile), 51 (multiplayer) -- and adventure-init's own :code
+;; (landed, real body, above in this file) go-virtuals unconditionally into
+;; 151 (demo?/kiosk?) or 114 (else) on every entry, no branch skips both.
+;; None of these six had ever been installed by any defstate or
+;; method-set! anywhere in the corpus either (lobby-menu-manager-h.gc's own
+;; :state-methods list reserves and types all six, same as 54/55/140 did),
+;; so every one of them was still armed to crash the same way. Landed as
+;; the same minimal inert park, not because their real bodies are known,
+;; but so a boot that reaches game-type-menu or adventure-init and takes
+;; any of these branches parks instead of crashing.
+(defstate lobby-menu-manager-state-26 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate lobby-menu-manager-state-51 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate lobby-menu-manager-state-97 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate lobby-menu-manager-state-114 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate lobby-menu-manager-state-139 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate lobby-menu-manager-state-151 (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
 
 
 
