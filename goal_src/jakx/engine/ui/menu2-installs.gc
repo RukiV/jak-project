@@ -33,56 +33,675 @@
 ;; before menu2.o's own row for exactly that reason: menu2-h.o declares the
 ;; slots, this file fills them, and the raw copy further down is inert data by
 ;; construction, not a competing installer.
+;;
+;; menu2-quartet-landing rung (issue 699, 2026-08-23): a fresh, scoped redecode
+;; (allowed_objects ["menu2"], :behavior base-menu applied to the three
+;; functions below, base-menu-info.joints retyped to (array int8)) resolved the
+;; s6/pp+248 info-ptr wall that kept the three stubs below bring-up-only, and
+;; turned up a seventh method/state slot (57, "dummy") the original round-15
+;; survey did not see. This rung's own STEP 2 landed 53/55/56/57 and
+;; base-menu-state-51's real :code below; STEP 3 (this block) replaces the
+;; three bring-up stubs below with their real bodies and updates their
+;; decompiler/config/jakx/all-types.gc externs to match. The three functions
+;; are ordered default-base-menu-post, base-menu-event-handler,
+;; base-menu-init-by-other rather than the stubs' original order: each one
+;; is a plain function reference (not a method), so within this one file a
+;; later definition is not visible to an earlier one, and
+;; base-menu-init-by-other's own tail sets event-hook to
+;; base-menu-event-handler while base-menu-event-handler's own
+;; 'force-box-update arm calls default-base-menu-post - default-base-menu-post
+;; has to compile first, then base-menu-event-handler, then
+;; base-menu-init-by-other.
 
-;; og:preserve-this bring-up stub, issue 699: NOT retail's body. The real
-;; base-menu-init-by-other (goal_src/jakx/engine/ui/menu2.gc:1196-1903, dead/
-;; uncompiled reference text) carries the decompiler's own "ERROR: failed type
-;; prop at 40: Could not figure out load: (set! v1 (l.wu (+ s6 248)))" - the same
-;; class default-base-menu-post hits below, one field access into pp+248
-;; (info-ptr) that the type-propagation pass never recovered a field name for,
-;; poisoning everything downstream: 253 of its 275 declared register locals type
-;; as `none`, versus real recovered types (clock, uint, display, matrix, pointer
-;; uint8) for the handful of locals set before that load. Hand-transcribing 700
-;; lines of raw pp+offset arithmetic against those numeric offsets is exactly the
-;; "invent content the decode does not contain" failure mode this kind of rung is
-;; supposed to avoid, so it stays a stub. The signature matches the extern
-;; already forward-declared in lobby-menu-manager.gc:14 (five base-menu spawn
-;; sites there call this as init), which this defun now resolves for real -
-;; check_extern_defun expects that resolution, not a working body. Retirement
-;; condition: a real landing of this function, most likely alongside a retype of
-;; base-menu-info's own field layout that recovers the pp+248 load.
-(defun base-menu-init-by-other ((a0-0 object) (a1-0 vector) (a2-0 int))
-  (the-as object #f)
+;; *last-menu-action*: base-menu-event-handler's own 'menu-selection-event arm
+;; writes it, but nothing compiled ever defined it - only dead menu2.gc's own
+;; "(define *last-menu-action* (the-as object #f))" (menu2.gc:17-18) and
+;; decompiler/config/jakx/all-types.gc's own forward-declared
+;; "(define-extern *last-menu-action* object)" (not loaded by (mi), a
+;; decompiler-config-only symbol table). The (e2) class this rung's own CARE
+;; check watches for is a call through an undefined symbol linking to 0; this
+;; is the variable-definition version of the same gap (menuboot12's own
+;; *ghost-rec* precedent, lobby-net-startup.gc), closed here rather than left
+;; for base-menu-event-handler's real landing to trip over. Transcribed
+;; verbatim from menu2.gc's own definition.
+(define *last-menu-action* (the-as object #f))
+
+;; default-base-menu-post: real body, transcribed from the menu2-quartet
+;; redecode. Return type object, not none: its only caller (anon-function 79
+;; menu2-GAME) tail-returns it directly and that anon-function's own declared
+;; type is "(function object :behavior map-menu)".
+(defbehavior default-base-menu-post base-menu ()
+  (rlet ((vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         )
+    (init-vf0-vector)
+    (let ((f30-0 (/ (-> self info-ptr scale-x) 10))
+          (f28-0 (/ (-> self info-ptr scale-y) 10))
+          (f26-0 0.1)
+          )
+      (cond
+        ((logtest? (-> self info-ptr flags) 1)
+         (when (nonzero? (-> self draw))
+           (let ((v0-0 (the-as object (logior (-> self draw status) (draw-control-status no-draw)))))
+             (set! (-> self draw status) (the-as draw-control-status v0-0))
+             v0-0
+             )
+           )
+         )
+        (else
+          (if (nonzero? (-> self draw))
+              (logclear! (-> self draw status) (draw-control-status no-draw))
+              )
+          (when (-> self info-ptr 3d-menu-type)
+            (matrix->transformq (-> self j-mod transform) (math-camera-matrix))
+            (cond
+              ((-> self info-ptr joints)
+               (let ((gp-1 (new 'stack-no-clear 'vector))
+                     (s5-1 (new 'stack-no-clear 'vector))
+                     (s4-0 (new 'stack-no-clear 'vector))
+                     )
+                 (set! (-> s4-0 quad) (-> self node-list data (-> self info-ptr joints 0) bone transform trans quad))
+                 (transform-point-vector! gp-1 s4-0)
+                 (+! (-> gp-1 x) -1792.0)
+                 (+! (-> gp-1 y) -1840.0)
+                 (when (-> self info-ptr trans-info)
+                   (let ((f0-7 (* (-> self info-ptr trans-info 3d-offset x) f30-0))
+                         (f1-5 (* (-> self info-ptr trans-info 3d-offset y) f28-0))
+                         (f2-1 (* (-> self info-ptr trans-info 3d-offset z) f26-0))
+                         (s3-0 (new 'stack-no-clear 'vector))
+                         )
+                     (let ((f2-2 (+ f2-1 (* -4096.0 f30-0))))
+                       (set-vector! s3-0 f0-7 f1-5 f2-2 1.0)
+                       )
+                     (when (as-type self dropdown-item)
+                       (let ((s1-0 (the-as dropdown-trans-info (-> self info-ptr trans-info)))
+                             (s2-1 (the-as dropdown-item self))
+                             )
+                         (cond
+                           ((and (-> s1-0 selected-offset) (-> s2-1 selected))
+                            (set! (-> s2-1 selected-offset x)
+                                  (seek-ease (-> s2-1 selected-offset x) (* (-> s1-0 selected-offset x) f30-0) 60.0 -1024.0 40.0)
+                                  )
+                            (set! (-> s2-1 selected-offset y)
+                                  (seek-ease (-> s2-1 selected-offset y) (* (-> s1-0 selected-offset y) f28-0) 60.0 -1024.0 40.0)
+                                  )
+                            (set! (-> s2-1 selected-offset z)
+                                  (seek-ease (-> s2-1 selected-offset z) (* (-> s1-0 selected-offset z) f26-0) 60.0 -1024.0 40.0)
+                                  )
+                            )
+                           (else
+                             (set! (-> s2-1 selected-offset x) (seek-ease (-> s2-1 selected-offset x) 0.0 60.0 1024.0 40.0))
+                             (set! (-> s2-1 selected-offset y) (seek-ease (-> s2-1 selected-offset y) 0.0 60.0 1024.0 40.0))
+                             (set! (-> s2-1 selected-offset z) (seek-ease (-> s2-1 selected-offset z) 0.0 60.0 1024.0 40.0))
+                             )
+                           )
+                         (let ((a0-18 s3-0))
+                           (let ((v1-45 s3-0)
+                                 (a1-13 (-> s2-1 selected-offset))
+                                 )
+                             (.lvf vf4 (&-> v1-45 quad))
+                             (.lvf vf5 (&-> a1-13 quad))
+                             )
+                           (.mov.vf.w vf6 vf0)
+                           (.add.vf.xyz vf6 vf4 vf5)
+                           (.svf (&-> a0-18 quad) vf6)
+                           )
+                         )
+                       (set! (-> s3-0 w) 1.0)
+                       )
+                     (vector-matrix*! s3-0 s3-0 (math-camera-matrix))
+                     (set! (-> self j-mod transform trans quad) (-> s3-0 quad))
+                     )
+                   )
+                 (set! (-> self j-mod transform scale x) f30-0)
+                 (set! (-> self j-mod transform scale y) f28-0)
+                 (set! (-> self j-mod transform scale z) f26-0)
+                 (ja-post)
+                 (send-event self 'force-position gp-1)
+                 (let ((s3-1 0)
+                       (s2-3 0)
+                       )
+                   (while (< s3-1 (length (-> self info-ptr joints)))
+                     (set! (-> s4-0 quad) (-> self node-list data (-> self info-ptr joints s3-1) bone transform trans quad))
+                     (transform-point-vector! gp-1 s4-0)
+                     (+! (-> gp-1 x) -1792.0)
+                     (+! (-> gp-1 y) -1840.0)
+                     (set! (-> s4-0 quad) (-> self node-list data (-> self info-ptr joints (+ s3-1 1)) bone transform trans quad))
+                     (transform-point-vector! s5-1 s4-0)
+                     (+! (-> s5-1 x) -1792.0)
+                     (+! (-> s5-1 y) -1840.0)
+                     (send-event self 'box-2d s2-3 gp-1 s5-1)
+                     (send-event self 'box s2-3 (-> self node-list data (-> self info-ptr joints s3-1) bone transform))
+                     (+! s2-3 1)
+                     (+! s3-1 2)
+                     )
+                   )
+                 )
+               )
+              (else
+                (set! (-> self j-mod transform scale x) f30-0)
+                (set! (-> self j-mod transform scale y) f28-0)
+                (set! (-> self j-mod transform scale z) f26-0)
+                (ja-post)
+                )
+              )
+            )
+          (if (and *hide-menus* (nonzero? (-> self draw)))
+              (logior! (-> self draw status) (draw-control-status no-draw))
+              )
+          (base-menu-method-60 self)
+          )
+        )
+      )
+    )
   )
 
-;; og:preserve-this bring-up stub, issue 699: NOT retail's body. menu2.gc:768
-;; carries only "ERROR: function has no type analysis. Cannot decompile." for
-;; base-menu-event-handler - no body of any kind survived decode, not even a
-;; garbled one. Every base-menu-family :event slot in the dead text casts this
-;; symbol through (the-as (function process int symbol event-message-block
-;; object) base-menu-event-handler), so the signature below matches that cast
-;; site exactly. Retirement condition: a real decode of this function turning up
-;; (it would need a different decompiler config or a hand-disassembly pass this
-;; rung does not attempt).
-(defun base-menu-event-handler ((proc process) (argc int) (message symbol) (block event-message-block))
-  (the-as object #f)
+;; base-menu-event-handler: real body, transcribed from the menu2-quartet
+;; redecode - a flat 13-arm case on the message symbol with a copy-pasted
+;; child-forwarding loop (ten instantiations, one per arm that forwards to
+;; children; transcribed as decoded rather than hoisted into a shared
+;; function). The 'force-die arm's own forward loop sets the forwarded
+;; message to the literal 'to-all-children rather than 'force-die - a proven
+;; retail copy-paste (the identical shape recurs at 'to-all-children's own
+;; arm immediately below it), transcribed verbatim, not fixed. 'die and
+;; 'hide dispatch to slots 55 and 53 via the same
+;; (go (the-as (state base-menu) (method-of-object self base-menu-method-N)))
+;; idiom base-menu-init-by-other's own tail below uses for slot 50 - both
+;; slots were landed by this rung's own STEP 2, closing what the blueprint
+;; called out as this landing's own hazard class (a 'die or 'hide message
+;; reaching an unfilled slot before STEP 2 landed).
+(defbehavior base-menu-event-handler base-menu ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+  (rlet ((vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         )
+    (init-vf0-vector)
+    (case arg2
+      (('die)
+       (go (the-as (state base-menu) (method-of-object self base-menu-method-55)))
+       )
+      (('force-die)
+       (when (-> self child-handles)
+         (dotimes (s3-1 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s3-1))
+             (let ((a1-2 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-2 from) (process->ppointer arg0))
+               (set! (-> a1-2 num-params) arg1)
+               (set! (-> a1-2 message) 'to-all-children)
+               (set! (-> a1-2 param 0) (-> arg3 param 0))
+               (set! (-> a1-2 param 1) (-> arg3 param 1))
+               (set! (-> a1-2 param 2) (-> arg3 param 2))
+               (set! (-> a1-2 param 3) (-> arg3 param 3))
+               (set! (-> a1-2 param 4) (-> arg3 param 4))
+               (set! (-> a1-2 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s3-1)) a1-2)
+               )
+             )
+           )
+         )
+       (go empty-state)
+       )
+      (('menu-selection-event)
+       (when (not (and (-> self next-state) (let ((v1-33 (-> self next-state name)))
+                                              (or (= v1-33 'exit) (= v1-33 'enter))
+                                              )
+                       )
+                  )
+         (set! *last-menu-action* (-> arg3 param 0))
+         (let ((a1-4 (new 'stack-no-clear 'event-message-block)))
+           (set! (-> a1-4 from) (process->ppointer arg0))
+           (set! (-> a1-4 num-params) arg1)
+           (set! (-> a1-4 message) arg2)
+           (set! (-> a1-4 param 0) (-> arg3 param 0))
+           (set! (-> a1-4 param 1) (-> arg3 param 1))
+           (set! (-> a1-4 param 2) (-> arg3 param 2))
+           (set! (-> a1-4 param 3) (-> arg3 param 3))
+           (set! (-> a1-4 param 4) (-> arg3 param 4))
+           (set! (-> a1-4 param 5) (-> arg3 param 5))
+           (send-event-function (ppointer->process (-> self parent)) a1-4)
+           )
+         )
+       )
+      (('to-all-children)
+       (when (-> self child-handles)
+         (dotimes (s2-0 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s2-0))
+             (let ((a1-6 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-6 from) (process->ppointer arg0))
+               (set! (-> a1-6 num-params) arg1)
+               (set! (-> a1-6 message) 'to-all-children)
+               (set! (-> a1-6 param 0) (-> arg3 param 0))
+               (set! (-> a1-6 param 1) (-> arg3 param 1))
+               (set! (-> a1-6 param 2) (-> arg3 param 2))
+               (set! (-> a1-6 param 3) (-> arg3 param 3))
+               (set! (-> a1-6 param 4) (-> arg3 param 4))
+               (set! (-> a1-6 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s2-0)) a1-6)
+               )
+             )
+           )
+         )
+       (base-menu-method-61 self arg0 arg1 arg2 arg3)
+       )
+      (('draw)
+       (when (-> self child-handles)
+         (dotimes (s3-2 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s3-2))
+             (let ((a1-9 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-9 from) (process->ppointer arg0))
+               (set! (-> a1-9 num-params) arg1)
+               (set! (-> a1-9 message) 'draw)
+               (set! (-> a1-9 param 0) (-> arg3 param 0))
+               (set! (-> a1-9 param 1) (-> arg3 param 1))
+               (set! (-> a1-9 param 2) (-> arg3 param 2))
+               (set! (-> a1-9 param 3) (-> arg3 param 3))
+               (set! (-> a1-9 param 4) (-> arg3 param 4))
+               (set! (-> a1-9 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s3-2)) a1-9)
+               )
+             )
+           )
+         )
+       (base-menu-method-60 self)
+       )
+      (('lose-focus)
+       (when (-> self child-handles)
+         (dotimes (s2-1 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s2-1))
+             (let ((a1-11 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-11 from) (process->ppointer arg0))
+               (set! (-> a1-11 num-params) arg1)
+               (set! (-> a1-11 message) arg2)
+               (set! (-> a1-11 param 0) (-> arg3 param 0))
+               (set! (-> a1-11 param 1) (-> arg3 param 1))
+               (set! (-> a1-11 param 2) (-> arg3 param 2))
+               (set! (-> a1-11 param 3) (-> arg3 param 3))
+               (set! (-> a1-11 param 4) (-> arg3 param 4))
+               (set! (-> a1-11 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s2-1)) a1-11)
+               )
+             )
+           )
+         )
+       (set! (-> self focused?) #f)
+       #f
+       )
+      (('in-focus)
+       (when (-> self child-handles)
+         (dotimes (s2-2 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s2-2))
+             (let ((a1-13 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-13 from) (process->ppointer arg0))
+               (set! (-> a1-13 num-params) arg1)
+               (set! (-> a1-13 message) arg2)
+               (set! (-> a1-13 param 0) (-> arg3 param 0))
+               (set! (-> a1-13 param 1) (-> arg3 param 1))
+               (set! (-> a1-13 param 2) (-> arg3 param 2))
+               (set! (-> a1-13 param 3) (-> arg3 param 3))
+               (set! (-> a1-13 param 4) (-> arg3 param 4))
+               (set! (-> a1-13 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s2-2)) a1-13)
+               )
+             )
+           )
+         )
+       (let ((v0-0 (the-as object #t)))
+         (set! (-> self focused?) (the-as basic v0-0))
+         v0-0
+         )
+       )
+      (('force-position)
+       (when (= (-> self info-ptr box-index) -1)
+         (let ((v1-150 (the-as vector (-> arg3 param 0))))
+           (set! (-> self pos-x) (-> v1-150 x))
+           (set! (-> self pos-y) (-> v1-150 y))
+           (set! (-> self pos-z) (-> v1-150 z))
+           )
+         )
+       (when (-> self child-handles)
+         (dotimes (s2-3 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s2-3))
+             (let ((a1-15 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-15 from) (process->ppointer arg0))
+               (set! (-> a1-15 num-params) arg1)
+               (set! (-> a1-15 message) arg2)
+               (set! (-> a1-15 param 0) (-> arg3 param 0))
+               (set! (-> a1-15 param 1) (-> arg3 param 1))
+               (set! (-> a1-15 param 2) (-> arg3 param 2))
+               (set! (-> a1-15 param 3) (-> arg3 param 3))
+               (set! (-> a1-15 param 4) (-> arg3 param 4))
+               (set! (-> a1-15 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s2-3)) a1-15)
+               )
+             )
+           )
+         #f
+         )
+       )
+      (('box)
+       (when (= (-> arg3 param 0) (-> self info-ptr box-index))
+         (let* ((a2-8 (-> self joint-mat))
+                (a3-2 (the-as (pointer uint128) (-> arg3 param 1)))
+                (v1-178 (-> a3-2 0))
+                (a0-84 (-> a3-2 1))
+                (a1-16 (-> a3-2 2))
+                (a3-3 (-> a3-2 3))
+                )
+           (set! (-> a2-8 rvec quad) v1-178)
+           (set! (-> a2-8 uvec quad) a0-84)
+           (set! (-> a2-8 fvec quad) a1-16)
+           (set! (-> a2-8 trans quad) a3-3)
+           )
+         (when (!= arg0 self)
+           (let ((a1-17 (new 'stack-no-clear 'vector)))
+             (let ((a0-85 (-> self info-ptr trans-info)))
+               (if a0-85
+                   (set! (-> a1-17 quad) (-> a0-85 3d-offset quad))
+                   (set! (-> a1-17 quad) (the-as uint128 0))
+                   )
+               )
+             (let ((a2-9 a1-17))
+               (let ((v1-183 a1-17)
+                     (a0-88 (-> self extra-offset))
+                     )
+                 (.lvf vf4 (&-> v1-183 quad))
+                 (.lvf vf5 (&-> a0-88 quad))
+                 )
+               (.mov.vf.w vf6 vf0)
+               (.add.vf.xyz vf6 vf4 vf5)
+               (.svf (&-> a2-9 quad) vf6)
+               )
+             (vector-matrix*! (-> self joint-mat trans) a1-17 (-> self joint-mat))
+             )
+           )
+         )
+       (when (-> self child-handles)
+         (dotimes (s2-4 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s2-4))
+             (let ((a1-19 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-19 from) (process->ppointer arg0))
+               (set! (-> a1-19 num-params) arg1)
+               (set! (-> a1-19 message) arg2)
+               (set! (-> a1-19 param 0) (-> arg3 param 0))
+               (set! (-> a1-19 param 1) (-> arg3 param 1))
+               (set! (-> a1-19 param 2) (-> arg3 param 2))
+               (set! (-> a1-19 param 3) (-> arg3 param 3))
+               (set! (-> a1-19 param 4) (-> arg3 param 4))
+               (set! (-> a1-19 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s2-4)) a1-19)
+               )
+             )
+           )
+         #f
+         )
+       )
+      (('width-height)
+       (when (not (and (-> self info-ptr 3d-menu-type) (!= arg0 self)))
+         (when (= (-> arg3 param 0) (-> self info-ptr box-index))
+           (if (= (-> self info-ptr width) -1)
+               (set! (-> self width) (the-as int (-> arg3 param 1)))
+               )
+           (if (= (-> self info-ptr height) -1)
+               (set! (-> self height) (the-as int (-> arg3 param 2)))
+               )
+           )
+         (when (-> self child-handles)
+           (dotimes (s2-5 (-> self child-handles length))
+             (when (handle->process (-> self child-handles s2-5))
+               (let ((a1-21 (new 'stack-no-clear 'event-message-block)))
+                 (set! (-> a1-21 from) (process->ppointer arg0))
+                 (set! (-> a1-21 num-params) arg1)
+                 (set! (-> a1-21 message) arg2)
+                 (set! (-> a1-21 param 0) (-> arg3 param 0))
+                 (set! (-> a1-21 param 1) (-> arg3 param 1))
+                 (set! (-> a1-21 param 2) (-> arg3 param 2))
+                 (set! (-> a1-21 param 3) (-> arg3 param 3))
+                 (set! (-> a1-21 param 4) (-> arg3 param 4))
+                 (set! (-> a1-21 param 5) (-> arg3 param 5))
+                 (send-event-function (handle->process (-> self child-handles s2-5)) a1-21)
+                 )
+               )
+             )
+           #f
+           )
+         )
+       )
+      (('hide)
+       (when (-> self child-handles)
+         (dotimes (s2-6 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s2-6))
+             (let ((a1-23 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-23 from) (process->ppointer arg0))
+               (set! (-> a1-23 num-params) arg1)
+               (set! (-> a1-23 message) arg2)
+               (set! (-> a1-23 param 0) (-> arg3 param 0))
+               (set! (-> a1-23 param 1) (-> arg3 param 1))
+               (set! (-> a1-23 param 2) (-> arg3 param 2))
+               (set! (-> a1-23 param 3) (-> arg3 param 3))
+               (set! (-> a1-23 param 4) (-> arg3 param 4))
+               (set! (-> a1-23 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s2-6)) a1-23)
+               )
+             )
+           )
+         )
+       (set! (-> self hidden?) (the-as basic #t))
+       (if (not (and (-> self next-state) (= (-> self next-state name) 'hide)))
+           (go (the-as (state base-menu) (method-of-object self base-menu-method-53)))
+           )
+       )
+      (('unhide)
+       (when (-> self child-handles)
+         (dotimes (s2-7 (-> self child-handles length))
+           (when (handle->process (-> self child-handles s2-7))
+             (let ((a1-25 (new 'stack-no-clear 'event-message-block)))
+               (set! (-> a1-25 from) (process->ppointer arg0))
+               (set! (-> a1-25 num-params) arg1)
+               (set! (-> a1-25 message) arg2)
+               (set! (-> a1-25 param 0) (-> arg3 param 0))
+               (set! (-> a1-25 param 1) (-> arg3 param 1))
+               (set! (-> a1-25 param 2) (-> arg3 param 2))
+               (set! (-> a1-25 param 3) (-> arg3 param 3))
+               (set! (-> a1-25 param 4) (-> arg3 param 4))
+               (set! (-> a1-25 param 5) (-> arg3 param 5))
+               (send-event-function (handle->process (-> self child-handles s2-7)) a1-25)
+               )
+             )
+           )
+         )
+       (set! (-> self hidden?) #f)
+       #f
+       )
+      (('force-box-update)
+       (default-base-menu-post)
+       )
+      (else
+        (base-menu-method-61 self arg0 arg1 arg2 arg3)
+        )
+      )
+    )
   )
 
-;; og:preserve-this bring-up stub, issue 699: NOT retail's body. Same class as
-;; base-menu-init-by-other above: menu2.gc:46 carries "ERROR: failed type prop at
-;; 2: Could not figure out load: (set! v1 (l.wu (+ s6 248)))" - the failure hits
-;; two ops into the function this time, so essentially nothing downstream
-;; recovered a type (255 of 256 declared register locals are `none`; the sole
-;; exception is a loop-counter int nothing else touches). The recovered code is
-;; ~700 lines of raw pp+offset stores and float math against that same
-;; unresolved info-ptr field, functionally unreviewable. Every base-menu-family
-;; :post slot in the dead text points straight at this symbol with a bare
-;; reference (no cast, since the state type's own post field is plain `function`),
-;; so any callable value satisfies every call site. Retirement condition: same as
-;; base-menu-init-by-other above - the base-menu-info field layout has to be
-;; recovered before either function is worth transcribing for real.
-(defun default-base-menu-post ()
+;; base-menu-method-58 ("child spawner"): cited stub, issue 699, STEP 4 of
+;; the menu2-quartet-landing rung. No compiled defmethod existed for this
+;; slot anywhere before this rung - only the dead menu2.gc copy and the
+;; deftype's own (:methods (base-menu-method-58 (_type_) none)) declaration
+;; - so the vtable slot was nullptr. base-menu-init-by-other's own real
+;; landing below now calls (base-menu-method-58 self) for real whenever a
+;; widget's info-ptr carries children, so this stub exists to keep that
+;; call from hitting a nullptr function rather than to add real behavior.
+;; A scoped redecode (method-58-partial.gc) resolves the spawn logic itself
+;; (indexing child-handles, run-function-in-process against
+;; base-menu-init-by-other for each child) but stalls in a debug-print
+;; sub-expression that only feeds a process-spawn print statement, not the
+;; spawn logic: op 31's "(l.w (+ v1 -1))" stayed unresolved across three
+;; distinct casts at that op ((pointer uint32), basic, (pointer int8)) with
+;; the identical error each time (decompiler/config/jakx/ntsc_v1/
+;; type_casts.jsonc's own "(method 58 base-menu)" entry records the one cast
+;; that did clear, op 30). Held per the 3-attempts rule rather than
+;; transcribed garbled. Retirement condition: a real landing of method 58
+;; once the debug-print chase resolves.
+(defmethod base-menu-method-58 ((this base-menu))
   (none)
+  )
+
+;; base-menu-init-by-other: real body, transcribed from the menu2-quartet
+;; redecode. a0 is base-menu-info (op 38 stores it straight to self's own
+;; info-ptr; the caller passes *background-menu-info*,
+;; lobby-menu-manager.gc/lobby-menu-data.gc). Two divergences from the
+;; blueprint that verified this redecode, resolved by inspecting the decode
+;; itself rather than assumption: (a) width-array/height-array allocate via
+;; (new 'process 'boxed-array int32 n), not 'array - the decoder resolved
+;; this through the type's own allocator, so the donor's own text wins; (b)
+;; the children-length reads below are against arg0 directly (the caller's
+;; base-menu-info), not self info-ptr - same value by the register-alias
+;; proof, kept as decoded. children stays bare basic on base-menu-info this
+;; rung (see the deftype below): retail's own base-menu-info statics in
+;; lobby-menu-data.gc store :children as arrays of structure references (the
+;; menu tree's own child descriptors, not raw int32s), so retyping it here
+;; would have required reshaping 29 already-landed static literals with
+;; invented values - a follow-up (the children menu-tree typing rung), not
+;; this one. The two .length reads below cast through (array int32) instead:
+;; a boxed array's own length lives at a fixed offset (0) regardless of
+;; element type, so any array cast reads it correctly without asserting
+;; anything about what children's real elements are.
+(defbehavior base-menu-init-by-other base-menu ((arg0 base-menu-info) (arg1 vector) (arg2 int))
+  (rlet ((vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         )
+    (init-vf0-vector)
+    (set! (-> self mask) (process-mask pause menu))
+    (set! (-> self child-handles) #f)
+    (set! (-> self info-ptr) #f)
+    (set! (-> self focused?) (the-as basic #t))
+    (+! (-> self clock ref-count) -1)
+    (+! (-> *display* real-clock ref-count) 1)
+    (set! (-> self clock) (-> *display* real-clock))
+    (set! (-> self pad) arg2)
+    (set! (-> self extra-offset quad) (the-as uint128 0))
+    (set! (-> self pos-x) (-> arg1 x))
+    (set! (-> self pos-y) (-> arg1 y))
+    (set! (-> self pos-z) (-> arg1 z))
+    (matrix-identity! (-> self offset-matrix))
+    (if (and arg0 (nonzero? arg0))
+        (set! (-> self info-ptr) arg0)
+        )
+    (set! (-> self width) (-> self info-ptr width))
+    (set! (-> self height) (-> self info-ptr height))
+    (set! (-> self width-array) #f)
+    (set! (-> self height-array) #f)
+    (when (-> self info-ptr 3d-menu-type)
+      (let ((s5-0
+              (art-group-get-by-name *level* (the-as string (-> self info-ptr 3d-menu-type)) (the-as (pointer level) #f))
+              )
+            )
+        (art-group-get-by-name *level* (the-as string (-> s5-0 data 0)) (&-> self level))
+        (set! (-> self root) (new 'process 'trsqv))
+        (initialize-skeleton self (the-as skeleton-group s5-0) (the-as pair 0))
+        )
+      (logior! (-> self skel status) (joint-control-status sync-math))
+      (logior! (-> self draw status) (draw-control-status force-vu1))
+      (init (-> self j-mod) self (the-as uint 3) (joint-mod-base-flags attached))
+      (matrix->transformq (-> self j-mod transform) (math-camera-matrix))
+      (when (-> self info-ptr trans-info)
+        (let ((v1-41 (-> self root trans)))
+          (let ((a0-14 (-> self root trans))
+                (a1-9 (-> self info-ptr trans-info 3d-offset))
+                )
+            (.lvf vf4 (&-> a0-14 quad))
+            (.lvf vf5 (&-> a1-9 quad))
+            )
+          (.mov.vf.w vf6 vf0)
+          (.add.vf.xyz vf6 vf4 vf5)
+          (.svf (&-> v1-41 quad) vf6)
+          )
+        (let ((v1-44 (-> self info-ptr trans-info enter-anim)))
+          (when (!= v1-44 -1)
+            (ja :group! (-> self draw art-group data v1-44) :num! min)
+            (ja-post)
+            )
+          )
+        )
+      (when (-> self info-ptr joints)
+        (let ((s5-3 (/ (length (-> self info-ptr joints)) 2)))
+          (when (> s5-3 0)
+            (set! (-> self width-array) (new 'process 'boxed-array int32 s5-3))
+            (set! (-> self height-array) (new 'process 'boxed-array int32 s5-3))
+            (let ((s5-4 0)
+                  (s4-1 0)
+                  )
+              0
+              0
+              (while (< (+ s5-4 1) (length (-> self info-ptr joints)))
+                (let* ((v1-60
+                         (vector-!
+                           (new 'stack-no-clear 'vector)
+                           (-> self node-list data (-> self info-ptr joints s5-4) bone transform trans)
+                           (-> self node-list data (-> self info-ptr joints (+ s5-4 1)) bone transform trans)
+                           )
+                         )
+                       (f0-5 (vector-dot v1-60 (-> self node-list data (-> self info-ptr joints s5-4) bone transform uvec)))
+                       )
+                  (set! (-> self width-array s4-1)
+                        (the int (vector-dot v1-60 (-> self node-list data (-> self info-ptr joints s5-4) bone transform rvec)))
+                        )
+                  (set! (-> self height-array s4-1) (the int f0-5))
+                  )
+                (+! s4-1 1)
+                (+! s5-4 2)
+                )
+              )
+            )
+          )
+        )
+      )
+    (when (-> self info-ptr 3d-menu-type)
+      (when (-> self info-ptr joints)
+        (let ((s5-5 (new 'stack-no-clear 'vector)))
+          (new 'stack-no-clear 'vector)
+          (let ((a1-33 (new 'stack-no-clear 'vector)))
+            (set! (-> a1-33 quad) (-> self node-list data (-> self info-ptr joints 0) bone transform trans quad))
+            (transform-point-vector! s5-5 a1-33)
+            )
+          (+! (-> s5-5 x) -1792.0)
+          (+! (-> s5-5 y) -1840.0)
+          (set! (-> self pos-x) (-> s5-5 x))
+          (set! (-> self pos-y) (-> s5-5 y))
+          (set! (-> self pos-z) (-> s5-5 z))
+          )
+        )
+      )
+    (when (-> arg0 children)
+      (set! (-> self child-handles) (new 'process 'boxed-array handle (-> (the-as (array int32) (-> arg0 children)) length)))
+      (dotimes (v1-86 (-> (the-as (array int32) (-> arg0 children)) length))
+        (set! (-> self child-handles v1-86) (the-as handle #f))
+        )
+      (base-menu-method-58 self)
+      )
+    (base-menu-method-59 self)
+    (set! (-> self event-hook) base-menu-event-handler)
+    (when (-> self width-array)
+      (dotimes (gp-1 (-> self width-array length))
+        (send-event self 'width-height gp-1 (-> self width-array gp-1) (-> self height-array gp-1))
+        )
+      )
+    (cond
+      ((-> self info-ptr trans-info)
+       (if (> (-> self info-ptr trans-info enter-delay) 0)
+           (go (the-as (state base-menu) (method-of-object self base-menu-method-50)))
+           (go-virtual base-menu-state-51)
+           )
+       )
+      (else
+        (go-virtual base-menu-state-51)
+        )
+      )
+    )
   )
 
 ;; base-menu-method-50 ("wait-enter"): declared in menu2-h.gc as a plain

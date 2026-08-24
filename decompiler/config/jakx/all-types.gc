@@ -68609,49 +68609,40 @@
 ;; find-first-selectable below); its only caller, (anon-function 79 menu2-GAME),
 ;; tail-returns it directly and that anon-function's own declared type below is
 ;; "(function object :behavior map-menu)", so the return is object.
-;; og:preserve-this widget-typing rung (2026-08-22), TRIED AND REVERTED: the
-;; survey rung above left self untyped, and the s6 read at op 2
-;; (l.wu (+ s6 248)) fails type prop (offset 248 is base-menu's own info-ptr
-;; field, invisible on the generic-process fallback per
-;; jakx-behavior-state-typing). Tagging :behavior base-menu clears THAT load
-;; but the function proceeds much further into a body previously invisible
-;; and hits a genuine new wall deeper in (op 53, (l.b (+ a1 12)), plus a
-;; stack-use guess failure at op 46); net corpus effect on this object alone
-;; was +1 error, matching the same "config-only retype exposes a landing-rung
-;; wall" shape already documented for base-menu-event-handler/menu-clear-strip
-;; below. Left at the bare guess; the :behavior tag is a real fix candidate
-;; for a future rung that also resolves the op-53 wall.
-(define-extern default-base-menu-post (function object))
-;; og:preserve-this menu2-GAME survey rung, 2026-08-19: left at the bare
-;; function guess. The body (ops 0-3) reads a0/a1/a2/a3 as real inputs and a2
-;; compares against the symbol 'die (op 5), matching the standard process
-;; event-handler shape, so (function process int symbol event-message-block
-;; object) is the right arg/return signature by itself -- but the body ALSO
-;; dispatches through (-> (-> s6 type) <slot 55>) at op 8-9 to reach the state
-;; transition, and s6 (never explicitly loaded, so never typed) defaults to
-;; generic process, which does not carry a slot 55, producing a NEW "method
-;; with id 55 of type process could not be found" error that bare `function`
-;; was silently swallowing. A type_cast on s6 at ops 0-20 to base-menu did not
-;; clear it either (net error count rose from 176 to 191 in that experiment).
-;; This needs the same :behavior/:state-methods self-typing mechanism go-virtual
-;; needs (see jakx-behavior-state-typing), which is a landing-rung change, not
-;; a config-only one; retyping the extern alone is a net regression here
-;; (174 -> 176 corpus-wide on this object) and is deliberately NOT applied.
-(define-extern base-menu-event-handler function)
+;; og:preserve-this menu2-quartet-landing rung (2026-08-23): the widget-typing
+;; rung directly above (2026-08-22) tagged :behavior base-menu here as a
+;; config-only experiment and reverted it, since exposing the s6 read at op 2
+;; only traded it for a new wall at op 53 nothing in that rung's own scope
+;; fixed. This rung lands the real body for real (menu2-installs.gc, a
+;; defbehavior, transcribed from a scoped redecode with :behavior base-menu
+;; applied and base-menu-info.joints retyped to (array int8)), so the extern
+;; below now matches the landed signature rather than describing a still-open
+;; experiment; the type-consistency gate compares the two directly.
+(define-extern default-base-menu-post (function object :behavior base-menu))
+;; og:preserve-this menu2-quartet-landing rung (2026-08-23): same class as
+;; default-base-menu-post above - the widget-typing rung's own 2026-08-22
+;; experiment tagging :behavior base-menu here hit a genuine wall (the slot-55
+;; dispatch needs go-virtual's own self-typing machinery, not just a body
+;; that type-props) and reverted. This rung supplies that machinery by
+;; landing the real body (menu2-installs.gc), so the extern now matches the
+;; landed signature: (proc process int symbol event-message-block), object
+;; return, the same shape the 2026-08-19 survey rung already worked out by
+;; itself from the body's own register reads.
+(define-extern base-menu-event-handler (function process int symbol event-message-block object :behavior base-menu))
 ;; base-menu-init-by-other: a0 is checked against #f (op 34, an optional
 ;; "other" object), a1 is copied field-by-field (offsets 0/4/8, all lwc1) into
 ;; three consecutive s6 floats matching base-menu's own pos-x/pos-y/pos-z
 ;; layout, so a1 is vector; a2 is stored as a raw byte (op 22) into an s6
 ;; field. The tail return is enter-state's own passthrough (declared object
 ;; below), so the return is object.
-;; og:preserve-this widget-typing rung (2026-08-22), TRIED AND REVERTED: same
-;; s6/:behavior gap as default-base-menu-post above (op 40's
-;; (l.wu (+ s6 248)) is the same info-ptr read), and the same shape of
-;; regression: tagging :behavior base-menu clears that load and exposes a new
-;; wall at op 180 (l.b (+ a1 12)) plus a stack-use guess failure, deeper in
-;; the body the earlier failure had hidden. Left at the bare guess for the
-;; same reason as default-base-menu-post above.
-(define-extern base-menu-init-by-other (function object vector int object))
+;; og:preserve-this menu2-quartet-landing rung (2026-08-23): same class as
+;; default-base-menu-post above - the widget-typing rung's own 2026-08-22
+;; experiment reverted after trading the op-40 s6 wall for a new one at op
+;; 180 (the base-menu-info.joints read this rung's own STEP 1 retype clears).
+;; This rung lands the real body (menu2-installs.gc) with a0 typed
+;; base-menu-info (not object - the info-ptr store and the children read both
+;; prove it directly), so the extern now matches the landed signature.
+(define-extern base-menu-init-by-other (function base-menu-info vector int object :behavior base-menu))
 ;; og:preserve-this menu2-GAME survey rung, 2026-08-19: left at the bare
 ;; function guess. a0 is a raw pointer written through at four fixed offsets
 ;; (82/0/36/28) never read back, and the offsets line up plausibly with

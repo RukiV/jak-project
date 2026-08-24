@@ -7,11 +7,19 @@
 
 ;; DECOMP BEGINS
 
-;; base-menu-init-by-other's own defun (goal_src/jakx/engine/ui/menu2.gc)
-;; compiles after this file in dgo build order; forward-declared so the
-;; run-function-in-process/run-now-in-process call sites below can resolve
-;; it as a plain symbol value.
-(define-extern base-menu-init-by-other (function object vector int object))
+;; base-menu-init-by-other's own real defbehavior (menu2-quartet-landing
+;; rung, goal_src/jakx/engine/ui/menu2-installs.gc) now compiles before this
+;; file in dgo build order, so this forward-declare is no longer load-bearing
+;; for compile order, but the stale (function object vector int object)
+;; shape it carried was silently downgrading the symbol's registered type
+;; back from the real (function base-menu-info vector int object :behavior
+;; base-menu) every time this file compiled (a define-extern warning, not an
+;; error, but the old placeholder shape must not survive per that rung's own
+;; STEP 3). Updated to match; kept rather than deleted so the
+;; run-function-in-process/run-now-in-process call sites below stay
+;; self-contained and readable without depending on this file's own compile
+;; order relative to menu2-installs.gc.
+(define-extern base-menu-init-by-other (function base-menu-info vector int object :behavior base-menu))
 
 ;; the following globals are read-only referenced below (never written by
 ;; this object) but their own real static data lands in lobby-menu-data.gc
