@@ -52,14 +52,18 @@ by anything, eventually" -- if that is still false after scanning every landed
 file, the slot is 0 for good.
 
 Findings are grouped by the calling object (the .gc file's own name, matching
-the DGO listings). An object that links into the game DGO is on the boot path:
-every unfilled dispatch from it prints as a FAIL line. An object that only
-links into level DGOs prints as a note instead, because level residency
-depends on borrow lists and common-level sharing the .gd files alone do not
-encode. This checker has a real backlog against the current tree (see the
---report inventory); forcing every FAIL red by default is not this script's
-call, so the default exit code is 0 regardless of what it finds. Pass --strict
-to make a FAIL line (never a note) return 1.
+the DGO listings). An object that links into a boot-path DGO (--boot-dgos,
+default game.gd,menu2.gd) is on the boot path: every unfilled dispatch from
+it prints as a FAIL line. An object that only links into level DGOs prints as
+a note instead, because level residency depends on borrow lists and
+common-level sharing the .gd files alone do not encode. game.gd alone missed
+MENU2-only objects entirely (issue 731's garage-turntable-method-52: the
+caller garage-obs.o links only into menu2.gd, so it downgraded to a note
+while the missing method-52 slot was live on that boot path). This checker
+has a real backlog against the current tree (see the --report inventory);
+forcing every FAIL red by default is not this script's call, so the default
+exit code is 0 regardless of what it finds. Pass --strict to make a FAIL
+line (never a note) return 1.
 
 --report prints every recognized dispatch, filled or not, linked or not: an
 inventory of what this tool does and does not see, for auditing coverage.
@@ -339,10 +343,14 @@ def landed_text(path):
     return text
 
 
-def load_link_order(dgos_dir, game_dgo):
+def load_link_order(dgos_dir, boot_dgos):
+    """boot_dgos: ordered list of DGO listing filenames whose objects sit on
+    the boot path (rank index < len(boot_dgos)). Every other .gd file follows,
+    sorted, for level-DGO note classification."""
     rank = defaultdict(dict)
-    files = [game_dgo] + sorted(
-        f for f in os.listdir(dgos_dir) if f.endswith(".gd") and f != game_dgo
+    boot_set = set(boot_dgos)
+    files = list(boot_dgos) + sorted(
+        f for f in os.listdir(dgos_dir) if f.endswith(".gd") and f not in boot_set
     )
     for di, fn in enumerate(files):
         path = os.path.join(dgos_dir, fn)
@@ -464,7 +472,12 @@ def main():
         "--root", default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..")
     )
     ap.add_argument("--game", default="jakx")
-    ap.add_argument("--game-dgo", default="game.gd")
+    ap.add_argument(
+        "--boot-dgos",
+        default="game.gd,menu2.gd",
+        help="comma-separated DGO listing filenames on the boot path; an object linking "
+        "into any of these is a FAIL rather than a note (default: game.gd,menu2.gd)",
+    )
     ap.add_argument("--strict", action="store_true", help="exit 1 if any FAIL (game-DGO) finding exists")
     ap.add_argument("--report", action="store_true", help="inventory every recognized dispatch, filled or not")
     args = ap.parse_args()
@@ -473,7 +486,9 @@ def main():
     alltypes = os.path.join(root, "decompiler", "config", args.game, "all-types.gc")
     goal_src = os.path.join(root, "goal_src", args.game)
     parent_of, fields_of, methods_of, states_of = load_all_types(alltypes)
-    rank = load_link_order(os.path.join(goal_src, "dgos"), args.game_dgo)
+    boot_dgos = [d.strip() for d in args.boot_dgos.split(",") if d.strip()]
+    rank = load_link_order(os.path.join(goal_src, "dgos"), boot_dgos)
+    boot_rank_ceiling = len(boot_dgos)
 
     file_texts = load_goal_src(goal_src)
 
@@ -521,7 +536,7 @@ def main():
             row = (obj, kind, expr, name, target_type, owner, mid, chain_desc)
             if obj not in rank:
                 continue  # never linked into any DGO: this call never runs
-            if 0 in rank[obj]:
+            if any(di < boot_rank_ceiling for di in rank[obj]):
                 violations.append(row)
             else:
                 notes.append(row)
