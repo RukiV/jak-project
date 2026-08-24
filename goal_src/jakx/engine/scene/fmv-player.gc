@@ -81,8 +81,31 @@
 ;; correct 512x416 quad, not cropping it. Confirmed by frame-dumping THX.MJV's
 ;; JPEG payload directly (all 450 frames, top/bottom 16/4 rows) with zero
 ;; brightness anomalies, ruling out the transcoder/decoded-pixel path.
+;;
+;; og:preserve-this
+;; issue 775 (FMV letterbox): the full-frame Y extent above is only correct for
+;; aspect16x9. Retail does not scale the whole 640x448 frame into a fixed
+;; screen rectangle the way this port's X pair does -- it letterboxes at
+;; display time via zoom-mode (4 at aspect4x3, 0 at aspect16x9), written from
+;; the aspect setting, per the fmv-player.o disassembly recorded on issue 775.
+;; The exact band arithmetic lives in the console executable's compressed C
+;; library and was not recoverable from that disassembly, so the factor was
+;; measured instead: a PCSX2 4:3 native capture of the intro measures the
+;; picture band at 0.753 +/- 0.002 of the frame height with symmetric bars top
+;; and bottom, i.e. the geometric 0.75 (336 of 448 lines, 56-line bars each
+;; side). quad-y0/quad-y1 reproduce that band by narrowing the Y extent alone:
+;; #x7640/#x89c0 is 2048 minus/plus 156, times 16, the same fixed-point
+;; convention #x7300/#x8d00 already uses for the full-frame case. The
+;; anamorphic 16:9 path is untouched and stays full-frame, matching retail's
+;; zoom-mode 0. X (#x7000/#x9000) and the whole UV block are unaffected
+;; either way: retail scales the full 640x448 frame into whichever band it
+;; draws, it never crops, so cropping here would be wrong.
 (defun fmv-draw-quad ()
-  (let ((tbp (fmv-get-tbp)))
+  (let* ((tbp (fmv-get-tbp))
+         (aspect-16x9? (= (get-aspect-ratio) 'aspect16x9))
+         (quad-y0 (cond (aspect-16x9? #x7300) (else #x7640)))
+         (quad-y1 (cond (aspect-16x9? #x8d00) (else #x89c0)))
+         )
     (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
                                  (bucket-id bucket794)
                                  )
@@ -106,7 +129,7 @@
           )
         (let ((a0-10 (the-as object (&+ (the-as pointer v1-8) 64))))
           (set! (-> (the-as (pointer int32) a0-10)) #x7000)
-          (set! (-> (the-as (inline-array vector4w) a0-10) 0 y) #x7300)
+          (set! (-> (the-as (inline-array vector4w) a0-10) 0 y) quad-y0)
           (set! (-> (the-as (inline-array vector4w) a0-10) 0 z) 0)
           (set! (-> (the-as (inline-array vector4w) a0-10) 0 w) 0)
           )
@@ -118,7 +141,7 @@
           )
         (let ((v1-9 (the-as object (&+ (the-as pointer v1-8) 96))))
           (set! (-> (the-as (pointer int32) v1-9)) #x9000)
-          (set! (-> (the-as (inline-array vector4w) v1-9) 0 y) #x8d00)
+          (set! (-> (the-as (inline-array vector4w) v1-9) 0 y) quad-y1)
           (set! (-> (the-as (inline-array vector4w) v1-9) 0 z) 0)
           (set! (-> (the-as (inline-array vector4w) v1-9) 0 w) 0)
           )
