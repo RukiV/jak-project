@@ -264,6 +264,76 @@
 (define *fmv-saved-display-camera-info* #f)
 
 ;; og:preserve-this
+;; Boot-movie audio (issue 760): retail's fmv-player playing state feeds the
+;; movie's VAG stream through gui-control instead of DMA'ing it itself --
+;; the port bodies for both landed states below go through the same three
+;; calls retail does (gui-control-method-9 to queue, gui-control-method-17
+;; to poll ready, gui-control-method-16 to play/stop), all landed at
+;; loader.gc:373/873/488. Channel 34 is proven numerically from the scoped
+;; decode's own arg register at the add-request call, not from gui-h.gc's
+;; gui-channel enum: that enum is a jak3 copy (34 there is bbush, a talker
+;; channel with no plausible relation to a boot movie), so the literal is
+;; used bare with this note rather than a symbolic name the evidence does
+;; not support. gui-control-method-20 (volume) is retail's fourth call on
+;; this path but stays unlanded: its own body is still blocked on a missing
+;; gui-connection-flags bit (gui-h.gc's own og:preserve-this note on the
+;; method); skipped here rather than silently dropped, so this port plays
+;; at whatever volume gui-control-method-9's own default leaves the
+;; connection at.
+;;
+;; subtitle-change-time (fmv-player-h.gc:74) carries the queued sound-id
+;; between playing's :code and die's :code below -- confirmed dead
+;; everywhere else in this file, and grepped tree-wide for fmv-player's own
+;; copy of the field (only scene-player's same-named, different-type field
+;; turns up elsewhere, scene.gc/scene-h.gc, unrelated). Reusing it keeps
+;; this rung to fmv-player.gc alone: no field-type change, so no
+;; all-types.gc edit and no JakXTypeConsistency exposure. gui-id keeps its
+;; existing job (the movie index into *m2v-info*, fmv-player-run's own
+;; og:preserve-this note above); the two fields do not collide.
+;;
+;; Sync policy: retail blocks the whole state on gui-control-method-17
+;; reading ready (ntsc's own disc-streaming latency) before the first frame
+;; ever draws. This port's video is driven by the same :code and starts its
+;; clock at init-by-other, already running before gui-control has had any
+;; chance to report ready, so blocking here would desync video from its own
+;; elapsed-ms rather than protect anything -- there is no disc seek on this
+;; path, gui-control's own queue is the only latency source. Folded instead
+;; into the existing per-frame loop as a one-shot latch (audio-latched
+;; below): queue at state entry, and once a frame observes ready, issue the
+;; play action and re-stamp start-time so elapsed-ms (and the video it
+;; drives) restarts from zero in step with the audio that is about to
+;; start. This is retail-faithful in the sense that it uses retail's own
+;; three calls and retail's own ready-poll condition, but trades retail's
+;; blocked first frame for a visible one-time restart instead of a startup
+;; stall; the alternative considered was a fixed audio-start delay (skip
+;; the first N ms of video so a queued sound-id is reliably ready by then)
+;; -- rejected because N is not measured for this port's queue latency and
+;; would either race on a slow frame or waste real playback time on a fast
+;; one, where the latch reacts to the actual status instead of a guess.
+;;
+;; Every gui-control call below is gated on (nonzero? *gui-control*), the
+;; same guard every other landed call site in the tree uses (loader.gc:284's
+;; own note names it the standing idiom). *gui-control* is armed
+;; unconditionally at boot once loader.o's top-level runs (loader.gc:334,
+;; ahead of fmv-player-run's own callers in the title-state boot sequence),
+;; so the guard is not waiting out a real bring-up gap here the way
+;; generic-obs.gc's own copy still is (gui.gc unlanded) -- it is defensive
+;; symmetry with the rest of the tree, not a load-bearing gate.
+(define *fmv-saved-jukebox-onoff* #f)
+
+;; og:preserve-this
+;; Menu jukebox silencing (issue 760): retail calls (jukebox-onoff #f) on
+;; state entry to stop the menu's background music track for the duration
+;; of the movie (gsound.gc:1838, landed). Saved and restored here rather
+;; than hardcoded off-then-on, since (jukebox-onoff #f) is itself a real
+;; state change now that the menu jukebox plays for real (it stops the
+;; current track and records *last-music-position*) -- restoring the
+;; caller's prior setting through jukebox-onoff again (not a bare set!)
+;; also re-arms *jukebox-time* if it was on, the same "was it running"
+;; semantics *fmv-saved-display-camera-info* uses just above for the
+;; debug-text flag.
+
+;; og:preserve-this
 ;; Emits one stop=1 record so handle_fmv_frame closes the C++ reader, then
 ;; falls off the end of :code -- the credits-obs self-termination shape
 ;; (credits-obs.gc:668-674, confirmed at design 5d): a :code behavior returning
@@ -281,6 +351,19 @@
   :code (behavior ()
     (set! *display-camera-info* *fmv-saved-display-camera-info*)
     (set! *fmv-player* (the-as fmv-player #f))
+    (jukebox-onoff *fmv-saved-jukebox-onoff*)
+    (when (nonzero? *gui-control*)
+      (gui-control-method-16
+        *gui-control*
+        4
+        (the-as uint (-> self subtitle-change-time))
+        0
+        0
+        (the-as string #f)
+        (the-as (function gui-connection symbol) #f)
+        (the-as process #f)
+        )
+      )
     (let ((tbp (fmv-get-tbp)))
       (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
                                    (bucket-id tex-lcom-sky-pre)
@@ -324,35 +407,71 @@
   :code (behavior ()
     (set! *fmv-saved-display-camera-info* *display-camera-info*)
     (set! *display-camera-info* #f)
-    (until #f
-      (let* ((elapsed-ticks (- (current-time) (the-as time-frame (-> self start-time))))
-             (elapsed-ms (the int (/ (* elapsed-ticks 10) 3)))
-             )
-        (cond
-          ((or (cpad-pressed? 0 triangle circle x) (> elapsed-ms (fmv-duration-for-movie (-> self gui-id))))
-           (go die)
-           )
-          (else
-            (let ((tbp (fmv-get-tbp)))
-              (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
-                                           (bucket-id tex-lcom-sky-pre)
-                                           )
-                (pc-texture-anim-flag start-anim-array buf)
-                (pc-texture-anim-flag fmv-frame buf :qwc 1)
-                (let ((rec (the texture-anim-pc-fmv-frame (-> buf base))))
-                  (set! (-> rec elapsed-ms) (the uint elapsed-ms))
-                  (set! (-> rec dest) tbp)
-                  (set! (-> rec width) 640)
-                  (set! (-> rec height) 448)
-                  (set! (-> rec movie-id) (-> self gui-id))
-                  (set! (-> rec stop) 0)
-                  )
-                (&+! (-> buf base) 16)
-                (pc-texture-anim-flag finish-anim-array buf)
+    (set! *fmv-saved-jukebox-onoff* *jukebox-onoff*)
+    (jukebox-onoff #f)
+    (when (nonzero? *gui-control*)
+      (set! (-> self subtitle-change-time)
+            (the-as uint64
+              (gui-control-method-9
+                *gui-control*
+                self
+                34
+                1
+                (the-as string (-> *m2v-info* (the int (-> self gui-id)) sound))
+                -99.0
+                0
                 )
               )
-            (fmv-draw-quad)
-            (suspend)
+            )
+      )
+    (let ((audio-latched #f))
+      (until #f
+        (when (and (not audio-latched)
+                   (nonzero? *gui-control*)
+                   (= (gui-control-method-17 *gui-control* (the-as uint (-> self subtitle-change-time))) 2)
+                   )
+          (gui-control-method-16
+            *gui-control*
+            2
+            (the-as uint (-> self subtitle-change-time))
+            0
+            0
+            (the-as string #f)
+            (the-as (function gui-connection symbol) #f)
+            (the-as process #f)
+            )
+          (set! (-> self start-time) (the-as uint (current-time)))
+          (set! audio-latched #t)
+          )
+        (let* ((elapsed-ticks (- (current-time) (the-as time-frame (-> self start-time))))
+               (elapsed-ms (the int (/ (* elapsed-ticks 10) 3)))
+               )
+          (cond
+            ((or (cpad-pressed? 0 triangle circle x) (> elapsed-ms (fmv-duration-for-movie (-> self gui-id))))
+             (go die)
+             )
+            (else
+              (let ((tbp (fmv-get-tbp)))
+                (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
+                                             (bucket-id tex-lcom-sky-pre)
+                                             )
+                  (pc-texture-anim-flag start-anim-array buf)
+                  (pc-texture-anim-flag fmv-frame buf :qwc 1)
+                  (let ((rec (the texture-anim-pc-fmv-frame (-> buf base))))
+                    (set! (-> rec elapsed-ms) (the uint elapsed-ms))
+                    (set! (-> rec dest) tbp)
+                    (set! (-> rec width) 640)
+                    (set! (-> rec height) 448)
+                    (set! (-> rec movie-id) (-> self gui-id))
+                    (set! (-> rec stop) 0)
+                    )
+                  (&+! (-> buf base) 16)
+                  (pc-texture-anim-flag finish-anim-array buf)
+                  )
+                )
+              (fmv-draw-quad)
+              (suspend)
+              )
             )
           )
         )
