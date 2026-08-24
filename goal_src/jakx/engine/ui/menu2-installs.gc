@@ -594,6 +594,40 @@
   (none)
   )
 
+;; base-menu-method-59 (selection-menu-manager): real landing, issue 759,
+;; lobby rung a1's own STEP 3. base-menu-init-by-other's own unconditional
+;; tail call reaches the 'manager node (lobby-menu-data.gc's
+;; *base-menu-info* tree) on this exact type, so the generic base-menu
+;; stub above is not enough on its own. Transcribed verbatim from dead
+;; menu2.gc's own clean, five-line body (menu2.gc:11585-11590; no ERROR,
+;; no WARN beyond a benign symbol-vs-none return-type mismatch that the
+;; body's own trailing (none) already satisfies).
+(defmethod base-menu-method-59 ((this selection-menu-manager))
+  (set! (-> this selection-index) 0)
+  (set! (-> this prev-selection-index) 0)
+  (set! (-> this enabled) (the-as basic #t))
+  (none)
+  )
+
+;; base-menu-method-59 (dropdown-item): cited stub, issue 759, lobby rung
+;; a1's own STEP 3. base-menu-init-by-other's own unconditional tail call
+;; also reaches every dropdown-item child the STEP 2 spawner above
+;; activates, so this slot needs a non-nullptr fill on this type too, but
+;; the only body anywhere with this name for dropdown-item (dead
+;; menu2.gc:8136-8266, 131 lines) carries a real compiler error ("ERROR:
+;; failed type prop at 34: Could not figure out load: (set! a0 (l.wu
+;; a0))") on top of extensive register-level artifacts (over 30
+;; local-vars typed none/type/symbol/int rather than anything
+;; meaningful, and raw VU inline assembly for the selected-offset
+;; normalize: .isqrt.vf/.mul.vf.xyz/.wait.vf with no clean surface-level
+;; equivalent transcribed yet). Landing that body is its own rung, not a
+;; same-commit fix; held per the same cited-stub class this file already
+;; uses throughout, deferred to the a2 rung.
+;; Retirement condition: a real landing of method 59 on dropdown-item.
+(defmethod base-menu-method-59 ((this dropdown-item))
+  (none)
+  )
+
 ;; base-menu-method-60: cited stub, issue 699, menu2-quartet-landing rung's
 ;; STEP 2 slot audit. Two real callers land in this same file: default-base-
 ;; menu-post's own tail (the else branch of its outer cond, after the 3d-
