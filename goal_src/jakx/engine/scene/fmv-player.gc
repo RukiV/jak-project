@@ -426,15 +426,29 @@
 ;; *fmv-player* is always #f by the time the next fmv-player-run call runs);
 ;; omitted rather than ported blind.
 ;;
-;; This is otherwise a hand-authored port body, not a re-attempted decode:
-;; title-obs.gc's own (enter target-intro) :code (title-obs.gc:1092-1104) is
-;; the proven "wait on dma-try-alloc, tag 'X, until it succeeds" shape for
-;; this exact title-state file, just with lobby-menu-manager.gc:328/810's
-;; 'fmv-player tag and #x80040/#x80040 sizing instead of title-control's
-;; #xd2800 (no equivalent dma-try-alloc call exists in fmv-player-run itself
-;; per the scoped decode, but the retail buffer-reservation contract for this
-;; exact tag is evidenced at both those call sites, so it is kept here rather
-;; than dropped).
+;; og:preserve-this (issue 569): fmv-player-run makes no DMA reservation in
+;; retail -- this rung's own scoped decode (fmv-player_ir2.asm) shows no
+;; dma-try-alloc call anywhere inside the function. The 'fmv-player DMA tag
+;; belongs to lobby-menu-manager.gc's own IPU logo path instead: it reserves
+;; the tag itself (dma-try-alloc 'fmv-player, :356 and :838) and releases it
+;; itself (dma-release 'fmv-player, :767, :835, :2550), never fmv-player-run.
+;; A prior version of this port added a per-call dma-try-alloc/suspend-until-
+;; success loop here anyway, on the mistaken assumption the tag needed
+;; reserving before every spawn; it leaked, because nothing here or in die
+;; ever releases it and title-obs.gc:1151-1159 calls fmv-player-run twice
+;; back to back with no release between the two calls. Observed live:
+;; fmvboot-plain-1.log shows THX playing cleanly to completion (exactly 450
+;; "[fmv] decode frame N" lines, 0 through 449) and then the boot stalling
+;; forever -- no second "decode frame 0", no menu2 level load, *fmv-player*
+;; reading #f at attach, 315 idle Kernel dispatch lines and no crash -- the
+;; target's :code spinning inside the leaked reservation's wait loop on the
+;; "intro" call, since the "thx" call's own reservation was never released.
+;; The L3 THX spike played from a bare process-spawn with no reservation of
+;; any kind, and on PC the MJV frames arrive through TextureAnimator's own
+;; handle_fmv_frame, which needs no DMA reservation at all -- this is not a
+;; retail behavior a PC-port body needs to reconstruct. The kill-by-type-
+;; then-process-spawn shape below is still title-control-spawn's own proven
+;; shape (title-obs.gc:200-211) for a singleton title-adjacent process.
 ;;
 ;; The "movie index" carried in gui-id (fmv-mode is already claimed, set to 1
 ;; by init-by-other above) is m2v-info-index-by-name's array position -- NOT
@@ -467,11 +481,6 @@
   (kill-by-type fmv-player *active-pool*)
   (let ((movie-idx (m2v-info-index-by-name arg0)))
     (when (>= movie-idx 0)
-      (let ((v1-0 (new 'stack-no-clear 'array 'pointer 2)))
-        (while (not (dma-try-alloc #x80040 #x80040 'fmv-player 0 (&-> v1-0 0) (&-> v1-0 1) #f))
-          (suspend)
-          )
-        )
       ;; process-spawn's own value (gstate.gc:33-53) is (the (pointer fmv-player)
       ;; (-> new-proc ppointer)) -- a pointer TO the process-tree slot holding the
       ;; process, not the process itself; (-> new-proc 0) is the deref every landed
