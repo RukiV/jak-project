@@ -490,8 +490,26 @@ reading through it."
 ;; a full 40 s headless boot (~2550 frames). Set #f to boot with the ring dormant.
 (define *jakx-cam-start* #t)
 
+;; og:preserve-this bounds this loop to *view-count* instead of a hardcoded 2
+;; (issue 724): cam-start opens with cam-stop, which is global (kill-by-name
+;; "camera-master" over *active-pool*, and *camera-pool* is a child of it),
+;; and *camera-master-dead-pool* has exactly one slot (gkernel.gc:2370,
+;; num-proc 1), so a second pass at boot (when *view-count* is still 1) kills
+;; the view-0 master and respawns the same object bound to cam-settings[1]
+;; (cam-master.gc:1128-1130 binds settings from view-get-active-index at
+;; spawn); view-set-active-camera #f only clears the current view's slot, so
+;; *views*[0].camera keeps pointing at that rebound master while the lobby
+;; keeps writing cam-settings[0], and cam-master-activate-slave's guard
+;; (cam-master.gc:603-608) never sees entity-or-mode-changed flip. The
+;; obvious fix of just dropping the second pass is wrong: the split-screen
+;; ring is raised by *view-count* itself (logic-target.gc:926 sets it to 2
+;; when a second viewport spawns), and this loop has to run once per live
+;; view when that happens. logic-target.gc:564's (cam-start #t) under
+;; *jakx-continue-cam-takeover* runs under view context 0 only and does not
+;; hit this hazard. Retirement: none, this is the retail idiom
+;; (cam-interface.gc:154, :176 use the same *view-count* loop bound).
 (defun jakx-cam-start-now ()
-  (dotimes (i 2)
+  (dotimes (i *view-count*)
     (view-push-context i)
     (cam-start #f)
     (view-pop-context)
