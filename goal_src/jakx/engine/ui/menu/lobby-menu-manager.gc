@@ -234,9 +234,9 @@
   )
 
 ;; definition for function lmm-make-logo-menu
-;; ERROR: Function may read a register that is not set: t0
+;; og:preserve-this the unset-t0 read this banner used to flag is resolved
+;; below (issue #744).
 (defun lmm-make-logo-menu ((arg0 lobby-menu-manager))
-  (local-vars (t0-0 none))
   (when (and (not (handle->process (-> arg0 menu-handle-logo-subtitle)))
              (not (handle->process (-> arg0 menu-handle-logo-main)))
              )
@@ -245,12 +245,22 @@
                    (let ((s4-0 (method-of-type process activate)))
                      (s4-0 s5-0 arg0 (symbol->string (-> jakx-logo-menu symbol)) (the-as pointer #x70004000))
                      )
+                   ;; og:preserve-this run-now-in-process forwards this
+                   ;; trailing argument verbatim into base-menu-init-by-
+                   ;; other's arg2, the menu's own pad index (menu2-
+                   ;; installs.gc stores it at (-> self pad)); the
+                   ;; decompiler dropped retail's own zeroing of that
+                   ;; register as dead, so the raw decode read garbage out
+                   ;; of an unset t0 here and at the sibling call below.
+                   ;; Explicit 0 is the retail value (pad 0), same
+                   ;; dropped-argument class as activate-bar's own #743 fix.
+                   ;; Issue #744.
                    (run-now-in-process
                      s5-0
                      base-menu-init-by-other
                      *logo-menu-info*
                      (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
-                     t0-0
+                     0
                      )
                    (-> s5-0 ppointer)
                    )
@@ -272,7 +282,7 @@
                         base-menu-init-by-other
                         *logo-subtitle-menu-info*
                         (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
-                        t0-0
+                        0
                         )
                       (-> s5-1 ppointer)
                       )
