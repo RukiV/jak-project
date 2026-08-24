@@ -210,6 +210,11 @@ std::vector<std::string> jakx_slots = {
     // jungle lava composites: junglef (#120)
     "jungle-lava-01-dest",
     "jungle-lava-spill-scroll-01-dest",
+    // login logo movie (LOGO.MJV), issue 762. Tpage-qualified: "iscreen-video-dest" exists in
+    // four tpages (menu2-pris, rustyh-alpha, rustyh-vis-alpha, garageb-alpha) and only
+    // menu2-pris's copy is fed by the fmv publish path; a bare key would also redirect the
+    // other three, which nothing populates, to the dummy checkerboard.
+    "menu2-pris/iscreen-video-dest",
 };
 
 }  // namespace

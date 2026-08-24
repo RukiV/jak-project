@@ -803,11 +803,12 @@ s32 find_or_add_texture_to_level(tfrag3::Level& out,
     }
   }
 
-  // check anim output
+  // check anim output. Tries the tpage-qualified key first, then the bare debug_name (issue 762).
   const auto& level_tex = out.textures.at(idx_in_level_texture);
-  const auto& it = tex_db.animated_tex_output_to_anim_slot.find(level_tex.debug_name);
-  if (it != tex_db.animated_tex_output_to_anim_slot.end()) {
-    return -int(it->second) - 1;
+  auto anim_slot =
+      tex_db.lookup_animated_tex_output_slot(level_tex.debug_tpage_name, level_tex.debug_name);
+  if (anim_slot) {
+    return -int(*anim_slot) - 1;
   }
   return idx_in_level_texture;
 }

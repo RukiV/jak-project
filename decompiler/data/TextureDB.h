@@ -42,6 +42,15 @@ struct TextureDB {
 
   ResolvedTextureData resolve_texture(u32 id) const;
 
+  // Looks up an animated-texture-output slot, trying the tpage-qualified key
+  // ("tpage-name/texture-name") first and falling back to the bare texture name. jakx qualifies
+  // some slot names because a debug_name can repeat across several tpages where only one of
+  // them should redirect to the anim slot (menu2-pris/iscreen-video-dest vs the same bare name
+  // in rustyh-alpha, rustyh-vis-alpha and garageb-alpha, issue 762); jak2/jak3's tables are
+  // bare-name only and always match on the fallback, unchanged from before.
+  std::optional<u32> lookup_animated_tex_output_slot(const std::string& tpage_name,
+                                                     const std::string& name) const;
+
   static constexpr int kPlaceholderWhiteTexturePage = INT16_MAX;
   static constexpr int kPlaceholderWhiteTextureId = 0;
 

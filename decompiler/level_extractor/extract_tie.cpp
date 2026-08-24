@@ -2378,11 +2378,13 @@ s32 get_or_add_texture(u32 combo_tex, tfrag3::Level& lev, const TextureDB& tdb) 
     new_tex.debug_tpage_name = tdb.tpage_names.at(tex_it->second.page);
     new_tex.data = tex_it->second.rgba_bytes;
   }
+  // Tries the tpage-qualified key first, then the bare debug_name (issue 762).
   const auto& level_tex = lev.textures.at(idx_in_lev_data);
-  const auto& it = tdb.animated_tex_output_to_anim_slot.find(level_tex.debug_name);
-  if (it != tdb.animated_tex_output_to_anim_slot.end()) {
+  auto anim_slot =
+      tdb.lookup_animated_tex_output_slot(level_tex.debug_tpage_name, level_tex.debug_name);
+  if (anim_slot) {
     // lg::warn("TIE animated texture: {}", level_tex.debug_name);
-    return -int(it->second) - 1;
+    return -int(*anim_slot) - 1;
   }
   return idx_in_lev_data;
 }

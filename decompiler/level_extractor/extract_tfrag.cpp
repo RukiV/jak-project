@@ -2068,12 +2068,14 @@ s32 find_or_add_texture_to_level(u32 combo_tex_id,
     new_tex.data = tex_it->second.rgba_bytes;
   }
 
-  // map animated textures to the animation slot.
+  // map animated textures to the animation slot. Tries the tpage-qualified key first, then the
+  // bare debug_name (issue 762).
   const auto& level_tex = texture_pool.at(tfrag3_tex_id);
-  const auto& it = tdb.animated_tex_output_to_anim_slot.find(level_tex.debug_name);
-  if (it != tdb.animated_tex_output_to_anim_slot.end()) {
+  auto anim_slot =
+      tdb.lookup_animated_tex_output_slot(level_tex.debug_tpage_name, level_tex.debug_name);
+  if (anim_slot) {
     // lg::warn("tfrag3 animated texture: {}", level_tex.debug_name);
-    return -int(it->second) - 1;
+    return -int(*anim_slot) - 1;
   }
 
   return tfrag3_tex_id;

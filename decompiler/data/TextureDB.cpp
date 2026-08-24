@@ -206,6 +206,24 @@ ResolvedTextureData TextureDB::resolve_texture(u32 id) const {
   return result;
 }
 
+std::optional<u32> TextureDB::lookup_animated_tex_output_slot(const std::string& tpage_name,
+                                                              const std::string& name) const {
+  // jakx qualifies some slot names (issue 762) because a bare debug_name can repeat across
+  // several tpages, only one of which should redirect to the anim slot; try that key first so
+  // the ambiguous tpages fall through untouched. jak2/jak3 never register a qualified key, so
+  // this always falls back to the bare lookup for them, unchanged from before.
+  auto qualified = tpage_name + "/" + name;
+  auto qualified_it = animated_tex_output_to_anim_slot.find(qualified);
+  if (qualified_it != animated_tex_output_to_anim_slot.end()) {
+    return qualified_it->second;
+  }
+  auto bare_it = animated_tex_output_to_anim_slot.find(name);
+  if (bare_it != animated_tex_output_to_anim_slot.end()) {
+    return bare_it->second;
+  }
+  return std::nullopt;
+}
+
 /*!
  * Generate a table of offsets
  */
