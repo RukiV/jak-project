@@ -9929,7 +9929,19 @@ drive/camera logic below ever runs."
                  ((= v1-3 'kiosk)
                   'fmvlev
                   )
-                 (*debug-segment*
+                 ;; og:preserve-this boot-mode scoping (issue 699 retail boot road): this
+                 ;; arm used to fire on bare *debug-segment*, which put a REPL-attached
+                 ;; ('retail mode still needs -debug to keep the REPL attached; retail
+                 ;; boots are otherwise REPL-deaf) acceptance boot of the retail road into
+                 ;; an inconsistent pair: this arm loads 'icea while initialize! (game-info.gc,
+                 ;; issue 699) now resolves "fmv-intro" regardless of *debug-segment* in
+                 ;; 'retail mode, so the booted level and the resolved continue pointed at
+                 ;; two different levels (icea vs fmvlev). In 'retail mode *debug-segment*
+                 ;; changes nothing about level or continue selection; its only job is
+                 ;; keeping the REPL attached, so this arm is now scoped to 'freeroam only
+                 ;; and a 'retail -debug boot falls through to the else arm's 'fmvlev below,
+                 ;; matching initialize!'s own rule. Retires alongside *jakx-boot-mode*.
+                 ((and *debug-segment* (= *jakx-boot-mode* 'freeroam))
                    ;; og:preserve-this #56: during bring-up the boot lever wins over the
                    ;; retail debug default. menu2.DGO has never been built on this branch
                    ;; (game.gp keeps its cgo-file commented), so a -debug boot picked an
