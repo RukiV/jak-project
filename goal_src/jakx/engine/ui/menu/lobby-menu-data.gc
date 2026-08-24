@@ -48,9 +48,43 @@
 (define-extern *net-drivers* (array net-driver))
 
 ;; definition for symbol *background-menu-info*, type base-menu-info
+;; lobby rung a1 (issue 759): transcribed by hand from the same scoped
+;; decode as *base-menu-info* above (see that citation for the label-hint
+;; experiment result and the all-types.gc offset cross-check method). This
+;; tree is one level deep only: a single plain 'base-menu child (L1545),
+;; no name-symbol, :children #f. Its own :trans-info field is declared
+;; plain animation-info (not transition-info) by base-menu-info's deftype,
+;; so only the animation-info-shaped prefix of the raw word dump is
+;; printed here, matching this file's own established precedent for the
+;; same field/type pairing (*logo-menu-info*/*logo-subtitle-menu-info*
+;; above print their animation-info trans-info the same truncated way even
+;; though more raw bytes follow at those labels).
 (define *background-menu-info* (new 'static 'base-menu-info
                                  :menu-type 'base-menu
-                                 :children (new 'static 'boxed-array :type structure (new 'static 'structure))
+                                 :children (new 'static 'boxed-array :type base-menu-info
+                                   (new 'static 'base-menu-info
+                                     :menu-type 'base-menu
+                                     :children #f
+                                     :name-symbol #f
+                                     :3d-menu-type "skel-side-walls"
+                                     :trans-info (new 'static 'animation-info
+                                       :enter-anim 3
+                                       :exit-anim -1
+                                       :running-anim -1
+                                       :anim-speed 5.0
+                                       :enter-delay 0
+                                       :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 -4096.0 1.0))
+                                       )
+                                     :joint-index -1
+                                     :joint-index-2 -1
+                                     :box-index -1
+                                     :joints (new 'static 'boxed-array :type int8 0)
+                                     :width -1
+                                     :height -1
+                                     :scale-y 0.94
+                                     :scale-x 0.94
+                                     )
+                                   )
                                  :name-symbol #f
                                  :3d-menu-type #f
                                  :trans-info #f
@@ -121,10 +155,511 @@
 (define *base-menu-info* (the-as object #f))
 
 ;; definition for symbol *base-menu-info*, type object
+;; lobby rung a1 (issue 759): the shipped children tree, transcribed by hand
+;; from a scratch scoped decode of lobby-menu-data (allowed_objects
+;; ["lobby-menu-data"]) since label_types.jsonc hints do not reach nested
+;; boxed-array elements (proven this rung: hinting L1506 as base-menu-info
+;; left the printed :children placeholder unchanged). Field-to-word mapping
+;; is cross-checked against decompiler/config/jakx/all-types.gc's own
+;; offset-assert layouts for base-menu-info/sprite-menu-info/string-menu-
+;; info/dropdown-item-info/animation-info/transition-info/dropdown-trans-
+;; info (all already landed with offsets there), not guessed from alignment
+;; alone. *base-menu-info* -> children[0] = L1506, a base-menu-info naming
+;; :menu-type 'selection-menu-manager (a real deftype, menu2-h.gc) and
+;; :name-symbol 'manager, whose own :children[0..5] = L1531/L1527/L1523/
+;; L1519/L1515/L1511, six dropdown-item-info entries naming :menu-type
+;; 'dropdown-item (a real deftype, menu2-h.gc) with :selection-type
+;; 'adventure/'single-event/'customize/'profile/'options/'secrets in that
+;; array order, matching the mission's six-entry tree exactly. Per-item
+;; :3d-offset.y forms an exact 4096-unit arithmetic stack (2048.0,
+;; -2048.0, -6144.0, -10240.0, -14336.0, -18432.0) confirming the field
+;; mapping. :strings-info's string-info :id differs per item (1578/1888/
+;; 1527/3013/49/4918, the string-menu-info sub-array's own text/localization
+;; id) and is the only field carrying real per-item content beyond the
+;; label/position; the remaining leaf fields are byte-identical across all
+;; six and printed verbatim from the raw word dump. All fields are printed
+;; explicitly (none omitted for being zero-valued) since no existing landed
+;; instance of these particular sub-types establishes this file's omission
+;; convention for them.
 (define *base-menu-info*
   (the-as object (new 'static 'base-menu-info
                    :menu-type 'base-menu
-                   :children (new 'static 'boxed-array :type structure (new 'static 'structure))
+                   :children (new 'static 'boxed-array :type base-menu-info
+                     (new 'static 'base-menu-info
+                       :menu-type 'selection-menu-manager
+                       :children (new 'static 'boxed-array :type dropdown-item-info
+                         (new 'static 'dropdown-item-info
+                           :menu-type 'dropdown-item
+                           :children #f
+                           :name-symbol #f
+                           :3d-menu-type #f
+                           :trans-info (new 'static 'dropdown-trans-info
+                             :enter-anim -1
+                             :exit-anim -1
+                             :running-anim -1
+                             :anim-speed 5.0
+                             :enter-delay 0
+                             :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 2048.0 0.0 1.0))
+                             :enter-pos-x 0.0
+                             :enter-pos-y 0.0
+                             :enter-alpha 1.0
+                             :running-alpha 1.0
+                             :exit-alpha 1.0
+                             :running-pos-x 0.0
+                             :running-pos-y 0.0
+                             :exit-pos-x 0.0
+                             :exit-pos-y 0.0
+                             :move-rate 100.0
+                             :scroll-offset-x 0
+                             :scroll-offset-y 0
+                             :scroll-rate 0.0
+                             :selected-offset #f
+                             )
+                           :joint-index -1
+                           :joint-index-2 -1
+                           :box-index 0
+                           :joints #f
+                           :width -1
+                           :height 4096
+                           :scale-y 1.0
+                           :scale-x 1.0
+                           :sprites-info #f
+                           :color 0
+                           :strings-info (new 'static 'boxed-array :type string-info
+                             (new 'static 'string-info
+                               :offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 -1.0 1.0))
+                               :pos-z #xffff010
+                               :id 1578
+                               :font-scale 0.5
+                               :width -1.0
+                               :height -1.0
+                               :string-ptr #f
+                               :string-ptr-needs-format #t
+                               :font-flags #x122e
+                               :font-color #x34
+                               :font-color-2 #x33
+                               :font-color-3 #x6
+                               :offset-dir #x2
+                               :offset-from-index -1
+                               :offset-type-from 0
+                               :is-player-string #f
+                               :tmp-talking 0
+                               :extra-arg #f
+                               )
+                             )
+                           :text-ids #f
+                           :selection-box-width -1
+                           :selection-box-height -1
+                           :selection-type 'adventure
+                           :selection-extra 0
+                           :selection-box-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                           :selection-box-color #x30400020
+                           :down-index-modifier 1
+                           :up-index-modifier -1
+                           :left-index-modifier 0
+                           :right-index-modifier 0
+                           :selection-box-texture-index 7
+                           :reset-pad 1
+                           )
+                         (new 'static 'dropdown-item-info
+                           :menu-type 'dropdown-item
+                           :children #f
+                           :name-symbol #f
+                           :3d-menu-type #f
+                           :trans-info (new 'static 'dropdown-trans-info
+                             :enter-anim -1
+                             :exit-anim -1
+                             :running-anim -1
+                             :anim-speed 5.0
+                             :enter-delay 0
+                             :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -2048.0 0.0 1.0))
+                             :enter-pos-x 0.0
+                             :enter-pos-y 0.0
+                             :enter-alpha 1.0
+                             :running-alpha 1.0
+                             :exit-alpha 1.0
+                             :running-pos-x 0.0
+                             :running-pos-y 0.0
+                             :exit-pos-x 0.0
+                             :exit-pos-y 0.0
+                             :move-rate 100.0
+                             :scroll-offset-x 0
+                             :scroll-offset-y 0
+                             :scroll-rate 0.0
+                             :selected-offset #f
+                             )
+                           :joint-index -1
+                           :joint-index-2 -1
+                           :box-index 0
+                           :joints #f
+                           :width -1
+                           :height 4096
+                           :scale-y 1.0
+                           :scale-x 1.0
+                           :sprites-info #f
+                           :color 0
+                           :strings-info (new 'static 'boxed-array :type string-info
+                             (new 'static 'string-info
+                               :offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 -1.0 1.0))
+                               :pos-z #xffff010
+                               :id 1888
+                               :font-scale 0.5
+                               :width -1.0
+                               :height -1.0
+                               :string-ptr #f
+                               :string-ptr-needs-format #t
+                               :font-flags #x122e
+                               :font-color #x34
+                               :font-color-2 #x33
+                               :font-color-3 #x6
+                               :offset-dir #x2
+                               :offset-from-index -1
+                               :offset-type-from 0
+                               :is-player-string #f
+                               :tmp-talking 0
+                               :extra-arg #f
+                               )
+                             )
+                           :text-ids #f
+                           :selection-box-width -1
+                           :selection-box-height -1
+                           :selection-type 'single-event
+                           :selection-extra 0
+                           :selection-box-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                           :selection-box-color #x30400020
+                           :down-index-modifier 1
+                           :up-index-modifier -1
+                           :left-index-modifier 0
+                           :right-index-modifier 0
+                           :selection-box-texture-index 7
+                           :reset-pad 1
+                           )
+                         (new 'static 'dropdown-item-info
+                           :menu-type 'dropdown-item
+                           :children #f
+                           :name-symbol #f
+                           :3d-menu-type #f
+                           :trans-info (new 'static 'dropdown-trans-info
+                             :enter-anim -1
+                             :exit-anim -1
+                             :running-anim -1
+                             :anim-speed 5.0
+                             :enter-delay 0
+                             :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -6144.0 0.0 1.0))
+                             :enter-pos-x 0.0
+                             :enter-pos-y 0.0
+                             :enter-alpha 1.0
+                             :running-alpha 1.0
+                             :exit-alpha 1.0
+                             :running-pos-x 0.0
+                             :running-pos-y 0.0
+                             :exit-pos-x 0.0
+                             :exit-pos-y 0.0
+                             :move-rate 100.0
+                             :scroll-offset-x 0
+                             :scroll-offset-y 0
+                             :scroll-rate 0.0
+                             :selected-offset #f
+                             )
+                           :joint-index -1
+                           :joint-index-2 -1
+                           :box-index 0
+                           :joints #f
+                           :width -1
+                           :height 4096
+                           :scale-y 1.0
+                           :scale-x 1.0
+                           :sprites-info #f
+                           :color 0
+                           :strings-info (new 'static 'boxed-array :type string-info
+                             (new 'static 'string-info
+                               :offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 -1.0 1.0))
+                               :pos-z #xffff010
+                               :id 1527
+                               :font-scale 0.5
+                               :width -1.0
+                               :height -1.0
+                               :string-ptr #f
+                               :string-ptr-needs-format #t
+                               :font-flags #x122e
+                               :font-color #x34
+                               :font-color-2 #x33
+                               :font-color-3 #x6
+                               :offset-dir #x2
+                               :offset-from-index -1
+                               :offset-type-from 0
+                               :is-player-string #f
+                               :tmp-talking 0
+                               :extra-arg #f
+                               )
+                             )
+                           :text-ids #f
+                           :selection-box-width -1
+                           :selection-box-height -1
+                           :selection-type 'customize
+                           :selection-extra 0
+                           :selection-box-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                           :selection-box-color #x30400020
+                           :down-index-modifier 1
+                           :up-index-modifier -1
+                           :left-index-modifier 0
+                           :right-index-modifier 0
+                           :selection-box-texture-index 7
+                           :reset-pad 1
+                           )
+                         (new 'static 'dropdown-item-info
+                           :menu-type 'dropdown-item
+                           :children #f
+                           :name-symbol #f
+                           :3d-menu-type #f
+                           :trans-info (new 'static 'dropdown-trans-info
+                             :enter-anim -1
+                             :exit-anim -1
+                             :running-anim -1
+                             :anim-speed 5.0
+                             :enter-delay 0
+                             :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -10240.0 0.0 1.0))
+                             :enter-pos-x 0.0
+                             :enter-pos-y 0.0
+                             :enter-alpha 1.0
+                             :running-alpha 1.0
+                             :exit-alpha 1.0
+                             :running-pos-x 0.0
+                             :running-pos-y 0.0
+                             :exit-pos-x 0.0
+                             :exit-pos-y 0.0
+                             :move-rate 100.0
+                             :scroll-offset-x 0
+                             :scroll-offset-y 0
+                             :scroll-rate 0.0
+                             :selected-offset #f
+                             )
+                           :joint-index -1
+                           :joint-index-2 -1
+                           :box-index 0
+                           :joints #f
+                           :width -1
+                           :height 4096
+                           :scale-y 1.0
+                           :scale-x 1.0
+                           :sprites-info #f
+                           :color 0
+                           :strings-info (new 'static 'boxed-array :type string-info
+                             (new 'static 'string-info
+                               :offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 -1.0 1.0))
+                               :pos-z #xffff010
+                               :id 3013
+                               :font-scale 0.5
+                               :width -1.0
+                               :height -1.0
+                               :string-ptr #f
+                               :string-ptr-needs-format #t
+                               :font-flags #x122e
+                               :font-color #x34
+                               :font-color-2 #x33
+                               :font-color-3 #x6
+                               :offset-dir #x2
+                               :offset-from-index -1
+                               :offset-type-from 0
+                               :is-player-string #f
+                               :tmp-talking 0
+                               :extra-arg #f
+                               )
+                             )
+                           :text-ids #f
+                           :selection-box-width -1
+                           :selection-box-height -1
+                           :selection-type 'profile
+                           :selection-extra 0
+                           :selection-box-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                           :selection-box-color #x30400020
+                           :down-index-modifier 1
+                           :up-index-modifier -1
+                           :left-index-modifier 0
+                           :right-index-modifier 0
+                           :selection-box-texture-index 7
+                           :reset-pad 1
+                           )
+                         (new 'static 'dropdown-item-info
+                           :menu-type 'dropdown-item
+                           :children #f
+                           :name-symbol #f
+                           :3d-menu-type #f
+                           :trans-info (new 'static 'dropdown-trans-info
+                             :enter-anim -1
+                             :exit-anim -1
+                             :running-anim -1
+                             :anim-speed 5.0
+                             :enter-delay 0
+                             :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -14336.0 0.0 1.0))
+                             :enter-pos-x 0.0
+                             :enter-pos-y 0.0
+                             :enter-alpha 1.0
+                             :running-alpha 1.0
+                             :exit-alpha 1.0
+                             :running-pos-x 0.0
+                             :running-pos-y 0.0
+                             :exit-pos-x 0.0
+                             :exit-pos-y 0.0
+                             :move-rate 100.0
+                             :scroll-offset-x 0
+                             :scroll-offset-y 0
+                             :scroll-rate 0.0
+                             :selected-offset #f
+                             )
+                           :joint-index -1
+                           :joint-index-2 -1
+                           :box-index 0
+                           :joints #f
+                           :width -1
+                           :height 4096
+                           :scale-y 1.0
+                           :scale-x 1.0
+                           :sprites-info #f
+                           :color 0
+                           :strings-info (new 'static 'boxed-array :type string-info
+                             (new 'static 'string-info
+                               :offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 -1.0 1.0))
+                               :pos-z #xffff010
+                               :id 49
+                               :font-scale 0.5
+                               :width -1.0
+                               :height -1.0
+                               :string-ptr #f
+                               :string-ptr-needs-format #t
+                               :font-flags #x122e
+                               :font-color #x34
+                               :font-color-2 #x33
+                               :font-color-3 #x6
+                               :offset-dir #x2
+                               :offset-from-index -1
+                               :offset-type-from 0
+                               :is-player-string #f
+                               :tmp-talking 0
+                               :extra-arg #f
+                               )
+                             )
+                           :text-ids #f
+                           :selection-box-width -1
+                           :selection-box-height -1
+                           :selection-type 'options
+                           :selection-extra 0
+                           :selection-box-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                           :selection-box-color #x30400020
+                           :down-index-modifier 1
+                           :up-index-modifier -1
+                           :left-index-modifier 0
+                           :right-index-modifier 0
+                           :selection-box-texture-index 7
+                           :reset-pad 1
+                           )
+                         (new 'static 'dropdown-item-info
+                           :menu-type 'dropdown-item
+                           :children #f
+                           :name-symbol #f
+                           :3d-menu-type #f
+                           :trans-info (new 'static 'dropdown-trans-info
+                             :enter-anim -1
+                             :exit-anim -1
+                             :running-anim -1
+                             :anim-speed 5.0
+                             :enter-delay 0
+                             :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -18432.0 0.0 1.0))
+                             :enter-pos-x 0.0
+                             :enter-pos-y 0.0
+                             :enter-alpha 1.0
+                             :running-alpha 1.0
+                             :exit-alpha 1.0
+                             :running-pos-x 0.0
+                             :running-pos-y 0.0
+                             :exit-pos-x 0.0
+                             :exit-pos-y 0.0
+                             :move-rate 100.0
+                             :scroll-offset-x 0
+                             :scroll-offset-y 0
+                             :scroll-rate 0.0
+                             :selected-offset #f
+                             )
+                           :joint-index -1
+                           :joint-index-2 -1
+                           :box-index 0
+                           :joints #f
+                           :width -1
+                           :height 4096
+                           :scale-y 1.0
+                           :scale-x 1.0
+                           :sprites-info #f
+                           :color 0
+                           :strings-info (new 'static 'boxed-array :type string-info
+                             (new 'static 'string-info
+                               :offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 -1.0 1.0))
+                               :pos-z #xffff010
+                               :id 4918
+                               :font-scale 0.5
+                               :width -1.0
+                               :height -1.0
+                               :string-ptr #f
+                               :string-ptr-needs-format #t
+                               :font-flags #x122e
+                               :font-color #x34
+                               :font-color-2 #x33
+                               :font-color-3 #x6
+                               :offset-dir #x2
+                               :offset-from-index -1
+                               :offset-type-from 0
+                               :is-player-string #f
+                               :tmp-talking 0
+                               :extra-arg #f
+                               )
+                             )
+                           :text-ids #f
+                           :selection-box-width -1
+                           :selection-box-height -1
+                           :selection-type 'secrets
+                           :selection-extra 0
+                           :selection-box-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                           :selection-box-color #x30400020
+                           :down-index-modifier 1
+                           :up-index-modifier -1
+                           :left-index-modifier 0
+                           :right-index-modifier 0
+                           :selection-box-texture-index 7
+                           :reset-pad 1
+                           )
+                       )
+                       :name-symbol 'manager
+                       :3d-menu-type "skel-side-bar"
+                       :trans-info (new 'static 'transition-info
+                         :enter-anim 3
+                         :exit-anim 5
+                         :running-anim -1
+                         :anim-speed 5.0
+                         :enter-delay #xf
+                         :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -8192.0 0.0 1.0))
+                         :enter-pos-x 0.0
+                         :enter-pos-y 0.0
+                         :enter-alpha 1.0
+                         :running-alpha 1.0
+                         :exit-alpha 1.0
+                         :running-pos-x 0.0
+                         :running-pos-y 0.0
+                         :exit-pos-x 0.0
+                         :exit-pos-y 0.0
+                         :move-rate 100.0
+                         :scroll-offset-x 0
+                         :scroll-offset-y 0
+                         :scroll-rate 0.0
+                       )
+                       :joint-index -1
+                       :joint-index-2 -1
+                       :box-index -1
+                       :joints (new 'static 'boxed-array :type int8 7 8)
+                       :width -1
+                       :height -1
+                       :scale-y 1.0
+                       :scale-x 1.0
+                     )
+                     )
                    :name-symbol #f
                    :3d-menu-type #f
                    :trans-info #f

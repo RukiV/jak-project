@@ -155,10 +155,17 @@
 ;; reference; the decompiler's own structure decoder rejects a non-#f
 ;; SYM_PTR word against a basic-declared field ("there was unknown data"
 ;; at offset 0), the same class the field's own real content resolves.
+;; lobby rung a1 (issue 759): name-symbol retyped basic -> symbol too, the
+;; identical class. *base-menu-info*'s own six-entry tree's manager node
+;; (lobby-menu-data.gc) stores a real 'manager symbol here, never a basic
+;; reference; the compiler's own static-data typecheck rejects a non-#f
+;; SYM_PTR word against a basic-declared field, the same class the
+;; field's own real content resolves. Mirrored in decompiler/config/jakx/
+;; all-types.gc so JakXTypeConsistency stays green.
 (deftype base-menu-info (structure)
   ((menu-type      symbol)
    (children       basic)
-   (name-symbol    basic)
+   (name-symbol    symbol)
    (3d-menu-type   basic)
    (trans-info     animation-info)
    (joint-index    int8)
@@ -801,6 +808,16 @@
   )
 
 ;; definition of type string-info
+;; lobby rung a1 (issue 759): string-ptr-needs-format retyped basic ->
+;; symbol, the same class base-menu-info's own menu-type field documents
+;; elsewhere (menu2-h.gc's own base-menu-info deftype comment). Every
+;; dropdown-item-info's own strings-info entry in lobby-menu-data.gc's
+;; *base-menu-info* tree stores a real #t here (six of six, byte-identical
+;; across the whole six-entry tree), never a basic reference; the
+;; compiler's own static-data typecheck rejects a non-#f SYM_PTR word
+;; against a basic-declared field, the same class the field's own real
+;; content resolves. Mirrored in decompiler/config/jakx/all-types.gc so
+;; JakXTypeConsistency stays green.
 (deftype string-info (structure)
   ((offset                   vector  :inline)
    (offset-x                 float   :overlay-at (-> offset data 0))
@@ -813,7 +830,7 @@
    (width                    float)
    (height                   float)
    (string-ptr               basic)
-   (string-ptr-needs-format  basic)
+   (string-ptr-needs-format  symbol)
    (font-flags               uint16)
    (font-color               uint8)
    (font-color-2             uint8)
@@ -1113,11 +1130,21 @@
   )
 
 ;; definition of type dropdown-item-info
+;; lobby rung a1 (issue 759): selection-type retyped basic -> symbol, the
+;; same class base-menu-info's own menu-type field documents and this
+;; file's own string-info's string-ptr-needs-format field above. All six
+;; of *base-menu-info*'s dropdown-item-info children store a real
+;; item-name symbol here ('adventure/'single-event/'customize/'profile/
+;; 'options/'secrets), never a basic reference; the compiler's own static-
+;; data typecheck rejects a non-#f SYM_PTR word against a basic-declared
+;; field, the same class the field's own real content resolves. Mirrored
+;; in decompiler/config/jakx/all-types.gc so JakXTypeConsistency stays
+;; green.
 (deftype dropdown-item-info (string-menu-info)
   ((trans-info                   dropdown-trans-info :override)
    (selection-box-width          int32)
    (selection-box-height         int32)
-   (selection-type               basic)
+   (selection-type               symbol)
    (selection-extra              int32)
    (selection-box-offset         vector               :inline)
    (selection-box-offset-x       float                :overlay-at (-> selection-box-offset data 0))

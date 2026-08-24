@@ -59365,10 +59365,16 @@
 ;; reference; the decompiler's own structure decoder rejects a non-#f
 ;; SYM_PTR word against a basic-declared field ("there was unknown data"
 ;; at offset 0), the same class the field's own real content resolves.
+;; lobby rung a1 (issue 759): name-symbol retyped basic -> symbol too, the
+;; identical class. *base-menu-info*'s own six-entry tree's manager node
+;; (lobby-menu-data.gc) stores a real 'manager symbol here, never a basic
+;; reference; the compiler's own static-data typecheck rejects a non-#f
+;; SYM_PTR word against a basic-declared field, the same class the
+;; field's own real content resolves.
 (deftype base-menu-info (structure)
   ((menu-type     symbol          :offset-assert 0)
    (children      basic           :offset-assert 4)
-   (name-symbol   basic           :offset-assert 8)
+   (name-symbol   symbol          :offset-assert 8)
    (3d-menu-type  basic           :offset-assert 12)
    (trans-info    animation-info  :offset-assert 16)
    (joint-index   int8            :offset-assert 20)
@@ -59712,6 +59718,16 @@
 
 
 ;; all-types.gc:50428 (dead)
+;; lobby rung a1 (issue 759): string-ptr-needs-format retyped basic ->
+;; symbol, the same class base-menu-info's own menu-type field above
+;; already documents. Every dropdown-item-info's own strings-info entry
+;; in lobby-menu-data.gc's *base-menu-info* tree stores a real #t here
+;; (six of six, byte-identical across the whole six-entry tree), never a
+;; basic reference; the compiler's own static-data typecheck rejects a
+;; non-#f SYM_PTR word against a basic-declared field (Typecheck failed.
+;; For Field string-ptr-needs-format, containing symbol #t, got a symbol
+;; when expecting a basic), the same class the field's own real content
+;; resolves.
 (deftype string-info (structure)
   ((offset                  vector :inline            :offset-assert 0)
    (offset-x                float  :overlay-at offset :offset-assert 0)
@@ -59724,7 +59740,7 @@
    (width                   float                     :offset-assert 28)
    (height                  float                     :offset-assert 32)
    (string-ptr              basic                     :offset-assert 36)
-   (string-ptr-needs-format basic                     :offset-assert 40)
+   (string-ptr-needs-format symbol                    :offset-assert 40)
    (font-flags              uint16                    :offset-assert 44)
    (font-color              uint8                     :offset-assert 46)
    (font-color-2            uint8                     :offset-assert 47)
@@ -59879,11 +59895,19 @@
 
 ;; all-types.gc:50355 (dead).  Second narrowing of trans-info (dropdown-trans-info
 ;; is a child of transition-info) - :override again.
+;; lobby rung a1 (issue 759): selection-type retyped basic -> symbol, the
+;; same class base-menu-info's own menu-type field documents and this
+;; file's own string-info's string-ptr-needs-format field just above. All
+;; six of *base-menu-info*'s dropdown-item-info children store a real
+;; item-name symbol here ('adventure/'single-event/'customize/'profile/
+;; 'options/'secrets), never a basic reference; the compiler's own static-
+;; data typecheck rejects a non-#f SYM_PTR word against a basic-declared
+;; field, the same class the field's own real content resolves.
 (deftype dropdown-item-info (string-menu-info)
   ((trans-info                  dropdown-trans-info :override)
    (selection-box-width         int32                       :offset-assert 68)
    (selection-box-height        int32                       :offset-assert 72)
-   (selection-type              basic                       :offset-assert 76)
+   (selection-type              symbol                      :offset-assert 76)
    (selection-extra             int32                       :offset-assert 80)
    ;; 16-byte alignment carries the cursor from 84 to 96
    (selection-box-offset        vector              :inline :offset-assert 96)
