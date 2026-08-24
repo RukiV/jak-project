@@ -697,7 +697,12 @@ uint32_t link_control::jakx_work_v5() {
       // assignment is field-for-field correct - audited against both jakx_work_opengoal's
       // own entry assignment above and against what jakx_finish reads. The actual defect
       // menuboot10 caught was downstream, in jakx_finish's non-opengoal dispatch never
-      // calling this entry as code; see that function's own og:preserve-this note.
+      // calling this entry as code; see that function's own og:preserve-this note. Round 15
+      // update (menuboot11): calling it as code was itself wrong - a 3-segment raw object's
+      // entry is retail MIPS, not x86, and jakx_finish no longer calls it at all. This
+      // assignment stays: jakx_finish still gates its "skipping exec (raw retail object, mips
+      // code)" log on m_entry.offset being set, so a kmalloc failure upstream is still
+      // distinguishable from the normal case in the log.
       m_entry = Ptr<u8>(m_link_segments_table[TOP_LEVEL_SEGMENT].data) + 4;
     } else {
       // single-segment: unchanged from the original code - the one segment IS the object.
@@ -1052,45 +1057,42 @@ void link_control::jakx_finish(bool jump_from_c_to_goal) {
       output_segment_load(m_object_name, m_link_block_ptr, m_flags);
     }
   } else {
-    // og:preserve-this menu2-landing rung round 14 (issue 699, menuboot10): every object
-    // jakx_work_v5 links lands here (m_opengoal == false always - jakx_work asserts
-    // !m_opengoal before ever calling jakx_work_v5), but this branch was written for exactly
-    // one shape: a single-segment V5 DATA object (the 342 raw copies landed before round 11),
-    // where m_entry points at the object's own [type][data...] basic layout and the correct
-    // "did the load" action is calling that type's GOAL_RELOC_METHOD ("relocate", method 7 -
-    // see jakx::call_method_of_type_arg2's own doc comment, "used to 'relocate' v2/s4 loads")
-    // via call_method_of_type_arg2. Round 11 added a second shape without updating this
-    // branch: a 3-segment V5 object carrying real EE top-level CODE
-    // (decompiler_out/jakx/raw_obj/menu2-GAME.go's TOP_LEVEL_SEGMENT), whose m_entry points
-    // at [type=function][code...] - the SAME basic layout jakx_work_opengoal's own entry
-    // uses. That layout also passes call_method_of_type_arg2's validity checks (the type tag
-    // resolves to the real `function` type), so the call below never crashed and never
-    // asserted for menu2 - it silently invoked `function`'s own relocate method instead of
-    // the top-level code. That is the exact menuboot10 finding: base-menu-init-by-other,
-    // base-menu-event-handler, default-base-menu-post and *last-menu-action* all still read
-    // the fresh-symbol default of 0 after a clean, assert-free boot, because the top-level
-    // that stores into them never ran.
-    //
-    // The fix executes a 3-segment entry the same way jakx_finish's own m_opengoal branch
-    // above executes a compiled top-level - same jump_from_c_to_goal switch, same call_goal /
-    // call_goal_on_stack calls - since a 3-segment V5 top-level and a version-3 opengoal
-    // top-level are linked by different machinery but called identically once linked. The
-    // single-segment data path (the `else` below) is untouched: m_n_segments == 3 is the
-    // only new branch, and the added m_entry.offset gate is unconditionally true for every
-    // successfully-linked object of either shape (m_entry is only ever left at its
-    // jakx_begin-initialized 0 if a kmalloc failure inside jakx_work_v5 returned early), so
-    // it changes nothing for the 342 already-landed single-segment objects.
+    // og:preserve-this menu2-landing rung round 15 (issue 699, menuboot11): round 14 (this
+    // block, before this rung) added a m_n_segments == 3 branch here that executed a raw
+    // object's entry via call_goal/call_goal_on_stack, the same way the m_opengoal branch
+    // above executes a compiled top-level. menuboot11 booted that build and menu2's raw copy
+    // crashed one byte into the jump: illegal instruction 0xc000001d at rip == entry + 1,
+    // unmapped. Round 14 named the right defect (jakx_finish never called the top-level
+    // menuboot10 proved was linked) but picked an impossible fix: every jakx_work_v5 object
+    // reaches this branch with m_opengoal == false (jakx_work asserts !m_opengoal before ever
+    // calling jakx_work_v5) - this whole else exists for raw retail objects, and a raw
+    // object's segments hold whatever the retail PS2 binary put there, not compiled GOAL x86.
+    // For the 342 single-segment DATA copies that is [type][data], which the relocate call
+    // below still handles exactly as it did before round 14. For a 3-segment object such as
+    // menu2-GAME.go, TOP_LEVEL_SEGMENT is real retail EE (MIPS) machine code, and there is no
+    // path that makes MIPS runnable from goalc's x86 process: raw copies can serve as DATA
+    // only, by construction, never as an executable entry. The round-14 exec call is removed
+    // outright rather than dead-code-gated on m_opengoal (which is unconditionally false in
+    // this entire else already, so a gate reading it here would be a branch that can never be
+    // taken from its own enclosing scope - worse than no branch). Retirement condition: none;
+    // this is a permanent category boundary, not a bring-up stub. The only way a menu2-shaped
+    // object gets a real x86 entry is compiling its GOAL source and linking it through the
+    // m_opengoal branch above, never through jakx_work_v5.
     if (m_flags & LINK_FLAG_EXECUTE) {
       if (m_entry.offset) {
-        lg::debug("[jakx_finish] {} exec entry 0x{:x}", m_object_name, m_entry.offset);
         if (m_n_segments == 3) {
-          if (jump_from_c_to_goal) {
-            u64 goal_stack = u64(g_ee_main_mem) + EE_MAIN_MEM_SIZE - 8;
-            call_goal_on_stack(m_entry.cast<Function>(), goal_stack, s7.offset, g_ee_main_mem);
-          } else {
-            call_goal(m_entry.cast<Function>(), 0, 0, 0, s7.offset, g_ee_main_mem);
-          }
+          // Real EE top-level code (menu2-GAME.go and any future 3-segment raw copy) - see
+          // above. There is no data-shape relocate call that makes sense against a
+          // [type=function][code...] entry either, so this shape gets no call at all, only
+          // the log line documenting that the boundary was hit.
+          lg::debug("[jakx_finish] {} skipping exec (raw retail object, mips code)", m_object_name);
         } else {
+          // single-segment: unchanged from the pre-round-14 code - the one segment IS the
+          // object, m_entry points at the object's own [type][data...] basic layout, and the
+          // correct "did the load" action is calling that type's GOAL_RELOC_METHOD
+          // ("relocate", method 7 - see jakx::call_method_of_type_arg2's own doc comment,
+          // "used to 'relocate' v2/s4 loads") via call_method_of_type_arg2.
+          lg::debug("[jakx_finish] {} exec entry 0x{:x}", m_object_name, m_entry.offset);
           auto entry = m_entry;
           auto name = basename_goal(m_object_name);
           strcpy(Ptr<char>(LINK_CONTROL_NAME_ADDR).c(), name);
