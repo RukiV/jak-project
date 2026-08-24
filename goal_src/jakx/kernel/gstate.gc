@@ -330,6 +330,11 @@
 ;; (the rlet block swaps to the main thread's stack and jumps to the state :code).
 ;; jakx delta vs jak3: the process profile-ticks counter is bumped on every go.
 (define-extern enter-state (function object object object object object object object))
+;; issue #716 round 9: forward-declared the same way cam-states.gc already does
+;; (goal_src/jakx/engine/camera/cam-states.gc:171) -- sleep-code's real definition
+;; (engine/process-drawable/process-drawable.gc) compiles well after gstate.gc in
+;; kernel bring-up order, and enter-state below needs it as a fallback :code.
+(define-extern sleep-code (function symbol :behavior process))
 (defun enter-state ((arg0 object) (arg1 object) (arg2 object) (arg3 object) (arg4 object) (arg5 object))
   (local-vars (s7-0 none) (sp-0 int) (ra-0 int))
   (with-pp
@@ -388,6 +393,36 @@
                (t9-5)
                )
            )
+         ;; issue #716 round 9: mirror the :enter guard above -- :code gets no such
+         ;; check before this rung, so a state landed (or bare-declared) without one
+         ;; jumps straight to #f (GOAL's #f IS the address of the s7 symbol, not
+         ;; integer 0) the moment it is entered. jak3's own twin (jak3/kernel/
+         ;; gstate.gc:404-406) is byte-identical here and equally unguarded, so this
+         ;; is not a landing defect to fix by parity -- retail's own compiled states
+         ;; simply never carried a #f :code. jakx's do: target-intro and
+         ;; target-introb (goal_src/jakx/levels/title/title-obs.gc) both have a
+         ;; landed defstate whose :code was omitted because the decompiler could
+         ;; only resolve it as a raw, unresolved label (their own comments: "the
+         ;; retail :code handler decoded as a raw label... same defect class as
+         ;; this file's other omitted raw-label state slots"), and target-title-start
+         ;; (target-h.gc's :states list) has no landed defstate behind it at all --
+         ;; the same "bare :states entry" class documented on target-float before
+         ;; its own stub landed. All three are reachable straight out of
+         ;; arrive-at-continue (goal_src/jakx/engine/target/target-death.gc)'s
+         ;; title-movie/intro/hero-mode branches. The file's own established
+         ;; stand-in for "no real :code yet" is target-float's landed stub, :code
+         ;; (behavior () (sleep-code)) -- substitute sleep-code's own entry point
+         ;; here rather than inventing new semantics, so an under-landed state
+         ;; suspends cleanly (the retail idiom for "no work") instead of jumping
+         ;; into unmapped symbol space.
+         (let ((state-code (-> s0-2 code)))
+           (if (not state-code)
+               (begin
+                 (format 0 "enter-state: ~A entering ~A with no :code, substituting sleep-code~%"
+                         (-> pp name) (-> s0-2 name))
+                 (set! state-code (the-as function sleep-code))
+                 )
+               )
          (rlet ((temp)
                 (func)
                 (sp :reg rsp :type uint)
@@ -405,7 +440,7 @@
            (.mov carg3 arg3)
 
            ;; get the main code as an x86-64 pointer
-           (.mov func (-> s0-2 code))
+           (.mov func state-code)
            (.add func off)
            ;; reset the stack (scary)
            (.mov sp (-> pp main-thread stack-top))
@@ -420,6 +455,7 @@
            (.add carg0 carg1)
            (.add carg2 carg3)
            #f ;; can't get here
+           )
            )
          )
        arg4
