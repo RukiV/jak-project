@@ -344,6 +344,19 @@
     (set! (-> (the-as process v0-0) name) name)
     (set! (-> (the-as process v0-0) clock) *kernel-clock*)
     (+! (-> (the-as process v0-0) clock ref-count) 1)
+    ;; og:preserve-this port-hardening companion to view.gc:176's nonzero?
+    ;; guard: neither retail's own process new (confirmed via a scoped
+    ;; decode of gkernel against this worktree's iso data) nor jak3's
+    ;; landed process new ever sets view, so this is not a dropped retail
+    ;; init. On dead-pool reuse the recycled memory is not re-zeroed, and
+    ;; view-get-active's first cond branch only checks nonzero? before
+    ;; trusting (-> pp view), so a stale nonzero view pointer from a prior
+    ;; occupant survives reuse and math-camera-matrix faults dereferencing
+    ;; it (base-menu-init-by-other's cam-fly path, issue 772). 0 is the
+    ;; "no view" sentinel the nonzero? guard rejects, falling through to
+    ;; the *views* branch instead. Retire this if the dead-pool is ever
+    ;; changed to zero-clear reused process memory on its own.
+    (set! (-> (the-as process v0-0) view) (the-as view 0))
     (set! (-> (the-as process v0-0) status) 'dead)
     (set! (-> (the-as process v0-0) pid) 0)
     (set! (-> (the-as process v0-0) pool) #f)
