@@ -598,6 +598,79 @@
   #f
   )
 
+;; base-menu-method-63: cited stub, issue 699, the raw-object-skipped-top-level
+;; generator class the menuboot15 offset-mapping investigation traced this
+;; crash to (this rung's own bring-up target). new_type zero-fills base-menu's
+;; declared slots 50-64 above process-drawable's own 50; retail's own
+;; installer for this slot lived in the raw menu2-GAME.go top-level (MIPS, not
+;; compiled GOAL), which klink.cpp (this rung's own Part 1, above) now stops
+;; from ever executing, so nothing else ever fills it. The only landed caller
+;; today is lobby-menu-manager-method-185 (lobby-menu-manager.gc:2327),
+;; reached via restore-selection-index (lobby-menu-manager-h.gc:481) from
+;; game-type-menu's own :enter. restore-selection-index's own body wraps that
+;; call's result in "(when a0-1 ...)", so #f is the semantically correct
+;; return here: it short-circuits the whole restore-selection-index body
+;; cleanly, while any non-#f return gets cast to selection-menu-manager and
+;; dispatched through method 65 - out of bounds on a 65-method type, a crash
+;; strictly worse than the one this stub closes. Retirement condition: a real
+;; decode of menu2-GAME.go's own method 63 body - no donor text exists
+;; anywhere today (menu2.gc:1904 is the cannot-decompile marker for this
+;; slot).
+(defmethod base-menu-method-63 ((this base-menu) (arg0 object))
+  (the-as process #f)
+  )
+
+;; base-menu-method-54: cited stub, issue 699, closing the same
+;; raw-object-skipped-top-level generator class as method-63 above. Declared
+;; in menu2-h.gc as a plain (base-menu-method-54 () none) entry - the same
+;; state-slot shape as method-50/53/55 above (a bare (function none)
+;; typespec with no explicit _type_, unlike 57-64's (_type_ ...) shape), so
+;; a plain defmethod does not compile here: it synthesizes (function
+;; base-menu none) against this slot's declared (function none) and
+;; method-set!'s own type check rejects the mismatch (confirmed: an initial
+;; defmethod attempt for this slot hit exactly that Type Error). This uses
+;; the same method-set! plus state-object cast idiom method-50 above uses,
+;; built the same fully-inert way as method-57's own "dummy" stub below
+;; (sleep-code, every other slot #f), since no decode of any kind exists for
+;; this slot and no landed caller exists yet - insurance against the class
+;; rather than a fill for observed behavior. The state name 'stub-54 is a
+;; placeholder: nothing in either decode corpus names this slot.
+(method-set!
+  base-menu
+  54
+  (the-as
+    (function none)
+    (new
+      'global
+      'state
+      'stub-54
+      sleep-code
+      (the-as (function object) #f)
+      (the-as function #f)
+      (the-as (function object) #f)
+      (the-as (function process int symbol event-message-block object) #f)
+      )
+    )
+  )
+
+;; base-menu-method-62: cited stub, issue 699, closing the same
+;; raw-object-skipped-top-level generator class as method-63 above. Declared
+;; in menu2-h.gc as (_type_ int) none; no landed caller anywhere in this
+;; rung's corpus, so this is insurance against the class rather than a fill
+;; for observed behavior.
+(defmethod base-menu-method-62 ((this base-menu) (arg0 int))
+  (none)
+  )
+
+;; base-menu-method-64: cited stub, issue 699, closing the same
+;; raw-object-skipped-top-level generator class as method-63 above. Declared
+;; in menu2-h.gc as (_type_) none; no landed caller anywhere in this rung's
+;; corpus, so this is insurance against the class rather than a fill for
+;; observed behavior.
+(defmethod base-menu-method-64 ((this base-menu))
+  (none)
+  )
+
 ;; base-menu-init-by-other: real body, transcribed from the menu2-quartet
 ;; redecode. a0 is base-menu-info (op 38 stores it straight to self's own
 ;; info-ptr; the caller passes *background-menu-info*,
