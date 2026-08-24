@@ -43,24 +43,19 @@
 (define-extern *sound-options-menu-info* base-menu-info)
 (define-extern *vibration-menu-info* selection-cache)
 (define-extern *fmv-m2v-name* string)
-;; og:preserve-this truthy-zero defusal (issue 699, PR 505 net-game-mgr
-;; precedent): *fmv-m2v-name* had no defun anywhere in the corpus (the
-;; extern-no-defun class check_extern_defun.py flags), so every read linked
-;; to raw 0 rather than a real symbol value. Grepped the scoped decode
-;; (decompiler_out/jakx/all-syms.gc:11666, plus fmv-player's own raw object,
-;; which is not decoded in this tree) for retail's real writer; none found
-;; cheaply, and landing fmv-player.gc's own writer is out of this rung's
-;; scope. Applied the same precedented shape 6849f2e30 used for
-;; *net-game-mgr*: a decode-derived (the-as string #f) placeholder, in the
-;; correct compile-order home (this file, immediately after its own extern,
-;; ahead of the one read site below). Audited the read site
-;; (string= "logo.ipu" *fmv-m2v-name*), lobby-menu-manager.gc's own only
-;; reference: string= (gstring.gc) itself already checks (zero? arg0) and
-;; (zero? arg1) before touching either string's data and returns #f early,
-;; and GOAL's #f is the literal 0 zero? tests against, so a #f
-;; *fmv-m2v-name* is tolerated without a fault; no extra guard needed at the
-;; call site. Retires when fmv-player.gc lands a real writer.
-(define *fmv-m2v-name* (the-as string #f))
+;; og:preserve-this truthy-zero defusal RETIRED (issue 762): the placeholder
+;; below used to be a decode-derived (the-as string #f), since *fmv-m2v-name*
+;; had no defun anywhere in the corpus and the extern-no-defun class
+;; (check_extern_defun.py) flagged every read as linking to raw 0. That gap
+;; is closed: fmv-player-run-texture (fmv-player.gc, this rung) is the real
+;; writer retail always had, and it formats the requested movie name into
+;; this string rather than assigning a fresh one each call, so the global
+;; needs real backing storage from the start instead of a #f sentinel.
+;; (new 'global 'string 32 #f) matches retail's own top-level-login
+;; allocation site (fmv-player_ir2.asm, this rung's scoped decode: ops 3-8,
+;; `(new 'global 'string 32 #f)`), 32 bytes being enough for every landed
+;; caller's name ("logo.ipu" and friends, well under 32 characters).
+(define *fmv-m2v-name* (new 'global 'string 32 (the-as string #f)))
 (define-extern *net-player-ladder-stats-info* (pointer stat-info))
 ;; lobby rung 3: retyped object -> base-menu-info, same evidence as
 ;; *game-options-menu-info* above.
@@ -312,8 +307,15 @@
           )
         )
       )
+    ;; og:preserve-this (issue 762): retyped this call site's own cast from
+    ;; int to string, matching fmv-player-run-texture's own arg0 retype
+    ;; (fmv-player-h.gc) -- "logo" is already a string literal, the int cast
+    ;; was only ever hiding that from the old (int process-tree) stub
+    ;; signature. This is the real login-logo trigger: *fmv-player* not yet
+    ;; live, or live under some other name, (re)spawns the texture-mode
+    ;; player below.
     (if (or (not *fmv-player*) (not (string= "logo.ipu" *fmv-m2v-name*)))
-        (fmv-player-run-texture (the-as int "logo") *default-pool*)
+        (fmv-player-run-texture "logo" *default-pool*)
         )
     )
   0

@@ -274,19 +274,15 @@
 ;; texture-anim-tables.gc); retires alongside a real PS2-DMA-chain consumer,
 ;; which does not exist on this port.
 
-;; og:preserve-this bring-up stub: fmv-player-run-texture is a declaration-
-;; side extern with no defun anywhere (the extern-no-defun class, issue 551).
-;; The live call site is scene.gc:1195, inside (enter wait scene-player)'s
-;; (when (-> self scene ipu) ...) branch; 12 landed tsk-scenes in
-;; task-scenes.gc carry a non-#f :ipu, so any of them reaching that line
-;; jumped straight to address 0 and killed gk. This is NOT retail's body:
-;; retail's fmv-player.o defines roughly 20 functions and none of them are
-;; landed here. Returning #f disarms the landmine without claiming FMV
-;; playback works; retires when the real FMV landing (issue 569) lands the
-;; actual body.
-(defun fmv-player-run-texture ((arg0 int) (arg1 process-tree))
-  #f
-  )
+;; fmv-player-run-texture (issue 762) is landed for real below, after
+;; fmv-player-init-by-other -- process-spawn needs its :init callee already
+;; defined in this file (GOAL does not hoist forward references to same-file
+;; globals), the same constraint that already places fmv-player-run itself
+;; after init-by-other rather than up here. Its own og:preserve-this banner
+;; is there. The bring-up stub that used to live here (issue 551,
+;; extern-no-defun class) retired the moment the real body landed: the live
+;; call site (scene.gc:1195, (enter wait scene-player)'s (when (-> self
+;; scene ipu) ...) branch) now runs the real port instead of returning #f.
 
 ;; ============================================================================
 ;; L2 FMV frame path (issue 569): the TBP allocation, the fullscreen quad, and a
@@ -502,6 +498,18 @@
 (defconstant FMV-INTRO-DURATION-MS 242709)
 (defconstant FMV-DEFAULT-DURATION-MS 18500)
 
+;; og:preserve-this (issue 762): a PC-port-invented fmv-mode value, not
+;; decoded -- retail's own fmv-mode field only ever holds 1 (normal) or 2
+;; (commentary), since retail has no texture-destination FMV concept at all.
+;; Selects playing's own texture-mode branch (below) for the login-logo
+;; path fmv-player-run-texture spawns; fmv-player-init-by-other's own
+;; og:preserve-this banner (further down this file) has the full argument
+;; evidence this value's plumbing rests on. Placed here, ahead of playing's
+;; own defstate, since defconstant needs to be seen before its first use in
+;; this file's own top-to-bottom compile order, same as the three durations
+;; immediately above.
+(defconstant FMV-MODE-TEXTURE 0)
+
 ;; og:preserve-this per-movie duration lookup, keyed by the gui-id "movie
 ;; index" fmv-player-run sets at spawn (m2v-info-index-by-name's own array
 ;; position, fmv-player-h.gc's static order: "intro" is position 0, "thx" is
@@ -699,7 +707,11 @@
     (set! *display-camera-info* #f)
     (set! *fmv-saved-jukebox-onoff* *jukebox-onoff*)
     (jukebox-onoff #f)
-    (when (nonzero? *gui-control*)
+    ;; og:preserve-this (issue 762): the login-logo texture-mode path has no
+    ;; audio track (LOGO.IPU is silent), so the gui-control queue above --
+    ;; and the poll-then-play latch in the loop below -- both stay gated on
+    ;; fmv-mode, the audio rung's own additions otherwise untouched.
+    (when (and (nonzero? *gui-control*) (!= (-> self fmv-mode) FMV-MODE-TEXTURE))
       (set! (-> self subtitle-change-time)
             (the-as uint64
               (gui-control-method-9
@@ -714,7 +726,7 @@
               )
             )
       )
-    (let ((audio-latched #f))
+    (let ((audio-latched (= (-> self fmv-mode) FMV-MODE-TEXTURE)))
       (until #f
         (when (and (not audio-latched)
                    (nonzero? *gui-control*)
@@ -739,6 +751,57 @@
           (cond
             ((or (cpad-pressed? 0 triangle circle x) (> elapsed-ms (fmv-duration-for-movie (-> self gui-id))))
              (go die)
+             )
+            ;; og:preserve-this texture-mode branch (issue 762): the login-logo
+            ;; emitter, gated on no fullscreen fmv-player being live.
+            ;; TextureAnimator owns a single MjvVideoReader (m_fmv,
+            ;; TextureAnimator.cpp) keyed off the frame's own movie-id -- a
+            ;; fullscreen boot movie and this texture-mode player emitting in
+            ;; the same tick would thrash that one reader open/closed between
+            ;; LOGO.MJV and whatever fullscreen movie is live, corrupting
+            ;; both. Both fmv-player-run and fmv-player-run-texture publish
+            ;; *fmv-player* to their own newly-spawned process (fmv-player-
+            ;; run-texture's own og:preserve-this banner above), and both
+            ;; kill-by-type any existing fmv-player process before spawning,
+            ;; so at most one process is ever actually live -- *fmv-player*
+            ;; is never a genuinely different process than self while self is
+            ;; in playing. This check is therefore defensive insurance
+            ;; against the brief window mid-transition (a respawn's own
+            ;; kill-by-type has run but *fmv-player* has not yet been
+            ;; reassigned to the new process) rather than a load-bearing
+            ;; invariant, and explicitly excludes self so it cannot gate
+            ;; itself off permanently the instant fmv-player-run-texture
+            ;; publishes *fmv-player* as this very process. Skipping the
+            ;; emit (rather than dying) lets the logo pick back up the next
+            ;; tick once the fullscreen movie finishes.
+            ((and (= (-> self fmv-mode) FMV-MODE-TEXTURE)
+                  *fmv-player*
+                  (not (eq? *fmv-player* self))
+                  (!= (-> *fmv-player* fmv-mode) FMV-MODE-TEXTURE)
+                  )
+             (suspend)
+             )
+            ((= (-> self fmv-mode) FMV-MODE-TEXTURE)
+             (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
+                                          (bucket-id tex-lcom-sky-pre)
+                                          )
+               (pc-texture-anim-flag start-anim-array buf)
+               (pc-texture-anim-flag fmv-frame buf :qwc 1)
+               (let ((rec (the texture-anim-pc-fmv-frame (-> buf base))))
+                 (set! (-> rec elapsed-ms) (the uint elapsed-ms))
+                 (set! (-> rec dest) (-> self texture-base-page))
+                 (set! (-> rec width) 128)
+                 (set! (-> rec height) 128)
+                 (set! (-> rec movie-id) 43)
+                 (set! (-> rec stop) 0)
+                 )
+               (&+! (-> buf base) 16)
+               (pc-texture-anim-flag finish-anim-array buf)
+               )
+             ;; no fmv-draw-quad here: the destination texture is sampled by
+             ;; the normal texture-anim draw pass (movie-texture-anim-func's
+             ;; :func-id slot, held above), not by a dedicated fullscreen quad.
+             (suspend)
              )
             (else
               (let ((tbp (fmv-get-tbp)))
@@ -769,12 +832,36 @@
     )
   )
 
-;; definition for function fmv-player-init-by-other
-(defbehavior fmv-player-init-by-other fmv-player ()
-  (set! (-> self texture-base-page) (fmv-get-tbp))
-  (set! (-> self texture-width) 640)
+;; og:preserve-this fmv-player-init-by-other's real 4-argument shape (issue
+;; 762): fmv-player-run's own og:preserve-this note below used to flag this
+;; as a HELD discrepancy -- both of fmv-player-run's own decoded call sites
+;; pass run-function-in-process FOUR extra args (#t, 0, 10, and either 2 or
+;; 1), while this function landed zero-arg. This rung's own scoped decode of
+;; the sibling fmv-player-run-texture (fmv-player_ir2.asm ops 83-90) gives
+;; the missing field-layout evidence: it reads the destination texture's own
+;; dest/width array fields (index 0) right before its own process-spawn,
+;; the same two values a 4-arg init-by-other would need for a non-fullscreen
+;; destination. arg0 (retail's #t/#f "state selector") has no decoded effect
+;; on either call site's own behavior recovered by this rung -- accepted for
+;; arity but not consumed here, same as movie-texture-anim-init's own unused
+;; texture-anim arg0 elsewhere in this file. arg1 0 selects the FULLSCREEN
+;; sentinel path (fmv-get-tbp) rather than literal tbp 0, which stays a
+;; reserved VRAM key GS itself cannot address (gs.gc:634) -- keeping today's
+;; fullscreen behavior byte-for-byte: fmv-player-run below still passes
+;; literal 0 for arg1, so (fmv-get-tbp) is still what texture-base-page
+;; resolves to on that path, same as before this rung. arg3 selects
+;; fmv-mode; retail's own two values (1 normal, 2 commentary) are what
+;; fmv-player-run passes below, and FMV-MODE-TEXTURE (a PC-port-invented
+;; third value, not decoded -- retail has no texture-destination FMV concept
+;; at all) is what fmv-player-run-texture passes for the login-logo path,
+;; read by playing's own new texture-mode branch below. FMV-MODE-TEXTURE
+;; itself is defined near the top of this file, alongside the FMV-*-
+;; DURATION-MS constants, ahead of playing's own use of it.
+(defbehavior fmv-player-init-by-other fmv-player ((arg0 symbol) (arg1 int) (arg2 int) (arg3 int))
+  (set! (-> self texture-base-page) (if (zero? arg1) (fmv-get-tbp) (the-as uint arg1)))
+  (set! (-> self texture-width) (the-as uint arg2))
   (set! (-> self start-time) (the-as uint (current-time)))
-  (set! (-> self fmv-mode) 1)
+  (set! (-> self fmv-mode) (the-as uint8 arg3))
   (go playing)
   )
 
@@ -812,21 +899,21 @@
 ;;                (process-spawn fmv-player :init fmv-player-init-by-other
 ;;                :name "fmv-player" :to arg1).
 ;;
-;; HELD discrepancy, not fixed by this rung: both call sites at ops 270-277
-;; and 310-317 pass run-function-in-process FOUR extra args (#t, 0, 10, and
+;; HELD discrepancy RESOLVED (issue 762): both call sites at ops 270-277 and
+;; 310-317 pass run-function-in-process FOUR extra args (#t, 0, 10, and
 ;; either 2 or 1 depending on which branch), meaning retail's real
-;; fmv-player-init-by-other takes at least 4 parameters. The init-by-other
-;; landed just above (a genuine retail decode, not hand-authored -- no
-;; og:preserve-this header, zero args) takes zero -- a defect in the rung
-;; that landed it, surfaced by this scoped decode, not introduced here.
-;; Fixing it needs field-layout evidence for what those 4 values initialize
-;; that this rung does not have; flagged for a follow-up rather than
-;; silently patched. This body calls the zero-arg init-by-other as currently
-;; landed, since that is the only callable contract that exists in this tree
-;; today. process-spawn needs its :init callee already defined in this file
-;; (GOAL does not hoist forward references to same-file globals), which is
-;; also why this function lands here, after init-by-other, rather than near
-;; fmv-player-run-texture above.
+;; fmv-player-init-by-other takes at least 4 parameters -- fixed above with
+;; the field-layout evidence this rung's own scoped decode of the sibling
+;; fmv-player-run-texture supplied (see init-by-other's own og:preserve-this
+;; banner). The literal args below ((#t 0 10 1)) are the values common to
+;; both of this function's own decoded call sites (the prior rung's own
+;; account above), using the shared 1 rather than the branch-specific 2 --
+;; this port has no evidence distinguishing which caller wants which, and 1
+;; ("normal") is the safer default until a rung lands the branch this decode
+;; does not port. process-spawn needs its :init callee already defined in
+;; this file (GOAL does not hoist forward references to same-file globals),
+;; which is also why this function lands here, after init-by-other, rather
+;; than near fmv-player-run-texture above.
 ;;
 ;; Also not replicated: ops 139-147, a pre-loop check that re-parents an
 ;; already-live *fmv-player* into arg1's pool and returns early instead of
@@ -903,12 +990,97 @@
       ;; here is not a race, but publishing gui-id first keeps it that way even if
       ;; something is added later that reads *fmv-player* the instant it goes
       ;; non-#f.
-      (let ((new-proc (process-spawn fmv-player :init fmv-player-init-by-other :name "fmv-player" :to arg1)))
+      (let ((new-proc (process-spawn fmv-player
+                         :init fmv-player-init-by-other
+                         :name "fmv-player"
+                         :to arg1
+                         #t
+                         0
+                         10
+                         1
+                         )
+                       )
+            )
         (when new-proc
           (let ((proc (-> new-proc 0)))
             (set! (-> proc gui-id) (the uint movie-idx))
             (set! *fmv-player* proc)
             )
+          )
+        )
+      )
+    )
+  #t
+  )
+
+;; og:preserve-this fmv-player-run-texture (issue 762): the PC-port body for
+;; scene.gc:1195's (enter wait scene-player) call site, replacing the #f
+;; bring-up stub this rung retires. Not a verbatim retail transcription:
+;; retail's own real body (this rung's scoped decode, fmv-player_ir2.asm ops
+;; 0-91, the first time this function's body has been recovered at all)
+;; branches on *scene-player*/*record-fma-pal* to choose a ".ppu" vs ".ipu"
+;; format suffix and re-parents an already-live *fmv-player* into arg1's pool
+;; instead of respawning (ops 15-22); this port keeps only the shape every
+;; landed caller (the login-logo path) actually needs -- arg0 is always a
+;; movie-name string formatted to "<name>.ipu" (ops 27-58's L5 branch, the
+;; one lobby-menu-manager.gc's own read site checks), and no caller today has
+;; a live *fmv-player* to re-parent.
+;;
+;; Ops 0-6 (kill-by-type fmv-player *active-pool*) and ops 6-10
+;; (lookup-texture-by-name "iscreen-video-dest" #f #f) are ported verbatim
+;; below -- both already-landed calls, matching this rung's own
+;; *menu-movie-texture-anim-array* wiring (fmv-player.gc's own top-level,
+;; earlier in this file) for the same destination name. Ops 13-14 read the
+;; resolved texture's own dest/width fields (raw offsets 10 and 26, four
+;; bytes short of all-types.gc's own offset-assert for both -- this rung
+;; does not have evidence to resolve that discrepancy further, so the
+;; field-name access below goes through the already-landed texture deftype
+;; instead of the raw offsets, per this rung's own instructions); those two
+;; values are what feed the process-spawn below, replacing today's hardcoded
+;; sentinel-tbp/640 fullscreen defaults for this non-fullscreen destination.
+;; Ops 76-90's run-function-in-process is process-spawn's own macro
+;; expansion (gstate.gc:33-53), same shape as fmv-player-run above; state
+;; selector #t and fmv-mode FMV-MODE-TEXTURE are this port's own choices
+;; (arg0 has no decoded effect per fmv-player-init-by-other's own
+;; og:preserve-this banner, and FMV-MODE-TEXTURE is invented for this port,
+;; not decoded -- see that same banner). *fmv-player* IS published here
+;; (below), unlike the fullscreen-only claim an earlier draft of this
+;; comment made: lobby-menu-manager.gc's own already-landed call site
+;; (lmm-make-logo-menu) guards its own call on *fmv-player* going non-#f, the
+;; same contract fmv-player-run's callers already rely on. kill-by-type at
+;; the top of this function (and of fmv-player-run) means at most one
+;; fmv-player process -- fullscreen or texture-mode -- is ever actually
+;; live, so *fmv-player* names whichever one is current regardless of mode;
+;; playing's own texture-mode branch (below) still checks fmv-mode on
+;; whatever *fmv-player* currently is before emitting, defensive insurance
+;; against the brief transition window around a respawn rather than a load-
+;; bearing invariant this rung has evidence two processes ever violate.
+(defun fmv-player-run-texture ((arg0 string) (arg1 process-tree))
+  (kill-by-type fmv-player *active-pool*)
+  (let ((tex (lookup-texture-by-name "iscreen-video-dest" (the-as string #f) (the-as (pointer texture-page) #f))))
+    (when tex
+      (format (clear *fmv-m2v-name*) "~S.ipu" arg0)
+      ;; og:preserve-this (issue 762): *fmv-player* is published here, unlike
+      ;; the og:preserve-this banner above's earlier claim that it stays
+      ;; fullscreen-only. lobby-menu-manager.gc's own already-landed call
+      ;; site (lmm-make-logo-menu) guards its call on
+      ;; (or (not *fmv-player*) (not (string= "logo.ipu" *fmv-m2v-name*))) --
+      ;; a guard that only does its job (spawn once, not every frame this
+      ;; runs) if *fmv-player* actually goes non-#f once this succeeds, the
+      ;; same contract fmv-player-run's own callers already rely on.
+      (let ((new-proc (process-spawn fmv-player
+                         :init fmv-player-init-by-other
+                         :name "fmv-player"
+                         :to arg1
+                         #t
+                         (the int (-> tex dest 0))
+                         (the int (-> tex width 0))
+                         FMV-MODE-TEXTURE
+                         )
+                       )
+            )
+        (when new-proc
+          (set! *fmv-player* (-> new-proc 0))
           )
         )
       )

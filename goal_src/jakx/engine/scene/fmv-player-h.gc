@@ -5,15 +5,18 @@
 ;; name in dgo: fmv-player-h
 ;; dgos: ENGINE, GAME
 
-;; og:preserve-this fmv-player-run-texture: scene lane (issue 502,
-;; activation-cluster blocker follow-up). (enter wait scene-player)'s own
-;; body calls it with the scene's ipu field (cast to int) and
-;; *default-pool*; fmv-player.gc itself is still a 9-line stub (this
-;; function's own body is not landed), so this is a declaration-side
-;; extern only, matching this file's own all-types.gc entry (marked
-;; "provisional: call-site evidence only" there already, from a prior
-;; rung's investigation of this exact call site).
-(define-extern fmv-player-run-texture (function int process-tree symbol))
+;; og:preserve-this fmv-player-run-texture (issue 762): retyped arg0 from
+;; int to string. A scoped decode of fmv-player.o (this rung, scratch
+;; proj-path, reverted) recovers the function's own real body for the first
+;; time: arg0 flows straight into a `~S` format call building a
+;; "<name>.ipu"/"<name>.ppu" filename (fmv-player_ir2.asm ops 27-58), the
+;; same string-formatting shape fmv-player-run's own arg0 uses one file
+;; over. (enter wait scene-player)'s call site (scene.gc:1195) still casts
+;; the scene's ipu field with `(the-as int ...)` -- a caller-side cast this
+;; rung does not touch, since scene.gc stays reserved (fmv-player.gc's own
+;; L3 banner) -- so that cast now hides a string inside an int-typed local
+;; rather than the reverse; unrelated to this rung's own scope.
+(define-extern fmv-player-run-texture (function string process-tree symbol))
 
 ;; og:preserve-this fmv-player-run: title-state-bodies rung (issue 729, feeding
 ;; issue 569's FMV road). title-obs.gc's target-intro/target-introb :code (the
@@ -52,6 +55,14 @@
 ;; typed field access, so this extern needs to exist before that function
 ;; can compile; retires once a rung lands the real (define *fmv-work* ...).
 (define-extern *fmv-work* object)
+
+;; og:preserve-this *fmv-m2v-name* forward declaration (issue 762): the real
+;; (define *fmv-m2v-name* ...) lives in lobby-menu-manager.gc (engine/ui/menu,
+;; which compiles after engine/scene in this project's own DGO order), but
+;; fmv-player-run-texture (fmv-player.gc, this rung) is the writer retail
+;; always had and needs the symbol visible from this earlier file. Matches
+;; the type lobby-menu-manager.gc's own define-extern already declares.
+(define-extern *fmv-m2v-name* string)
 
 ;; DECOMP BEGINS
 

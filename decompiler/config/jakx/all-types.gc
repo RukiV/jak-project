@@ -89454,11 +89454,13 @@
 ;; og:preserve-this provisional extern removed: shadowed the earlier flow-section-array deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 (define-extern fmv-get-mem-requirements (function object object object object object)) ;; runtime-typed from savestate
 (define-extern fmv-player-get-texture function) ;; runtime-typed from savestate
-;; lobby-menu-manager rung: called identically to kill-by-type one function
-;; up (a1 = *default-pool*, typed process-tree); a0 is a raw field read of
-;; unresolved concrete type, kept int; return stored but not read further at
-;; its one call site, kept symbol matching kill-by-type's own return type.
-(define-extern fmv-player-run-texture (function int process-tree symbol)) ;; provisional: call-site evidence only
+;; issue 762: retyped arg0 from int to string. This rung's own scoped decode
+;; of fmv-player.o recovers the function's real body: arg0 flows straight
+;; into a `~S` format call building a "<name>.ipu" filename
+;; (fmv-player_ir2.asm ops 27-58), the same shape fmv-player-run's own arg0
+;; uses; landed for real in fmv-player.gc, matching fmv-player-h.gc's own
+;; extern.
+(define-extern fmv-player-run-texture (function string process-tree symbol)) ;; activated, issue 762
 (define-extern fmv-player-terminate (function none)) ;; runtime-typed from savestate
 ;; og:preserve-this provisional extern removed: shadowed the earlier fmv-work deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)
 ;; og:preserve-this provisional extern removed: shadowed the earlier game-save-tag deftype (all-types shadowing sweep, scripts/check_alltypes_shadowing.py)

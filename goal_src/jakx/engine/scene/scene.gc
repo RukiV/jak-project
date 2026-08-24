@@ -1192,7 +1192,15 @@
         )
       )
     (when (-> self scene ipu)
-      (fmv-player-run-texture (the-as int (-> self scene ipu)) *default-pool*)
+      ;; og:preserve-this (issue 762): retyped this call site's own cast from
+      ;; int to string, matching fmv-player-run-texture's own arg0 retype
+      ;; (fmv-player-h.gc); scene's ipu field is basic-typed (all-types.gc),
+      ;; wide enough for either cast, and this rung's own scoped decode shows
+      ;; the real function formats arg0 with a `~S` directive, which needs a
+      ;; string, not an int. scene.gc otherwise stays reserved (fmv-player.gc's
+      ;; own L3 banner); this is the one call-site cast this rung's own extern
+      ;; change breaks, not a re-attempt at scene-player's own body.
+      (fmv-player-run-texture (the-as string (-> self scene ipu)) *default-pool*)
       (suspend)
       (suspend)
       (while (and *fmv-player* (not (send-event *fmv-player* 'ready?)))
