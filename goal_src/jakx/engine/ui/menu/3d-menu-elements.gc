@@ -168,10 +168,12 @@
 ;; without ever being read anywhere - the only reference to L216 in this
 ;; whole object. Dropped as provably dead: no store anywhere touches the
 ;; stack memory backing gp-0 through either path, so this omission cannot
-;; change what gp-0 holds when it reaches interface-cam-init-by-other, and
-;; interface-cam-method-53 repositions the camera to hanginglamp-part-9 on
-;; its very next :trans tick regardless of whatever gp-0 seeds the spawn
-;; with.
+;; change what gp-0 holds. interface-cam-method-53 is a no-op on the
+;; menu2 path: entity-by-name scans only levels whose status is 'active,
+;; and hanginglamp-part-9 lives in rustyh (9 occurrences in raw_obj/
+;; rustyh.go, zero anywhere in menu2), which is not resident here, so the
+;; camera keeps whatever the stack vector seeded - an open question
+;; tracked on forge issue 724.
 ;;
 ;; definition for function activate-bar
 ;; WARN: Return type mismatch (pointer process) vs object.
@@ -183,11 +185,26 @@
       (let ((t9-1 (method-of-type interface-cam activate)))
         (t9-1 (the-as interface-cam s5-0) *entity-pool* "interface-cam" (the-as pointer #x70004000))
         )
+      ;; og:preserve-this restore the entity argument the decompiler elided:
+      ;; run-function-in-process forwards this call's fourth value verbatim
+      ;; into interface-cam-init-by-other's arg1 through the catch-frame
+      ;; param block, and retail's own (set! a3-2 #f) before the call is
+      ;; dropped as dead by the decompiler's model, so the raw decode's
+      ;; 3-arg cast leaves arg1 as whatever activate -> change-parent last
+      ;; left in that register (measured live: the process itself, which
+      ;; process-entity-set! stores and setup-lods!'s res-lump-float then
+      ;; walks as a res-lump, faulting in lookup-tag-idx's tag load at
+      ;; res+0x435). With entity #f every downstream res lookup takes
+      ;; lookup-tag-idx's (not this) early return and yields its declared
+      ;; default, the retail branch. Same explicit-trailing-entity shape as
+      ;; cam-master.gc's cam-slave spawns. No retirement: this is the
+      ;; retail call shape.
       (let ((t9-2 run-function-in-process)
             (a0-2 s5-0)
             (a1-2 interface-cam-init-by-other)
+            (a3-2 (the-as entity #f))
             )
-        ((the-as (function object object object none) t9-2) a0-2 a1-2 gp-0)
+        ((the-as (function object object object object none) t9-2) a0-2 a1-2 gp-0 a3-2)
         )
       (-> s5-0 ppointer)
       )
