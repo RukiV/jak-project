@@ -250,16 +250,17 @@
     "collide-sphere-with-line-sphere-hack",
     "debug-draw-rigid-body-move",
     "(method 66 collide-shape-moving)",
-    // 3d-menu-elements rung: interface-cam-init-by-other and garage-cinema-
-    // init-by-other both read a1 uninitialized in their process-entity-set!
-    // call, the same "may read a1 not set, no in-band evidence pins the
-    // exact signature" pattern as palm-tree's methods above. Both are
-    // invoked exclusively via run-function-in-process with a single
-    // explicit trailing arg (a stack vector), so whatever value a1 ends up
-    // holding for the process-entity-set! call comes from run-function-in-
-    // process's own pass-through of its unused optional params, not from
-    // anything these functions themselves receive or compute.
-    "interface-cam-init-by-other",
+    // menu-camera rung: interface-cam-init-by-other was parked here on the
+    // same "may read a1 not set" suspicion as palm-tree's methods above,
+    // but activate-bar's own call site (the only caller, once activate-bar
+    // itself decoded clean) explicitly zeroes the register that becomes
+    // this function's a1 (its own op 21: (set! a3-2 #f), forwarded through
+    // run-function-in-process's own pass-through), so a1 is a real #f, not
+    // uninitialized garbage. Retyped in all-types.gc to (function vector
+    // entity object :behavior interface-cam) and removed from this list;
+    // it now decodes and lands clean (3d-menu-elements.gc). garage-cinema-
+    // init-by-other has no caller anywhere in this corpus yet, so it keeps
+    // its own park below on the unverified-signature grounds alone.
     "garage-cinema-init-by-other"
   ],
   // this limits the number of cases in a cond.  The first argument is the name of the function.

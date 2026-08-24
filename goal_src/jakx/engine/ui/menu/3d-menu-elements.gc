@@ -130,25 +130,69 @@
   (none)
   )
 
-;; og:preserve-this bring-up hold (jakx-menu-pair band): interface-cam-init-by-
-;; other and garage-cinema-init-by-other both read a1 uninitialized in their
-;; process-entity-set! call (no in-band evidence pins the exact signature,
-;; same class as palm-tree's methods elsewhere in this corpus; both are
-;; parked via no_type_analysis_functions_by_name in hacks.jsonc). Neither has
-;; a compilable body from this decode. activate-bar's own body passes
-;; interface-cam-init-by-other by symbol to run-function-in-process, so
-;; landing activate-bar without a real interface-cam-init-by-other would
-;; jump to 0 the first time the menu spawns the interface camera (the
-;; symbol-not-landed-links-as-zero hazard); activate-bar is held alongside
-;; it rather than landed on a zero-linking call. Retirement condition: land
-;; a compilable interface-cam-init-by-other (needs the true a0/a1 argument
-;; mapping for run-function-in-process-invoked behaviors, not yet
-;; established anywhere in this corpus), then land garage-cinema-init-by-
-;; other and activate-bar the same way.
+;; menu-camera rung: interface-cam-init-by-other's own "a1 uninitialized"
+;; wall (the jakx-menu-pair band's hold, same suspected class as palm-
+;; tree's methods elsewhere in this corpus) does not survive a fresh scoped
+;; decode against activate-bar's own real call site. activate-bar (below)
+;; is the only caller anywhere in this corpus, and its op 21 explicitly
+;; zeroes the register that becomes this function's own a1 ((set! a3-2 #f),
+;; forwarded through run-function-in-process's pass-through) - a real #f,
+;; not garbage. arg0 is a vector, not the entity the original provisional
+;; type guessed: op 0 saves it into gp untouched until op 19's own
+;; quadword load (l.q gp), copied straight into (-> self root trans quad)
+;; at op 20 (the one op the decompiler's own let-insertion still can't
+;; fold on its own - a bare register-to-register lq with no field context;
+;; every other op below sugars clean once the type is fixed, confirmed
+;; against this rung's own scoped decode of the retyped signature).
+;; Retyped in decompiler/config/jakx/all-types.gc to (function vector
+;; entity object :behavior interface-cam) and dropped from hacks.jsonc's
+;; own no_type_analysis_functions_by_name; garage-cinema-init-by-other
+;; keeps its own separate hold (no caller anywhere in this corpus yet, so
+;; its single-arg entity shape stays unverified by this rung's evidence).
 ;;
-;; definition for function interface-cam-init-by-other: held, see above.
+;; definition for function interface-cam-init-by-other
+;; WARN: Return type mismatch none vs object.
+(defbehavior interface-cam-init-by-other interface-cam ((arg0 vector) (arg1 entity))
+  (process-entity-set! self arg1)
+  (set! (-> self level) (level-get *level* 'menu2))
+  (set! (-> self root) (new 'process 'trsqv))
+  (set! (-> self root trans quad) (-> arg0 quad))
+  (interface-cam-method-54 self)
+  (go-virtual enter)
+  )
+
+;; menu-camera rung: activate-bar decodes clean off the same scoped decode
+;; but for one op: [0]'s own (lui/ori/daddu v1, L216, fp) computes the
+;; address of a static vector constant (x=0.0 y=0.0 z=40960.0 w=1.0,
+;; 3d-menu-elements_ir2.asm) into v1, then v1 is overwritten by op 3
+;; without ever being read anywhere - the only reference to L216 in this
+;; whole object. Dropped as provably dead: no store anywhere touches the
+;; stack memory backing gp-0 through either path, so this omission cannot
+;; change what gp-0 holds when it reaches interface-cam-init-by-other, and
+;; interface-cam-method-53 repositions the camera to hanginglamp-part-9 on
+;; its very next :trans tick regardless of whatever gp-0 seeds the spawn
+;; with.
 ;;
-;; definition for function activate-bar: held, see above.
+;; definition for function activate-bar
+;; WARN: Return type mismatch (pointer process) vs object.
+(defun activate-bar ()
+  (let ((gp-0 (new 'stack-no-clear 'vector))
+        (s5-0 (get-process *default-dead-pool* interface-cam #x4000 1))
+        )
+    (when s5-0
+      (let ((t9-1 (method-of-type interface-cam activate)))
+        (t9-1 (the-as interface-cam s5-0) *entity-pool* "interface-cam" (the-as pointer #x70004000))
+        )
+      (let ((t9-2 run-function-in-process)
+            (a0-2 s5-0)
+            (a1-2 interface-cam-init-by-other)
+            )
+        ((the-as (function object object object none) t9-2) a0-2 a1-2 gp-0)
+        )
+      (-> s5-0 ppointer)
+      )
+    )
+  )
 
 ;; definition for method 10 of type interface-cam
 (defmethod deactivate ((this interface-cam))
@@ -214,8 +258,15 @@
   (call-parent-method this offset)
   )
 
-;; og:preserve-this bring-up hold: garage-cinema-init-by-other, same class
-;; and reason as interface-cam-init-by-other above.
+;; og:preserve-this bring-up hold: garage-cinema-init-by-other still parked
+;; (no_type_analysis_functions_by_name, hacks.jsonc). interface-cam-init-
+;; by-other's own sibling hold above cleared because activate-bar's real
+;; call site pinned its a1 value concretely; garage-cinema-init-by-other
+;; has no caller anywhere in this corpus yet (menu-camera rung's own
+;; check), so its single-arg entity shape (all-types.gc's own comment on
+;; it) stays unverified and this hold stands alone. Retirement condition:
+;; a real caller lands, or a scoped decode against its own evidence clears
+;; it the same way.
 
 ;; failed to figure out what this is:
 (defstate idle (garage-cinema)

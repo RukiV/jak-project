@@ -84449,15 +84449,28 @@
   )
 
 
-;; both init-by-other bodies open with (process-entity-set! self <arg0>),
-;; then garage-cinema-init-by-other reads arg0's own offset-28 field as a
-;; vector (entity's own trans field, offset-assert 28); single explicit
-;; arg, the standard entity-spawned behavior signature; jakx-only, no jak3
-;; twin
-(define-extern interface-cam-init-by-other (function entity object :behavior interface-cam))
+;; menu-camera rung: retyped from (function entity object :behavior
+;; interface-cam). arg0 is a vector, not an entity - activate-bar's own
+;; call (the only caller) passes a stack vector as the sole explicit arg;
+;; interface-cam-init-by-other saves it (op 0, into gp) before the
+;; process-entity-set! call, then reads it back as a quadword (op 19) and
+;; copies it into (-> self root trans). arg1 is the entity forwarded
+;; straight to process-entity-set!, always #f from this caller (activate-
+;; bar's op 21 explicitly zeroes it). jakx-only, no jak3 twin. Landed,
+;; 3d-menu-elements.gc.
+(define-extern interface-cam-init-by-other (function vector entity object :behavior interface-cam))
+;; garage-cinema-init-by-other (below) has no caller anywhere in this
+;; corpus yet, so its own single-arg entity shape (offset-28 trans read)
+;; stays unverified by the evidence above; do not assume it matches.
 ;; activate-bar's own body process-spawns an interface-cam through
-;; *default-dead-pool*, referencing no arguments of its own; jakx-only
-(define-extern activate-bar (function object))
+;; *default-dead-pool*, referencing no arguments of its own; jakx-only.
+;; Landed, 3d-menu-elements.gc. Retyped from (function object) to the
+;; real inferred return of its own landed body ((-> s5-0 ppointer)); the
+;; weaker (function object) shape must not survive a compile ordered
+;; after this file's own (goalc's own "define-extern has redefined the
+;; type of symbol activate-bar" warning otherwise fires every build, the
+;; same class base-menu-init-by-other's own top-of-file note names).
+(define-extern activate-bar (function (pointer process)))
 ;; lobby rung 4: three independent lobby-results sites ((anon-function 9),
 ;; (anon-function 18) op 190, (anon-function 14) op 28) all dispatch method
 ;; id 10 (offset 56 = 16 + 10*4) on *garage-cinema* directly (no ppointer
