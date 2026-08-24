@@ -562,28 +562,19 @@
     )
   )
 
-;; base-menu-method-58 ("child spawner"): cited stub, issue 699, STEP 4 of
-;; the menu2-quartet-landing rung. No compiled defmethod existed for this
-;; slot anywhere before this rung - only the dead menu2.gc copy and the
-;; deftype's own (:methods (base-menu-method-58 (_type_) none)) declaration
-;; - so the vtable slot was nullptr. base-menu-init-by-other's own real
-;; landing below now calls (base-menu-method-58 self) for real whenever a
-;; widget's info-ptr carries children, so this stub exists to keep that
-;; call from hitting a nullptr function rather than to add real behavior.
-;; A scoped redecode (method-58-partial.gc) resolves the spawn logic itself
-;; (indexing child-handles, run-function-in-process against
-;; base-menu-init-by-other for each child) but stalls in a debug-print
-;; sub-expression that only feeds a process-spawn print statement, not the
-;; spawn logic: op 31's "(l.w (+ v1 -1))" stayed unresolved across three
-;; distinct casts at that op ((pointer uint32), basic, (pointer int8)) with
-;; the identical error each time (decompiler/config/jakx/ntsc_v1/
-;; type_casts.jsonc's own "(method 58 base-menu)" entry records the one cast
-;; that did clear, op 30). Held per the 3-attempts rule rather than
-;; transcribed garbled. Retirement condition: a real landing of method 58
-;; once the debug-print chase resolves.
-(defmethod base-menu-method-58 ((this base-menu))
-  (none)
-  )
+;; base-menu-method-58 ("child spawner"): real landing, issue 759, lobby
+;; rung a1's own STEP 2. Its defmethod moved below base-menu-init-by-
+;; other's own defbehavior further down in this file, out of slot-number
+;; order: the real body passes base-menu-init-by-other to
+;; run-function-in-process as a plain function value, and that symbol
+;; does not exist yet at this point in the file's own compile order (a
+;; defbehavior reference, not a virtual dispatch, so unlike a method call
+;; it needs the symbol already defined here); a second define-extern here
+;; would duplicate the one lobby-menu-manager.gc already declares, which
+;; compiles after this file in game.gd and which the house rule warns
+;; aborts a run silently if duplicated. See base-menu-method-58's own real
+;; landing and citation banner just after base-menu-init-by-other's
+;; defbehavior below.
 
 ;; base-menu-method-59: cited stub, issue 699, menu2-quartet-landing rung's
 ;; STEP 2 slot audit. base-menu-init-by-other's own real landing below calls
@@ -862,6 +853,76 @@
         )
       )
     )
+  )
+
+;; base-menu-method-58 ("child spawner"): real landing, issue 759, lobby
+;; rung a1's own STEP 2. No compiled defmethod existed for this slot
+;; anywhere before this rung - only the dead menu2.gc copy and the
+;; deftype's own (:methods (base-menu-method-58 (_type_) none))
+;; declaration - so the vtable slot was nullptr; base-menu-init-by-other's
+;; own real landing just above calls (base-menu-method-58 self)
+;; unconditionally in its own tail, which is why this defmethod sits here
+;; rather than up with the rest of this rung's STEP audit slots (58 needs
+;; base-menu-init-by-other's own symbol already defined to pass it to
+;; run-function-in-process as a value, and this file's own compile order
+;; only has that after the defbehavior above; see the pointer comment left
+;; at the slot's old position). Transcribed from a fresh scratch scoped
+;; decode of menu2 (allowed_objects ["menu2"], this rung's own run,
+;; superseding the prior stub's citation of method-58-partial.gc's op 31
+;; stall), reading the op-numbered register trace rather than the raw
+;; arithmetic: op 31's own "(l.w (+ v1 -1))" (the previously-stalled
+;; expression) resolves cleanly in this run as the standard symbol-value
+;; load, i.e. (-> children[i] menu-type value); the two "Unsupported
+;; inline assembly [sllv]" ops are the handle->process macro's own
+;; live-check expansion and the process->handle macro's own handle-build
+;; expansion, so both macros replace that raw arithmetic verbatim rather
+;; than transcribing garbled shifts; the remaining "failed type prop at
+;; 85" op is exactly (-> children length), unresolved only because
+;; children is untyped raw basic at that op, and resolves once cast
+;; explicitly below. No sub-expression anywhere in this body feeds a
+;; debug print (the function has no print/format call at all); the prior
+;; stub's citation of a debug-print stall traces to a different, earlier
+;; decode attempt, not this one. children stays declared basic on
+;; base-menu-info (its real element type varies per instance across the
+;; corpus, lobby rung a1's own STEP 1 landing put dropdown-item-info under
+;; the manager node and base-menu-info at the top), so it is cast locally
+;; here to (array base-menu-info), the common base every real child
+;; shares. Op 40's real branch (skip activate/run-function-in-process/
+;; store entirely when get-process returns #f) is preserved as the outer
+;; (when proc ...) guard; ops 66-75 (the null-guarded ppointer/pid read
+;; that builds the stored handle word) are exactly process->handle's own
+;; internal guard, so that macro call replaces them rather than
+;; transcribing the raw offset-28/-1(v1) chain.
+(defmethod base-menu-method-58 ((this base-menu))
+  (let ((vec (new 'stack-no-clear 'vector))
+        (children (the-as (array base-menu-info) (-> this info-ptr children)))
+        )
+    (set! (-> vec x) (-> this pos-x))
+    (set! (-> vec y) (-> this pos-y))
+    (set! (-> vec z) (-> this pos-z))
+    (dotimes (i (-> children length))
+      (when (not (handle->process (-> this child-handles i)))
+        (let* ((child-type (the-as type (-> (-> children i) menu-type value)))
+               (proc (get-process *default-dead-pool* child-type #x4000 1))
+               )
+          (when proc
+            (activate proc this (symbol->string (-> child-type symbol)) (the-as pointer #x70004000))
+            (let ((t9-0 run-function-in-process)
+                  (a0-0 proc)
+                  (a1-0 base-menu-init-by-other)
+                  (a2-0 (-> children i))
+                  (a3-0 vec)
+                  (a4-0 (-> this pad))
+                  )
+              ((the-as (function object object object object object none) t9-0) a0-0 a1-0 a2-0 a3-0 a4-0)
+              )
+            (set! (-> this child-handles i) (process->handle proc))
+            )
+          )
+        )
+      )
+    )
+  (none)
   )
 
 ;; base-menu-method-50 ("wait-enter"): declared in menu2-h.gc as a plain
