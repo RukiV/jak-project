@@ -289,3 +289,25 @@ int goal_crash_map_walk_active_pool_dispatch_order_for_test(u32 root,
                                                             u32 false_addr,
                                                             u32* out_processes,
                                                             int max_count);
+
+// issue #716 round 8: pure predicate for the C++-to-GOAL dispatch guard shared by every
+// call_goal/call_goal_on_stack call site (game/kernel/common/kscheme.cpp) plus the
+// by-name/site-specific guards layered on top of it (call_goal_function_by_name,
+// KernelDispatch's dispatcher_func). True when target_offset cannot be a real function
+// entry: either the raw zero GOAL never links to, or s7_offset itself (#f -- GOAL's #f
+// IS the address of the s7 symbol, not integer 0; see common/symbols.h). No global
+// state, no allocation.
+bool goal_crash_map_dispatch_target_is_invalid(u32 target_offset, u32 s7_offset);
+
+// issue #716 round 8: prints one line to stderr naming a blocked dispatch: the call-site
+// label, the raw target offset, whether it resolved to #f or to 0, and -- for by-name
+// dispatches, where the caller has the string on hand -- the symbol name that was
+// requested. requested_name may be nullptr for sites with no name attached at this
+// level (a cached function pointer, a vtable slot, a boot-time dispatcher symbol read
+// as a raw value); those still get the site label and raw value. No allocation, no
+// mutex, safe to call from any thread. Purely a reporting side effect; callers decide
+// whether to skip the dispatch based on goal_crash_map_dispatch_target_is_invalid().
+void goal_crash_map_report_blocked_dispatch(const char* site,
+                                            u32 target_offset,
+                                            u32 s7_offset,
+                                            const char* requested_name);

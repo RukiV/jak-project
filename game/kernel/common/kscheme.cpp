@@ -1,6 +1,7 @@
 #include "kscheme.h"
 
 #include "game/kernel/common/fileio.h"
+#include "game/kernel/common/goal_crash_map.h"
 #include "game/kernel/common/kmalloc.h"
 #include "game/kernel/common/kprint.h"
 
@@ -112,6 +113,17 @@ uint64_t _call_goal_on_stack_asm_win32(u64 rsp, void* fptr, void* st_ptr, void* 
  * Calls from the parent stack.
  */
 u64 call_goal(Ptr<Function> f, u64 a, u64 b, u64 c, u64 st, void* offset) {
+  // issue #716 round 8: the shared choke point every call_goal* wrapper and every
+  // by-name/vtable dispatch in this file eventually funnels through. GOAL's #f IS the
+  // address of the s7 symbol (not integer 0), so a target of s7.offset is exactly as
+  // invalid as a target of 0 -- both mean "no function was ever staged here", and
+  // jumping to either is the fresh-entry crash signature round 7 captured pristine.
+  // Guard rather than jump; the caller's return value (0) is unused by every fire-and
+  // forget call site this protects (kernel dispatch, boot hooks, ultimate-memcpy).
+  if (goal_crash_map_dispatch_target_is_invalid(f.offset, (u32)st)) {
+    goal_crash_map_report_blocked_dispatch("call_goal", f.offset, (u32)st, nullptr);
+    return 0;
+  }
   // auto st_ptr = (void*)((uint8_t*)(offset) + st); updated for the new compiler!
   void* st_ptr = (void*)st;
 
@@ -129,6 +141,13 @@ u64 call_goal(Ptr<Function> f, u64 a, u64 b, u64 c, u64 st, void* offset) {
  * Wrapper around _call_goal_asm_on_stack for switching stacks and calling a GOAL function there.
  */
 u64 call_goal_on_stack(Ptr<Function> f, u64 rsp, u64 st, void* offset) {
+  // issue #716 round 8: same choke-point guard as call_goal() above -- this is the
+  // other real asm-invoking wrapper (fresh-stack variant), used by every per-frame
+  // kernel dispatch and boot-hook call site in game/kernel/*/kboot.cpp.
+  if (goal_crash_map_dispatch_target_is_invalid(f.offset, (u32)st)) {
+    goal_crash_map_report_blocked_dispatch("call_goal_on_stack", f.offset, (u32)st, nullptr);
+    return 0;
+  }
   void* st_ptr = (void*)st;
 
   void* fptr = f.c();

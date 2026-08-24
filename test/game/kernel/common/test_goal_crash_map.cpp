@@ -926,3 +926,33 @@ TEST(GoalCrashMap, IsSymbolBreakpointHitMatchesOnlyExactCodeAndAddress) {
       << "armed_host_addr == 0 means never armed, and must never match, even if some "
          "real rip happened to be exactly 0";
 }
+
+// issue #716 round 8: the dispatch-target guard shared by call_goal()/call_goal_on_stack()
+// (game/kernel/common/kscheme.cpp) and the site-specific wrappers layered on top
+// (call_goal_function_by_name, KernelDispatch's dispatcher_func). A target must be
+// flagged invalid whether it is the raw zero GOAL never links to, or s7_offset itself
+// -- GOAL's #f IS the address of the s7 symbol, not integer 0, the trap this whole
+// investigation keeps re-deriving.
+TEST(GoalCrashMap, DispatchTargetIsInvalidFlagsZeroAndSymbolFalse) {
+  const u32 s7_offset = 0x147d21;
+  EXPECT_TRUE(goal_crash_map_dispatch_target_is_invalid(0, s7_offset))
+      << "raw zero must be flagged";
+  EXPECT_TRUE(goal_crash_map_dispatch_target_is_invalid(s7_offset, s7_offset))
+      << "s7's own offset (#f) must be flagged, distinctly from zero";
+}
+
+// a real function offset -- anything other than 0 or s7_offset -- must never be flagged,
+// or every legitimate dispatch in the game would be silently skipped.
+TEST(GoalCrashMap, DispatchTargetIsInvalidPassesRealFunctionOffsets) {
+  const u32 s7_offset = 0x147d21;
+  EXPECT_FALSE(goal_crash_map_dispatch_target_is_invalid(0x187e01, s7_offset));
+  EXPECT_FALSE(goal_crash_map_dispatch_target_is_invalid(1, s7_offset))
+      << "the smallest nonzero, non-s7 offset must still pass";
+}
+
+// s7_offset itself defaults to 0 before kscheme_init_globals_common() runs (see
+// kscheme.cpp); a target of 0 must still be flagged in that state, since a dispatch to
+// literal address 0 is never valid regardless of whether s7 has been finalized yet.
+TEST(GoalCrashMap, DispatchTargetIsInvalidFlagsZeroEvenWithUninitializedS7) {
+  EXPECT_TRUE(goal_crash_map_dispatch_target_is_invalid(0, 0));
+}

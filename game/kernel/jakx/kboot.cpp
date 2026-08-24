@@ -9,6 +9,7 @@
 #include "game/common/game_common_types.h"
 #include "game/kernel/common/Ptr.h"
 #include "game/kernel/common/Symbol4.h"
+#include "game/kernel/common/goal_crash_map.h"
 #include "game/kernel/common/kboot.h"
 #include "game/kernel/common/klisten.h"
 #include "game/kernel/common/kprint.h"
@@ -124,7 +125,19 @@ void KernelDispatch(u32 dispatcher_func) {
   // run the kernel!
   Timer dispatch_timer;
   if (MasterUseKernel) {
-    call_goal_on_stack(Ptr<Function>(dispatcher_func), goal_stack, s7.offset, g_ee_main_mem);
+    // issue #716 round 8: dispatcher_func is a fresh read of *kernel-dispatcher*'s value
+    // every single frame (KernelCheckAndDispatch() below) with no guard, unlike
+    // ListenerFunction and bonus_function immediately below in this same function, both
+    // of which already check != s7.offset before their own call_goal_on_stack. Named
+    // separately here (rather than relying only on call_goal_on_stack's own generic
+    // blanket guard) since *kernel-dispatcher* is a resolvable symbol worth naming
+    // directly if this ever fires.
+    if (goal_crash_map_dispatch_target_is_invalid(dispatcher_func, s7.offset)) {
+      goal_crash_map_report_blocked_dispatch("KernelDispatch:dispatcher_func", dispatcher_func,
+                                             s7.offset, "kernel-dispatcher");
+    } else {
+      call_goal_on_stack(Ptr<Function>(dispatcher_func), goal_stack, s7.offset, g_ee_main_mem);
+    }
   } else {
     // added, just calls the listener function
     if (ListenerFunction->value() != s7.offset) {

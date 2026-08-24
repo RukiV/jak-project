@@ -1212,7 +1212,15 @@ u64 call_goal_function_arg2(Ptr<Function> func, u64 a, u64 b) {
  * Call a global GOAL function by name.
  */
 u64 call_goal_function_by_name(const char* name) {
-  return call_goal_function(Ptr<Function>(intern_from_c(-1, 0, name)->value()));
+  // issue #716 round 8: resolve first so a #f/0 result can be named with the actual
+  // requested symbol string before call_goal()'s own generic blanket guard would
+  // otherwise catch it anonymously.
+  u32 target = intern_from_c(-1, 0, name)->value();
+  if (goal_crash_map_dispatch_target_is_invalid(target, s7.offset)) {
+    goal_crash_map_report_blocked_dispatch("call_goal_function_by_name", target, s7.offset, name);
+    return 0;
+  }
+  return call_goal_function(Ptr<Function>(target));
 }
 
 u64 print_object(u32 obj);

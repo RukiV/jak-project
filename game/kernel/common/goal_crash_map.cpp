@@ -2073,6 +2073,31 @@ void goal_crash_map_set_process_type(u32 process_type_addr) {
   g_process_type_addr = process_type_addr;
 }
 
+// issue #716 round 8: see header.
+bool goal_crash_map_dispatch_target_is_invalid(u32 target_offset, u32 s7_offset) {
+  return target_offset == 0 || target_offset == s7_offset;
+}
+
+// issue #716 round 8: see header.
+void goal_crash_map_report_blocked_dispatch(const char* site,
+                                            u32 target_offset,
+                                            u32 s7_offset,
+                                            const char* requested_name) {
+  const char* what = (target_offset == s7_offset && s7_offset != 0) ? "#f (s7)" : "0";
+  if (requested_name) {
+    fprintf(stderr,
+            "goal-crash-map: BLOCKED dispatch at %s: target=%s (raw %#x), requested symbol "
+            "\"%s\" -- skipping instead of jumping\n",
+            site, what, target_offset, requested_name);
+  } else {
+    fprintf(stderr,
+            "goal-crash-map: BLOCKED dispatch at %s: target=%s (raw %#x) -- skipping "
+            "instead of jumping\n",
+            site, what, target_offset);
+  }
+  fflush(stderr);
+}
+
 bool goal_crash_map_arm_symbol_breakpoint() {
 #ifdef _WIN32
   if (!g_ee_main_mem || !s7.offset) {
