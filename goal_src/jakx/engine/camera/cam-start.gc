@@ -320,9 +320,12 @@ reading through it."
         ;; driver off rather than re-arm it against the pre-jump camera position;
         ;; this is one of its two exit paths (the other is the frame-exhaustion
         ;; release below), and both must re-arm it or the driver is left off for
-        ;; good the moment a target dies mid-warp.
-        (set! *jakx-want-driver* #t)
-        (format 0 "cam-warp: want-driver re-armed (target lost)~%")
+        ;; good the moment a target dies mid-warp. On a 'retail boot the driver is
+        ;; off by definition and a warp released there must leave it off (issue 724).
+        (when (= *jakx-boot-mode* 'freeroam)
+          (set! *jakx-want-driver* #t)
+          (format 0 "cam-warp: want-driver re-armed (target lost)~%")
+          )
         (return 0)
         )
       )
@@ -466,9 +469,13 @@ reading through it."
         ;; driver (see the dead-target retire above for the other). The camera has
         ;; just spent this whole tick pinned at `warp`, so the driver's first
         ;; recompute (jakx-want-driver-tick, level.gc) now scores the actual
-        ;; destination instead of the pre-jump position.
-        (set! *jakx-want-driver* #t)
-        (format 0 "cam-warp: want-driver re-armed (released)~%")
+        ;; destination instead of the pre-jump position. On a 'retail boot the
+        ;; driver is off by definition and a warp released there must leave it off
+        ;; (issue 724).
+        (when (= *jakx-boot-mode* 'freeroam)
+          (set! *jakx-want-driver* #t)
+          (format 0 "cam-warp: want-driver re-armed (released)~%")
+          )
         )
       )
     )

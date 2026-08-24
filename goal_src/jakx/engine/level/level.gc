@@ -10198,7 +10198,15 @@ drive/camera logic below ever runs."
                 ;; og:preserve-this bring-up shim: no camera/target start chain is landed, so the
                 ;; free camera sits at the origin ~400 m from brdroom's geometry. Warp the camera
                 ;; ring onto the level once at boot activation. Retire with the camera start chain.
-                (if s4-2
+                ;; og:preserve-this boot-mode gate (issue 724): a 'retail boot has retail's own
+                ;; camera start chain ahead of it (target-intro, the continue, the lobby camera),
+                ;; and this bring-up warp was fighting it: warping onto fmvlev at boot activation,
+                ;; then losing that target when the menu2-start continue discards fmvlev, which
+                ;; drags jakx-cam-warp-tick's own target-lost release path (cam-start.gc) into
+                ;; re-arming *jakx-want-driver* on a boot that defines it off. Scoped to
+                ;; 'freeroam only, matching *jakx-want-driver*'s own mode gate. Retires with the
+                ;; shim.
+                (if (and s4-2 (= *jakx-boot-mode* 'freeroam))
                     (jakx-cam-warp-to-level s4-2)
                     )
                 )
