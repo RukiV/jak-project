@@ -436,12 +436,20 @@
       ;; immediately before this dispatch, matching every non-boot-spawn call site in
       ;; the corpus (see set-continue!'s own landing comment for the full list);
       ;; previously missing.
+      ;; og:preserve-this boot-mode gate (issue 699): the else arm's debug shortcut
+      ;; ("menu2-start" under *debug-segment*, skipping the movies for a faster
+      ;; REPL-attached dev boot) now only fires in 'freeroam mode. -debug on a
+      ;; 'retail boot (level-h.gc's *jakx-boot-mode*, the default) exists purely to
+      ;; keep the REPL attached for acceptance work; the retail cold-boot road under
+      ;; test must still resolve "fmv-intro" so the Dolby card/THX/intro movie chain
+      ;; actually runs, matching retail's own non-debug rule. Retirement: none, this
+      ;; is the mode's definition, not a bring-up scaffold.
       (set-continue! this
                       (cond
                         ((demo?) "fmv-intro")
                         ((kiosk?) "fmv-intro")
                         ((= mode 'game) "menu2-start")
-                        (else (if (and *debug-segment* (= mode 'boot)) "menu2-start" "fmv-intro"))
+                        (else (if (and (= *jakx-boot-mode* 'freeroam) *debug-segment* (= mode 'boot)) "menu2-start" "fmv-intro"))
                         )
                       view-idx
                       #f

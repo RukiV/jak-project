@@ -248,12 +248,28 @@
 ;; Flip to #t in the REPL to experiment with the load path.
 (define *jakx-boot-level-load* #t)
 
+;; og:preserve-this boot-mode selector (issue 699): 'retail (the default) puts a plain
+;; boot back on retail's own cold-boot road (Dolby card -> THX movie -> intro movie ->
+;; menu2 -> main menu); 'freeroam keeps this leg's own icea/ice-icea-1/ice-race-task
+;; want-set boot with the want driver armed. Selected by gk's -freeroam command-line
+;; arg (kmachine.cpp InitParms/InitMachineScheme), read here from
+;; *kernel-boot-freeroam* the exact way *jakx-cam-fly* (level.gc) reads
+;; *kernel-boot-cam-fly*; absent the arg, a boot is 'retail. Every other lever in this
+;; block (*jakx-boot-level*, *jakx-boot-continue*, *jakx-boot-task*,
+;; *jakx-want-driver*) is gated on this mode in play (level.gc) and its own define
+;; (level.gc); none of them retire on their own, but this selector itself retires when
+;; the retail road is proven and freeroam goes back to being a pure REPL lever with no
+;; boot-time selector needed.
+(define *jakx-boot-mode* (if *kernel-boot-freeroam* 'freeroam 'retail))
+
 ;; og:preserve-this bring-up lever: which level play's boot path loads (retail loads
 ;; 'fmvlev). Set to any level-load-info symbol whose DGO is built in game.gp;
 ;; 'brdroom is the smallest real world-geometry level (3 tpages + pool-water art +
 ;; the bsp with tfrag/tie trees). NOT retired by the race-start leg (#122's R6):
 ;; play's normal arm substitutes this lever for retail's 'fmvlev and the debug arm for
 ;; 'menu2; removing it boots the FMV intro or MENU2 (#123's), neither in scope here.
+;; Only consulted by play when *jakx-boot-mode* is 'freeroam (issue 699); 'retail boots
+;; ignore this lever and load 'fmvlev instead, matching retail's own default.
 (define *jakx-boot-level* 'icea)
 
 ;; og:preserve-this bring-up lever: when set to a continue-point name, play's boot path
@@ -274,6 +290,9 @@
 ;; would silently disarm the want driver and the per-track smoke-test lever this
 ;; leg's own acceptance gate depends on. Left live; flagged for the coordinator rather
 ;; than acted on unilaterally.
+;; Only applied by play when *jakx-boot-mode* is 'freeroam (issue 699); 'retail boots
+;; skip this lever's boot-cp resolution entirely and take retail's own continue
+;; resolution instead (game-info.gc initialize!).
 (define *jakx-boot-continue* "ice-icea-1")
 
 ;; og:preserve-this bring-up lever, R2 of the retail-staging ladder (#192): when set,
@@ -307,6 +326,9 @@
 ;; declared type, not a gap left open by this fix, and it is not this lever's
 ;; problem to solve: nothing here is ever redefined at the source level, only set!
 ;; from the REPL. The committed default stays the string.
+;; Only applied by play when *jakx-boot-mode* is 'freeroam (issue 699); 'retail boots
+;; skip the net-world staging gate this lever drives and take retail's own continue
+;; resolution instead (game-info.gc initialize!).
 (define-extern *jakx-boot-task* string)
 (define *jakx-boot-task* "ice-race-task")
 

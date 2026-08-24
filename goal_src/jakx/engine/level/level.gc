@@ -3440,7 +3440,14 @@
 ;; boot-time camera placement in jakx-want-driver-tick below. That placement is boot
 ;; behavior, not exploration behavior, so it runs independently of this flag's value;
 ;; see the placement block itself for why.
-(define *jakx-want-driver* #t)
+;;
+;; og:preserve-this boot-mode gate (issue 699): the two default-flip paragraphs above
+;; still apply to freeroam boots and to the REPL lever. A 'retail boot (level-h.gc's
+;; *jakx-boot-mode*, defaulting on when gk's -freeroam arg is absent) now starts this
+;; #f regardless of those flips, since a retail cold boot never explores the ring; the
+;; REPL can still (set! *jakx-want-driver* #t) on a booted 'retail session exactly as
+;; it always could. Retires alongside *jakx-boot-mode* itself.
+(define *jakx-want-driver* (if (= *jakx-boot-mode* 'freeroam) #t #f))
 ;; og:preserve-this display-promotion lever (issue 595 regfix): three values, one
 ;; symbol. 'inside (default) drives jakx-want-driver-display-tick below, promoting a
 ;; tiny only once the camera is inside its bounds. 'blanket restores develop's
@@ -9931,17 +9938,33 @@ drive/camera logic below ever runs."
                    ;; keeps retail's menu2. Retires with the boot levers (#43 family).
                    (or *jakx-boot-level* 'menu2)
                    )
-                 (else
+                 ;; og:preserve-this boot-mode arm (issue 699): a 'retail boot
+                 ;; (level-h.gc's *jakx-boot-mode*, the default) takes retail's own
+                 ;; cold-boot road and loads 'fmvlev (the Dolby card/THX/intro movie
+                 ;; level), matching the comment on *jakx-boot-level* below. Only a
+                 ;; 'freeroam boot (gk's -freeroam arg) substitutes *jakx-boot-level*
+                 ;; for exercising the load chain directly. Retires alongside
+                 ;; *jakx-boot-mode* itself.
+                 ((= *jakx-boot-mode* 'freeroam)
                    ;; og:preserve-this bring-up lever: retail boots 'fmvlev (the intro
                    ;; movie level); *jakx-boot-level* picks the level to exercise the
                    ;; load chain with (brdroom = smallest real world-geometry DGO)
                    *jakx-boot-level*
+                   )
+                 (else
+                   'fmvlev
                    )
                  )
                )
          ;; og:preserve-this bring-up: resolve the boot continue point (multi-level want
          ;; set plus start-line camera framing); #f falls back to the single-level path.
          ;; Gated on the normal boot path so kiosk/debug boots stay untouched.
+         ;; og:preserve-this boot-mode note (issue 699): needs no explicit mode test.
+         ;; A 'retail boot's s5-0 is 'fmvlev (the else arm above), which never equals
+         ;; *jakx-boot-level* ('icea), so this (= s5-0 *jakx-boot-level*) test already
+         ;; goes false and boot-cp resolves #f without consulting *jakx-boot-continue*
+         ;; at all. Only a 'freeroam boot, where s5-0 IS *jakx-boot-level*, reaches the
+         ;; continue lookup. Retires alongside *jakx-boot-mode* itself.
          (boot-cp (if (and (= s5-0 *jakx-boot-level*)
                            *jakx-boot-continue*
                            (nonzero? *level-load-list*)
@@ -10019,7 +10042,13 @@ drive/camera logic below ever runs."
     ;; arm is the ladder's R5, not this rung's; the want driver's own
     ;; *jakx-want-driver-cp* arming path (inside the boot-cp branch below) is
     ;; likewise untouched.
-    (if (and *jakx-boot-task* (nonzero? jakx-stage-boot-task))
+    ;; og:preserve-this boot-mode gate (issue 699): added the explicit
+    ;; (= *jakx-boot-mode* 'freeroam) test. Unlike the *jakx-boot-continue* arm below,
+    ;; which naturally goes dead in 'retail mode because s5-0 no longer equals
+    ;; *jakx-boot-level*, jakx-stage-boot-task drives its own want set independent of
+    ;; s5-0 and would otherwise stage icelands underneath a 'retail boot's 'fmvlev
+    ;; load. Retires alongside *jakx-boot-mode* itself.
+    (if (and (= *jakx-boot-mode* 'freeroam) *jakx-boot-task* (nonzero? jakx-stage-boot-task))
         (jakx-stage-boot-task)
         (begin
           (when (not *dproc*)

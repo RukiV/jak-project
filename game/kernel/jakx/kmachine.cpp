@@ -40,6 +40,14 @@ using namespace ee;
 // Retires with the real camera start chain (#43).
 u32 CamFlyBoot = 0;
 
+// Boot-mode selector (issue 699): -freeroam opts a boot into level.gc's existing
+// icea/ice-icea-1/ice-race-task free-roam boot with the want driver armed, read by
+// *jakx-boot-mode* the same way *jakx-cam-fly* reads CamFlyBoot above. Absent, a boot
+// takes retail's own cold-boot road (Dolby card -> THX -> intro movie -> menu2 -> main
+// menu). Retires when freeroam goes back to being a pure REPL lever with no boot-time
+// selector needed.
+u32 FreeroamBoot = 0;
+
 /*!
  * Initialize global variables based on command line parameters. Not called in retail versions,
  * but it is present in the ELF.
@@ -140,6 +148,12 @@ void InitParms(int argc, const char* const* argv) {
     if (arg == "-cam-fly") {
       Msg(6, "dkernel: cam-fly mode\n");
       CamFlyBoot = 1;
+    }
+
+    // boot-mode selector, see FreeroamBoot above
+    if (arg == "-freeroam") {
+      Msg(6, "dkernel: freeroam mode\n");
+      FreeroamBoot = 1;
     }
 
     // new for jak 2
@@ -544,6 +558,8 @@ void InitMachineScheme() {
   intern_from_c(-1, 0, "*kernel-boot-art-group*")->value() = make_string_from_c(DebugBootArtGroup);
   intern_from_c(-1, 0, "*kernel-boot-cam-fly*")->value() =
       CamFlyBoot ? intern_from_c(-1, 0, "cam-fly").offset : s7.offset;
+  intern_from_c(-1, 0, "*kernel-boot-freeroam*")->value() =
+      FreeroamBoot ? intern_from_c(-1, 0, "freeroam").offset : s7.offset;
 
   if (DiskBoot != 0) {
     *EnableMethodSet = *EnableMethodSet + 1;
