@@ -162,14 +162,17 @@ void goal_crash_map_format_reg_for_test(const char* name,
 // from zero (read).
 const char* goal_crash_map_format_access_kind_for_test(u64 info0);
 
-// test seam (issue #602 step 1): forwards to the crash handler's pure receiver-dump
-// formatter (format_receiver() in goal_crash_map.cpp). base/window_size stand in for
-// g_ee_main_mem/EE_MAIN_MEM_SIZE: every read format_receiver() performs is checked
-// against window_size explicitly (not SEH alone), so a fabricated small buffer here
-// proves the same bound the real 128MB mapping gets. s7_offset/symbol_string_base stand
-// in for the real s7.offset and a registered goal_crash_map_set_symbol_string_base()
-// value; rip/r15 stand in for the faulting context's Rip/R15. No behavior change from
-// the crash-handler path.
+// test seam (issue #602 step 1; return_addr added issue #731): forwards to the crash
+// handler's pure receiver-dump formatter (format_receiver() in goal_crash_map.cpp).
+// base/window_size stand in for g_ee_main_mem/EE_MAIN_MEM_SIZE: every read
+// format_receiver() performs is checked against window_size explicitly (not SEH alone),
+// so a fabricated small buffer here proves the same bound the real 128MB mapping gets.
+// s7_offset/symbol_string_base stand in for the real s7.offset and a registered
+// goal_crash_map_set_symbol_string_base() value; rip/r15 stand in for the faulting
+// context's Rip/R15. return_addr stands in for the native return address a caller would
+// read off [rsp] (0 disables the issue #731 real-slot decode, same posture as every
+// other "unavailable" sentinel in this file). No behavior change from the crash-handler
+// path.
 void goal_crash_map_format_receiver_for_test(const char* name,
                                              u64 value,
                                              const u8* base,
@@ -178,8 +181,22 @@ void goal_crash_map_format_receiver_for_test(const char* name,
                                              u32 symbol_string_base,
                                              u64 rip,
                                              u64 r15,
+                                             u64 return_addr,
                                              char* out,
                                              size_t out_size);
+
+// test seam (issue #731): forwards to the crash handler's pure dispatch-load instruction
+// decoder (decode_dispatch_slot() in goal_crash_map.cpp): matches the fixed 7-byte "mov
+// r9d, [r15+r9+disp32]" pattern (47 8b 8c 0f <disp32>) at goal-relative offset off within
+// [base, base+window_size), and on a match derives the real method-table slot the disp32
+// encodes ((disp32 - 0x10) / 4, Type's method table starting at +0x10 with a 4-byte
+// stride per slot). Returns false (out_slot untouched) on a pattern mismatch, an
+// out-of-window read, or a disp32 below the table's own start. No behavior change from
+// the crash-handler path.
+bool goal_crash_map_decode_dispatch_slot_for_test(const u8* base,
+                                                  u64 window_size,
+                                                  u64 off,
+                                                  u32* out_slot);
 
 // test seam (issue #716/#723): forwards to the crash handler's pure per-thread line
 // formatter (format_thread_line() in goal_crash_map.cpp), taking the values a caller

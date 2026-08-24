@@ -258,6 +258,34 @@ bool bounded_read_str(const u8* base, u64 window_size, u64 off, char* out, size_
   return i > 0;
 }
 
+// issue #731: pure decode for the fixed 7-byte dispatch-load instruction this codebase's
+// method dispatch emits right before the `call r9` that actually invokes the resolved
+// method -- "mov r9d, [r15+r9+disp32]", encoded 47 8b 8c 0f <disp32>. Rejects unless the
+// first four bytes match byte-for-byte; disp32 is read only once that match is confirmed.
+// disp32 must be at least 0x10 (Type's method table start, game/kernel/jakx/kscheme.h's
+// `new_method`, format_receiver()'s own doc comment below establishes the same base) since
+// a real dispatch can never encode an offset before the table begins; slot =
+// (disp32 - 0x10) / 4, the identical 4-byte stride that doc comment's index-12 arithmetic
+// already uses. This is what names the REAL dispatched slot (issue #731: garage-turntable
+// method 52 dispatches through this exact instruction shape, not the fixed slot 12 the
+// probe below assumes) instead of guessing.
+bool decode_dispatch_slot(const u8* base, u64 window_size, u64 off, u32* out_slot) {
+  static const u8 kPattern[4] = {0x47, 0x8b, 0x8c, 0x0f};
+  if (off + 7 < off || off + 7 > window_size) {
+    return false;
+  }
+  if (std::memcmp(base + off, kPattern, sizeof(kPattern)) != 0) {
+    return false;
+  }
+  u32 disp32 = 0;
+  std::memcpy(&disp32, base + off + 4, sizeof(disp32));
+  if (disp32 < 0x10) {
+    return false;
+  }
+  *out_slot = (disp32 - 0x10) / 4;
+  return true;
+}
+
 // issue #602 step 1: the receiver dump for the rip == fault-address dispatch-fault case
 // (an indirect call/jump landed in unmapped or non-code memory: goal_crash_filter's
 // method-dispatch residual, gkdis-F60-execute-process-tree.txt in the issue -- `call r9`
@@ -287,6 +315,15 @@ bool bounded_read_str(const u8* base, u64 window_size, u64 off, char* out, size_
 // The register value itself is read the same dual way format_reg() above does: an
 // absolute r15-relative pointer first, then a raw 32-bit goal offset, matching how a
 // register can hold either depending on what instruction last wrote it.
+//
+// issue #731: the [tag+0x40] read above assumes the dispatched slot is always 12, which
+// mislabeled the garage-turntable method-52 fault this issue tracks -- that fault
+// dispatches through this identical call shape at slot 52, not 12. return_addr (the
+// native return address the faulting `call r9` pushed, read by the caller off [rsp], 0
+// if unreadable) lets this function decode the REAL slot straight from the compiler's own
+// disp32 (decode_dispatch_slot() above) instead of guessing; the old [tag+0x40] read stays
+// only as an explicit "probe (slot 12)" fallback, never printed as though it measured
+// this fault's actual slot again.
 void format_receiver(const char* name,
                      u64 value,
                      const u8* base,
@@ -295,6 +332,7 @@ void format_receiver(const char* name,
                      u32 symbol_string_base,
                      u64 rip,
                      u64 r15,
+                     u64 return_addr,
                      char* out,
                      size_t out_size) {
   int n = std::snprintf(out, out_size, "  recv %-3s %#018llx", name, (unsigned long long)value);
@@ -356,15 +394,32 @@ void format_receiver(const char* name,
     append("%s", " (type name unresolved)");
   }
 
-  // method index implied by the faulting dispatch (issue #602 step 1): [tag + 0x40] is
-  // method slot 12 (see the function doc comment above); when it equals rip - r15, this
-  // register's tag is confirmed as the actual dispatching receiver, not just a
-  // plausible-looking bystander value.
+  // issue #731: the real measured slot, decoded from the dispatch-load instruction
+  // itself (decode_dispatch_slot() above) rather than assumed. return_addr is the native
+  // return address the faulting `call r9` pushed; the mov that loaded r9 with the
+  // dispatch target sits a fixed 0x16 bytes before it (the tag load, then the mov, then
+  // the call, with nothing else emitted between the mov and the call in this compiled
+  // shape). r15 converts the native return_addr into the same goal-relative window every
+  // other read in this function already uses.
+  if (return_addr && r15 && return_addr >= r15 + 0x16) {
+    u64 insn_off = return_addr - r15 - 0x16;
+    u32 real_slot = 0;
+    if (decode_dispatch_slot(base, window_size, insn_off, &real_slot)) {
+      append("  dispatch decode @ ra-0x16 (goal %#llx): slot %u <- MEASURED",
+             (unsigned long long)insn_off, real_slot);
+    }
+  }
+
+  // issue #602 step 1 probe: [tag + 0x40] is where slot 12 (0x10 + 12*4) would sit if
+  // the receiver dispatches through it -- a fixed guess, not a decode of the real
+  // instruction the way the block above is. Labeled "probe (slot 12)" so it can never
+  // again be misread as this fault's measured slot, the way issue #731's
+  // garage-turntable method-52 fault originally was.
   u32 slot_val = 0;
   if (bounded_read_u32(base, window_size, (u64)tag + 0x40, &slot_val)) {
     u64 rip_rel = (r15 && rip >= r15) ? (rip - r15) : 0;
     bool match = r15 && rip >= r15 && slot_val == (u32)rip_rel;
-    append("  method slot +0x40 (index 12): %#x vs rip-r15 %#llx%s", slot_val,
+    append("  probe (slot 12) [tag+0x40]: %#x vs rip-r15 %#llx%s", slot_val,
            (unsigned long long)rip_rel,
            match ? " <- MATCH (this is the dispatching receiver)" : "");
   }
@@ -1699,6 +1754,16 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
   // belt-and-suspenders way.
   if (base && fault_addr && rip == fault_addr) {
     fprintf(stderr, "receiver dump (rip == fault address, indirect dispatch):\n");
+    // issue #731: the return address a `call r9` pushes right before jumping to a bad
+    // target sits at [rsp] in this exact fault shape (rip landed AT the target, so the
+    // call itself already completed) -- format_receiver()'s dispatch-slot decode below
+    // reads back from return_addr - 0x16 to name the real dispatched slot.
+    u64 return_addr = 0;
+    __try {
+      return_addr = *(const u64*)(ctx->Rsp);
+    } __except (EXCEPTION_EXECUTE_HANDLER) {
+      return_addr = 0;
+    }
     struct {
       const char* name;
       u64 value;
@@ -1707,7 +1772,7 @@ LONG WINAPI goal_crash_filter(EXCEPTION_POINTERS* info) {
     for (const auto& r : cand_regs) {
       __try {
         format_receiver(r.name, r.value, base, mem_size, s7.offset, g_symbol_string_base, rip,
-                        ctx->R15, rline, sizeof(rline));
+                        ctx->R15, return_addr, rline, sizeof(rline));
       } __except (EXCEPTION_EXECUTE_HANDLER) {
         std::snprintf(rline, sizeof(rline), "  recv %-3s (receiver dump faulted)", r.name);
       }
@@ -1954,10 +2019,18 @@ void goal_crash_map_format_receiver_for_test(const char* name,
                                              u32 symbol_string_base,
                                              u64 rip,
                                              u64 r15,
+                                             u64 return_addr,
                                              char* out,
                                              size_t out_size) {
-  format_receiver(name, value, base, window_size, s7_offset, symbol_string_base, rip, r15, out,
-                  out_size);
+  format_receiver(name, value, base, window_size, s7_offset, symbol_string_base, rip, r15,
+                  return_addr, out, out_size);
+}
+
+bool goal_crash_map_decode_dispatch_slot_for_test(const u8* base,
+                                                  u64 window_size,
+                                                  u64 off,
+                                                  u32* out_slot) {
+  return decode_dispatch_slot(base, window_size, off, out_slot);
 }
 
 void goal_crash_map_format_thread_line_for_test(const char* proc_name,

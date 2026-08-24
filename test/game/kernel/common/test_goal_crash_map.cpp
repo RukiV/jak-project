@@ -275,13 +275,14 @@ TEST(GoalCrashMap, FormatReceiverResolvesValidTypeAndConfirmsMethodSlot) {
 
   char out[256];
   goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, s7_offset,
-                                          symbol_string_base, rip, r15, out, sizeof(out));
+                                          symbol_string_base, rip, r15, /*return_addr=*/0, out,
+                                          sizeof(out));
   std::string line(out);
   EXPECT_NE(line.find("recv rdi"), std::string::npos) << line;
   EXPECT_NE(line.find("(goal 0x1004)"), std::string::npos) << line;
   EXPECT_NE(line.find("tag 0x1804"), std::string::npos) << line;
   EXPECT_NE(line.find("type-name \"process-tree\""), std::string::npos) << line;
-  EXPECT_NE(line.find("method slot +0x40 (index 12): 0x3000 vs rip-r15 0x3000"), std::string::npos)
+  EXPECT_NE(line.find("probe (slot 12) [tag+0x40]: 0x3000 vs rip-r15 0x3000"), std::string::npos)
       << line;
   EXPECT_NE(line.find("MATCH"), std::string::npos) << line;
 }
@@ -295,7 +296,7 @@ TEST(GoalCrashMap, FormatReceiverRejectsImplausibleRegisterValue) {
 
   char out[256];
   goal_crash_map_format_receiver_for_test("rsi", 0x1000, mem.data(), window_size, 0x10, 0x900, 0,
-                                          0x5000000000ull, out, sizeof(out));
+                                          0x5000000000ull, /*return_addr=*/0, out, sizeof(out));
   std::string line(out);
   EXPECT_NE(line.find("(not a plausible basic pointer)"), std::string::npos) << line;
   EXPECT_EQ(line.find("tag"), std::string::npos) << line;
@@ -312,7 +313,7 @@ TEST(GoalCrashMap, FormatReceiverRejectsImplausibleTypeTag) {
 
   char out[256];
   goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, 0x10, 0x900, 0,
-                                          0x5000000000ull, out, sizeof(out));
+                                          0x5000000000ull, /*return_addr=*/0, out, sizeof(out));
   std::string line(out);
   EXPECT_NE(line.find("tag 0x1805"), std::string::npos) << line;
   EXPECT_NE(line.find("(not a plausible type pointer)"), std::string::npos) << line;
@@ -342,7 +343,8 @@ TEST(GoalCrashMap, FormatReceiverNameLookupPastWindowIsGraceful) {
 
   char out[256];
   goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, s7_offset,
-                                          symbol_string_base, 0, 0x5000000000ull, out, sizeof(out));
+                                          symbol_string_base, 0, 0x5000000000ull,
+                                          /*return_addr=*/0, out, sizeof(out));
   std::string line(out);
   EXPECT_NE(line.find("tag 0x1804"), std::string::npos) << line;
   EXPECT_NE(line.find("(type name unresolved)"), std::string::npos) << line;
@@ -363,8 +365,8 @@ TEST(GoalCrashMap, FormatReceiverSkipsNameResolutionWhenNoTableRegistered) {
 
   char out[256];
   goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, 0x10,
-                                          /*symbol_string_base=*/0, 0, 0x5000000000ull, out,
-                                          sizeof(out));
+                                          /*symbol_string_base=*/0, 0, 0x5000000000ull,
+                                          /*return_addr=*/0, out, sizeof(out));
   std::string line(out);
   EXPECT_NE(line.find("(type name unresolved)"), std::string::npos) << line;
   EXPECT_EQ(line.find("type-name"), std::string::npos) << line;
@@ -483,11 +485,156 @@ TEST(GoalCrashMap, FormatReceiverMethodSlotMismatchIsNotReportedAsMatch) {
 
   char out[256];
   goal_crash_map_format_receiver_for_test("rsi", receiver, mem.data(), window_size, 0x10, 0, rip,
-                                          r15, out, sizeof(out));
+                                          r15, /*return_addr=*/0, out, sizeof(out));
   std::string line(out);
-  EXPECT_NE(line.find("method slot +0x40 (index 12): 0x3000 vs rip-r15 0x4000"), std::string::npos)
+  EXPECT_NE(line.find("probe (slot 12) [tag+0x40]: 0x3000 vs rip-r15 0x4000"), std::string::npos)
       << line;
   EXPECT_EQ(line.find("MATCH"), std::string::npos) << line;
+}
+
+// issue #731: decode_dispatch_slot() matches the fixed "mov r9d, [r15+r9+disp32]" bytes
+// (47 8b 8c 0f <disp32>) and derives the real method slot as (disp32 - 0x10) / 4 --
+// garage-turntable's own method 52 encodes disp32 = 0x10 + 52*4 = 0xe0.
+TEST(GoalCrashMap, DecodeDispatchSlotMatchesPatternAndDerivesSlot) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  const u64 off = 0x1900;
+  mem[off + 0] = 0x47;
+  mem[off + 1] = 0x8b;
+  mem[off + 2] = 0x8c;
+  mem[off + 3] = 0x0f;
+  write_u32(mem, off + 4, 0xe0);  // disp32 for slot 52
+
+  u32 slot = 0xffffffff;
+  EXPECT_TRUE(goal_crash_map_decode_dispatch_slot_for_test(mem.data(), window_size, off, &slot));
+  EXPECT_EQ(slot, 52u);
+}
+
+// a single wrong byte anywhere in the fixed four-byte prefix must reject the whole
+// pattern, not just decode a wrong slot: this is a byte-for-byte match, not a fuzzy one.
+TEST(GoalCrashMap, DecodeDispatchSlotRejectsPatternMismatch) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  const u64 off = 0x1900;
+  mem[off + 0] = 0x47;
+  mem[off + 1] = 0x8b;
+  mem[off + 2] = 0x8d;  // wrong: real pattern's third byte is 0x8c
+  mem[off + 3] = 0x0f;
+  write_u32(mem, off + 4, 0xe0);
+
+  u32 slot = 0;
+  EXPECT_FALSE(goal_crash_map_decode_dispatch_slot_for_test(mem.data(), window_size, off, &slot));
+}
+
+// off + 7 landing past window_size must reject rather than read past the fabricated
+// window, the same bounded posture bounded_read_u32/u64/str already use.
+TEST(GoalCrashMap, DecodeDispatchSlotRejectsOutOfWindowRead) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  const u64 off = window_size - 6;  // off + 7 == window_size + 1: one byte short
+
+  u32 slot = 0;
+  EXPECT_FALSE(goal_crash_map_decode_dispatch_slot_for_test(mem.data(), window_size, off, &slot));
+}
+
+// a disp32 below 0x10 cannot be a real dispatch (Type's method table starts at +0x10),
+// so this must reject rather than let (disp32 - 0x10) underflow into a huge bogus slot.
+TEST(GoalCrashMap, DecodeDispatchSlotRejectsDisp32BelowTableStart) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+  const u64 off = 0x1900;
+  mem[off + 0] = 0x47;
+  mem[off + 1] = 0x8b;
+  mem[off + 2] = 0x8c;
+  mem[off + 3] = 0x0f;
+  write_u32(mem, off + 4, 0x8);  // below 0x10
+
+  u32 slot = 0;
+  EXPECT_FALSE(goal_crash_map_decode_dispatch_slot_for_test(mem.data(), window_size, off, &slot));
+}
+
+// issue #731: format_receiver() prints the MEASURED real slot from the dispatch-load
+// instruction at return_addr - 0x16 when return_addr is readable, alongside (not instead
+// of) the old [tag+0x40] probe -- this is the fix's whole point, since #731's own fault
+// dispatches through slot 52, not the fixed slot 12 the probe assumes.
+TEST(GoalCrashMap, FormatReceiverRealSlotDecodeWhenReturnAddrReadable) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 receiver = 0x1004;
+  const u32 tag = 0x1804;
+  const u64 r15 = 0x5000000000ull;
+  write_u32(mem, receiver - 4, tag);
+
+  const u64 insn_off = 0x1900;
+  mem[insn_off + 0] = 0x47;
+  mem[insn_off + 1] = 0x8b;
+  mem[insn_off + 2] = 0x8c;
+  mem[insn_off + 3] = 0x0f;
+  write_u32(mem, insn_off + 4, 0xe0);  // disp32 for slot 52
+  const u64 return_addr = r15 + 0x16 + insn_off;
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, 0x10, 0, 0, r15,
+                                          return_addr, out, sizeof(out));
+  std::string line(out);
+  EXPECT_NE(line.find("dispatch decode @ ra-0x16 (goal 0x1900): slot 52 <- MEASURED"),
+            std::string::npos)
+      << line;
+  // the old fixed-slot-12 probe still prints too: this is an addition, not a replacement.
+  EXPECT_NE(line.find("probe (slot 12) [tag+0x40]"), std::string::npos) << line;
+}
+
+// return_addr of 0 (the "unavailable" sentinel, matching every other 0 default in this
+// file) must skip the real-slot decode entirely, leaving only the [tag+0x40] probe --
+// this is what every other FormatReceiver* test above already exercises implicitly by
+// passing return_addr=0, made explicit here.
+TEST(GoalCrashMap, FormatReceiverSkipsRealSlotDecodeWhenReturnAddrIsZero) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 receiver = 0x1004;
+  const u32 tag = 0x1804;
+  const u64 r15 = 0x5000000000ull;
+  write_u32(mem, receiver - 4, tag);
+
+  const u64 insn_off = 0x1900;
+  mem[insn_off + 0] = 0x47;
+  mem[insn_off + 1] = 0x8b;
+  mem[insn_off + 2] = 0x8c;
+  mem[insn_off + 3] = 0x0f;
+  write_u32(mem, insn_off + 4, 0xe0);  // would decode to slot 52 if return_addr pointed here
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, 0x10, 0, 0, r15,
+                                          /*return_addr=*/0, out, sizeof(out));
+  std::string line(out);
+  EXPECT_EQ(line.find("dispatch decode"), std::string::npos) << line;
+  EXPECT_NE(line.find("probe (slot 12) [tag+0x40]"), std::string::npos) << line;
+}
+
+// a readable return_addr whose return_addr-0x16 bytes do NOT match the fixed pattern
+// (a different call shape, or simply the wrong frame) must degrade to the probe alone,
+// not print a decode line built from garbage.
+TEST(GoalCrashMap, FormatReceiverSkipsRealSlotDecodeWhenPatternDoesNotMatch) {
+  const u64 window_size = 0x2000;
+  std::vector<u8> mem(window_size, 0);
+
+  const u32 receiver = 0x1004;
+  const u32 tag = 0x1804;
+  const u64 r15 = 0x5000000000ull;
+  write_u32(mem, receiver - 4, tag);
+  // deliberately nothing written at insn_off: reads as all-zero, which is not the
+  // 47 8b 8c 0f prefix
+  const u64 insn_off = 0x1900;
+  const u64 return_addr = r15 + 0x16 + insn_off;
+
+  char out[256];
+  goal_crash_map_format_receiver_for_test("rdi", receiver, mem.data(), window_size, 0x10, 0, 0, r15,
+                                          return_addr, out, sizeof(out));
+  std::string line(out);
+  EXPECT_EQ(line.find("dispatch decode"), std::string::npos) << line;
+  EXPECT_NE(line.find("probe (slot 12) [tag+0x40]"), std::string::npos) << line;
 }
 
 // issue #716 round 2: the symbol-slot namer. A candidate inside [symtab_lo, symtab_hi)
