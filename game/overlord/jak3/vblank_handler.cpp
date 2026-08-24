@@ -76,6 +76,13 @@ int VBlankHandler(void*) {
   return 1;
 }
 
+// Set to false before the acceptance boot merges. issue 758's open question is
+// whether position_for_ee actually advances for a music command and which of
+// g_aVagCmds[4]/[5] carries it (spustreams.cpp:365-386 has early-outs that could
+// freeze it); no existing overlord debug lever covers this, so this is a
+// standalone one for this branch.
+static constexpr bool kJakxMusicFillProbe = true;
+
 // Fills g_JakXSoundIOPInfo, the jakx-shaped counterpart to the jak3 fill below
 // (issue #698, JakXSoundIOPInfo in rpc_interface.h). Called once the jak3 fill has
 // finished writing g_SRPCSoundIOPInfo for this vblank, so the per-vag-command and
@@ -83,20 +90,56 @@ int VBlankHandler(void*) {
 void FillJakXSoundIOPInfo() {
   auto& info = g_JakXSoundIOPInfo;
 
-  // freemem/freemem2/music-*/pads: harmless per the reader inventory (debug and
-  // jukebox only; jukebox is rung 2's problem), zeroed rather than porting jak3's
-  // freemem=12345 hack.
+  // freemem/freemem2/pads: harmless per the reader inventory (debug only),
+  // zeroed rather than porting jak3's freemem=12345 hack.
   info.freemem = 0;
   info.freemem2 = 0;
-  info.music_position = 0;
-  info.music_status = 0;
-  info.music_name = {};
   info.pad0[0] = 0;
   info.pad0[1] = 0;
   info.pad1[0] = 0;
   info.pad1[1] = 0;
   info.pad1[2] = 0;
   info.pad1[3] = 0;
+
+  // music_position/music_status/music_name: update-jukebox-music (gsound.gc:1852)
+  // is the only reader of these three fields, and it decides a track has
+  // finished from them: an empty name starts the first track, a frozen position
+  // ends the current one. Both used to be zeroed unconditionally, which made the
+  // empty-name test true on every 5-second poll and advanced the track list
+  // regardless of what was actually playing (issue 758). g_aVagCmds[4] and [5]
+  // are the music slots (vag.h, vag.cpp:243-250), distinguished from the four
+  // stream slots g_aVagCmds[0..3] the loop above reads by music_flag; read
+  // unlocked the same way that loop reads the stream slots, so this adds no new
+  // hazard (no g_nMusicSemaphore taken). Both name and position are required:
+  // name alone leaves the position-equality test in update-jukebox-music firing
+  // every other poll.
+  info.music_position = 0;
+  info.music_status = 0;
+  info.music_name = {};
+  for (int i = 4; i < 6; i++) {
+    auto* cmd = &g_aVagCmds[i];
+    if (cmd->id && cmd->music_flag && !cmd->flags.stereo_secondary) {
+      strncpyz(info.music_name.chars, cmd->name, sizeof(info.music_name.chars));
+      info.music_position = cmd->position_for_ee;  // 1/1024 s units, gsound.gc:1863's scale
+      info.music_status = cmd->pack_flags();       // no GOAL reader today
+      break;
+    }
+  }
+
+  if (kJakxMusicFillProbe) {
+    static u32 s_probe_counter = 0;
+    if (++s_probe_counter >= g_nFPS) {
+      s_probe_counter = 0;
+      auto& a = g_aVagCmds[4];
+      auto& b = g_aVagCmds[5];
+      lg::info(
+          "jukebox probe: vag[4] id={} name={} pos={} running={} saw_chunks1={} | "
+          "vag[5] id={} name={} pos={} running={} saw_chunks1={}",
+          a.id, static_cast<const char*>(a.name), a.position_for_ee, a.flags.running,
+          a.flags.saw_chunks1, b.id, static_cast<const char*>(b.name), b.position_for_ee,
+          b.flags.running, b.flags.saw_chunks1);
+    }
+  }
 
   // nocd/dirtycd: today dirtycd receives the freemem 12345 hack and reads
   // permanently nonzero; jakx's is-cd-in? (gsound.gc:221) only tests nocd for zero.
