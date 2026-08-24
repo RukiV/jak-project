@@ -21,28 +21,6 @@
   #f
   )
 
-;; og:preserve-this bring-up stub: fmv-player-run is a declaration-side extern
-;; with no defun anywhere (the same extern-no-defun class as
-;; fmv-player-run-texture above, issue 729 feeding issue 569's FMV road). The
-;; live call sites are title-obs.gc's target-intro (twice: "thx" then "intro")
-;; and target-introb ("introb"), each followed immediately by
-;; (while *fmv-player* (suspend)); *fmv-player* is landed
-;; (fmv-player-h.gc:61) defaulting to #f and this stub never sets it, so those
-;; wait loops fall through on the first check instead of hanging on a
-;; process that never spawns. This is NOT retail's body: a scoped decode of
-;; fmv-player.o (this rung) shows fmv-player-run doing real work (killing any
-;; live fmv-player, resolving the "fmvlev" level's texture-page, aspect-ratio-
-;; dependent matrix setup, *fmv-work* writes) before running out of field-
-;; layout evidence for *fmv-work* itself -- squarely issue 569's own scope (no
-;; M2V decoder exists in any game for this format), not a thin wrapper this
-;; rung could land instead. Returning #f disarms the landmine (the title
-;; states fall straight through to their post-movie continue dispatch) without
-;; claiming FMV playback works; retires when the real FMV landing (issue 569)
-;; lands the actual body.
-(defun fmv-player-run ((arg0 string) (arg1 process-tree) (arg2 symbol))
-  #f
-  )
-
 ;; ============================================================================
 ;; L2 FMV frame path (issue 569): the TBP allocation, the fullscreen quad, and a
 ;; REPL probe that emits one code-87 (fmv-frame) record for a given elapsed-ms.
@@ -196,21 +174,57 @@
 
 ;; ============================================================================
 ;; L3 fmv-player process (issue 569): init-by-other, the playing/die states, the
-;; playback clock, and the pad-skip check. R7 (fmv-design.md): this must never
-;; set *fmv-player* or touch scene.gc -- both stay reserved for the later
-;; milestone that wires the retail call site at scene.gc:1195.
+;; playback clock, and the pad-skip check. This section used to carry R7's rule
+;; (fmv-design.md): "this must never set *fmv-player* or touch scene.gc -- both
+;; stay reserved for the later milestone that wires the retail call site at
+;; scene.gc:1195." The jakx-fmv-boot-movies rung (issue 569/729) IS that later
+;; milestone for the *fmv-player* half: fmv-player-run above now sets it for
+;; real, so title-obs's (while *fmv-player* (suspend)) waits actually wait and
+;; actually stop. scene.gc itself is untouched by this rung and stays reserved.
 ;; ============================================================================
 
 ;; og:preserve-this
-;; FMV playback duration cap (design R4). THX.MJV's frame rate is ambiguous
-;; between the transcode's own sequence header (25 fps x 450 frames = 18.0s)
-;; and ffmpeg's tbr guess (29.97 fps, 15.015s) -- unresolved at the container
-;; level, so the runtime is made insensitive to it instead: this picks the
-;; longer of the two candidates plus margin, so undershooting (truncating real
-;; content) can't happen. MjvVideoReader::frame_rgba_at_ms clamps an elapsed-ms
-;; past the last frame to the measured-black final frame, so the cost of
-;; guessing high is a few seconds of held black at worst, not lost frames.
-(defconstant FMV-THX-DURATION-MS 18500)
+;; FMV playback duration cap (design R4), retiring the single FMV-THX-DURATION-
+;; MS constant this replaced. The old constant's own comment attributed a
+;; 25 fps figure to "the transcode's own sequence header" -- wrong: the
+;; jakx-fmv-boot-movies rung read the real MPEG-2 sequence header bytes
+;; directly (iso_data/jakx/STR/{THX,INTRO}.M2V, startcode 000001B3, the 4-bit
+;; frame_rate_code field after the 12+12-bit width/height and 4-bit aspect)
+;; and both report frame_rate_code=0x4 (30000/1001, 29.97 fps). The 25 fps
+;; figure was ffprobe's avg_frame_rate estimate, a heuristic fallback ffprobe
+;; uses on a raw elementary stream with no container-level duration, and it
+;; visibly disagrees with ffprobe's own r_frame_rate=30000/1001 (tbr, which
+;; DOES match the real header) -- confirming avg_frame_rate was always the
+;; wrong of the two, not a genuinely ambiguous pair of candidates.
+;;
+;; duration_ms = frame_count * 1000 * fps_den / fps_num, integer-truncated;
+;; frame_count is a direct picture_start_code (000001 00) count, cross-checked
+;; against `ffprobe -count_frames`:
+;;   THX.M2V:   450  frames -> 450  * 1000 * 1001 / 30000 = 15015 ms exactly
+;;   INTRO.M2V: 7274 frames -> 7274 * 1000 * 1001 / 30000 = 242709 ms (true
+;;     value 242709.1333..., truncated; the lost fraction is under 1 ms, far
+;;     inside one frame's 33.37 ms, and MjvVideoReader clamps any elapsed-ms
+;;     past the last frame to the measured-black final frame regardless).
+;; introb and the other 41 *m2v-info* movies have no jakx-fmv-boot-movies
+;; measurement (out of this rung's scope); FMV-DEFAULT-DURATION-MS keeps the
+;; old constant's own conservative value for them pending a later rung.
+(defconstant FMV-THX-DURATION-MS 15015)
+(defconstant FMV-INTRO-DURATION-MS 242709)
+(defconstant FMV-DEFAULT-DURATION-MS 18500)
+
+;; og:preserve-this per-movie duration lookup, keyed by the gui-id "movie
+;; index" fmv-player-run sets at spawn (m2v-info-index-by-name's own array
+;; position, fmv-player-h.gc's static order: "intro" is position 0, "thx" is
+;; position 42). Hardcoding those two positions here rather than re-deriving
+;; them by name every call is safe: *m2v-info* is a fixed static array, its
+;; order cannot change at runtime.
+(defun fmv-duration-for-movie ((movie-idx uint))
+  (cond
+    ((= movie-idx (the uint 42)) FMV-THX-DURATION-MS)
+    ((= movie-idx (the uint 0)) FMV-INTRO-DURATION-MS)
+    (else FMV-DEFAULT-DURATION-MS)
+    )
+  )
 
 ;; og:preserve-this
 ;; fmv-player's deftype (fmv-player-h.gc:43-58, mirrored at
@@ -254,15 +268,19 @@
 ;; falls off the end of :code -- the credits-obs self-termination shape
 ;; (credits-obs.gc:668-674, confirmed at design 5d): a :code behavior returning
 ;; naturally kills the process with no self-deactivate needed. No draw call
-;; here, so this is also the frame FMV output stops appearing. width/height/
-;; movie-id are set for record symmetry but are moot: handle_fmv_frame checks
-;; stop before it ever reads them (design 3c step 2). Restoring
-;; *display-camera-info* here first (see the debug-text-clobber note above
-;; playing's :code) undoes the overlay blank for both of playing's exits,
-;; since both route through this state.
+;; here, so this is also the frame FMV output stops appearing. width/height are
+;; moot: handle_fmv_frame checks stop before it ever reads them (design 3c
+;; step 2); movie-id is carried through anyway for record-shape symmetry with
+;; playing's own emission. Restoring *display-camera-info* here first (see the
+;; debug-text-clobber note above playing's :code) undoes the overlay blank for
+;; both of playing's exits, since both route through this state. Clearing
+;; *fmv-player* here (fmv-boot-movies rung, retiring the R7 "never set
+;; *fmv-player*" rule above) is what lets title-obs's (while *fmv-player*
+;; (suspend)) waits actually stop waiting once the movie ends.
 (defstate die (fmv-player)
   :code (behavior ()
     (set! *display-camera-info* *fmv-saved-display-camera-info*)
+    (set! *fmv-player* (the-as fmv-player #f))
     (let ((tbp (fmv-get-tbp)))
       (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
                                    (bucket-id tex-lcom-sky-pre)
@@ -274,7 +292,7 @@
           (set! (-> rec dest) tbp)
           (set! (-> rec width) 640)
           (set! (-> rec height) 448)
-          (set! (-> rec movie-id) 0)
+          (set! (-> rec movie-id) (-> self gui-id))
           (set! (-> rec stop) 1)
           )
         (&+! (-> buf base) 16)
@@ -311,7 +329,7 @@
              (elapsed-ms (the int (/ (* elapsed-ticks 10) 3)))
              )
         (cond
-          ((or (cpad-pressed? 0 triangle circle x) (> elapsed-ms FMV-THX-DURATION-MS))
+          ((or (cpad-pressed? 0 triangle circle x) (> elapsed-ms (fmv-duration-for-movie (-> self gui-id))))
            (go die)
            )
           (else
@@ -326,7 +344,7 @@
                   (set! (-> rec dest) tbp)
                   (set! (-> rec width) 640)
                   (set! (-> rec height) 448)
-                  (set! (-> rec movie-id) 0)
+                  (set! (-> rec movie-id) (-> self gui-id))
                   (set! (-> rec stop) 0)
                   )
                 (&+! (-> buf base) 16)
@@ -349,4 +367,118 @@
   (set! (-> self start-time) (the-as uint (current-time)))
   (set! (-> self fmv-mode) 1)
   (go playing)
+  )
+
+;; og:preserve-this fmv-boot-movies rung (issue 569/729): fmv-player-run's
+;; real retail body still cannot land whole -- this rung's own scoped decode
+;; (allowed_objects: ["fmv-player"], scratch proj-path, reverted) confirms the
+;; prior rung's account: most of the function is FMVLEV-level texture-page
+;; resolution and aspect-ratio-dependent matrix setup writing into *fmv-work*
+;; at offset 84 before running out of field-layout evidence for that global,
+;; plus disc-path string construction (demo?/scf-get-territory-gated
+;; "~S.m2v"/"~S.pal" formatting via *fmv-snd-name*/*fmv-m2v-name*) that has no
+;; PC-port counterpart now that MJV containers replace disc M2V streaming --
+;; squarely the no-M2V-decoder-exists FMV-road scope, not a call this rung
+;; could land whole.
+;;
+;; The op-level evidence for the parts this port DOES port is direct, though
+;; (same scoped decode, fmv-player_ir2.asm):
+;;   ops 0-6:     (kill-by-type fmv-player *active-pool*) verbatim, first thing
+;;                the function does -- ported as-is below.
+;;   ops 141-168: the *m2v-info* lookup loop compares arg0 against each
+;;                entry's SOUND field first (machine offset +4 off the boxed
+;;                entry pointer, placed offset 8) via nocase-string=, then
+;;                falls back to the NAME field (machine +0, placed +4) if that
+;;                misses -- ported below as the (or ... ...) in
+;;                m2v-info-index-by-name. Every landed caller (title-obs.gc's
+;;                target-intro/target-introb) passes a name-matching string
+;;                ("thx"/"intro"/"introb"), so the sound-field branch never
+;;                actually matches for any call this rung can exercise, but
+;;                it is real retail behavior, not invented, and costs nothing
+;;                to keep.
+;;   ops 253-277/293-317: get-process/activate/run-function-in-process against
+;;                *default-dead-pool*, stack size #x4000, tag "fmv-player",
+;;                stack top *dram-stack*+#x3800 -- exactly process-spawn's own
+;;                macro expansion (gstate.gc:33-53), landed below as
+;;                (process-spawn fmv-player :init fmv-player-init-by-other
+;;                :name "fmv-player" :to arg1).
+;;
+;; HELD discrepancy, not fixed by this rung: both call sites at ops 270-277
+;; and 310-317 pass run-function-in-process FOUR extra args (#t, 0, 10, and
+;; either 2 or 1 depending on which branch), meaning retail's real
+;; fmv-player-init-by-other takes at least 4 parameters. The init-by-other
+;; landed just above (a genuine retail decode, not hand-authored -- no
+;; og:preserve-this header, zero args) takes zero -- a defect in the rung
+;; that landed it, surfaced by this scoped decode, not introduced here.
+;; Fixing it needs field-layout evidence for what those 4 values initialize
+;; that this rung does not have; flagged for a follow-up rather than
+;; silently patched. This body calls the zero-arg init-by-other as currently
+;; landed, since that is the only callable contract that exists in this tree
+;; today. process-spawn needs its :init callee already defined in this file
+;; (GOAL does not hoist forward references to same-file globals), which is
+;; also why this function lands here, after init-by-other, rather than near
+;; fmv-player-run-texture above.
+;;
+;; Also not replicated: ops 139-147, a pre-loop check that re-parents an
+;; already-live *fmv-player* into arg1's pool and returns early instead of
+;; spawning a new one. Unreachable by every landed caller (each already
+;; suspends on (while *fmv-player* (suspend)) until die above clears it, so
+;; *fmv-player* is always #f by the time the next fmv-player-run call runs);
+;; omitted rather than ported blind.
+;;
+;; This is otherwise a hand-authored port body, not a re-attempted decode:
+;; title-obs.gc's own (enter target-intro) :code (title-obs.gc:1092-1104) is
+;; the proven "wait on dma-try-alloc, tag 'X, until it succeeds" shape for
+;; this exact title-state file, just with lobby-menu-manager.gc:328/810's
+;; 'fmv-player tag and #x80040/#x80040 sizing instead of title-control's
+;; #xd2800 (no equivalent dma-try-alloc call exists in fmv-player-run itself
+;; per the scoped decode, but the retail buffer-reservation contract for this
+;; exact tag is evidenced at both those call sites, so it is kept here rather
+;; than dropped).
+;;
+;; The "movie index" carried in gui-id (fmv-mode is already claimed, set to 1
+;; by init-by-other above) is m2v-info-index-by-name's array position -- NOT
+;; the :name-mate :idx field (game-info.gc:575-581 shows :idx is a UI
+;; "currently selected" flag reset to 0 on every entry then set to 1 on entry
+;; 0 alone, unrelated to identity, and confirmed unrelated by this rung's own
+;; decode: the lookup loop indexes *m2v-info* by a plain incrementing
+;; counter, never reads :idx at all). gui-id is read back by playing/die
+;; above when they emit the frame record's movie-id, and by TextureAnimator's
+;; own movie-id -> MJV-basename table (jakx-fmv-boot-movies rung 2, same
+;; array order).
+(defun m2v-info-index-by-name ((name string))
+  "Array position of the *m2v-info* entry whose :sound or :name matches
+   (retail's own lookup order, ops 141-168), or -1."
+  (let ((found -1))
+    (dotimes (i (-> *m2v-info* length))
+      (when (and (= found -1)
+                 (or (nocase-string= name (the-as string (-> *m2v-info* i sound)))
+                     (nocase-string= name (the-as string (-> *m2v-info* i name)))
+                     )
+                 )
+        (set! found i)
+        )
+      )
+    found
+    )
+  )
+
+(defun fmv-player-run ((arg0 string) (arg1 process-tree) (arg2 symbol))
+  (kill-by-type fmv-player *active-pool*)
+  (let ((movie-idx (m2v-info-index-by-name arg0)))
+    (when (>= movie-idx 0)
+      (let ((v1-0 (new 'stack-no-clear 'array 'pointer 2)))
+        (while (not (dma-try-alloc #x80040 #x80040 'fmv-player 0 (&-> v1-0 0) (&-> v1-0 1) #f))
+          (suspend)
+          )
+        )
+      (let ((new-proc (process-spawn fmv-player :init fmv-player-init-by-other :name "fmv-player" :to arg1)))
+        (when new-proc
+          (set! *fmv-player* (the-as fmv-player new-proc))
+          (set! (-> (the-as fmv-player new-proc) gui-id) (the uint movie-idx))
+          )
+        )
+      )
+    )
+  #t
   )
