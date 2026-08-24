@@ -550,7 +550,14 @@
           (matrix-copy! (-> gp-0 inv-camera-rot-smooth) (-> gp-0 inv-camera-rot))
           )
         )
-      (when (and (!= *master-mode* 'menu) *display-camera-info*)
+      (when (and (not *debug-draw-pauseable*) (!= *master-mode* 'menu) *display-camera-info*)
+        ;; og:preserve-this guard (issue 755): deliberate divergence from the decoded
+        ;; body. end-display draws *stdcon0* and *stdcon1* both, and jakx uniquely
+        ;; calls update-camera from the pause-masked lobby manager as well as the
+        ;; display loop, so this block used to print into both consoles. gkernel.gc
+        ;; sets *debug-draw-pauseable* (gstring.gc:818) in lockstep with the console
+        ;; select (gkernel.gc:1560-1568), true only for the pause-masked second copy,
+        ;; so excluding it leaves only the display loop's own view context 0 copy.
         (format *stdcon* "~0k")
         ;; og:preserve-this guard: target-pos' home not landed yet
         (when (and (nonzero? target-pos) (view-get-active-target))
