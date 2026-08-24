@@ -212,17 +212,22 @@ TEST(MjvVideoReader, FrameIndexFollowsFpsAndClampsPastTheEnd) {
 TEST(FmvMovieBasename, KnownIdsMapToTheExpectedName) {
   // First (id 0) and last (id 42) entries of *m2v-info*'s own :name order
   // (goal_src/jakx/engine/scene/fmv-player-h.gc), plus one from the middle, spot-check
-  // the full 43-entry table without hand-duplicating every row here.
+  // the full 43-entry table without hand-duplicating every row here. Id 43 ("LOGO",
+  // issue 762) is the burning-X login movie, appended past *m2v-info*'s own range for
+  // the texture-anim path (movie-texture-anim-func/-init) rather than fmv-player-run's
+  // disc-M2V lookup.
   EXPECT_EQ(TextureAnimator::fmv_movie_basename(0), "INTRO.MJV");
   EXPECT_EQ(TextureAnimator::fmv_movie_basename(42), "THX.MJV");
   EXPECT_EQ(TextureAnimator::fmv_movie_basename(38), "INTROB2.MJV");
+  EXPECT_EQ(TextureAnimator::fmv_movie_basename(43), "LOGO.MJV");
 }
 
 TEST(FmvMovieBasename, OutOfRangeIdsReturnEmptyRatherThanAsserting) {
   // A bad movie-id from GOAL is data, not a C++ bug (handle_fmv_frame's own fail-soft
-  // posture) -- confirm the boundary on both sides rather than just one.
+  // posture) -- confirm the boundary on both sides rather than just one. 44 is the
+  // first invalid id now that 43 (LOGO, issue 762) is a real entry.
   EXPECT_EQ(TextureAnimator::fmv_movie_basename(-1), "");
-  EXPECT_EQ(TextureAnimator::fmv_movie_basename(43), "");
+  EXPECT_EQ(TextureAnimator::fmv_movie_basename(44), "");
   EXPECT_EQ(TextureAnimator::fmv_movie_basename(1000), "");
 }
 

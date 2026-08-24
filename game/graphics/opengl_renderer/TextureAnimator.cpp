@@ -2011,12 +2011,20 @@ void TextureAnimator::handle_generic_upload(const DmaTransfer& tf, const u8* ee_
 /*!
  * Movie-id -> disc-M2V basename (jakx-fmv-boot-movies rung 2), used with a ".MJV"
  * extension to open the transcoded container gen_mjv.py produces under out/jakx/fmv/.
- * Mechanical transcription of *m2v-info*'s own :name field, in array order
- * (goal_src/jakx/engine/scene/fmv-player-h.gc); fmv-player.gc's own
+ * Entries 0-42 are a mechanical transcription of *m2v-info*'s own :name field, in
+ * array order (goal_src/jakx/engine/scene/fmv-player-h.gc); fmv-player.gc's own
  * m2v-info-index-by-name computes this same array position as the GOAL-side "movie
  * index" it carries in the spawned process's gui-id field, so the two sides agree by
  * construction on what id N means rather than by a second hand-typed order that could
  * drift from the first.
+ *
+ * Entry 43 ("LOGO", issue 762) is not an *m2v-info* entry at all: it is the burning-X
+ * login movie (iso_data/jakx/STR/LOGO.IPU), driven by the texture-anim path
+ * (movie-texture-anim-func/-init, goal_src/jakx/engine/scene/fmv-player.gc) rather
+ * than fmv-player-run's disc-M2V lookup, so it has no m2v-info-index-by-name
+ * counterpart on the GOAL side -- movie id 43 is reserved for it here by convention,
+ * matching *menu-movie-texture-anim-array*'s own array-data 0 tex-name
+ * "iscreen-video-dest" wiring, not any GOAL-side table position.
  */
 std::string TextureAnimator::fmv_movie_basename(int movie_id) {
   static const char* const kMovieNames[] = {
@@ -2026,10 +2034,11 @@ std::string TextureAnimator::fmv_movie_basename(int movie_id) {
       "KLBORAIN", "KLBORACE", "BLFADIED", "KRDIARY",  "JACORAZE", "CAWETRMI", "PEHAINFO",
       "RAGENAST", "JABERAZO", "MIOFDEAL", "BLFAKILL", "JAKIKREW", "BLBAALL",  "FIBORAIN",
       "OUTROA",   "OUTROB",   "OUTROC",   "INTROB2",  "BLOOPERS", "MAKINGIN", "HOTCOFFE",
-      "THX",
+      "THX",      "LOGO",
   };
   constexpr int kMovieCount = sizeof(kMovieNames) / sizeof(kMovieNames[0]);
-  static_assert(kMovieCount == 43, "*m2v-info* has 43 entries (fmv-player-h.gc)");
+  static_assert(kMovieCount == 44,
+                "*m2v-info* has 43 entries (fmv-player-h.gc) plus LOGO (issue 762)");
   if (movie_id < 0 || movie_id >= kMovieCount) {
     return "";
   }
@@ -2058,7 +2067,7 @@ void TextureAnimator::handle_fmv_frame(const DmaTransfer& tf) {
 
   auto basename = fmv_movie_basename(rec->movie_id);
   if (basename.empty()) {
-    lg::warn("[fmv] movie-id {} is out of range (*m2v-info* has 43 entries), ignoring frame",
+    lg::warn("[fmv] movie-id {} is out of range (kMovieNames has 44 entries), ignoring frame",
              rec->movie_id);
     return;
   }
