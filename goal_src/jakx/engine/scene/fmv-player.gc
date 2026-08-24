@@ -21,6 +21,28 @@
   #f
   )
 
+;; og:preserve-this bring-up stub: fmv-player-run is a declaration-side extern
+;; with no defun anywhere (the same extern-no-defun class as
+;; fmv-player-run-texture above, issue 729 feeding issue 569's FMV road). The
+;; live call sites are title-obs.gc's target-intro (twice: "thx" then "intro")
+;; and target-introb ("introb"), each followed immediately by
+;; (while *fmv-player* (suspend)); *fmv-player* is landed
+;; (fmv-player-h.gc:61) defaulting to #f and this stub never sets it, so those
+;; wait loops fall through on the first check instead of hanging on a
+;; process that never spawns. This is NOT retail's body: a scoped decode of
+;; fmv-player.o (this rung) shows fmv-player-run doing real work (killing any
+;; live fmv-player, resolving the "fmvlev" level's texture-page, aspect-ratio-
+;; dependent matrix setup, *fmv-work* writes) before running out of field-
+;; layout evidence for *fmv-work* itself -- squarely issue 569's own scope (no
+;; M2V decoder exists in any game for this format), not a thin wrapper this
+;; rung could land instead. Returning #f disarms the landmine (the title
+;; states fall straight through to their post-movie continue dispatch) without
+;; claiming FMV playback works; retires when the real FMV landing (issue 569)
+;; lands the actual body.
+(defun fmv-player-run ((arg0 string) (arg1 process-tree) (arg2 symbol))
+  #f
+  )
+
 ;; ============================================================================
 ;; L2 FMV frame path (issue 569): the TBP allocation, the fullscreen quad, and a
 ;; REPL probe that emits one code-87 (fmv-frame) record for a given elapsed-ms.

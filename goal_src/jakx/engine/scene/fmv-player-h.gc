@@ -15,6 +15,28 @@
 ;; rung's investigation of this exact call site).
 (define-extern fmv-player-run-texture (function int process-tree symbol))
 
+;; og:preserve-this fmv-player-run: title-state-bodies rung (issue 729, feeding
+;; issue 569's FMV road). title-obs.gc's target-intro/target-introb :code (the
+;; retail bodies decoded clean this rung with a temporary, reverted
+;; fmv-player-run signature override) call it three times, always with the
+;; same 3-argument shape: a literal movie-name string matching *m2v-info*'s own
+;; :name field ("thx"/"intro"/"introb"), *target-pool*, and a literal #f whose
+;; meaning is not evidenced by any call site (every caller passes the same
+;; constant). The return value is discarded at all three call sites (each call
+;; is followed by an unconditional branch past any check of v0), so the return
+;; type is unconstrained by evidence; symbol matches fmv-player-run-texture's
+;; own sibling declaration immediately above.
+;;
+;; A scoped decode of fmv-player.o itself (this rung, reverted) confirms
+;; fmv-player-run is not a thin wrapper: op 17 alone is already killing a
+;; process, resolving the "fmvlev" level's texture-page, and writing into
+;; *fmv-work* at offset 84 before the decompiler's own field-layout evidence
+;; for that global runs out ("Could not figure out load: (l.wu (+ s3 84))"),
+;; with aspect-ratio-dependent matrix setup following it. This is issue 569's
+;; own FMV-road scope (no M2V decoder exists in any game for this format), not
+;; a call this rung can land.
+(define-extern fmv-player-run (function string process-tree symbol symbol))
+
 ;; DECOMP BEGINS
 
 (deftype m2v-caption (structure)

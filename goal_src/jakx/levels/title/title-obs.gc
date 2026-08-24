@@ -1034,7 +1034,6 @@
   :post post-memcard
   )
 
-;; failed to figure out what this is:
 (defstate target-intro (target)
   :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
     (target-generic-event-handler proc argc message block)
@@ -1055,13 +1054,124 @@
   :exit (behavior ()
     '()
     )
-  ;; og:preserve-this: the retail :code handler decoded as a raw label
-  ;; (L17), same defect class as this file's other omitted raw-label
-  ;; state slots.
+  ;; og:preserve-this landed for real, title-state-bodies rung (issue 729): the
+  ;; retail :code handler previously decoded as a raw label (L17) only because
+  ;; two evidence gaps blocked it, both closed this rung with temporary,
+  ;; reverted decompiler-config hints (never landed): fmv-player-run's own
+  ;; extern was a bare, unsigned `function` (all-types.gc), and the
+  ;; dma-try-alloc call's stack-allocated 2-pointer out-array at sp+16 had no
+  ;; stack_structures.jsonc entry (the identical shape already documented
+  ;; there for "(code init-state lobby-menu-manager)" and
+  ;; "adventure-map-fade-out"). With both supplied, this object decodes with
+  ;; zero decompiler errors -- a clean-grade transcription, not a blueprint.
+  ;;
+  ;; Every call here except fmv-player-run is landed: check-language
+  ;; (this file), dma-try-alloc (lobby-dma.gc), title-control-spawn (this
+  ;; file), search-process-tree (gkernel.gc), dma-release (lobby-dma.gc),
+  ;; mc-get-slot-info (a C-kernel extern, kernel-defs.gc), kiosk? (main.gc),
+  ;; auto-save-command (game-save.gc), and game-info-method-18 (game-info.gc,
+  ;; already called with this exact "menu2-start" literal at
+  ;; net-world.gc:789). The body plays the THX/Dolby logo sting via
+  ;; title-control-spawn, then two movies back to back via fmv-player-run
+  ;; ("thx" then "intro", both named entries in *m2v-info* above), then
+  ;; dispatches a 'continue message carrying the resolved "menu2-start" or
+  ;; "menu2-start-button" continue-point.
+  ;;
+  ;; fmv-player-run itself is the extern-no-defun class (fmv-player.gc's own
+  ;; stub, issue 569/729): retail's fmv-player.o is confirmed by this rung's
+  ;; own scoped decode to hold a real, substantial function (level/texture-
+  ;; page lookups, aspect-ratio matrix setup, *fmv-work* writes) that runs out
+  ;; of field-layout evidence almost immediately -- issue 569's own FMV-road
+  ;; scope (no M2V decoder exists in any game for this format), not something
+  ;; this rung invents. The call sites here are transcribed verbatim (retail-
+  ;; faithful); the stubbed callee never sets *fmv-player*, so the two
+  ;; (while *fmv-player* (suspend)) waits fall through immediately instead of
+  ;; hanging -- the movies are skipped, not played, and the state proceeds
+  ;; straight to its post-movie continue dispatch. Retires when issue 569
+  ;; lands fmv-player-run's real body.
+  :code (behavior ()
+    (check-language)
+    (until #f
+      (let ((v1-0 (new 'stack-no-clear 'array 'pointer 2)))
+        (when (dma-try-alloc #xd2800 #xd2800 'title-control 0 (&-> v1-0 0) (&-> v1-0 1) #f)
+          (suspend)
+          (suspend)
+          (goto cfg-5)
+          )
+        )
+      (suspend)
+      0
+      )
+    #f
+    (label cfg-5)
+    (suspend)
+    (suspend)
+    (title-control-spawn 'thx-dolby)
+    (while (search-process-tree
+             *active-pool*
+             (the-as
+               (function process-tree object)
+               (lambda ((arg0 object)) (= (l.wu (+ (the-as uint arg0) -4)) title-control))
+               )
+             )
+      (suspend)
+      )
+    (dma-release 'title-control)
+    (fmv-player-run "thx" *target-pool* #f)
+    (while *fmv-player*
+      (suspend)
+      )
+    (fmv-player-run "intro" *target-pool* #f)
+    (while *fmv-player*
+      (mc-get-slot-info 0 *progress-save-info*)
+      (suspend)
+      )
+    (cond
+      ((kiosk?)
+       (cond
+         ((= *game-mode* 'adventure)
+          (set! *game-mode* #f)
+          (let ((t9-9 auto-save-command)
+                (a0-8 'restore)
+                (a1-5 0)
+                (a2-3 *profile-slot*)
+                (t0-1 #f)
+                )
+            (t9-9 a0-8 a1-5 a2-3 self t0-1)
+            )
+          )
+         ((= *game-mode* 'online)
+          (set! *game-mode* #f)
+          (let ((t9-10 auto-save-command)
+                (a0-10 'restore)
+                (a1-6 0)
+                (a2-4 *profile-slot*)
+                (t0-2 #f)
+                )
+            (t9-10 a0-10 a1-6 a2-4 self t0-2)
+            )
+          )
+         (else
+           (let ((v1-16 (game-info-method-18 *game-info* "menu2-start-button")))
+             (send-event self 'continue v1-16)
+             )
+           )
+         )
+       )
+      (else
+        (let ((v1-19 (game-info-method-18 *game-info* "menu2-start")))
+          (send-event self 'continue v1-19)
+          )
+        )
+      )
+    (until #f
+      (suspend)
+      )
+    #f
+    )
   :post target-no-move-post
   )
 
-;; failed to figure out what this is:
 (defstate target-introb (target)
   :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
     (target-generic-event-handler proc argc message block)
@@ -1082,10 +1192,61 @@
   :exit (behavior ()
     '()
     )
-  ;; og:preserve-this: the retail :code handler decoded as a raw label
-  ;; (L7), same defect class as this file's other omitted raw-label state
-  ;; slots.
+  ;; og:preserve-this landed for real, title-state-bodies rung (issue 729):
+  ;; same shape and same fmv-player-run stub-out as target-intro's own note
+  ;; above, just the one "introb" movie and a single post-movie continue
+  ;; dispatch to "menu2-start" (no kiosk?/game-mode branching). Zero
+  ;; decompiler errors with the same temporary fmv-player-run signature
+  ;; override (reverted); no dma-try-alloc call here, so the
+  ;; stack_structures.jsonc hint was not needed for this state.
+  :code (behavior ()
+    (fmv-player-run "introb" *target-pool* #f)
+    (while *fmv-player*
+      (suspend)
+      )
+    (let ((v1-3 (game-info-method-18 *game-info* "menu2-start")))
+      (send-event self 'continue v1-3)
+      )
+    (until #f
+      (suspend)
+      )
+    #f
+    )
   :post target-no-move-post
+  )
+
+;; og:preserve-this bring-up-parked (title-state-bodies rung, issue 729):
+;; target-title-start is target-h.gc's own bare :states entry with no
+;; defstate ever landed behind it anywhere in the corpus -- the same R10
+;; zero-slot class target-float carried before its own stub landed
+;; (logic-target.gc). The symbol name itself is real retail data (found
+;; embedded verbatim in target-death.go's own compiled relocation strings by
+;; this rung's own raw-object extraction, the same shape target-title's own
+;; name carries in that object), and the path is genuinely reachable:
+;; level-info.gc's "menu2-start-button" continue-point (lines 12141-12143)
+;; carries :flags (continue-flags title-movie), the only flag
+;; arrive-at-continue routes to (go target-title-start).
+;;
+;; This rung searched exhaustively before concluding no object anywhere in
+;; the corpus defines it: a full-text grep across all of goal_src/jakx, a
+;; scoped decode of title-obs and target-death (the two objects any
+;; deftype/defstate or call-site evidence points at), and a wider scoped
+;; decode of every other title/movie/scene-adjacent object in game.gd
+;; (fmv-player, fmv-player-h, scene, movie-path, task-scenes,
+;; intro-scenes/intro-scenes2/intro-scenes3, credits-obs, scene-actor) --
+;; none define it. Landing the real body is therefore not this rung's
+;; evidence to land; the honest minimal fix is target-float's own shape: a
+;; real, correctly-typed, sleep-code-only stand-in that closes the hazard
+;; this exact symbol would otherwise hit the moment "menu2-start-button" is
+;; reached (the extern-no-defun/goal-0 class, worse than issue #716's own
+;; :code-only guard since the whole state object would be #f here, not just
+;; its :code field) without asserting any of retail's real behavior.
+;; Retirement condition: the real target-title-start state lands, in an
+;; object this investigation did not reach.
+(defstate target-title-start (target)
+  :code (behavior ()
+    (sleep-code)
+    )
   )
 
 ;; definition for symbol *end-credits-proc*, type (pointer handle)
