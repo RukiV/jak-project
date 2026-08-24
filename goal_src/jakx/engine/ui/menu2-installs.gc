@@ -145,19 +145,51 @@
 
 ;; base-menu-state-51 ("enter"): a real :state-methods slot (menu2-h.gc), so this
 ;; uses defstate directly, matching a697acd0a's own round-12 stub for the same
-;; slot. The decode (menu2.gc:825-836, gp-1) sets :event and :post to real
-;; values, both landed below, but its own :code is the bare label `L763` - no
-;; corresponding defun anywhere in the file, and nothing else in the dead text
-;; defines an L763 either (grepped). That is a decompiler control-flow miss (an
-;; address it never attributed to any lambda), not a typed-but-messy body like
-;; the two stubs above, so there is nothing to transcribe even garbled: :code
-;; stays sleep-code, carrying the same "safety net a working install would
-;; overwrite" framing a697acd0a used, until L763's actual code is recovered by
-;; some other means.
+;; slot. menu2.gc's own decode (825-836, gp-1) sets :event and :post to real
+;; values (landed below since the prior rung), but its own :code was the bare
+;; label `L763` with no corresponding defun anywhere in that file - a
+;; decompiler control-flow miss the menu2-quartet-landing rung's own read-only
+;; blueprint investigation (2026-08-23) separately resolved by name
+;; (anon-function 103, ir2 header 34939): the donor redecode this rung
+;; transcribes from (base-menu-event-handler-plus-states.gc) still shows the
+;; same bare L763 reference and so confirms the attribution rather than
+;; supplying the body itself; the body below is transcribed from the
+;; blueprint's own section 3 verbatim, including the trailing unreachable
+;; (sleep-code) every branch above it go-virtuals past (that is what the
+;; decode says, not a typo introduced here) and the ja-no-eval macro use the
+;; blueprint's own note calls for (it emits exactly the bytes op 35's
+;; art-element+32 frame-count read needs).
 (defstate base-menu-state-51 (base-menu)
   :virtual #t
   :event (the-as (function process int symbol event-message-block object) base-menu-event-handler)
-  :code sleep-code
+  :code (behavior ()
+          (if (-> self info-ptr trans-info)
+              (let ((v1-4 (-> self info-ptr trans-info enter-anim))
+                    (f30-0 (-> self info-ptr trans-info anim-speed))
+                    )
+                (cond
+                  ((= v1-4 -1)
+                   (if (-> self info-ptr 3d-menu-type)
+                       (go-virtual base-menu-state-52)
+                       )
+                   )
+                  (else
+                    (ja-no-eval :group! (the-as art-joint-anim (-> self draw art-group data v1-4))
+                                :num! (seek! max f30-0)
+                                :frame-num 0.0
+                                )
+                    (until (ja-done? 0)
+                      (suspend)
+                      (ja :num! (seek! max f30-0))
+                      )
+                    (go-virtual base-menu-state-52)
+                    )
+                  )
+                )
+              (go-virtual base-menu-state-52)
+              )
+          (sleep-code)
+          )
   :post default-base-menu-post
   )
 
@@ -203,4 +235,223 @@
           #f
           )
   :post default-base-menu-post
+  )
+
+;; base-menu-method-53 ("hide"): declared in menu2-h.gc as a plain :methods
+;; entry (base-menu-method-53 () none), not a named :state-methods slot,
+;; matching base-menu-method-50 above - method-set! on the raw method id with
+;; the same (the-as (function none) ...) cast around a positionally-built
+;; state object, since a bare `state` does not satisfy the (function none)
+;; typespec. base-menu-event-handler's own 'hide arm (menu2-quartet-
+;; blueprints.md section 4) dispatches here when the current state is not
+;; already 'hide, so this was the menu2-quartet-landing rung's own "LANDING
+;; HAZARD (the (e2) class)" (blueprint section 4): the slot was UNFILLED
+;; before this rung, so the first 'hide message would have run a nullptr
+;; function. :code and :enter are transcribed verbatim from the donor
+;; (base-menu-event-handler-plus-states.gc, gp-2). :event is NOT transcribed
+;; from the donor: the donor's own gp-2 sets it to the bare label `L749`,
+;; another decompiler control-flow miss with no corresponding defun anywhere
+;; in menu2.gc and nothing this rung's blueprint resolved (unlike L763 above).
+;; Installing base-menu-event-handler here (the same generic dispatcher every
+;; other slot in this family falls through to once its own special-cased
+;; messages are handled) is a safe, honest fallback rather than a guess at
+;; L749's real content; resolving L749 for real is a follow-up.
+(method-set!
+  base-menu
+  53
+  (the-as
+    (function none)
+    (new
+      'global
+      'state
+      'hide
+      (lambda :behavior base-menu
+        ()
+        (when (-> self info-ptr trans-info)
+          (let ((gp-0 (-> self info-ptr trans-info exit-anim)))
+            (-> self info-ptr trans-info anim-speed)
+            (let ((s5-0 0))
+              (when (!= gp-0 -1)
+                (until (< s5-0 0)
+                  (ja :group! (-> self draw art-group data gp-0) :num! (identity (the float s5-0)))
+                  (let ((v1-15 (and (-> self hidden?) (>= 60 s5-0))))
+                    (if v1-15
+                        (+! s5-0 1)
+                        (+! s5-0 -1)
+                        )
+                    )
+                  (suspend)
+                  )
+                (go-virtual base-menu-state-52)
+                )
+              )
+            )
+          )
+        (go-virtual base-menu-state-52)
+        )
+      (the-as (function object) #f)
+      default-base-menu-post
+      (lambda :behavior base-menu
+        ()
+        (let ((v0-0 #t))
+          (set! (-> self hidden?) (the-as basic v0-0))
+          v0-0
+          )
+        )
+      (the-as (function process int symbol event-message-block object) base-menu-event-handler)
+      )
+    )
+  )
+
+;; base-menu-method-55 ("exit"): same plain :methods slot class as
+;; base-menu-method-53 above, and the same "LANDING HAZARD" class - hide's own
+;; own event-handler forwards here via (go-virtual method-55-state) once the
+;; parent asks the widget to die (blueprint section 4, 'die arm). :event and
+;; :enter are transcribed verbatim from the donor (gp-4): the 'dying?/'die
+;; short-circuit wrapper (returns #t/#f directly rather than forwarding
+;; through base-menu-event-handler for those two messages, falling through to
+;; it for everything else) and the "tell every child to die" :enter. :code is
+;; NOT transcribed: the donor's own gp-4 sets it to the bare label `L718`, a
+;; third decompiler control-flow miss in this same family (alongside L749
+;; above and the now-resolved L763), with no corresponding defun anywhere in
+;; menu2.gc and nothing in this rung's blueprint (which only covers the four
+;; top-level functions plus L763) that resolves it. Held at sleep-code, the
+;; same honest-hold precedent base-menu-state-51 used for L763 before this
+;; rung; resolving L718 for real is a follow-up alongside L749.
+(method-set!
+  base-menu
+  55
+  (the-as
+    (function none)
+    (new
+      'global
+      'state
+      'exit
+      sleep-code
+      (the-as (function object) #f)
+      default-base-menu-post
+      (lambda :behavior base-menu
+        ()
+        (when (-> self child-handles)
+          (dotimes (gp-0 (-> self child-handles length))
+            (send-event (handle->process (-> self child-handles gp-0)) 'die)
+            )
+          #f
+          )
+        )
+      (the-as
+        (function process int symbol event-message-block object)
+        (lambda :behavior base-menu
+          ((arg0 object) (arg1 object) (arg2 object))
+          (local-vars (a3-0 none))
+          (case arg2
+            (('dying?)
+             #t
+             )
+            (('die)
+             #f
+             )
+            (else
+              (base-menu-event-handler
+                (the-as process arg0)
+                (the-as int arg1)
+                (the-as symbol arg2)
+                (the-as event-message-block a3-0)
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+
+;; base-menu-method-56 ("die"): a real :state-methods slot (menu2-h.gc), not a
+;; plain :methods entry like 53/55/57 - base-menu-event-handler's own 'die arm
+;; (blueprint section 4) dispatches here directly. Transcribed verbatim from
+;; the donor (gp-6): the same 'dying?/'die short-circuit :event and
+;; "tell every child to die" :enter as base-menu-method-55 above (the donor
+;; repeats this wrapper by value at both sites rather than sharing a named
+;; function, so it is transcribed twice here too), and a clean, fully-typed
+;; :code with no ERROR/WARN and no unresolved label - the state simply waits
+;; for (-> self child) to clear.
+(method-set!
+  base-menu
+  56
+  (the-as
+    (function none)
+    (new
+      'global
+      'state
+      'die
+      (lambda :behavior base-menu
+        ()
+        (while (-> self child)
+          (suspend)
+          )
+        #f
+        )
+      (the-as (function object) #f)
+      default-base-menu-post
+      (lambda :behavior base-menu
+        ()
+        (when (-> self child-handles)
+          (dotimes (gp-0 (-> self child-handles length))
+            (send-event (handle->process (-> self child-handles gp-0)) 'die)
+            )
+          #f
+          )
+        )
+      (the-as
+        (function process int symbol event-message-block object)
+        (lambda :behavior base-menu
+          ((arg0 object) (arg1 object) (arg2 object))
+          (local-vars (a3-0 none))
+          (case arg2
+            (('dying?)
+             #t
+             )
+            (('die)
+             #f
+             )
+            (else
+              (base-menu-event-handler
+                (the-as process arg0)
+                (the-as int arg1)
+                (the-as symbol arg2)
+                (the-as event-message-block a3-0)
+                )
+              )
+            )
+          )
+        )
+      )
+    )
+  )
+
+;; base-menu-method-57 ("dummy"): a plain :methods entry (base-menu-method-57
+;; (_type_) none), the newly-found seventh slot this donor redecode turned up
+;; (not covered by a697acd0a's own round-12 survey, which only stubbed
+;; 50/51/52). The donor (gp-5) sets only :code, to sleep-code itself - matching
+;; the name, this is a genuinely inert park state in retail, not a decode gap.
+;; :trans/:post/:enter/:event are left #f, matching the donor's own literal
+;; (which never calls set! on any of them), with the same explicit casts
+;; base-menu-method-50's original a697acd0a stub used for its own #f
+;; positions.
+(method-set!
+  base-menu
+  57
+  (the-as
+    (function none)
+    (new
+      'global
+      'state
+      'dummy
+      sleep-code
+      (the-as (function object) #f)
+      (the-as function #f)
+      (the-as (function object) #f)
+      (the-as (function process int symbol event-message-block object) #f)
+      )
+    )
   )
