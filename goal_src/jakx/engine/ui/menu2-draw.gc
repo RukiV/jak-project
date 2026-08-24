@@ -873,3 +873,231 @@
     (ret-none)
     )
   )
+
+;; dropdown-item's own state-52 install: real landing, issue 759, a2 rung's
+;; own STEP 4. The donor's own raw top level (menu2.gc:7890-7902, dead text)
+;; installs this exact shape - inherit-state from string-menu's own copy of
+;; base-menu-state-52 (base-menu's own default, since neither string-menu
+;; nor prim-strip-menu nor sprite-menu ever override slot 52 themselves),
+;; then method-set! dropdown-item's own copy, then overrides :exit/:trans/
+;; :post only (leaving :code inherited, i.e. sleep-code). The donor's own
+;; :name keyword-literal state constructor does not compile (menu2-
+;; installs.gc:1006-1011's own measured precedent), so this uses the same
+;; positional (new 'static 'state ...) form defstate itself expands to
+;; (goal_src/jakx/kernel/gstate.gc:177), with every constructor arg thrown
+;; away by inherit-state a moment later except the name.
+;;
+;; :exit/:trans/:post bodies are anonymous_function_types.jsonc:1710-1712's
+;; own anon-functions 41/42/43 of menu2-GAME, harvested from this slice's
+;; own scoped redecode (already typed :behavior dropdown-item) and matched
+;; to the donor's own L410/L411/L415 labels by cross-referencing each
+;; function's own entry label against the donor's own set! sequence
+;; (menu2.gc:7899-7901): L410 is anon-function 41 (:exit), L411 is
+;; anon-function 42 (:post), L415 is anon-function 43 (:trans).
+;;
+;; Settles this rung's own plan-unverified item 2 (which anon-function calls
+;; base-menu-method-62): anon-function 43, this :trans handler, dispatches
+;; to it twice through (method-of-type (-> self type) base-menu-method-62) -
+;; once with self's own pad value when a pad chord is active, once each with
+;; literal 0 and 1 when self's own pad value reads exactly 2 - method 62
+;; itself is not landed this slice (1036-line body, table B), but the
+;; dispatch is virtual/method-table-resolved rather than a plain symbol
+;; reference, so it carries no check_extern_defun exposure.
+(let ((new-state
+        (new
+          'static
+          'state
+          'running
+          (the-as function #f)
+          (the-as (function object) #f)
+          (the-as function #f)
+          (the-as (function object) #f)
+          (the-as (function process int symbol event-message-block object) #f)
+          )
+        )
+      )
+  (inherit-state new-state (method-of-type string-menu base-menu-state-52))
+  (method-set! dropdown-item 52 new-state)
+  ;; anon-function 41 (menu2-GAME, L410): menu-clear-strip on the row's own
+  ;; selection prim strip client (landed above, this same file).
+  (set! (-> new-state exit)
+        (the-as
+          (function object)
+          (lambda :behavior dropdown-item
+            ()
+            (local-vars (v0-0 none) (v1-0 basic) (a0-0 none) (t9-0 function))
+            (set! t9-0 menu-clear-strip)
+            (set! v1-0 (-> self p-client-selection))
+            (set! a0-0 (the-as none (l.wu v1-0)))
+            (set! v0-0 (the-as none (call!)))
+            (ret-value v0-0)
+            )
+          )
+        )
+  ;; anon-function 43 (menu2-GAME, L415): per-frame pad-driven selection
+  ;; change, chained through find-parent-method's own state-52 :trans.
+  (set! (-> new-state trans)
+        (the-as
+          (function object)
+          (lambda :behavior dropdown-item
+            ()
+            (local-vars
+              (v0-0 none)
+              (v0-1 none)
+              (v0-2 none)
+              (v0-3 function)
+              (v0-4 none)
+              (v1-0 basic)
+              (v1-1 basic)
+              (v1-3 int)
+              (v1-4 symbol)
+              (v1-5 int)
+              (v1-7 type)
+              (v1-8 none)
+              (v1-9 int)
+              (v1-11 type)
+              (v1-12 none)
+              (v1-13 type)
+              (v1-14 none)
+              (a0-0 int)
+              (a0-1 dropdown-item)
+              (a0-2 int)
+              (a0-3 dropdown-item)
+              (a0-4 dropdown-item)
+              (a0-5 type)
+              (a1-0 int)
+              (a1-1 int)
+              (a1-2 int)
+              (a1-3 int)
+              (t9-0 (function dropdown-item int none))
+              (t9-1 (function dropdown-item int none))
+              (t9-2 (function dropdown-item int none))
+              (t9-3 (function type int function))
+              (t9-4 none)
+              )
+            (when (begin (and (begin (set! v1-0 (-> self focused?)) v1-0) (set! v1-1 (-> self selected))) v1-1)
+              (cond
+                ((begin
+                   (or (begin (set! v1-3 (-> self pad)) (zero? v1-3))
+                       (begin (set! v1-5 (-> self pad)) (set! a0-0 (+ v1-5 -1)) (set! v1-4 (zero? a0-0)))
+                       )
+                   v1-4
+                   )
+                 (set! a0-1 self)
+                 (set! v1-7 (-> a0-1 type))
+                 (set! t9-0 (method-of-type v1-7 base-menu-method-62))
+                 (set! a1-0 (-> self pad))
+                 (call! a0-1 a1-0)
+                 (set! v1-8 v0-0)
+                 )
+                ((begin (set! v1-9 2) (set! a0-2 (-> self pad)) (= a0-2 v1-9))
+                 (set! a0-3 self)
+                 (set! v1-11 (-> a0-3 type))
+                 (set! t9-1 (method-of-type v1-11 base-menu-method-62))
+                 (set! a1-1 0)
+                 (call! a0-3 a1-1)
+                 (set! v1-12 v0-1)
+                 (set! a0-4 self)
+                 (set! v1-13 (-> a0-4 type))
+                 (set! t9-2 (method-of-type v1-13 base-menu-method-62))
+                 (set! a1-2 1)
+                 (call! a0-4 a1-2)
+                 (set! v1-14 v0-2)
+                 )
+                )
+              )
+            (if (begin
+                  (set! t9-3 find-parent-method)
+                  (set! a0-5 dropdown-item)
+                  (set! a1-3 52)
+                  (set! v0-3 (call! a0-5 a1-3))
+                  (set! t9-4 (the-as none (l.wu (+ v0-3 20))))
+                  t9-4
+                  )
+                (set! v0-4 (the-as none (call!)))
+                )
+            (ret-value v0-4)
+            )
+          )
+        )
+  ;; anon-function 42 (menu2-GAME, L411): default-base-menu-post plus the
+  ;; box-update clear, gated on the row's own selection-box flag, then
+  ;; chained to self's own virtual method 69 (dropdown-item-method-69, not
+  ;; landed this slice - virtual dispatch, no check_extern_defun exposure).
+  (set! (-> new-state post)
+        (the-as
+          function
+          (lambda :behavior dropdown-item
+            ()
+            (local-vars
+              (v0-0 none)
+              (v0-1 none)
+              (v0-2 none)
+              (v1-0 basic)
+              (v1-1 none)
+              (v1-2 none)
+              (v1-3 none)
+              (v1-6 none)
+              (v1-7 none)
+              (v1-8 none)
+              (v1-9 none)
+              (v1-10 none)
+              (v1-11 none)
+              (a0-0 none)
+              (a0-1 none)
+              (t9-0 function)
+              (t9-1 none)
+              (t9-2 none)
+              )
+            (when (begin
+                    (and (begin
+                           (if (begin
+                                 (set! t9-0 menu-clear-strip)
+                                 (set! v1-0 (-> self p-client-selection))
+                                 (set! a0-0 (the-as none (l.wu v1-0)))
+                                 (call!)
+                                 (set! v1-1 (the-as none (-> self info-ptr)))
+                                 (set! v1-2 (the-as none (l.bu (+ v1-1 23))))
+                                 (set! v1-3 (the-as none (logand v1-2 2)))
+                                 (nonzero? v1-3)
+                                 )
+                               (s.w! (+ self 568) #f)
+                               )
+                           (set! t9-1 (the-as none default-base-menu-post))
+                           (call!)
+                           (set! v1-6 (the-as none (l.wu (+ self 568))))
+                           v1-6
+                           )
+                         (and (begin (set! v1-8 (the-as none (l.wu (+ self 252)))) v1-8)
+                              (begin (set! v1-9 (the-as none (l.wu (+ self 556)))) v1-9)
+                              (begin (set! v1-10 (the-as none *hide-menus*)) (set! v1-7 (the-as none (not v1-10))))
+                              )
+                         )
+                    v1-7
+                    )
+              (set! a0-1 (the-as none self))
+              (set! v1-11 (the-as none (l.wu (+ a0-1 -4))))
+              (set! t9-2 (the-as none (l.wu (+ v1-11 292))))
+              (set! v0-2 (the-as none (call!)))
+              )
+            (ret-value v0-2)
+            )
+          )
+        )
+  )
+
+;; selection-menu-manager's own state-52 install: HELD, issue 759, a2 rung's
+;; own STEP 4. The harvested driver (anonymous_function_types.jsonc:1703,
+;; anon-function 10 of menu2-GAME, :behavior selection-menu-manager, donor
+;; label L82 at menu2.gc:12657-12665) calls find-first-selectable by plain
+;; symbol reference on its own :code path (guarded behind a live-child-
+;; handles/enabled/nonempty check) before chaining to find-parent-method's
+;; own base-menu-state-52 :code. find-first-selectable is extern-declared
+;; only (decompiler/config/jakx/all-types.gc:68717) with no defun anywhere
+;; in goal_src - the only body is dead menu2.gc:12497-12648, itself carrying
+;; three real decode errors and out of this slice's scope. Landing this
+;; install as specified would add a new check_extern_defun caller of an
+;; extern-no-defun symbol, which this rung's own gate battery must show as
+;; zero delta against baseline; holding it here keeps that true. Retirement
+;; condition: find-first-selectable lands a real body (its own rung; not
+;; touched here).
