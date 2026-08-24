@@ -50,6 +50,47 @@
                "Basic memory clear. Size in 1-byte units. Not an optimized version."
                (function pointer int symbol))
 
+;; menuboot12 root cause (issue 699): *ghost-rec* was define-extern'd object
+;; with no definition anywhere in goal_src (2 grep hits, both in this file,
+;; before this fix), so pre-game-type-menu's own
+;; (mem-clear! (the-as pointer *ghost-rec*) 100) read the raw symbol slot
+;; (0, an undefined global's default value) as a pointer and wrote through
+;; NULL -- the provisional-extern class as a runtime null-write, not the
+;; declared-new-without-defmethod class (issue 562), since this is a data
+;; symbol, not a vtable slot. The declared type (object) is itself opaque:
+;; no real ghost-record deftype is landed anywhere in this corpus
+;; (decompiler/config/jakx/all-types.gc's own ghost-info/ghost-file shapes
+;; are commented-out speculation, never landed, and neither one's own field
+;; layout matches the only other evidence found -- lobby-menu-manager.gc's
+;; own still-unlanded mc-ghost-error reader, whose raw disassembly derefs
+;; *ghost-rec*'s value at +4/+8/+12 as plain uint32 words, comfortably
+;; inside the 100-byte window this call clears). Landed here as an honest
+;; scaffold rather than an invented struct: a raw 100-byte heap block (the
+;; same (malloc 'global N) idiom this corpus already uses for every other
+;; opaque fixed-size scratch buffer, e.g. gkernel.gc's own *dram-stack*),
+;; cast through the declared type so the call site's own
+;; (the-as pointer *ghost-rec*) gets a real heap address instead of NULL.
+(define *ghost-rec* (the-as object (malloc 'global 100)))
+
+;; road audit (issue 699, menuboot12 follow-up): knet-dev9-present is
+;; define-extern'd above with no defun anywhere in the corpus -- the (e2)
+;; class (a call through this symbol links to address 0 and crashes exactly
+;; like the *ghost-rec* null-write above). It sits on pre-game-type-menu's
+;; own :code path behind (beta?) (*kernel-boot-message* = 'beta), so it is
+;; not reached on a normal boot, but it is still armed on this state's own
+;; code and this rung's own audit scope covers the whole :code body, not
+;; just the branch a default boot happens to take. The real body would read
+;; PS2 IOP dev9 hardware registers (network adapter presence); that is
+;; genuinely off-corpus, no decode evidence anywhere names the real check,
+;; so this is an honest stub rather than invented hardware logic. Returns 0
+;; (not 1), matching the call site's own (!= (knet-dev9-present) 1) test as
+;; "hardware not present," the conservative default a PC port with no PS2
+;; dev9 slot would report. Retirement condition: a scoped decode of the
+;; real IOP-side check, if one is ever found.
+(defun knet-dev9-present ()
+  0
+  )
+
 ;; definition for function lobby-safe-state?
 ;; lobby rung 3: zero explicit GOAL args (no a0-a3 read before use), reads
 ;; self (s6) directly, so it is landed as a :behavior lobby-menu-manager
