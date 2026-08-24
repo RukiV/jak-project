@@ -3110,7 +3110,26 @@
   ;; already re-points *external-cam-mode* to 'pad-1 on its own, and this lever
   ;; should drop the moment a second pad or a menu-driven picker exists
   ;; (cam-update.gc:354-356 maps 'pad-1 to pad index 1, anything else to index 0).
-  (when (and *jakx-external-cam-pad0* (not *jakx-external-cam-pad0-armed*) (nonzero? dm-cam-externalize))
+  ;;
+  ;; og:preserve-this boot-mode scoping (issue 724): this arm works around
+  ;; update-camera's own cond order (cam-update.gc:511-535), which takes
+  ;; *external-cam-mode* first, ahead of the camera-combiner arm the retail
+  ;; lobby camera chain drives (lobby-menu-manager sets 'mode-name 'cam-lobby
+  ;; after activate-bar, master spawns a cam-lobby slave, update-lobby-camera
+  ;; drives it from the "camera-6" entity) -- so an armed external cam beats
+  ;; the combiner and the lobby camera is structurally unreachable whenever
+  ;; this arm fires, even though retail itself never arms it (no lobby or
+  ;; menu object anywhere references *external-cam-mode*). Not fixed by
+  ;; clearing *external-cam-mode* on the lobby path instead: retail has no
+  ;; such write anywhere, and adding one would be an invented divergence
+  ;; from the retail chain rather than a transcription of it. A plain -boot
+  ;; boot already never arms this (default-menu.gc is a debug-segment file,
+  ;; so the nonzero? guard below fails, issue 745's class), so only a
+  ;; -debug acceptance boot was affected. Scoped to 'freeroam so a 'retail
+  ;; boot leaves the retail camera ring in charge and a 'freeroam boot keeps
+  ;; this as the free-camera convenience it always was. Retires alongside
+  ;; *jakx-boot-mode*.
+  (when (and *jakx-external-cam-pad0* (not *jakx-external-cam-pad0-armed*) (nonzero? dm-cam-externalize) (= *jakx-boot-mode* 'freeroam))
     (dm-cam-externalize 'pad-0 (debug-menu-msg press))
     (set! *jakx-external-cam-pad0-armed* #t)
     )

@@ -171,9 +171,14 @@
 ;; change what gp-0 holds. interface-cam-method-53 is a no-op on the
 ;; menu2 path: entity-by-name scans only levels whose status is 'active,
 ;; and hanginglamp-part-9 lives in rustyh (9 occurrences in raw_obj/
-;; rustyh.go, zero anywhere in menu2), which is not resident here, so the
-;; camera keeps whatever the stack vector seeded - an open question
-;; tracked on forge issue 724.
+;; rustyh.go, zero anywhere in menu2), which is not resident here.
+;; Retail's own activate-bar body has no store to the stack vector at all
+;; (25 instructions, only the four prologue saves), so retail also leaves
+;; the interface-cam model at stack garbage on the menu2 road where
+;; hanginglamp-part-9 is absent; this affects only the drawn
+;; skel-interface-cam model, never the camera, because update-lobby-camera
+;; discards the node-list bones it computes from *interface-cam* and takes
+;; the pose from the cam-string entity (issue 724).
 ;;
 ;; definition for function activate-bar
 ;; WARN: Return type mismatch (pointer process) vs object.
