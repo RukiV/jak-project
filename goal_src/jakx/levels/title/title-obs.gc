@@ -66,7 +66,19 @@
 ;; nullptr function! in process base-menu ... all five spawn sites pass
 ;; base-menu-init-by-other, which no landed object in any built DGO
 ;; defines"). Flip this to #t only once menu2.o has a row in game.gd.
-(define *jakx-menu-road-armed* #f)
+;;
+;; og:preserve-this retirement (issue 699, retail boot road): menu2.o now has a
+;; row (game.gd:570) with a real base-menu-init-by-other (menu2-installs.gc:694,
+;; menu2-installs.o at game.gd:398), so this lever's own stated retirement
+;; condition is met and it flips to #t here. The call site below no longer
+;; relies on this lever alone: the owner (issue 699 comment 23661) demanded a
+;; menu2 residency guard on the (lobby-start) call before any merge, since the
+;; want driver can evict menu2 out from under a call that assumes it stays
+;; resident. That guard is the real gate now; this lever stays live only as a
+;; kill switch for a session that wants the old og-stub boot back without
+;; touching the residency guard itself. Retires for real once the whole
+;; menu-road ladder is proven and every caller trusts residency alone.
+(define *jakx-menu-road-armed* #t)
 
 ;; definition for method 3 of type title-control
 (defmethod inspect ((this title-control))
@@ -1023,8 +1035,27 @@
     ;; og:preserve-this menu-road rung 3 round 8: gated by *jakx-menu-road-
     ;; armed* (see its own definition above) until menu2.o has a game.gd
     ;; row; #f here makes this identical to the pre-rung-3 og-stub boot.
+    ;;
+    ;; og:preserve-this residency guard (issue 699 comment 23661, owner-
+    ;; demanded before merge): lobby-start's own chain reaches into menu2, but
+    ;; the want driver can evict menu2 right after it was loaded (the
+    ;; forge-proven crash class: a default boot streams menu2 in, then the
+    ;; driver's own eviction pass discards it before the call, so lobby-start
+    ;; would dispatch through a dangling symbol into a freed heap). Checked
+    ;; the same level-status? shape jakx-boot-camera-placed's own residency
+    ;; poll uses above (level.gc:8473-8474, level-get + status 'loaded or
+    ;; 'active, not just level-get truthy since a level object can exist
+    ;; mid-load): only call through when menu2 is actually resident, else log
+    ;; one named line and skip the call instead of dispatching into a
+    ;; discarded heap. Retires when the want driver either stops evicting
+    ;; menu2 or menu2 gets pinned resident for the whole menu road.
     (when *jakx-menu-road-armed*
-      (lobby-start)
+      (let ((menu2-lev (level-get *level* 'menu2)))
+        (if (and menu2-lev (or (= (-> menu2-lev status) 'loaded) (= (-> menu2-lev status) 'active)))
+            (lobby-start)
+            (format 0 "lobby-start skipped: menu2 not resident~%")
+            )
+        )
       )
     )
   :exit (behavior ()
