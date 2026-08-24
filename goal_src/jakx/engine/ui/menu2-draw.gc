@@ -1101,3 +1101,25 @@
 ;; zero delta against baseline; holding it here keeps that true. Retirement
 ;; condition: find-first-selectable lands a real body (its own rung; not
 ;; touched here).
+
+;; base-menu slot 59 re-install: issue 759, a2 rung's own STEP 5, the a1
+;; idiom (menu2-installs.gc:994-996) applied to the one slot this rung
+;; fills. Section E's own vtable-snapshot hazard: menu2-h.o's deftype forms
+;; run before base-menu's own real method-59 exists, so any subtype that
+;; never gets its own method-59 override keeps the stale (nullptr) copy it
+;; snapshotted at deftype time, and base-menu-init-by-other calls method 59
+;; unconditionally on every spawned widget (menu2-installs.gc:871).
+;;
+;; jakx-logo-menu is the only type on this rung's own list (selection-
+;; menu-manager, dropdown-item, jakx-logo-menu) that actually needs the
+;; re-install: selection-menu-manager already carries its own real
+;; base-menu-method-59 (menu2-installs.gc:605, landed by a1) and
+;; dropdown-item now carries its own real base-menu-method-59 (landed
+;; above, this same file) - both write their own vtable slot 59 directly
+;; via their own defmethod's method-set!, so re-installing base-menu's
+;; generic stub over either here would silently replace the real body just
+;; landed with a no-op, a regression rather than the fix this idiom exists
+;; for. jakx-logo-menu has no method-59 override anywhere and its own
+;; deftype (menu2-h.gc:365) runs before base-menu's own stub
+;; (menu2-installs.gc:593), so it is the one type still exposed.
+(method-set! jakx-logo-menu 59 (method-of-type base-menu base-menu-method-59))
