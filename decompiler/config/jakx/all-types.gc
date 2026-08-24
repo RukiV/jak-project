@@ -56487,7 +56487,11 @@
    (pad-pre-wpn-current-target     uint8                     16      :offset-assert 4468)
    (wpn-current-target             uint64                            :offset-assert 4488)
    (wpn-current-target-acquired    uint64                            :offset-assert 4496)
-   (wpn-left                       uint64                            :offset-assert 4504)
+   ;; og:preserve-this wpn-left retyped uint64 -> handle: wvehicle-events.gc's
+   ;; own decode of handle-weapon-removed-event reads it via ld (64-bit) and
+   ;; stores a literal #f into it (the handle-clear idiom), the same evidence
+   ;; class as wpn-right directly below.
+   (wpn-left                       handle                            :offset-assert 4504)
    ;; og:preserve-this wpn-right retyped uint64 -> handle: wvehicle-events.gc's
    ;; own decode reads it via ld (64-bit) and stores a literal #f into it (the
    ;; handle-clear idiom), the same evidence class as power-slide-hud/
@@ -57251,7 +57255,13 @@
   )
 
 ;; (define-extern *ghost-info-ptr* object)
-;; (define-extern net-play-mode-race? function)
+;; og:preserve-this net-play-mode-race? wvehicle-events rung: wv-pickup-handler's
+;; own scoped decode calls it through the s7-relative symbol slot with a single
+;; byte-sized arg (either a literal mode ordinal or `(l.bu (+ ... 5))` off
+;; *net-world*'s net-state) in a0, and checks its return against s7 (the #f
+;; register), the boolean-compare idiom, not a raw integer zero test. Function
+;; itself is unlanded (net-race.o), so this is a signature-only extern.
+(define-extern net-play-mode-race? (function int symbol))
 ;; (define-extern get-task-node-id-from-location-and-event function)
 ;; (define-extern *default-vehicle-load-parts* object)
 ;; (define-extern encode-green-room-stats function)
@@ -64813,24 +64823,28 @@
 ;; from (method 81 wvehicle) (vehicle-event-handler's wvehicle override)
 ;; after it has already branched on the message symbol, so unlike
 ;; vehicle-event-handler itself they take no separate symbol arg. Every call
-;; site passes exactly three registers (a0/a1/a2); wv-set-handler's own body
-;; is the clearest evidence for all three: a0 is self (its own flags field
-;; read at raw 260, the vehicle/process-inherited offset, no wvehicle-only
-;; field forces a narrower type), a2 is read at raw 16 and 24, exactly
-;; event-message-block's own param array (uint64 6, offset-assert 16), and
-;; a1 is written before ever being read in every one of the eight bodies (a
-;; classic unused-argc register), so kept as int matching
-;; vehicle-event-handler's own argc slot. :behavior wvehicle lets each body's
-;; self/this resolve to the full wvehicle field set the same way
-;; vehicle-event-handler's own :behavior vehicle does.
-(define-extern wv-weapon-handler (function process int event-message-block object :behavior wvehicle))
-(define-extern wv-go-handler (function process int event-message-block object :behavior wvehicle))
-(define-extern wv-query-handler (function process int event-message-block object :behavior wvehicle))
-(define-extern wv-set-handler (function process int event-message-block object :behavior wvehicle))
-(define-extern wv-pickup-handler (function process int event-message-block object :behavior wvehicle))
-(define-extern wv-weapon-pickup-helper (function process int event-message-block object :behavior wvehicle))
-(define-extern handle-weapon-moved-event (function process int event-message-block object :behavior wvehicle))
-(define-extern handle-weapon-removed-event (function process int event-message-block object :behavior wvehicle))
+;; site passes exactly three registers (a0/a1/a2); a2 is read at raw 16 and
+;; 24, exactly event-message-block's own param array (uint64 6,
+;; offset-assert 16). The prior pass here kept a0 at plain process and a1 at
+;; int (an unused-argc guess), but a scoped decode with a0 narrowed to
+;; wvehicle and a1 retyped to vehicle-weapon-slot decodes
+;; handle-weapon-removed-event fully clean: its body reads (-> arg1 in-slot),
+;; (-> arg1 my-type) and (-> arg1 name), all real vehicle-weapon-slot fields
+;; (wvehicle-weapons-h.gc:81-88), and every arg0 field access it makes
+;; (wpn-left, wpn-right, wpn-shield, wpn-oil, wpn-turbo, wpn-bulldog-gun,
+;; hack-armed-left, hack-armed-right, event-target-handle) is a real wvehicle
+;; field. The old "process" self type left the shared flags-field read
+;; (raw offset 260) unresolved in every one of the eight bodies (`(l.d (+ gp
+;; 260))`, a distinct register from the retyped arg0), so the narrower a0 is
+;; also what the other seven need, not just this one.
+(define-extern wv-weapon-handler (function wvehicle vehicle-weapon-slot event-message-block object :behavior wvehicle))
+(define-extern wv-go-handler (function wvehicle vehicle-weapon-slot event-message-block object :behavior wvehicle))
+(define-extern wv-query-handler (function wvehicle vehicle-weapon-slot event-message-block object :behavior wvehicle))
+(define-extern wv-set-handler (function wvehicle vehicle-weapon-slot event-message-block object :behavior wvehicle))
+(define-extern wv-pickup-handler (function wvehicle vehicle-weapon-slot event-message-block object :behavior wvehicle))
+(define-extern wv-weapon-pickup-helper (function wvehicle vehicle-weapon-slot event-message-block object :behavior wvehicle))
+(define-extern handle-weapon-moved-event (function wvehicle vehicle-weapon-slot event-message-block object :behavior wvehicle))
+(define-extern handle-weapon-removed-event (function wvehicle vehicle-weapon-slot event-message-block object :behavior wvehicle))
 ;; og:preserve-this vehicle rung: get-player-id and get-vehicle-player-id
 ;; are byte-for-byte identical bodies in this worktree's own vehicle_ir2.asm
 ;; (`(l.b (+ a0 2116))`, ret-value), both matching raw offset 2116 under the
