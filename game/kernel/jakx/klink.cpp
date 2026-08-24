@@ -693,6 +693,11 @@ uint32_t link_control::jakx_work_v5() {
     if (m_n_segments == 3) {
       // multi-segment: the entry point is always the top-level segment's code, same as
       // jakx_work_opengoal's "all done, can set the entry point to the top-level."
+      // og:preserve-this menu2-landing rung round 14 (issue 699, menuboot10): this
+      // assignment is field-for-field correct - audited against both jakx_work_opengoal's
+      // own entry assignment above and against what jakx_finish reads. The actual defect
+      // menuboot10 caught was downstream, in jakx_finish's non-opengoal dispatch never
+      // calling this entry as code; see that function's own og:preserve-this note.
       m_entry = Ptr<u8>(m_link_segments_table[TOP_LEVEL_SEGMENT].data) + 4;
     } else {
       // single-segment: unchanged from the original code - the one segment IS the object.
@@ -1047,16 +1052,58 @@ void link_control::jakx_finish(bool jump_from_c_to_goal) {
       output_segment_load(m_object_name, m_link_block_ptr, m_flags);
     }
   } else {
+    // og:preserve-this menu2-landing rung round 14 (issue 699, menuboot10): every object
+    // jakx_work_v5 links lands here (m_opengoal == false always - jakx_work asserts
+    // !m_opengoal before ever calling jakx_work_v5), but this branch was written for exactly
+    // one shape: a single-segment V5 DATA object (the 342 raw copies landed before round 11),
+    // where m_entry points at the object's own [type][data...] basic layout and the correct
+    // "did the load" action is calling that type's GOAL_RELOC_METHOD ("relocate", method 7 -
+    // see jakx::call_method_of_type_arg2's own doc comment, "used to 'relocate' v2/s4 loads")
+    // via call_method_of_type_arg2. Round 11 added a second shape without updating this
+    // branch: a 3-segment V5 object carrying real EE top-level CODE
+    // (decompiler_out/jakx/raw_obj/menu2-GAME.go's TOP_LEVEL_SEGMENT), whose m_entry points
+    // at [type=function][code...] - the SAME basic layout jakx_work_opengoal's own entry
+    // uses. That layout also passes call_method_of_type_arg2's validity checks (the type tag
+    // resolves to the real `function` type), so the call below never crashed and never
+    // asserted for menu2 - it silently invoked `function`'s own relocate method instead of
+    // the top-level code. That is the exact menuboot10 finding: base-menu-init-by-other,
+    // base-menu-event-handler, default-base-menu-post and *last-menu-action* all still read
+    // the fresh-symbol default of 0 after a clean, assert-free boot, because the top-level
+    // that stores into them never ran.
+    //
+    // The fix executes a 3-segment entry the same way jakx_finish's own m_opengoal branch
+    // above executes a compiled top-level - same jump_from_c_to_goal switch, same call_goal /
+    // call_goal_on_stack calls - since a 3-segment V5 top-level and a version-3 opengoal
+    // top-level are linked by different machinery but called identically once linked. The
+    // single-segment data path (the `else` below) is untouched: m_n_segments == 3 is the
+    // only new branch, and the added m_entry.offset gate is unconditionally true for every
+    // successfully-linked object of either shape (m_entry is only ever left at its
+    // jakx_begin-initialized 0 if a kmalloc failure inside jakx_work_v5 returned early), so
+    // it changes nothing for the 342 already-landed single-segment objects.
     if (m_flags & LINK_FLAG_EXECUTE) {
-      auto entry = m_entry;
-      auto name = basename_goal(m_object_name);
-      strcpy(Ptr<char>(LINK_CONTROL_NAME_ADDR).c(), name);
-      // printf(" about to call... (0x%x)\n", entry.offset);
-      Ptr<jakx::Type> type(*((entry - 4).cast<u32>()));
-      // printf(" type is %s\n", jakx::sym_to_cstring(type->symbol));
-      jakx::call_method_of_type_arg2(entry.offset, type, GOAL_RELOC_METHOD, m_heap.offset,
-                                     Ptr<char>(LINK_CONTROL_NAME_ADDR).offset);
-      // printf("  done with call!\n");
+      if (m_entry.offset) {
+        lg::debug("[jakx_finish] {} exec entry 0x{:x}", m_object_name, m_entry.offset);
+        if (m_n_segments == 3) {
+          if (jump_from_c_to_goal) {
+            u64 goal_stack = u64(g_ee_main_mem) + EE_MAIN_MEM_SIZE - 8;
+            call_goal_on_stack(m_entry.cast<Function>(), goal_stack, s7.offset, g_ee_main_mem);
+          } else {
+            call_goal(m_entry.cast<Function>(), 0, 0, 0, s7.offset, g_ee_main_mem);
+          }
+        } else {
+          auto entry = m_entry;
+          auto name = basename_goal(m_object_name);
+          strcpy(Ptr<char>(LINK_CONTROL_NAME_ADDR).c(), name);
+          // printf(" about to call... (0x%x)\n", entry.offset);
+          Ptr<jakx::Type> type(*((entry - 4).cast<u32>()));
+          // printf(" type is %s\n", jakx::sym_to_cstring(type->symbol));
+          jakx::call_method_of_type_arg2(entry.offset, type, GOAL_RELOC_METHOD, m_heap.offset,
+                                         Ptr<char>(LINK_CONTROL_NAME_ADDR).offset);
+          // printf("  done with call!\n");
+        }
+      } else {
+        lg::debug("[jakx_finish] {} no entry, skipping exec", m_object_name);
+      }
     }
   }
 
