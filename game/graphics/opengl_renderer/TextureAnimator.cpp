@@ -1568,15 +1568,6 @@ void TextureAnimator::handle_texture_anim_data(DmaFollower& dma,
       continue;
     }
 
-    // login logo movie (issue 762): mirror the FMV frame just decoded for this dest into its
-    // anim slot, the jak2/jak3 idiom Merc2's negative-texture-id branch reads. Guarded on the
-    // slot resolving at all (setup_texture_anims_jakx leaves it -1 if a config hasn't
-    // re-extracted the qualified slot name) and on this entry being the dest handle_fmv_frame
-    // just wrote, not just any GPU texture. copy_private_to_public below publishes it.
-    if (m_jakx_logo_movie_output_slot >= 0 && (int)tbp == m_fmv_current_dest) {
-      m_private_output_slots[m_jakx_logo_movie_output_slot] = entry.tex.value().texture();
-    }
-
     if (std::find(m_skip_tbps.begin(), m_skip_tbps.end(), tbp) != m_skip_tbps.end()) {
       continue;
     }
@@ -1664,6 +1655,27 @@ void TextureAnimator::force_to_gpu(int tbp) {
                    entry.data.data());
       glBindTexture(GL_TEXTURE_2D, 0);
       entry.kind = VramEntry::Kind::GPU;
+
+      // login logo movie (issue 762): mirror the FMV frame just decoded for this dest into its
+      // anim slot, the jak2/jak3 idiom Merc2's negative-texture-id branch reads. This is the
+      // real path a GENERIC_PSM32 fmv dest gets its GL texture through -- the "loop over
+      // textures and put them in the pool" pass below only ever sees the state force_to_gpu
+      // already produced, so mirroring here instead means the slot is updated at the point the
+      // upload actually happens rather than by later re-inspecting a kind flag. Guarded on the
+      // slot resolving at all (setup_texture_anims_jakx leaves it -1 if a config hasn't
+      // re-extracted the qualified slot name) and on this being the dest handle_fmv_frame just
+      // wrote, not just any GENERIC_PSM32 upload converted this frame (ocean, jungle water,
+      // etc. take this same case). copy_private_to_public, called once per
+      // handle_texture_anim_data after this loop, publishes it.
+      if (m_jakx_logo_movie_output_slot >= 0 && tbp == m_fmv_current_dest) {
+        GLuint gl_tex = entry.tex.value().texture();
+        m_private_output_slots[m_jakx_logo_movie_output_slot] = gl_tex;
+        if (m_jakx_logo_movie_publish_log_timer.getSeconds() >= 5.0) {
+          lg::info("[texture anim] JakX logo movie publish: slot {} <- gl texture {}",
+                   m_jakx_logo_movie_output_slot, gl_tex);
+          m_jakx_logo_movie_publish_log_timer.start();
+        }
+      }
     } break;
     case VramEntry::Kind::GENERIC_PSMT8: {
       // we have data that was uploaded in PSMT8 format. Assume that it will also be read in this

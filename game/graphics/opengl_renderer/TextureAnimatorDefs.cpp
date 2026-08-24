@@ -335,6 +335,11 @@ void TextureAnimator::setup_texture_anims_jakx() {
     lg::warn(
         "[texture anim] JakX logo movie output slot 'menu2-pris/iscreen-video-dest' is not "
         "registered, so the login logo will not receive decoded frames.");
+  } else {
+    // Decisive on the next boot (issue 762): confirms the qualified slot name actually
+    // resolved and names the index handle_fmv_frame's publish path is expected to hit.
+    lg::info("[texture anim] JakX logo movie output slot resolved to index {}",
+             m_jakx_logo_movie_output_slot);
   }
 }
 

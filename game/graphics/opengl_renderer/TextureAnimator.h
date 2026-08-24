@@ -11,6 +11,7 @@
 #include "common/dma/gs.h"
 #include "common/math/Vector.h"
 #include "common/texture/texture_conversion.h"
+#include "common/util/Timer.h"
 
 #include "game/graphics/opengl_renderer/Shader.h"
 #include "game/graphics/opengl_renderer/opengl_utils.h"
@@ -411,9 +412,10 @@ class TextureAnimator {
   // stop=1 frame -- covers a movie switch that never gets a clean stop first.
   int m_fmv_open_movie_id = -1;
   // The dest an incoming FMV frame targets, or -1 before the first frame (issue 762).
-  // handle_fmv_frame sets this every call; the publish loop reads it to know which
-  // m_textures entry to also mirror into m_jakx_logo_movie_output_slot, since that loop
-  // otherwise has no way to tell an FMV destination apart from any other VRAM entry.
+  // handle_fmv_frame sets this every call; force_to_gpu's GENERIC_PSM32 case reads it to know
+  // when the GENERIC_PSM32 entry it is converting is the FMV destination (as opposed to any
+  // other GENERIC_PSM32 upload, e.g. ocean or jungle water) and so should also mirror into
+  // m_jakx_logo_movie_output_slot.
   int m_fmv_current_dest = -1;
 
   struct TempTexture {
@@ -586,6 +588,9 @@ class TextureAnimator {
   // consumer, not create_fixed_anim_array (its tex_by_name lookup against the common tpage is
   // fatal for this texture, see the investigation this landed from).
   int m_jakx_logo_movie_output_slot = -1;
+  // Rate-limits the "publish fired" log in force_to_gpu's GENERIC_PSM32 case to once per 5
+  // seconds instead of once per frame (issue 762).
+  Timer m_jakx_logo_movie_publish_log_timer;
 
   std::vector<FixedAnimArray> m_fixed_anim_arrays;
 
