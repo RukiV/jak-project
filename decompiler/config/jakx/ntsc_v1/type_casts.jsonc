@@ -11619,5 +11619,72 @@
     [200, "s2", "shadow-bucket"],
     [136, "a0", "uint32"],
     [109, "v1", "shadow-dcache"]
+  ],
+
+  // menu2 quartet round 2 (scoped decode, allowed_objects ["menu2"]):
+  // default-base-menu-post op 110 loads (-> self info-ptr trans-info) into
+  // s1, statically typed animation-info (base-menu-info's own trans-info
+  // field type). The dropdown-only B12-B18 block (guarded by the
+  // (type? self dropdown-item) check at ops 101-108) reads s1+100 four
+  // times (ops 112/120/133/146, all the same s1 register, never
+  // reassigned in between) expecting dropdown-trans-info's selected-offset
+  // field, one past animation-info's own :size-assert #x64 span. Range
+  // covers op 110 (the assignment) through 146 (the last read); 147 is
+  // exclusive per the range convention.
+  //
+  // The same block re-derives self into s2 at op 111 (redundant with the
+  // (type? self dropdown-item) check at ops 101-108, which the decompiler
+  // does not narrow from) and reads dropdown-item's own 556/560/564/568/572
+  // fields (selected/p-client-selection/prev-selection/enabled/
+  // selected-offset) off it through op 191, the block's last use of s2
+  // before it is reassigned to vector-matrix*! at op 201.
+  "default-base-menu-post": [
+    [[110, 147], "s1", "dropdown-trans-info"],
+    [[111, 192], "s2", "dropdown-item"]
+  ],
+
+  // (method 58 base-menu) attempt 1: op 29 reads children[i] (now (array
+  // int32) per the all-types.gc retype), typed uint; op 30 then
+  // dereferences it as a pointer for a debug-name lookup feeding
+  // symbol->string at op 45-47. Reinterpreting the raw int32 as a pointer
+  // at the read site so the chase can proceed; see report for whether this
+  // clears op 30 or only advances the wall.
+  // (method 58 base-menu) debug-name lookup chain (ops 26-47, feeds
+  // symbol->string for a process-spawn print statement, not essential to
+  // the spawn logic itself): op 30 clears with a (pointer uint32) cast
+  // (element[i], now (array int32) per the retype, reinterpreted as a
+  // pointer for one more hop), but op 31's "(l.w (+ v1 -1))" stayed
+  // unresolved across three distinct casts at that op ((pointer uint32),
+  // basic, (pointer int8)) with the identical error each time -- stopped
+  // per the 3-attempts rule, reported as-is in the rung report.
+  "(method 58 base-menu)": [
+    [30, "v1", "(pointer uint32)"]
+  ],
+
+  // base-menu-init-by-other B30-B36 tail (the menuboot8-crash landing
+  // hazard): slot 50 (wait-enter) is a plain :methods entry, return type
+  // (function none), matching the landed method-set! stub's own retail-
+  // faithful declaration in menu2-h.gc (deliberately NOT :state-methods,
+  // per that file's own og:preserve-this note). op 361 reads the raw
+  // vtable entry at type+216 (slot 50) and op 362 stores it to self's
+  // next-state (offset 76); enter-state's own call at op 363 rejects it
+  // because the declared return type is (function none), not state. The
+  // landed body installs a real state object into that slot at runtime
+  // (method-set!), so this is a decode-time-only type gap, not a landing
+  // change to the deftype.
+  "base-menu-init-by-other": [
+    [362, "v1", "(state base-menu)"]
+  ],
+
+  // base-menu-event-handler: 'die dispatches to slot 55 (type+236) and
+  // 'hide dispatches to slot 53 (type+228), both plain :methods entries
+  // per the same retail-faithful shape as base-menu-init-by-other's slot
+  // 50 above (LANDING HAZARD class, blueprint section 4). Casting the
+  // vtable read at each store-to-next-state op the same way.
+  "base-menu-event-handler": [
+    [10, "v1", "(state base-menu)"],
+    [[404, 409], "v1", "vector"],
+    [[481, 485], "a3", "(pointer uint128)"],
+    [738, "v1", "(state base-menu)"]
   ]
 }

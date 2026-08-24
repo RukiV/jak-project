@@ -2065,5 +2065,28 @@
   // unguessable, address-only dead slot.
   // sp+112 is the same class as sp+80 above: computed (op 25) but never
   // dereferenced.
-  "update-lobby-camera": [[16, "matrix"], [80, "vector"], [112, "vector"]]
+  "update-lobby-camera": [[16, "matrix"], [80, "vector"], [112, "vector"]],
+
+  // menu2 quartet round 2 (scoped decode, allowed_objects ["menu2"]):
+  // base-menu-init-by-other's B15-B17 joint-anchor block builds two
+  // adjacent stack vectors, the blueprint's own tmp (sp+48) and s5-5
+  // (sp+32): tmp is filled with the anchor joint's bone-position quad
+  // (op 262, sq) then passed as transform-point-vector!'s own source arg;
+  // s5-5 is the call's destination, later split into pos-x/y/z after the
+  // 1792.0/1840.0 GS-origin subtraction. sp+32 (s5-5) resolves on its own
+  // because it is used directly as a typed call argument close to its
+  // declaration (op 249 -> op 264); sp+48 (tmp) only shows up first as a
+  // raw quad-store (op 262) before that same call, which the guesser
+  // cannot resolve on its own ("Failed to guess stack use for 48 in
+  // base-menu-init-by-other:250").
+  "base-menu-init-by-other": [[48, "vector"]],
+  // default-base-menu-post's own copy of the same joint-anchor idiom
+  // (B8 in the blueprint's section-2 lettering) declares gp (sp+16, the
+  // transform-point-vector! destination, resolves on its own the same way
+  // sp+32 does above) and s5 (sp+32) up front at ops 46/47, but s5's own
+  // first real dereference is not until the per-box loop roughly 225 ops
+  // later (op 274, the same transform-point-vector! idiom reused per box),
+  // far outside the guesser's lookahead window ("Failed to guess stack use
+  // for 32 in default-base-menu-post:47").
+  "default-base-menu-post": [[32, "vector"]]
 }
