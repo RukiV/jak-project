@@ -43,6 +43,24 @@
 (define-extern *sound-options-menu-info* base-menu-info)
 (define-extern *vibration-menu-info* selection-cache)
 (define-extern *fmv-m2v-name* string)
+;; og:preserve-this truthy-zero defusal (issue 699, PR 505 net-game-mgr
+;; precedent): *fmv-m2v-name* had no defun anywhere in the corpus (the
+;; extern-no-defun class check_extern_defun.py flags), so every read linked
+;; to raw 0 rather than a real symbol value. Grepped the scoped decode
+;; (decompiler_out/jakx/all-syms.gc:11666, plus fmv-player's own raw object,
+;; which is not decoded in this tree) for retail's real writer; none found
+;; cheaply, and landing fmv-player.gc's own writer is out of this rung's
+;; scope. Applied the same precedented shape 6849f2e30 used for
+;; *net-game-mgr*: a decode-derived (the-as string #f) placeholder, in the
+;; correct compile-order home (this file, immediately after its own extern,
+;; ahead of the one read site below). Audited the read site
+;; (string= "logo.ipu" *fmv-m2v-name*), lobby-menu-manager.gc's own only
+;; reference: string= (gstring.gc) itself already checks (zero? arg0) and
+;; (zero? arg1) before touching either string's data and returns #f early,
+;; and GOAL's #f is the literal 0 zero? tests against, so a #f
+;; *fmv-m2v-name* is tolerated without a fault; no extra guard needed at the
+;; call site. Retires when fmv-player.gc lands a real writer.
+(define *fmv-m2v-name* (the-as string #f))
 (define-extern *net-player-ladder-stats-info* (pointer stat-info))
 ;; lobby rung 3: retyped object -> base-menu-info, same evidence as
 ;; *game-options-menu-info* above.
@@ -2734,9 +2752,26 @@
   :code sleep-code
   )
 
+;; og:preserve-this bring-up bridge (issue 699 rung 3b, retail boot road): retail's
+;; own state-140 is the profile/memory-card screen, owned by unlanded
+;; lobby-profile.o slots 125-140 (lobby-profile.gc is a 9-line stub today). A
+;; *first-boot* cold boot with no *debug-segment* (lobby-net-startup.gc:201-212)
+;; go-virtuals here unconditionally on the retail cold-boot road this rung lands,
+;; so the sleep-code stub above would leave a plain default boot silently parked
+;; on a screen that never advances. Bridges past it instead: logs one named line,
+;; then takes the exact same lobby-menu-manager-method-182/go-virtual
+;; game-type-menu shape the landed else-arm at lobby-net-startup.gc:213-216 (and
+;; every other "open the main menu" call site in this file, e.g. local-init
+;; above) already uses, so a cold boot reaches the main menu instead of parking.
+;; Retires when forge issue 699 rung 3b lands lobby-profile and this state's real
+;; body replaces the bridge.
 (defstate lobby-menu-manager-state-140 (lobby-menu-manager)
   :virtual #t
-  :code sleep-code
+  :code (behavior ()
+    (format 0 "lobby-menu-manager-state-140: bridging past unlanded lobby-profile to game-type-menu~%")
+    (lobby-menu-manager-method-182 self *base-menu-info* 0)
+    (go-virtual game-type-menu)
+    )
   )
 
 ;; road audit (issue 699, menuboot12 follow-up): the same nullptr-function
