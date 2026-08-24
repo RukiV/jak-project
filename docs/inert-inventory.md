@@ -82,6 +82,7 @@ written is read-only by design and not a finding.
 | `*ignore-want-load-display*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
 | `*music-lock*` | 2 | `goal_src/jakx/engine/sound/gsound-h.gc` |
+| `*profile-slot*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-cam-collide-history*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-pal*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*record-fma-path-dry-run*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -199,7 +200,6 @@ written is read-only by design and not a finding.
 | `*previous-angle*` | 1 | `goal_src/jakx/levels/desert/wvehicle/wvehicle-race.gc` |
 | `*profile-h*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*profile-interrupt-start*` | 1 | `goal_src/jakx/engine/util/profile-h.gc` |
-| `*profile-slot*` | 1 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*profile-ticks*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*profile-w*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
 | `*profile-x*` | 1 | `goal_src/jakx/engine/util/profile.gc` |
