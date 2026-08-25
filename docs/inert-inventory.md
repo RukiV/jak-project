@@ -50,6 +50,7 @@ written is read-only by design and not a finding.
 | `*debug-reverb*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-path-marks*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-vol-marks*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
+| `*draw-debug-boxes*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*amy-cam*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-fix-frustum*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-fix-visible*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
@@ -77,7 +78,6 @@ written is read-only by design and not a finding.
 | `*display-sprite-info*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-sprite-marks*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-sprite-spheres*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*draw-debug-boxes*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*execute-regions*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*ignore-want-load-display*` | 2 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*kernel-boot-mode*` | 2 | `goal_src/jakx/kernel/gkernel.gc` |
