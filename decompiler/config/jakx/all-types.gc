@@ -20921,7 +20921,7 @@
   :size-assert         #x4
   :flag-assert         #xa00000004
   (:methods
-    (generate-dma! "Generate DMA for prim rendering." (_type_ matrix) none) ;; 9
+    (generate-dma! "Generate DMA for prim rendering." (_type_ matrix int) none) ;; 9
     )
   )
 
@@ -68705,8 +68705,22 @@
 ;; asm-fallback stores bare `function` was producing, and typing a0 as
 ;; prim-strip via a type_cast at op 0 only cleared one of the four. Left
 ;; unfixed pending a fuller prim-strip field-offset check at landing; retyping
-;; alone is a net regression here, same as base-menu-event-handler above.
-(define-extern menu-clear-strip function)
+;; the DEFINITION's own arg0 past int (matching how menu2-draw.gc's own
+;; landed defun still types it) is the net regression the comment above
+;; warns against, not this declaration's own arg/return shape.
+;; og:preserve-this issue 759's own prim-engine landing, slice 4 step 5:
+;; menu2-draw.gc's own landed defun (defun menu-clear-strip ((a0 int)) ...)
+;; already fixes the real signature; every caller in that file still goes
+;; through the raw (set! t9-N menu-clear-strip) / cast-and-call idiom to
+;; sidestep needing this declaration at all, but menu2-fx.gc's own new
+;; caller (base-menu-method-60 (prim-strip-menu)) calls it as a plain typed
+;; function, which the JakXTypeConsistency.TypeConsistency test's own
+;; whole-project "all-code" recompile (goal_src/jakx/game.gp's own
+;; comment: "used for the type consistency test") resolves against this
+;; declaration rather than the incrementally-learned type (mi) picks up,
+;; and failed with "unknown argument and return types and cannot be
+;; called" until this synced to match.
+(define-extern menu-clear-strip (function int int))
 ;; og:preserve-this retyped float, not the dead block's object: menu2-GAME's own
 ;; use is (s.f! METERS_PER_TEXEL f0-1), a float store, at op 365 of top-level-login.
 (define-extern METERS_PER_TEXEL float)
