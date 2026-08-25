@@ -546,14 +546,20 @@ void DirectRenderer::update_gl_test() {
   // RGB_ONLY means "write only color, never depth or alpha": without this, invisible
   // alpha-0 quads using the NEVER+RGB_ONLY idiom stamp depth and z-cull 3D drawn after
   // them (jak3 progress menu backdrop boxes cutting a hole through the menu ring).
-  // FB_ONLY keeps its existing double-draw handling untouched.
   bool alpha_trick_to_disable = m_test_state.alpha_test_enable &&
                                 m_test_state.alpha_test == GsTest::AlphaTest::NEVER &&
                                 (m_test_state.afail == GsTest::AlphaFail::FB_ONLY ||
                                  m_test_state.afail == GsTest::AlphaFail::RGB_ONLY);
 
-  if (m_test_state.afail == GsTest::AlphaFail::FB_ONLY ||
-      m_test_state.afail == GsTest::AlphaFail::RGB_ONLY) {
+  // The double draw partitions fragments around aref, so it only applies when the test
+  // can pass some fragments (GEQUAL/GREATER). Under ATST=NEVER every fragment fails, so
+  // the pass is a single no-depth-write draw; running the double draw instead stamps
+  // depth via its hardcoded first-draw depth mask (with a stale aref split), which
+  // z-culls later same-z passes against the tilted quads' interpolated depth (jakx menu
+  // and title text: the fill pass chopped by its own outline passes, issue 788).
+  if ((m_test_state.afail == GsTest::AlphaFail::FB_ONLY ||
+       m_test_state.afail == GsTest::AlphaFail::RGB_ONLY) &&
+      !alpha_trick_to_disable) {
     m_test_state_needs_double_draw = true;
   } else {
     m_test_state_needs_double_draw = false;
