@@ -1387,8 +1387,8 @@ void Merc2::do_draws(const Draw* draw_array,
     // State 3 exists because the login-logo band's movie draw (the X's interior, texture
     // sampled from the anim-slot array via TextureAnimator) bakes solid black into its
     // vertex rgba, and raw-unlit's straight pass-through of that baked color renders the
-    // interior black instead of the retail image. Retail's own GS dump (scratchpad
-    // gsdump\probe.txt) shows the PS2 submitting the chain constant (154,154,154,128) flat
+    // interior black instead of the retail image. The retail GS dump capture (issue 762)
+    // shows the PS2 submitting the chain constant (154,154,154,128) flat
     // on 100% of this draw's vertices instead of a baked color, so state 3 substitutes that
     // measured constant. The anim-slot movie draw is the only PRELIT_RAW draw with a
     // negative draw.texture (the anim-slot branch a few lines up binds
