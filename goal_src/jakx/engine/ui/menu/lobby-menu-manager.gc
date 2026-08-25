@@ -938,7 +938,7 @@
              )
             (('profile)
              (if (lobby-menu-manager-method-183 self #f #f)
-                 (go-virtual lobby-menu-manager-state-139)
+                 (go-virtual new-load-save-profile)
                  )
              )
             (('multiplayer)
@@ -1883,7 +1883,7 @@
           #f
           )
          (('cancel)
-          (go-virtual lobby-menu-manager-state-139)
+          (go-virtual new-load-save-profile)
           )
          (('event)
           (case (-> block param 1)
@@ -2754,43 +2754,32 @@
   :code sleep-code
   )
 
-;; og:preserve-this bring-up bridge (issue 699 rung 3b, retail boot road): retail's
-;; own state-140 is the profile/memory-card screen, owned by unlanded
-;; lobby-profile.o slots 125-140 (lobby-profile.gc is a 9-line stub today). A
-;; *first-boot* cold boot with no *debug-segment* (lobby-net-startup.gc:201-212)
-;; go-virtuals here unconditionally on the retail cold-boot road this rung lands,
-;; so the sleep-code stub above would leave a plain default boot silently parked
-;; on a screen that never advances. Bridges past it instead: logs one named line,
-;; then takes the exact same lobby-menu-manager-method-182/go-virtual
-;; game-type-menu shape the landed else-arm at lobby-net-startup.gc:213-216 (and
-;; every other "open the main menu" call site in this file, e.g. local-init
-;; above) already uses, so a cold boot reaches the main menu instead of parking.
-;; Retires when forge issue 699 rung 3b lands lobby-profile and this state's real
-;; body replaces the bridge.
-(defstate lobby-menu-manager-state-140 (lobby-menu-manager)
-  :virtual #t
-  :code (behavior ()
-    (format 0 "lobby-menu-manager-state-140: bridging past unlanded lobby-profile to game-type-menu~%")
-    (lobby-menu-manager-method-182 self *base-menu-info* 0)
-    (go-virtual game-type-menu)
-    )
-  )
+;; og:preserve-this retirement (issue 699 rung 3b, issue 759): the bring-up
+;; bridge that used to live here (a logged format plus an unconditional
+;; go-virtual game-type-menu, skipping the profile screen outright) is gone.
+;; lobby-profile.gc now lands boot-memory-card's real body (states 125-140
+;; plus 162, its own scoped decode), so a cold boot reaches the real profile
+;; screen instead of bridging past it; see that file for the landing and its
+;; own marker census. lobby-net-startup.gc's pre-game-type-menu/waiting-for-
+;; cd still go-virtual boot-memory-card directly, unchanged.
 
 ;; road audit (issue 699, menuboot12 follow-up): the same nullptr-function
 ;; trap as the three stubs above, found one to two hops past
 ;; pre-game-type-menu rather than on it directly. game-type-menu's own
 ;; :event handler (landed, real body, above in this file) go-virtuals into
 ;; four more numbered slots on player input -- 97 (customize), 26 (secrets),
-;; 139 (profile), 51 (multiplayer) -- and adventure-init's own :code
-;; (landed, real body, above in this file) go-virtuals unconditionally into
-;; 151 (demo?/kiosk?) or 114 (else) on every entry, no branch skips both.
-;; None of these six had ever been installed by any defstate or
-;; method-set! anywhere in the corpus either (lobby-menu-manager-h.gc's own
-;; :state-methods list reserves and types all six, same as 54/55/140 did),
-;; so every one of them was still armed to crash the same way. Landed as
-;; the same minimal inert park, not because their real bodies are known,
-;; but so a boot that reaches game-type-menu or adventure-init and takes
-;; any of these branches parks instead of crashing.
+;; new-load-save-profile (profile, landed lobby-profile.gc, issue 699 rung
+;; 3b), 51 (multiplayer) -- and adventure-init's own :code (landed, real
+;; body, above in this file) go-virtuals unconditionally into 151
+;; (demo?/kiosk?) or 114 (else) on every entry, no branch skips both.
+;; None of the four still numbered here had ever been installed by any
+;; defstate or method-set! anywhere in the corpus either
+;; (lobby-menu-manager-h.gc's own :state-methods list reserves and types
+;; all four, same as 54/55/140 did), so every one of them was still armed
+;; to crash the same way. Landed as the same minimal inert park, not
+;; because their real bodies are known, but so a boot that reaches
+;; game-type-menu or adventure-init and takes any of these branches parks
+;; instead of crashing.
 (defstate lobby-menu-manager-state-26 (lobby-menu-manager)
   :virtual #t
   :code sleep-code
@@ -2807,11 +2796,6 @@
   )
 
 (defstate lobby-menu-manager-state-114 (lobby-menu-manager)
-  :virtual #t
-  :code sleep-code
-  )
-
-(defstate lobby-menu-manager-state-139 (lobby-menu-manager)
   :virtual #t
   :code sleep-code
   )
