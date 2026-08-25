@@ -7,6 +7,15 @@
 
 ;; DECOMP BEGINS
 
+;; og:preserve-this forward declares, issue 759, a3 rung: get-keyboard-control
+;; and *keyboard-init-state* are real symbols, landed by this branch's own
+;; rung 1 (goal_src/jakx/engine/ps2/keyboard.gc, game.gd rank 410), which
+;; compiles after this file's own rank 409. Same forward-declare shape as
+;; base-menu-init-by-other's own precedent (goal_src/jakx/engine/ui/menu/
+;; lobby-menu-manager.gc:22).
+(define-extern get-keyboard-control (function object))
+(define-extern *keyboard-init-state* object)
+
 ;; definition for symbol *menu-level-info-array*, type array
 (define *menu-level-info-array*
   (the-as array (new 'static 'boxed-array :type menu-option-info
@@ -2062,6 +2071,214 @@
     )
   )
 
+;; selection-menu-manager-method-66: real landing, issue 759, a3 rung.
+;; Transcribed from the donor (menu2.gc:11592-11607); plays *sound-info* 343
+;; ("cycle-vert1", confirmed) through the same make-sound-instance/flags/id
+;; idiom base-menu-method-62 already landed at goal_src/jakx/engine/ui/
+;; menu2-draw.gc (itself matching the established cam-states.gc:3120
+;; precedent). The donor's own declared slot took no self argument at all
+;; ((selection-menu-manager-method-66 () none)); retyped here and in
+;; decompiler/config/jakx/all-types.gc:59494 to (_type_) none so a real
+;; method slot exists (every other method on this type takes self) - self
+;; stays unread in the body, matching the donor exactly.
+(defmethod selection-menu-manager-method-66 ((this selection-menu-manager))
+  (let ((v1-1 (make-sound-instance (-> *sound-info* 343) (new 'static 'sound-id) (the-as handle #f))))
+    (cond
+      (v1-1
+        (logior! (-> v1-1 flags) 320)
+        (-> v1-1 id)
+        )
+      (else
+        0
+        )
+      )
+    )
+  (none)
+  )
 
-
-
+;; base-menu-method-61 (selection-menu-manager): the manager's own event
+;; responder, transcribed from the donor (menu2.gc:11609-12490, issue 759's
+;; a3 rung). 'enable is not a case arm below: the donor's own control flow
+;; (11908-11991) evaluates the enable side effects unconditionally ahead of
+;; the shared early-outs, regardless of which message actually arrived, so
+;; it is written here as a leading (when (= message 'enable) ...) that runs
+;; before the shared not-enabled/get-keyboard-control checks, matching that
+;; evaluation order exactly; 'change-index / 'next / 'previous dispatch
+;; through a real case below, else #f - the donor does not chain to the
+;; parent method at all.
+;;
+;; The three second-pad gates (donor 12002-12006, 12175-12189, 12318-12332)
+;; are condition-rebinding and-chains in the raw decode; two of the three
+;; (the 'next/'previous copies) read block param 0 by raw offset math where
+;; the 'change-index copy's own already-clean read is (-> block param 2) -
+;; the same field, mis-picked by the decoder's own register aliasing in the
+;; un-decoded copies, not a real difference in retail. Written here as the
+;; one real conjunction, param 2 throughout:
+;; (not (and (= (-> this pad) 2) (= (-> block param 2) 1))).
+;;
+;; The two raw method-table dispatches (donor 12305-12310 and 12455-12460:
+;; l.wu type then +280 then call, 280 = 16 + 4*66) are virtual method 66;
+;; written as named calls (selection-menu-manager-method-66 this). Unlike
+;; 'change-index, which only plays it when selection-index actually moved,
+;; 'next and 'previous call it unconditionally every time (donor 12315-12317
+;; and 12475-12476 sit outside any guard) - a real asymmetry between the
+;; three arms, not a transcription simplification.
+;;
+;; The sllv blocks throughout are the handle->process macro (the precedent
+;; note at goal_src/jakx/engine/ui/menu2-draw.gc:1333-1338, itself citing
+;; base-menu-method-58 at menu2-installs.gc:938); every send below is
+;; therefore gated on handle->process actually resolving a live process,
+;; not on the raw stale-register appearance the decode shows.
+(defmethod base-menu-method-61 ((this selection-menu-manager) (proc process) (argc int) (message symbol) (block event-message-block))
+  (with-pp
+    (when (= message 'enable)
+      (set! (-> this enabled) (the-as basic (-> block param 0)))
+      (dotimes (i (-> this child-handles length))
+        (let ((child (handle->process (-> this child-handles i))))
+          (when child
+            (send-event child 'deselected)
+            )
+          )
+        )
+      (when (-> this enabled)
+        (let ((child (handle->process (-> this child-handles (-> this selection-index)))))
+          (when child
+            (send-event child 'selected)
+            )
+          )
+        )
+      )
+    (if (not (-> this enabled))
+        (return #f)
+        )
+    (if (get-keyboard-control)
+        (return #f)
+        )
+    (case message
+      (('change-index)
+       (when (not (and (= (-> this pad) 2) (= (-> block param 2) 1)))
+         (let ((s5 (-> this selection-index))
+               (s4 (the-as int (-> block param 0))))
+           (if (zero? s4)
+               (return #f)
+               )
+           (let ((cur (handle->process (-> this child-handles (-> this selection-index)))))
+             (when cur
+               (send-event cur 'deselected)
+               )
+             )
+           (cond
+             ((= s4 80)
+              (when (= (-> this selection-index) (-> this prev-selection-index))
+                (+! (-> this prev-selection-index) 1)
+                )
+              (set! (-> this selection-index) (+ (-> this prev-selection-index) -1))
+              (set! s4 1)
+              )
+             ((>= s4 81)
+              (set! (-> this selection-index) (+ s4 -82))
+              (set! s4 1)
+              )
+             )
+           (let ((tries 0))
+             (while (< tries (-> this child-handles length))
+               (set! (-> this selection-index) (mod (+ (-> this selection-index) s4) (-> this child-handles length)))
+               (when (< (-> this selection-index) 0)
+                 (+! (-> this selection-index) (-> this child-handles length))
+                 )
+               (let ((cand (handle->process (-> this child-handles (-> this selection-index)))))
+                 (if (and cand (type? cand dropdown-item) (-> (the-as dropdown-item cand) enabled))
+                     (goto cfg-found-change-index)
+                     )
+                 )
+               (set! tries (+ tries 1))
+               )
+             )
+           (label cfg-found-change-index)
+           (let ((new-child (handle->process (-> this child-handles (-> this selection-index)))))
+             (when new-child
+               (send-event new-child 'selected s5)
+               )
+             )
+           (when (!= (-> this selection-index) s5)
+             (selection-menu-manager-method-66 this)
+             )
+           (set! (-> this prev-selection-index) s5)
+           (set! *keyboard-init-state* #f)
+           #f
+           )
+         )
+       )
+      (('next)
+       (when (not (and (= (-> this pad) 2) (= (-> block param 2) 1)))
+         (let ((s5 (-> this selection-index)))
+           (let ((cur (handle->process (-> this child-handles s5))))
+             (when cur
+               (send-event cur 'deselected)
+               )
+             )
+           (let ((tries 0))
+             (while (< tries (-> this child-handles length))
+               (set! (-> this selection-index) (mod (+ (-> this selection-index) 1) (-> this child-handles length)))
+               (let ((cand (handle->process (-> this child-handles (-> this selection-index)))))
+                 (if (and cand (type? cand dropdown-item) (-> (the-as dropdown-item cand) enabled))
+                     (goto cfg-found-next)
+                     )
+                 )
+               (set! tries (+ tries 1))
+               )
+             )
+           (label cfg-found-next)
+           (let ((new-child (handle->process (-> this child-handles (-> this selection-index)))))
+             (when new-child
+               (send-event new-child 'selected s5)
+               )
+             )
+           (selection-menu-manager-method-66 this)
+           (set! (-> this prev-selection-index) s5)
+           (set! *keyboard-init-state* #f)
+           #f
+           )
+         )
+       )
+      (('previous)
+       (when (not (and (= (-> this pad) 2) (= (-> block param 2) 1)))
+         (let ((s5 (-> this selection-index)))
+           (let ((cur (handle->process (-> this child-handles s5))))
+             (when cur
+               (send-event cur 'deselected)
+               )
+             )
+           (let ((tries 0))
+             (while (< tries (-> this child-handles length))
+               (if (< (+ (-> this selection-index) -1) 0)
+                   (set! (-> this selection-index) (+ (-> this child-handles length) -1))
+                   (set! (-> this selection-index) (+ (-> this selection-index) -1))
+                   )
+               (let ((cand (handle->process (-> this child-handles (-> this selection-index)))))
+                 (if (and cand (type? cand dropdown-item) (-> (the-as dropdown-item cand) enabled))
+                     (goto cfg-found-previous)
+                     )
+                 )
+               (set! tries (+ tries 1))
+               )
+             )
+           (label cfg-found-previous)
+           (let ((new-child (handle->process (-> this child-handles (-> this selection-index)))))
+             (when new-child
+               (send-event new-child 'selected s5)
+               )
+             )
+           (selection-menu-manager-method-66 this)
+           (set! (-> this prev-selection-index) s5)
+           (set! *keyboard-init-state* #f)
+           #f
+           )
+         )
+       )
+      (else
+        #f
+        )
+      )
+    )
+  )
