@@ -1653,6 +1653,25 @@ void TextureAnimator::force_to_gpu(int tbp) {
       glBindTexture(GL_TEXTURE_2D, entry.tex.value().texture());
       glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, tw, th, 0, GL_RGBA, GL_UNSIGNED_INT_8_8_8_8_REV,
                    entry.data.data());
+      // Login logo movie black-interior fix (issue 762). This texture only ever has level 0
+      // uploaded (the glTexImage2D above), but the object it lives on can carry a
+      // GL_TEXTURE_MAX_LEVEL that claims more levels exist: FramebufferTexturePair's
+      // constructor sets MAX_LEVEL to num_levels (1) instead of the highest level index (0),
+      // and OpenGLTexturePool::allocate (the resize path) leaves MAX_LEVEL at the GL default
+      // of 1000. Either way, a mipmap-mode MIN_FILTER makes this object mip-incomplete, and
+      // an incomplete texture samples as solid black. That is what was happening here: on the
+      // old fr3 the X's interior sampled a normal texture-pool texture (complete, works),
+      // while on the new fr3 the same interior binds this anim-slot texture through Merc2's
+      // negative-texture-id branch, which requests GL_LINEAR_MIPMAP_LINEAR whenever the draw
+      // mode has filtering enabled -- unconditionally, on every draw, clobbering whatever
+      // filter is set here. GL_TEXTURE_MAX_LEVEL is the one parameter Merc2 (and
+      // DirectRenderer) never touch, so clamping it to the single level this object actually
+      // has is what survives to the real draw; MIN/MAG_FILTER are set alongside it as a
+      // defensive baseline for any consumer that samples this object without setting its own
+      // filter state first.
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
       glBindTexture(GL_TEXTURE_2D, 0);
       entry.kind = VramEntry::Kind::GPU;
 
