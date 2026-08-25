@@ -1120,21 +1120,68 @@
         )
   )
 
-;; selection-menu-manager's own state-52 install: HELD, issue 759, a2 rung's
-;; own STEP 4. The harvested driver (anonymous_function_types.jsonc:1703,
-;; anon-function 10 of menu2-GAME, :behavior selection-menu-manager, donor
-;; label L82 at menu2.gc:12657-12665) calls find-first-selectable by plain
-;; symbol reference on its own :code path (guarded behind a live-child-
-;; handles/enabled/nonempty check) before chaining to find-parent-method's
-;; own base-menu-state-52 :code. find-first-selectable is extern-declared
-;; only (decompiler/config/jakx/all-types.gc:68717) with no defun anywhere
-;; in goal_src - the only body is dead menu2.gc:12497-12648, itself carrying
-;; three real decode errors and out of this slice's scope. Landing this
-;; install as specified would add a new check_extern_defun caller of an
-;; extern-no-defun symbol, which this rung's own gate battery must show as
-;; zero delta against baseline; holding it here keeps that true. Retirement
-;; condition: find-first-selectable lands a real body (its own rung; not
-;; touched here).
+;; find-first-selectable: real landing, issue 759, a2 rung's own STEP 1.
+;; Fresh scoped redecode (this file's own header recipe: scratch --proj-path,
+;; allowed_objects ["menu2"], levels_extract/extract_collision disabled since
+;; this slice needs no level data; this worktree's own out/jakx/fr3/GAME.fr3
+;; verified byte-identical before and after). The donor's own decode
+;; (menu2.gc:12497-12648) carries three real errors - "failed type prop at
+;; 70" (the closing bound check against child-handles length, pp itself only
+;; typed process by with-pp) and two duplicate "Unsupported inline assembly
+;; instruction kind - [sllv a0, v1, r0]" markers - none of them content the
+;; decoder actually produced. All three are the same decompiler-only-notation
+;; class this file's own header already resolves elsewhere, closed here by
+;; recognizing what real GOAL source the instructions match rather than
+;; inventing new logic: the sllv-then-lwu/lw/sra/bne sequence at both sites
+;; is goal_src/jakx/kernel/gkernel-h.gc's own handle->process macro (its
+;; :process/:pid field pattern, byte for byte, confirmed already working at
+;; base-menu-method-58's own identical call, menu2-installs.gc:938), and the
+;; pp+244 "child-handles" walk with its own +12-offset 64-bit read matches
+;; (array handle)'s own declared layout (decompiler/config/jakx/
+;; all-types.gc:255-262, length@0/data@12 on this heap-allocated array).
+;; find-first-selectable's own only caller is (method 61 selection-menu-
+;; manager) per all-types.gc:68717's own citation - out of this slice's own
+;; scope (table B, 867 donor lines) - and, as of this slice, the manager's
+;; own state-52 :code below.
+;;
+;; pp is cast once to base-menu (child-handles, an inherited field, needs no
+;; more specific a type) and once to selection-menu-manager (selection-index,
+;; declared only on that subtype) - the coalesced-copy exception applies
+;; since pp itself never changes across the loop body. The donor's own
+;; trailing wraparound correction (mod, then a negative check adding the
+;; length back) is transcribed verbatim rather than folded into one mod call
+;; - two real, distinct ops in the decode, not decompiler noise.
+(defun find-first-selectable ()
+  (with-pp
+    (let ((i 0))
+      (while (< i (-> (the-as base-menu pp) child-handles length))
+        (let ((child (handle->process
+                       (-> (the-as selection-menu-manager pp)
+                           child-handles
+                           (-> (the-as selection-menu-manager pp) selection-index)
+                           )
+                       )
+                     )
+              )
+          (when (and child (type? child dropdown-item) (-> (the-as dropdown-item child) enabled))
+            (send-event child 'selected)
+            (return #f)
+            )
+          )
+        (set! (-> (the-as selection-menu-manager pp) selection-index)
+              (mod (+ (-> (the-as selection-menu-manager pp) selection-index) 1)
+                   (-> (the-as base-menu pp) child-handles length)
+                   )
+              )
+        (when (< (-> (the-as selection-menu-manager pp) selection-index) 0)
+          (+! (-> (the-as selection-menu-manager pp) selection-index) (-> (the-as base-menu pp) child-handles length))
+          )
+        (set! i (+ i 1))
+        )
+      )
+    #f
+    )
+  )
 
 ;; base-menu slot 59 re-install: issue 759, a2 rung's own STEP 5, the a1
 ;; idiom (menu2-installs.gc:994-996) applied to the one slot this rung
