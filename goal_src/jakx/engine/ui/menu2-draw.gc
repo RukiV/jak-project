@@ -2011,3 +2011,21 @@
   ((method-of-type prim-strip-menu base-menu-method-60) this)
   (none)
   )
+
+;; slot re-install, issue 759, a2 rung's own STEP 6, same idiom as
+;; menu2-installs.gc:994-996 and this file's own jakx-logo-menu re-install
+;; above (Section E's own vtable-snapshot hazard: menu2-h.o's deftype forms
+;; run before this file's own base-menu-method-60 (string-menu) exists, so
+;; any subtype that never overrides it itself keeps the stale copy it
+;; snapshotted at deftype time). dropdown-item is string-menu's own child on
+;; this rung's live -boot road (the six lobby rows, plan section A) and
+;; does not override method-60 itself, so its own inherited slot 60 is
+;; stale until re-installed here; every default-base-menu-post/
+;; base-menu-event-handler 'draw dispatch (both already landed, menu2-
+;; installs.gc:231/345) reaches base-menu-method-60 virtually, so without
+;; this re-install the six rows would never actually call the method just
+;; landed above. string-menu's other six direct subtypes (menu2-h.gc:988,
+;; 1044, 1064, 1471, 1491, 1567) are not spawned anywhere on this rung's own
+;; -boot road (plan section A), so they are out of scope here, matching
+;; slice 1's own precedent of scoping re-installs to reachable types only.
+(method-set! dropdown-item 60 (method-of-type string-menu base-menu-method-60))
