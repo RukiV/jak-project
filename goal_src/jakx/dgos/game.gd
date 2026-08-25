@@ -401,6 +401,11 @@
   ;; does - menu2-h.o's deftypes for the whole base-menu family must already
   ;; exist before this file's method/state installs run.
   "menu2-draw.o"
+  ;; menu widget draw rung (issue 759, a2), slice 4: sits immediately after
+  ;; menu2-draw.o for the same link-order reason that file's own row does -
+  ;; menu2-h.o's deftypes must already exist and slice 1's own base-menu
+  ;; spawn-chain installs (menu2-draw.o) must already be in place.
+  "menu2-fx.o"
   "menu2-lists.o"
   "keyboard.o"
   "lobby-menu-manager-h.o"

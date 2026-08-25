@@ -1,0 +1,171 @@
+;;-*-Lisp-*-
+(in-package goal)
+
+;; name: menu2-fx.gc
+;; name in dgo: menu2-fx
+;; dgos: GAME
+
+;; menu widget draw rung (issue 759, a2), slice 4: the prim-strip/dropdown
+;; chrome the selector box and glow layers draw through - the shadow
+;; trifans and additive glow passes issue 759's own comments cite as this
+;; slice's acceptance elements. This file sits immediately after
+;; menu2-draw.o (game.gd) for the same link-order reason that file's own
+;; header documents: menu2-h.o's deftypes for the whole base-menu family
+;; must already exist, and slice 1's own base-menu-method-59 installs (that
+;; file) must already be in place for the spawn chain this slice's own
+;; draws run against.
+;;
+;; Kept in its own file rather than menu2-draw.gc per this rung's own
+;; parallel-safety constraint: another lane is actively landing that file
+;; on the same base branch. Every landing below is scoped and cross-
+;; checked against that file's own already-landed neighbors (read-only;
+;; cited by name at each site that leans on one) rather than touching it.
+;;
+;; Every method below is transcribed from a fresh scoped redecode of
+;; menu2-GAME (allowed_objects ["menu2"], this worktree's own decompiler/
+;; config, scratch --proj-path per the standard recipe; the worktree's own
+;; out/jakx/fr3/GAME.fr3 verified byte-identical before and after). The
+;; same decompiler-only notation classes menu2-draw.gc's own header
+;; documents apply here too (call!/ret-value rewrites, raw l.wu/s.w! reads
+;; needing an int base, casts landing at the consuming op) and are not
+;; re-explained per site.
+
+;; definition for method 10 of type menu-prim-strip-client
+;; og:preserve-this issue 759's own prim-engine landing, slice 4 step 2.
+;; menu2-h.gc already declares this method's own second argument as a bare
+;; "object" rather than prim-strip (prim-strip-menu-method-66's own four
+;; call sites below all pass a client's own "strip" field here, itself
+;; declared basic - see that method's own note on why neither field is
+;; retyped), so this body casts it once at the point of use, the same
+;; place every caller already reads it from. What follows is otherwise a
+;; direct read of this slice's own scoped redecode (14 raw ops, no ERROR):
+;; append one prim-vertex at data[num-verts] - pos takes the vector
+;; argument's own full quad, col takes the color argument reinterpreted as
+;; rgba (prim-vertex's own nokick/col overlay, prim-h.gc, puts col at the
+;; same machine offset - 12 - the raw decode stores through), and stq's
+;; x/y take the two float UV arguments - then bump num-verts.
+(defmethod menu-prim-strip-client-method-10 ((this menu-prim-strip-client) (arg0 object) (arg1 vector) (arg2 object) (arg3 float) (arg4 float))
+  (let* ((strip (the-as prim-strip arg0))
+         (vtx (-> strip data (-> strip num-verts)))
+         )
+    (set! (-> vtx pos quad) (-> arg1 quad))
+    (set! (-> vtx col) (the-as rgba arg2))
+    (set! (-> vtx stq x) arg3)
+    (set! (-> vtx stq y) arg4)
+    (set! (-> strip num-verts) (+ (-> strip num-verts) 1))
+    )
+  0
+  (none)
+  )
+
+;; definition for method 66 of type prim-strip-menu
+;; og:preserve-this issue 759's own prim-engine landing, slice 4 step 2.
+;; This slice's own scoped redecode (menu2-GAME_disasm.gc, 438 raw lines)
+;; carries two ERRORs, both resolved by understanding rather than a config
+;; cast:
+;;  - "Could not figure out load: (set! v1 (l.w v1))" is p-client-array's
+;;    own length read. p-client-array and colors are both left basic in
+;;    menu2-h.gc: base-menu-method-59 (prim-strip-menu), already landed in
+;;    menu2-draw.gc, allocates both as real (array menu-prim-strip-client)
+;;    and (array rgba) through 'new but pokes the field with a raw offset
+;;    store rather than retyping the shared header, and this method reads
+;;    them back the same way - a raw pointer cast at each array-header and
+;;    element access - rather than introducing a second, inconsistent
+;;    typing of the same two fields.
+;;  - "Failed to guess stack use for 80" is five stack-allocated vectors
+;;    (the origin accumulator plus four per-corner transform temporaries,
+;;    sp+80/96/112/128/144, each 16 bytes apart - the missing 80 bytes)
+;;    that this rung's own trap checklist already names for exactly this
+;;    shape: (new 'stack-no-clear 'vector). The function's own leading
+;;    (new 'stack-no-clear 'event-message-block) is the same idiom and is
+;;    genuinely dead in this function - reserved, never read again by
+;;    anything the redecode recovers - kept for the same reason
+;;    menu2-draw.gc's own header keeps its own decoder-left dead stores: a
+;;    leftover the raw compile still reserves, not a change in behavior.
+;;    The accumulator is never reset between iterations either (no store
+;;    zeroes it before the per-client cond runs) and the redecode shows no
+;;    site that would; two more float registers (f0-0/f0-1) are set to a
+;;    literal 0.0 immediately before the loop and never read again by
+;;    anything the redecode recovers, so they do not zero it - transcribed
+;;    as observed, not fixed.
+;;
+;; Per client, per frame: looks up the client's own strip's texture, and
+;; if it resolves, positions a screen-aligned quad sized from the
+;; sprite-info array's own scale-x/scale-y (offset 28/32) times the
+;; texture's own w/h (offset 4/6, both int16), anchored per that same
+;; sprite-info entry's own flags bits (128/256/8 - no symbolic enum exists
+;; for them anywhere in this tree, so they stay literal), then appends all
+;; four corners (UV 0/0, 1/0, 0/1, 1/1) through
+;; menu-prim-strip-client-method-10 above with the client's own colors
+;; array entry. -> this joint-mat is the same 2D layout matrix base-menu's
+;; own width-array/height-array fields already sit beside
+;; (all-types.gc's own offset-assert 320).
+(defmethod prim-strip-menu-method-66 ((this prim-strip-menu))
+  (new 'stack-no-clear 'event-message-block)
+  (let ((accum (new 'stack-no-clear 'vector))
+        (corner-0 (new 'stack-no-clear 'vector))
+        (corner-1 (new 'stack-no-clear 'vector))
+        (corner-2 (new 'stack-no-clear 'vector))
+        (corner-3 (new 'stack-no-clear 'vector))
+        )
+    (dotimes (i (l.w (-> this p-client-array)))
+      (let* ((client (the-as menu-prim-strip-client
+                       (l.wu (+ (the-as int (-> this p-client-array)) 12 (* i 4)))
+                       )
+                     )
+             (strip (the-as prim-strip (-> client strip)))
+             (tex (lookup-texture-by-id (-> strip tex-id)))
+             )
+        (when tex
+          (let* ((color (l.wu (+ (the-as int (-> this colors)) 12 (* i 4))))
+                 (sinfo (the-as sprite-info
+                          (l.wu
+                            (+
+                              (the-as int (-> (the-as sprite-menu-info (-> this info-ptr)) sprites-info))
+                              12
+                              (* i 4)
+                              )
+                            )
+                          )
+                        )
+                 (w-off (* -102.4 (the float (-> tex w)) (-> sinfo scale-x)))
+                 (h-off (* -102.4 (the float (-> tex h)) (-> sinfo scale-y)))
+                 (w-off-half (* 0.5 w-off))
+                 (h-off-half (* 0.5 h-off))
+                 )
+            (cond
+              ((logtest? (-> sinfo flags) 128)
+               (-! (-> accum x) w-off-half)
+               )
+              ((logtest? (-> sinfo flags) 256)
+               (-! (-> accum y) h-off-half)
+               )
+              ((logtest? (-> sinfo flags) 8)
+               (-! (-> accum x) w-off-half)
+               (-! (-> accum y) h-off-half)
+               )
+              )
+            (set! (-> corner-0 quad) (-> accum quad))
+            (vector-matrix*! corner-0 corner-0 (-> this joint-mat))
+            (menu-prim-strip-client-method-10 client (-> client strip) corner-0 color 0.0 0.0)
+            (set! (-> corner-1 quad) (-> accum quad))
+            (+! (-> corner-1 x) w-off)
+            (vector-matrix*! corner-1 corner-1 (-> this joint-mat))
+            (menu-prim-strip-client-method-10 client (-> client strip) corner-1 color 1.0 0.0)
+            (set! (-> corner-2 quad) (-> accum quad))
+            (+! (-> corner-2 y) h-off)
+            (vector-matrix*! corner-2 corner-2 (-> this joint-mat))
+            (menu-prim-strip-client-method-10 client (-> client strip) corner-2 color 0.0 1.0)
+            (set! (-> corner-3 quad) (-> accum quad))
+            (+! (-> corner-3 x) w-off)
+            (+! (-> corner-3 y) h-off)
+            (vector-matrix*! corner-3 corner-3 (-> this joint-mat))
+            (menu-prim-strip-client-method-10 client (-> client strip) corner-3 color 1.0 1.0)
+            )
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
