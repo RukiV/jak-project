@@ -7,3 +7,897 @@
 
 ;; DECOMP BEGINS
 
+;; issue 699 rung 3b (reprioritized by issue 759 to make the profile screen
+;; the port's first visible menu): scoped decode of lobby-profile, this
+;; worktree's own decompiler/config (scratch --proj-path, allowed_objects
+;; ["lobby-profile"]; the worktree's own out/jakx/fr3/GAME.fr3 is untouched,
+;; verified byte-identical before and after). lobby-profile.o owns
+;; lobby-menu-manager's states 125-140 plus 162 (autosave-icon, outside the
+;; old menu-road survey's stated 125-140 range but installed by this same
+;; object; discovered from this rung's own scoped decode, not guessed).
+;;
+;; All fifteen numbered slots' real retail names came from this decode's own
+;; "Disagreement between state name and type system name" errors against
+;; the placeholder :state-methods entries; renamed both
+;; decompiler/config/jakx/all-types.gc and goal_src/jakx/engine/net/lobby-
+;; menu-manager-h.gc to the real names (125 new-load-profile, 126 load-
+;; profile, 127 loading-profile, 129 enter-profile-name, 130 save-profile,
+;; 131 no-card, 132 want-format, 133 formating-card, 134 want-create-file,
+;; 135 creating-file, 136 select-save-profile, 137 overwrite-profile, 138
+;; saving-profile, 139 new-load-save-profile, 140 boot-memory-card, 162
+;; autosave-icon) before redecoding, the same class of rename rung 3's own
+;; waiting-for-cd/pre-game-type-menu landing used. Every one of these
+;; fifteen states installs via a raw top-level (new 'static 'state ...)
+;; literal plus (method-set! lobby-menu-manager <slot> ...), never a bare
+;; defstate the decompiler can auto-detect on its own - matching this
+;; corpus's own "'global state installs" idiom (lobby-net-startup.gc); once
+;; the type's own slot name matches the state's own :name field, the
+;; decompiler emits a normal defstate wrapper around that same install, and
+;; every state below is transcribed from that clean defstate output.
+;;
+;; TIER 1, landed for real (this rung's own acceptance bar - issue 759's
+;; "profile screen becomes the first visible menu"): boot-memory-card (140,
+;; the memory-card status gate lobby-net-startup.gc's own pre-game-type-menu
+;; go-virtuals into unconditionally on a fresh cold boot) and new-load-
+;; profile (125, the real first screen: a two-row "New Profile"/"Load
+;; Profile" side-bar, boot-memory-card's own unconditional fallback
+;; destination on a normal boot with a readable card - traced end to end,
+;; see the marker census in the PR/issue thread). new-load-save-profile
+;; (139, the same side-bar reached later from game-type-menu's own 'profile
+;; selection, not from a cold boot) is landed alongside it since its own
+;; :event/:exit/:trans decoded clean and its :enter needed only the same
+;; mechanical fixup as new-load-profile's.
+;;
+;; Two decompiler-only notation classes needed manual resolution, both
+;; confirmed by direct compilation rather than by reading dead text (menu2-
+;; draw.gc's own header lists the general doctrine this rung follows):
+;; raw offset math needs an int/float base (basic/none-typed bases are
+;; wrapped (the-as int ...) at the point of use), and (call!)/(ret-value
+;; ...)/(ret-none) are decompiler bookkeeping rewritten to a direct call
+;; through the loaded t9-N register and the bare trailing return form.
+;; boot-memory-card's :code and every TIER 1 state's own :enter share one
+;; more recurring class not previously named in this corpus: a "is this
+;; menu-info's base-menu already one of my own open children" guard, a
+;; dotimes over (+ (-> self in-focus-index) 1) reading (-> self menu-handles
+;; i), converting each live handle to its process, casting (the-as base-menu
+;; ...), and comparing -> info-ptr against the menu-info global by pointer
+;; identity - the decoder always leaves this raw ((l.wu (+ a0 248)) against
+;; a none-typed base, "Could not figure out load"), never resolving that a0
+;; is (the-as base-menu process) and 248 is base-menu's own info-ptr field
+;; under the all-types N+4 basic-load convention (child-handles 248,
+;; info-ptr 252). Written below as the same dotimes/(return (none)) idiom
+;; (method 186 lobby-menu-manager, already landed above in lobby-menu-
+;; manager.gc, uses the identical "dotimes over menu-handles, return early"
+;; shape), not the raw goto/label soup the decoder itself emits, except in
+;; boot-memory-card's :code where the scan sits inside a cond TEST (not the
+;; whole function) and an early function-wide return would change behavior;
+;; there it keeps an explicit goto/label pair matching this file's own
+;; inspect methods' established use of the same construct.
+;;
+;; *menu-new-load-profile*'s own :children tree (a 'selection-menu-manager
+;; wrapper over two dropdown-item-info rows, 3d-menu-type "skel-side-bar" -
+;; matching issue 699's own screenshot survey exactly) is transcribed field-
+;; for-field from this decode's own raw word dump, cross-checked against
+;; decompiler/config/jakx/all-types.gc's own base-menu-info/sprite-menu-
+;; info/string-menu-info/dropdown-item-info/animation-info/transition-info/
+;; dropdown-trans-info/string-info offset-assert layouts (all already
+;; landed there), the same non-guessed method lobby-menu-data.gc's own
+;; *base-menu-info* citation used. label_types.jsonc gained a "lobby-
+;; profile" hint section (ten top-level labels, base-menu-info) so the top
+;; level of all ten *menu-*-profile* globals decodes as real fields rather
+;; than <static-data LXXX>; only *menu-new-load-profile*'s own nested
+;; children were hinted a second level deep (the two dropdown-item-info
+;; rows and their own trans-info/strings-info) since that tree alone feeds
+;; TIER 1's acceptance bar. *menu-new-load-save-profile* and *menu-boot-
+;; memorycard* keep their own children at the decoder's own one-level-deep
+;; placeholder (a real, non-#f pointer the decoder itself cannot yet type
+;; further); not chased this rung since neither sits on the TIER 1 boot
+;; path (new-load-save-profile's own tree is reached only from game-type-
+;; menu's 'profile branch, already landed above; boot-memory-card's own
+;; child is a profile-yes-no-string prompt, the rare missing/slow-card
+;; branch, not the default advance).
+;;
+;; TIER 2, held (issue 699's own "memory-card screens", not this rung's
+;; stated acceptance bar): load-profile, loading-profile, enter-profile-
+;; name, save-profile, no-card, want-format, want-create-file, formating-
+;; card, creating-file, overwrite-profile, saving-profile, select-save-
+;; profile and autosave-icon all decode (their :event/:trans handlers call
+;; two functions, go-profile-state and memcard-continue, that this decode's
+;; own "function has no type analysis. Cannot decompile" marks the same
+;; cannot-decompile class as menu-clear-strip - a real defun each, hand-
+;; wrappable around raw register writes, but not attempted this rung), and
+;; dropdown-profile/title-load-save-profile/profile-error-string/profile-
+;; yes-no-string/profile-loading-string (the widget classes those held
+;; states spawn) decode with their own per-field type-prop errors on top.
+;; None of the thirteen had ever been installed by any defstate or method-
+;; set! anywhere in the corpus (same "raw 0 slips through the #f-only
+;; dispatch guard" class issue 699's own road audit already documents for
+;; ~30 other slots elsewhere on this type), so landing them here as the
+;; same minimal inert park is a strict improvement (crash -> park), not a
+;; new hazard, and does not touch this rung's own cold-boot acceptance
+;; path: nothing TIER 1 lands go-virtuals into a TIER 2 slot except on
+;; explicit player input past the first screen (selecting new/load profile
+;; and completing that flow), the same rung-boundary shape every other
+;; partially-landed menu branch in this corpus already has.
+
+;; definition for symbol *profile-errors-continue*, type object
+(define *profile-errors-continue* (the-as object (new 'static 'boxed-array :type uint32 #x9a #x9c #x9e)))
+
+;; definition for symbol *profile-yes-no*, type object
+(define *profile-yes-no* (the-as object (new 'static 'boxed-array :type uint32 #x9a #x9c #x9e #xb59)))
+
+;; definition for symbol *profile-not-remove*, type array
+(define *profile-not-remove* (the-as array (new 'static 'boxed-array :type uint32 #x9a #x9c #x9e)))
+
+;; definition for symbol *profile-load-save-ids*, type array
+(define *profile-load-save-ids* (the-as array (new 'static 'boxed-array :type uint32 #x2e)))
+
+;; definition for symbol *menu-new-load-profile*, type object
+;; issue 699 rung 3b / issue 759: the real first screen's own info block, a
+;; two-row "New Profile"/"Load Profile" side-bar. :children traced two
+;; levels deep per this file's own header note above; the "skel-side-bar"
+;; 3d-menu-type string and the two dropdown-item-info rows' :selection-type
+;; symbols ('new-profile, 'load-profile) are the direct evidence this is
+;; issue 699's own screenshot survey's first screen. string-info's own
+;; :pos-z value (#xffff010) is transcribed as the literal raw word the
+;; decode gives; nothing in this rung's own scope reads or explains it
+;; further.
+(define *menu-new-load-profile*
+  (the-as object (new 'static 'base-menu-info
+                   :menu-type 'base-menu
+                   :children (new 'static 'boxed-array :type base-menu-info
+                     (new 'static 'base-menu-info
+                       :menu-type 'selection-menu-manager
+                       :children (new 'static 'boxed-array :type dropdown-item-info
+                         (new 'static 'dropdown-item-info
+                           :menu-type 'dropdown-item
+                           :children #f
+                           :name-symbol #f
+                           :3d-menu-type #f
+                           :trans-info (new 'static 'dropdown-trans-info
+                             :enter-anim -1
+                             :exit-anim -1
+                             :running-anim -1
+                             :anim-speed 5.0
+                             :enter-delay 0
+                             :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -6144.0 0.0 1.0))
+                             :enter-pos-x 0.0
+                             :enter-pos-y 0.0
+                             :enter-alpha 1.0
+                             :running-alpha 1.0
+                             :exit-alpha 1.0
+                             :running-pos-x 0.0
+                             :running-pos-y 0.0
+                             :exit-pos-x 0.0
+                             :exit-pos-y 0.0
+                             :move-rate 100.0
+                             :scroll-offset-x 0
+                             :scroll-offset-y 0
+                             :scroll-rate 0.0
+                             )
+                           :joint-index -1
+                           :joint-index-2 -1
+                           :box-index 0
+                           :joints #f
+                           :width -1
+                           :height #x1000
+                           :scale-y 1.0
+                           :scale-x 1.0
+                           :sprites-info #f
+                           :color 0
+                           :strings-info (new 'static 'boxed-array :type string-info
+                             (new 'static 'string-info
+                               :offset-x 0.0
+                               :offset-y 0.0
+                               :offset-z -1.0
+                               :offset-w 1.0
+                               :pos-z #xffff010
+                               :id #x32
+                               :font-scale 0.5
+                               :width -1.0
+                               :height -1.0
+                               :string-ptr #f
+                               :string-ptr-needs-format #t
+                               :font-flags #x122e
+                               :font-color #x34
+                               :font-color-2 #x33
+                               :font-color-3 6
+                               :offset-dir 2
+                               :offset-from-index -1
+                               :offset-type-from 0
+                               :is-player-string #f
+                               :tmp-talking 0
+                               :extra-arg #f
+                               )
+                             )
+                           :text-ids #f
+                           :selection-box-width -1
+                           :selection-box-height -1
+                           :selection-type 'new-profile
+                           :selection-extra 0
+                           :selection-box-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                           :selection-box-color #x30400020
+                           :down-index-modifier 1
+                           :up-index-modifier -1
+                           :left-index-modifier 0
+                           :right-index-modifier 0
+                           :selection-box-texture-index 7
+                           :reset-pad 1
+                           )
+                         (new 'static 'dropdown-item-info
+                           :menu-type 'dropdown-item
+                           :children #f
+                           :name-symbol #f
+                           :3d-menu-type #f
+                           :trans-info (new 'static 'dropdown-trans-info
+                             :enter-anim -1
+                             :exit-anim -1
+                             :running-anim -1
+                             :anim-speed 5.0
+                             :enter-delay 0
+                             :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -10240.0 0.0 1.0))
+                             :enter-pos-x 0.0
+                             :enter-pos-y 0.0
+                             :enter-alpha 1.0
+                             :running-alpha 1.0
+                             :exit-alpha 1.0
+                             :running-pos-x 0.0
+                             :running-pos-y 0.0
+                             :exit-pos-x 0.0
+                             :exit-pos-y 0.0
+                             :move-rate 100.0
+                             :scroll-offset-x 0
+                             :scroll-offset-y 0
+                             :scroll-rate 0.0
+                             )
+                           :joint-index -1
+                           :joint-index-2 -1
+                           :box-index 0
+                           :joints #f
+                           :width -1
+                           :height #x1000
+                           :scale-y 1.0
+                           :scale-x 1.0
+                           :sprites-info #f
+                           :color 0
+                           :strings-info (new 'static 'boxed-array :type string-info
+                             (new 'static 'string-info
+                               :offset-x 0.0
+                               :offset-y 0.0
+                               :offset-z -1.0
+                               :offset-w 1.0
+                               :pos-z #xffff010
+                               :id #x2e
+                               :font-scale 0.5
+                               :width -1.0
+                               :height -1.0
+                               :string-ptr #f
+                               :string-ptr-needs-format #t
+                               :font-flags #x122e
+                               :font-color #x34
+                               :font-color-2 #x33
+                               :font-color-3 6
+                               :offset-dir 2
+                               :offset-from-index -1
+                               :offset-type-from 0
+                               :is-player-string #f
+                               :tmp-talking 0
+                               :extra-arg #f
+                               )
+                             )
+                           :text-ids #f
+                           :selection-box-width -1
+                           :selection-box-height -1
+                           :selection-type 'load-profile
+                           :selection-extra 0
+                           :selection-box-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 0.0 0.0 1.0))
+                           :selection-box-color #x30400020
+                           :down-index-modifier 1
+                           :up-index-modifier -1
+                           :left-index-modifier 0
+                           :right-index-modifier 0
+                           :selection-box-texture-index 7
+                           :reset-pad 1
+                           )
+                         )
+                       :name-symbol #f
+                       :3d-menu-type "skel-side-bar"
+                       :trans-info (new 'static 'animation-info
+                         :enter-anim 3
+                         :exit-anim 5
+                         :running-anim -1
+                         :anim-speed 5.0
+                         :enter-delay 15
+                         :3d-offset (new 'static 'vector :data (new 'static 'array float 4 0.0 -8192.0 0.0 1.0))
+                         )
+                       :joint-index -1
+                       :joint-index-2 -1
+                       :box-index -1
+                       :joints (new 'static 'boxed-array :type int8 7 8)
+                       :width -1
+                       :height -1
+                       :scale-y 1.0
+                       :scale-x 1.0
+                       )
+                     )
+                   :name-symbol #f
+                   :3d-menu-type #f
+                   :trans-info #f
+                   :joint-index -1
+                   :joint-index-2 -1
+                   :box-index -1
+                   :joints #f
+                   :width -1
+                   :height -1
+                   :scale-y 1.0
+                   :scale-x 1.0
+                   )
+                 )
+  )
+
+(defstate new-load-profile (lobby-menu-manager)
+  :virtual #t
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('menu-selection-event)
+       (case (-> block param 0)
+         (('changed)
+          #f
+          )
+         (('cancel)
+          #f
+          )
+         (('accept)
+          (case (-> block param 1)
+            (('new-profile)
+             (set! (-> self profile-new-save) (the-as basic #t))
+             (if (lobby-menu-manager-method-183 self #f #f)
+                 (go-virtual enter-profile-name)
+                 )
+             )
+            (('load-profile)
+             (set! (-> self split-selection-prev-state) (the-as basic 'load-profile))
+             (when (lobby-menu-manager-method-183 self #f #f)
+               (cond
+                 ((zero? (-> *progress-save-info* handle))
+                  (let ((v1-13 154)
+                        (a0-9 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-9 12) v1-13)
+                    )
+                  (let ((v1-14 156)
+                        (a0-10 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-10 16) v1-14)
+                    )
+                  (let ((v1-15 158)
+                        (a0-11 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-11 20) v1-15)
+                    )
+                  (go-virtual no-card)
+                  )
+                 ((zero? (-> *progress-save-info* formatted))
+                  (let ((v1-20 155)
+                        (a0-12 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-12 12) v1-20)
+                    )
+                  (let ((v1-21 156)
+                        (a0-13 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-13 16) v1-21)
+                    )
+                  (let ((v1-22 158)
+                        (a0-14 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-14 20) v1-22)
+                    )
+                  (go-virtual no-card)
+                  )
+                 ((zero? (-> *progress-save-info* inited))
+                  (let ((v1-27 157)
+                        (a0-15 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-15 12) v1-27)
+                    )
+                  (let ((v1-28 156)
+                        (a0-16 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-16 16) v1-28)
+                    )
+                  (let ((v1-29 158)
+                        (a0-17 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-17 20) v1-29)
+                    )
+                  (go-virtual no-card)
+                  )
+                 (else
+                   (go-virtual load-profile)
+                   )
+                 )
+               )
+             )
+            )
+          )
+         (else
+           #f
+           )
+         )
+       )
+      (else
+        (lobby-menu-manager-default-handler proc argc message block)
+        )
+      )
+    )
+  :enter (behavior ()
+    (set! (-> self profile-save-mode) #f)
+    (lobby-menu-manager-method-183 self #t #f)
+    (dotimes (i (+ (-> self in-focus-index) 1))
+      (let ((proc (handle->process (-> self menu-handles i))))
+        (when (and proc (= (-> (the-as base-menu proc) info-ptr) *menu-new-load-profile*))
+          (return (none))
+          )
+        )
+      )
+    (lobby-menu-manager-method-183 self #t #f)
+    (lobby-menu-manager-method-182 self *menu-new-load-profile* 0)
+    )
+  :exit (behavior ()
+    (kill-logo-menu self)
+    )
+  :trans (behavior ()
+    (lmm-make-logo-menu self)
+    (mc-get-slot-info 0 *progress-save-info*)
+    )
+  :code sleep-code
+  :post lobby-default-post
+  )
+
+;; definition for symbol *menu-new-load-save-profile*, type object
+;; issue 699 rung 3b: the same "New Profile"/"Load Profile" side-bar as
+;; *menu-new-load-profile* above, reached instead from game-type-menu's own
+;; 'profile branch (already landed, lobby-menu-manager.gc). Top-level
+;; fields only; :children stays the decoder's own one-level-deep base-
+;; menu-info/structure placeholder (a real, non-#f pointer, not chased to
+;; the leaf level this rung - see this file's own header note).
+(define *menu-new-load-save-profile*
+  (the-as object (new 'static 'base-menu-info
+                   :menu-type 'base-menu
+                   :children (new 'static 'boxed-array :type structure (new 'static 'structure))
+                   :name-symbol #f
+                   :3d-menu-type #f
+                   :trans-info #f
+                   :joint-index -1
+                   :joint-index-2 -1
+                   :box-index -1
+                   :joints #f
+                   :width -1
+                   :height -1
+                   :scale-y 1.0
+                   :scale-x 1.0
+                   )
+                 )
+  )
+
+(defstate new-load-save-profile (lobby-menu-manager)
+  :virtual #t
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('menu-selection-event)
+       (case (-> block param 0)
+         (('changed)
+          #f
+          )
+         (('cancel)
+          (if (lobby-menu-manager-method-183 self #f #f)
+              (go-virtual pre-game-type-menu)
+              )
+          )
+         (('accept)
+          (case (-> block param 1)
+            (('new-profile)
+             (set! (-> self profile-new-save) (the-as basic #t))
+             (if (lobby-menu-manager-method-183 self #f #f)
+                 (go-virtual enter-profile-name)
+                 )
+             )
+            (('load-profile)
+             (set! (-> self split-selection-prev-state) (the-as basic 'load-profile))
+             (when (lobby-menu-manager-method-183 self #f #f)
+               (cond
+                 ((zero? (-> *progress-save-info* handle))
+                  (let ((v1-17 154)
+                        (a0-11 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-11 12) v1-17)
+                    )
+                  (let ((v1-18 156)
+                        (a0-12 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-12 16) v1-18)
+                    )
+                  (let ((v1-19 158)
+                        (a0-13 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-13 20) v1-19)
+                    )
+                  (go-virtual no-card)
+                  )
+                 ((zero? (-> *progress-save-info* formatted))
+                  (let ((v1-24 155)
+                        (a0-14 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-14 12) v1-24)
+                    )
+                  (let ((v1-25 156)
+                        (a0-15 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-15 16) v1-25)
+                    )
+                  (let ((v1-26 157)
+                        (a0-16 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-16 20) v1-26)
+                    )
+                  (go-virtual no-card)
+                  )
+                 ((zero? (-> *progress-save-info* inited))
+                  (let ((v1-31 157)
+                        (a0-17 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-17 12) v1-31)
+                    )
+                  (let ((v1-32 156)
+                        (a0-18 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-18 16) v1-32)
+                    )
+                  (let ((v1-33 158)
+                        (a0-19 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-19 20) v1-33)
+                    )
+                  (go-virtual no-card)
+                  )
+                 (else
+                   (go-virtual load-profile)
+                   )
+                 )
+               )
+             )
+            (('save-profile)
+             (set! (-> self split-selection-prev-state) (the-as basic 'select-save-profile))
+             (set! (-> self profile-new-save) #f)
+             (when (lobby-menu-manager-method-183 self #f #f)
+               (cond
+                 ((zero? (-> *progress-save-info* handle))
+                  (let ((v1-43 154)
+                        (a0-23 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-23 12) v1-43)
+                    )
+                  (let ((v1-44 156)
+                        (a0-24 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-24 16) v1-44)
+                    )
+                  (let ((v1-45 158)
+                        (a0-25 *profile-errors-continue*)
+                        )
+                    (s.w! (+ a0-25 20) v1-45)
+                    )
+                  (go-virtual no-card)
+                  )
+                 ((zero? (-> *progress-save-info* formatted))
+                  (go-virtual want-format)
+                  )
+                 ((zero? (-> *progress-save-info* inited))
+                  (go-virtual want-create-file)
+                  )
+                 (else
+                   (go-virtual select-save-profile)
+                   )
+                 )
+               )
+             )
+            (('highscore)
+             (go-virtual local-highscore-table)
+             )
+            )
+          )
+         (else
+           #f
+           )
+         )
+       )
+      (else
+        (lobby-menu-manager-default-handler proc argc message block)
+        )
+      )
+    )
+  :enter (behavior ()
+    (set! (-> self profile-save-mode) #f)
+    (lobby-menu-manager-method-183 self #t #f)
+    (dotimes (i (+ (-> self in-focus-index) 1))
+      (let ((proc (handle->process (-> self menu-handles i))))
+        (when (and proc (= (-> (the-as base-menu proc) info-ptr) *menu-new-load-save-profile*))
+          (return (none))
+          )
+        )
+      )
+    (lobby-menu-manager-method-183 self #t #f)
+    (lobby-menu-manager-method-182 self *menu-new-load-save-profile* 0)
+    )
+  :exit (behavior ()
+    (if (!= (-> self next-state name) 'pre-game-type-menu)
+        (kill-logo-menu self)
+        )
+    )
+  :trans (behavior ()
+    (mc-get-slot-info 0 *progress-save-info*)
+    (lmm-make-logo-menu self)
+    )
+  :code sleep-code
+  :post lobby-default-post
+  )
+
+;; definition for symbol *menu-boot-memorycard*, type object
+;; issue 699 rung 3b: the rare-path yes/no prompt boot-memory-card's own
+;; :code below spawns only when no card has been detected for 300 frames.
+;; Top-level fields only; :children (a profile-yes-no-string, TIER 2, held)
+;; stays the decoder's own one-level-deep placeholder - see this file's own
+;; header note.
+(define *menu-boot-memorycard*
+  (the-as object (new 'static 'base-menu-info
+                   :menu-type 'base-menu
+                   :children (new 'static 'boxed-array :type structure (new 'static 'structure))
+                   :name-symbol #f
+                   :3d-menu-type #f
+                   :trans-info #f
+                   :joint-index -1
+                   :joint-index-2 -1
+                   :box-index -1
+                   :joints #f
+                   :width -1
+                   :height -1
+                   :scale-y 1.0
+                   :scale-x 1.0
+                   )
+                 )
+  )
+
+;; boot-memory-card (140): retail's own memory-card status gate.
+;; lobby-net-startup.gc's own pre-game-type-menu go-virtuals here
+;; unconditionally on a fresh cold boot with no *debug-segment*, so this is
+;; the retirement target the old bring-up bridge in lobby-menu-manager.gc
+;; named (issue 699 rung 3b, issue 759); see that file's own retirement
+;; note. :code's own scan-then-spawn guard sits inside a cond TEST rather
+;; than at the top of the whole function, so an early function-wide
+;; (return ...) would skip the rest of the cond incorrectly; kept as the
+;; explicit goto/label pair this file's own inspect methods already use for
+;; the same "early exit with a value, not from the whole function" need.
+(defstate boot-memory-card (lobby-menu-manager)
+  :virtual #t
+  :event (behavior ((proc process) (argc int) (message symbol) (block event-message-block))
+    (case message
+      (('menu-selection-event)
+       (case (-> block param 0)
+         (('changed)
+          #f
+          )
+         (('cancel)
+          #f
+          )
+         (('accept)
+          (case (-> block param 1)
+            (('yes)
+             (go-virtual new-load-profile)
+             )
+            (('no)
+             (go-virtual boot-memory-card)
+             )
+            )
+          )
+         )
+       )
+      (else
+        (lobby-menu-manager-default-handler proc argc message block)
+        )
+      )
+    )
+  :enter (behavior ()
+    (lobby-menu-manager-method-183 self #t #f)
+    )
+  :trans (behavior ()
+    (mc-get-slot-info 0 *progress-save-info*)
+    (cond
+      ((zero? (-> *progress-save-info* handle))
+       (let ((v1-3 154)
+             (a0-1 *profile-yes-no*)
+             )
+         (s.w! (+ a0-1 12) v1-3)
+         )
+       (let ((v1-4 156)
+             (a0-2 *profile-yes-no*)
+             )
+         (s.w! (+ a0-2 16) v1-4)
+         )
+       (let ((v1-5 152)
+             (a0-3 *profile-yes-no*)
+             )
+         (s.w! (+ a0-3 20) v1-5)
+         )
+       (let ((v0-1 152)
+             (v1-6 *profile-yes-no*)
+             )
+         (s.w! (+ v1-6 20) v0-1)
+         )
+       )
+      ((and (< (-> *progress-save-info* mem-actual) (-> *progress-save-info* mem-required))
+            (zero? (-> *progress-save-info* inited))
+            )
+       (let ((v1-11 153)
+             (a0-9 *profile-yes-no*)
+             )
+         (s.w! (+ a0-9 12) v1-11)
+         )
+       (let ((v1-12 156)
+             (a0-10 *profile-yes-no*)
+             )
+         (s.w! (+ a0-10 16) v1-12)
+         )
+       (let ((v1-13 152)
+             (a0-11 *profile-yes-no*)
+             )
+         (s.w! (+ a0-11 20) v1-13)
+         )
+       (let ((v0-3 152)
+             (v1-14 *profile-yes-no*)
+             )
+         (s.w! (+ v1-14 20) v0-3)
+         )
+       )
+      )
+    )
+  :code (behavior ()
+    (let ((start (-> self clock frame-counter)))
+      (until (begin
+               (suspend)
+               (>= (- (-> self clock frame-counter) start) 300)
+               )
+        (empty)
+        )
+      )
+    (cond
+      ((and (zero? (-> *progress-save-info* handle))
+            (let ((shown? #f))
+              (dotimes (i (+ (-> self in-focus-index) 1))
+                (let ((proc (handle->process (-> self menu-handles i))))
+                  (when (and proc (= (-> (the-as base-menu proc) info-ptr) *menu-boot-memorycard*))
+                    (set! shown? #t)
+                    (goto cfg-bmc-scan-a)
+                    )
+                  )
+                )
+              (label cfg-bmc-scan-a)
+              (not shown?)
+              )
+            )
+       (lobby-menu-manager-method-183 self #t #f)
+       (lobby-menu-manager-method-182 self *menu-boot-memorycard* 0)
+       )
+      ((zero? (-> *progress-save-info* formatted))
+       (go-virtual new-load-profile)
+       )
+      ((and (< (-> *progress-save-info* mem-actual) (-> *progress-save-info* mem-required))
+            (nonzero? (-> *progress-save-info* inited))
+            )
+       (let ((shown? #f))
+         (dotimes (i (+ (-> self in-focus-index) 1))
+           (let ((proc (handle->process (-> self menu-handles i))))
+             (when (and proc (= (-> (the-as base-menu proc) info-ptr) *menu-boot-memorycard*))
+               (set! shown? #t)
+               (goto cfg-bmc-scan-b)
+               )
+             )
+           )
+         (label cfg-bmc-scan-b)
+         (unless shown?
+           (lobby-menu-manager-method-183 self #t #f)
+           (lobby-menu-manager-method-182 self *menu-boot-memorycard* 0)
+           )
+         )
+       )
+      (else
+        (go-virtual new-load-profile)
+        )
+      )
+    (until (begin (suspend) #f)
+      (empty)
+      )
+    (none)
+    )
+  :post lobby-default-post
+  )
+
+;; TIER 2 (issue 699's own "memory-card screens", held): none of these
+;; thirteen decode clean past their own :event/:trans's calls into go-
+;; profile-state/memcard-continue (this decode's own "function has no type
+;; analysis. Cannot decompile", the same cannot-decompile class as menu-
+;; clear-strip - a real defun each, not attempted this rung), and the
+;; widget classes they spawn (dropdown-profile, title-load-save-profile,
+;; profile-error-string, profile-yes-no-string, profile-loading-string)
+;; carry their own further type-prop errors on top. None had ever been
+;; installed by any defstate or method-set! anywhere in the corpus before
+;; this rung (same "raw 0 slips through the #f-only dispatch guard" class
+;; issue 699's own road audit already documents for ~30 other slots on this
+;; type), so parking them here is a strict improvement over the prior
+;; state (crash -> park), not a new hazard, and sits off this rung's own
+;; cold-boot acceptance path (TIER 1 above). Retires per state as each
+;; state's own real body lands in a follow-up rung.
+(defstate load-profile (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate loading-profile (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate enter-profile-name (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate save-profile (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate no-card (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate want-format (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate want-create-file (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate formating-card (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate creating-file (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate overwrite-profile (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate saving-profile (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate select-save-profile (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
+
+(defstate autosave-icon (lobby-menu-manager)
+  :virtual #t
+  :code sleep-code
+  )
