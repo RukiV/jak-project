@@ -1929,9 +1929,11 @@
       ;; and word[0]=byte 0 of the result are the raw bytes the machine code
       ;; actually reads (l.wu +68 then l.wu +0), verified directly against
       ;; the disassembly rather than the decompiler's inferred field name.
-      (when (= (-> *selection-cache-array* a2-4 state)
-               (the-as basic (-> (the-as (pointer uint32) (-> (the-as (pointer uint32) *lobby-menu-manager*) 17)) 0))
-               )
+      (when (and *lobby-menu-manager*
+                 (= (-> *selection-cache-array* a2-4 state)
+                    (the-as basic (-> (the-as (pointer uint32) (-> (the-as (pointer uint32) *lobby-menu-manager*) 17)) 0))
+                    )
+                 )
         (set! (-> *selection-cache-array* a2-4 state) (the-as basic arg0))
         (set! (-> *selection-cache-array* a2-4 selection-type) (the-as basic arg1))
         (return (the-as object #f))
@@ -1979,12 +1981,27 @@
             (send-event-function (ppointer->process (-> this parent)) msg)
             )
           (set! (-> this selected) (the-as basic #t))
-          (set! (-> this prev-selection) (the-as int (-> block param 0)))
-          (let ((mgr-state (the-as object (-> (the-as (pointer uint32) (-> (the-as (pointer uint32) *lobby-menu-manager*) 17)) 0))))
-            (when (= mgr-state *last-lobby-state*)
-              (insert-selection-cache mgr-state (the-as object (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+          ;; find-first-selectable's (send-event child 'selected) carries zero
+          ;; params, so param 0 is uninitialized stack; only take it when the
+          ;; sender actually supplied one.
+          (if (> argc 0)
+              (set! (-> this prev-selection) (the-as int (-> block param 0)))
               )
-            (set! *last-lobby-state* mgr-state)
+          ;; the word[17] state read goes through *lobby-menu-manager*, which
+          ;; is #f on every road without a live lobby manager (defined #f in
+          ;; lobby-menu-manager-h.gc and main.gc, reset at manager death);
+          ;; unguarded, the double-deref reads symbol-table junk and feeds it
+          ;; to the cache (the glowfix1 boot's 500ms dispatch regime and its
+          ;; downstream inspect crash). Guard with the same (and
+          ;; *lobby-menu-manager* ...) idiom lobby-menu-manager-h.gc already
+          ;; uses.
+          (when *lobby-menu-manager*
+            (let ((mgr-state (the-as object (-> (the-as (pointer uint32) (-> (the-as (pointer uint32) *lobby-menu-manager*) 17)) 0))))
+              (when (= mgr-state *last-lobby-state*)
+                (insert-selection-cache mgr-state (the-as object (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+                )
+              (set! *last-lobby-state* mgr-state)
+              )
             )
           (the-as object #t)
           )
