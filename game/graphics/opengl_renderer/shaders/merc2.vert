@@ -105,6 +105,12 @@ void main() {
     // lighting and submits the neutral chain color doubled (128 -> 255), so the GS sees
     // white with the vertex alpha. GS dumps of the menu membrane show rgba (255,255,255,128).
     vtx_color = vec4(1.0, 1.0, 1.0, rgba.a);
+  } else if (prelit_enable == 2) {
+    // raw-unlit route (issue 762): Jak X's login-logo band is also prelit on PS2, but its
+    // GS dump shows flat vertex rgba that is not white (154,154,154,128 for the X itself,
+    // also 64 and 128 elsewhere in the band), so jak3's white override does not apply here.
+    // Pass the model's own baked vertex color straight through with no light multiply.
+    vtx_color = vec4(rgba.rgb, rgba.a);
   } else {
     vtx_color = rgba * light_color;
   }

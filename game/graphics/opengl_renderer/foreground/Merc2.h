@@ -188,6 +188,12 @@ class Merc2 {
     MOD_VTX = 2,
     NO_TEXTURE = 4,
     PRELIT = 8,
+    // raw-unlit prelit route (issue 762): unlike PRELIT, which emits jak3's white chain
+    // color, this passes the model's own baked vertex rgba straight to the fragment
+    // shader with no light multiply. Jak X's GS dump of the login-logo band shows flat
+    // vertex colors that are not white (154/64/128 gray, not 255), so the shared white
+    // branch does not reproduce retail here.
+    PRELIT_RAW = 16,
   };
 
   struct Draw {
@@ -228,6 +234,7 @@ class Merc2 {
     bool disable_fog;
     bool no_texture;
     bool prelit;
+    bool prelit_raw;  // issue 762
     u64 hash;
     u32 lights;
     u32 first_bone;

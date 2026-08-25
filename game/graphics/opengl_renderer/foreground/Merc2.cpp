@@ -543,6 +543,12 @@ void Merc2::handle_pc_model(const DmaTransfer& setup,
   bool model_disables_envmap = flags->bitflags & 8;
   bool model_no_texture = flags->bitflags & 16;
   u64 current_prelit_bits = (flags->bitflags & 32) ? flags->prelit_mask : 0;
+  // raw-unlit prelit route (issue 762): reuses the same prelit_mask field as the bit-32
+  // (white) route above, gated by a separate bitflag so the two never collide -- a model
+  // only ever writes one of the two bits. jakx's login-logo/subtitle draws send this one:
+  // its retail GS dump shows flat vertex rgba that is not white (154/64/128 gray), so the
+  // fix is to pass the model's own baked color through unlit rather than jak3's white.
+  u64 current_prelit_raw_bits = (flags->bitflags & 64) ? flags->prelit_mask : 0;
   input_data += 32;
 
   float blerc_weights[kMaxBlerc];
@@ -651,6 +657,7 @@ void Merc2::handle_pc_model(const DmaTransfer& setup,
     bool ignore_alpha = !!(current_ignore_alpha_bits & (1ull << ei));
     args.ignore_alpha = ignore_alpha;
     args.prelit = !!(current_prelit_bits & (1ull << ei));
+    args.prelit_raw = !!(current_prelit_raw_bits & (1ull << ei));
     auto& effect = model->effects[ei];
 
     bool should_envmap = effect.has_envmap && !model_disables_envmap;
@@ -1167,6 +1174,9 @@ Merc2::Draw* Merc2::alloc_normal_draw(const tfrag3::MercDraw& mdraw, const DrawA
   if (args.prelit) {
     draw->flags |= PRELIT;
   }
+  if (args.prelit_raw) {
+    draw->flags |= PRELIT_RAW;
+  }
   for (int i = 0; i < 4; i++) {
     draw->fade[i] = 0;
   }
@@ -1369,7 +1379,16 @@ void Merc2::do_draws(const Draw* draw_array,
     }
 
     glUniform1i(uniforms.decal, draw.mode.get_decal());
-    glUniform1i(uniforms.prelit, (draw.flags & PRELIT) != 0);
+    // prelit_enable is tri-state (issue 762): 0 lit, 1 jak3's white prelit, 2 the new
+    // raw-unlit route. PRELIT and PRELIT_RAW are never both set on the same draw (they
+    // come from disjoint bitflags on the wire), so this order does not matter.
+    int prelit_enable = 0;
+    if (draw.flags & PRELIT) {
+      prelit_enable = 1;
+    } else if (draw.flags & PRELIT_RAW) {
+      prelit_enable = 2;
+    }
+    glUniform1i(uniforms.prelit, prelit_enable);
     glUniform1i(uniforms.gfx_hack_no_tex, (draw.flags & NO_TEXTURE) != 0);
 
     if (set_fade) {
