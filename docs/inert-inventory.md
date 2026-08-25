@@ -43,8 +43,8 @@ written is read-only by design and not a finding.
 
 | symbol | reading files | defined in |
 |---|---:|---|
+| `*hide-menus*` | 5 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*display-camera-marks*` | 4 | `goal_src/jakx/engine/game/main-h.gc` |
-| `*hide-menus*` | 4 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*stats-profile-bars*` | 4 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*artist-all-visible*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
 | `*debug-reverb*` | 3 | `goal_src/jakx/engine/game/main-h.gc` |
