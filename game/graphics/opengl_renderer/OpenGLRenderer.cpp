@@ -704,12 +704,30 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     // draw bucket (hud sprites plus print-game-text strings); ProgressRenderer's
     // kScreenFbp=408 assert does not match jakx's fbp 406 (display.gc:177-179), so
     // this is a plain DirectRenderer, matching jakx's own text buckets 793-795
-    // above. 791 (hud-string-draw-all's only writer) stays SkipRenderer: the body
-    // is a landed stub, not yet real.
+    // above.
     init_bucket_renderer<TextureUploadHandler>("tex-hud", BucketCategory::TEX, BucketId::TEX_HUD,
                                                m_texture_animator, true);
     init_bucket_renderer<DirectRenderer>("hud-draw", BucketCategory::OTHER, BucketId::HUD_DRAW,
                                          0x8000);
+
+    // 791/792 (issue 759, a2 rung's row-text landing): this comment previously read
+    // "791 (hud-string-draw-all's only writer) stays SkipRenderer: the body is a
+    // landed stub, not yet real" (true when written 2026-08-19, commit 33c565406a).
+    // string-menu's own base-menu-method-60, hand-carried from the dead menu2.gc
+    // donor on 2026-08-24 (commit 0d21c1737), is a second, real writer for both:
+    // the box-index==-1 branch closes its draw-string segment with
+    // dma-bucket-insert-tag against (bucket-id bucket792) (menu2-draw.gc:1916-1922),
+    // and the auto-fit branch's real draw call (arg2=#f, distinct from the a2=#t
+    // measure-only calls a few lines above it) targets (bucket-id bucket791)
+    // (menu2-draw.gc:2001). Both raw ids are this object's own decoded retail
+    // immediate, hand-carried verbatim, not an authored guess (menu2-draw.gc:
+    // 1767-1850's own note). Left as SkipRenderer, both silently dropped every
+    // dropdown-item row's own text DMA: the acceptance boot showed all six rows
+    // alive and animating (nothing else touches this bucket range) but painted
+    // zero glyphs. DirectRenderer, matching 787's own shape immediately above, is
+    // the fix: same plain-GIF-chain content, no PC-port upload codes involved.
+    init_bucket_renderer<DirectRenderer>("bucket791", BucketCategory::OTHER, 791, 0x8000);
+    init_bucket_renderer<DirectRenderer>("bucket792", BucketCategory::OTHER, 792, 0x8000);
 
     // Generic (#57 rung 4): the mercneric (mode 2 -> Generic2 NORMAL) and mercneric2
     // (mode 4 -> Generic2 PRIM) destinations, read mechanically out of the landed
