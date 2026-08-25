@@ -462,3 +462,46 @@
     )
   (none)
   )
+
+;; issue 759's own prim-engine landing, slice 4 step 5: slot re-installs
+;; for every method this slice defines, on every subtype whose own deftype
+;; already ran (menu2-h.o, game.gd rank 392) before this file's own row
+;; (rank 399.5, immediately after menu2-draw.o) gives those methods a
+;; real body. Section E of this rung's own evidence tables states the
+;; hazard directly: method_set only propagates a new method to already-
+;; created child types when *enable-method-set* is raised (REPL/-debug
+;; link only), so a -boot boot never copies a parent's freshly-defined
+;; method down into a child's own vtable snapshot - the same reason the
+;; a1 rung (menu2-installs.gc) reinstalled base-menu-method-58 on three
+;; sibling types.
+;;
+;; Scoped to the live -boot road's own widget chain (this rung's own
+;; widget inventory: dropdown-item is the only concrete instance ever
+;; spawned along this hierarchy) rather than the whole type tree - sprite-
+;; ptr-menu, index-sprite-list-menu and big-text-menu (siblings off
+;; prim-strip-menu/sprite-menu) and item-list-selection/item-list-driver-
+;; selection/item-num-selection/item-num-max-selection/string-list-
+;; selection/games-list-selection/basic-list-selection (dropdown-item's
+;; and string-menu's own further descendants) all still have their own
+;; deftype ahead of this file too and are NOT covered here; none is
+;; spawned by this rung's own widget inventory, and none is touched or
+;; verified by this landing. Flagged, not silently skipped.
+;;
+;; Slot 60 is deliberately absent from this list: string-menu already
+;; carries its own full override (menu2-draw.gc, base-menu-method-60
+;; (string-menu)), and that file's own reinstall of dropdown-item's slot
+;; 60 already points at it (menu2-draw.gc:2031, "(method-of-type
+;; string-menu base-menu-method-60)") - the more-derived override string-
+;; menu/dropdown-item should inherit. prim-strip-menu-method-60 above
+;; still reaches dropdown-item correctly whenever string-menu's own
+;; method-60 calls up to its own parent by name, since prim-strip-menu-
+;; method-66's own call inside that parent body dispatches virtually
+;; through the real (dropdown-item) object's own type tag, not the
+;; parent's static parameter type - which is exactly why prim-strip-menu-
+;; method-66 and sprite-menu-method-65 both need reinstalling here despite
+;; never being called with an explicit subtype cast anywhere in this file.
+(method-set! prim-strip-menu 65 (method-of-type sprite-menu sprite-menu-method-65))
+(method-set! string-menu 65 (method-of-type sprite-menu sprite-menu-method-65))
+(method-set! dropdown-item 65 (method-of-type sprite-menu sprite-menu-method-65))
+(method-set! string-menu 66 (method-of-type prim-strip-menu prim-strip-menu-method-66))
+(method-set! dropdown-item 66 (method-of-type prim-strip-menu prim-strip-menu-method-66))
