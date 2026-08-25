@@ -376,7 +376,6 @@
     (v1-22 none)
     (v1-23 none)
     (v1-24 none)
-    (v1-25 none)
     (v1-26 none)
     (v1-27 none)
     (v1-28 none)
@@ -396,7 +395,6 @@
     (a0-9 none)
     (a0-10 none)
     (a0-11 none)
-    (a0-12 none)
     (a0-13 none)
     (a0-14 none)
     (a0-15 none)
@@ -432,7 +430,6 @@
     (t9-2 none)
     (t9-3 none)
     (t9-4 none)
-    (t9-5 none)
     (t9-6 none)
     )
   (when (begin
@@ -518,11 +515,18 @@
       (set! v1-23 (the-as none (+ (the-as int v1-22) (the-as int a0-11))))
       (set! v1-24 (the-as none (l.wu (+ (the-as int v1-23) 12))))
       (s.w! v1-24 v0-4)
-      (set! a0-12 (the-as none *level*))
-      (set! v1-25 (the-as none (l.wu (+ (the-as int a0-12) -4))))
-      (set! t9-5 (the-as none (l.wu (+ (the-as int v1-25) 52))))
       (set! a1-7 (the-as none 'menu2))
-      (set! v0-5 (the-as none ((the-as (function object object object) t9-5) a0-12 a1-7)))
+      ;; og:preserve-this issue 759 rowtext4 sweep: raw method-table dispatch
+      ;; on *level* replaced with the named call. Byte offset 52 is slot 9 by
+      ;; the tag+16+4N formula, level-group's first custom method
+      ;; (level-h.gc:983): level-get (_type_ symbol) level. This call's arity
+      ;; already matched the declaration before the rewrite (self plus the
+      ;; 'menu2 symbol), so only the dispatch mechanism changes here; the
+      ;; explicit (the-as symbol ...) is needed because a1-7 carries this
+      ;; file's own decompiler-local `none` type rather than a real one, and
+      ;; unlike the raw dispatch's blanket object cast, level-get's own
+      ;; declared symbol parameter is now actually type-checked.
+      (set! v0-5 (the-as none (level-get *level* (the-as symbol a1-7))))
       (set! v1-26 (the-as none v0-5))
       (set! a0-13 (the-as none (shl (the-as int s5-0) 2)))
       (set! a1-8 (the-as none (l.wu (+ (the-as int this) 540))))
@@ -1696,7 +1700,6 @@
     (v1-13 none)
     (v1-14 none)
     (v1-15 none)
-    (v1-16 none)
     (v1-17 none)
     (v1-18 none)
     (v1-19 none)
@@ -1715,11 +1718,9 @@
     (a0-7 none)
     (a0-8 none)
     (a0-9 none)
-    (a0-10 none)
     (a0-11 none)
     (a0-12 none)
     (a0-13 none)
-    (a0-14 none)
     (a0-15 none)
     (a1-0 none)
     (a1-1 none)
@@ -1735,9 +1736,7 @@
     (s4-1 none)
     (s5-0 int)
     (t9-1 none)
-    (t9-2 none)
     (t9-3 none)
-    (t9-4 none)
     (t9-5 none)
     )
   (when (begin (set! v1-0 (-> this text-ids)) v1-0)
@@ -1769,14 +1768,19 @@
              (set! a0-9 (the-as none (l.wu (+ (the-as int v1-15) 12))))
              (set! v0-1 (the-as none ((the-as (function object object) t9-1) a0-9)))
              (set! s2-0 (the-as none v0-1))
-             (set! a0-10 (the-as none *common-text*))
-             (set! v1-16 (the-as none (l.wu (+ (the-as int a0-10) -4))))
-             (set! t9-2 (the-as none (l.wu (+ (the-as int v1-16) 52))))
              (set! v1-17 (the-as none (shl s5-0 2)))
              (set! a1-0 (the-as none (l.wu (+ (the-as int this) 552))))
              (set! v1-18 (the-as none (+ (the-as int v1-17) (the-as int a1-0))))
              (set! a1-1 (the-as none (l.wu (+ (the-as int v1-18) 12))))
-             (set! v0-2 (the-as none ((the-as (function object object object) t9-2) a0-10 a1-1)))
+             ;; og:preserve-this issue 759 rowtext4 crash rung: raw method-table
+             ;; dispatch on *common-text* replaced with the named call, and the
+             ;; dropped trailing argument restored. Byte offset 52 is slot 9 by
+             ;; the tag+16+4N formula, and game-text-info-method-9's own
+             ;; declaration (text-h.gc:57) takes a second object argument this
+             ;; raw dispatch never passed; every other jakx call site (for
+             ;; example goal_src/jakx/levels/common/net-hud.gc:1022) passes #f
+             ;; there, the dropped-arg class already on record for this rung.
+             (set! v0-2 (the-as none (game-text-info-method-9 *common-text* a1-1 #f)))
              (set! a1-2 (the-as none v0-2))
              (set! v1-19 (the-as none (l.wu (+ (the-as int s4-0) 60))))
              (set! a2-1 (the-as none (l.w (+ (the-as int v1-19) -1))))
@@ -1792,14 +1796,15 @@
               (set! a0-13 (the-as none (* (the-as int a0-12) s5-0)))
               (set! v1-22 (the-as none (+ (the-as int v1-21) (the-as int a0-13))))
               (set! s3-1 (the-as none (l.wu (+ (the-as int v1-22) 12))))
-              (set! a0-14 (the-as none *common-text*))
-              (set! v1-23 (the-as none (l.wu (+ (the-as int a0-14) -4))))
-              (set! t9-4 (the-as none (l.wu (+ (the-as int v1-23) 52))))
               (set! v1-24 (the-as none (shl s5-0 2)))
               (set! a1-3 (the-as none (l.wu (+ (the-as int this) 552))))
               (set! v1-25 (the-as none (+ (the-as int v1-24) (the-as int a1-3))))
               (set! a1-4 (the-as none (l.wu (+ (the-as int v1-25) 12))))
-              (set! v0-4 (the-as none ((the-as (function object object object) t9-4) a0-14 a1-4)))
+              ;; og:preserve-this issue 759 rowtext4 crash rung: same rewrite as
+              ;; the format branch above (this method's own other game-text-
+              ;; info-method-9 dispatch): raw vtable math replaced with the
+              ;; named call and the dropped #f restored.
+              (set! v0-4 (the-as none (game-text-info-method-9 *common-text* a1-4 #f)))
               (set! a1-5 (the-as none v0-4))
               (set! t9-5 (the-as none s4-1))
               (set! a0-15 (the-as none s3-1))
@@ -1848,7 +1853,6 @@
     (v1-4 none)
     (v1-5 none)
     (v1-6 none)
-    (v1-7 none)
     (v1-8 none)
     (v1-9 none)
     (v1-10 none)
@@ -1864,12 +1868,10 @@
     (v1-20 none)
     (v1-21 none)
     (v1-22 none)
-    (v1-23 none)
     (v1-24 none)
     (v1-25 none)
     (v1-26 none)
     (v1-27 none)
-    (v1-28 none)
     (v1-29 none)
     (v1-31 none)
     (v1-32 none)
@@ -1897,18 +1899,15 @@
     (a0-2 none)
     (a0-3 none)
     (a0-4 none)
-    (a0-5 none)
     (a0-6 none)
     (a0-7 none)
     (a0-8 none)
     (a0-9 none)
     (a0-10 none)
     (a0-11 none)
-    (a0-12 none)
     (a0-13 none)
     (a0-14 none)
     (a0-15 none)
-    (a0-16 none)
     (a0-17 none)
     (a0-18 none)
     (a0-19 none)
@@ -1952,12 +1951,9 @@
     (s3-0 none)
     (s4-0 none)
     (s5-0 int)
-    (t9-0 none)
     (t9-1 none)
     (t9-2 none)
-    (t9-3 none)
     (t9-4 none)
-    (t9-5 none)
     (t9-6 none)
     (t9-7 none)
     (t9-8 none)
@@ -2003,9 +1999,6 @@
               )
             (cond
               ((and *common-text* (begin (set! v1-6 (the-as none (l.wu (+ (the-as int s4-0) 40)))) v1-6))
-               (set! a0-5 (the-as none *common-text*))
-               (set! v1-7 (the-as none (l.wu (+ (the-as int a0-5) -4))))
-               (set! t9-0 (the-as none (l.wu (+ (the-as int v1-7) 64))))
                (set! v1-8 (the-as none (l.wu (+ (the-as int this) 548))))
                (set! a1-0 (the-as none 80))
                (set! a1-1 (the-as none (* (the-as int a1-0) s5-0)))
@@ -2014,7 +2007,25 @@
                (set! a1-2 (the-as none (+ (the-as int v1-10) 4)))
                (set! v1-11 (the-as none (l.wu (+ (the-as int s4-0) 36))))
                (set! a2-0 (the-as none (l.w (+ (the-as int v1-11) -1))))
-               (set! v0-0 (the-as none ((the-as (function object object object object) t9-0) a0-5 a1-2 a2-0)))
+               ;; og:preserve-this issue 759 rowtext4 crash rung: raw method-
+               ;; table dispatch replaced with the named call. Byte offset 64
+               ;; is slot 12 by the tag+16+4N formula (this type's first
+               ;; custom method is 9, so offset 64 lands on method-12), and
+               ;; game-text-info-method-12's own declaration (text-h.gc:77)
+               ;; takes exactly the two pointer args already computed above;
+               ;; this call's arity already matched it before the rewrite, so
+               ;; only the dispatch mechanism changes here (unlike the two
+               ;; offset-52 sites below, this one was never under-argued); the
+               ;; explicit (the-as (pointer uint8) ...) casts are needed
+               ;; because a1-2/a2-0 carry this file's own decompiler-local
+               ;; `none` type rather than real ones, and unlike the raw
+               ;; dispatch's blanket object cast, method-12's own declared
+               ;; pointer parameters are now actually type-checked.
+               (set! v0-0 (the-as none (game-text-info-method-12
+                                          *common-text*
+                                          (the-as (pointer uint8) a1-2)
+                                          (the-as (pointer uint8) a2-0)
+                                          )))
                (set! v1-12 (the-as none v0-0))
                )
               (else
@@ -2045,11 +2056,18 @@
                   (set! a0-11 (the-as none (l.wu (+ (the-as int v1-22) 12))))
                   (set! v0-2 (the-as none ((the-as (function object object) t9-2) a0-11)))
                   (set! s1-0 (the-as none v0-2))
-                  (set! a0-12 (the-as none *common-text*))
-                  (set! v1-23 (the-as none (l.wu (+ (the-as int a0-12) -4))))
-                  (set! t9-3 (the-as none (l.wu (+ (the-as int v1-23) 52))))
                   (set! a1-4 (the-as none (l.wu (+ (the-as int s4-0) 20))))
-                  (set! v0-3 (the-as none ((the-as (function object object object) t9-3) a0-12 a1-4)))
+                  ;; og:preserve-this issue 759 rowtext4 crash rung: raw
+                  ;; method-table dispatch on *common-text* replaced with the
+                  ;; named call, and the dropped trailing argument restored.
+                  ;; Byte offset 52 is slot 9 by the tag+16+4N formula, and
+                  ;; game-text-info-method-9's own declaration (text-h.gc:57)
+                  ;; takes a second object argument this raw dispatch never
+                  ;; passed; every other jakx call site (for example
+                  ;; goal_src/jakx/levels/common/net-hud.gc:1022) passes #f
+                  ;; there, the dropped-arg class already on record for this
+                  ;; rung.
+                  (set! v0-3 (the-as none (game-text-info-method-9 *common-text* a1-4 #f)))
                   (set! a1-5 (the-as none v0-3))
                   (set! v1-24 (the-as none (l.wu (+ (the-as int s4-0) 60))))
                   (set! a2-2 (the-as none (l.w (+ (the-as int v1-24) -1))))
@@ -2065,11 +2083,14 @@
                    (set! a0-15 (the-as none (* (the-as int a0-14) s5-0)))
                    (set! v1-27 (the-as none (+ (the-as int v1-26) (the-as int a0-15))))
                    (set! s1-1 (the-as none (l.wu (+ (the-as int v1-27) 12))))
-                   (set! a0-16 (the-as none *common-text*))
-                   (set! v1-28 (the-as none (l.wu (+ (the-as int a0-16) -4))))
-                   (set! t9-5 (the-as none (l.wu (+ (the-as int v1-28) 52))))
                    (set! a1-6 (the-as none (l.wu (+ (the-as int s4-0) 20))))
-                   (set! v0-5 (the-as none ((the-as (function object object object) t9-5) a0-16 a1-6)))
+                   ;; og:preserve-this issue 759 rowtext4 crash rung: this is
+                   ;; the actual rowtext4 crash site
+                   ;; (.claude/scratch-tools/logs/gk-rowtext4.err.log): the
+                   ;; same raw offset-52 dispatch as the format branch above,
+                   ;; missing the same trailing argument. Rewritten
+                   ;; identically: named call, dropped #f restored.
+                   (set! v0-5 (the-as none (game-text-info-method-9 *common-text* a1-6 #f)))
                    (set! a1-7 (the-as none v0-5))
                    (set! t9-6 (the-as none s2-1))
                    (set! a0-17 (the-as none s1-1))
