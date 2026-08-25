@@ -1757,3 +1757,257 @@
   0
   (none)
   )
+
+;; definition for symbol METERS_PER_TEXEL, type float
+;; issue 759, a2 rung step 5: this constant is only ever defined in the dead
+;; menu2.gc donor (menu2.gc:5025-5026), never landed; the hand-carry below is
+;; its only real consumer.
+(define METERS_PER_TEXEL 200.0)
+
+;; base-menu-method-60 (string-menu): the centerpiece hand-carry, issue 759,
+;; a2 rung's own STEP 5. Donor menu2.gc:5031, 858 lines. Two branches on
+;; whether this row's own info-ptr has a real box-index (-1 means none):
+;;
+;;   box-index == -1: the simple per-row draw. Calls string-menu-method-67
+;;     to refresh text, then for each row builds a stack font-context from
+;;     its own strings-info entry (position, width/height, scale, flags,
+;;     color, alpha) and calls draw-string; closes the dma-buffer segment
+;;     with a manual "next" tag (the same shape with-dma-bucket's own macro
+;;     expansion writes, goal_src/jakx/engine/dma/dma-buffer.gc:281-306, but
+;;     hand-inlined rather than macro-expanded because the donor guards the
+;;     close behind "did anything actually get written" and that macro's
+;;     own current body no longer does - a live divergence, not a
+;;     transcription choice) and calls dma-bucket-insert-tag.
+;;
+;;   else: the auto-fit branch. Same string-menu-method-67 refresh, then
+;;     per row: transforms the row's own strings-info position through
+;;     joint-mat*offset-matrix (matrix*!/vector-matrix*!) into a scratch
+;;     matrix that doubles as the row's own screen-space transform;
+;;     optionally draws a red debug-line rectangle around the row's own
+;;     text box (behind *draw-debug-boxes*, using that transform's own
+;;     rvec/uvec/trans rows scaled by two raw per-menu extent fields); calls
+;;     print-game-text once to measure the text's own rendered width (a2=#t,
+;;     matching print-game-text's own "measure, don't draw" branch) against
+;;     the row's own persisted scale; when get-player-amplitude (issue 759's
+;;     own STEP 3 stub, always 0.0 here, so this specific fold never
+;;     triggers at present) exceeds 5, blends a derived speed value into
+;;     that scale first; then, while the scale stays above a small
+;;     threshold and the measured width still exceeds the font-context's
+;;     own height, repeatedly shrinks the scale by a fixed step and
+;;     re-measures, before calling print-game-text for real (at whatever
+;;     scale the loop settled on) unless *hide-menus* is set. Falls through
+;;     to matrix-identity! on offset-matrix once the loop ends.
+;;
+;; Both branches call prim-strip-menu's own base-menu-method-60 at the tail
+;; (literal type name, matching this file's own method-of-type doctrine: a
+;; virtual dispatch through (-> this type) here would recurse into this
+;; same override). The string-menu-method-67 refresh call in both branches
+;; is the opposite case: the donor reads (-> this type) dynamically rather
+;; than naming string-menu literally, which is simply how the decompiler
+;; represents an ordinary virtual call it could not fold back to
+;; (method-name obj) sugar; written here as the plain call
+;; (string-menu-method-67 this), which is what that sugar means and is also
+;; what correctly reaches dropdown-item's own override (landed above, this
+;; same file) when this is actually called on a dropdown-item instance.
+;;
+;; Two more decompiler-only notation classes needed resolving, beyond the
+;; ones already covered by this file's header and this rung's own row-text
+;; landing (confirmed by direct compilation): i2f/gpr->fpr (AtomicOp.cpp,
+;; same MIPS o32 float-argument-passing convention as f2i/fpr->gpr - i2f is
+;; f2i's own inverse, a real int-to-float value conversion, so (i2f
+;; (gpr->fpr X)) collapses to (the float X) the same way (fpr->gpr (f2i X))
+;; collapsed to (the int X) in this rung's own row-text landing); and
+;; vector-!2/vector-float*!2, which are not decompiler-only exactly but ARE
+;; unlanded everywhere else they appear in this tree - cam-debug.gc and
+;; collision-editor.gc both use them, but every such use, checked directly,
+;; sits inside that file's own #| |# block comment and has never compiled.
+;; Both are the same function as their un-suffixed twin (vector-!,
+;; goal_src/jakx/engine/math/vector-h.gc:564; vector-float*!, goal_src/
+;; jakx/engine/math/vector.gc:160) with an identical arg count and order,
+;; so this rung calls those directly rather than inventing a "2" overload
+;; with no evidenced difference anywhere in this tree.
+;;
+;; og:preserve-this hand-carry, issue 759: the seven stack-allocated scratch
+;; vectors the else branch uses (this method's own banner already flags
+;; "Failed to guess stack use for 464" - the decoder could not resolve
+;; these to real GOAL locals at all, only raw sp-relative offsets) are
+;; declared here as (new 'stack-no-clear 'vector) locals and fed to the
+;; same .lvf/.mov.vf.w/.add.vf.xyz sequences the donor already computes
+;; with, kept literal rather than re-expressed as a vector-add! call, per
+;; doctrine (transcribed, not improved). s.vf! itself joins this rung's own
+;; row-text landing's decompiler-notation list: not real (AtomicOp.cpp;
+;; every apparent use elsewhere, cam-debug.gc included, sits inside that
+;; file's own #| |# block comments and has never compiled), rewritten to
+;; the real builtin, .svf, on the destination's own quad field address
+;; (&-> DEST quad), matching goal_src/jakx/engine/anim/joint-mod-h.gc's own
+;; working precedent. The row's own
+;; strings-info entry address (this file's own row-text methods, STEP 4,
+;; already established this exact raw l.wu chain against info-ptr) and the
+;; two raw offset reads against this at +300/+304 (unconfirmed field
+;; identity - likely width-array/height-array or similar, not evidenced
+;; strongly enough this rung to name) are kept in the same raw form for the
+;; same reason: no dynamic-array-field-access marker sits on them, so
+;; nothing here forces a resolution beyond what compiles.
+(defmethod base-menu-method-60 ((this string-menu))
+  (local-vars
+    (v1-58 int)
+    (v1-59 none)
+    (v1-60 none)
+    (a0-41 base-menu-info)
+    (a0-42 none)
+    (s5-1 matrix)
+    (s4-1 font-context)
+    (s3-1 int)
+    (row-trans vector)
+    (row-pos vector)
+    (box-side-a vector)
+    (box-side-b vector)
+    (box-corner-far vector)
+    (box-corner-near vector)
+    )
+  (rlet ((vf0 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         )
+    (init-vf0-vector)
+    (cond
+      ((= (-> (-> this info-ptr) box-index) -1)
+       (let ((buf (-> *display* frames (-> *display* on-screen) global-buf)))
+         (let ((buf-base-before (-> buf base)))
+           (when (-> this strings)
+             (string-menu-method-67 this)
+             (let ((s3-0 0))
+               (while (< s3-0 (-> this strings length))
+                 (when (-> this strings data s3-0 text)
+                   (let ((fc (new 'stack 'font-context *font-default-matrix* 0 0 (the-as float #x4b002032) (the-as font-color 0) (the-as font-flags 3))))
+                     (cond
+                       ((= (-> this pos-z) 0.0)
+                        (set! (-> fc origin x) (the float (-> this strings data s3-0 pos x)))
+                        (set! (-> fc origin y) (the float (-> this strings data s3-0 pos y)))
+                        (set! (-> fc origin z) (the float (-> this strings data s3-0 pos z)))
+                        )
+                       (else
+                         (set! (-> fc origin z) (the float (shl (+ (the int (-> this pos-z)) 5000) 4)))
+                         )
+                       )
+                     (set! (-> fc width) (the float (-> this width)))
+                     (set! (-> fc height) (the float (-> this height)))
+                     (set! (-> fc scale) (-> this strings data s3-0 scale))
+                     (set! (-> fc flags) (the-as font-flags (-> this strings data s3-0 flags)))
+                     (set! (-> fc color) (-> this strings data s3-0 color))
+                     (set! (-> fc alpha) (-> this strings data s3-0 alpha))
+                     (set! (-> fc flags) (logior (-> fc flags) (font-flags ff8)))
+                     (draw-string (-> this strings data s3-0 text) buf fc)
+                     )
+                   )
+                 (+! s3-0 1)
+                 )
+               )
+             )
+           (when (!= buf-base-before (-> buf base))
+             (let ((pkt (the-as dma-packet (-> buf base))))
+               (set! (-> pkt dma) (new 'static 'dma-tag :id (dma-tag-id next)))
+               (set! (-> pkt vif0) (new 'static 'vif-tag :cmd (vif-cmd nop)))
+               (set! (-> pkt vif1) (new 'static 'vif-tag :cmd (vif-cmd nop)))
+               )
+             (let ((tag-end (&+ (-> buf base) 16)))
+               (set! (-> buf base) tag-end)
+               (dma-bucket-insert-tag
+                 (-> *display* frames (-> *display* on-screen) bucket-group)
+                 (bucket-id bucket792)
+                 buf-base-before
+                 (the-as (pointer dma-tag) tag-end)
+                 )
+               )
+             )
+           )
+         )
+       )
+      (else
+        (when (-> this strings)
+          (set! s5-1 (new 'stack-no-clear 'matrix))
+          (set! s4-1 (new 'stack 'font-context s5-1 0 0 (the-as float 0) (the-as font-color 0) (the-as font-flags 3)))
+          (string-menu-method-67 this)
+          (set! row-trans (new 'stack-no-clear 'vector))
+          (set! (-> row-trans quad) (-> this offset-matrix trans quad))
+          (set! s3-1 0)
+          (while (< s3-1 (-> this strings length))
+            (when (-> this strings data s3-1 text)
+              (set! v1-58 (shl s3-1 2))
+              (set! a0-41 (-> this info-ptr))
+              (set! a0-42 (the-as none (l.wu (+ (the-as int a0-41) 60))))
+              (set! v1-59 (the-as none (+ v1-58 (the-as int a0-42))))
+              (set! v1-60 (the-as none (l.wu (+ (the-as int v1-59) 12))))
+              (set! row-pos (new 'stack-no-clear 'vector))
+              (.lvf vf4 row-trans)
+              (.lvf vf5 (the-as pointer (+ (the-as int v1-60) 0)))
+              (.mov.vf.w vf6 vf0)
+              (.add.vf.xyz vf6 vf4 vf5)
+              (.svf (&-> row-pos quad) vf6)
+              (matrix*! s5-1 (-> this joint-mat) (-> this offset-matrix))
+              (vector-matrix*! row-pos row-pos s5-1)
+              (set! (-> s5-1 trans quad) (-> row-pos quad))
+              (set! (-> s4-1 width) (/ (the float (-> this width)) METERS_PER_TEXEL))
+              (set! (-> s4-1 height) (/ (the float (-> this height)) METERS_PER_TEXEL))
+              (set! (-> s4-1 scale) (-> this strings data s3-1 scale))
+              (set! (-> s4-1 flags) (the-as font-flags (-> this strings data s3-1 flags)))
+              (set! (-> s4-1 color) (-> this strings data s3-1 color))
+              (set! (-> s4-1 alpha) (-> this strings data s3-1 alpha))
+              (when *draw-debug-boxes*
+                (set! box-side-a (new 'stack-no-clear 'vector))
+                (set! box-side-b (new 'stack-no-clear 'vector))
+                (set! box-corner-near (new 'stack-no-clear 'vector))
+                (set! box-corner-far (new 'stack-no-clear 'vector))
+                (vector-float*! box-side-a (-> s5-1 rvec) (- (the float (l.w (+ (the-as int this) 300)))))
+                (.lvf vf4 (-> s5-1 trans))
+                (.lvf vf5 box-side-a)
+                (.mov.vf.w vf6 vf0)
+                (.add.vf.xyz vf6 vf4 vf5)
+                (.svf (&-> box-corner-near quad) vf6)
+                (add-debug-line #t (bucket-id bucket785) (-> s5-1 trans) box-corner-near *color-red* #f (the-as rgba -1))
+                (vector-float*! box-side-b (-> s5-1 uvec) (- (the float (l.w (+ (the-as int this) 304)))))
+                (.lvf vf4 (-> s5-1 trans))
+                (.lvf vf5 box-side-b)
+                (.mov.vf.w vf6 vf0)
+                (.add.vf.xyz vf6 vf4 vf5)
+                (.svf (&-> box-corner-far quad) vf6)
+                (add-debug-line #t (bucket-id bucket785) (-> s5-1 trans) box-corner-far *color-red* #f (the-as rgba -1))
+                (.lvf vf4 box-corner-far)
+                (.lvf vf5 box-side-a)
+                (.mov.vf.w vf6 vf0)
+                (.add.vf.xyz vf6 vf4 vf5)
+                (.svf (&-> box-corner-far quad) vf6)
+                (add-debug-line #t (bucket-id bucket785) box-corner-near box-corner-far *color-red* #f (the-as rgba -1))
+                (vector-! box-corner-near box-corner-far box-side-b)
+                (add-debug-line #t (bucket-id bucket785) box-corner-far box-corner-near *color-red* #f (the-as rgba -1))
+                )
+              (let ((measured-width (print-game-text (-> this strings data s3-1 text) s4-1 #t 44 (bucket-id bucket791))))
+                (set! (-> s4-1 scale) (-> this strings data s3-1 scale))
+                (when (> (the int (get-player-amplitude (-> this strings data s3-1 text))) 5)
+                  (let* ((amp (max 20 (min 50 (the int (get-player-amplitude (-> this strings data s3-1 text))))))
+                         (speed (- 1.0 (* 0.01 (the float amp))))
+                         )
+                    (set! (-> s4-1 scale) (* (-> s4-1 scale) speed))
+                    )
+                  (s.b! (+ (the-as int s4-1) 180) 1)
+                  )
+                (while (and (< 0.1 (-> s4-1 scale)) (>= measured-width (-> s4-1 height)))
+                  (set! (-> s4-1 scale) (+ -3.0 (-> s4-1 scale)))
+                  (set! measured-width (print-game-text (-> this strings data s3-1 text) s4-1 #t 44 (bucket-id bucket791)))
+                  )
+                )
+              (unless *hide-menus*
+                (print-game-text (-> this strings data s3-1 text) s4-1 #f 44 (bucket-id bucket791))
+                )
+              )
+            (set! s3-1 (the-as int (+ s3-1 1)))
+            )
+          (matrix-identity! (-> this offset-matrix))
+          )
+        )
+      )
+    )
+  ((method-of-type prim-strip-menu base-menu-method-60) this)
+  (none)
+  )
