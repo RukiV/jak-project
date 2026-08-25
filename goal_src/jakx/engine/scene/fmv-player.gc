@@ -502,6 +502,14 @@
 (defconstant FMV-THX-DURATION-MS 15015)
 (defconstant FMV-INTRO-DURATION-MS 242709)
 (defconstant FMV-DEFAULT-DURATION-MS 18500)
+;; og:preserve-this (issue 762): 285 frames at 30000/1001 fps (LOGO.MJV's own container
+;; header, gen_mjv.py's transcode of iso_data/jakx/STR/LOGO.IPU): 285 * 1001 * 1000 /
+;; 30000 = 9509.5, truncated. There is no *m2v-info* entry to read this from -- the
+;; burning-X login movie is not a disc M2V (fmv-player-run-texture's own og:preserve-this
+;; banner below has the full argument evidence), so unlike FMV-THX-DURATION-MS and
+;; FMV-INTRO-DURATION-MS above this is not a decoded retail value, it is computed from
+;; the transcoded container's own frame count and rate.
+(defconstant FMV-LOGO-DURATION-MS 9509)
 
 ;; og:preserve-this (issue 762): a PC-port-invented fmv-mode value, not
 ;; decoded -- retail's own fmv-mode field only ever holds 1 (normal) or 2
@@ -520,11 +528,15 @@
 ;; position, fmv-player-h.gc's static order: "intro" is position 0, "thx" is
 ;; position 42). Hardcoding those two positions here rather than re-deriving
 ;; them by name every call is safe: *m2v-info* is a fixed static array, its
-;; order cannot change at runtime.
+;; order cannot change at runtime. 43 (issue 762) is not an *m2v-info*
+;; position at all: it is the LOGO movie-id fmv-player-run-texture sets on
+;; gui-id directly (this file's own og:preserve-this note on that function),
+;; so it is checked the same way as the other two hardcoded indices.
 (defun fmv-duration-for-movie ((movie-idx uint))
   (cond
     ((= movie-idx (the uint 42)) FMV-THX-DURATION-MS)
     ((= movie-idx (the uint 0)) FMV-INTRO-DURATION-MS)
+    ((= movie-idx (the uint 43)) FMV-LOGO-DURATION-MS)
     (else FMV-DEFAULT-DURATION-MS)
     )
   )
@@ -1106,7 +1118,20 @@
                        )
             )
         (when new-proc
-          (set! *fmv-player* (-> new-proc 0))
+          ;; og:preserve-this (issue 762): gui-id 43 mirrors fmv-player-run's own
+          ;; (set! (-> proc gui-id) (the uint movie-idx)) above -- gui-id is the
+          ;; "movie index" playing/die and TextureAnimator's own movie-id -> MJV-
+          ;; basename table read back (fmv-duration-for-movie's own og:preserve-this
+          ;; note, this file). 43 is not an *m2v-info* array position (this path
+          ;; never looks *m2v-info* up by name), it is the LOGO entry TextureAnimator
+          ;; reserves by convention (TextureAnimator.cpp's fmv_movie_basename); left
+          ;; unset, gui-id stayed at fmv-player's own zero-initialized default (movie
+          ;; index 0, "INTRO"), so duration and mirroring both keyed off the wrong
+          ;; movie.
+          (let ((proc (-> new-proc 0)))
+            (set! (-> proc gui-id) (the uint 43))
+            (set! *fmv-player* proc)
+            )
           )
         )
       )
