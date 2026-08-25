@@ -754,7 +754,15 @@
                (elapsed-ms (the int (/ (* elapsed-ticks 10) 3)))
                )
           (cond
-            ((or (cpad-pressed? 0 triangle circle x) (> elapsed-ms (fmv-duration-for-movie (-> self gui-id))))
+            ;; og:preserve-this (issue 762): the duration half of this arm is gated off
+            ;; FMV-MODE-TEXTURE -- see the texture-mode branch's own og:preserve-this note
+            ;; below for why. Pad-skip stays live for both modes; only the automatic
+            ;; die-on-duration exit is fullscreen-only.
+            ((or (cpad-pressed? 0 triangle circle x)
+                 (and (!= (-> self fmv-mode) FMV-MODE-TEXTURE)
+                      (> elapsed-ms (fmv-duration-for-movie (-> self gui-id)))
+                      )
+                 )
              (go die)
              )
             ;; og:preserve-this texture-mode branch (issue 762): the login-logo
@@ -786,6 +794,18 @@
                   )
              (suspend)
              )
+            ;; og:preserve-this texture-mode loop (issue 762): retail's login logo burns
+            ;; forever, but this port's elapsed-ms free-runs off (current-time) and
+            ;; MjvVideoReader (TextureAnimator.cpp) clamps any elapsed-ms past the movie's
+            ;; last frame to that frame rather than wrapping -- an unmodified emit here
+            ;; decodes LOGO.MJV once (~9.5 s, 285 frames measured on this rung's own boot)
+            ;; and then holds the final frame forever. The die-on-elapsed-ms arm above is
+            ;; already gated off FMV-MODE-TEXTURE for the same reason: fullscreen movies
+            ;; keep their real run-once/die-on-duration exit, but the login logo has no
+            ;; retail-authored end to die on. Wrapping the value actually sent to C++ with
+            ;; fmv-duration-for-movie -- the one duration lookup this file already carries,
+            ;; rather than a LOGO-specific constant this file has no decoded evidence for --
+            ;; is what makes the emitted elapsed-ms loop instead of climb past the clamp.
             ((= (-> self fmv-mode) FMV-MODE-TEXTURE)
              (with-dma-buffer-add-bucket ((buf (-> *display* frames (-> *display* on-screen) global-buf))
                                           (bucket-id tex-lcom-sky-pre)
@@ -793,7 +813,8 @@
                (pc-texture-anim-flag start-anim-array buf)
                (pc-texture-anim-flag fmv-frame buf :qwc 1)
                (let ((rec (the texture-anim-pc-fmv-frame (-> buf base))))
-                 (set! (-> rec elapsed-ms) (the uint elapsed-ms))
+                 (set! (-> rec elapsed-ms)
+                       (the uint (mod elapsed-ms (fmv-duration-for-movie (-> self gui-id)))))
                  (set! (-> rec dest) (-> self texture-base-page))
                  (set! (-> rec width) 128)
                  (set! (-> rec height) 128)
