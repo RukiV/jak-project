@@ -680,11 +680,48 @@
 ;; print-game-text: hand-port from goal_src/jak2/engine/ui/text.gc and
 ;; goal_src/jak3/engine/ui/text.gc (issue 759, a2 rung), not a decode of this
 ;; object (see the held note above for why). The two twins are near-
-;; identical; jakx's own font-context (goal_src/jakx/engine/gfx/font-h.gc)
-;; matches jak2's shape exactly (no max-x field, no set-context! method, both
-;; of which jak3 added), so jak2's body is the one transcribed, verbatim
-;; except for two adaptations forced by symbols jak2/jak3 have that jakx does
-;; not:
+;; identical to each other (jak3 only adds a max-x field and a set-context!
+;; method on top of jak2's shape).
+;;
+;; Retired 2026-08-24 (issue 759, rowtext4 crash investigation): this note
+;; used to go on to claim jakx's own font-context "matches jak2's shape
+;; exactly." It does not, by a wide margin. jakx's real, decompiled
+;; font-context (decompiler/config/jakx/all-types.gc:16826-16875, ground
+;; truth for this object's own binary, method-count-assert 30 / size-assert
+;; #xbb) carries ten fields jak2/jak3 never had (calc-origin, calc-mat,
+;; meters-per-texel, scaled-width, scaled-height, ialpha, y-spacing,
+;; effect-time, effect, effect-color) and four methods inserted before the
+;; shared setter block that jak2/jak3 also never had
+;; (font-context-method-9 through -12, all landed in
+;; goal_src/jakx/engine/gfx/font.gc). Those four extra methods shift every
+;; setter's own slot number by +4 against jak2/jak3's numbering: jak2/jak3's
+;; slot 12 is set-w! (goal_src/jak2/engine/gfx/font-h.gc:131,
+;; goal_src/jak3/engine/gfx/font-h.gc:131); jakx's own slot 12 is
+;; font-context-method-12 (font-h.gc:156, all-types.gc:16857).
+;;
+;; That divergence does not retroactively break this hand-port: every
+;; font-context access print-game-text makes below is either a field read by
+;; name (origin, width, height, scale, flags, color, alpha, start-line - all
+;; present under the same name in jakx's own header, so the compiler
+;; resolves them against jakx's real, current offsets regardless of the ten
+;; extra fields interspersed around them) or a plain call
+;; (draw-string/get-string-length, resolved by name against jakx's own
+;; header too). No slot number is hardcoded anywhere in this function. The
+;; risk the old claim posed was purely a documentation one: a future
+;; jak2/jak3 hand-port for this object that assumed positional/slot parity
+;; instead - a raw method-table read, or a reused jak2/jak3 mips2c body that
+;; encodes a slot number rather than a name - would silently dispatch into
+;; whichever of jakx's four extra methods actually holds jak2/jak3's slot
+;; number, not the intended one. Checked directly for this rung's own
+;; rowtext4 crash (.claude/scratch-tools/logs/gk-rowtext4.err.log): no call
+;; in font.gc, text.gc, or menu2-draw.gc dispatches a font-context method by
+;; raw slot number or by a name jakx does not itself declare at that slot,
+;; so this specific hand-port is not where that landmine was live; landing
+;; it here so the next person touching font-context does not re-trust the
+;; retired claim above.
+;;
+;; jak2's body is the one transcribed, verbatim except for two adaptations
+;; forced by symbols jak2/jak3 have that jakx does not:
 ;;   - the inner "measure the wrapped height, don't draw" recursive call
 ;;     jak2 routes through (bucket-id progress) and jak3 through (bucket-id
 ;;     hud-draw-hud-alpha); jakx's bucket-id enum (vu1-user-h.gc) carries
