@@ -169,3 +169,117 @@
   0
   (none)
   )
+
+;; definition for method 69 of type dropdown-item
+;; og:preserve-this issue 759's own prim-engine landing, slice 4 step 3: the
+;; selector highlight road (the purple bar), one of this slice's own named
+;; acceptance elements. This slice's own scoped redecode (587 raw lines)
+;; carries three ERRORs, all resolved by understanding rather than a
+;; config cast:
+;;  - "Could not figure out load: (set! s2 (l.wu (+ v1 112)))" is
+;;    dropdown-item-info's own selection-box-color (offset-assert 112,
+;;    already declared uint32 in menu2-h.gc) - a packed rgba the decoder
+;;    cannot follow through the logand/logior byte-masking below without
+;;    already knowing it is a color; retyping the read as rgba below (both
+;;    the base color and the glow color it feeds) turns every raw shift
+;;    into a plain r/g/b/a field access.
+;;  - "Failed to guess stack use for 80" is five more stack-no-clear
+;;    vectors (the selection-box-offset copy plus four per-corner
+;;    transform temps), the exact shape prim-strip-menu-method-66 above
+;;    already resolves the same way; this method's own leading (new
+;;    'stack-no-clear 'event-message-block) is dead the same way that
+;;    method's own is.
+;;  - "Unsupported inline assembly instruction kind - [srl a0, a0, 24]" is
+;;    the alpha channel's own extraction out of the packed color; every
+;;    other channel's own extraction resolves to a plain shift pair the
+;;    decoder does accept; this one degrades to raw asm only because it is
+;;    the top byte (shift by 24, not a multiple the decoder's own pattern
+;;    matcher recognizes here) - reading it as -> (the-as rgba ...) a
+;;    sidesteps the instruction entirely.
+;;
+;; Per row: this dropdown-item's own selection-box-width/height
+;; (dropdown-item-info, offset 68/72, -1 meaning "use the row's own
+;; width/height" - base-menu's own fields, all-types.gc offset-assert
+;; 304/308) size a quad at the info's own selection-box-offset (offset 96).
+;; The box's own base color is the info's own selection-box-color with
+;; every channel scaled by the row's first string's own alpha
+;; (menu-string-array's own data 0 alpha field - the purple bar fades with
+;; its own row's text), then a second color lerps that base color's own
+;; r/g/b toward a fixed target (48/16/96, a magenta-leaning purple) by a
+;; sine-driven pulse in [0, 1] (0.5 * (1 + (sin ...)), pp's own clock
+;; frame-counter as the time source) while keeping the first color's own
+;; alpha - the additive glow issue 759's own comments cite. All four
+;; corners draw through p-client-selection (offset 560, the same
+;; basic-left-untyped-cast-at-use-site convention prim-strip-menu-method-66
+;; above already established) with the glow color, matching that method's
+;; own corner layout (UV 0/0, 1/0, 0/1, 1/1) except the two size-driven
+;; corners subtract width/height rather than adding a texture-derived
+;; offset. Every magic float below (the frame-counter's own animation-speed
+;; scalar and the degrees-to-rotation-unit scale trigonometry.gc's own sin
+;; expects, "rotation units") is kept as its exact bit pattern via
+;; (the-as float #xHEX) rather than a decimal literal, since a decimal
+;; round-trip is not guaranteed bit-exact and this transcription does not
+;; improve on the retail constant.
+(defmethod dropdown-item-method-69 ((this dropdown-item))
+  (with-pp
+    (new 'stack-no-clear 'event-message-block)
+    (let ((box-width (-> this width))
+          (box-height (-> this height))
+          (info (the-as dropdown-item-info (-> this info-ptr)))
+          )
+      (when (!= (-> info selection-box-width) -1)
+        (set! box-width (-> info selection-box-width))
+        )
+      (when (!= (-> info selection-box-height) -1)
+        (set! box-height (-> info selection-box-height))
+        )
+      (when (-> this strings)
+        (let* ((raw-color (the-as rgba (-> info selection-box-color)))
+               (text-alpha (-> this strings data 0 alpha))
+               (base-color (new 'static 'rgba
+                             :r (the int (* text-alpha (the float (-> raw-color r))))
+                             :g (the int (* text-alpha (the float (-> raw-color g))))
+                             :b (the int (* text-alpha (the float (-> raw-color b))))
+                             :a (the int (* text-alpha (the float (-> raw-color a))))
+                             )
+                           )
+               (anim-scaled (* (the-as float #x3b5a740e) (the float (-> pp clock frame-counter))))
+               (anim-frac (- anim-scaled (the float (the int anim-scaled))))
+               (pulse-phase (* (* 360.0 anim-frac) (the-as float #x43360b61)))
+               (pulse (* 0.5 (+ 1.0 (sin pulse-phase))))
+               (glow-color (new 'static 'rgba
+                             :r (the int (+ (the float (-> base-color r)) (* pulse (- 48.0 (the float (-> base-color r))))))
+                             :g (the int (+ (the float (-> base-color g)) (* pulse (- 16.0 (the float (-> base-color g))))))
+                             :b (the int (+ (the float (-> base-color b)) (* pulse (- 96.0 (the float (-> base-color b))))))
+                             :a (-> base-color a)
+                             )
+                           )
+               (client (the-as menu-prim-strip-client (-> this p-client-selection)))
+               (corner-0 (new 'stack-no-clear 'vector))
+               (corner-1 (new 'stack-no-clear 'vector))
+               (corner-2 (new 'stack-no-clear 'vector))
+               (corner-3 (new 'stack-no-clear 'vector))
+               )
+          (set! (-> corner-0 quad) (-> info selection-box-offset quad))
+          (vector-matrix*! corner-0 corner-0 (-> this joint-mat))
+          (menu-prim-strip-client-method-10 client (-> client strip) corner-0 glow-color 0.0 0.0)
+          (set! (-> corner-1 quad) (-> info selection-box-offset quad))
+          (-! (-> corner-1 x) (the float box-width))
+          (vector-matrix*! corner-1 corner-1 (-> this joint-mat))
+          (menu-prim-strip-client-method-10 client (-> client strip) corner-1 glow-color 1.0 0.0)
+          (set! (-> corner-2 quad) (-> info selection-box-offset quad))
+          (-! (-> corner-2 y) (the float box-height))
+          (vector-matrix*! corner-2 corner-2 (-> this joint-mat))
+          (menu-prim-strip-client-method-10 client (-> client strip) corner-2 glow-color 0.0 1.0)
+          (set! (-> corner-3 quad) (-> info selection-box-offset quad))
+          (-! (-> corner-3 x) (the float box-width))
+          (-! (-> corner-3 y) (the float box-height))
+          (vector-matrix*! corner-3 corner-3 (-> this joint-mat))
+          (menu-prim-strip-client-method-10 client (-> client strip) corner-3 glow-color 1.0 1.0)
+          )
+        )
+      )
+    )
+  0
+  (none)
+  )
