@@ -16,6 +16,15 @@
 ;; definition for symbol *game-text-word*, type string
 (define *game-text-word* (new 'global 'string 1024 (the-as string #f)))
 
+;; og:preserve-this print-game-text rung (issue 759, a2): this object's own
+;; decode never emitted this buffer, because it is read and written only
+;; inside print-game-text's own body, and that body itself never decompiled
+;; (six real errors, four unsupported inline assembly - see the held note
+;; below). Landed here as part of the same hand-port that lands
+;; print-game-text from the jak2/jak3 twins, both of which declare this exact
+;; symbol adjacent to *game-text-word* with the same size and initial value.
+(define *game-text-line* (new 'global 'string 1024 (the-as string #f)))
+
 ;; definition for symbol *hyphen-text-word*, type string
 (define *hyphen-text-word* (new 'global 'string 1024 (the-as string #f)))
 
@@ -639,9 +648,9 @@
   (none)
   )
 
-;; og:preserve-this text-record-wall rung (held): draw-debug-text-box,
-;; hyphenate-word and print-game-text are unchanged by this rung and stay
-;; walled for reasons unrelated to the record-field class.
+;; og:preserve-this text-record-wall rung (held): draw-debug-text-box and
+;; hyphenate-word are unchanged by this rung and stay walled for reasons
+;; unrelated to the record-field class.
 ;;   draw-debug-text-box  "function has no type analysis. Cannot decompile."
 ;;     with no all-types entry. Adding the entry the decompiler itself
 ;;     suggests, (function font-context none) (jak3 carries exactly that),
@@ -651,15 +660,235 @@
 ;;   hyphenate-word       same missing-type error; a bare (define-extern
 ;;     hyphenate-word function) was tried in scratch and changed nothing, so
 ;;     there is no signature to land it against. Reverted.
-;;   print-game-text      six real errors, four of them unsupported inline
-;;     assembly (sllv v1, v0, r0), which no config change can reach.
-;; The print-game-text-work type and its method 3 stay unlanded with them:
+;;
+;; print-game-text itself is landed below (issue 759, a2 rung), but as a
+;; hand-port from the jak2/jak3 twins rather than a decode of this object's
+;; own machine code: this object's own copy still reports the same six real
+;; errors, four of them unsupported inline assembly (sllv v1, v0, r0), so its
+;; true field-for-field body stays unread. The print-game-text-work type and
+;; its method 3 stay held for exactly that reason, independent of this note:
 ;; the type is declared by this object's own top level via (type-new
-;; 'print-game-text-work structure ...) and print-game-text, its only
-;; consumer, is the function that would reveal the field layout. The
+;; 'print-game-text-work structure ...), and jakx's own print-game-text body,
+;; still unread, is the only consumer that would reveal its field layout. The
 ;; top-level (method-set! (the-as type print-game-text-work) 3 L183) and the
 ;; (define *print-game-text-work* <static-data L171>) that follow it are held
-;; with the type, since both name it.
+;; with the type for the same reason; the landed function below does not
+;; consume print-game-text-work at all, since the jak2/jak3 twins it is
+;; ported from never had that type.
+
+;; print-game-text: hand-port from goal_src/jak2/engine/ui/text.gc and
+;; goal_src/jak3/engine/ui/text.gc (issue 759, a2 rung), not a decode of this
+;; object (see the held note above for why). The two twins are near-
+;; identical; jakx's own font-context (goal_src/jakx/engine/gfx/font-h.gc)
+;; matches jak2's shape exactly (no max-x field, no set-context! method, both
+;; of which jak3 added), so jak2's body is the one transcribed, verbatim
+;; except for two adaptations forced by symbols jak2/jak3 have that jakx does
+;; not:
+;;   - the inner "measure the wrapped height, don't draw" recursive call
+;;     jak2 routes through (bucket-id progress) and jak3 through (bucket-id
+;;     hud-draw-hud-alpha); jakx's bucket-id enum (vu1-user-h.gc) carries
+;;     neither name (issue 675 retired hud-draw-hud-alpha to the bare
+;;     bucket579 slot, progress never existed here at all). The value is
+;;     inert on this call path regardless of which bucket-id is passed: the
+;;     recursive call always passes arg2=#t, so its own (when (not arg2) ...)
+;;     guard is false and the with-dma-buffer-add-bucket block that would
+;;     read the argument never runs. (bucket-id debug-menu) is used since it
+;;     is jakx's own real, live menu-text-adjacent bucket (vu1-user-h.gc:863).
+;;   - the jak2 tail that guards draw-debug-text-box behind (#when PC_PORT
+;;     (if (and *debug-segment* *display-text-box*) ...)) is dropped rather
+;;     than transcribed: PC_PORT is (defglobalconstant PC_PORT #t) in jakx
+;;     (gcommon.gc:13), so #when PC_PORT is never compiled away here the way
+;;     it would be on a #f build, and *display-text-box* is not declared
+;;     anywhere in this tree while draw-debug-text-box is itself held two
+;;     paragraphs up; keeping the tail verbatim would not compile. No
+;;     behavior is lost that this tree could already reach.
+;; *game-text-line* is the one new global this hand-port needed; see its own
+;; og:preserve-this note next to *game-text-word* above.
+(defun print-game-text ((arg0 string) (arg1 font-context) (arg2 symbol) (arg3 int) (arg4 bucket-id))
+  "Print text."
+  (local-vars
+    (sv-16 float)
+    (sv-20 float)
+    (sv-24 font-flags)
+    (sv-28 font-color)
+    (sv-32 (pointer uint8))
+    (sv-36 float)
+    (sv-40 float)
+    (sv-44 float)
+    (sv-48 float)
+    (sv-52 float)
+    (sv-56 float)
+    (sv-64 int)
+    (sv-72 uint)
+    (sv-80 int)
+    (sv-88 int)
+    (sv-96 int)
+    (sv-104 uint)
+    (sv-108 symbol)
+    (sv-112 int)
+    (sv-120 int)
+    )
+  (cond
+    ((< 0.1 (-> arg1 scale))
+     (set! sv-16 (-> arg1 origin x))
+     (set! sv-20 (-> arg1 origin y))
+     (set! sv-24 (-> arg1 flags))
+     (set! sv-28 (-> arg1 color))
+     (when (logtest? (-> arg1 flags) (font-flags middle-vert))
+       (logclear! (-> arg1 flags) (font-flags middle-vert))
+       (+! (-> arg1 origin y)
+           (the float (the int (* 0.5 (- (-> arg1 height) (print-game-text arg0 arg1 #t 44 (bucket-id debug-menu))))))
+           )
+       )
+     (set! sv-32 (-> arg0 data))
+     (set! sv-36 (-> arg1 origin x))
+     (set! sv-40 (-> arg1 origin x))
+     (set! sv-44 (+ (-> arg1 origin x) (-> arg1 width)))
+     (set! sv-48 (+ (-> arg1 origin y) (-> arg1 height)))
+     (set! sv-52 (-> (get-string-length " " arg1) length))
+     (set! sv-56 (* (if (logtest? (-> arg1 flags) (font-flags large))
+                        (the float arg3)
+                        28.0
+                        )
+                    (-> arg1 scale)
+                    )
+           )
+     (set! sv-64 0)
+     (if (logtest? (-> arg1 flags) (font-flags middle))
+         (+! (-> arg1 origin x) (/ (-> arg1 width) 2))
+         )
+     (set! sv-72 (-> sv-32 0))
+     (set! sv-80 0)
+     (set! sv-88 0)
+     (set! sv-96 0)
+     (set! sv-104 (-> sv-32 1))
+     (set! sv-108 (the-as symbol #f))
+     (set! sv-112 0)
+     (set! sv-120 0)
+     (set! (-> *game-text-line* data 0) (the-as uint 0))
+     (while (and (not (and (zero? sv-72) (zero? sv-80) (zero? sv-88))) (>= sv-48 (-> arg1 origin y)))
+       (set! sv-120 0)
+       (set! sv-32 (&-> sv-32 1))
+       (set! sv-104 (-> sv-32 0))
+       (set! sv-32 (&-> sv-32 -1))
+       (cond
+         ((and (> sv-72 0) (< sv-72 (the-as uint 4)))
+          (set! (-> *game-text-word* data sv-80) sv-72)
+          (set! sv-80 (+ sv-80 1))
+          (set! (-> *game-text-word* data sv-80) sv-104)
+          (set! sv-80 (+ sv-80 1))
+          (set! sv-32 (&-> sv-32 1))
+          )
+         ((= sv-72 32)
+          (set! (-> *game-text-word* data sv-80) sv-72)
+          (set! sv-80 (+ sv-80 1))
+          (set! sv-108 #t)
+          )
+         ((zero? sv-72)
+          (if (nonzero? sv-80)
+              (set! sv-108 #t)
+              )
+          (set! sv-112 (+ sv-112 1))
+          )
+         ((and (= sv-72 92) (= sv-104 92))
+          (set! sv-32 (&-> sv-32 1))
+          (if (nonzero? sv-80)
+              (set! sv-108 #t)
+              )
+          (set! sv-112 (+ sv-112 1))
+          )
+         ((and (= sv-72 95) (= sv-104 95))
+          (set! sv-32 (&-> sv-32 1))
+          (set! (-> *game-text-word* data sv-80) (the-as uint 32))
+          (set! sv-80 (+ sv-80 1))
+          )
+         (else
+           (set! (-> *game-text-word* data sv-80) sv-72)
+           (set! sv-80 (+ sv-80 1))
+           )
+         )
+       (when sv-108
+         (set! (-> *game-text-word* data sv-80) (the-as uint 0))
+         (let ((f30-1 sv-36))
+           (set! sv-120 (the int (the-as float (-> (get-string-length *game-text-word* arg1) length))))
+           (let ((f0-26 (+ f30-1 (the float sv-120))))
+             (if (= (-> *game-text-word* data (+ sv-80 -1)) 32)
+                 (set! f0-26 (- f0-26 (the-as float sv-52)))
+                 )
+             (cond
+               ((< sv-44 f0-26)
+                (set! sv-112 (+ sv-112 1))
+                )
+               (else
+                 (copy-charp<-charp (&-> *game-text-line* data sv-88) (-> *game-text-word* data))
+                 (set! sv-88 (+ sv-88 sv-80))
+                 (set! sv-80 0)
+                 (set! sv-36 (+ sv-36 (the float sv-120)))
+                 (set! sv-108 (the-as symbol #f))
+                 )
+               )
+             )
+           )
+         )
+       (while (> sv-112 0)
+         (let ((f30-2 (+ (-> arg1 origin y) sv-56)))
+           (when (and (>= sv-96 (the-as int (-> arg1 start-line))) #t)
+             (when (= (-> *game-text-line* data (+ sv-88 -1)) 32)
+               (set! (-> *game-text-line* data (+ sv-88 -1)) (the-as uint 0))
+               0
+               )
+             (if (nonzero? (-> *game-text-line* data 0))
+                 (set! sv-64 (+ sv-64 1))
+                 )
+             (when (not arg2)
+               (with-dma-buffer-add-bucket ((s2-1 (-> *display* frames (-> *display* on-screen) global-buf))
+                                            arg4
+                                            )
+                 (draw-string *game-text-line* s2-1 arg1)
+                 ;; jak2's own font-work types last-color font-color
+                 ;; (font-h.gc:299), a clean font-color <- font-color copy;
+                 ;; jakx's own font-work types the same field uint8
+                 ;; (goal_src/jakx/engine/gfx/font-h.gc:471), so the copy
+                 ;; needs an explicit cast here to keep this port's own
+                 ;; struct storage honest rather than retyping landed data.
+                 (set! (-> arg1 color) (the-as font-color (-> *font-work* last-color)))
+                 )
+               )
+             (set! (-> arg1 origin y) f30-2)
+             )
+           )
+         (set! sv-96 (+ sv-96 1))
+         (set! (-> *game-text-line* data 0) (the-as uint 0))
+         (set! sv-88 0)
+         (set! sv-112 (+ sv-112 -1))
+         (set! sv-36 sv-40)
+         (when sv-108
+           (copy-charp<-charp (&-> *game-text-line* data sv-88) (-> *game-text-word* data))
+           (set! sv-88 (+ sv-88 sv-80))
+           (set! sv-80 0)
+           (set! sv-108 (the-as symbol #f))
+           (set! sv-36 (+ sv-36 (the float sv-120)))
+           )
+         )
+       (when (nonzero? sv-72)
+         (set! sv-32 (&-> sv-32 1))
+         (set! sv-72 (-> sv-32 0))
+         )
+       )
+     (set! (-> arg1 origin x) sv-16)
+     (set! (-> arg1 origin y) sv-20)
+     (set! (-> arg1 flags) sv-24)
+     (set! (-> arg1 color) sv-28)
+     (if (> sv-64 0)
+         (* sv-56 (the float sv-64))
+         0.0
+         )
+     )
+    (else
+      0.0
+      )
+    )
+  )
 
 ;; definition for function disable-level-text-file-loading
 ;; WARN: Return type mismatch int vs none.

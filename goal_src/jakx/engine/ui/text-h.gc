@@ -84,3 +84,16 @@
 (define *common-text-heap* (new 'global 'kheap))
 
 (define *common-text* (the-as game-text-info #f))
+
+;; og:preserve-this print-game-text rung (issue 759, a2): forward-declared
+;; here, matching goal_src/jak2/engine/ui/text-h.gc:15 and
+;; goal_src/jak3/engine/ui/text-h.gc:1617, both of which declare it in their
+;; own text-h.gc rather than leave text.gc's own defun to self-register.
+;; text.gc's landed body below calls itself recursively (the vertical-center
+;; pre-pass), and goalc does not pre-bind a defun's own name for use inside
+;; its own body - the identical shape already measured for
+;; find-nearest-camera-distance (scripts/check_extern_defun.py's own module
+;; docstring) - so without this declaration here, text-h.o (game.gd rank 72)
+;; compiling before text.o (rank 268) leaves the recursive call site
+;; unresolved at the point it is compiled.
+(define-extern print-game-text (function string font-context symbol int bucket-id float))
