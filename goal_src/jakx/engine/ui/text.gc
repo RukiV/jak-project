@@ -613,31 +613,32 @@
   )
 
 ;; og:preserve-this text-record-wall rung, runtime note (NOT a hold; this body
-;; is the real decode and it is landed): the text files it ultimately loads are
-;; not staged yet, and this function is called every frame from
-;; display-loop-main as (load-level-text-files -1). *level-text-file-load-flag*
-;; is #t at top level and nothing landed clears it, so the call always reaches
-;; load-game-text-info.
+;; is the real decode and it is landed): this function is called every frame
+;; from display-loop-main as (load-level-text-files -1).
+;; *level-text-file-load-flag* is #t at top level and nothing landed clears
+;; it, so the call always reaches load-game-text-info.
 ;;
-;; The gap is data, not code. iso_data/jakx/TEXT holds all 24 files
-;; (0..11 COMMON.TXT and SUBTIT.TXT), but the jak3 overlord Jak X borrows
-;; enumerates only out/<game>/iso (game/overlord/jak3/iso_cd.cpp:495) and no
-;; .TXT is staged there; goal_src/jakx/game.gp's own text defsteps and its iso
-;; group-list entries are commented out, decompiler/config/jakx's
-;; process_game_text is false where jak3's is true, and game/assets/jakx does
-;; not exist at all (jak3 has game_text.gp there). Staging them is its own rung.
-;;
-;; Traced consequence until then, from the sources named and not from a boot:
-;; str-load queues the STR RPC with section -1, RPC_STR's not-a-stream branch
-;; fails Find() for the missing name and returns without touching result or
-;; maxlen (game/overlord/jak3/stream.cpp:77-91, no ASSERT on that path), so
-;; result stays the GOAL-side (load-msg-result invalid) = 666, which is NOT
-;; (load-msg-result error) = 1. str-load-status therefore reports 'complete and
-;; writes back the maxlen it was sent, which is the whole remaining heap, so
-;; load-game-text-info takes its own heap-overrun branch and returns 0. Net
-;; effect is one failed STR RPC and one "Game text heap overrun!" line per
-;; frame, not a crash and not a link against garbage. Unverified at runtime by
-;; this rung, which does not boot; verify it before reading any boot log.
+;; Retired 2026-08-24: this paragraph originally reported the gap as data, not
+;; code (iso_data/jakx/TEXT's 24 files unstaged into out/jakx/iso, game.gp's
+;; text defsteps commented out, decompiler/config/jakx's process_game_text
+;; false), and traced a specific consequence from that absence (RPC_STR's
+;; Find() failing the missing name, a "Game text heap overrun!" line every
+;; frame, no crash). Commit 780ada63a (2026-08-19, five days before this note
+;; was first written) already staged all 24 retail files into out/jakx/iso via
+;; game.gp's own copy-text-files/group-list "text" entries (see that file's
+;; own note at goal_src/jakx/game.gp:674-684 for why jakx copies the retail
+;; bytes verbatim rather than using jak3's decompile/compile game_text.gp
+;; round trip); this worktree's own out/jakx/iso carries all 24 .TXT files
+;; today, and the overlord's ReadDirectory (game/overlord/jak3/iso_cd.cpp:
+;; 491-505) enumerates that directory with no extension filter, so RPC_STR's
+;; Find() should succeed rather than fail. Still unverified at runtime by this
+;; rung, which does not boot: a rowtext1 acceptance boot on this same branch
+;; drew zero menu text despite the assets being staged, but with a different,
+;; confirmed cause (OpenGLRenderer.cpp's bucket791/792 registrations silently
+;; dropping string-menu's own row-text DMA as SkipRenderer, fixed alongside
+;; this note) - verify *common-text* itself is non-#f at the next boot before
+;; trusting this asset-staging fix rather than re-deriving the old failure
+;; mode from scratch.
 ;; definition for function load-level-text-files
 ;; WARN: Return type mismatch int vs none.
 (defun load-level-text-files ((arg0 int))
