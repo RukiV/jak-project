@@ -1087,32 +1087,33 @@
               (t9-1 none)
               (t9-2 none)
               )
-            (when (begin
-                    (and (begin
-                           (if (begin
-                                 (set! t9-0 menu-clear-strip)
-                                 (set! v1-0 (-> self p-client-selection))
-                                 (set! a0-0 (the-as none (l.wu v1-0)))
-                                 ((the-as (function object object) t9-0) a0-0)
-                                 (set! v1-1 (the-as none (-> self info-ptr)))
-                                 (set! v1-2 (the-as none (l.bu (+ (the-as int v1-1) 23))))
-                                 (set! v1-3 (the-as none (logand (the-as int v1-2) 2)))
-                                 (!= (the-as int v1-3) 0)
-                                 )
-                               (s.w! (+ (the-as int self) 568) #f)
-                               )
-                           (set! t9-1 (the-as none default-base-menu-post))
-                           ((the-as (function object) t9-1))
-                           (set! v1-6 (the-as none (l.wu (+ (the-as int self) 568))))
-                           (the-as symbol v1-6)
-                           )
-                         (and (begin (set! v1-8 (the-as none (l.wu (+ (the-as int self) 252)))) (the-as symbol v1-8))
-                              (begin (set! v1-9 (the-as none (l.wu (+ (the-as int self) 556)))) (the-as symbol v1-9))
-                              (begin (set! v1-10 (the-as none *hide-menus*)) (set! v1-7 (the-as none (not (the-as symbol v1-10)))))
-                              )
-                         )
-                    (the-as symbol v1-7)
-                    )
+            ;; effects first, exactly as the donor: clear the selection strip,
+            ;; the bit-2 box-update clear, then the default post.
+            (set! t9-0 menu-clear-strip)
+            (set! v1-0 (-> self p-client-selection))
+            (set! a0-0 (the-as none (l.wu v1-0)))
+            ((the-as (function object object) t9-0) a0-0)
+            (set! v1-1 (the-as none (-> self info-ptr)))
+            (set! v1-2 (the-as none (l.bu (+ (the-as int v1-1) 23))))
+            (set! v1-3 (the-as none (logand (the-as int v1-2) 2)))
+            (if (!= (the-as int v1-3) 0)
+                (s.w! (+ (the-as int self) 568) #f)
+                )
+            (set! t9-1 (the-as none default-base-menu-post))
+            ((the-as (function object) t9-1))
+            ;; the glow gate is the full retail conjunction: enabled (568),
+            ;; focused? (252), selected (556), and menus shown. The first
+            ;; landing's transcription tested only the trailing *hide-menus*
+            ;; register, so a short-circuit on selected=#f left stale truth in
+            ;; it and every row drew its glow; six stacked panel-wide row bars
+            ;; then read as one panel-sized purple slab and buried the section
+            ;; backdrop (issue 759; lane-crashdump-probe1 inspects: all six
+            ;; rows selected: #f yet all glowing).
+            (when (and (begin (set! v1-6 (the-as none (l.wu (+ (the-as int self) 568)))) (the-as symbol v1-6))
+                       (begin (set! v1-8 (the-as none (l.wu (+ (the-as int self) 252)))) (the-as symbol v1-8))
+                       (begin (set! v1-9 (the-as none (l.wu (+ (the-as int self) 556)))) (the-as symbol v1-9))
+                       (not *hide-menus*)
+                       )
               (set! a0-1 (the-as none self))
               (set! v1-11 (the-as none (l.wu (+ (the-as int a0-1) -4))))
               (set! t9-2 (the-as none (l.wu (+ (the-as int v1-11) 292))))

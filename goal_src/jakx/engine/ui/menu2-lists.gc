@@ -1946,6 +1946,105 @@
     )
   )
 
+;; base-menu-method-61 (dropdown-item): the row's event responder, transcribed
+;; from the donor (menu2.gc:7913-8132, decode-clean past its stack-guess and
+;; sllv markers, the same handle/ppointer idioms this campaign already
+;; resolves). base-menu-event-handler's else arm (menu2-installs.gc:558-560)
+;; routes every unmatched message here, but the only compiled method 61 was
+;; base-menu's donor no-op, so 'selected / 'deselected / 'enabled / 'disabled
+;; were silently swallowed and no row ever set its selected flag
+;; (lane-crashdump-probe1 inspects, issue 759: find-first-selectable's
+;; 'selected send landed in the no-op; all six rows selected: #f).
+;;
+;; Lives here rather than menu2-draw.gc because the 'selected arm calls
+;; insert-selection-cache and reads *last-lobby-state*, both defined above in
+;; this file and compiled after menu2-draw.o (game.gd rank), and a second
+;; define-extern would trip the duplicate-declare hazard menu2-installs.gc's
+;; own method-58 note documents. The manager-state read reuses the raw
+;; word[17] expression insert-selection-cache's own comment above pins to the
+;; disassembly (l.wu +68 then l.wu +0), not the decompiler's field-name guess.
+(defmethod base-menu-method-61 ((this dropdown-item) (proc process) (argc int) (message symbol) (block event-message-block))
+  (with-pp
+    (case message
+      (('selected)
+       (cond
+         ((-> this enabled)
+          ;; notify the parent manager: selection changed to this row's type
+          (let ((msg (new 'stack-no-clear 'event-message-block)))
+            (set! (-> msg from) (process->ppointer pp))
+            (set! (-> msg num-params) 2)
+            (set! (-> msg message) 'menu-selection-event)
+            (set! (-> msg param 0) (the-as uint 'changed))
+            (set! (-> msg param 1) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+            (send-event-function (ppointer->process (-> this parent)) msg)
+            )
+          (set! (-> this selected) (the-as basic #t))
+          (set! (-> this prev-selection) (the-as int (-> block param 0)))
+          (let ((mgr-state (the-as object (-> (the-as (pointer uint32) (-> (the-as (pointer uint32) *lobby-menu-manager*) 17)) 0))))
+            (when (= mgr-state *last-lobby-state*)
+              (insert-selection-cache mgr-state (the-as object (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+              )
+            (set! *last-lobby-state* mgr-state)
+            )
+          (the-as object #t)
+          )
+         (else
+           (the-as object #f)
+           )
+         )
+       )
+      (('deselected)
+       (set! (-> this selected) #f)
+       (the-as object #f)
+       )
+      (('enabled)
+       (set! (-> this enabled) (the-as basic #t))
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 1)
+         (set! (-> msg message) 'to-all-children)
+         (set! (-> msg param 0) (the-as uint 'set-strings-enabled))
+         (the-as object (send-event-function this msg))
+         )
+       )
+      (('disabled)
+       (set! (-> this enabled) #f)
+       ;; if the disabled row held the selection, push the manager off it
+       (when (-> this selected)
+         (let ((msg (new 'stack-no-clear 'event-message-block)))
+           (set! (-> msg from) (process->ppointer pp))
+           (set! (-> msg num-params) 1)
+           (set! (-> msg message) 'next)
+           (set! (-> msg param 0) (the-as uint 0))
+           (send-event-function (ppointer->process (-> this parent)) msg)
+           )
+         )
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 1)
+         (set! (-> msg message) 'to-all-children)
+         (set! (-> msg param 0) (the-as uint 'set-strings-disabled))
+         (the-as object (send-event-function this msg))
+         )
+       )
+      (('sym?)
+       (the-as object (= (-> block param 0) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type))))
+       )
+      (else
+        ((the-as (function dropdown-item process int symbol event-message-block object)
+           (find-parent-method dropdown-item 61)
+           )
+         this
+         proc
+         argc
+         message
+         block
+         )
+        )
+      )
+    )
+  )
+
 
 
 
