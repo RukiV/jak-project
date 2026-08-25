@@ -71,6 +71,19 @@
 ;; the decoder's own reconstruction still assigns before falling out of
 ;; scope, not a change in behavior.
 
+;; og:preserve-this get-player-amplitude forward-declared here, issue 759,
+;; a2 rung's own STEP 3: it is a real function, stubbed rather than fully
+;; landed (see its own defun note in goal_src/jakx/engine/net/
+;; net-mgr-medius-players.gc for why), but net-mgr-medius-players.o (game.gd
+;; rank 417) compiles after this file's own rank (immediately after
+;; menu2-installs.o, rank 398), so base-menu-method-60 (string-menu) below,
+;; which reads this symbol's own value to call it indirectly (matching this
+;; file's own call!-rewrite doctrine), needs it declared before that point.
+;; Matches the print-game-text forward-declare pattern already used at
+;; ambient.gc, part-tester.gc and hud-classes.gc. Retire this declaration if
+;; net-mgr-medius-players-h.o's own rank ever moves ahead of this file's.
+(define-extern get-player-amplitude (function object float))
+
 ;; menu-clear-strip: cannot-decompile class, issue 759. No type analysis
 ;; exists for this function anywhere (menu2.gc:2646-2647's own donor marker:
 ;; "function has no type analysis. Cannot decompile."; decompiler/config/
