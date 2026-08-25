@@ -24,3 +24,49 @@
   (the-as object #f)
   )
 
+;; cpad-or-kbd-pressed-var?: real landing, issue 759, the menu input road's
+;; rung 0/1. Transcribed from a scoped redecode of keyboard.go (allowed_objects
+;; ["keyboard"], scratch --proj-path per this tree's own recipe): the pad half
+;; reads button0-rel, this cpad's own edge-triggered "just pressed" bits, not
+;; button0-abs (held) - none of this symbol's callers carry a repeat-rate
+;; timer, so held-scrolling must not happen and that reading is load-bearing
+;; for every one of them, not incidental. The keyboard half falls back to
+;; *keybd* keys scancodes 82/81/80/79/40/41 for the same six masks
+;; (16/64/128/32/0x4000/4096) when the pad bit is clear. Decode was clean for
+;; this function specifically (no failed-type-prop or unresolved-callee
+;; markers), so the body below is verbatim.
+(defun cpad-or-kbd-pressed-var? ((arg0 int) (arg1 int))
+  (or (logtest? (-> *cpad-list* cpads arg0 button0-rel 0) arg1)
+      (case arg1
+        ((16) (= (-> *keybd* keys 82) 1))
+        ((64) (= (-> *keybd* keys 81) 1))
+        ((128) (= (-> *keybd* keys 80) 1))
+        ((32) (= (-> *keybd* keys 79) 1))
+        ((#x4000) (= (-> *keybd* keys 40) 1))
+        ((4096) (= (-> *keybd* keys 41) 1))
+        (else #f)
+        )
+      )
+  )
+
+;; cpad-or-kbd-clear-func!: real landing, issue 759, the menu input road's
+;; rung 0/1. The same scoped keyboard.go redecode did not produce a clean
+;; body for this one: its own callee, kbd-clear!, never resolved past raw
+;; label ops (its own "has unknown type" warning), which cascades into this
+;; function's own "Called a function, but we do not know its type" failed-
+;; type-prop error and a self-flagged "function may be weird" note. Landing
+;; the minimal inferred form instead of transcribing that shaky decode: the
+;; pad half is deliberately empty (every caller of this symbol already clears
+;; the pad side inline), and the keyboard half stays inert while
+;; get-keyboard-control above returns #f, so there is no live
+;; keyboard-control object yet for a clear to act on.
+(defun cpad-or-kbd-clear-func! ((arg0 int) (arg1 int))
+  (none)
+  )
+
+;; *keyboard-init-state*: real landing, issue 759. Type object per
+;; all-types.gc's own declaration; every existing setter in the corpus resets
+;; it to #f before a menu's keyboard-mode init runs, so #f is this symbol's
+;; own real starting value, not a placeholder.
+(define *keyboard-init-state* (the-as object #f))
+
