@@ -570,8 +570,13 @@ void Generic2::process_dma_prim(DmaFollower& dma, u32 next_bucket) {
          first_data.vifcode1().kind == VifCode::Kind::NOP);
 
   // NOP DIRECT (set up GS, from generic setup)
+  // jak2/jak3 send one A+D pair here (zbuf-1, 32 bytes); jakx's generic-init-buf sends four
+  // (zbuf-1, frame-1, scissor-1, test-1, 80 bytes; issue 57 rung 6, issue 787), mirroring the
+  // relaxation process_dma_jak2 already carries. zbuf is A+D pair 0 in both shapes, and the PC
+  // renderer derives frame/scissor state itself; honouring test-1 is tracked on issue 787.
   auto direct_setup = dma.read_and_advance();
-  ASSERT(direct_setup.size_bytes == 32 && direct_setup.vifcode0().kind == VifCode::Kind::NOP &&
+  ASSERT((direct_setup.size_bytes == 32 || direct_setup.size_bytes == 80) &&
+         direct_setup.vifcode0().kind == VifCode::Kind::NOP &&
          direct_setup.vifcode1().kind == VifCode::Kind::DIRECT);
   u64* u64s = (u64*)direct_setup.data;
   ASSERT(u64s[3] == (u64)GsRegisterAddress::ZBUF_1);
