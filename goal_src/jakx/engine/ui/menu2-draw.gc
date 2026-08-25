@@ -1241,6 +1241,152 @@
         )
   )
 
+;; sprite-menu's own state-51 override: real landing, issue 759, a2 rung's
+;; own STEP 3. Not itself named on this rung's own plan (which cited
+;; dropdown-item's own missing transition), but the actual gap behind it:
+;; dropdown-item has no state-51 override anywhere in the donor (grep across
+;; menu2.gc's own dead top level: zero hits for "method-set! dropdown-item
+;; 51"), so it inherits whatever its nearest ancestor with a real override
+;; held AT ITS OWN deftype time (menu2-h.gc), per Section E's own vtable-
+;; snapshot class already responsible for the method-58/59/60 re-installs
+;; elsewhere in this file. sprite-menu (dropdown-item's own ancestor through
+;; prim-strip-menu/string-menu) is that nearest override in the donor
+;; (menu2.gc's own gp-10 block; table row "(method-set! sprite-menu 51
+;; gp-10)"), so the fix is landing sprite-menu's own real content here,
+;; before the re-install below reads it.
+;;
+;; Fresh scoped redecode (this file's own header recipe). :event and :enter
+;; (anon-functions 69/72) are decode-clean; :trans (anon-function 73, donor
+;; label L605) carries one benign "failed type prop at 17" on the move-rate
+;; read - self's own info-ptr trans-info is typed only the base
+;; animation-info at that point, not the richer transition-info/dropdown-
+;; trans-info subtype that actually carries enter-pos-x/running-pos-x/etc
+;; (menu2-h.gc:479-494,1100-1103) - resolved by casting once at the point of
+;; use. abs.s (the alpha-blend delta) is decompiler print-name notation, the
+;; same class as this file's own header's sll/f2i list, with no real GOAL
+;; equivalent of its own; resolved to a plain conditional negate. The two
+;; joint-transform-plus-(-1792.0/-1840.0) constants in the else arm (enter-
+;; anim not -1) match base-menu-init-by-other's own already-landed joint-
+;; position computation byte for byte (menu2-installs.gc:848-861), so that
+;; branch is transcribed against that precedent's own idiom rather than the
+;; raw offsets.
+;;
+;; Confirmed load-bearing for this rung's own six dropdown rows:
+;; lobby-menu-data.gc's own six dropdown-trans-info literals all set
+;; enter-pos-x/y equal to running-pos-x/y (0.0/0.0), so the completion check
+;; below (progress >= 1.0 OR enter-pos = running-pos) is already true on
+;; this :trans's own first frame for every row - this is the actual
+;; per-frame driver that moves each row out of state 51, not an event.
+;; dropdown-item's own :code for this same slot, inherited from base-menu-
+;; state-51 (real content, once the re-install below runs), only advances
+;; past its own trailing (sleep-code) when 3d-menu-type is truthy
+;; (menu2-installs.gc:1085-1097) - false for every dropdown row (widget
+;; inventory, section A) - so :code alone can never move a row; :trans is
+;; the road.
+(let ((new-state
+        (new
+          'global
+          'state
+          'enter
+          (the-as function #f)
+          (the-as (function object) #f)
+          (the-as function #f)
+          (the-as (function object) #f)
+          (the-as (function process int symbol event-message-block object) #f)
+          )
+        )
+      )
+  (inherit-state new-state (method-of-type base-menu base-menu-state-51))
+  (method-set! sprite-menu 51 new-state)
+  (set! (-> new-state event) (the-as (function process int symbol event-message-block object) base-menu-event-handler))
+  (set! (-> new-state enter)
+        (the-as
+          (function object)
+          (lambda :behavior sprite-menu
+            ()
+            (let ((v0-0 (current-time)))
+              (set! (-> self menu-time) (the-as uint v0-0))
+              v0-0
+              )
+            )
+          )
+        )
+  (set! (-> new-state trans)
+        (the-as
+          (function object)
+          (lambda :behavior sprite-menu
+            ()
+            (cond
+              ((-> self info-ptr trans-info)
+               (cond
+                 ((= (-> self info-ptr trans-info enter-anim) -1)
+                  (when (let* ((ti (the-as dropdown-trans-info (-> self info-ptr trans-info)))
+                                (elapsed-secs
+                                  (* 0.0033333334
+                                     (the float (- (-> self clock frame-counter) (the-as time-frame (-> self menu-time))))
+                                     )
+                                  )
+                                (progress (/ elapsed-secs (-> ti move-rate)))
+                                (blend (if (< progress 1.0) progress 1.0))
+                                )
+                          (set! (-> self pos-x) (+ (-> ti enter-pos-x) (* (- (-> ti running-pos-x) (-> ti enter-pos-x)) blend)))
+                          (set! (-> self pos-y) (+ (-> ti enter-pos-y) (* (- (-> ti running-pos-y) (-> ti enter-pos-y)) blend)))
+                          (let ((alpha-delta (- (-> ti running-alpha) (-> ti enter-alpha))))
+                            (set! (-> self alpha)
+                                  (+ (-> ti enter-alpha) (* (if (>= alpha-delta 0.0) alpha-delta (- alpha-delta)) blend))
+                                  )
+                            )
+                          (or (>= progress 1.0)
+                              (and (= (-> ti enter-pos-x) (-> ti running-pos-x)) (= (-> ti enter-pos-y) (-> ti running-pos-y)))
+                              )
+                          )
+                    (go-virtual base-menu-state-52)
+                    )
+                  )
+                 (else
+                   (when (-> self info-ptr 3d-menu-type)
+                     (when (-> self info-ptr joints)
+                       (let ((dest (new 'stack-no-clear 'vector))
+                             (src (new 'stack-no-clear 'vector))
+                             )
+                         (set! (-> src quad) (-> self node-list data (-> self info-ptr joints 0) bone transform trans quad))
+                         (transform-point-vector! dest src)
+                         (+! (-> dest x) -1792.0)
+                         (+! (-> dest y) -1840.0)
+                         (set! (-> self pos-x) (-> dest x))
+                         (set! (-> self pos-y) (-> dest y))
+                         (set! (-> self pos-z) (-> dest z))
+                         )
+                       )
+                     )
+                   )
+                 )
+               )
+              (else
+                (go-virtual base-menu-state-52)
+                )
+              )
+            )
+          )
+        )
+  )
+
+;; dropdown-item's own slot-51 re-install: real landing, issue 759, a2
+;; rung's own STEP 3, the same idiom as this file's own jakx-logo-menu
+;; method-59 re-install below (Section E's own vtable-snapshot hazard).
+;; dropdown-item's deftype (menu2-h.gc:1220) runs before sprite-menu's own
+;; real state-51 content above even exists in this file's own link order,
+;; so its own copy, taken at deftype time, is the sleep-code placeholder
+;; menu2-h.gc:354-357 installs on base-menu immediately after base-menu's
+;; own deftype (menu2-h.gc:213) and before every one of sprite-menu's own
+;; descendants deftype (591/637/962/1220) - exactly matching tonight's own
+;; probe finding, "the six dropdown-items sit in base-menu-state-51 (enter)
+;; forever": sleep-code's own body is an unconditional (suspend) loop, so
+;; that stub, not base-menu-state-51's real :code (let alone sprite-menu's
+;; own :trans above), is what every dropdown-item row has actually been
+;; running.
+(method-set! dropdown-item 51 (method-of-type sprite-menu base-menu-state-51))
+
 ;; base-menu slot 59 re-install: issue 759, a2 rung's own STEP 5, the a1
 ;; idiom (menu2-installs.gc:994-996) applied to the one slot this rung
 ;; fills. Section E's own vtable-snapshot hazard: menu2-h.o's deftype forms
