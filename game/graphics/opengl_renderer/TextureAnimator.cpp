@@ -1667,7 +1667,15 @@ void TextureAnimator::force_to_gpu(int tbp) {
       // wrote, not just any GENERIC_PSM32 upload converted this frame (ocean, jungle water,
       // etc. take this same case). copy_private_to_public, called once per
       // handle_texture_anim_data after this loop, publishes it.
-      if (m_jakx_logo_movie_output_slot >= 0 && tbp == m_fmv_current_dest) {
+      //
+      // m_fmv_current_dest alone is not enough: handle_fmv_frame (below) shares the same
+      // TextureAnimPcFmvFrame path and the same m_fmv_current_dest field for every movie,
+      // fullscreen cutscenes included, and a fullscreen movie can land on the same dest tbp
+      // a prior login-logo frame used. Without also checking m_fmv_open_movie_id == 43
+      // (the LOGO entry, fmv_movie_basename below), a fullscreen movie playing after the
+      // logo would keep overwriting the logo's anim slot every frame (issue 762).
+      if (m_jakx_logo_movie_output_slot >= 0 && tbp == m_fmv_current_dest &&
+          m_fmv_open_movie_id == 43) {
         GLuint gl_tex = entry.tex.value().texture();
         // Bounds check (issue 762): m_jakx_logo_movie_output_slot is resolved as an index into
         // the same jakx_animated_texture_slots() list that sizes m_private_output_slots
