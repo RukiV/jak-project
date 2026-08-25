@@ -2328,11 +2328,12 @@
 ;; working precedent. The row's own
 ;; strings-info entry address (this file's own row-text methods, STEP 4,
 ;; already established this exact raw l.wu chain against info-ptr) and the
-;; two raw offset reads against this at +300/+304 (unconfirmed field
-;; identity - likely width-array/height-array or similar, not evidenced
-;; strongly enough this rung to name) are kept in the same raw form for the
-;; same reason: no dynamic-array-field-access marker sits on them, so
-;; nothing here forces a resolution beyond what compiles.
+;; two raw offset reads against this at +300/+304 are base-menu's own width
+;; (offset-assert 304) and height (308) under the machine+4 convention -
+;; proven against the donor, whose identical loads (menu2.gc:5626-5642)
+;; feed the font-context width/height divisions - and are kept in the same
+;; raw form only because no dynamic-array-field-access marker forces a
+;; resolution beyond what compiles.
 (defmethod base-menu-method-60 ((this string-menu))
   (local-vars
     (v1-58 int)
@@ -2396,13 +2397,19 @@
                (set! (-> pkt vif0) (new 'static 'vif-tag :cmd (vif-cmd nop)))
                (set! (-> pkt vif1) (new 'static 'vif-tag :cmd (vif-cmd nop)))
                )
-             (let ((tag-end (&+ (-> buf base) 16)))
-               (set! (-> buf base) tag-end)
+             ;; end-tag-to-patch is the next-tag's OWN address, not the address
+             ;; after it: the donor captures a3 = (-> buf base) before writing
+             ;; the tag (menu2.gc:5527) and passes that same value at the call
+             ;; (5547), matching with-dma-bucket's bucket-edge capture
+             ;; (dma-buffer.gc:297,310-312). The first hand-carry passed
+             ;; tag+16, an off-by-16 that would patch past the tag.
+             (let ((tag-addr (the-as pointer (-> buf base))))
+               (set! (-> buf base) (&+ tag-addr 16))
                (dma-bucket-insert-tag
                  (-> *display* frames (-> *display* on-screen) bucket-group)
                  (bucket-id bucket792)
                  buf-base-before
-                 (the-as (pointer dma-tag) tag-end)
+                 (the-as (pointer dma-tag) tag-addr)
                  )
                )
              )
@@ -2477,8 +2484,15 @@
                     )
                   (s.b! (+ (the-as int s4-1) 180) 1)
                   )
+                ;; the shrink step is the donor's exact bit pattern #xbc23d70a
+                ;; = -0.01 (menu2.gc:5836, raw -1138501878), NOT -3.0: the
+                ;; first transcription's -3.0 drove scale 0.5 -> -2.5 on the
+                ;; first pass, print-game-text's (< 0.1 scale) entry guard
+                ;; then no-opped, and every row's glyph draw emitted zero DMA
+                ;; (issue 759; the invisible-row-text symptom). With -0.01 the
+                ;; fit loop converges in a handful of steps as retail intends.
                 (while (and (< 0.1 (-> s4-1 scale)) (>= measured-width (-> s4-1 height)))
-                  (set! (-> s4-1 scale) (+ -3.0 (-> s4-1 scale)))
+                  (set! (-> s4-1 scale) (+ (the-as float #xbc23d70a) (-> s4-1 scale)))
                   (set! measured-width (print-game-text (-> this strings data s3-1 text) s4-1 #t 44 (bucket-id bucket791)))
                   )
                 )
