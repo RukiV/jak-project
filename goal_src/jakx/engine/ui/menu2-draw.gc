@@ -84,6 +84,15 @@
 ;; net-mgr-medius-players-h.o's own rank ever moves ahead of this file's.
 (define-extern get-player-amplitude (function object float))
 
+;; og:preserve-this forward declares, issue 759, a3 rung: cpad-or-kbd-pressed-
+;; var? and cpad-or-kbd-clear-func! are real functions, landed by this
+;; branch's own rung 1 (goal_src/jakx/engine/ps2/keyboard.gc, game.gd rank
+;; 410), which compiles after this file's own rank 403. Same forward-declare
+;; shape as base-menu-init-by-other's own precedent (goal_src/jakx/engine/ui/
+;; menu/lobby-menu-manager.gc:22).
+(define-extern cpad-or-kbd-pressed-var? (function int int symbol))
+(define-extern cpad-or-kbd-clear-func! (function int int none))
+
 ;; menu-clear-strip: cannot-decompile class, issue 759. No type analysis
 ;; exists for this function anywhere (menu2.gc:2646-2647's own donor marker:
 ;; "function has no type analysis. Cannot decompile."; decompiler/config/
@@ -1123,6 +1132,189 @@
             )
           )
         )
+  )
+
+;; base-menu-method-62 (dropdown-item): the row's own D-pad/button responder,
+;; transcribed from the donor (menu2.gc:6849-7886, issue 759's a3 rung). Nine
+;; cond branches, each: a pressed test through cpad-or-kbd-pressed-var? (edge-
+;; triggered, matching keyboard.gc's own rung-1 landing), an event sent to
+;; (ppointer->process (-> this parent)) via the same stack event-message-
+;; block idiom base-menu-method-61 already uses (menu2-lists.gc:1968-2060),
+;; then the donor's own inline pad-clear (the same raw logand-against-
+;; offsets-40/56 shape pad.gc:89-94's cpad-clear! macro expands to) plus the
+;; wrapper cpad-or-kbd-clear-func! call. down/up/left/right send
+;; 'change-index with the row's own dropdown-item-info index-modifier field
+;; (typed access through (the-as dropdown-item-info (-> this info-ptr)), the
+;; same cast menu2-lists.gc's method 61 already uses) as param 0 and this
+;; row's own prev-selection as param 1; x/triangle/square/circle/l1 send
+;; 'menu-selection-event with a fixed accept/cancel/square/circle/l1 symbol,
+;; the info's selection-type/selection-extra, and the pad index. x and
+;; triangle additionally play a confirm/cancel sound (*sound-info* 315
+;; "choice1", 344 "undo1"), and only when send-event-function's own return
+;; value is truthy (donor 7546-7566, 7632-7652) - the pad clear that follows
+;; is unconditional either way. The sound-play itself is the established
+;; make-sound-instance/flags/id idiom already landed at goal_src/jakx/engine/
+;; camera/cam-states.gc:3120.
+;;
+;; RETAIL BUG PRESERVED: the l1 branch (donor 7815) tests mask 1024 (l1's own
+;; correct mask) but both its inline clears and its cpad-or-kbd-clear-func!
+;; call reuse circle's mask 8192, a copy-paste from the circle branch
+;; immediately above it (donor 7787/7799/7814). Transcribed verbatim, not
+;; fixed - this is retail's own bug, not a decode error.
+(defmethod base-menu-method-62 ((this dropdown-item) (arg0 int))
+  (with-pp
+    (cond
+      ((cpad-or-kbd-pressed-var? arg0 64)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 3)
+         (set! (-> msg message) 'change-index)
+         (set! (-> msg param 0) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) down-index-modifier)))
+         (set! (-> msg param 1) (the-as uint (-> this prev-selection)))
+         (set! (-> msg param 2) (the-as uint arg0))
+         (send-event-function (ppointer->process (-> this parent)) msg)
+         )
+       (cpad-clear! arg0 down)
+       (cpad-or-kbd-clear-func! arg0 64)
+       )
+      ((cpad-or-kbd-pressed-var? arg0 16)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 3)
+         (set! (-> msg message) 'change-index)
+         (set! (-> msg param 0) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) up-index-modifier)))
+         (set! (-> msg param 1) (the-as uint (-> this prev-selection)))
+         (set! (-> msg param 2) (the-as uint arg0))
+         (send-event-function (ppointer->process (-> this parent)) msg)
+         )
+       (cpad-clear! arg0 up)
+       (cpad-or-kbd-clear-func! arg0 16)
+       )
+      ((cpad-or-kbd-pressed-var? arg0 128)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 3)
+         (set! (-> msg message) 'change-index)
+         (set! (-> msg param 0) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) left-index-modifier)))
+         (set! (-> msg param 1) (the-as uint (-> this prev-selection)))
+         (set! (-> msg param 2) (the-as uint arg0))
+         (send-event-function (ppointer->process (-> this parent)) msg)
+         )
+       (cpad-clear! arg0 left)
+       (cpad-or-kbd-clear-func! arg0 128)
+       )
+      ((cpad-or-kbd-pressed-var? arg0 32)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 3)
+         (set! (-> msg message) 'change-index)
+         (set! (-> msg param 0) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) right-index-modifier)))
+         (set! (-> msg param 1) (the-as uint (-> this prev-selection)))
+         (set! (-> msg param 2) (the-as uint arg0))
+         (send-event-function (ppointer->process (-> this parent)) msg)
+         )
+       (cpad-clear! arg0 right)
+       (cpad-or-kbd-clear-func! arg0 32)
+       )
+      ((cpad-or-kbd-pressed-var? arg0 #x4000)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 4)
+         (set! (-> msg message) 'menu-selection-event)
+         (set! (-> msg param 0) (the-as uint 'accept))
+         (set! (-> msg param 1) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+         (set! (-> msg param 2) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-extra)))
+         (set! (-> msg param 3) (the-as uint arg0))
+         (when (send-event-function (ppointer->process (-> this parent)) msg)
+           (let ((v1-70 (make-sound-instance (-> *sound-info* 315) (new 'static 'sound-id) (the-as handle #f))))
+             (cond
+               (v1-70
+                 (logior! (-> v1-70 flags) 320)
+                 (-> v1-70 id)
+                 )
+               (else
+                 0
+                 )
+               )
+             )
+           )
+         )
+       (cpad-clear! arg0 x)
+       (cpad-or-kbd-clear-func! arg0 #x4000)
+       )
+      ((cpad-or-kbd-pressed-var? arg0 4096)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 4)
+         (set! (-> msg message) 'menu-selection-event)
+         (set! (-> msg param 0) (the-as uint 'cancel))
+         (set! (-> msg param 1) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+         (set! (-> msg param 2) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-extra)))
+         (set! (-> msg param 3) (the-as uint arg0))
+         (when (send-event-function (ppointer->process (-> this parent)) msg)
+           (let ((v1-91 (make-sound-instance (-> *sound-info* 344) (new 'static 'sound-id) (the-as handle #f))))
+             (cond
+               (v1-91
+                 (logior! (-> v1-91 flags) 320)
+                 (-> v1-91 id)
+                 )
+               (else
+                 0
+                 )
+               )
+             )
+           )
+         )
+       (cpad-clear! arg0 triangle)
+       (cpad-or-kbd-clear-func! arg0 4096)
+       )
+      ((cpad-or-kbd-pressed-var? arg0 #x8000)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 4)
+         (set! (-> msg message) 'menu-selection-event)
+         (set! (-> msg param 0) (the-as uint 'square))
+         (set! (-> msg param 1) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+         (set! (-> msg param 2) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-extra)))
+         (set! (-> msg param 3) (the-as uint arg0))
+         (send-event-function (ppointer->process (-> this parent)) msg)
+         )
+       (cpad-clear! arg0 square)
+       (cpad-or-kbd-clear-func! arg0 #x8000)
+       )
+      ((cpad-or-kbd-pressed-var? arg0 8192)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 4)
+         (set! (-> msg message) 'menu-selection-event)
+         (set! (-> msg param 0) (the-as uint 'circle))
+         (set! (-> msg param 1) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+         (set! (-> msg param 2) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-extra)))
+         (set! (-> msg param 3) (the-as uint arg0))
+         (send-event-function (ppointer->process (-> this parent)) msg)
+         )
+       (cpad-clear! arg0 circle)
+       (cpad-or-kbd-clear-func! arg0 8192)
+       )
+      ((cpad-or-kbd-pressed-var? arg0 1024)
+       (let ((msg (new 'stack-no-clear 'event-message-block)))
+         (set! (-> msg from) (process->ppointer pp))
+         (set! (-> msg num-params) 4)
+         (set! (-> msg message) 'menu-selection-event)
+         (set! (-> msg param 0) (the-as uint 'l1))
+         (set! (-> msg param 1) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-type)))
+         (set! (-> msg param 2) (the-as uint (-> (the-as dropdown-item-info (-> this info-ptr)) selection-extra)))
+         (set! (-> msg param 3) (the-as uint arg0))
+         (send-event-function (ppointer->process (-> this parent)) msg)
+         )
+       ;; retail's own copy-paste bug (donor 7815 vs 7787/7799/7814): l1's
+       ;; own clear reuses circle's mask instead of l1's, kept faithful.
+       (cpad-clear! arg0 circle)
+       (cpad-or-kbd-clear-func! arg0 8192)
+       )
+      )
+    (none)
+    )
   )
 
 ;; find-first-selectable: real landing, issue 759, a2 rung's own STEP 1.
