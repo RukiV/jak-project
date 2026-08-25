@@ -943,6 +943,14 @@
 ;; field at offset 12 is evidenced (two independent dropdown subtypes'
 ;; clear/format call sites in a scoped decode); the remaining bytes of the
 ;; 0x50-byte stride are unread in this rung's scope and left as padding.
+;; og:preserve-this issue 759, a2 rung, step 1: superseded as string-menu's
+;; own strings field type below by menu-string-array, the type the donor
+;; actually allocates (menu2.gc:4925-4927 loads menu-string-array's own
+;; method 0 and calls it with 'process; see the plan's own table F item 6).
+;; Kept here as a byte-equivalent shifted-view record of the same evidence
+;; (str@12 is menu-string-array data[0].text, both an 80-byte stride) rather
+;; than deleted, since it is not wrong, only superseded as the field's own
+;; declared type.
 (deftype dropdown-string-slot (structure)
   ((pad0 uint8 12)
    (str  string)
@@ -952,7 +960,7 @@
 
 ;; definition of type string-menu
 (deftype string-menu (prim-strip-menu)
-  ((strings   (inline-array dropdown-string-slot))
+  ((strings   menu-string-array)
    (text-ids  (array int32))
    )
   (:methods

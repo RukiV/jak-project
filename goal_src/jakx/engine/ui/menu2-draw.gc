@@ -543,16 +543,15 @@
 ;; STEP 3. Transcribed close to verbatim from this slice's own scoped
 ;; redecode (menu2.gc:4841-5019 donor text, 183 lines, a single benign
 ;; "ERROR: failed type prop at 4" on the strings-info-count load).
-;; Allocates the strings field's real backing store (a menu-string-array,
-;; per this file's own header note and the plan's own item-3 finding: the
-;; field stays declared (inline-array dropdown-string-slot) here since
+;; Allocates the strings field's real backing store (a menu-string-array;
 ;; every write below is a raw offset store that never goes through the
-;; field's own declared type, so the menu2-h.gc/all-types.gc retype this
-;; slice's brief conditionally allowed is not required to compile this
-;; body - left for a later slice, as the brief allows), filling every row's
-;; text buffer, scale, flags and text-id from strings-info before falling
-;; through to prim-strip-menu's own method-59 (landed above, in this same
-;; file).
+;; field's own declared type, so this body compiles unchanged now that a
+;; later slice (issue 759, a2 rung, step 1) has retyped strings to
+;; menu-string-array in both menu2-h.gc and all-types.gc - only the one
+;; (-> this strings) accessor write just below needed its own cast updated
+;; to match), filling every row's text buffer, scale, flags and text-id
+;; from strings-info before falling through to prim-strip-menu's own
+;; method-59 (landed above, in this same file).
 (defmethod base-menu-method-59 ((this string-menu))
   (local-vars
     (v0-0 none)
@@ -635,7 +634,7 @@
     )
   (when (begin
           (when (begin
-                  (set! (-> this strings) (the-as (inline-array dropdown-string-slot) #f))
+                  (set! (-> this strings) (the-as menu-string-array #f))
                   (set! (-> this text-ids) #f)
                   (set! v1-0 (-> this info-ptr))
                   (set! v1-1 (the-as none (l.wu (+ (the-as int v1-0) 60))))
