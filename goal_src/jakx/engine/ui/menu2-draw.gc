@@ -1387,6 +1387,218 @@
 ;; running.
 (method-set! dropdown-item 51 (method-of-type sprite-menu base-menu-state-51))
 
+;; jakx-logo-menu's state-51 :event override: real landing, issue 759, a2
+;; rung's own STEP 4 (issue 779, the title fly-in explosion). The donor's
+;; own install (menu2.gc:13646, table row "(method-set! jakx-logo-menu
+;; 51/52/55)") sets two fields, :event (L27) and :code (L16); only :event is
+;; this rung's own cited scope (issue 779's own 'event-fire/'event-explosion
+;; particle launcher) - :code (L16, ~180 raw lines, its own ja-no-eval
+;; fly-in wait loop) is held, matching this rung's own a1-precedent of
+;; citing a decode without landing every field a single donor install
+;; touches. jakx-logo-menu's own real 3d-menu-type ("skel-jakxlogo",
+;; lobby-menu-data.gc:108) and enter-anim (3, :110) mean base-menu-state-51's
+;; own real :code (inherited below) already runs the correct branch for
+;; this type (the ja-no-eval/until-ja-done?/go-virtual path, base-menu-
+;; state-51's own else arm) with no need for jakx-logo-menu's own copy.
+;; :post stays inherited too (default-base-menu-post).
+;;
+;; anon-function 5 of menu2-GAME (anonymous_function_types.jsonc:1701,
+;; :behavior jakx-logo-menu), donor label L27, decode-clean (this slice's
+;; own scoped redecode carries no ERROR/WARN on this function). A plain
+;; (case arg2 (('event-fire) ...) (('event-explosion) ...) (else
+;; (base-menu-event-handler ...))) dispatching *part-tracker-params-
+;; default* through part-tracker/part-tracker-subsampler spawns for four
+;; joints on 'event-fire and one on 'event-explosion, all keyed off
+;; *part-group-id-table* entries 53/54/55.
+;;
+;; The lambda's own declared parameter list decoded one argument short
+;; (three named params against the :event field's own four-argument
+;; typespec, goal_src/jakx/kernel/gkernel-h.gc:482): arg3 (event-message-
+;; block) was read once, in the fallback arm's own forwarding call to
+;; base-menu-event-handler, through an unset local-vars none - the same
+;; dropped-trailing-arg tell (an unread-until-the-fallback register with no
+;; defining set!) already on record for this class (memory:
+;; jakx-dropped-trailing-arg-class), closed here by naming the real fourth
+;; parameter instead of casting a never-assigned local.
+(let ((new-state
+        (new
+          'global
+          'state
+          'enter
+          (the-as function #f)
+          (the-as (function object) #f)
+          (the-as function #f)
+          (the-as (function object) #f)
+          (the-as (function process int symbol event-message-block object) #f)
+          )
+        )
+      )
+  (inherit-state new-state (method-of-type base-menu base-menu-state-51))
+  (method-set! jakx-logo-menu 51 new-state)
+  (set! (-> new-state event)
+        (the-as
+          (function process int symbol event-message-block object)
+          (lambda :behavior jakx-logo-menu
+            ((arg0 process) (arg1 int) (arg2 symbol) (arg3 event-message-block))
+            (case arg2
+              (('event-fire)
+               (set! (-> *launch-matrix* trans quad) (-> *null-vector* quad))
+               (set! (-> *part-tracker-params-default* group) (-> *part-group-id-table* 53))
+               (vector-reset! (-> *part-tracker-params-default* local-offset))
+               (set! (-> *part-tracker-params-default* duration) (the-as uint 80))
+               (set! (-> *part-tracker-params-default* callback) #f)
+               (set! (-> *part-tracker-params-default* userdata) (the-as uint #f))
+               (set! (-> *part-tracker-params-default* target) self)
+               (set! (-> *part-tracker-params-default* mat-joint) 11)
+               (set! (-> *part-tracker-params-default* local-space-param) 0)
+               (set! (-> *part-tracker-params-default* local-space-callback) #f)
+               (set! (-> *part-tracker-params-default* subsampler-num) 4.0)
+               (if (logtest? (-> *part-group-id-table* 53 flags) (sp-group-flag sp13))
+                   (process-spawn
+                     part-tracker-subsampler
+                     :init part-tracker-subsampler-init
+                     *part-tracker-params-default*
+                     :name "part-tracker-subsampler"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   (process-spawn
+                     part-tracker
+                     :init part-tracker-init
+                     *part-tracker-params-default*
+                     :name "part-tracker"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   )
+               (set! (-> *launch-matrix* trans quad) (-> *null-vector* quad))
+               (set! (-> *part-tracker-params-default* group) (-> *part-group-id-table* 53))
+               (vector-reset! (-> *part-tracker-params-default* local-offset))
+               (set! (-> *part-tracker-params-default* duration) (the-as uint 80))
+               (set! (-> *part-tracker-params-default* callback) #f)
+               (set! (-> *part-tracker-params-default* userdata) (the-as uint #f))
+               (set! (-> *part-tracker-params-default* target) self)
+               (set! (-> *part-tracker-params-default* mat-joint) 12)
+               (set! (-> *part-tracker-params-default* local-space-param) 0)
+               (set! (-> *part-tracker-params-default* local-space-callback) #f)
+               (set! (-> *part-tracker-params-default* subsampler-num) 4.0)
+               (if (logtest? (-> *part-group-id-table* 53 flags) (sp-group-flag sp13))
+                   (process-spawn
+                     part-tracker-subsampler
+                     :init part-tracker-subsampler-init
+                     *part-tracker-params-default*
+                     :name "part-tracker-subsampler"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   (process-spawn
+                     part-tracker
+                     :init part-tracker-init
+                     *part-tracker-params-default*
+                     :name "part-tracker"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   )
+               (set! (-> *launch-matrix* trans quad) (-> *null-vector* quad))
+               (set! (-> *part-tracker-params-default* group) (-> *part-group-id-table* 53))
+               (vector-reset! (-> *part-tracker-params-default* local-offset))
+               (set! (-> *part-tracker-params-default* duration) (the-as uint 80))
+               (set! (-> *part-tracker-params-default* callback) #f)
+               (set! (-> *part-tracker-params-default* userdata) (the-as uint #f))
+               (set! (-> *part-tracker-params-default* target) self)
+               (set! (-> *part-tracker-params-default* mat-joint) 13)
+               (set! (-> *part-tracker-params-default* local-space-param) 0)
+               (set! (-> *part-tracker-params-default* local-space-callback) #f)
+               (set! (-> *part-tracker-params-default* subsampler-num) 4.0)
+               (if (logtest? (-> *part-group-id-table* 53 flags) (sp-group-flag sp13))
+                   (process-spawn
+                     part-tracker-subsampler
+                     :init part-tracker-subsampler-init
+                     *part-tracker-params-default*
+                     :name "part-tracker-subsampler"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   (process-spawn
+                     part-tracker
+                     :init part-tracker-init
+                     *part-tracker-params-default*
+                     :name "part-tracker"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   )
+               (set! (-> *launch-matrix* trans quad) (-> *null-vector* quad))
+               (set! (-> *part-tracker-params-default* group) (-> *part-group-id-table* 54))
+               (vector-reset! (-> *part-tracker-params-default* local-offset))
+               (set! (-> *part-tracker-params-default* duration) (the-as uint 80))
+               (set! (-> *part-tracker-params-default* callback) #f)
+               (set! (-> *part-tracker-params-default* userdata) (the-as uint #f))
+               (set! (-> *part-tracker-params-default* target) self)
+               (set! (-> *part-tracker-params-default* mat-joint) 14)
+               (set! (-> *part-tracker-params-default* local-space-param) 0)
+               (set! (-> *part-tracker-params-default* local-space-callback) #f)
+               (set! (-> *part-tracker-params-default* subsampler-num) 8.0)
+               (if (logtest? (-> *part-group-id-table* 54 flags) (sp-group-flag sp13))
+                   (process-spawn
+                     part-tracker-subsampler
+                     :init part-tracker-subsampler-init
+                     *part-tracker-params-default*
+                     :name "part-tracker-subsampler"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   (process-spawn
+                     part-tracker
+                     :init part-tracker-init
+                     *part-tracker-params-default*
+                     :name "part-tracker"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   )
+               )
+              (('event-explosion)
+               (set! (-> *launch-matrix* trans quad) (-> *null-vector* quad))
+               (set! (-> *part-tracker-params-default* group) (-> *part-group-id-table* 55))
+               (vector-reset! (-> *part-tracker-params-default* local-offset))
+               (set! (-> *part-tracker-params-default* duration) (the-as uint 0))
+               (set! (-> *part-tracker-params-default* callback) #f)
+               (set! (-> *part-tracker-params-default* userdata) (the-as uint #f))
+               (set! (-> *part-tracker-params-default* target) self)
+               (set! (-> *part-tracker-params-default* mat-joint) 6)
+               (set! (-> *part-tracker-params-default* local-space-param) 0)
+               (set! (-> *part-tracker-params-default* local-space-callback) #f)
+               (set! (-> *part-tracker-params-default* subsampler-num) 1.0)
+               (if (logtest? (-> *part-group-id-table* 55 flags) (sp-group-flag sp13))
+                   (process-spawn
+                     part-tracker-subsampler
+                     :init part-tracker-subsampler-init
+                     *part-tracker-params-default*
+                     :name "part-tracker-subsampler"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   (process-spawn
+                     part-tracker
+                     :init part-tracker-init
+                     *part-tracker-params-default*
+                     :name "part-tracker"
+                     :to *entity-pool*
+                     :unk 0
+                     )
+                   )
+               )
+              (else
+                (base-menu-event-handler arg0 arg1 arg2 arg3)
+                )
+              )
+            )
+          )
+        )
+  )
+
 ;; base-menu slot 59 re-install: issue 759, a2 rung's own STEP 5, the a1
 ;; idiom (menu2-installs.gc:994-996) applied to the one slot this rung
 ;; fills. Section E's own vtable-snapshot hazard: menu2-h.o's deftype forms
