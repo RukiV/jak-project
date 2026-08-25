@@ -1331,7 +1331,16 @@ void Merc2::do_draws(const Draw* draw_array,
         use_mipmaps_for_filtering = false;
       } else if (draw.texture < 0) {
         int slot = -(draw.texture + 1);
-        glBindTexture(GL_TEXTURE_2D, m_anim_slot_array->at(slot));
+        GLuint gl_id = m_anim_slot_array->at(slot);
+        glBindTexture(GL_TEXTURE_2D, gl_id);
+        // Rate-limited proof, from the read side, that the anim-slot bind actually happens
+        // (issue 762): TextureAnimator's publish into m_public_output_slots was already
+        // confirmed firing every frame, but that only proves the write side. This is the bind
+        // that puts the texture on screen, and had never been observed from here.
+        if (m_anim_slot_read_log_timer.getSeconds() >= 5.0) {
+          lg::info("[merc2] anim-slot bind: slot {} <- gl texture {}", slot, gl_id);
+          m_anim_slot_read_log_timer.start();
+        }
       } else {
         fmt::print("Invalid draw.texture is {}, would have crashed.\n", draw.texture);
       }

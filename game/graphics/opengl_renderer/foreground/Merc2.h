@@ -1,4 +1,6 @@
 #pragma once
+#include "common/util/Timer.h"
+
 #include "game/graphics/opengl_renderer/BucketRenderer.h"
 
 struct MercDebugStats {
@@ -51,6 +53,9 @@ class Merc2 {
 
  private:
   const std::vector<GLuint>* m_anim_slot_array;
+  // Rate-limits the anim-slot bind log below to once per 5 seconds instead of once per draw
+  // call (issue 762).
+  Timer m_anim_slot_read_log_timer;
   // EE main memory base, for resolving GOAL addresses embedded in merc DMA payloads.
   // Set per render() call; must not be derived from chain pointers.
   const u8* m_ee_memory = nullptr;

@@ -1669,11 +1669,25 @@ void TextureAnimator::force_to_gpu(int tbp) {
       // handle_texture_anim_data after this loop, publishes it.
       if (m_jakx_logo_movie_output_slot >= 0 && tbp == m_fmv_current_dest) {
         GLuint gl_tex = entry.tex.value().texture();
-        m_private_output_slots[m_jakx_logo_movie_output_slot] = gl_tex;
-        if (m_jakx_logo_movie_publish_log_timer.getSeconds() >= 5.0) {
-          lg::info("[texture anim] JakX logo movie publish: slot {} <- gl texture {}",
-                   m_jakx_logo_movie_output_slot, gl_tex);
-          m_jakx_logo_movie_publish_log_timer.start();
+        // Bounds check (issue 762): m_jakx_logo_movie_output_slot is resolved as an index into
+        // the same jakx_animated_texture_slots() list that sizes m_private_output_slots
+        // (TextureAnimator.cpp's constructor, TextureAnimatorDefs.cpp's resolution loop), so
+        // this should never trip today. It stayed a bare operator[] through the investigation
+        // that motivated this check, so it gets a real guard rather than a second silent UB
+        // site if that invariant is ever broken by a future edit.
+        if ((size_t)m_jakx_logo_movie_output_slot < m_private_output_slots.size()) {
+          m_private_output_slots[m_jakx_logo_movie_output_slot] = gl_tex;
+          if (m_jakx_logo_movie_publish_log_timer.getSeconds() >= 5.0) {
+            lg::info("[texture anim] JakX logo movie publish: slot {} <- gl texture {}",
+                     m_jakx_logo_movie_output_slot, gl_tex);
+            m_jakx_logo_movie_publish_log_timer.start();
+          }
+        } else if (!m_jakx_logo_movie_publish_oob_warned) {
+          lg::warn(
+              "[texture anim] JakX logo movie output slot {} is out of range for "
+              "m_private_output_slots (size {}); publish skipped.",
+              m_jakx_logo_movie_output_slot, m_private_output_slots.size());
+          m_jakx_logo_movie_publish_oob_warned = true;
         }
       }
     } break;

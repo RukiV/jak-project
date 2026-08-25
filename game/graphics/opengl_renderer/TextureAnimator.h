@@ -591,6 +591,13 @@ class TextureAnimator {
   // Rate-limits the "publish fired" log in force_to_gpu's GENERIC_PSM32 case to once per 5
   // seconds instead of once per frame (issue 762).
   Timer m_jakx_logo_movie_publish_log_timer;
+  // Set once if force_to_gpu's publish write ever finds m_jakx_logo_movie_output_slot out of
+  // range for m_private_output_slots, so the warning fires once per session instead of once
+  // per frame (issue 762). Verified unreachable today -- the index is resolved as an offset
+  // into the same jakx_animated_texture_slots() list that sizes the vector -- but the write
+  // stayed unguarded through the bug that motivated checking this, so it gets a real check
+  // rather than trusting the invariant silently.
+  bool m_jakx_logo_movie_publish_oob_warned = false;
 
   std::vector<FixedAnimArray> m_fixed_anim_arrays;
 
