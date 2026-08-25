@@ -283,3 +283,182 @@
   0
   (none)
   )
+
+;; definition for method 60 of type prim-strip-menu
+;; og:preserve-this issue 759's own prim-engine landing, slice 4 step 4:
+;; the strip draw dispatcher. This slice's own scoped redecode (43 raw
+;; lines, a single benign "Could not figure out load" on p-client-array's
+;; own length - the same class every sibling method in this file already
+;; resolves the same way) clears every client's own strip through
+;; menu-clear-strip (already landed, menu2-draw.gc) before rebuilding all
+;; of them through prim-strip-menu-method-66 above - this rung's own
+;; dispatch graph names this exact fall-through chain ("base-menu-
+;; method-60 (prim-strip-menu) -> prim-strip-menu-method-66 -> menu-clear-
+;; strip"). *hide-menus* gates the whole rebuild (math.gc's own already-
+;; landed global).
+(defmethod base-menu-method-60 ((this prim-strip-menu))
+  (when (and (-> this p-client-array) (not *hide-menus*))
+    (dotimes (i (l.w (-> this p-client-array)))
+      (menu-clear-strip
+        (the-as int
+          (-> (the-as menu-prim-strip-client
+                (l.wu (+ (the-as int (-> this p-client-array)) 12 (* i 4)))
+                )
+              strip
+              )
+          )
+        )
+      )
+    (prim-strip-menu-method-66 this)
+    )
+  (none)
+  )
+
+;; definition for method 65 of type sprite-menu
+;; og:preserve-this issue 759's own prim-engine landing, slice 4 step 4:
+;; the sprite draw dispatcher. This slice's own scoped redecode (136 raw
+;; lines) carries one ERROR, the same "Could not figure out load" class
+;; every other -array length read in this slice hits, resolved the same
+;; way (a raw pointer read rather than a retype of sprite-menu's own
+;; basic-left sprites field, matching base-menu-method-59 (sprite-menu)'s
+;; own already-landed allocation in menu2-draw.gc).
+;;
+;; Per sprite: positions each hud-sprite from the info's own sprites-info
+;; array entry's own offset-from-index (sprite-info, offset 38) - a
+;; negative index means "absolute", placed directly at this menu's own
+;; pos-x/pos-y plus the sprite-info's own offset; an in-range index means
+;; "relative to another sprite in the same array" through the already-
+;; landed set-as-offset-from! (hud.gc:1283), the exact offset depending on
+;; that OTHER sprite's own offset-dir (2 = the sprite-info's own raw
+;; offset; 0 = the other sprite's own texture width times its own
+;; scale-x, matching set-as-offset-from!'s own x-only positional call; 1 =
+;; the same for height/scale-y, y-only); an out-of-range index instead
+;; formats a warning to *stdebug*, read from the object's own .asm data
+;; (L946: "Warning: offset-index is greater than number of sprites for
+;; menu!"). Every sprite's own color.w (a vector4w component, hud-h.gc)
+;; then takes half this sprite-menu's own alpha, and pos.z takes a large
+;; sort constant (#x99999) whenever this menu's own pos-z is nonzero -
+;; both raw-offset writes, matching this slice's own convention for basic-
+;; left arrays, since sprite-menu.sprites is not retyped for the same
+;; reason prim-strip-menu.p-client-array is not (menu2-draw.gc's own
+;; already-landed allocation pokes it the same way).
+(defmethod sprite-menu-method-65 ((this sprite-menu))
+  (dotimes (i (l.w (-> this sprites)))
+    (let* ((sinfo (the-as sprite-info
+                    (l.wu
+                      (+
+                        (the-as int (-> (the-as sprite-menu-info (-> this info-ptr)) sprites-info))
+                        12
+                        (* i 4)
+                        )
+                      )
+                    )
+                  )
+           (offset-from-index (-> sinfo offset-from-index))
+           (cur-sprite (the-as hud-sprite (+ (the-as int (-> this sprites)) 12 (* i 64))))
+           )
+      (cond
+        ((< offset-from-index 0)
+         (set-hud-piece-position!
+           cur-sprite
+           (the int (+ (-> sinfo offset x) (-> this pos-x)))
+           (the int (+ (-> sinfo offset y) (-> this pos-y)))
+           )
+         )
+        ((< (l.w (-> this sprites)) offset-from-index)
+         (format *stdebug* "Warning: offset-index is greater than number of sprites for menu!")
+         )
+        (else
+          (let* ((ref-sprite (the-as hud-sprite (+ (the-as int (-> this sprites)) 12 (* offset-from-index 64))))
+                 (ref-info (the-as sprite-info
+                             (l.wu
+                               (+
+                                 (the-as int (-> (the-as sprite-menu-info (-> this info-ptr)) sprites-info))
+                                 12
+                                 (* offset-from-index 4)
+                                 )
+                               )
+                             )
+                           )
+                 )
+            (cond
+              ((= (-> ref-info offset-dir) 2)
+               (set-as-offset-from! cur-sprite (-> ref-sprite pos) (the int (-> sinfo offset x)) (the int (-> sinfo offset y)))
+               )
+              ((zero? (-> ref-info offset-dir))
+               (set-as-offset-from!
+                 cur-sprite
+                 (-> ref-sprite pos)
+                 (* (-> ref-sprite tex w) (the int (-> ref-sprite scale-x)))
+                 0
+                 )
+               )
+              ((= (-> ref-info offset-dir) 1)
+               (set-as-offset-from!
+                 cur-sprite
+                 (-> ref-sprite pos)
+                 0
+                 (* (-> ref-sprite tex h) (the int (-> ref-sprite scale-y)))
+                 )
+               )
+              )
+            )
+          )
+        )
+      (set! (-> cur-sprite color w) (the int (* 0.5 (-> this alpha))))
+      (when (!= (-> this pos-z) 0.0)
+        (set! (-> cur-sprite pos z) (the-as int #x99999))
+        )
+      )
+    )
+  (none)
+  )
+
+;; definition for method 60 of type sprite-menu
+;; og:preserve-this issue 759's own prim-engine landing, slice 4 step 4:
+;; the sprite draw dispatcher's own tail. This slice's own scoped redecode
+;; (44 raw lines to the first ERROR, the same p-client-array/sprites-
+;; length "Could not figure out load" class every sibling method in this
+;; file already resolves the same way) repositions every qualifying
+;; sprite through sprite-menu-method-65 above - once per sprite, a genuine
+;; retail redundancy (the whole array's own positions get recomputed on
+;; every qualifying entry rather than once before the loop; transcribed as
+;; observed) - then draws it through hud-sprite-method-9 (hud-h.gc,
+;; already declared dma-buffer level -> none). A sprite only qualifies
+;; when it has a texture (tid, offset 48) and a nonzero scale-x/width
+;; (offset 36, the two fields overlay). Falls through to base-menu's own
+;; no-op method-60 the same way base-menu-method-59 (prim-strip-menu)
+;; already does (this file, above) - bucket792 (vu1-user-h.gc) is the
+;; already-registered bucket text.gc's own "bucket791/792" citation names
+;; for exactly this class of 2D HUD overlay.
+(defmethod base-menu-method-60 ((this sprite-menu))
+  (let* ((s4-0 (-> *display* frames (-> *display* on-screen) global-buf))
+         (orig-base (-> s4-0 base))
+         )
+    (when (-> this sprites)
+      (dotimes (i (l.w (-> this sprites)))
+        (let ((cur-sprite (the-as hud-sprite (+ (the-as int (-> this sprites)) 12 (* i 64)))))
+          (when (and (-> cur-sprite tid) (!= (-> cur-sprite scale-x) 0.0))
+            (sprite-menu-method-65 this)
+            (hud-sprite-method-9 cur-sprite s4-0 (-> this level))
+            )
+          )
+        )
+      )
+    (let ((new-base (-> s4-0 base)))
+      (when (!= orig-base new-base)
+        (set! (-> (the-as dma-packet new-base) dma) (new 'static 'dma-tag :id (dma-tag-id next)))
+        (set! (-> (the-as dma-packet new-base) vif0) (new 'static 'vif-tag))
+        (set! (-> (the-as dma-packet new-base) vif1) (new 'static 'vif-tag))
+        (set! (-> s4-0 base) (&+ new-base 16))
+        (dma-bucket-insert-tag
+          (-> *display* frames (-> *display* on-screen) bucket-group)
+          (bucket-id bucket792)
+          orig-base
+          (the-as (pointer dma-tag) new-base)
+          )
+        )
+      )
+    )
+  (none)
+  )
