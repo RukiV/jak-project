@@ -40,7 +40,22 @@ some special effect code, then sent to the prim renderer to be drawn."
   "Base class for prim-strip."
   ()
   (:methods
-    (generate-dma! (_type_ matrix) none)
+    ;; og:preserve-this the third (int) argument is a real one, issue 759's
+    ;; own prim-engine landing: prim_ir2.asm's own op 53 in
+    ;; prim-engine-execute ("or a2, s5, r0" immediately before the vtable
+    ;; call at op 54) proves the caller passes the current viewport index
+    ;; through register a2, one past this method's own declared arity, and
+    ;; (method 9 prim-strip)'s own raw decode reads that same register back
+    ;; twice (both of its own vu1-bucket-map calls) with no local assignment
+    ;; of its own (the decoder's "may read a register that is not set: a2"
+    ;; warning on that method). vu1-bucket-map's own declared type
+    ;; (foreground-h.gc, "(function int int int merc-mode bucket-id-16)")
+    ;; and every landed call site elsewhere in this tree (generic-vu1.gc's
+    ;; own "vp-idx" naming) confirm the role. Widening this method's own
+    ;; arity to match is the only way to give that argument a real name;
+    ;; prim-strip is this type's only child and prim-engine-execute is the
+    ;; only caller (grep confirmed), so the blast radius is this file alone.
+    (generate-dma! (_type_ matrix int) none)
     )
   )
 

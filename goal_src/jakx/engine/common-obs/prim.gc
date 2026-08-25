@@ -80,24 +80,330 @@
   )
 
 ;; definition for method 9 of type prim-strip
-;; ERROR: function was not converted to expressions. Cannot decompile.
+;; og:preserve-this issue 759's own prim-engine landing. The decoder's own
+;; two blockers (test/decompiler/reference/jakx/engine/common-obs/prim_REF.gc
+;; carries the raw text) are both resolved by understanding rather than by a
+;; config cast:
+;;  - op 282's "Couldn't figure out logior: (logior t2 t0) (uint128 and
+;;    float)" traces to op 271, prim-vertex's own nokick/stq.z overlay; the
+;;    whole vertex-packing tail loop below (from the first .pextlb onward)
+;;    is byte-for-byte the same VU sequence as jak3's own generate-dma!
+;;    (goal_src/jak3/engine/common-obs/prim.gc), operating on the identical
+;;    prim-vertex layout, so it is transcribed from that twin rather than
+;;    hand-simulated from the raw ops.
+;;  - "Function may read a register that is not set: a2" is real, not a
+;;    decoder gap: prim_ir2.asm's own op 53 in prim-engine-execute below
+;;    ("or a2, s5, r0") sets that register to the current viewport index
+;;    immediately before the vtable call that reaches this method, and this
+;;    method's own two vu1-bucket-map calls (raw ops 79 and roughly 334)
+;;    both read it straight back with no assignment of their own. prim-h.gc
+;;    now declares the real third argument (see its own note); this
+;;    defmethod names it vp-idx, matching the argument's own name at every
+;;    other vu1-bucket-map call site in this tree (e.g. generic-vu1.gc).
 ;;
-;; og:preserve-this: generate-dma!'s own decode is otherwise clean (a
-;; long, straightforward VU/GIF vertex-packing loop) but breaks at op
-;; 271: prim-vertex's own offset-8 field is an explicit overlay between
-;; nokick (uint32) and stq.z (float, stq being an inline vector at
-;; offset 0); the decompiler's default guess picks the float side, and
-;; this bit-packing block treats the raw bits as an integer mask
-;; (matching op 255-260's own pextlb/pextlh unpacking of the same-
-;; shaped field two vertices earlier), so the later logior at op 282
-;; fails ("Couldn't figure out logior: (logior t2 t0) (uint128 and
-;; float)"). Casting t0 to uint128 at its op-271 definition site (the
-;; decompiler/config/jakx/ntsc_v1/type_casts.jsonc entry above this
-;; comment) had no effect. The fallout degrades the whole rest of the
-;; function to raw MIPS fallback forms (sll on a plain int, first hit
-;; at op 356) that are not valid GOAL and will not compile. Held un-
-;; landed until the real overlay-resolution defect is found; the raw
-;; decode is preserved in the REF file for reference.
+;; Past those two, the rest of the raw decode has no jak3 analog: jakx's
+;; own prim-strip drops jak3's cached bucket/sink fields (prim-h.gc has
+;; neither) and instead recomputes both, per call, through vu1-bucket-map
+;; (mode mm5 for the sink, mode mercneric2 for the bucket, matching jak3's
+;; own two cached computations one-for-one - foreground-h.gc's own
+;; merc-mode enum confirms mm5=5 and mercneric2=4, the exact literals the
+;; raw ops use). It also adds a texture object cache (tex/tex-name/
+;; last-tex-id, all three already declared in prim-h.gc) absent from jak3
+;; entirely: a cache hit (tex present, its own type is texture, its own
+;; name matches this strip's tex-name, and tex-id matches last-tex-id)
+;; reuses -> tex outright; a miss re-resolves through
+;; lookup-level-texture-by-name (by name) or lookup-texture-by-id-fast (by
+;; id), with the by-name path additionally falling back to a hardcoded
+;; texture id (#x100300) and re-syncing tex-name/last-tex-id from the
+;; fallback so the next frame's cache check hits instead of re-warning.
+;; Every raw op below the cache resolution and sink/bucket computation
+;; (giftag bit-packing, the texture-mask loop, adgif-shader<-texture-
+;; simple!, the shader field sets, and the trailing dma-tag/
+;; dma-bucket-insert-tag close) is the identical computation jak3's own
+;; twin performs, only reached through jakx's own per-call bucket/sink
+;; rather than jak3's setup-dma-and-tex-cached fields, and is written here
+;; the same way that twin (and this file's own already-landed
+;; setup-dma-and-tex above) writes it: through -> accessors and 'new
+;; forms rather than the raw shift/or the decompiler fell back to, since
+;; the "new 'static 'gif-tag-prim" shape is the only source form that
+;; compiles to those exact bits. "Out of DMA buffer for prim rendering~%"
+;; (the else branch) is read directly from prim_ir2.asm's own L39 data,
+;; not assumed from jak3.
+(local-vars
+  (mask-or uint128)
+  (t0-13 uint128)
+  (t0-14 uint128)
+  (t1-4 uint128)
+  (t1-5 uint128)
+  (t2-0 uint128)
+  (t2-1 uint128)
+  (a3-13 uint128)
+  (a3-14 uint128)
+  )
+(defmethod generate-dma! ((this prim-strip) (arg0 matrix) (vp-idx int))
+  "Generate DMA for prim rendering."
+  (rlet ((vf1 :class vf)
+         (vf10 :class vf)
+         (vf11 :class vf)
+         (vf12 :class vf)
+         (vf13 :class vf)
+         (vf14 :class vf)
+         (vf15 :class vf)
+         (vf16 :class vf)
+         (vf2 :class vf)
+         (vf3 :class vf)
+         (vf4 :class vf)
+         (vf5 :class vf)
+         (vf6 :class vf)
+         (vf7 :class vf)
+         (vf8 :class vf)
+         (vf9 :class vf)
+         )
+    (let ((s4-0 (-> *display* frames (-> *display* on-screen) global-buf))
+          (a0-4 (/ (+ (-> this num-verts) 79) (the-as uint 80)))
+          )
+      (cond
+        ((< (the-as uint (+ (* (the-as uint 144) (-> this num-verts)) (* a0-4 128)))
+            (the-as uint (&- (-> s4-0 end) (the-as uint (-> s4-0 base))))
+            )
+         (let ((tex (the-as texture #f)))
+           (cond
+             ((and (-> this tex)
+                   (= (-> (the-as basic (-> this tex)) type) texture)
+                   (= (-> this tex-name) (-> (the-as texture (-> this tex)) name))
+                   (= (-> this tex-id) (-> this last-tex-id))
+                   )
+              (set! tex (the-as texture (-> this tex)))
+              )
+             ((-> this tex-name)
+              (set! (-> this tex)
+                    (lookup-level-texture-by-name
+                      (the-as string (-> this tex-name))
+                      (-> this level)
+                      (the-as (pointer texture-page) #f)
+                      )
+                    )
+              (when (not (-> this tex))
+                (set! (-> this tex) (lookup-texture-by-id-fast (the-as texture-id #x100300)))
+                (set! (-> this tex-name) (-> (the-as texture (-> this tex)) name))
+                (set! (-> this last-tex-id) (the-as uint (-> this tex-id)))
+                )
+              (set! tex (the-as texture (-> this tex)))
+              )
+             (else
+               (set! (-> this last-tex-id) (the-as uint (-> this tex-id)))
+               (set! (-> this tex) (lookup-texture-by-id-fast (-> this tex-id)))
+               (set! tex (the-as texture (-> this tex)))
+               )
+             )
+           (let* ((s3-0 *prim-work*)
+                  (s2-0 (-> s3-0
+                            sinks
+                            (the-as uint
+                              (vu1-bucket-map (-> (-> this level) draw-index) (-> this texture-index) vp-idx (merc-mode mm5))
+                              )
+                            )
+                        )
+                  )
+             (when tex
+               (let ((s5-0 (-> s4-0 base)))
+                 (set! (-> s3-0 in-verts) (the-as int (-> this num-verts)))
+                 (set! (-> s3-0 vert-ptr) (-> this data))
+                 (let ((v1-37 (if (logtest? (-> this flags) (prim-flags alpha-blend-enable))
+                                  1
+                                  0
+                                  )
+                              )
+                       (a0-20 (if (logtest? (-> this flags) (prim-flags texture-enable))
+                                  1
+                                  0
+                                  )
+                              )
+                       (a1-9 (if (logtest? (-> this flags) (prim-flags fog-enable))
+                                 1
+                                 0
+                                 )
+                             )
+                       )
+                   (set! (-> s3-0 giftag fan-prim)
+                         (new 'static 'gif-tag-prim
+                           :pre #x1
+                           :nreg #x3
+                           :prim (new 'static 'gs-prim :prim (gs-prim-type tri-fan) :iip #x1 :abe v1-37 :tme a0-20 :fge a1-9)
+                           )
+                         )
+                   (set! (-> s3-0 giftag str-prim)
+                         (new 'static 'gif-tag-prim
+                           :pre #x1
+                           :nreg #x3
+                           :prim (new 'static 'gs-prim :prim (gs-prim-type tri-strip) :iip #x1 :abe v1-37 :tme a0-20 :fge a1-9)
+                           )
+                         )
+                   )
+                 (let ((v1-44 (-> this level))
+                       (a0-27 (the-as int (l.wu (+ (* (-> this texture-index) 4) (the-as int *level-texture-page-translate*) 12))))
+                       )
+                   (dotimes (a1-14 3)
+                     (let ((a2-9 (-> v1-44 texture-mask a0-27 mask quad))
+                           (a3-10 (-> tex masks data a1-14 mask quad))
+                           )
+                       (.por mask-or a2-9 a3-10)
+                       )
+                     (set! (-> v1-44 texture-mask a0-27 mask quad) mask-or)
+                     )
+                   )
+                 (adgif-shader<-texture-simple! (-> s3-0 shader) tex)
+                 (set! (-> s3-0 shader clamp) (-> this clamp))
+                 (set! (-> s3-0 shader clamp-reg) (gs-reg64 clamp-1))
+                 (set! (-> s3-0 shader alpha) (the-as gs-miptbp (-> this alpha)))
+                 (set! (-> s3-0 shader reg-4) (gs-reg alpha-1))
+                 (.lvf vf1 (&-> arg0 rvec quad))
+                 (.lvf vf2 (&-> arg0 uvec quad))
+                 (.lvf vf3 (&-> arg0 fvec quad))
+                 (.lvf vf4 (&-> arg0 trans quad))
+                 (.lvf vf5 (&-> s3-0 shader quad 0 quad))
+                 (.lvf vf6 (&-> s3-0 shader quad 1 quad))
+                 (.lvf vf7 (&-> s3-0 shader quad 2 quad))
+                 (.lvf vf8 (&-> s3-0 shader quad 3 quad))
+                 (.lvf vf9 (&-> s3-0 shader quad 4 quad))
+                 (.lvf vf10 (&-> s3-0 giftag qword quad))
+                 (.lvf vf11 (&-> this adnops 0 quad))
+                 (.lvf vf12 (&-> this adnops 1 quad))
+                 (while (< 2 (-> s3-0 in-verts))
+                   (set! (-> s3-0 num-verts) (min 80 (-> s3-0 in-verts)))
+                   (let* ((a0-30 (-> s3-0 control-tmpl (logand (-> s2-0 control-count) 1)))
+                          (v1-57 (-> s4-0 base))
+                          (a0-31 (-> a0-30 quad))
+                          (a1-16 (the-as object (&+ v1-57 16)))
+                          (v1-58 (-> s3-0 num-verts))
+                          )
+                     (set! (-> (the-as (pointer uint128) a1-16) -1) a0-31)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 0 stq quad) vf1)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 0 pos quad) vf2)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 1 stq quad) vf3)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 1 pos quad) vf4)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 2 stq quad) vf10)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 2 pos quad) vf11)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 3 stq quad) vf12)
+                     (set! (-> (the-as (inline-array prim-vertex) a1-16) 2 pos w) (the-as float v1-58))
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 3 pos quad) vf5)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 4 stq quad) vf6)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 4 pos quad) vf7)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 5 stq quad) vf8)
+                     (.svf (&-> (the-as (inline-array prim-vertex) a1-16) 5 pos quad) vf9)
+                     (set! (-> (the-as (inline-array prim-vertex) a1-16) 4 col) (the-as rgba (logior v1-58 #x8000)))
+                     (set! (-> s4-0 base) (the-as pointer (-> (the-as (inline-array prim-vertex) a1-16) 6)))
+                     (let ((a0-38 (-> s3-0 vertex-tmpl (mod (-> s2-0 vertex-count) (the-as uint 3)))))
+                       (let ((a1-19 (* 3 v1-58)))
+                         (set! (-> a0-38 dma qwc) a1-19)
+                         (set! (-> a0-38 vif1 num) a1-19)
+                         )
+                       (let ((a2-17 (the-as object (-> s4-0 base)))
+                             (a3-17 (-> a0-38 quad))
+                             (a0-39 (-> s3-0 mask quad))
+                             (a1-23 (-> s3-0 vert-ptr))
+                             )
+                         (nop!)
+                         (set! (-> (the-as (inline-array prim-vertex) a2-17) 0 stq quad) a3-17)
+                         (let ((a2-14 (the-as (object object) (-> (the-as (inline-array prim-vertex) a2-17) 0 pos))))
+                           (set! (-> s4-0 base) (the-as pointer a2-14))
+                           (nop!)
+                           (label cfg-30)
+                           (nop!)
+                           (let ((t0-5 (the-as uint128 (-> a1-23 0 stq w))))
+                             (nop!)
+                             (let ((a3-18 (the-as uint128 (-> a1-23 1 stq w))))
+                               (.pextlb t0-13 0 t0-5)
+                               (.lvf vf15 (&-> a1-23 0 stq quad))
+                               (.pextlh t0-14 0 t0-13)
+                               (.lvf vf16 (&-> a1-23 1 stq quad))
+                               (.pextlb a3-13 0 a3-18)
+                               )
+                             )
+                           (.lvf vf13 (&-> a1-23 0 pos quad))
+                           (.pextlh a3-14 0 a3-13)
+                           (.lvf vf14 (&-> a1-23 1 pos quad))
+                           (vftoi12.xyzw vf15 vf15)
+                           (set! (-> (the-as (inline-array prim-vertex) a2-14) 0 pos quad) t0-14)
+                           (vftoi12.xyzw vf16 vf16)
+                           (set! (-> (the-as (inline-array prim-vertex) a2-14) 2 stq quad) a3-14)
+                           (nop!)
+                           (let ((t0-8 (the-as number (-> a1-23 0 stq z))))
+                             (nop!)
+                             (let ((a3-21 (the-as number (-> a1-23 1 stq z))))
+                               (set! a1-23 (the-as (inline-array prim-vertex) (-> a1-23 2)))
+                               (.mov t2-0 vf15)
+                               (+! v1-58 -2)
+                               (.mov t1-4 vf16)
+                               (.pand t2-1 t2-0 a0-39)
+                               (.svf (&-> (the-as (inline-array prim-vertex) a2-14) 1 stq quad) vf13)
+                               (.pand t1-5 t1-4 a0-39)
+                               (.svf (&-> (the-as (inline-array prim-vertex) a2-14) 2 pos quad) vf14)
+                               (let ((t0-16 (logior (the-as int t2-1) (the-as int t0-8))))
+                                 (nop!)
+                                 (let ((a3-22 (logior (the-as int t1-5) (the-as int a3-21))))
+                                   (nop!)
+                                   (set! (-> (the-as (inline-array prim-vertex) a2-14) 0 stq quad) (the-as uint128 t0-16))
+                                   (set! a2-14 (the-as (object object) (-> (the-as (inline-array prim-vertex) a2-14) 3)))
+                                   (b! (> v1-58 0)
+                                       cfg-30
+                                       :delay (set! (-> (the-as (pointer uint128) a2-14) -3) (the-as uint128 a3-22))
+                                       )
+                                   )
+                                 )
+                               )
+                             )
+                           )
+                         )
+                       )
+                     )
+                   (&+! (-> s4-0 base) (* 48 (-> s3-0 num-verts)))
+                   (set! (-> (the-as (pointer uint128) (-> s4-0 base))) (-> s3-0 call-scissor quad))
+                   (&+! (-> s4-0 base) 16)
+                   (+! (-> s3-0 in-verts) -78)
+                   (set! (-> s3-0 vert-ptr) (the-as (inline-array prim-vertex) (-> s3-0 vert-ptr 78)))
+                   (+! (-> s2-0 vertex-count) 1)
+                   (+! (-> s2-0 control-count) 1)
+                   )
+                 (when (not (paused?))
+                   (when (logtest? (-> this flags) (prim-flags pf3))
+                     (when (not (logtest? (-> this flags) (prim-flags pf4)))
+                       (set! (-> this num-verts) (the-as uint 0))
+                       0
+                       )
+                     (logclear! (-> this flags) (prim-flags pf4))
+                     )
+                   )
+                 (let ((a3-17 (-> s4-0 base)))
+                   (when (!= s5-0 a3-17)
+                     (set! (-> (the-as dma-packet a3-17) dma) (new 'static 'dma-tag :id (dma-tag-id next)))
+                     (set! (-> (the-as dma-packet a3-17) vif0) (new 'static 'vif-tag))
+                     (set! (-> (the-as dma-packet a3-17) vif1) (new 'static 'vif-tag))
+                     (set! (-> s4-0 base) (&+ a3-17 16))
+                     (dma-bucket-insert-tag
+                       (-> *display* frames (-> *display* on-screen) bucket-group)
+                       (the-as bucket-id
+                         (vu1-bucket-map (-> (-> this level) draw-index) (-> this texture-index) vp-idx (merc-mode mercneric2))
+                         )
+                       s5-0
+                       (the-as (pointer dma-tag) a3-17)
+                       )
+                     )
+                   )
+                 )
+               )
+             )
+           )
+         )
+        (else
+          (format *stdcon* "Out of DMA buffer for prim rendering~%")
+          )
+        )
+      )
+    0
+    (none)
+    )
+  )
 
 ;; definition for symbol *foreground-to-level-translate*, type object
 (define *foreground-to-level-translate*
@@ -131,56 +437,65 @@
   )
 
 ;; definition for function prim-engine-execute
-;; og:preserve-this: prim-engine-execute's own decode is fully clean (both
-;; connection-list walks resolve to real generate-dma! calls once cast to
-;; connection/prim-strip, decompiler/config/jakx/ntsc_v1/type_casts.jsonc's
-;; own "prim-engine-execute" entry above), but generate-dma! itself (method
-;; 9 prim-strip) is held un-landed above with no body. Landing this
-;; function would satisfy drawable.gc's own forward extern and flip its
+;; og:preserve-this: issue 759's own prim-engine landing. This function's own
+;; decode was already fully clean (both connection-list walks resolve to
+;; real generate-dma! calls once cast to connection/prim-strip,
+;; decompiler/config/jakx/ntsc_v1/type_casts.jsonc's own
+;; "prim-engine-execute" entry above); the only change from that raw text is
+;; the third argument now threaded onto both generate-dma! calls, matching
+;; that method's own widened arity (see prim-h.gc's own note and (method 9
+;; prim-strip) above). The second walk's own third argument is direct
+;; evidence, not a guess: prim_ir2.asm's own op 53 ("or a2, s5, r0")
+;; explicitly copies this loop's own viewport counter into the argument
+;; register immediately before that call. The first walk's own call site
+;; has no equivalent instruction in the raw decode (its own a2 going in is
+;; whatever generate-dma!'s prior return left there, the decoder's "may
+;; read a register not set" class) - both calls sit inside the same
+;; per-viewport iteration, so s5-0 is the only value in scope with a
+;; documented meaning for that argument, and it is used here for both
+;; rather than inventing an unrelated literal for the first. Landing this
+;; function satisfies drawable.gc's own forward extern and flips its
 ;; "(if (nonzero? prim-engine-execute) (prim-engine-execute))" runtime-link
-;; guard live (AGENTS.md rule 5: landing a function activates its guarded
-;; callers), jumping to an unfilled vtable slot the first time either walk
-;; reaches a live connection. Held un-landed alongside generate-dma! so
-;; that guard stays dark exactly as it is today; the raw decode is
-;; preserved in the REF file for reference.
-;;   (defun prim-engine-execute ()
-;;     (when (logtest? (-> *display* vu1-enable-user) 4096)
-;;       (let ((gp-0 *viewport-array*))
-;;         (dotimes (s5-0 (the-as int (-> gp-0 num-viewports)))
-;;           (view-push-context s5-0)
-;;           (let* ((v1-4 gp-0)
-;;                  (a0-1 s5-0)
-;;                  (a1-3 (-> v1-4 data (the-as uint a0-1)))
-;;                  )
-;;             (set! (-> v1-4 current-viewport-index) (the-as uint a0-1))
-;;             (let* ((s4-0 *prim-client-engine*)
-;;                    (v1-6 (-> s4-0 alive-list next0))
-;;                    (s3-0 (-> v1-6 next0))
-;;                    )
-;;               (while (!= v1-6 (-> s4-0 alive-list-end))
-;;                 (generate-dma! (-> (the-as connection v1-6) param2) (the-as matrix a1-3))
-;;                 (set! v1-6 s3-0)
-;;                 (set! s3-0 (-> s3-0 next0))
-;;                 )
-;;               )
-;;             )
-;;           (let* ((s4-1 *prim-engine*)
-;;                  (s3-1 (-> (view-get-active-math-camera) camera-temp))
-;;                  (v1-12 (-> s4-1 alive-list next0))
-;;                  (s2-0 (-> v1-12 next0))
-;;                  )
-;;             (while (!= v1-12 (-> s4-1 alive-list-end))
-;;               (-> (the-as connection v1-12) param1)
-;;               (generate-dma! (-> (the-as connection v1-12) param2) s3-1)
-;;               (set! v1-12 s2-0)
-;;               (set! s2-0 (-> s2-0 next0))
-;;               )
-;;             )
-;;           (view-pop-context)
-;;           )
-;;         )
-;;       (remove-all *prim-client-engine*)
-;;       )
-;;     0
-;;     (none)
-;;     )
+;; guard live (AGENTS.md rule 5), now that generate-dma! above has a real
+;; vtable body for it to reach.
+(defun prim-engine-execute ()
+  (when (logtest? (-> *display* vu1-enable-user) 4096)
+    (let ((gp-0 *viewport-array*))
+      (dotimes (s5-0 (the-as int (-> gp-0 num-viewports)))
+        (view-push-context s5-0)
+        (let* ((v1-4 gp-0)
+               (a0-1 s5-0)
+               (a1-3 (-> v1-4 data (the-as uint a0-1)))
+               )
+          (set! (-> v1-4 current-viewport-index) (the-as uint a0-1))
+          (let* ((s4-0 *prim-client-engine*)
+                 (v1-6 (-> s4-0 alive-list next0))
+                 (s3-0 (-> v1-6 next0))
+                 )
+            (while (!= v1-6 (-> s4-0 alive-list-end))
+              (generate-dma! (the-as prim-strip (-> (the-as connection v1-6) param2)) (the-as matrix a1-3) s5-0)
+              (set! v1-6 s3-0)
+              (set! s3-0 (-> s3-0 next0))
+              )
+            )
+          )
+        (let* ((s4-1 *prim-engine*)
+               (s3-1 (-> (view-get-active-math-camera) camera-temp))
+               (v1-12 (-> s4-1 alive-list next0))
+               (s2-0 (-> v1-12 next0))
+               )
+          (while (!= v1-12 (-> s4-1 alive-list-end))
+            (-> (the-as connection v1-12) param1)
+            (generate-dma! (the-as prim-strip (-> (the-as connection v1-12) param2)) s3-1 s5-0)
+            (set! v1-12 s2-0)
+            (set! s2-0 (-> s2-0 next0))
+            )
+          )
+        (view-pop-context)
+        )
+      )
+    (remove-all *prim-client-engine*)
+    )
+  0
+  (none)
+  )
