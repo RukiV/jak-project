@@ -1379,14 +1379,28 @@ void Merc2::do_draws(const Draw* draw_array,
     }
 
     glUniform1i(uniforms.decal, draw.mode.get_decal());
-    // prelit_enable is tri-state (issue 762): 0 lit, 1 jak3's white prelit, 2 the new
-    // raw-unlit route. PRELIT and PRELIT_RAW are never both set on the same draw (they
-    // come from disjoint bitflags on the wire), so this order does not matter.
+    // prelit_enable is now four-state (issue 762): 0 lit, 1 jak3's white prelit, 2 the
+    // raw-unlit route, 3 the raw-unlit route's movie-draw override. PRELIT and PRELIT_RAW
+    // are never both set on the same draw (they come from disjoint bitflags on the wire),
+    // so this order does not matter.
+    //
+    // State 3 exists because the login-logo band's movie draw (the X's interior, texture
+    // sampled from the anim-slot array via TextureAnimator) bakes solid black into its
+    // vertex rgba, and raw-unlit's straight pass-through of that baked color renders the
+    // interior black instead of the retail image. Retail's own GS dump (scratchpad
+    // gsdump\probe.txt) shows the PS2 submitting the chain constant (154,154,154,128) flat
+    // on 100% of this draw's vertices instead of a baked color, so state 3 substitutes that
+    // measured constant. The anim-slot movie draw is the only PRELIT_RAW draw with a
+    // negative draw.texture (the anim-slot branch a few lines up binds
+    // m_anim_slot_array->at(-(draw.texture + 1)) for exactly this case), so that field,
+    // already read at this point in do_draws, is what distinguishes it from the band's other
+    // raw-unlit draws (JAK wordmark, COMBAT RACING subtitle, the X's outline), whose baked
+    // vertex colors are correct and must keep going through state 2.
     int prelit_enable = 0;
     if (draw.flags & PRELIT) {
       prelit_enable = 1;
     } else if (draw.flags & PRELIT_RAW) {
-      prelit_enable = 2;
+      prelit_enable = draw.texture < 0 ? 3 : 2;
     }
     glUniform1i(uniforms.prelit, prelit_enable);
     glUniform1i(uniforms.gfx_hack_no_tex, (draw.flags & NO_TEXTURE) != 0);

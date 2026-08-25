@@ -111,6 +111,16 @@ void main() {
     // also 64 and 128 elsewhere in the band), so jak3's white override does not apply here.
     // Pass the model's own baked vertex color straight through with no light multiply.
     vtx_color = vec4(rgba.rgb, rgba.a);
+  } else if (prelit_enable == 3) {
+    // raw-unlit route, movie-draw override (issue 762): the X's interior is drawn from the
+    // same raw-unlit route as the rest of the band, but its fr3 bakes solid black into the
+    // vertex rgba for this one draw (it is the movie-sampling draw, textured from the
+    // TextureAnimator's anim-slot output rather than a static texture). Raw-unlit's normal
+    // pass-through reproduces that baked black, which is wrong: retail's own GS dump shows
+    // the PS2 submitting the chain constant (154,154,154,128) flat on every vertex of this
+    // draw instead of a baked color. Substitute the measured constant, keeping the baked
+    // alpha (the current black render is opaque, so the baked alpha channel is sane).
+    vtx_color = vec4(154.0 / 255.0, 154.0 / 255.0, 154.0 / 255.0, rgba.a);
   } else {
     vtx_color = rgba * light_color;
   }
