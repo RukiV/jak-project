@@ -19,6 +19,14 @@
 ;; blend-shape-valid fallback path while the symbol is unbound.
 (define-extern *use-fp-blerc* symbol)
 
+;; forward declaration (issue 762): pc-merc-draw-request below checks the owning
+;; process's type against jakx-logo-menu, but engine builds ahead of ui in dgo order
+;; (foreground.gc has no path to menu2-h.gc's real deftype), matching traffic-h.gc's
+;; own (declare-type vehicle process-drawable) idiom for the same "engine ahead of a
+;; later subsystem" shape. process-drawable, not jakx-logo-menu's actual base-menu
+;; parent, since process-drawable is the type already guaranteed known this early.
+(declare-type jakx-logo-menu process-drawable)
+
 ;; og:preserve-this the machine output of foreground-shadow (landed verbatim below) uses
 ;; the decompiler's degraded load/store forms. types-h.gc defines only s.w! and l.wu;
 ;; these fill in the rest until the typed rewrite in the shadow leg.
@@ -765,13 +773,24 @@
   (pc-blerc 2)
   (disable-envmap 3)
   (no-textures 4)
+  ;; position 5 (value 32) is jak3's own prelit-valid (5b3f1a738), white-prelit semantics;
+  ;; jakx never sets it. prelit-raw-valid is position 6 (value 64): same prelit-mask field,
+  ;; reinterpreted by Merc2.cpp as raw-unlit rather than white (issue 762, retail's GS dump
+  ;; of the login-logo band shows flat rgba that is not white -- 154/64/128 gray).
+  (prelit-raw-valid 6)
   )
 
+;; the shape below must match Merc2.cpp's PcMercFlags exactly (32 bytes: enable-mask 8,
+;; ignore-alpha-mask 8, effect-count 1, bit-flags 1, 6 bytes of implicit padding,
+;; prelit-mask 8), the same struct jak3's foreground.gc uses (5b3f1a738); jakx populates
+;; prelit-mask under the prelit-raw-valid bit above instead of jak3's prelit-valid (issue
+;; 762).
 (deftype pc-merc-flags (structure)
   ((enable-mask uint64)
    (ignore-alpha-mask uint64)
    (effect-count uint8)
    (bit-flags pc-merc-bits)
+   (prelit-mask uint64 :offset 24)
    )
   )
 
@@ -891,6 +910,24 @@
               )
             (set! (-> flags enable-mask) enable-mask)
             (set! (-> flags ignore-alpha-mask) ignore-alpha-mask)
+            ;; prelit-raw (issue 762): the login logo and the combat-racing subtitle
+            ;; widget both spawn as jakx-logo-menu (lobby-menu-manager.gc), and retail's
+            ;; GS dump shows flat, non-white prelit vertex rgba across the whole band
+            ;; (128/64/154 gray) for both, unlike jak3's white-prelit menu membrane.
+            ;; Every effect on the draw-control gets the raw bit set here rather than
+            ;; jak3's per-effect no-fade-out selection (5b3f1a738), since the whole band
+            ;; is flat on retail, not just the no-fade-out effects. The lobby armature
+            ;; and garage stay lit: they spawn as other process types and never take
+            ;; this branch.
+            (when (= (-> dc process type) jakx-logo-menu)
+              (logior! (-> flags bit-flags) (pc-merc-bits prelit-raw-valid))
+              (let ((prelit-mask 0))
+                (dotimes (i (-> merc-ctrl header effect-count))
+                  (logior! prelit-mask (ash 1 i))
+                  )
+                (set! (-> flags prelit-mask) prelit-mask)
+                )
+              )
             )
           (&+! dma-buf (* 16 2))
           (+! qwc-total 2)
