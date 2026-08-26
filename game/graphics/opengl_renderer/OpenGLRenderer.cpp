@@ -703,8 +703,7 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     // bitbltbuf packet from the DMA stream, jak3-578 parity. 787 is the HUD/font
     // draw bucket (hud sprites plus print-game-text strings); ProgressRenderer's
     // kScreenFbp=408 assert does not match jakx's fbp 406 (display.gc:177-179), so
-    // this is a plain DirectRenderer, matching jakx's own text buckets 793-795
-    // above.
+    // this is a plain DirectRenderer, the same shape as 791/792 below.
     init_bucket_renderer<TextureUploadHandler>("tex-hud", BucketCategory::TEX, BucketId::TEX_HUD,
                                                m_texture_animator, true);
     init_bucket_renderer<DirectRenderer>("hud-draw", BucketCategory::OTHER, BucketId::HUD_DRAW,
@@ -728,6 +727,15 @@ void OpenGLRenderer::init_bucket_renderers_jakx() {
     // the fix: same plain-GIF-chain content, no PC-port upload codes involved.
     init_bucket_renderer<DirectRenderer>("bucket791", BucketCategory::OTHER, 791, 0x8000);
     init_bucket_renderer<DirectRenderer>("bucket792", BucketCategory::OTHER, 792, 0x8000);
+
+    // 789 and 795 (issue 790): letterbox's quad targets bucket789 (main.gc) and
+    // the screen-filter statics plus the debug menu both target bucket795
+    // (main.gc's *screen-filter-array*, debug/menu.gc). Neither had a renderer,
+    // so their DMA fell to the SkipRenderer default and every fade drawn there
+    // was swallowed; an earlier comment here claimed 793-795 were registered,
+    // which was never true. Plain GIF quads, the 791/792 shape.
+    init_bucket_renderer<DirectRenderer>("bucket789", BucketCategory::OTHER, 789, 0x8000);
+    init_bucket_renderer<DirectRenderer>("bucket795", BucketCategory::OTHER, 795, 0x8000);
 
     // Generic (#57 rung 4): the mercneric (mode 2 -> Generic2 NORMAL) and mercneric2
     // (mode 4 -> Generic2 PRIM) destinations, read mechanically out of the landed
