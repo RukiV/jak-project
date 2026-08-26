@@ -664,6 +664,28 @@
 ;; (suspend)) waits actually stop waiting once the movie ends.
 (defstate die (fmv-player)
   :code (behavior ()
+    ;; og:preserve-this (issue 807's telemetry): the exact retail site that
+    ;; arms black across this transition on the cold-boot road is unproven
+    ;; -- the mechanism inventory names fmv-fade-out and the render-off
+    ;; window around the title-control scene as the retail-faithful
+    ;; candidates, and either would replace this arm outright once its own
+    ;; reachability here is confirmed. Until then this is an authored,
+    ;; bounded cover: telemetry showed bg-a and bg-a-force sitting at 0.0
+    ;; for the whole movie-to-menu span (no arm fires today), so the birth
+    ;; cascade after "Displaying level menu2" -- actors and particles
+    ;; birthing over the following second or two -- plays out uncovered.
+    ;; (seconds 2) bounds the measured sub-second load plus that cascade
+    ;; with margin and self-heals if the already-landed reveal gate
+    ;; (title-obs.gc:488-499) is ever skipped, since blackout-time is a
+    ;; frame-counter deadline, not a latch. Placed at the head of die's
+    ;; :code so it fires uniformly for the natural-duration exit, the
+    ;; pad-skip exit (both routed through playing's single (go die) above)
+    ;; and the 'go-die event, all three of which land here. Gated off
+    ;; FMV-MODE-TEXTURE: the login-logo texture-mode player (issue 762) has
+    ;; no birth cascade to cover and must never black the screen.
+    (when (!= (-> self fmv-mode) FMV-MODE-TEXTURE)
+      (set-blackout-frames (seconds 2))
+      )
     (set! *display-camera-info* *fmv-saved-display-camera-info*)
     (set! *fmv-player* (the-as fmv-player #f))
     (jukebox-onoff *fmv-saved-jukebox-onoff*)
