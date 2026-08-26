@@ -19,14 +19,6 @@
 ;; blend-shape-valid fallback path while the symbol is unbound.
 (define-extern *use-fp-blerc* symbol)
 
-;; forward declaration (issue 762): pc-merc-draw-request below checks the owning
-;; process's type against jakx-logo-menu, but engine builds ahead of ui in dgo order
-;; (foreground.gc has no path to menu2-h.gc's real deftype), matching traffic-h.gc's
-;; own (declare-type vehicle process-drawable) idiom for the same "engine ahead of a
-;; later subsystem" shape. process-drawable, not jakx-logo-menu's actual base-menu
-;; parent, since process-drawable is the type already guaranteed known this early.
-(declare-type jakx-logo-menu process-drawable)
-
 ;; og:preserve-this the machine output of foreground-shadow (landed verbatim below) uses
 ;; the decompiler's degraded load/store forms. types-h.gc defines only s.w! and l.wu;
 ;; these fill in the rest until the typed rewrite in the shadow leg.
@@ -910,24 +902,14 @@
               )
             (set! (-> flags enable-mask) enable-mask)
             (set! (-> flags ignore-alpha-mask) ignore-alpha-mask)
-            ;; prelit-raw (issue 762): the login logo and the combat-racing subtitle
-            ;; widget both spawn as jakx-logo-menu (lobby-menu-manager.gc), and retail's
-            ;; GS dump shows flat, non-white prelit vertex rgba across the whole band
-            ;; (128/64/154 gray) for both, unlike jak3's white-prelit menu membrane.
-            ;; Every effect on the draw-control gets the raw bit set here rather than
-            ;; jak3's per-effect no-fade-out selection (5b3f1a738), since the whole band
-            ;; is flat on retail, not just the no-fade-out effects. The lobby armature
-            ;; and garage stay lit: they spawn as other process types and never take
-            ;; this branch.
-            (when (= (-> dc process type) jakx-logo-menu)
-              (logior! (-> flags bit-flags) (pc-merc-bits prelit-raw-valid))
-              (let ((prelit-mask 0))
-                (dotimes (i (-> merc-ctrl header effect-count))
-                  (logior! prelit-mask (ash 1 i))
-                  )
-                (set! (-> flags prelit-mask) prelit-mask)
-                )
-              )
+            ;; The issue 762 prelit-raw blanket for jakx-logo-menu is RETIRED here
+            ;; (issue 794): its premise, that retail bakes a flat gray band into the
+            ;; logo's vertex rgba, was refuted by the raw-object walk (all 5,631
+            ;; vertices neutral 128) and by the title-light trace, which showed the
+            ;; measured GS values 64/128/154 are the OUTPUT of the title-light rig
+            ;; (0.5 ambient plus a white directional at 45 degrees), not baked color.
+            ;; With the rig's per-frame reset landed, the lit path reproduces retail
+            ;; exactly, so the logo takes the same road as every other menu widget.
             )
           (&+! dma-buf (* 16 2))
           (+! qwc-total 2)
