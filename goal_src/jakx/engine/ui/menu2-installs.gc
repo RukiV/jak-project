@@ -1220,14 +1220,36 @@
 ;; :enter are transcribed verbatim from the donor (gp-4): the 'dying?/'die
 ;; short-circuit wrapper (returns #t/#f directly rather than forwarding
 ;; through base-menu-event-handler for those two messages, falling through to
-;; it for everything else) and the "tell every child to die" :enter. :code is
-;; NOT transcribed: the donor's own gp-4 sets it to the bare label `L718`, a
-;; third decompiler control-flow miss in this same family (alongside L749
-;; above and the now-resolved L763), with no corresponding defun anywhere in
-;; menu2.gc and nothing in this rung's blueprint (which only covers the four
-;; top-level functions plus L763) that resolves it. Held at sleep-code, the
-;; same honest-hold precedent base-menu-state-51 used for L763 before this
-;; rung; resolving L718 for real is a follow-up alongside L749.
+;; it for everything else) and the "tell every child to die" :enter. :code
+;; WAS held at sleep-code: the donor's own gp-4 set it to the bare label
+;; `L718`, a third decompiler control-flow miss in this same family (alongside
+;; L749 below and the then-unresolved L763), with no corresponding defun
+;; anywhere in menu2.gc and nothing in that rung's blueprint (which only
+;; covered the four top-level functions plus L763) that resolved it.
+;;
+;; L718 is resolved (issue 802): a scoped decode of menu2, anon-function 95,
+;; tonight, recovers the body cleanly enough to transcribe below. Its own
+;; warnings - "ERROR: failed type prop at 44: Could not figure out load:
+;; (set! a1 (l.wu (+ a1 32)))" and "WARN: Return type mismatch none vs
+;; object" - both trace to the same spot: the art-element -> frames ->
+;; num-frames dereference feeding the frame-count-minus-one seek target, the
+;; same shape base-menu-state-51's own :code already carries for "enter"
+;; (ja-no-eval / until ja-done?, transcribed the same way here for "exit").
+;; The type-prop failure cascades through every register downstream,
+;; including the trailing suspend loop the block above always falls into
+;; afterward (every path through it - dead arm, sleep-code, or animation -
+;; converges here): a raw self+16 -> +0 -> +32 -> +68 -> +0 pointer walk
+;; ending in a compare to 'exit, which the decode types `none` end to end.
+;; gkernel-h.gc's own process/process-tree fields in that byte range are
+;; self-marked "guessed by decompiler" and disagree with this same decode's
+;; own cleanly-typed resolution of a nearby offset earlier in this function
+;; (next-state, not the header's prev-state, at self+76), so this rung does
+;; not lean on them for a name it cannot verify - the walk below is left as
+;; raw (the-as (pointer int32) ...) offset casts, not invented field names.
+;; The structurally dead middle arm (reached only if exit-anim were -1,
+;; which the enclosing check above already excludes) is transcribed
+;; faithfully rather than dropped. L749 (base-menu-method-53's own :event,
+;; above) is still held; resolving it is a separate follow-up.
 (method-set!
   base-menu
   55
@@ -1237,7 +1259,56 @@
       'global
       'state
       'exit
-      sleep-code
+      (lambda :behavior base-menu
+        ()
+        (when (-> self info-ptr trans-info)
+          (when (!= (-> self info-ptr trans-info exit-anim) -1)
+            (let ((v1-7 (-> self info-ptr trans-info exit-anim))
+                  (f30-0 (-> self info-ptr trans-info anim-speed))
+                  )
+              (cond
+                ((= v1-7 -1)
+                 ;; unreachable: the enclosing (!= ... -1) check above
+                 ;; already diverted the -1 case; transcribed faithfully
+                 ;; per the decode, not dropped
+                 (if (-> self info-ptr 3d-menu-type)
+                     (go-virtual base-menu-state-56)
+                     (sleep-code)
+                     )
+                 )
+                (else
+                  (ja-no-eval
+                    :group! (the-as art-joint-anim (-> self draw art-group data v1-7))
+                    :num! (seek! max f30-0)
+                    :frame-num 0.0
+                    )
+                  (until (ja-done? 0)
+                    (suspend)
+                    (ja :num! (seek! max f30-0))
+                    )
+                  (go-virtual base-menu-state-56)
+                  )
+                )
+              )
+            )
+          )
+        ;; raw self+16 -> +0 -> +32 -> +68 -> +0 chain (see header): the
+        ;; decode types every local here `none`, so this is offset casts
+        ;; rather than named fields
+        (while (let* ((a0-11 (-> (the-as (pointer int32) self) 4))
+                      (a1-13 (if (nonzero? a0-11)
+                                 (-> (the-as (pointer int32) a0-11) 8)
+                                 0
+                                 )
+                             )
+                      (a0-14 (-> (the-as (pointer int32) a1-13) 17))
+                      )
+                 (= (-> (the-as (pointer symbol) a0-14) 0) 'exit)
+                 )
+          (suspend)
+          )
+        (go-virtual base-menu-state-56)
+        )
       (the-as (function object) #f)
       default-base-menu-post
       (lambda :behavior base-menu
