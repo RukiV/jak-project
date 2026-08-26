@@ -2887,6 +2887,15 @@
   (display-frame-finish arg0)
   (display-sync arg0)
   ;; ---- new frame begins here (display-sync called display-frame-start) ----
+  ;; og:preserve-this (issue 794): retail clears the title-light computed flag
+  ;; every frame at exactly this position (main's own ir2 stores #f into
+  ;; *time-of-day-context* title-updated straight after display-sync, and
+  ;; jak3's landed display-loop-main does the same). The static context
+  ;; zero-fills the field at compile time and 0 is truthy, so without this
+  ;; per-frame reset calc-vu1-lights' title-light arm never computes dir0's
+  ;; direction and every menu-road merc renders ambient-only flat gray, the
+  ;; missing logo bevel.
+  (set! (-> *time-of-day-context* title-updated) #f)
   ;; the particle frame step (retail placement); its bring-up lever retired at
   ;; #53 slice 4 once processing and drawing verified together
   (when (not (paused?))
