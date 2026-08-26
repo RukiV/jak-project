@@ -4098,10 +4098,23 @@
         ;; long' logic never trips. Original: (set! (-> arg0 frames s4-0 run-time) s3-0)
         (set! (-> arg0 frames s4-0 run-time) 0)
         (+ f28-1 f26-0) ;; og:preserve-this keep vars live; original vsync block below
-        ;; og:preserve-this PC port, matching jak3: the whole PS2 vsync cond collapses
-        ;; to pc-maybe-vsync (always sync, dog-ratio 1.0).
+        ;; og:preserve-this PC port, matching jak3: the PS2 vsync cond collapses to
+        ;; syncv + frame-time-ratio.  *ticks-per-frame* (9765) is one vblank period
+        ;; (585937.5 Hz / 60 = ~9765), so calc-ratio returns the actual frame-time
+        ;; ratio: at 60 fps ≈ 1.0, at 30 fps ≈ 2.0.  Passing that directly as
+        ;; dog-ratio keeps base-clock advancing at real-time rate regardless of
+        ;; achieved fps: 60 * 5 * 1.0 = 300 ticks/sec, 30 * 5 * 2.0 = 300 ticks/sec.
+        ;; Jak3 achieves the same result via dynamic *ticks-per-frame* (585900 / target-fps)
+        ;; which normalizes calc-ratio to ~1.0 at any target; Jak X lacks that setting
+        ;; so we use the raw ratio, clamped to [1.0, 4.0] to bound the clock speed.
+        ;; The previous pc-maybe-vsync returned a constant 1.0, which froze the clock
+        ;; at 0.5x real time when the loop ran at 30 fps — the root cause of #753
+        ;; (boot movies at half speed).
         (if (not (-> (the-as (pointer uint32) *setting-control*) 191))
-            (set! f30-1 (pc-maybe-vsync))
+            (begin
+              (syncv 0)  ;; block until render thread presents this frame
+              (set! f30-1 (fmax 1.0 (fmin 4.0 (calc-ratio (the-as int s2-0) (the-as int s5-0)))))
+              )
             )
         )
       (let ((s4-1 (-> arg0 on-screen)))
